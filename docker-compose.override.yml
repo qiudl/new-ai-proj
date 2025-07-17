@@ -1,0 +1,57 @@
+# docker-compose.override.yml
+# This file extends docker-compose.yml for local development
+# It automatically loads when running 'docker-compose up'
+
+# version: '3.8'  # Version is now optional in newer Docker Compose
+
+services:
+  # Development-specific database configuration
+  db:
+    ports:
+      - "5432:5432"  # Expose database port for local tools
+    environment:
+      - POSTGRES_LOG_STATEMENT=all  # Enable query logging in development
+    volumes:
+      - ./docker/postgres/init-dev.sql:/docker-entrypoint-initdb.d/99-dev-data.sql
+
+  # Development-specific backend configuration
+  backend:
+    volumes:
+      - ./backend:/app
+      - go_mod_cache:/go/pkg/mod
+    environment:
+      - GO111MODULE=on
+      - CGO_ENABLED=0
+      - GOOS=linux
+    command: >
+      sh -c "
+        go mod download &&
+        go install github.com/cosmtrek/air@latest &&
+        air
+      "
+    # Hot reload support
+
+  # Development-specific frontend configuration
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api
+      - FAST_REFRESH=true
+    stdin_open: true
+    tty: true
+
+  # Development tools container
+  dev-tools:
+    image: node:22.15.0-alpine
+    container_name: dev_tools
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace
+    command: tail -f /dev/null
+    profiles:
+      - tools
+
+volumes:
+  go_mod_cache:

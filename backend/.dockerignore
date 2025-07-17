@@ -1,0 +1,57 @@
+# Docker ignore file for Go backend
+
+# Build outputs
+build/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+main
+
+# Development files
+.air.toml
+tmp/
+*.log
+coverage.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Scripts (except build scripts)
+scripts/dev-*
+scripts/test-*
+
+# Testing
+testdata/
+*_test.go
+
+# Temporary files
+*.tmp
+*.temp

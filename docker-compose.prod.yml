@@ -1,0 +1,120 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-project-postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-main_db}
+      POSTGRES_USER: ${DB_USER:-user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-main_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-project-network
+
+  # Go后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: ai-project-backend
+    environment:
+      - APP_ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_NAME=${DB_NAME:-main_db}
+      - DB_SSL_MODE=disable
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - SERVER_HOST=0.0.0.0
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ai-project-network
+    volumes:
+      - ./logs:/app/logs
+
+  # React前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      target: production
+    container_name: ai-project-frontend
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://152.136.104.251:8080
+      - REACT_APP_API_BASE_URL=/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - ai-project-network
+
+  # Nginx反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: ai-project-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - ai-project-network
+
+  # Redis缓存（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: ai-project-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - ai-project-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ai-project-network:
+    driver: bridge
