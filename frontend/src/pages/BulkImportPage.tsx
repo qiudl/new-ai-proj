@@ -2,16 +2,35 @@ import React, { useState } from 'react';
 import { Button, Input, Card, message, Steps, Alert } from 'antd';
 import { ImportOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
+import ProjectSelector from '../components/ProjectSelector';
+import { Project } from '../types/project';
 
 const { TextArea } = Input;
 
 const BulkImportPage: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
+    urlProjectId ? parseInt(urlProjectId) : undefined
+  );
+  const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentStep, setCurrentStep] = useState(0);
   const [jsonData, setJsonData] = useState('');
   const [parsedTasks, setParsedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const handleProjectChange = (projectId: number, project?: Project) => {
+    setSelectedProjectId(projectId);
+    setSelectedProject(project);
+    // Reset form when project changes
+    setCurrentStep(0);
+    setJsonData('');
+    setParsedTasks([]);
+    // Update URL if needed
+    if (urlProjectId) {
+      navigate(`/projects/${projectId}/bulk-import`);
+    }
+  };
 
   const steps = [
     {
@@ -49,37 +68,52 @@ const BulkImportPage: React.FC = () => {
   };
 
   const handleImport = async () => {
+    if (!selectedProjectId) {
+      message.error('请先选择一个项目');
+      return;
+    }
+
     setLoading(true);
     
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch(`/api/projects/${projectId}/tasks/bulk-import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(parsedTasks),
-      });
+      // Import taskService
+      const { TaskService } = await import('../services/taskService');
+      
+      console.log('Importing to project:', selectedProjectId, 'tasks:', parsedTasks.length);
+      
+      // Format data according to BulkImportRequest
+      const bulkImportRequest = {
+        tasks: parsedTasks.map(task => ({
+          title: task.title,
+          description: task.description || '',
+          status: task.status || 'todo',
+          assignee_id: task.assignee_id || undefined,
+          due_date: task.due_date ? task.due_date + 'T00:00:00Z' : undefined,
+          custom_fields: task.custom_fields || {}
+        }))
+      };
 
-      if (response.ok) {
-        setCurrentStep(2);
-        message.success('任务导入成功');
-      } else {
-        message.error('导入失败，请重试');
-      }
-    } catch (error) {
-      // For development, simulate successful import
-      console.log('Importing tasks:', parsedTasks);
+      const result = await TaskService.bulkImportTasks(
+        selectedProjectId,
+        bulkImportRequest
+      );
+      
       setCurrentStep(2);
-      message.success('任务导入成功（开发模式）');
+      message.success(`成功导入 ${result.success_count} 个任务`);
+    } catch (error) {
+      console.error('Import error:', error);
+      message.error(error instanceof Error ? error.message : '导入失败，请重试');
     } finally {
       setLoading(false);
     }
   };
 
   const handleBackToTasks = () => {
-    navigate(`/projects/${projectId}/tasks`);
+    if (selectedProjectId) {
+      navigate(`/projects/${selectedProjectId}/tasks`);
+    } else {
+      navigate('/task-list');
+    }
   };
 
   const sampleJson = `[
@@ -91,7 +125,8 @@ const BulkImportPage: React.FC = () => {
     "due_date": "2025-07-20",
     "custom_fields": {
       "priority": "high",
-      "estimated_hours": 8
+      "estimated_hours": 8,
+      "tags": ["环境", "Docker"]
     }
   },
   {
@@ -102,7 +137,41 @@ const BulkImportPage: React.FC = () => {
     "due_date": "2025-07-21",
     "custom_fields": {
       "priority": "high",
-      "estimated_hours": 16
+      "estimated_hours": 16,
+      "tags": ["数据库", "设计"]
+    }
+  },
+  {
+    "title": "API接口开发",
+    "description": "开发后端REST API接口",
+    "status": "todo",
+    "due_date": "2025-07-25",
+    "custom_fields": {
+      "priority": "medium",
+      "estimated_hours": 24,
+      "tags": ["API", "后端"]
+    }
+  },
+  {
+    "title": "前端页面开发",
+    "description": "开发React前端界面",
+    "status": "todo",
+    "due_date": "2025-07-30",
+    "custom_fields": {
+      "priority": "medium",
+      "estimated_hours": 32,
+      "tags": ["前端", "React"]
+    }
+  },
+  {
+    "title": "测试和部署",
+    "description": "进行系统测试和生产环境部署",
+    "status": "todo",
+    "due_date": "2025-08-05",
+    "custom_fields": {
+      "priority": "high",
+      "estimated_hours": 12,
+      "tags": ["测试", "部署"]
     }
   }
 ]`;
@@ -111,12 +180,43 @@ const BulkImportPage: React.FC = () => {
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">批量导入任务</h1>
-        <p className="page-description">项目ID: {projectId}</p>
+        <p className="page-description">选择项目并批量导入任务</p>
       </div>
+
+      <Card style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '0 0 auto' }}>
+            <label style={{ marginRight: '8px', fontWeight: 500 }}>选择项目:</label>
+            <ProjectSelector
+              value={selectedProjectId}
+              onChange={handleProjectChange}
+              style={{ width: 300 }}
+              placeholder="请先选择一个项目"
+            />
+          </div>
+          {selectedProject && (
+            <div style={{ flex: '1 1 auto', color: '#666' }}>
+              当前项目: <span style={{ fontWeight: 500 }}>{selectedProject.name}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {!selectedProjectId && (
+        <Card>
+          <Alert
+            message="请先选择项目"
+            description="批量导入功能需要选择一个项目，请在上方选择器中选择要导入任务的项目。"
+            type="info"
+            showIcon
+            style={{ textAlign: 'center' }}
+          />
+        </Card>
+      )}
 
       <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
-      {currentStep === 0 && (
+      {selectedProjectId && currentStep === 0 && (
         <div className="import-container">
           <Card title="粘贴JSON数据" style={{ marginBottom: 16 }}>
             <Alert
@@ -154,7 +254,7 @@ const BulkImportPage: React.FC = () => {
         </div>
       )}
 
-      {currentStep === 1 && (
+      {selectedProjectId && currentStep === 1 && (
         <div className="import-container">
           <Card title={`预览任务 (${parsedTasks.length} 个)`} style={{ marginBottom: 16 }}>
             <div className="import-preview">
@@ -192,7 +292,7 @@ const BulkImportPage: React.FC = () => {
         </div>
       )}
 
-      {currentStep === 2 && (
+      {selectedProjectId && currentStep === 2 && (
         <div className="import-container">
           <Card>
             <div style={{ textAlign: 'center', padding: '40px 0' }}>

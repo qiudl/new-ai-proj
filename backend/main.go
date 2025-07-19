@@ -121,6 +121,29 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
 			}
+
+			// System management routes (admin only)
+			system := authorized.Group("/system")
+			{
+				// Recycle bin routes
+				recycle := system.Group("/recycle")
+				{
+					recycle.GET("/projects", app.getRecycledProjectsHandler)
+					recycle.POST("/projects/:id/restore", app.restoreProjectHandler)
+					recycle.DELETE("/projects/:id", app.hardDeleteProjectHandler)
+					
+					recycle.GET("/tasks", app.getRecycledTasksHandler)
+					recycle.POST("/tasks/:id/restore", app.restoreTaskHandler)
+					recycle.DELETE("/tasks/:id", app.hardDeleteTaskHandler)
+				}
+
+				// Audit log routes
+				audit := system.Group("/audit")
+				{
+					audit.GET("/logs", app.getAuditLogsHandler)
+				}
+
+			}
 		}
 	}
 
@@ -730,6 +753,218 @@ func (app *Application) deleteTaskHandler(c *gin.Context) {
 	response := models.NewSuccessResponse(nil, "Task deleted successfully")
 	c.JSON(http.StatusOK, response)
 }
+
+// System Management Handlers
+
+func (app *Application) getRecycledProjectsHandler(c *gin.Context) {
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	offset := (pagination.Page - 1) * pagination.PageSize
+	projects, total, err := app.db.System().GetRecycledProjects(c.Request.Context(), pagination.PageSize, offset)
+	if err != nil {
+		app.logger.Printf("Error getting recycled projects: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get recycled projects", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	paginationResult := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
+		HasNext:    pagination.Page*pagination.PageSize < total,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	result := models.PaginatedResponse{
+		Data:       projects,
+		Pagination: paginationResult,
+	}
+
+	response := models.NewSuccessResponse(result, "Recycled projects retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) restoreProjectHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = app.db.System().RestoreProject(c.Request.Context(), projectID)
+	if err != nil {
+		if err.Error() == "project not found in recycle bin" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Project not found in recycle bin", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error restoring project: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to restore project", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Project restored successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) hardDeleteProjectHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = app.db.System().HardDeleteProject(c.Request.Context(), projectID)
+	if err != nil {
+		if err.Error() == "project not found in recycle bin" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Project not found in recycle bin", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error permanently deleting project: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to permanently delete project", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Project permanently deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) getRecycledTasksHandler(c *gin.Context) {
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	offset := (pagination.Page - 1) * pagination.PageSize
+	tasks, total, err := app.db.System().GetRecycledTasks(c.Request.Context(), pagination.PageSize, offset)
+	if err != nil {
+		app.logger.Printf("Error getting recycled tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get recycled tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	paginationResult := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
+		HasNext:    pagination.Page*pagination.PageSize < total,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	result := models.PaginatedResponse{
+		Data:       tasks,
+		Pagination: paginationResult,
+	}
+
+	response := models.NewSuccessResponse(result, "Recycled tasks retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) restoreTaskHandler(c *gin.Context) {
+	taskIDStr := c.Param("id")
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = app.db.System().RestoreTask(c.Request.Context(), taskID)
+	if err != nil {
+		if err.Error() == "task not found in recycle bin" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Task not found in recycle bin", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error restoring task: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to restore task", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Task restored successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) hardDeleteTaskHandler(c *gin.Context) {
+	taskIDStr := c.Param("id")
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err = app.db.System().HardDeleteTask(c.Request.Context(), taskID)
+	if err != nil {
+		if err.Error() == "task not found in recycle bin" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Task not found in recycle bin", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error permanently deleting task: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to permanently delete task", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Task permanently deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) getAuditLogsHandler(c *gin.Context) {
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	offset := (pagination.Page - 1) * pagination.PageSize
+	logs, total, err := app.db.System().GetAuditLogs(c.Request.Context(), pagination.PageSize, offset)
+	if err != nil {
+		app.logger.Printf("Error getting audit logs: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get audit logs", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	paginationResult := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
+		HasNext:    pagination.Page*pagination.PageSize < total,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	result := models.PaginatedResponse{
+		Data:       logs,
+		Pagination: paginationResult,
+	}
+
+	response := models.NewSuccessResponse(result, "Audit logs retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 
 // Run starts the application server
 func (app *Application) Run() error {

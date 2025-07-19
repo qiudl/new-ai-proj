@@ -43,14 +43,9 @@ type Task struct {
 	AssigneeID   *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields CustomFields `json:"custom_fields" db:"custom_fields"`
-	Priority       string       `json:"priority" db:"priority" validate:"oneof=low medium high"` 
-	EstimatedHours *float64     `json:"estimated_hours" db:"estimated_hours" validate:"min=0"` 
-	ActualHours    *float64     `json:"actual_hours" db:"actual_hours" validate:"min=0"` 
-	Progress       *int         `json:"progress" db:"progress" validate:"min=0,max=100"` 
-	Tags           []string     `json:"tags" db:"tags"` 
-	Metadata       CustomFields `json:"metadata" db:"metadata"`
 	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
+	DeletedAt    *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // TaskRequest represents a task creation/update request
@@ -128,6 +123,22 @@ type Pagination struct {
 	TotalPages int   `json:"total_pages"`
 	HasNext    bool  `json:"has_next"`
 	HasPrev    bool  `json:"has_prev"`
+}
+
+// RecycledTask represents a deleted task in the recycle bin
+type RecycledTask struct {
+	ID               int          `json:"id" db:"id"`
+	ProjectID        int          `json:"project_id" db:"project_id"`
+	Title            string       `json:"title" db:"title"`
+	Description      string       `json:"description" db:"description"`
+	Status           string       `json:"status" db:"status"`
+	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
+	DueDate          *time.Time   `json:"due_date" db:"due_date"`
+	CustomFields     CustomFields `json:"custom_fields" db:"custom_fields"`
+	CreatedAt        time.Time    `json:"created_at" db:"created_at"`
+	DeletedAt        time.Time    `json:"deleted_at" db:"deleted_at"`
+	ProjectName      string       `json:"project_name" db:"project_name"`
+	AssigneeUsername *string      `json:"assignee_username" db:"assignee_username"`
 }
 
 // ToResponse converts Task to TaskResponse

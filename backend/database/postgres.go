@@ -62,6 +62,16 @@ func (pdb *PostgresDB) Tasks() TaskRepository {
 	return &PostgresTaskRepository{db: pdb.db}
 }
 
+// System returns the system repository
+func (pdb *PostgresDB) System() SystemRepository {
+	return &PostgresSystemRepository{db: pdb.db}
+}
+
+// GetDB returns the underlying database connection
+func (pdb *PostgresDB) GetDB() interface{} {
+	return pdb.db
+}
+
 // Close closes the database connection
 func (pdb *PostgresDB) Close() error {
 	return pdb.db.Close()

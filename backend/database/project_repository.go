@@ -39,11 +39,11 @@ func (r *PostgresProjectRepository) Create(ctx context.Context, project *models.
 	return project, nil
 }
 
-// GetByID gets a project by ID
+// GetByID gets a project by ID (only non-deleted)
 func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*models.Project, error) {
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at
-		FROM projects WHERE id = $1`
+		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
+		FROM projects WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
@@ -52,7 +52,7 @@ func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*model
 
 	err := row.Scan(
 		&project.ID, &project.Name, &project.Description, &project.OwnerID,
-		&project.CreatedAt, &project.UpdatedAt,
+		&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -65,10 +65,10 @@ func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*model
 	return project, nil
 }
 
-// GetByUserID gets projects by user ID with pagination
+// GetByUserID gets projects by user ID with pagination (only non-deleted)
 func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int, limit, offset int) ([]*models.Project, int, error) {
 	// Get total count
-	countQuery := `SELECT COUNT(*) FROM projects WHERE owner_id = $1`
+	countQuery := `SELECT COUNT(*) FROM projects WHERE owner_id = $1 AND deleted_at IS NULL`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery, userID)
 
@@ -79,9 +79,9 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at
+		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
 		FROM projects 
-		WHERE owner_id = $1
+		WHERE owner_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -97,7 +97,7 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 		err := rows.Scan(
 			&project.ID, &project.Name, &project.Description, &project.OwnerID,
-			&project.CreatedAt, &project.UpdatedAt,
+			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan project: %w", err)
@@ -133,9 +133,9 @@ func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.
 	return project, nil
 }
 
-// Delete deletes a project
+// Delete soft deletes a project (sets deleted_at timestamp)
 func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM projects WHERE id = $1`
+	query := `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
@@ -158,7 +158,7 @@ func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
 // List gets all projects with pagination
 func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int) ([]*models.Project, int, error) {
 	// Get total count
-	countQuery := `SELECT COUNT(*) FROM projects`
+	countQuery := `SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery)
 
@@ -169,8 +169,9 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at
+		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
 		FROM projects 
+		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -186,7 +187,7 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 		err := rows.Scan(
 			&project.ID, &project.Name, &project.Description, &project.OwnerID,
-			&project.CreatedAt, &project.UpdatedAt,
+			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan project: %w", err)
@@ -200,4 +201,97 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 	}
 
 	return projects, total, nil
+}
+
+// GetRecycledProjects gets all deleted projects with pagination
+func (r *PostgresProjectRepository) GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM recycled_projects`
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get recycled project count: %w", err)
+	}
+
+	// Get recycled projects with pagination
+	query := `
+		SELECT id, name, description, owner_id, owner_username, 
+		       created_at, updated_at, deleted_at, deleted_tasks_count
+		FROM recycled_projects
+		ORDER BY deleted_at DESC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := exec.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list recycled projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []*models.RecycledProject
+	for rows.Next() {
+		project := &models.RecycledProject{}
+
+		err := rows.Scan(
+			&project.ID, &project.Name, &project.Description, &project.OwnerID,
+			&project.OwnerUsername, &project.CreatedAt, &project.UpdatedAt,
+			&project.DeletedAt, &project.DeletedTasksCount,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan recycled project: %w", err)
+		}
+
+		projects = append(projects, project)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return projects, total, nil
+}
+
+// RestoreProject restores a deleted project
+func (r *PostgresProjectRepository) RestoreProject(ctx context.Context, id int) error {
+	query := `UPDATE projects SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore project: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("project not found in recycle bin")
+	}
+
+	return nil
+}
+
+// HardDeleteProject permanently deletes a project
+func (r *PostgresProjectRepository) HardDeleteProject(ctx context.Context, id int) error {
+	query := `DELETE FROM projects WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to permanently delete project: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("project not found in recycle bin")
+	}
+
+	return nil
 }

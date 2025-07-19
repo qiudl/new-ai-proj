@@ -47,12 +47,12 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 	return task, nil
 }
 
-// GetByID gets a task by ID
+// GetByID gets a task by ID (only non-deleted)
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, created_at
-		FROM tasks WHERE id = $1`
+		       custom_fields, created_at, deleted_at
+		FROM tasks WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
@@ -65,7 +65,7 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-		&task.CreatedAt,
+		&task.CreatedAt, &task.DeletedAt,
 	)
 	task.UpdatedAt = task.CreatedAt
 
@@ -93,10 +93,10 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	return task, nil
 }
 
-// GetByProjectID gets tasks by project ID with pagination
+// GetByProjectID gets tasks by project ID with pagination (only non-deleted)
 func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error) {
 	// Get total count
-	countQuery := `SELECT COUNT(*) FROM tasks WHERE project_id = $1`
+	countQuery := `SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery, projectID)
 
@@ -108,9 +108,9 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 	// Get tasks with pagination (matching actual table structure)
 	query := `
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, created_at, created_at as updated_at
+		       custom_fields, created_at, created_at as updated_at, deleted_at
 		FROM tasks 
-		WHERE project_id = $1
+		WHERE project_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3`
 
@@ -130,7 +130,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&task.CreatedAt, &task.UpdatedAt,
+			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
@@ -187,9 +187,9 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 	return task, nil
 }
 
-// Delete deletes a task
+// Delete soft deletes a task (sets deleted_at timestamp)
 func (r *PostgresTaskRepository) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM tasks WHERE id = $1`
+	query := `UPDATE tasks SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
@@ -304,7 +304,7 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&task.CreatedAt, &task.UpdatedAt,
+			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)

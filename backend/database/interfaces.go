@@ -24,6 +24,11 @@ type ProjectRepository interface {
 	Update(ctx context.Context, project *models.Project) (*models.Project, error)
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)
+	
+	// Recycle bin operations
+	GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error)
+	RestoreProject(ctx context.Context, id int) error
+	HardDeleteProject(ctx context.Context, id int) error
 }
 
 // TaskRepository defines the interface for task database operations
@@ -38,11 +43,30 @@ type TaskRepository interface {
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Task, int, error)
 }
 
+// SystemRepository defines the interface for system management operations
+type SystemRepository interface {
+	// Recycle bin operations
+	GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error)
+	RestoreProject(ctx context.Context, id int) error
+	HardDeleteProject(ctx context.Context, id int) error
+	
+	GetRecycledTasks(ctx context.Context, limit, offset int) ([]*models.RecycledTask, int, error)
+	RestoreTask(ctx context.Context, id int) error
+	HardDeleteTask(ctx context.Context, id int) error
+	
+	// Audit log operations
+	GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error)
+	LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error
+	
+}
+
 // DB defines the database interface that combines all repositories
 type DB interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
+	System() SystemRepository
+	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
 	BeginTx(ctx context.Context) (Tx, error)
