@@ -43,6 +43,12 @@ type Task struct {
 	AssigneeID   *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields CustomFields `json:"custom_fields" db:"custom_fields"`
+	Priority       string       `json:"priority" db:"priority" validate:"oneof=low medium high"` 
+	EstimatedHours *float64     `json:"estimated_hours" db:"estimated_hours" validate:"min=0"` 
+	ActualHours    *float64     `json:"actual_hours" db:"actual_hours" validate:"min=0"` 
+	Progress       *int         `json:"progress" db:"progress" validate:"min=0,max=100"` 
+	Tags           []string     `json:"tags" db:"tags"` 
+	Metadata       CustomFields `json:"metadata" db:"metadata"`
 	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
 }
@@ -55,6 +61,12 @@ type TaskRequest struct {
 	AssigneeID   *int         `json:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date"`
 	CustomFields CustomFields `json:"custom_fields"`
+	Priority       string       `json:"priority" db:"priority" validate:"oneof=low medium high"` 
+	EstimatedHours *float64     `json:"estimated_hours" db:"estimated_hours" validate:"min=0"` 
+	ActualHours    *float64     `json:"actual_hours" db:"actual_hours" validate:"min=0"` 
+	Progress       *int         `json:"progress" db:"progress" validate:"min=0,max=100"` 
+	Tags           []string     `json:"tags" db:"tags"` 
+	Metadata       CustomFields `json:"metadata" db:"metadata"`
 }
 
 // TaskResponse represents a task response with additional info

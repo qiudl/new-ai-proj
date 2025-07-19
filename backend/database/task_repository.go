@@ -137,7 +137,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		}
 
 		if assignedTo.Valid {
-			task.AssignedTo = &assignedTo.Int64
+			intVal := int(assignedTo.Int64); task.AssigneeID = &intVal
 		}
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
@@ -188,7 +188,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		task.ID, task.Title, task.Description, task.AssignedTo,
+		task.ID, task.Title, task.Description, task.AssigneeID,
 		task.Status, task.Priority, task.EstimatedHours, task.ActualHours,
 		task.Progress, task.DueDate, tagsJSON, metadataJSON)
 
@@ -249,7 +249,7 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 		}
 
 		row := exec.QueryRowContext(ctx, query,
-			task.Title, task.Description, task.ProjectID, task.AssignedTo,
+			task.Title, task.Description, task.ProjectID, task.AssigneeID,
 			task.Status, task.Priority, task.EstimatedHours, task.ActualHours,
 			task.Progress, task.DueDate, tagsJSON, metadataJSON)
 
@@ -333,7 +333,7 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 		}
 
 		if assignedTo.Valid {
-			task.AssignedTo = &assignedTo.Int64
+			intVal := int(assignedTo.Int64); task.AssigneeID = &intVal
 		}
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time

@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"time"
 )
 
 // PostgresUserRepository implements UserRepository using PostgreSQL

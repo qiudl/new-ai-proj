@@ -4,7 +4,6 @@ import (
 	"ai-project-backend/models"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 )
 

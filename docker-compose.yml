@@ -58,6 +58,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+      target: development
+
     container_name: react_frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
