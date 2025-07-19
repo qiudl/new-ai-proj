@@ -7,196 +7,255 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is an AI project management platform built with a microservices architecture using Docker containers. The project is in early development/planning phase (MVP) and follows cloud-native practices.
 
 **Key Architecture Components:**
-- **Backend**: Go (Golang) 1.22+ with PostgreSQL database
-- **Frontend**: React with TypeScript and Node.js 22.15.0
-- **Database**: PostgreSQL 16 with JSONB support for flexible data structures
-- **Containerization**: Docker with multi-stage builds and Docker Compose orchestration
-- **Reverse Proxy**: Nginx for routing between frontend and backend services
-- **CI/CD**: Jenkins with SonarQube for code quality (planned)
+- **Backend**: Go 1.24 (Gin framework) with clean architecture pattern
+- **Frontend**: React 18.2 with TypeScript and Ant Design UI library  
+- **Database**: PostgreSQL 16 with JSONB, views, and stored functions
+- **Containerization**: Docker with multi-stage builds and health checks
+- **Reverse Proxy**: Nginx for API and static file routing
+- **Development Tools**: Comprehensive shell scripts for automation
 
 ## Development Setup
 
-### Prerequisites
-- Docker and Docker Compose
-- Go 1.22+ (for local backend development)
-- Node.js 22.15.0 (for local frontend development)
-
-### Environment Setup
+### Quick Start
 ```bash
-# Start the complete stack
+# One-command environment setup
+./scripts/dev-setup.sh
+
+# Test environment comprehensively
+./scripts/test-environment.sh
+
+# Database management
+./scripts/db-manager.sh [init|reset|backup|connect]
+```
+
+### Manual Setup
+```bash
+# Start all services
 docker-compose up -d
 
-# Start just the database
-docker-compose up -d db
+# View service status
+docker-compose ps
 
 # View logs
-docker-compose logs -f [service-name]
+docker-compose logs -f [backend|frontend|db|nginx]
 
-# Stop all services
+# Stop services
 docker-compose down
 ```
 
-### Database Configuration
-- **Connection**: PostgreSQL on port 5432
-- **Database**: `main_db`
-- **User**: `user` / Password: `password`
-- **Initial Schema**: Located in `init.sql`
-- **Connection String**: `postgresql://user:password@localhost:5432/main_db?sslmode=disable`
+## Architecture Details
 
-## Service Architecture
+### Backend Structure (Go)
+- **Framework**: Gin with custom Application struct
+- **Pattern**: Clean architecture with repository pattern
+- **Key Files**:
+  - `main.go`: Application setup and route configuration
+  - `config/`: Configuration management with YAML support
+  - `database/`: PostgreSQL interfaces and implementations
+  - `models/`: Domain models with JSON tags and validation
+  - `handlers/`: HTTP handlers (placeholder implementations)
+  - `middleware/`: CORS and auth middleware
+  - `utils/`: JWT, password hashing, validation utilities
 
-### Backend Service (Go)
-- **Port**: 8080
-- **Build**: Multi-stage Docker build with Alpine Linux
-- **Database**: Uses PostgreSQL with advanced features (JSONB, GIN indexes)
-- **Key Tables**: `users`, `projects`, `tasks` with flexible custom_fields support
-
-### Frontend Service (React)
-- **Port**: 3000 (development)
-- **Framework**: React with TypeScript
-- **UI Library**: Ant Design (planned)
-- **Build**: Node.js 22.15.0 Alpine container
+### Frontend Structure (React)
+- **Framework**: React 18.2 with TypeScript
+- **UI Library**: Ant Design with Chinese locale
+- **Routing**: React Router v6 with private route protection
+- **Pages**: Login, Dashboard, Projects, Tasks, BulkImport
+- **Architecture**: Component-based with layout wrapper
 
 ### Database Schema
-Core entities with foreign key relationships:
-- `users` table with role-based access (admin/user)
-- `projects` table linked to user owners
-- `tasks` table with JSONB custom_fields for flexibility
-- Comprehensive indexing for performance optimization
+- **Users**: Role-based (admin/user) with bcrypt password hashing
+- **Projects**: Owner-linked with cascade delete
+- **Tasks**: JSONB custom fields with GIN indexes for performance
+- **Views**: `project_task_stats`, `user_task_assignments`, `overdue_tasks`
+- **Functions**: Progress calculation and task summary functions
 
-## Development Commands
+## Essential Commands
 
-### Docker Operations
+### Development Scripts
 ```bash
-# Build and start all services
-docker-compose up --build
+# Environment setup and validation
+./scripts/dev-setup.sh                    # Complete environment setup
+./scripts/test-environment.sh --cleanup   # Test all services
+./scripts/check-compose.sh               # Validate docker-compose
 
-# Rebuild specific service
-docker-compose up --build [backend|frontend]
+# Database operations
+./scripts/db-manager.sh init             # Initialize with sample data
+./scripts/db-manager.sh reset            # Reset database (with confirmation)
+./scripts/db-manager.sh stats            # Show table statistics
+./scripts/db-manager.sh connect          # Open psql session
+./scripts/db-manager.sh backup           # Create timestamped backup
 
-# Execute commands in containers
-docker-compose exec backend [command]
-docker-compose exec db psql -U user -d main_db
+# Backend building
+./backend/scripts/build.sh dev           # Development Docker image
+./backend/scripts/build.sh prod          # Production Docker image
+./backend/scripts/build.sh local         # Local binary
+./backend/scripts/build.sh test          # Run tests with coverage
 ```
 
 ### Backend Development
 ```bash
-# Local development (requires Go 1.22+)
-cd backend
-go mod download
-go run main.go
+# Local development
+cd backend && go run main.go
 
-# Run tests
-go test ./...
+# Testing
+go test ./...                            # Unit tests
+go test -tags=integration ./...          # Integration tests
+go test -coverprofile=coverage.out ./... # With coverage
 
-# Build binary
-CGO_ENABLED=0 GOOS=linux go build -o main .
+# Code quality
+go fmt ./...                             # Format code
+go vet ./...                             # Static analysis
+go mod tidy                              # Clean dependencies
 ```
 
 ### Frontend Development
 ```bash
-# Local development (requires Node 22.15.0)
-cd frontend
-npm install
-npm start
+# Development server
+cd frontend && npm start
 
-# Run tests
-npm test
+# Testing and quality
+npm test                                 # Jest tests
+npm run lint                             # ESLint
+npm run lint:fix                         # Fix linting issues
+npm run format                           # Prettier formatting
+npm run type-check                       # TypeScript checking
 
-# Build for production
-npm run build
+# Building
+npm run build                            # Production build
 ```
 
-## Testing Strategy
-
-### Test Structure
-- **Backend Tests**: `tests/backend/` directory
-- **Frontend Tests**: `tests/frontend/` directory
-- **E2E Testing**: Planned with Cypress
-- **API Testing**: Comprehensive test coverage for authentication, projects, and tasks
-
-### Key Test Scenarios
-- User authentication and authorization
-- Project CRUD operations
-- Task management with bulk import functionality
-- Custom fields validation (JSONB)
-- Performance testing (API response < 500ms)
-
-### Test Execution
+### Database Operations
 ```bash
-# Unit tests
-docker-compose exec backend go test ./...
-docker-compose exec frontend npm test
+# Quick database access
+docker-compose exec db psql -U user -d main_db
 
-# Integration tests
-docker-compose exec backend go test -tags=integration ./...
+# Run SQL scripts
+docker-compose exec db psql -U user -d main_db -f /path/to/script.sql
+
+# Database inspection
+docker-compose exec db psql -U user -d main_db -c "SELECT * FROM project_task_stats;"
 ```
 
-## Key Features & Business Logic
+## Service Architecture
+
+### Backend API Structure
+- **Health/Version**: `/health`, `/version` with build info
+- **Authentication**: `/api/v1/auth/login`, `/api/v1/auth/logout`
+- **Projects**: Full CRUD at `/api/v1/projects`
+- **Tasks**: CRUD and bulk import at `/api/v1/projects/:id/tasks`
+- **Middleware**: CORS enabled, auth middleware ready
+- **Models**: Request/response models with validation tags
+
+### Database Features
+- **Sample Data**: 3 users, 3 projects, 15 tasks with realistic content
+- **JSONB Fields**: Tasks have flexible custom_fields with priority, tags, etc.
+- **Performance**: GIN indexes on JSONB, partial indexes for active data
+- **Business Logic**: Stored functions for progress calculation
+- **Constraints**: Check constraints for data validation
+- **Triggers**: Automatic updated_at timestamp management
+
+### Service Ports and Access
+- **Frontend**: http://localhost:3000 (React dev server)
+- **Backend**: http://localhost:8080 (Go API via nginx proxy)
+- **Nginx**: http://localhost:80 (reverse proxy)
+- **Database**: localhost:5432 (PostgreSQL direct access)
+
+## Default Credentials
+- **Username**: `admin` / **Password**: `password123`
+- **Alt Users**: `dev_user_1`, `dev_user_2` (same password)
+
+## Key Features & Implementation Status
 
 ### Authentication System
-- JWT-based authentication
-- Role-based access control (admin/user)
-- User management with secure password hashing
+- **Framework**: JWT with bcrypt password hashing  
+- **Implementation**: Placeholder handlers in `main.go:184-198`
+- **Models**: `LoginRequest`, `LoginResponse` in `models/user.go`
+- **Utils**: JWT and password utilities in `utils/` directory
 
 ### Project Management
-- User-owned projects with descriptions
-- Project-scoped task organization
-- CRUD operations for project lifecycle
+- **API Routes**: Full CRUD at `/api/v1/projects/:id`
+- **Implementation**: Placeholder handlers ready for implementation
+- **Database**: Foreign key relationships with cascade delete
+- **Models**: Project model with owner relationship
 
 ### Task Management
-- Flexible task system with custom fields (JSONB)
-- Status tracking (todo, in-progress, completed)
-- Bulk import functionality from CSV files
-- Advanced querying with GIN indexes on custom fields
+- **Custom Fields**: JSONB with realistic sample data (priority, tags, hours)
+- **API Routes**: CRUD + bulk import at `/api/v1/projects/:id/tasks`
+- **Database**: GIN indexes for efficient JSONB querying
+- **Status**: todo, in_progress, completed, cancelled
 
-## Infrastructure & Deployment
+## Testing & Validation
 
-### Container Strategy
-- Multi-stage Docker builds for optimized image sizes
-- Development vs production configurations
-- Container orchestration with Docker Compose
+### Environment Testing
+```bash
+# Comprehensive environment validation
+./scripts/test-environment.sh           # Full system test
+./scripts/test-environment.sh --cleanup # Test and cleanup
 
-### Networking
-- Nginx reverse proxy configuration
-- Service discovery via Docker Compose networking
-- Port mapping: Frontend (3000), Backend (8080), Database (5432)
+# Test components include:
+# - Docker environment validation
+# - Service health checks  
+# - Database connectivity and content
+# - API endpoint availability
+# - Performance benchmarking
+```
 
-### Planned Infrastructure
-- Kubernetes deployment (`infrastructure/k8s/`)
-- Terraform for infrastructure as code (`infrastructure/terraform/`)
-- Jenkins CI/CD pipeline with automated testing
+### Application Testing
+```bash
+# Backend testing
+cd backend && go test ./...                    # Unit tests
+cd backend && go test -tags=integration ./... # Integration tests
+
+# Frontend testing  
+cd frontend && npm test                       # Jest/React Testing Library
+cd frontend && npm run type-check            # TypeScript validation
+```
+
+### Database Validation
+```bash
+# Database integrity check
+./scripts/db-manager.sh validate
+
+# Sample data verification (15 tasks across 3 projects)
+./scripts/db-manager.sh stats
+```
 
 ## Development Workflow
 
-### Git Strategy
-- **main**: Production-ready code
-- **develop**: Integration branch for features
-- **feature/**: Feature development branches
-- **bugfix/**: Bug fix branches
+### Code Quality Tools
+- **Go**: `go fmt`, `go vet`, `go mod tidy`
+- **React**: ESLint, Prettier, TypeScript checking
+- **Scripts**: Built-in formatting and linting in package.json
 
-### Code Quality
-- SonarQube integration (planned)
-- 80%+ test coverage requirement
-- API response time < 500ms
-- Conventional commit messages
+### Build Process
+```bash
+# Backend builds with version info
+VERSION=v1.0.0 ./backend/scripts/build.sh prod
 
-## Security Considerations
+# Frontend optimized builds
+cd frontend && npm run build
+```
 
-- Environment variables for sensitive configuration
-- Secure password hashing (bcrypt planned)
-- Database connection security
-- Container security best practices
+### Performance Monitoring
+- **Health Checks**: Built into Docker services
+- **Database Views**: Performance monitoring via `project_task_stats`
+- **API Metrics**: Response time logging enabled
 
-## Performance Requirements
+## Deployment Configuration
 
-- API response times under 500ms
-- Bulk import processing within 5 seconds for 20+ tasks
-- Database optimization with proper indexing
-- Efficient JSONB querying for custom fields
+### Environment Files
+- `.env.development`: Development defaults
+- `.env.production`: Production configuration template
+- `docker-compose.prod.yml`: Production Docker composition
 
-## Documentation References
+### Infrastructure Ready
+- **Kubernetes**: Configuration directory at `infrastructure/k8s/`
+- **Terraform**: Infrastructure as code at `infrastructure/terraform/`
+- **CI/CD**: Jenkins configuration at `docker/jenkins/`
 
-- MVP Development Plan: `docs/MVP_DEVELOPMENT_PLAN.md`
-- Testing Guidelines: `docs/TESTING_AND_ACCEPTANCE.md`
-- Risk Management: `RISK_MANAGEMENT.md`
+### SSL/HTTPS Support
+- **SSL Scripts**: `deploy/ssl-setup.sh`, `deploy/ssl-manage.sh`  
+- **Nginx Config**: SSL-ready configuration templates
+- **Deployment**: Automated deployment scripts in `deploy/` directory

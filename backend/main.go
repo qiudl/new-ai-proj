@@ -96,6 +96,17 @@ func (app *Application) setupRouter() *gin.Engine {
 			auth.POST("/login", app.loginHandler)
 			auth.POST("/logout", app.logoutHandler)
 		}
+	}
+
+	// Add legacy API routes for compatibility (without v1)
+	legacyApi := router.Group("/api")
+	{
+		// Auth routes
+		auth := legacyApi.Group("/auth")
+		{
+			auth.POST("/login", app.loginHandler)
+			auth.POST("/logout", app.logoutHandler)
+		}
 
 		// Protected routes (will be implemented with auth middleware)
 		authorized := api.Group("/")

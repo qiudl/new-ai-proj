@@ -280,9 +280,9 @@ $$ LANGUAGE plpgsql;
 
 -- Set some PostgreSQL configuration for better performance
 -- Note: These are session-level settings for development
-SET shared_preload_libraries = 'pg_stat_statements';
-SET log_statement = 'all';
-SET log_min_duration_statement = 1000;  -- Log slow queries (>1s)
+-- SET shared_preload_libraries = 'pg_stat_statements';
+-- SET log_statement = 'all';
+-- SET log_min_duration_statement = 1000;  -- Log slow queries (>1s)
 SET work_mem = '4MB';
 SET maintenance_work_mem = '64MB';
 SET effective_cache_size = '128MB';
