@@ -31,14 +31,15 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 	query := `
 		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at, updated_at`
+		RETURNING id, created_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ProjectID, task.Title, task.Description, task.Status,
 		task.AssigneeID, task.DueDate, customFieldsJSON)
 
-	err = row.Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
+	err = row.Scan(&task.ID, &task.CreatedAt)
+	task.UpdatedAt = task.CreatedAt
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
@@ -50,7 +51,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, created_at, updated_at
+		       custom_fields, created_at
 		FROM tasks WHERE id = $1`
 
 	exec := r.getExecer()
@@ -64,8 +65,9 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-		&task.CreatedAt, &task.UpdatedAt,
+		&task.CreatedAt,
 	)
+	task.UpdatedAt = task.CreatedAt
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("task not found")
@@ -103,11 +105,10 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		return nil, 0, fmt.Errorf("failed to get task count: %w", err)
 	}
 
-	// Get tasks with pagination
+	// Get tasks with pagination (matching actual table structure)
 	query := `
-		SELECT id, title, description, project_id, assigned_to, status, priority,
-		       estimated_hours, actual_hours, progress, due_date, tags, metadata,
-		       created_at, updated_at
+		SELECT id, project_id, title, description, status, assignee_id, due_date, 
+		       custom_fields, created_at, created_at as updated_at
 		FROM tasks 
 		WHERE project_id = $1
 		ORDER BY created_at DESC
@@ -122,36 +123,30 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 	var tasks []*models.Task
 	for rows.Next() {
 		task := &models.Task{}
-		var metadataJSON, tagsJSON []byte
-		var assignedTo sql.NullInt64
+		var customFieldsJSON []byte
+		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
 
 		err := rows.Scan(
-			&task.ID, &task.Title, &task.Description, &task.ProjectID,
-			&assignedTo, &task.Status, &task.Priority, &task.EstimatedHours,
-			&task.ActualHours, &task.Progress, &dueDate, &tagsJSON,
-			&metadataJSON, &task.CreatedAt, &task.UpdatedAt,
+			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&task.CreatedAt, &task.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
 		}
 
-		if assignedTo.Valid {
-			intVal := int(assignedTo.Int64); task.AssigneeID = &intVal
+		if assigneeID.Valid {
+			intVal := int(assigneeID.Int64)
+			task.AssigneeID = &intVal
 		}
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
 		}
 
-		if len(tagsJSON) > 0 {
-			if err := json.Unmarshal(tagsJSON, &task.Tags); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal tags: %w", err)
-			}
-		}
-
-		if len(metadataJSON) > 0 {
-			if err := json.Unmarshal(metadataJSON, &task.Metadata); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		if len(customFieldsJSON) > 0 {
+			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
 
@@ -167,30 +162,22 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 
 // Update updates a task
 func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) (*models.Task, error) {
-	metadataJSON, err := json.Marshal(task.Metadata)
+	customFieldsJSON, err := json.Marshal(task.CustomFields)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
-	}
-
-	tagsJSON, err := json.Marshal(task.Tags)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal tags: %w", err)
+		return nil, fmt.Errorf("failed to marshal custom fields: %w", err)
 	}
 
 	query := `
 		UPDATE tasks 
-		SET title = $2, description = $3, assigned_to = $4, status = $5,
-		    priority = $6, estimated_hours = $7, actual_hours = $8, 
-		    progress = $9, due_date = $10, tags = $11, metadata = $12,
-		    updated_at = CURRENT_TIMESTAMP
+		SET title = $2, description = $3, assignee_id = $4, status = $5,
+		    due_date = $6, custom_fields = $7
 		WHERE id = $1
-		RETURNING updated_at`
+		RETURNING created_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ID, task.Title, task.Description, task.AssigneeID,
-		task.Status, task.Priority, task.EstimatedHours, task.ActualHours,
-		task.Progress, task.DueDate, tagsJSON, metadataJSON)
+		task.Status, task.DueDate, customFieldsJSON)
 
 	err = row.Scan(&task.UpdatedAt)
 	if err != nil {
@@ -229,34 +216,27 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 	}
 
 	query := `
-		INSERT INTO tasks (title, description, project_id, assigned_to, status, 
-		                  priority, estimated_hours, actual_hours, progress, 
-		                  due_date, tags, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		RETURNING id, created_at, updated_at`
+		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at`
 
 	exec := r.getExecer()
 
 	for i, task := range tasks {
-		metadataJSON, err := json.Marshal(task.Metadata)
+		customFieldsJSON, err := json.Marshal(task.CustomFields)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal metadata for task %d: %w", i, err)
-		}
-
-		tagsJSON, err := json.Marshal(task.Tags)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal tags for task %d: %w", i, err)
+			return nil, fmt.Errorf("failed to marshal custom fields for task %d: %w", i, err)
 		}
 
 		row := exec.QueryRowContext(ctx, query,
-			task.Title, task.Description, task.ProjectID, task.AssigneeID,
-			task.Status, task.Priority, task.EstimatedHours, task.ActualHours,
-			task.Progress, task.DueDate, tagsJSON, metadataJSON)
+			task.ProjectID, task.Title, task.Description, task.Status,
+			task.AssigneeID, task.DueDate, customFieldsJSON)
 
-		err = row.Scan(&task.ID, &task.CreatedAt, &task.UpdatedAt)
+		err = row.Scan(&task.ID, &task.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create task %d: %w", i, err)
 		}
+		task.UpdatedAt = task.CreatedAt
 	}
 
 	return tasks, nil
@@ -266,7 +246,7 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 func (r *PostgresTaskRepository) UpdateStatus(ctx context.Context, id int, status string) error {
 	query := `
 		UPDATE tasks 
-		SET status = $2, updated_at = CURRENT_TIMESTAMP
+		SET status = $2
 		WHERE id = $1`
 
 	exec := r.getExecer()
@@ -299,11 +279,10 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 		return nil, 0, fmt.Errorf("failed to get task count: %w", err)
 	}
 
-	// Get tasks with pagination
+	// Get tasks with pagination (matching actual table structure)
 	query := `
-		SELECT id, title, description, project_id, assigned_to, status, priority,
-		       estimated_hours, actual_hours, progress, due_date, tags, metadata,
-		       created_at, updated_at
+		SELECT id, project_id, title, description, status, assignee_id, due_date, 
+		       custom_fields, created_at, created_at as updated_at
 		FROM tasks 
 		WHERE status = $1
 		ORDER BY created_at DESC
@@ -318,36 +297,30 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 	var tasks []*models.Task
 	for rows.Next() {
 		task := &models.Task{}
-		var metadataJSON, tagsJSON []byte
-		var assignedTo sql.NullInt64
+		var customFieldsJSON []byte
+		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
 
 		err := rows.Scan(
-			&task.ID, &task.Title, &task.Description, &task.ProjectID,
-			&assignedTo, &task.Status, &task.Priority, &task.EstimatedHours,
-			&task.ActualHours, &task.Progress, &dueDate, &tagsJSON,
-			&metadataJSON, &task.CreatedAt, &task.UpdatedAt,
+			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&task.CreatedAt, &task.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
 		}
 
-		if assignedTo.Valid {
-			intVal := int(assignedTo.Int64); task.AssigneeID = &intVal
+		if assigneeID.Valid {
+			intVal := int(assigneeID.Int64)
+			task.AssigneeID = &intVal
 		}
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
 		}
 
-		if len(tagsJSON) > 0 {
-			if err := json.Unmarshal(tagsJSON, &task.Tags); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal tags: %w", err)
-			}
-		}
-
-		if len(metadataJSON) > 0 {
-			if err := json.Unmarshal(metadataJSON, &task.Metadata); err != nil {
-				return nil, 0, fmt.Errorf("failed to unmarshal metadata: %w", err)
+		if len(customFieldsJSON) > 0 {
+			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
 

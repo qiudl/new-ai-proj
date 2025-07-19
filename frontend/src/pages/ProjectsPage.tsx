@@ -1,59 +1,90 @@
-import React from 'react';
-import { Button, Card, Row, Col, Tag, Space } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Button, Card, Row, Col, Tag, Space, message, Modal, Spin } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { projectService } from '../services/projectService';
+import { Project, ProjectRequest } from '../types/project';
+import ProjectModal from '../components/ProjectModal';
 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | undefined>();
+  const [modalLoading, setModalLoading] = useState(false);
 
-  // Mock data - will be replaced with API calls
-  const projects = [
-    {
-      id: 1,
-      name: '示例项目1',
-      description: '这是一个用于测试的示例项目',
-      status: 'active',
-      taskCount: 12,
-      completedCount: 8,
-    },
-    {
-      id: 2,
-      name: 'AI模型训练项目',
-      description: '机器学习模型训练和部署项目',
-      status: 'active',
-      taskCount: 18,
-      completedCount: 5,
-    },
-    {
-      id: 3,
-      name: '前端开发项目',
-      description: 'React前端应用开发项目',
-      status: 'completed',
-      taskCount: 25,
-      completedCount: 25,
-    },
-  ];
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'processing';
-      case 'completed':
-        return 'success';
-      default:
-        return 'default';
+  const loadProjects = async () => {
+    try {
+      setLoading(true);
+      const response = await projectService.getProjects();
+      setProjects(response.data);
+    } catch (error) {
+      message.error('加载项目失败');
+      console.error('Error loading projects:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active':
-        return '进行中';
-      case 'completed':
-        return '已完成';
-      default:
-        return '未知';
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  const handleCreateProject = () => {
+    setEditingProject(undefined);
+    setModalVisible(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    setEditingProject(project);
+    setModalVisible(true);
+  };
+
+  const handleDeleteProject = (project: Project) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除项目 "${project.name}" 吗？此操作无法撤销。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await projectService.deleteProject(project.id);
+          message.success('项目删除成功');
+          loadProjects();
+        } catch (error) {
+          message.error('删除项目失败');
+          console.error('Error deleting project:', error);
+        }
+      },
+    });
+  };
+
+  const handleModalSubmit = async (values: ProjectRequest) => {
+    try {
+      setModalLoading(true);
+      if (editingProject) {
+        await projectService.updateProject(editingProject.id, values);
+      } else {
+        await projectService.createProject(values);
+      }
+      loadProjects();
+    } catch (error) {
+      throw error; // Let the modal handle the error
+    } finally {
+      setModalLoading(false);
     }
+  };
+
+  const handleModalSuccess = () => {
+    setModalVisible(false);
+    setEditingProject(undefined);
+  };
+
+  const handleModalCancel = () => {
+    setModalVisible(false);
+    setEditingProject(undefined);
   };
 
   return (
@@ -64,67 +95,71 @@ const ProjectsPage: React.FC = () => {
             <h1 className="page-title">项目管理</h1>
             <p className="page-description">管理您的所有项目</p>
           </div>
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateProject}>
             创建项目
           </Button>
         </div>
       </div>
 
-      <Row gutter={[16, 16]}>
-        {projects.map((project) => (
-          <Col xs={24} sm={12} lg={8} key={project.id}>
-            <Card
-              actions={[
-                <Button
-                  type="text"
-                  icon={<EditOutlined />}
-                  onClick={() => navigate(`/projects/${project.id}/tasks`)}
-                >
-                  查看任务
-                </Button>,
-                <Button type="text" icon={<EditOutlined />}>
-                  编辑
-                </Button>,
-                <Button type="text" icon={<DeleteOutlined />} danger>
-                  删除
-                </Button>,
-              ]}
-            >
-              <div style={{ marginBottom: 16 }}>
-                <h3 style={{ margin: 0, marginBottom: 8 }}>{project.name}</h3>
-                <p style={{ color: '#8c8c8c', margin: 0 }}>{project.description}</p>
-              </div>
-              
-              <div style={{ marginBottom: 16 }}>
-                <Tag color={getStatusColor(project.status)}>
-                  {getStatusText(project.status)}
-                </Tag>
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8c8c8c' }}>
-                <span>任务总数: {project.taskCount}</span>
-                <span>已完成: {project.completedCount}</span>
-              </div>
-              
-              <div style={{ marginTop: 8 }}>
-                <div style={{ 
-                  width: '100%', 
-                  height: 4, 
-                  backgroundColor: '#f0f0f0',
-                  borderRadius: 2 
-                }}>
-                  <div style={{
-                    width: `${(project.completedCount / project.taskCount) * 100}%`,
-                    height: '100%',
-                    backgroundColor: '#52c41a',
-                    borderRadius: 2,
-                  }} />
+      <Spin spinning={loading}>
+        <Row gutter={[16, 16]}>
+          {projects.map((project) => (
+            <Col xs={24} sm={12} lg={8} key={project.id}>
+              <Card
+                actions={[
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={() => navigate(`/projects/${project.id}/tasks`)}
+                  >
+                    查看任务
+                  </Button>,
+                  <Button 
+                    type="text" 
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditProject(project)}
+                  >
+                    编辑
+                  </Button>,
+                  <Button 
+                    type="text" 
+                    icon={<DeleteOutlined />} 
+                    danger
+                    onClick={() => handleDeleteProject(project)}
+                  >
+                    删除
+                  </Button>,
+                ]}
+              >
+                <div style={{ marginBottom: 16 }}>
+                  <h3 style={{ margin: 0, marginBottom: 8 }}>{project.name}</h3>
+                  <p style={{ color: '#8c8c8c', margin: 0 }}>{project.description || '暂无描述'}</p>
                 </div>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                
+                <div style={{ marginBottom: 16 }}>
+                  <Tag color="processing">
+                    进行中
+                  </Tag>
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#8c8c8c' }}>
+                  <span>创建时间: {new Date(project.created_at).toLocaleDateString()}</span>
+                  <span>更新时间: {new Date(project.updated_at).toLocaleDateString()}</span>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </Spin>
+
+      <ProjectModal
+        visible={modalVisible}
+        onCancel={handleModalCancel}
+        onSuccess={handleModalSuccess}
+        project={editingProject}
+        loading={modalLoading}
+        onSubmit={handleModalSubmit}
+      />
     </div>
   );
 };
