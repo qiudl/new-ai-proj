@@ -4,7 +4,7 @@
 # ======================================
 # Stage 1: Base Dependencies
 # ======================================
-FROM golang:1.22-alpine AS base
+FROM golang:1.24-alpine AS base
 
 # Install essential packages
 RUN apk --no-cache add \
@@ -28,6 +28,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # Download dependencies
+ENV GOPROXY=https://goproxy.cn,direct
 RUN go mod download && go mod verify
 
 # ======================================
@@ -36,7 +37,7 @@ RUN go mod download && go mod verify
 FROM base AS development
 
 # Install development tools
-RUN go install github.com/cosmtrek/air@latest && \
+RUN go install github.com/air-verse/air@latest && \
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest && \
     go install golang.org/x/tools/cmd/goimports@latest
 

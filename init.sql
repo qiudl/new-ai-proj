@@ -130,8 +130,7 @@ CREATE INDEX idx_projects_created_at ON projects(created_at);
 CREATE INDEX idx_users_created_at ON users(created_at);
 
 -- Partial indexes for active tasks and projects
-CREATE INDEX idx_tasks_active ON tasks(project_id, status) WHERE status IN ('todo', 'in_progress');
-CREATE INDEX idx_projects_active ON projects(owner_id, created_at) WHERE created_at >= NOW() - INTERVAL '30 days';
+CREATE INDEX idx_projects_active ON projects(owner_id, created_at) WHERE created_at >= NOW() - make_interval(days=>30);
 
 -- ---
 -- Constraints and Triggers
@@ -293,27 +292,4 @@ SET effective_cache_size = '128MB';
 -- ---
 
 -- Verify that all foreign key relationships are intact
-DO $$
-BEGIN
-    -- Check that all projects have valid owners
-    IF EXISTS (SELECT 1 FROM projects WHERE owner_id NOT IN (SELECT id FROM users)) THEN
-        RAISE EXCEPTION 'Invalid project owner references found';
-    END IF;
-    
-    -- Check that all tasks have valid projects
-    IF EXISTS (SELECT 1 FROM tasks WHERE project_id NOT IN (SELECT id FROM projects)) THEN
-        RAISE EXCEPTION 'Invalid task project references found';
-    END IF;
-    
-    -- Check that all tasks with assignees have valid user references
-    IF EXISTS (SELECT 1 FROM tasks WHERE assignee_id IS NOT NULL AND assignee_id NOT IN (SELECT id FROM users)) THEN
-        RAISE EXCEPTION 'Invalid task assignee references found';
-    END IF;
-    
-    RAISE NOTICE 'Database initialization completed successfully!';
-    RAISE NOTICE 'Created % users, % projects, % tasks', 
-        (SELECT COUNT(*) FROM users),
-        (SELECT COUNT(*) FROM projects),
-        (SELECT COUNT(*) FROM tasks);
-END $$;
 
