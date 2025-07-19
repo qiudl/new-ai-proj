@@ -36,11 +36,28 @@ type TaskRepository interface {
 	Create(ctx context.Context, task *models.Task) (*models.Task, error)
 	GetByID(ctx context.Context, id int) (*models.Task, error)
 	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
+	GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
 	Update(ctx context.Context, task *models.Task) (*models.Task, error)
 	Delete(ctx context.Context, id int) error
 	BulkCreate(ctx context.Context, tasks []*models.Task) ([]*models.Task, error)
 	UpdateStatus(ctx context.Context, id int, status string) error
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Task, int, error)
+	
+	// Hierarchical task operations
+	GetChildren(ctx context.Context, parentID int) ([]*models.Task, error)
+	GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error)
+	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
+	
+	// Task update history
+	CreateTaskUpdate(ctx context.Context, update *models.TaskUpdate) error
+	GetTaskUpdates(ctx context.Context, taskID int, limit, offset int) ([]*models.TaskUpdate, int, error)
+	UpdateTaskUpdateNotes(ctx context.Context, updateID int, notes string) error
+	DeleteTaskUpdate(ctx context.Context, updateID int) error
+	
+	// Timeline events
+	CreateTimelineEvent(ctx context.Context, event *models.TimelineEvent) error
+	GetTaskTimeline(ctx context.Context, taskID int, limit, offset int) ([]*models.TimelineEvent, int, error)
+	GetProjectTimeline(ctx context.Context, projectID int, limit, offset int) ([]*models.TimelineEvent, int, error)
 }
 
 // SystemRepository defines the interface for system management operations

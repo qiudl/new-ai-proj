@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Table, Button, Space, Modal, message, Popconfirm, Typography } from 'antd';
+import { Tabs, Table, Button, Space, message, Popconfirm, Typography } from 'antd';
 import { ReloadOutlined, DeleteOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { SystemService, RecycledProject, RecycledTask, PaginatedResponse } from '../services/systemService';
 import type { ColumnsType } from 'antd/es/table';

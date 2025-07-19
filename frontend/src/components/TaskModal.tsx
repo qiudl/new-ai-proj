@@ -1,15 +1,15 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   Form,
   Input,
   Select,
   DatePicker,
-  message,
   Row,
   Col,
 } from 'antd';
-import { Task, TaskRequest, TaskStatus } from '../types/task';
+import { Task, TaskRequest } from '../types/task';
+import { TaskService } from '../services/taskService';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -22,6 +22,8 @@ interface TaskModalProps {
   onOk: (values: TaskRequest) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  parentTask?: Task;
+  allowParentSelection?: boolean;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -31,8 +33,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onOk,
   onCancel,
   loading = false,
+  parentTask,
+  allowParentSelection = false,
 }) => {
   const [form] = Form.useForm();
+  const [parentTasks, setParentTasks] = useState<Task[]>([]);
+  const [parentTasksLoading, setParentTasksLoading] = useState(false);
+
+  const loadParentTasks = async () => {
+    if (!allowParentSelection || !projectId) return;
+    
+    try {
+      setParentTasksLoading(true);
+      const response = await TaskService.getTasks(projectId, { page: 1, page_size: 100 });
+      // Filter out current task to prevent self-reference
+      const availableTasks = response.data.filter(t => t.id !== task?.id);
+      setParentTasks(availableTasks);
+    } catch (error) {
+      console.error('Error loading parent tasks:', error);
+    } finally {
+      setParentTasksLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (visible) {
@@ -47,6 +69,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
           priority: task.custom_fields?.priority || 'medium',
           tags: task.custom_fields?.tags?.join(', ') || '',
           estimated_hours: task.custom_fields?.estimated_hours,
+          parent_id: task.parent_id,
         });
       } else {
         // Create mode - reset form
@@ -54,10 +77,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
         form.setFieldsValue({
           status: 'todo',
           priority: 'medium',
+          parent_id: parentTask?.id,
         });
       }
+      
+      // Load parent tasks if parent selection is allowed
+      if (allowParentSelection) {
+        loadParentTasks();
+      }
     }
-  }, [visible, task, form]);
+  }, [visible, task, form, allowParentSelection, projectId, parentTask]);
 
   const handleOk = async () => {
     try {
@@ -70,6 +99,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         status: values.status,
         assignee_id: values.assignee_id || undefined,
         due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') + 'T00:00:00Z' : undefined,
+        parent_id: values.parent_id || undefined,
         custom_fields: {
           priority: values.priority,
           tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],
@@ -89,9 +119,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
     onCancel();
   };
 
+  const getModalTitle = () => {
+    if (task) return '编辑任务';
+    if (parentTask) return (
+      <div>
+        <span>创建子任务</span>
+        <div style={{ 
+          fontSize: '14px', 
+          fontWeight: 400, 
+          color: '#8c8c8c',
+          marginTop: '4px'
+        }}>
+          父任务: {parentTask.title}
+        </div>
+      </div>
+    );
+    return '创建任务';
+  };
+
+
   return (
     <Modal
-      title={task ? '编辑任务' : '创建任务'}
+      title={getModalTitle()}
       open={visible}
       onOk={handleOk}
       onCancel={handleCancel}
@@ -107,6 +156,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
           priority: 'medium',
         }}
       >
+        {parentTask && (
+          <div style={{ 
+            marginBottom: '16px',
+            padding: '12px 16px',
+            backgroundColor: '#f0f9ff',
+            border: '1px solid #bae7ff',
+            borderRadius: '6px'
+          }}>
+            <div style={{ color: '#1890ff', fontWeight: 500, marginBottom: '4px' }}>
+              正在为以下任务创建子任务:
+            </div>
+            <div style={{ color: '#262626' }}>{parentTask.title}</div>
+            {parentTask.description && (
+              <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '4px' }}>
+                {parentTask.description}
+              </div>
+            )}
+          </div>
+        )}
+
         <Form.Item
           name="title"
           label="任务标题"
@@ -186,6 +255,30 @@ const TaskModal: React.FC<TaskModalProps> = ({
             </Form.Item>
           </Col>
         </Row>
+
+        {allowParentSelection && (
+          <Form.Item
+            name="parent_id"
+            label="父任务"
+            help="选择父任务，将此任务作为子任务"
+          >
+            <Select
+              placeholder="请选择父任务（可选）"
+              allowClear
+              loading={parentTasksLoading}
+              showSearch
+              filterOption={(input, option) =>
+                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
+              }
+            >
+              {parentTasks.map(task => (
+                <Option key={task.id} value={task.id}>
+                  {task.title}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        )}
 
         <Form.Item
           name="tags"

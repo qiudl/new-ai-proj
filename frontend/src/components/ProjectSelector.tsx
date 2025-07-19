@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Spin } from 'antd';
+import { Select, Spin, Empty } from 'antd';
+import { ProjectOutlined } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
 import { Project } from '../types/project';
 
@@ -51,15 +52,54 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       loading={loading}
       allowClear={allowClear}
       showSearch
+      size="large"
       filterOption={(input, option) =>
-        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+        (option?.searchText ?? '').toLowerCase().includes(input.toLowerCase())
       }
       options={projects.map(project => ({
         value: project.id,
-        label: project.name,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ProjectOutlined style={{ color: '#1890ff' }} />
+            <div>
+              <div style={{ fontWeight: 500 }}>{project.name}</div>
+              {project.description && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: '#8c8c8c',
+                  marginTop: '2px',
+                  lineHeight: '1.2'
+                }}>
+                  {project.description.length > 40 
+                    ? `${project.description.substring(0, 40)}...` 
+                    : project.description
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+        ),
+        searchText: `${project.name} ${project.description || ''}`,
         key: project.id
       }))}
-      notFoundContent={loading ? <Spin size="small" /> : '暂无项目'}
+      notFoundContent={
+        loading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <Spin size="small" />
+            <div style={{ marginTop: '8px', color: '#8c8c8c' }}>加载中...</div>
+          </div>
+        ) : (
+          <Empty 
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="暂无项目"
+            style={{ padding: '20px' }}
+          />
+        )
+      }
+      dropdownStyle={{
+        borderRadius: '8px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+      }}
     />
   );
 };

@@ -38,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
     if (path.includes('/task-board')) return ['/task-board'];
     if (path.includes('/task-list')) return ['/task-list'];
+    if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     return [path];
   };
@@ -45,7 +46,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // 获取当前打开的子菜单
   const getOpenKeys = () => {
     const path = location.pathname;
-    if (path.includes('/task-board') || path.includes('/task-list') || path.includes('/bulk-import')) {
+    if (path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
     }
     return [];
@@ -82,7 +83,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '任务看板',
         },
         {
-          key: '/task-list',
+          key: '/tasks',
           icon: <UnorderedListOutlined />,
           label: '任务列表',
         },

@@ -28,7 +28,7 @@ interface FilterState {
 }
 
 const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
-  tasks,
+  tasks = [], // Default to empty array
   loading,
   selectedProjectId,
   onView,
@@ -43,14 +43,16 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     dateRange: null,
     assignee: []
   });
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>(tasks);
+  const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
 
   React.useEffect(() => {
     applyFilters();
   }, [tasks, filters]);
 
   const applyFilters = () => {
-    let filtered = [...tasks];
+    // Ensure tasks is an array
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
+    let filtered = [...tasksArray];
 
     // 搜索过滤
     if (filters.search) {
@@ -404,14 +406,14 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
         </Button>
 
         <div style={{ marginLeft: 'auto', color: '#666' }}>
-          显示 {filteredTasks.length} / {tasks.length} 条任务
+          显示 {Array.isArray(filteredTasks) ? filteredTasks.length : 0} / {Array.isArray(tasks) ? tasks.length : 0} 条任务
         </div>
       </div>
 
       {/* 任务表格 */}
       <Table
         columns={columns}
-        dataSource={filteredTasks}
+        dataSource={Array.isArray(filteredTasks) ? filteredTasks : []}
         rowKey="id"
         loading={loading}
         pagination={{

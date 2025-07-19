@@ -8,6 +8,11 @@ export interface Task {
   assignee_name?: string;
   due_date?: string;
   custom_fields?: Record<string, any>;
+  parent_id?: number;
+  task_level: number;
+  sort_order: number;
+  parent_title?: string;
+  children_count?: number;
   created_at: string;
   updated_at: string;
 }
@@ -21,6 +26,8 @@ export interface TaskRequest {
   assignee_id?: number;
   due_date?: string;
   custom_fields?: Record<string, any>;
+  parent_id?: number;
+  sort_order?: number;
 }
 
 export interface TaskFilter {
@@ -72,4 +79,47 @@ export interface APIResponse<T = any> {
     details?: any;
   };
   timestamp: string;
+}
+
+// Hierarchical task types
+export interface HierarchicalTask {
+  id: number;
+  project_id: number;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  assignee_id?: number;
+  assignee_name?: string;
+  due_date?: string;
+  custom_fields?: Record<string, any>;
+  parent_id?: number;
+  task_level: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  children?: HierarchicalTask[];
+}
+
+export interface TaskUpdate {
+  id: number;
+  task_id: number;
+  update_type: string;
+  old_value?: string;
+  new_value?: string;
+  updated_by?: number;
+  notes?: string;
+  created_at: string;
+  updated_by_username?: string;
+}
+
+export interface TimelineEvent {
+  id: number;
+  task_id: number;
+  event_type: string;
+  event_date: string;
+  description: string;
+  user_id?: number;
+  metadata?: Record<string, any>;
+  username?: string;
+  task_title?: string;
 }

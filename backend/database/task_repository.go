@@ -29,16 +29,16 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 	}
 
 	query := `
-		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at`
+		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields, parent_id, sort_order)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, created_at, task_level`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ProjectID, task.Title, task.Description, task.Status,
-		task.AssigneeID, task.DueDate, customFieldsJSON)
+		task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder)
 
-	err = row.Scan(&task.ID, &task.CreatedAt)
+	err = row.Scan(&task.ID, &task.CreatedAt, &task.TaskLevel)
 	task.UpdatedAt = task.CreatedAt
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
@@ -51,7 +51,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, created_at, deleted_at
+		       custom_fields, parent_id, task_level, sort_order, created_at, updated_at, deleted_at
 		FROM tasks WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -61,13 +61,15 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var customFieldsJSON []byte
 	var assigneeID sql.NullInt64
 	var dueDate sql.NullTime
+	var parentID sql.NullInt64
+	var updatedAt sql.NullTime
 
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-		&task.CreatedAt, &task.DeletedAt,
+		&parentID, &task.TaskLevel, &task.SortOrder,
+		&task.CreatedAt, &updatedAt, &task.DeletedAt,
 	)
-	task.UpdatedAt = task.CreatedAt
 
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("task not found")
@@ -82,6 +84,15 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	}
 	if dueDate.Valid {
 		task.DueDate = &dueDate.Time
+	}
+	if parentID.Valid {
+		intVal := int(parentID.Int64)
+		task.ParentID = &intVal
+	}
+	if updatedAt.Valid {
+		task.UpdatedAt = updatedAt.Time
+	} else {
+		task.UpdatedAt = task.CreatedAt
 	}
 
 	if len(customFieldsJSON) > 0 {
@@ -107,11 +118,18 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 
 	// Get tasks with pagination (matching actual table structure)
 	query := `
-		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, created_at, created_at as updated_at, deleted_at
-		FROM tasks 
-		WHERE project_id = $1 AND deleted_at IS NULL
-		ORDER BY created_at DESC
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		       t.custom_fields, t.created_at, t.created_at as updated_at, t.deleted_at,
+		       COALESCE(c.children_count, 0) as children_count
+		FROM tasks t
+		LEFT JOIN (
+			SELECT parent_id, COUNT(*) as children_count 
+			FROM tasks 
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			GROUP BY parent_id
+		) c ON t.id = c.parent_id
+		WHERE t.project_id = $1 AND t.deleted_at IS NULL
+		ORDER BY t.created_at DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := exec.QueryContext(ctx, query, projectID, limit, offset)
@@ -126,11 +144,12 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		var customFieldsJSON []byte
 		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
+		var childrenCount int
 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt,
+			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt, &childrenCount,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
@@ -149,6 +168,110 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return tasks, total, nil
+}
+
+// GetAll gets all tasks across all projects with pagination
+func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM tasks WHERE deleted_at IS NULL`
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get task count: %w", err)
+	}
+
+	query := `
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+		       p.name as project_name, u.username as assignee_name,
+		       COALESCE(c.children_count, 0) as children_count
+		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.assignee_id = u.id
+		LEFT JOIN (
+			SELECT parent_id, COUNT(*) as children_count 
+			FROM tasks 
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			GROUP BY parent_id
+		) c ON t.id = c.parent_id
+		WHERE t.deleted_at IS NULL
+		ORDER BY t.created_at DESC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := exec.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list all tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		task := &models.Task{}
+		var customFieldsJSON []byte
+		var assigneeID sql.NullInt64
+		var dueDate sql.NullTime
+		var parentID sql.NullInt64
+		var updatedAt sql.NullTime
+		var projectName sql.NullString
+		var assigneeName sql.NullString
+		var childrenCount int
+
+		err := rows.Scan(
+			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&parentID, &task.TaskLevel, &task.SortOrder,
+			&task.CreatedAt, &updatedAt, &task.DeletedAt,
+			&projectName, &assigneeName, &childrenCount,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+		}
+
+		if assigneeID.Valid {
+			intVal := int(assigneeID.Int64)
+			task.AssigneeID = &intVal
+		}
+		if dueDate.Valid {
+			task.DueDate = &dueDate.Time
+		}
+		if parentID.Valid {
+			intVal := int(parentID.Int64)
+			task.ParentID = &intVal
+		}
+		if updatedAt.Valid {
+			task.UpdatedAt = updatedAt.Time
+		} else {
+			task.UpdatedAt = task.CreatedAt
+		}
+
+		if len(customFieldsJSON) > 0 {
+			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
+			}
+		}
+
+		// Add project_name, assignee_name and children_count to custom fields for frontend display
+		if task.CustomFields == nil {
+			task.CustomFields = make(models.CustomFields)
+		}
+		if projectName.Valid {
+			task.CustomFields["project_name"] = projectName.String
+		}
+		if assigneeName.Valid {
+			task.CustomFields["assignee_name"] = assigneeName.String
+		}
+		task.CustomFields["children_count"] = childrenCount
 
 		tasks = append(tasks, task)
 	}
@@ -187,14 +310,30 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 	return task, nil
 }
 
-// Delete soft deletes a task (sets deleted_at timestamp)
+// Delete soft deletes a task and all its descendants (sets deleted_at timestamp)
 func (r *PostgresTaskRepository) Delete(ctx context.Context, id int) error {
-	query := `UPDATE tasks SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	// Use recursive CTE to find all descendants and delete them in one query
+	query := `
+		WITH RECURSIVE task_hierarchy AS (
+			-- Start with the target task (only if it exists and is not deleted)
+			SELECT id FROM tasks WHERE id = $1 AND deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- Recursively find all children (including already deleted ones to handle edge cases)
+			SELECT t.id FROM tasks t
+			INNER JOIN task_hierarchy th ON t.parent_id = th.id
+			WHERE t.deleted_at IS NULL
+		)
+		UPDATE tasks 
+		SET deleted_at = NOW() 
+		WHERE id IN (SELECT id FROM task_hierarchy) 
+		AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete task: %w", err)
+		return fmt.Errorf("failed to delete task and children: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()

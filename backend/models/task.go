@@ -43,6 +43,9 @@ type Task struct {
 	AssigneeID   *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields CustomFields `json:"custom_fields" db:"custom_fields"`
+	ParentID     *int         `json:"parent_id" db:"parent_id"`
+	TaskLevel    int          `json:"task_level" db:"task_level"`
+	SortOrder    int          `json:"sort_order" db:"sort_order"`
 	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
 	DeletedAt    *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
@@ -56,6 +59,8 @@ type TaskRequest struct {
 	AssigneeID   *int         `json:"assignee_id"`
 	DueDate      *time.Time   `json:"due_date"`
 	CustomFields CustomFields `json:"custom_fields"`
+	ParentID     *int         `json:"parent_id"`
+	SortOrder    int          `json:"sort_order"`
 	Priority       string       `json:"priority" db:"priority" validate:"oneof=low medium high"` 
 	EstimatedHours *float64     `json:"estimated_hours" db:"estimated_hours" validate:"min=0"` 
 	ActualHours    *float64     `json:"actual_hours" db:"actual_hours" validate:"min=0"` 
@@ -76,6 +81,11 @@ type TaskResponse struct {
 	AssigneeName   string       `json:"assignee_name,omitempty"`
 	DueDate        *time.Time   `json:"due_date"`
 	CustomFields   CustomFields `json:"custom_fields"`
+	ParentID       *int         `json:"parent_id"`
+	TaskLevel      int          `json:"task_level"`
+	SortOrder      int          `json:"sort_order"`
+	ParentTitle    string       `json:"parent_title,omitempty"`
+	ChildrenCount  int          `json:"children_count"`
 	CreatedAt      time.Time    `json:"created_at"`
 	UpdatedAt      time.Time    `json:"updated_at"`
 }
@@ -125,6 +135,38 @@ type Pagination struct {
 	HasPrev    bool  `json:"has_prev"`
 }
 
+// TaskUpdate represents a task update history record
+type TaskUpdate struct {
+	ID          int       `json:"id" db:"id"`
+	TaskID      int       `json:"task_id" db:"task_id"`
+	UpdateType  string    `json:"update_type" db:"update_type"`
+	OldValue    *string   `json:"old_value" db:"old_value"`
+	NewValue    *string   `json:"new_value" db:"new_value"`
+	UpdatedBy   *int      `json:"updated_by" db:"updated_by"`
+	Notes       *string   `json:"notes" db:"notes"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedByUsername *string `json:"updated_by_username,omitempty" db:"updated_by_username"`
+}
+
+// TimelineEvent represents a task timeline event
+type TimelineEvent struct {
+	ID          int             `json:"id" db:"id"`
+	TaskID      int             `json:"task_id" db:"task_id"`
+	EventType   string          `json:"event_type" db:"event_type"`
+	EventDate   time.Time       `json:"event_date" db:"event_date"`
+	Description string          `json:"description" db:"description"`
+	UserID      *int            `json:"user_id" db:"user_id"`
+	Metadata    CustomFields    `json:"metadata" db:"metadata"`
+	Username    *string         `json:"username,omitempty" db:"username"`
+	TaskTitle   string          `json:"task_title,omitempty" db:"task_title"`
+}
+
+// HierarchicalTask represents a task with its children
+type HierarchicalTask struct {
+	*Task
+	Children []*HierarchicalTask `json:"children,omitempty"`
+}
+
 // RecycledTask represents a deleted task in the recycle bin
 type RecycledTask struct {
 	ID               int          `json:"id" db:"id"`
@@ -135,10 +177,13 @@ type RecycledTask struct {
 	AssigneeID       *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate          *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields     CustomFields `json:"custom_fields" db:"custom_fields"`
+	ParentID         *int         `json:"parent_id" db:"parent_id"`
+	TaskLevel        int          `json:"task_level" db:"task_level"`
 	CreatedAt        time.Time    `json:"created_at" db:"created_at"`
 	DeletedAt        time.Time    `json:"deleted_at" db:"deleted_at"`
 	ProjectName      string       `json:"project_name" db:"project_name"`
 	AssigneeUsername *string      `json:"assignee_username" db:"assignee_username"`
+	ParentTaskTitle  *string      `json:"parent_task_title" db:"parent_task_title"`
 }
 
 // ToResponse converts Task to TaskResponse
@@ -152,6 +197,9 @@ func (t *Task) ToResponse() TaskResponse {
 		AssigneeID:   t.AssigneeID,
 		DueDate:      t.DueDate,
 		CustomFields: t.CustomFields,
+		ParentID:     t.ParentID,
+		TaskLevel:    t.TaskLevel,
+		SortOrder:    t.SortOrder,
 		CreatedAt:    t.CreatedAt,
 		UpdatedAt:    t.UpdatedAt,
 	}

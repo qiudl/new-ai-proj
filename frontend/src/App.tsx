@@ -2,11 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 // Pages
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import OptimizedDashboardPage from './pages/OptimizedDashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
 import TasksPage from './pages/TasksPage';
 import TaskBoardPage from './pages/TaskBoardPage';
@@ -23,8 +25,9 @@ import PrivateRoute from './components/PrivateRoute';
 function App() {
   return (
     <ConfigProvider locale={zhCN}>
-      <Router>
-        <div className="App">
+      <ErrorBoundary>
+        <Router>
+          <div className="App">
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -35,7 +38,23 @@ function App() {
             <Route path="/" element={
               <PrivateRoute>
                 <Layout>
+                  <OptimizedDashboardPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Layout>
                   <DashboardPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/dashboard-optimized" element={
+              <PrivateRoute>
+                <Layout>
+                  <OptimizedDashboardPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -76,6 +95,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <TaskListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/tasks" element={
+              <PrivateRoute>
+                <Layout>
+                  <TasksPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -128,8 +155,9 @@ function App() {
               </PrivateRoute>
             } />
           </Routes>
-        </div>
-      </Router>
+          </div>
+        </Router>
+      </ErrorBoundary>
     </ConfigProvider>
   );
 }

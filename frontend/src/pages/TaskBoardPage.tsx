@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Col, Row, Tag, Avatar, Typography, Spin, message, Button } from 'antd';
-import { useParams } from 'react-router-dom';
+import { Card, Col, Row, Tag, Avatar, Typography, Spin, message, Button, Select } from 'antd';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getUserName } from '../services/api';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
+
+interface Project {
+  id: string;
+  name: string;
+}
 
 interface Task {
   id: string;
@@ -18,27 +24,109 @@ interface Task {
 }
 
 const TaskBoardPage: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId: routeProjectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(routeProjectId);
   const [loading, setLoading] = useState(true);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
   useEffect(() => {
-    fetchTasks();
-  }, [projectId]);
+    if (!routeProjectId) {
+      // 如果没有项目ID，先获取项目列表
+      fetchProjects();
+    } else {
+      // 如果有项目ID，直接获取任务
+      setSelectedProjectId(routeProjectId);
+      fetchTasks();
+    }
+  }, [routeProjectId]);
 
-  const fetchTasks = async () => {
+  useEffect(() => {
+    if (selectedProjectId && selectedProjectId !== routeProjectId) {
+      fetchTasks();
+    }
+  }, [selectedProjectId]);
+
+  const fetchProjects = async () => {
     try {
-      setLoading(true);
-      const response = await fetch(`/api/projects/${projectId}/tasks`, {
+      setProjectsLoading(true);
+      const response = await fetch('/api/projects', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const apiResponse = await response.json();
+        console.log('Projects API response:', apiResponse); // 调试日志
+        
+        // 检查响应结构并提取项目数组
+        let projectsArray = [];
+        if (apiResponse.success && apiResponse.data) {
+          if (Array.isArray(apiResponse.data)) {
+            // 直接是数组
+            projectsArray = apiResponse.data;
+          } else if (apiResponse.data.data && Array.isArray(apiResponse.data.data)) {
+            // 分页响应格式
+            projectsArray = apiResponse.data.data;
+          }
+        }
+        
+        setProjects(projectsArray);
+        
+        // 如果有项目，默认选择第一个
+        if (projectsArray.length > 0 && !selectedProjectId) {
+          setSelectedProjectId(projectsArray[0].id);
+        }
+      } else {
+        console.error('Failed to fetch projects:', response.status, response.statusText);
+        message.error('获取项目列表失败');
+        setProjects([]); // 设置为空数组
+      }
+    } catch (error) {
+      console.error('获取项目列表错误:', error);
+      message.error('获取项目列表失败');
+      setProjects([]); // 设置为空数组
+    } finally {
+      setProjectsLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const fetchTasks = async () => {
+    if (!selectedProjectId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/projects/${selectedProjectId}/tasks`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      
+      if (response.ok) {
+        const apiResponse = await response.json();
+        console.log('Tasks API response:', apiResponse); // 调试日志
+        
+        // 检查响应结构并提取任务数组
+        let tasksArray = [];
+        if (apiResponse.success && apiResponse.data) {
+          if (Array.isArray(apiResponse.data)) {
+            // 直接是数组
+            tasksArray = apiResponse.data;
+          } else if (apiResponse.data.data && Array.isArray(apiResponse.data.data)) {
+            // 分页响应格式
+            tasksArray = apiResponse.data.data;
+          }
+        }
+        
         const tasksWithNames = await Promise.all(
-          data.map(async (task: Task) => {
+          tasksArray.map(async (task: Task) => {
             if (task.assignee_id) {
               try {
                 const assigneeName = await getUserName(task.assignee_id);
@@ -51,11 +139,23 @@ const TaskBoardPage: React.FC = () => {
           })
         );
         setTasks(tasksWithNames);
+      } else {
+        console.error('Failed to fetch tasks:', response.status, response.statusText);
+        message.error('获取任务失败');
       }
     } catch (error) {
+      console.error('获取任务错误:', error);
       message.error('获取任务失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProjectChange = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    // 如果在路由模式下，更新URL
+    if (routeProjectId) {
+      navigate(`/projects/${projectId}/task-board`);
     }
   };
 
@@ -121,7 +221,7 @@ const TaskBoardPage: React.FC = () => {
     <Card
       size="small"
       style={{ marginBottom: '8px', cursor: 'pointer' }}
-      bodyStyle={{ padding: '12px' }}
+      styles={{ body: { padding: '12px' } }}
     >
       <div>
         <Text strong>{task.title}</Text>
@@ -172,25 +272,56 @@ const TaskBoardPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>任务看板</Title>
-      
-      <Row gutter={16}>
-        {columns.map(column => (
-          <Col span={8} key={column.id}>
-            <Card 
-              title={`${column.title} (${getTasksByStatus(column.status).length})`}
-              style={{ minHeight: '600px' }}
-              bodyStyle={{ padding: '16px' }}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <Title level={2}>任务看板</Title>
+        
+        {/* 项目选择器 - 只在非路由模式下显示 */}
+        {!routeProjectId && (
+          <div style={{ width: '300px' }}>
+            <Select
+              placeholder="选择项目"
+              value={selectedProjectId}
+              onChange={handleProjectChange}
+              loading={projectsLoading}
+              style={{ width: '100%' }}
+              showSearch
+              filterOption={(input, option) =>
+                (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())
+              }
             >
-              <div style={{ minHeight: '500px' }}>
-                {getTasksByStatus(column.status).map((task) => (
-                  <TaskCard key={task.id} task={task} />
-                ))}
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+              {projects.map(project => (
+                <Option key={project.id} value={project.id}>
+                  {project.name}
+                </Option>
+              ))}
+            </Select>
+          </div>
+        )}
+      </div>
+
+      {!selectedProjectId ? (
+        <div style={{ textAlign: 'center', marginTop: '100px' }}>
+          <Text type="secondary">请选择一个项目查看任务</Text>
+        </div>
+      ) : (
+        <Row gutter={16}>
+          {columns.map(column => (
+            <Col span={8} key={column.id}>
+              <Card 
+                title={`${column.title} (${getTasksByStatus(column.status).length})`}
+                style={{ minHeight: '600px' }}
+                styles={{ body: { padding: '16px' } }}
+              >
+                <div style={{ minHeight: '500px' }}>
+                  {getTasksByStatus(column.status).map((task) => (
+                    <TaskCard key={task.id} task={task} />
+                  ))}
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
     </div>
   );
 };
