@@ -20,11 +20,33 @@ const AuditLogPage: React.FC = () => {
     setLoading(true);
     try {
       const response: PaginatedResponse<AuditLog> = await SystemService.getAuditLogs(page, pageSize);
-      setAuditLogs(response.data);
-      setTotal(response.pagination.total);
+      
+      // Validate that response.data is an array
+      if (!response || !response.data) {
+        console.warn('Invalid response structure:', response);
+        setAuditLogs([]);
+        setTotal(0);
+        return;
+      }
+      
+      // Ensure data is an array
+      const auditData = Array.isArray(response.data) ? response.data : [];
+      
+      // Filter out invalid audit log objects
+      const validAuditLogs = auditData.filter(log => 
+        log && 
+        typeof log === 'object' && 
+        typeof log.id !== 'undefined'
+      );
+      
+      setAuditLogs(validAuditLogs);
+      setTotal(response.pagination?.total || 0);
       setCurrentPage(page);
     } catch (error) {
       console.error('Error loading audit logs:', error);
+      // Set empty array on error to prevent undefined state
+      setAuditLogs([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -183,7 +205,7 @@ const AuditLogPage: React.FC = () => {
       
       <Table
         columns={columns}
-        dataSource={auditLogs}
+        dataSource={Array.isArray(auditLogs) ? auditLogs : []}
         loading={loading}
         rowKey="id"
         pagination={{

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
@@ -18,6 +17,7 @@ import TaskDetailPageNew from './pages/TaskDetailPageNew';
 import BulkImportPage from './pages/BulkImportPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import AuditLogPage from './pages/AuditLogPage';
+import UserProfilePage from './pages/UserProfilePage';
 
 // Components
 import Layout from './components/Layout';
@@ -167,6 +167,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <AuditLogPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/user-profile" element={
+              <PrivateRoute>
+                <Layout>
+                  <UserProfilePage />
                 </Layout>
               </PrivateRoute>
             } />

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // PostgresTaskRepository implements TaskRepository using PostgreSQL
@@ -343,6 +344,56 @@ func (r *PostgresTaskRepository) Delete(ctx context.Context, id int) error {
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("task not found")
+	}
+
+	return nil
+}
+
+// BulkDelete soft deletes multiple tasks and their descendants
+func (r *PostgresTaskRepository) BulkDelete(ctx context.Context, ids []int) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	// Convert IDs to string for SQL IN clause
+	args := make([]interface{}, len(ids))
+	placeholders := make([]string, len(ids))
+	for i, id := range ids {
+		args[i] = id
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+
+	// Use recursive CTE to find all tasks and their descendants
+	query := fmt.Sprintf(`
+		WITH RECURSIVE task_hierarchy AS (
+			-- Start with all target tasks (only if they exist and are not deleted)
+			SELECT id FROM tasks WHERE id IN (%s) AND deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- Recursively find all children
+			SELECT t.id FROM tasks t
+			INNER JOIN task_hierarchy th ON t.parent_id = th.id
+			WHERE t.deleted_at IS NULL
+		)
+		UPDATE tasks 
+		SET deleted_at = NOW() 
+		WHERE id IN (SELECT id FROM task_hierarchy) 
+		AND deleted_at IS NULL`, strings.Join(placeholders, ","))
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to bulk delete tasks and children: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("no tasks found to delete")
 	}
 
 	return nil

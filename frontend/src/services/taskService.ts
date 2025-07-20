@@ -140,6 +140,26 @@ export class TaskService {
   }
 
   /**
+   * Bulk delete tasks
+   */
+  static async bulkDeleteTasks(projectId: number, taskIds: number[]): Promise<{ deleted_count: number; message: string }> {
+    const response: APIResponse<{ deleted_count: number; message: string }> = await api.delete(
+      `/projects/${projectId}/tasks`,
+      {
+        data: {
+          task_ids: taskIds
+        }
+      }
+    );
+    
+    if (!response.success) {
+      throw new Error(response.error?.message || 'Failed to bulk delete tasks');
+    }
+    
+    return response.data!;
+  }
+
+  /**
    * Bulk import tasks
    */
   static async bulkImportTasks(

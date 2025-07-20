@@ -29,12 +29,31 @@ const RecycleBinPage: React.FC = () => {
     setProjectsLoading(true);
     try {
       const response: PaginatedResponse<RecycledProject> = await SystemService.getRecycledProjects(page, projectsPageSize);
-      setRecycledProjects(response.data);
-      setProjectsTotal(response.pagination.total);
+
+      // Validate response structure and provide safe defaults
+      if (!response) {
+        console.warn('Invalid recycled projects response: no response');
+        setRecycledProjects([]);
+        setProjectsTotal(0);
+        return;
+      }
+
+      // Ensure data is an array
+      const projectsData = Array.isArray(response.data) ? response.data : [];
+      
+      // Safely extract pagination data with fallbacks
+      const paginationData = response.pagination || {};
+      const total = typeof paginationData.total === 'number' ? paginationData.total : 0;
+      
+      setRecycledProjects(projectsData);
+      setProjectsTotal(total);
       setProjectsCurrentPage(page);
     } catch (error) {
       message.error('加载回收站项目失败');
       console.error('Error loading recycled projects:', error);
+      // Set empty array on error to prevent undefined state
+      setRecycledProjects([]);
+      setProjectsTotal(0);
     } finally {
       setProjectsLoading(false);
     }
@@ -45,12 +64,31 @@ const RecycleBinPage: React.FC = () => {
     setTasksLoading(true);
     try {
       const response: PaginatedResponse<RecycledTask> = await SystemService.getRecycledTasks(page, tasksPageSize);
-      setRecycledTasks(response.data);
-      setTasksTotal(response.pagination.total);
+
+      // Validate response structure and provide safe defaults
+      if (!response) {
+        console.warn('Invalid recycled tasks response: no response');
+        setRecycledTasks([]);
+        setTasksTotal(0);
+        return;
+      }
+
+      // Ensure data is an array
+      const tasksData = Array.isArray(response.data) ? response.data : [];
+      
+      // Safely extract pagination data with fallbacks
+      const paginationData = response.pagination || {};
+      const total = typeof paginationData.total === 'number' ? paginationData.total : 0;
+      
+      setRecycledTasks(tasksData);
+      setTasksTotal(total);
       setTasksCurrentPage(page);
     } catch (error) {
       message.error('加载回收站任务失败');
       console.error('Error loading recycled tasks:', error);
+      // Set empty array on error to prevent undefined state
+      setRecycledTasks([]);
+      setTasksTotal(0);
     } finally {
       setTasksLoading(false);
     }
@@ -273,7 +311,7 @@ const RecycleBinPage: React.FC = () => {
       children: (
         <Table
           columns={projectColumns}
-          dataSource={recycledProjects}
+          dataSource={Array.isArray(recycledProjects) ? recycledProjects : []}
           loading={projectsLoading}
           rowKey="id"
           pagination={{
@@ -295,7 +333,7 @@ const RecycleBinPage: React.FC = () => {
       children: (
         <Table
           columns={taskColumns}
-          dataSource={recycledTasks}
+          dataSource={Array.isArray(recycledTasks) ? recycledTasks : []}
           loading={tasksLoading}
           rowKey="id"
           pagination={{

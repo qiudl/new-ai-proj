@@ -66,13 +66,14 @@ func NewValidationErrorResponse(errors []ValidationError) *APIResponse {
 
 // Common error codes
 const (
-	ErrCodeValidation    = "VALIDATION_ERROR"
+	ErrCodeValidation     = "VALIDATION_ERROR"
 	ErrCodeAuthentication = "AUTHENTICATION_ERROR"
 	ErrCodeAuthorization  = "AUTHORIZATION_ERROR"
-	ErrCodeNotFound      = "NOT_FOUND"
-	ErrCodeConflict      = "CONFLICT"
-	ErrCodeInternal      = "INTERNAL_ERROR"
-	ErrCodeBadRequest    = "BAD_REQUEST"
+	ErrCodeUnauthorized   = "UNAUTHORIZED"
+	ErrCodeNotFound       = "NOT_FOUND"
+	ErrCodeConflict       = "CONFLICT"
+	ErrCodeInternal       = "INTERNAL_ERROR"
+	ErrCodeBadRequest     = "BAD_REQUEST"
 )
 
 // Common HTTP status codes mapping
@@ -80,6 +81,7 @@ var ErrorStatusCodes = map[string]int{
 	ErrCodeValidation:     http.StatusBadRequest,
 	ErrCodeAuthentication: http.StatusUnauthorized,
 	ErrCodeAuthorization:  http.StatusForbidden,
+	ErrCodeUnauthorized:   http.StatusUnauthorized,
 	ErrCodeNotFound:       http.StatusNotFound,
 	ErrCodeConflict:       http.StatusConflict,
 	ErrCodeInternal:       http.StatusInternalServerError,

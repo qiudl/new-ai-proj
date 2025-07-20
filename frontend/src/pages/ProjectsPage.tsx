@@ -24,10 +24,30 @@ const ProjectsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await projectService.getProjects();
-      setProjects(response.data);
+      
+      // Validate that response.data is an array
+      if (!response || !response.data) {
+        console.warn('Invalid response structure:', response);
+        setProjects([]);
+        return;
+      }
+      
+      // Ensure data is an array
+      const projectsData = Array.isArray(response.data) ? response.data : [];
+      
+      // Filter out invalid project objects
+      const validProjects = projectsData.filter(project => 
+        project && 
+        typeof project === 'object' && 
+        typeof project.id !== 'undefined'
+      );
+      
+      setProjects(validProjects);
     } catch (error) {
       message.error('加载项目失败');
       console.error('Error loading projects:', error);
+      // Set empty array on error to prevent undefined state
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -228,7 +248,7 @@ const ProjectsPage: React.FC = () => {
   // 渲染列表视图
   const renderListView = () => (
     <Table
-      dataSource={projects}
+      dataSource={Array.isArray(projects) ? projects : []}
       columns={columns}
       rowKey="id"
       pagination={{

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker } from 'antd';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox } from 'antd';
 import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
@@ -8,9 +8,11 @@ import TaskModal from '../components/TaskModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
 import { Project } from '../types/project';
+import { projectService } from '../services/projectService';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
+import '../styles/task-inline-edit-enhanced.css';
 
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -31,10 +33,19 @@ const TasksPage: React.FC = () => {
   const [parentTaskForNew, setParentTaskForNew] = useState<Task | undefined>();
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
   const [subTasks, setSubTasks] = useState<Map<number, Task[]>>(new Map());
+  const [loadingChildren, setLoadingChildren] = useState<Set<number>>(new Set());
+  const [editingTitle, setEditingTitle] = useState<number | null>(null);
+  const [editingTitleValue, setEditingTitleValue] = useState<string>('');
+  const [savingTitle, setSavingTitle] = useState<boolean>(false);
+  
+  // 批量选择相关状态
+  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
+  const [currentProject, setCurrentProject] = useState<Project | undefined>();
   
   // 全局统计状态
   const [globalStats, setGlobalStats] = useState<{
@@ -56,14 +67,40 @@ const TasksPage: React.FC = () => {
   // 如果URL中有projectId，使用URL中的项目ID，否则使用选择的项目ID
   const effectiveProjectId = projectIdNum || selectedProjectId;
 
+  // Load project information when projectId is provided in URL
+  useEffect(() => {
+    const loadCurrentProject = async () => {
+      if (projectIdNum && projectIdNum > 0) {
+        try {
+          const project = await projectService.getProject(projectIdNum);
+          setCurrentProject(project);
+        } catch (error) {
+          console.error('Error loading project:', error);
+          // Don't show error message for project loading failure
+        }
+      } else {
+        setCurrentProject(undefined);
+      }
+    };
+
+    loadCurrentProject();
+  }, [projectIdNum]);
+
   // 处理全局模式下的父子任务关系
   useEffect(() => {
     if (!effectiveProjectId && Array.isArray(tasks) && tasks.length > 0) {
       // 构建任务映射和父子关系
       const childrenMap = new Map<number, Task[]>();
       
-      tasks.forEach(task => {
-        if (task && typeof task === 'object' && task.parent_id) {
+      // 额外验证每个任务对象
+      const validTasks = tasks.filter(task => 
+        task && 
+        typeof task === 'object' && 
+        typeof task.id === 'number'
+      );
+      
+      validTasks.forEach(task => {
+        if (task && typeof task === 'object' && task.parent_id && typeof task.parent_id === 'number') {
           if (!childrenMap.has(task.parent_id)) {
             childrenMap.set(task.parent_id, []);
           }
@@ -97,7 +134,7 @@ const TasksPage: React.FC = () => {
   const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
-      let response;
+      let response: any;
       if (effectiveProjectId) {
         // Load tasks for specific project
         response = await TaskService.getTasks(effectiveProjectId, {
@@ -112,9 +149,9 @@ const TasksPage: React.FC = () => {
         });
       }
       
-      // Ensure response and response.data exist and is an array
-      if (!response || !response.data) {
-        console.warn('Invalid response structure:', response);
+      // Comprehensive validation of response structure
+      if (!response) {
+        console.warn('Response is null or undefined');
         setTasks([]);
         setPagination({
           current: page,
@@ -124,18 +161,55 @@ const TasksPage: React.FC = () => {
         return;
       }
       
-      const tasksData = Array.isArray(response.data) ? response.data : [];
-      setTasks(tasksData);
+      // Validate response.data exists and is properly structured
+      if (!response.data || typeof response.data !== 'object') {
+        console.warn('Invalid response.data structure:', response);
+        setTasks([]);
+        setPagination({
+          current: page,
+          pageSize: pageSize,
+          total: 0,
+        });
+        return;
+      }
+      
+      // Ensure the data field is an array
+      let tasksData: any[] = [];
+      if (Array.isArray(response.data)) {
+        // If response.data is directly an array
+        tasksData = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        // If response.data.data is the array
+        tasksData = response.data.data;
+      } else {
+        console.warn('Tasks data is not an array:', response.data);
+        tasksData = [];
+      }
+      
+      // Additional validation - filter out invalid task objects
+      const validTasks = tasksData.filter((task: any) => 
+        task && 
+        typeof task === 'object' && 
+        typeof task.id === 'number' && 
+        typeof task.title === 'string'
+      );
+      
+      if (validTasks.length !== tasksData.length) {
+        console.warn(`Filtered out ${tasksData.length - validTasks.length} invalid tasks`);
+      }
+      
+      // 确保设置有效的数组
+      const finalTasks = Array.isArray(validTasks) ? validTasks : [];
+      setTasks(finalTasks);
       
       // 修复分页计算，确保total不会超过实际需要的页数
       const actualTotal = response.pagination?.total || 0;
-      const currentPageData = tasksData.length;
+      const currentPageData = validTasks.length;
       
       // 如果当前页数据少于pageSize且不是第一页，说明这是最后一页
       const adjustedTotal = (page > 1 && currentPageData < pageSize) 
         ? (page - 1) * pageSize + currentPageData 
         : actualTotal;
-      
       
       setPagination({
         current: response.pagination?.page || page,
@@ -176,24 +250,50 @@ const TasksPage: React.FC = () => {
     
     try {
       // 获取不分页的全局任务数据用于统计
-      const response = await TaskService.getAllTasks({
+      const response: any = await TaskService.getAllTasks({
         page: 1,
         page_size: 1000 // 获取足够多的数据用于统计
       });
       
       if (response && response.data) {
-        const allTasks = response.data;
+        // Validate that data is an array
+        let allTasks: any[] = [];
+        if (Array.isArray(response.data)) {
+          allTasks = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          allTasks = response.data.data;
+        } else {
+          console.warn('Global stats: tasks data is not an array:', response.data);
+          allTasks = [];
+        }
+        
+        // Filter out invalid tasks
+        const validTasks = allTasks.filter((task: any) => 
+          task && 
+          typeof task === 'object' && 
+          typeof task.id === 'number' && 
+          typeof task.status === 'string' &&
+          typeof task.project_id === 'number'
+        );
+        
+        // 额外的安全检查
+        if (!Array.isArray(validTasks)) {
+          console.warn('Valid tasks is not an array after filtering');
+          return;
+        }
+        
         const stats = {
-          totalTasks: response.pagination?.total || allTasks.length,
-          todoTasks: allTasks.filter(task => task.status === 'todo').length,
-          inProgressTasks: allTasks.filter(task => task.status === 'in_progress').length,
-          completedTasks: allTasks.filter(task => task.status === 'completed').length,
-          projectCount: new Set(allTasks.map(task => task.project_id)).size
+          totalTasks: response.pagination?.total || validTasks.length,
+          todoTasks: validTasks.filter((task: any) => task.status === 'todo').length,
+          inProgressTasks: validTasks.filter((task: any) => task.status === 'in_progress').length,
+          completedTasks: validTasks.filter((task: any) => task.status === 'completed').length,
+          projectCount: new Set(validTasks.map((task: any) => task.project_id)).size
         };
         setGlobalStats(stats);
       }
     } catch (error) {
       console.error('Error loading global stats:', error);
+      // Don't show error message for stats loading failure
     }
   }, [effectiveProjectId]);
 
@@ -425,26 +525,67 @@ const TasksPage: React.FC = () => {
     const newExpandedTasks = new Set(expandedTasks);
     
     if (expandedTasks.has(taskId)) {
-      // Collapse
-      newExpandedTasks.delete(taskId);
+      // Collapse - 递归折叠所有子任务
+      const collapseRecursively = (parentId: number) => {
+        newExpandedTasks.delete(parentId);
+        const children = subTasks.get(parentId) || [];
+        children.forEach(child => {
+          if (expandedTasks.has(child.id)) {
+            collapseRecursively(child.id);
+          }
+        });
+      };
+      
+      collapseRecursively(taskId);
       setExpandedTasks(newExpandedTasks);
     } else {
       // Expand - load subtasks if not already loaded
       if (!subTasks.has(taskId)) {
+        // 防止重复加载
+        if (loadingChildren.has(taskId)) {
+          return;
+        }
+        
         try {
+          // 设置加载状态
+          setLoadingChildren(prev => new Set(prev).add(taskId));
+          
           // Use the task's project_id if effectiveProjectId is not available (for global task list)
           const projectId = effectiveProjectId || task.project_id;
           const children = await TaskService.getTaskChildren(projectId, taskId);
+          
+          // 验证子任务数据
+          const validChildren = Array.isArray(children) ? children.filter(child => 
+            child && 
+            typeof child === 'object' && 
+            typeof child.id === 'number'
+          ) : [];
+          
           const newSubTasks = new Map(subTasks);
-          newSubTasks.set(taskId, children);
+          newSubTasks.set(taskId, validChildren);
           setSubTasks(newSubTasks);
+          
+          // 展开任务
+          newExpandedTasks.add(taskId);
+          setExpandedTasks(newExpandedTasks);
+          
         } catch (error: any) {
+          console.error('Error loading children for task:', taskId, error);
           message.error(error.message || '获取子任务失败');
           return;
+        } finally {
+          // 清除加载状态
+          setLoadingChildren(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(taskId);
+            return newSet;
+          });
         }
+      } else {
+        // 子任务已加载，直接展开
+        newExpandedTasks.add(taskId);
+        setExpandedTasks(newExpandedTasks);
       }
-      newExpandedTasks.add(taskId);
-      setExpandedTasks(newExpandedTasks);
     }
   };
 
@@ -529,38 +670,321 @@ const TasksPage: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'processing';
-      case 'todo':
-        return 'default';
-      default:
-        return 'default';
+  // Handle title inline editing
+  const handleTitleEdit = (task: Task) => {
+    setEditingTitle(task.id);
+    setEditingTitleValue(task.title);
+  };
+
+  const handleTitleSave = async (task: Task) => {
+    if (savingTitle) return; // 防止重复提交
+    
+    const trimmedValue = editingTitleValue.trim();
+    
+    if (!trimmedValue) {
+      message.warning('任务标题不能为空');
+      return;
+    }
+
+    if (trimmedValue === task.title) {
+      setEditingTitle(null);
+      setEditingTitleValue('');
+      return;
+    }
+
+    try {
+      setSavingTitle(true);
+      
+      const projectId = effectiveProjectId || task.project_id;
+      if (!projectId) {
+        message.error('无法更新任务：缺少项目信息');
+        return;
+      }
+
+      await TaskService.updateTask(projectId, task.id, {
+        title: trimmedValue,
+        description: task.description,
+        status: task.status,
+        assignee_id: task.assignee_id,
+        due_date: task.due_date,
+        custom_fields: task.custom_fields
+      });
+
+      message.success('任务标题更新成功');
+      setEditingTitle(null);
+      setEditingTitleValue('');
+      
+      // 刷新任务列表
+      loadTasks(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error('Title update error:', error);
+      if (error.statusCode === 403) {
+        message.error('权限不足，无法更新任务标题');
+      } else if (error.statusCode === 404) {
+        message.error('任务不存在或已被删除');
+      } else {
+        message.error(error.message || '标题更新失败');
+      }
+    } finally {
+      setSavingTitle(false);
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return '已完成';
-      case 'in_progress':
-        return '进行中';
-      case 'todo':
-        return '待办';
-      default:
-        return '未知';
+  const handleTitleCancel = () => {
+    setEditingTitle(null);
+    setEditingTitleValue('');
+  };
+
+  // 批量选择处理函数
+  const handleSelectTask = (taskId: number, checked: boolean) => {
+    setSelectedTaskIds(prev => {
+      if (checked) {
+        return [...prev, taskId];
+      } else {
+        return prev.filter(id => id !== taskId);
+      }
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const validTasks = Array.isArray(stableDataSource) ? stableDataSource : [];
+      const allTaskIds = validTasks.map(task => task.id);
+      setSelectedTaskIds(allTaskIds);
+    } else {
+      setSelectedTaskIds([]);
     }
   };
+
+  const handleBulkDelete = () => {
+    if (selectedTaskIds.length === 0) {
+      message.warning('请先选择要删除的任务');
+      return;
+    }
+
+    const hasChildren = selectedTaskIds.some(taskId => {
+      const task = stableDataSource.find(t => t.id === taskId);
+      return task && (task.custom_fields?.children_count || 0) > 0;
+    });
+
+    const deleteMessage = hasChildren 
+      ? `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？\n\n⚠️ 删除包含子任务的任务将同时删除其所有子任务，此操作不可撤销。`
+      : `确定要删除选中的 ${selectedTaskIds.length} 个任务吗？此操作不可撤销。`;
+
+    Modal.confirm({
+      title: '批量删除确认',
+      content: deleteMessage,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        setBulkDeleteLoading(true);
+        try {
+          const projectId = effectiveProjectId;
+          if (!projectId) {
+            message.error('无法删除任务：缺少项目信息');
+            return;
+          }
+
+          const result = await TaskService.bulkDeleteTasks(projectId, selectedTaskIds);
+          message.success(result.message);
+          
+          // 清空选择
+          setSelectedTaskIds([]);
+          
+          // 刷新任务列表
+          setSubTasks(new Map());
+          setExpandedTasks(new Set());
+          loadTasks(pagination.current, pagination.pageSize);
+        } catch (error: any) {
+          message.error(error.message || '批量删除失败');
+        } finally {
+          setBulkDeleteLoading(false);
+        }
+      },
+    });
+  };
+
+
+  // Build expanded data source including subtasks - 修复层级处理和数据验证
+  const buildExpandedDataSource = useCallback(() => {
+    try {
+      // Ensure tasks is always an array and not null/undefined
+      if (!tasks || !Array.isArray(tasks)) {
+        console.warn('Tasks is not a valid array:', tasks);
+        return [];
+      }
+
+      // 额外的数组验证
+      const validTasks = tasks.filter(task => 
+        task && 
+        typeof task === 'object' && 
+        typeof task.id === 'number' &&
+        typeof task.title === 'string'
+      );
+
+      if (validTasks.length === 0) {
+        console.warn('No valid tasks found');
+        return [];
+      }
+
+      const result: (Task & { isSubTask?: boolean; depth?: number })[] = [];
+      
+      // Recursive function to add tasks and their expanded children
+      const addTaskWithChildren = (task: Task, depth: number) => {
+        try {
+          if (!task || typeof task !== 'object' || typeof task.id !== 'number') {
+            console.warn('Invalid task object:', task);
+            return;
+          }
+          
+          result.push({ ...task, isSubTask: depth > 0, depth });
+          
+          // Add expanded subtasks recursively
+          if (expandedTasks.has(task.id)) {
+            const children = subTasks.get(task.id) || [];
+            if (Array.isArray(children)) {
+              children.forEach(child => {
+                if (child && typeof child === 'object' && typeof child.id === 'number') {
+                  addTaskWithChildren(child, depth + 1);
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Error adding task with children:', error, task);
+        }
+      };
+      
+      // 在全局模式下，需要特殊处理层级关系
+      if (!effectiveProjectId) {
+        // 构建任务映射和父子关系
+        const taskMap = new Map<number, Task>();
+        const childrenMap = new Map<number, Task[]>();
+        
+        validTasks.forEach(task => {
+          if (task && typeof task === 'object' && typeof task.id === 'number') {
+            taskMap.set(task.id, task);
+            if (task.parent_id && typeof task.parent_id === 'number') {
+              if (!childrenMap.has(task.parent_id)) {
+                childrenMap.set(task.parent_id, []);
+              }
+              childrenMap.get(task.parent_id)!.push(task);
+            }
+          }
+        });
+        
+        // 只显示根任务，子任务通过展开显示
+        const rootTasks = validTasks.filter(task => 
+          task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
+        );
+        rootTasks.forEach(task => {
+          if (task && typeof task === 'object' && typeof task.id === 'number') {
+            addTaskWithChildren(task, 0);
+          }
+        });
+        
+        // 如果有子任务在全局任务列表中，但父任务不在当前页面，单独显示这些"孤儿"子任务
+        const orphanTasks = validTasks.filter(task => {
+          if (!task || typeof task !== 'object' || typeof task.id !== 'number' || !task.parent_id) return false;
+          // 检查父任务是否在当前任务列表中
+          return !taskMap.has(task.parent_id);
+        });
+        
+        orphanTasks.forEach(task => {
+          if (task && typeof task === 'object' && typeof task.id === 'number') {
+            // 为孤儿任务设置depth为1，表示它是某个不在当前页面的父任务的子任务
+            addTaskWithChildren(task, 1);
+          }
+        });
+        
+      } else {
+        // 项目模式下的原有逻辑
+        const rootTasks = validTasks.filter(task => 
+          task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
+        );
+        rootTasks.forEach(task => {
+          if (task && typeof task === 'object' && typeof task.id === 'number') {
+            addTaskWithChildren(task, 0);
+          }
+        });
+      }
+      
+      // 确保返回值是数组
+      return Array.isArray(result) ? result : [];
+    } catch (error) {
+      console.error('Error in buildExpandedDataSource:', error);
+      return [];
+    }
+  }, [tasks, effectiveProjectId, expandedTasks, subTasks]);
+
+  // 使用 useMemo 创建稳定的数据源
+  const stableDataSource = useMemo(() => {
+    try {
+      // Double-check that tasks is a valid array
+      if (!tasks || !Array.isArray(tasks)) {
+        console.warn('Tasks is not an array in useMemo:', tasks);
+        return [];
+      }
+      
+      // Ensure tasks contains valid objects
+      const validTasks = tasks.filter(task => 
+        task && 
+        typeof task === 'object' && 
+        typeof task.id === 'number'
+      );
+      
+      if (validTasks.length === 0) {
+        return [];
+      }
+      
+      const result = buildExpandedDataSource();
+      
+      // Ensure result is a valid array with valid objects
+      if (!Array.isArray(result)) {
+        console.warn('buildExpandedDataSource returned non-array:', result);
+        return [];
+      }
+      
+      const validResult = result.filter(item => 
+        item && 
+        typeof item === 'object' && 
+        typeof item.id === 'number'
+      );
+      
+      return validResult;
+    } catch (error) {
+      console.error('Error in stableDataSource useMemo:', error);
+      return [];
+    }
+  }, [buildExpandedDataSource, tasks]);
 
   const columns = [
+    {
+      title: (
+        <Checkbox
+          indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < stableDataSource.length}
+          onChange={(e) => handleSelectAll(e.target.checked)}
+          checked={stableDataSource.length > 0 && selectedTaskIds.length === stableDataSource.length}
+        >
+          选择
+        </Checkbox>
+      ),
+      dataIndex: 'selection',
+      key: 'selection',
+      width: '60px',
+      render: (_: any, record: Task) => (
+        <Checkbox
+          checked={selectedTaskIds.includes(record.id)}
+          onChange={(e) => handleSelectTask(record.id, e.target.checked)}
+        />
+      ),
+    },
     {
       title: '任务名称',
       dataIndex: 'title',
       key: 'title',
-      width: effectiveProjectId ? '40%' : '30%',
+      width: effectiveProjectId ? '35%' : '25%',
       render: (text: string, record: Task & { isSubTask?: boolean; depth?: number }) => {
         const depth = record.depth || 0;
         const isSubTask = depth > 0;
@@ -590,12 +1014,17 @@ const TasksPage: React.FC = () => {
             {/* 展开/收起按钮 */}
             {hasChildren ? (
               <button
-                className={`task-expand-button ${isExpanded ? 'expanded' : ''}`}
+                className={`task-expand-button ${isExpanded ? 'expanded' : ''} ${loadingChildren.has(record.id) ? 'loading' : ''}`}
                 onClick={() => handleToggleExpand(record)}
                 aria-expanded={isExpanded}
-                title={isExpanded ? '折叠子任务' : '展开子任务'}
+                title={loadingChildren.has(record.id) ? '加载中...' : (isExpanded ? '折叠子任务' : '展开子任务')}
+                disabled={loadingChildren.has(record.id)}
               >
-                <CaretRightOutlined />
+                {loadingChildren.has(record.id) ? (
+                  <span className="loading-spinner">⟳</span>
+                ) : (
+                  <CaretRightOutlined />
+                )}
               </button>
             ) : (
               <span style={{ width: '20px', display: 'inline-block' }} />
@@ -610,15 +1039,114 @@ const TasksPage: React.FC = () => {
             )}
             
             {/* 任务名称文本 */}
-            <div className="task-name-text">
-              <div style={{ 
-                fontWeight: isSubTask ? 400 : 500,
-                color: isSubTask ? '#666' : '#000',
-                marginBottom: record.description ? '2px' : '0',
-                lineHeight: '20px'
-              }}>
-                {text}
-              </div>
+            <div 
+              className="task-name-text"
+              onMouseEnter={(e) => {
+                const editIcon = e.currentTarget.querySelector('.task-title-edit-icon');
+                if (editIcon) {
+                  (editIcon as HTMLElement).style.opacity = '1';
+                }
+              }}
+              onMouseLeave={(e) => {
+                const editIcon = e.currentTarget.querySelector('.task-title-edit-icon');
+                if (editIcon) {
+                  (editIcon as HTMLElement).style.opacity = '0';
+                }
+              }}
+            >
+              {editingTitle === record.id ? (
+                <div className="inline-edit-buttons">
+                  <input
+                    type="text"
+                    value={editingTitleValue}
+                    onChange={(e) => setEditingTitleValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleTitleSave(record);
+                      } else if (e.key === 'Escape') {
+                        handleTitleCancel();
+                      }
+                    }}
+                    onBlur={() => handleTitleSave(record)}
+                    autoFocus
+                    className="inline-edit-input"
+                    style={{
+                      fontSize: '14px',
+                      fontWeight: isSubTask ? 400 : 500,
+                      color: isSubTask ? '#666' : '#000',
+                      width: '300px',
+                      lineHeight: '20px',
+                      padding: '4px 8px'
+                    }}
+                  />
+                  <button
+                    onClick={() => handleTitleSave(record)}
+                    className="inline-edit-button save"
+                    disabled={savingTitle}
+                  >
+                    {savingTitle ? '保存中...' : '保存'}
+                  </button>
+                  <button
+                    onClick={handleTitleCancel}
+                    className="inline-edit-button cancel"
+                  >
+                    取消
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewTask(record);
+                    }}
+                    style={{ 
+                      fontWeight: isSubTask ? 400 : 500,
+                      color: isSubTask ? '#1890ff' : '#1890ff',
+                      marginBottom: record.description ? '2px' : '0',
+                      lineHeight: '20px',
+                      cursor: 'pointer',
+                      textDecoration: 'none',
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      font: 'inherit'
+                    }}
+                    title="点击查看任务详情"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.textDecoration = 'underline';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.textDecoration = 'none';
+                    }}
+                  >
+                    {text}
+                  </button>
+                  <div
+                    className="task-title-edit-icon"
+                    style={{
+                      opacity: 0,
+                      transition: 'opacity 0.2s',
+                      cursor: 'pointer',
+                      color: '#999',
+                      fontSize: '12px'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleTitleEdit(record);
+                    }}
+                    title="编辑任务标题"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#1890ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#999';
+                    }}
+                  >
+                    ✏️
+                  </div>
+                </div>
+              )}
               
               {/* 任务描述 */}
               {record.description && (
@@ -930,91 +1458,6 @@ const TasksPage: React.FC = () => {
     },
   ];
 
-  // Build expanded data source including subtasks - 修复层级处理
-  const buildExpandedDataSource = useCallback(() => {
-    // Ensure tasks is always an array
-    if (!Array.isArray(tasks)) {
-      console.warn('Tasks is not an array:', tasks);
-      return [];
-    }
-
-    const result: (Task & { isSubTask?: boolean; depth?: number })[] = [];
-    
-    // Recursive function to add tasks and their expanded children
-    const addTaskWithChildren = (task: Task, depth: number) => {
-      if (!task || typeof task !== 'object') {
-        console.warn('Invalid task object:', task);
-        return;
-      }
-      
-      result.push({ ...task, isSubTask: depth > 0, depth });
-      
-      // Add expanded subtasks recursively
-      if (expandedTasks.has(task.id)) {
-        const children = subTasks.get(task.id) || [];
-        if (Array.isArray(children)) {
-          children.forEach(child => {
-            if (child && typeof child === 'object') {
-              addTaskWithChildren(child, depth + 1);
-            }
-          });
-        }
-      }
-    };
-    
-    // 在全局模式下，需要特殊处理层级关系
-    if (!effectiveProjectId) {
-      // 构建任务映射和父子关系
-      const taskMap = new Map<number, Task>();
-      const childrenMap = new Map<number, Task[]>();
-      
-      tasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          taskMap.set(task.id, task);
-          if (task.parent_id) {
-            if (!childrenMap.has(task.parent_id)) {
-              childrenMap.set(task.parent_id, []);
-            }
-            childrenMap.get(task.parent_id)!.push(task);
-          }
-        }
-      });
-      
-      // 只显示根任务，子任务通过展开显示
-      const rootTasks = tasks.filter(task => task && typeof task === 'object' && !task.parent_id);
-      rootTasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          addTaskWithChildren(task, 0);
-        }
-      });
-      
-      // 如果有子任务在全局任务列表中，但父任务不在当前页面，单独显示这些"孤儿"子任务
-      const orphanTasks = tasks.filter(task => {
-        if (!task || typeof task !== 'object' || !task.parent_id) return false;
-        // 检查父任务是否在当前任务列表中
-        return !taskMap.has(task.parent_id);
-      });
-      
-      orphanTasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          // 为孤儿任务设置depth为1，表示它是某个不在当前页面的父任务的子任务
-          addTaskWithChildren(task, 1);
-        }
-      });
-      
-    } else {
-      // 项目模式下的原有逻辑
-      const rootTasks = tasks.filter(task => task && typeof task === 'object' && !task.parent_id);
-      rootTasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          addTaskWithChildren(task, 0);
-        }
-      });
-    }
-    
-    return result;
-  }, [tasks, effectiveProjectId, expandedTasks, subTasks]);
-
   return (
     <div className="page-container">
       {/* 项目选择卡片 - 增强样式 */}
@@ -1098,14 +1541,14 @@ const TasksPage: React.FC = () => {
                   fontWeight: 600, 
                   color: '#262626' 
                 }}>
-                  {effectiveProjectId ? '任务列表' : '全局任务列表'}
+                  {effectiveProjectId ? '项目任务列表' : '全局任务列表'}
                 </h1>
                 <p style={{ 
                   margin: '4px 0 0 0', 
                   color: '#8c8c8c',
                   fontSize: '14px'
                 }}>
-                  {projectId ? `项目: ${projectId}` : 
+                  {projectId ? `项目: ${currentProject?.name || '加载中...'}` : 
                    selectedProject ? `项目: ${selectedProject.name}` : 
                    '全部项目 - 跨项目任务管理'}
                 </p>
@@ -1230,6 +1673,19 @@ const TasksPage: React.FC = () => {
                 批量导入
               </Button>
               
+              {selectedTaskIds.length > 0 && (
+                <Button
+                  type="default"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={handleBulkDelete}
+                  loading={bulkDeleteLoading}
+                  style={{ height: '40px' }}
+                >
+                  批量删除 ({selectedTaskIds.length})
+                </Button>
+              )}
+              
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -1301,7 +1757,7 @@ const TasksPage: React.FC = () => {
                 </span>
               </div>
               <Table
-                dataSource={buildExpandedDataSource()}
+                dataSource={Array.isArray(stableDataSource) ? stableDataSource : []}
                 columns={columns}
                 rowKey="id"
                 loading={loading}
@@ -1359,7 +1815,7 @@ const TasksPage: React.FC = () => {
           
           {/* 全局任务表格 */}
           <Table
-            dataSource={buildExpandedDataSource()}
+            dataSource={Array.isArray(stableDataSource) ? stableDataSource : []}
             columns={columns}
             rowKey="id"
             loading={loading}

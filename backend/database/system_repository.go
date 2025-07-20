@@ -28,14 +28,23 @@ func (r *PostgresSystemRepository) getExecer() execer {
 
 // GetRecycledTasks gets all deleted tasks with pagination
 func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, offset int) ([]*models.RecycledTask, int, error) {
-	// Get total count
+	// First try with the view, if it doesn't exist, use a direct query
 	countQuery := `SELECT COUNT(*) FROM recycled_tasks`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery)
 
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to get recycled task count: %w", err)
+		// If view doesn't exist, fall back to direct query
+		countQuery = `
+			SELECT COUNT(*) 
+			FROM tasks t 
+			WHERE t.deleted_at IS NOT NULL
+		`
+		row = exec.QueryRowContext(ctx, countQuery)
+		if err := row.Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("failed to get recycled task count: %w", err)
+		}
 	}
 
 	// Get recycled tasks with pagination
@@ -48,7 +57,23 @@ func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, 
 
 	rows, err := exec.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list recycled tasks: %w", err)
+		// If view doesn't exist, fall back to direct query
+		query = `
+			SELECT t.id, t.project_id, t.title, t.description, t.status, 
+				   t.assignee_id, t.due_date, t.custom_fields, t.created_at, t.deleted_at,
+				   COALESCE(p.name, 'Unknown Project') as project_name,
+				   COALESCE(u.username, '') as assignee_username
+			FROM tasks t
+			LEFT JOIN projects p ON t.project_id = p.id
+			LEFT JOIN users u ON t.assignee_id = u.id
+			WHERE t.deleted_at IS NOT NULL
+			ORDER BY t.deleted_at DESC
+			LIMIT $1 OFFSET $2`
+		
+		rows, err = exec.QueryContext(ctx, query, limit, offset)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to list recycled tasks: %w", err)
+		}
 	}
 	defer rows.Close()
 
@@ -264,14 +289,23 @@ func (r *PostgresSystemRepository) createAuditLog(ctx context.Context, log *mode
 
 // GetRecycledProjects gets all deleted projects with pagination
 func (r *PostgresSystemRepository) GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error) {
-	// Get total count
+	// First try with the view, if it doesn't exist, use a direct query
 	countQuery := `SELECT COUNT(*) FROM recycled_projects`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery)
 
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to get recycled project count: %w", err)
+		// If view doesn't exist, fall back to direct query
+		countQuery = `
+			SELECT COUNT(*) 
+			FROM projects p 
+			WHERE p.deleted_at IS NOT NULL
+		`
+		row = exec.QueryRowContext(ctx, countQuery)
+		if err := row.Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("failed to get recycled project count: %w", err)
+		}
 	}
 
 	// Get recycled projects with pagination
@@ -284,7 +318,24 @@ func (r *PostgresSystemRepository) GetRecycledProjects(ctx context.Context, limi
 
 	rows, err := exec.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list recycled projects: %w", err)
+		// If view doesn't exist, fall back to direct query
+		query = `
+			SELECT p.id, p.name, p.description, p.owner_id, 
+				   COALESCE(u.username, 'Unknown') as owner_username, 
+				   p.created_at, p.updated_at, p.deleted_at,
+				   COUNT(t.id) as deleted_tasks_count
+			FROM projects p
+			LEFT JOIN users u ON p.owner_id = u.id
+			LEFT JOIN tasks t ON p.id = t.project_id AND t.deleted_at IS NOT NULL
+			WHERE p.deleted_at IS NOT NULL
+			GROUP BY p.id, p.name, p.description, p.owner_id, u.username, p.created_at, p.updated_at, p.deleted_at
+			ORDER BY p.deleted_at DESC
+			LIMIT $1 OFFSET $2`
+		
+		rows, err = exec.QueryContext(ctx, query, limit, offset)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to list recycled projects: %w", err)
+		}
 	}
 	defer rows.Close()
 

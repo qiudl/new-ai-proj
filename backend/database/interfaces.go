@@ -14,6 +14,10 @@ type UserRepository interface {
 	Update(ctx context.Context, user *models.User) (*models.User, error)
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.User, int, error)
+	
+	// User profile management
+	UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error)
+	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
 }
 
 // ProjectRepository defines the interface for project database operations
@@ -39,6 +43,7 @@ type TaskRepository interface {
 	GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
 	Update(ctx context.Context, task *models.Task) (*models.Task, error)
 	Delete(ctx context.Context, id int) error
+	BulkDelete(ctx context.Context, ids []int) error
 	BulkCreate(ctx context.Context, tasks []*models.Task) ([]*models.Task, error)
 	UpdateStatus(ctx context.Context, id int, status string) error
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Task, int, error)
@@ -82,6 +87,7 @@ type DB interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
+	Customers() CustomerRepository
 	System() SystemRepository
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
@@ -94,6 +100,7 @@ type Tx interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
+	Customers() CustomerRepository
 	Commit() error
 	Rollback() error
 }

@@ -451,7 +451,9 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
     },
   ];
 
-  const flattenedTasks = flattenTasks(tasks);
+  // Ensure we always pass a valid array to flattenTasks
+  const safeTasksArray = Array.isArray(tasks) ? tasks : [];
+  const flattenedTasks = flattenTasks(safeTasksArray);
 
   return (
     <div>
@@ -467,7 +469,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
         </div>
       ) : (
         <Table
-          dataSource={flattenedTasks}
+          dataSource={Array.isArray(flattenedTasks) ? flattenedTasks : []}
           columns={columns}
           rowKey="id"
           loading={loading}

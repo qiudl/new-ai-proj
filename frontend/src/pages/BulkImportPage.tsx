@@ -3,7 +3,9 @@ import { Button, Input, Card, message, Steps, Alert } from 'antd';
 import { ImportOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import ProjectSelector from '../components/ProjectSelector';
+import TaskSelector from '../components/TaskSelector';
 import { Project } from '../types/project';
+import { Task } from '../types/task';
 
 const { TextArea } = Input;
 
@@ -14,6 +16,8 @@ const BulkImportPage: React.FC = () => {
     urlProjectId ? parseInt(urlProjectId) : undefined
   );
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
+  const [selectedParentTaskId, setSelectedParentTaskId] = useState<number | undefined>();
+  const [selectedParentTask, setSelectedParentTask] = useState<Task | undefined>();
   const [currentStep, setCurrentStep] = useState(0);
   const [jsonData, setJsonData] = useState('');
   const [parsedTasks, setParsedTasks] = useState<any[]>([]);
@@ -22,6 +26,9 @@ const BulkImportPage: React.FC = () => {
   const handleProjectChange = (projectId: number, project?: Project) => {
     setSelectedProjectId(projectId);
     setSelectedProject(project);
+    // Reset parent task selection when project changes
+    setSelectedParentTaskId(undefined);
+    setSelectedParentTask(undefined);
     // Reset form when project changes
     setCurrentStep(0);
     setJsonData('');
@@ -30,6 +37,15 @@ const BulkImportPage: React.FC = () => {
     if (urlProjectId) {
       navigate(`/projects/${projectId}/bulk-import`);
     }
+  };
+
+  const handleParentTaskChange = (taskId: number | undefined, task?: Task) => {
+    setSelectedParentTaskId(taskId);
+    setSelectedParentTask(task);
+    // Reset form when parent task changes
+    setCurrentStep(0);
+    setJsonData('');
+    setParsedTasks([]);
   };
 
   const steps = [
@@ -89,7 +105,10 @@ const BulkImportPage: React.FC = () => {
           status: task.status || 'todo',
           assignee_id: task.assignee_id || undefined,
           due_date: task.due_date ? task.due_date + 'T00:00:00Z' : undefined,
-          custom_fields: task.custom_fields || {}
+          custom_fields: task.custom_fields || {},
+          // 如果用户选择了父任务，且当前任务没有parent_id，则设置为选择的父任务
+          parent_id: task.parent_id || selectedParentTaskId || undefined,
+          sort_order: task.sort_order || undefined
         }))
       };
 
@@ -118,60 +137,76 @@ const BulkImportPage: React.FC = () => {
 
   const sampleJson = `[
   {
-    "title": "项目环境搭建",
-    "description": "搭建开发环境，包括Docker配置",
+    "title": "新功能开发计划",
+    "description": "开发新的用户界面功能",
     "status": "todo",
     "assignee_id": 1,
-    "due_date": "2025-07-20",
+    "due_date": "2025-08-01",
     "custom_fields": {
       "priority": "high",
-      "estimated_hours": 8,
-      "tags": ["环境", "Docker"]
+      "estimated_hours": 40,
+      "tags": ["功能开发", "前端"]
     }
   },
   {
-    "title": "数据库设计",
-    "description": "设计项目数据库表结构",
+    "title": "UI组件设计",
+    "description": "设计新的用户界面组件",
     "status": "todo",
+    "parent_id": 1,
     "assignee_id": 1,
-    "due_date": "2025-07-21",
+    "due_date": "2025-07-22",
     "custom_fields": {
       "priority": "high",
       "estimated_hours": 16,
-      "tags": ["数据库", "设计"]
+      "tags": ["设计", "组件", "子任务"]
     }
   },
   {
-    "title": "API接口开发",
-    "description": "开发后端REST API接口",
+    "title": "前端代码实现",
+    "description": "实现前端界面代码",
     "status": "todo",
-    "due_date": "2025-07-25",
+    "parent_id": 1,
+    "assignee_id": 1,
+    "due_date": "2025-07-28",
     "custom_fields": {
       "priority": "medium",
-      "estimated_hours": 24,
-      "tags": ["API", "后端"]
+      "estimated_hours": 20,
+      "tags": ["前端", "开发", "子任务"]
     }
   },
   {
-    "title": "前端页面开发",
-    "description": "开发React前端界面",
+    "title": "功能测试",
+    "description": "测试新功能的各项指标",
     "status": "todo",
+    "parent_id": 1,
+    "assignee_id": 1,
     "due_date": "2025-07-30",
     "custom_fields": {
       "priority": "medium",
-      "estimated_hours": 32,
-      "tags": ["前端", "React"]
+      "estimated_hours": 4,
+      "tags": ["测试", "验收", "子任务"]
     }
   },
   {
-    "title": "测试和部署",
-    "description": "进行系统测试和生产环境部署",
+    "title": "API接口对接",
+    "description": "与后端API进行接口对接",
     "status": "todo",
-    "due_date": "2025-08-05",
+    "due_date": "2025-07-26",
     "custom_fields": {
-      "priority": "high",
-      "estimated_hours": 12,
-      "tags": ["测试", "部署"]
+      "priority": "medium",
+      "estimated_hours": 8,
+      "tags": ["API", "集成"]
+    }
+  },
+  {
+    "title": "文档编写",
+    "description": "编写功能使用文档",
+    "status": "todo",
+    "due_date": "2025-08-02",
+    "custom_fields": {
+      "priority": "low",
+      "estimated_hours": 4,
+      "tags": ["文档", "说明"]
     }
   }
 ]`;
@@ -180,23 +215,57 @@ const BulkImportPage: React.FC = () => {
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">批量导入任务</h1>
-        <p className="page-description">选择项目并批量导入任务</p>
+        <p className="page-description">选择项目和父任务（可选），批量导入任务</p>
       </div>
 
       <Card style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ flex: '0 0 auto' }}>
-            <label style={{ marginRight: '8px', fontWeight: 500 }}>选择项目:</label>
-            <ProjectSelector
-              value={selectedProjectId}
-              onChange={handleProjectChange}
-              style={{ width: 300 }}
-              placeholder="请先选择一个项目"
-            />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* 项目选择行 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ flex: '0 0 auto' }}>
+              <label style={{ marginRight: '8px', fontWeight: 500 }}>选择项目:</label>
+              <ProjectSelector
+                value={selectedProjectId}
+                onChange={handleProjectChange}
+                style={{ width: 300 }}
+                placeholder="请先选择一个项目"
+              />
+            </div>
+            {selectedProject && (
+              <div style={{ flex: '1 1 auto', color: '#666' }}>
+                当前项目: <span style={{ fontWeight: 500 }}>{selectedProject.name}</span>
+              </div>
+            )}
           </div>
-          {selectedProject && (
-            <div style={{ flex: '1 1 auto', color: '#666' }}>
-              当前项目: <span style={{ fontWeight: 500 }}>{selectedProject.name}</span>
+          
+          {/* 父任务选择行 */}
+          {selectedProjectId && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '0 0 auto' }}>
+                <label style={{ marginRight: '8px', fontWeight: 500 }}>父任务 (可选):</label>
+                <TaskSelector
+                  projectId={selectedProjectId}
+                  value={selectedParentTaskId}
+                  onChange={handleParentTaskChange}
+                  style={{ width: 300 }}
+                  placeholder="选择父任务 (留空则为根任务)"
+                  allowClear
+                />
+              </div>
+              {selectedParentTask && (
+                <div style={{ 
+                  flex: '1 1 auto', 
+                  color: '#666',
+                  padding: '8px 12px',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '6px',
+                  border: '1px solid #bae7ff'
+                }}>
+                  <span style={{ color: '#1890ff', fontWeight: 500 }}>
+                    作为子任务导入到: {selectedParentTask.title}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -221,7 +290,16 @@ const BulkImportPage: React.FC = () => {
           <Card title="粘贴JSON数据" style={{ marginBottom: 16 }}>
             <Alert
               message="使用说明"
-              description="请将从Claude获得的JSON格式任务数据粘贴到下方文本框中。数据应该是一个包含任务信息的JSON数组。"
+              description={
+                <>
+                  请将从Claude获得的JSON格式任务数据粘贴到下方文本框中。数据应该是一个包含任务信息的JSON数组。
+                  <br /><br />
+                  <strong>层级任务支持：</strong>
+                  <br />• 使用上方的"父任务"选择器，可以将所有导入的任务作为某个现有任务的子任务
+                  <br />• 或在JSON中使用 parent_id 字段指定每个任务的父任务（parent_id 对应父任务在数组中的索引位置，从1开始）
+                  <br />• 两种方式可以结合使用，JSON中的 parent_id 会优先于父任务选择器
+                </>
+              }
               type="info"
               showIcon
               style={{ marginBottom: 16 }}
@@ -246,6 +324,7 @@ const BulkImportPage: React.FC = () => {
                 type="primary" 
                 icon={<ImportOutlined />}
                 onClick={handleJsonParse}
+                disabled={!selectedProjectId}
               >
                 解析JSON
               </Button>
@@ -256,24 +335,122 @@ const BulkImportPage: React.FC = () => {
 
       {selectedProjectId && currentStep === 1 && (
         <div className="import-container">
-          <Card title={`预览任务 (${parsedTasks.length} 个)`} style={{ marginBottom: 16 }}>
-            <div className="import-preview">
-              {parsedTasks.map((task, index) => (
-                <div key={index} className="task-item">
-                  <div className="task-title">{task.title}</div>
-                  <div className="task-description">{task.description}</div>
-                  <div className="task-meta">
-                    <span>状态: {task.status}</span>
-                    <span>截止时间: {task.due_date}</span>
-                    {task.custom_fields?.priority && (
-                      <span>优先级: {task.custom_fields.priority}</span>
-                    )}
-                    {task.custom_fields?.estimated_hours && (
-                      <span>预估工时: {task.custom_fields.estimated_hours}h</span>
-                    )}
+          <Card title={
+            `预览任务 (${parsedTasks.length} 个) ${
+              parsedTasks.some(t => t.parent_id) || selectedParentTaskId ? '- 包含层级结构' : ''
+            } ${selectedParentTaskId ? `- 将导入为子任务` : ''}`
+          } style={{ marginBottom: 16 }}>
+            {/* 显示父任务选择信息 */}
+            {selectedParentTask && (
+              <Alert
+                message="父任务信息"
+                description={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>所有导入的任务将作为</span>
+                    <span style={{ 
+                      backgroundColor: '#e6f7ff', 
+                      border: '1px solid #91d5ff',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontWeight: 500,
+                      color: '#1890ff'
+                    }}>
+                      {selectedParentTask.title}
+                    </span>
+                    <span>的子任务导入</span>
                   </div>
-                </div>
-              ))}
+                }
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+            
+            <div className="import-preview">
+              {(() => {
+                // Organize tasks by hierarchy
+                const rootTasks = parsedTasks.filter(task => !task.parent_id);
+                const childTasks = parsedTasks.filter(task => task.parent_id);
+                const childrenMap = new Map();
+                
+                // Group children by parent_id
+                childTasks.forEach(child => {
+                  const parentId = child.parent_id;
+                  if (!childrenMap.has(parentId)) {
+                    childrenMap.set(parentId, []);
+                  }
+                  childrenMap.get(parentId).push(child);
+                });
+
+                const renderTask = (task: any, index: number, isChild = false) => (
+                  <div key={`${task.parent_id || 'root'}-${index}`} className="task-item" style={{ 
+                    marginLeft: isChild ? '24px' : '0',
+                    borderLeft: isChild ? '2px solid #1890ff' : 'none',
+                    paddingLeft: isChild ? '12px' : '0',
+                    position: 'relative'
+                  }}>
+                    {isChild && (
+                      <div style={{
+                        position: 'absolute',
+                        left: '-2px',
+                        top: '8px',
+                        width: '8px',
+                        height: '2px',
+                        backgroundColor: '#1890ff'
+                      }} />
+                    )}
+                    <div className="task-title" style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      {isChild && <span style={{ color: '#1890ff', fontSize: '12px' }}>└─</span>}
+                      {!isChild && childrenMap.has(index + 1) && <span style={{ color: '#52c41a', fontSize: '12px' }}>📁</span>}
+                      {task.title}
+                    </div>
+                    <div className="task-description">{task.description}</div>
+                    <div className="task-meta">
+                      <span>状态: {task.status}</span>
+                      <span>截止时间: {task.due_date}</span>
+                      {(task.parent_id || selectedParentTaskId) && (
+                        <span style={{ color: '#1890ff' }}>
+                          子任务 {task.parent_id ? `(父任务ID: ${task.parent_id})` : 
+                                   selectedParentTaskId ? `(父任务: ${selectedParentTask?.title})` : ''}
+                        </span>
+                      )}
+                      {task.custom_fields?.priority && (
+                        <span>优先级: {task.custom_fields.priority}</span>
+                      )}
+                      {task.custom_fields?.estimated_hours && (
+                        <span>预估工时: {task.custom_fields.estimated_hours}h</span>
+                      )}
+                    </div>
+                  </div>
+                );
+
+                return (
+                  <>
+                    {rootTasks.map((task, index) => (
+                      <div key={index}>
+                        {renderTask(task, index + 1)}
+                        {childrenMap.has(index + 1) && 
+                          childrenMap.get(index + 1).map((child: any, childIndex: number) => 
+                            renderTask(child, childIndex, true)
+                          )
+                        }
+                      </div>
+                    ))}
+                    {childTasks.filter(child => !rootTasks.some((_, i) => i + 1 === child.parent_id)).map((orphanChild, index) => (
+                      <div key={`orphan-${index}`}>
+                        {renderTask(orphanChild, index, true)}
+                        <div style={{ color: '#ff4d4f', fontSize: '12px', marginLeft: '24px' }}>
+                          ⚠️ 注意：父任务ID {orphanChild.parent_id} 在当前导入列表中不存在
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
             </div>
             
             <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>

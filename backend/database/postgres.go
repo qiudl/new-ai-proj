@@ -62,6 +62,11 @@ func (pdb *PostgresDB) Tasks() TaskRepository {
 	return &PostgresTaskRepository{db: pdb.db}
 }
 
+// Customers returns the customer repository
+func (pdb *PostgresDB) Customers() CustomerRepository {
+	return NewCustomerRepository(pdb.db)
+}
+
 // System returns the system repository
 func (pdb *PostgresDB) System() SystemRepository {
 	return &PostgresSystemRepository{db: pdb.db}
@@ -109,6 +114,11 @@ func (ptx *PostgresTx) Projects() ProjectRepository {
 // Tasks returns the task repository for transaction
 func (ptx *PostgresTx) Tasks() TaskRepository {
 	return &PostgresTaskRepository{db: ptx.tx}
+}
+
+// Customers returns the customer repository for transaction
+func (ptx *PostgresTx) Customers() CustomerRepository {
+	return NewCustomerRepository(ptx.tx)
 }
 
 // Commit commits the transaction

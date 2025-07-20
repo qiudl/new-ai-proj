@@ -2,7 +2,7 @@ package utils
 
 import (
 	"ai-project-backend/models"
-	"encoding/json"
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -182,15 +182,25 @@ func (k *TaskCacheKeys) TaskDetailKey(taskID int) string {
 	return fmt.Sprintf("task_detail:id=%d", taskID)
 }
 
+// TaskRepositoryInterface defines the interface for task repository operations
+type TaskRepositoryInterface interface {
+	GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
+	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
+	GetByID(ctx context.Context, id int) (*models.Task, error)
+	Create(ctx context.Context, task *models.Task) (*models.Task, error)
+	Update(ctx context.Context, task *models.Task) (*models.Task, error)
+	Delete(ctx context.Context, id int) error
+}
+
 // CacheableTaskRepository wraps TaskRepository with caching
 type CacheableTaskRepository struct {
-	repo  models.TaskRepository
+	repo  TaskRepositoryInterface
 	cache *TaskQueryCache
 	keys  *TaskCacheKeys
 }
 
 // NewCacheableTaskRepository creates a new cacheable task repository
-func NewCacheableTaskRepository(repo models.TaskRepository, cache *TaskQueryCache) *CacheableTaskRepository {
+func NewCacheableTaskRepository(repo TaskRepositoryInterface, cache *TaskQueryCache) *CacheableTaskRepository {
 	return &CacheableTaskRepository{
 		repo:  repo,
 		cache: cache,
@@ -199,9 +209,9 @@ func NewCacheableTaskRepository(repo models.TaskRepository, cache *TaskQueryCach
 }
 
 // Cached version of GetAll with automatic cache management
-func (r *CacheableTaskRepository) GetAllCached(limit, offset int, enableCache bool) ([]*models.Task, int, error) {
+func (r *CacheableTaskRepository) GetAllCached(ctx context.Context, limit, offset int, enableCache bool) ([]*models.Task, int, error) {
 	if !enableCache {
-		return r.repo.GetAll(nil, limit, offset)
+		return r.repo.GetAll(ctx, limit, offset)
 	}
 	
 	// Generate cache key
@@ -215,7 +225,7 @@ func (r *CacheableTaskRepository) GetAllCached(limit, offset int, enableCache bo
 	}
 	
 	// Fetch from database
-	tasks, total, err := r.repo.GetAll(nil, limit, offset)
+	tasks, total, err := r.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}

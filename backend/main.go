@@ -150,6 +150,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
+				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -176,6 +177,14 @@ func (app *Application) setupRouter() *gin.Engine {
 					audit.GET("/logs", app.getAuditLogsHandler)
 				}
 
+			}
+
+			// User management routes
+			users := authorized.Group("/users")
+			{
+				users.GET("/profile", app.getUserProfileHandler)
+				users.PUT("/profile", app.updateUserProfileHandler)
+				users.PUT("/password", app.changePasswordHandler)
 			}
 		}
 	}
@@ -223,6 +232,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
+				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -262,7 +272,7 @@ func (app *Application) healthHandler(c *gin.Context) {
 		return
 	}
 
-	data := map[string]interface{}{
+	data := map[string]any{
 		"status":     "healthy",
 		"timestamp":  time.Now().UTC(),
 		"version":    Version,
@@ -277,7 +287,7 @@ func (app *Application) healthHandler(c *gin.Context) {
 
 // Version handler
 func (app *Application) versionHandler(c *gin.Context) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"version":     Version,
 		"build_time":  BuildTime,
 		"git_commit":  GitCommit,
@@ -605,6 +615,7 @@ func (app *Application) getAllTasksHandler(c *gin.Context) {
 	// Parse pagination parameters
 	var pagination models.PaginationParams
 	if err := c.ShouldBindQuery(&pagination); err != nil {
+		app.logger.Printf("getAllTasksHandler: Invalid pagination parameters: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
@@ -620,28 +631,77 @@ func (app *Application) getAllTasksHandler(c *gin.Context) {
 
 	offset := (pagination.Page - 1) * pagination.PageSize
 
+	app.logger.Printf("getAllTasksHandler: Fetching tasks (page %d, size %d, offset %d)", 
+		pagination.Page, pagination.PageSize, offset)
+
 	// Get all tasks from database
 	tasks, total, err := app.db.Tasks().GetAll(c.Request.Context(), pagination.PageSize, offset)
 	if err != nil {
-		app.logger.Printf("Error getting all tasks: %v", err)
+		app.logger.Printf("getAllTasksHandler: Error getting all tasks: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve tasks", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	// Convert to response format
+	app.logger.Printf("getAllTasksHandler: Retrieved %d tasks from database (total: %d)", len(tasks), total)
+
+	// Convert to response format with enhanced project information and hierarchy support
 	taskResponses := make([]models.TaskResponse, len(tasks))
 	for i, task := range tasks {
 		taskResponse := task.ToResponse()
-		// Add project_name and assignee_name from custom_fields
+		
+		// Extract information from custom_fields populated by the database query
+		var projectName, assigneeName string
+		var childrenCount int
+		
 		if task.CustomFields != nil {
-			if projectName, ok := task.CustomFields["project_name"].(string); ok {
-				taskResponse.ProjectName = projectName
+			if pName, ok := task.CustomFields["project_name"].(string); ok {
+				projectName = pName
 			}
-			if assigneeName, ok := task.CustomFields["assignee_name"].(string); ok {
-				taskResponse.AssigneeName = assigneeName
+			if aName, ok := task.CustomFields["assignee_name"].(string); ok {
+				assigneeName = aName
+			}
+			if cCount, ok := task.CustomFields["children_count"].(float64); ok {
+				childrenCount = int(cCount)
+			} else if cCount, ok := task.CustomFields["children_count"].(int); ok {
+				childrenCount = cCount
 			}
 		}
+
+		// Ensure project information completeness with validation and default handling
+		if projectName == "" {
+			if task.ProjectID != 0 {
+				projectName = fmt.Sprintf("项目 %d", task.ProjectID)
+				app.logger.Printf("getAllTasksHandler: Task %d missing project name, using default: %s", 
+					task.ID, projectName)
+			} else {
+				projectName = "未分配项目"
+				app.logger.Printf("getAllTasksHandler: Task %d has no project assigned", task.ID)
+			}
+		}
+
+		// Set project and assignee information
+		taskResponse.ProjectName = projectName
+		taskResponse.AssigneeName = assigneeName
+		
+		// Set hierarchy-related fields
+		taskResponse.ChildrenCount = childrenCount
+		taskResponse.HasChildren = childrenCount > 0
+		
+		// Calculate depth based on task level (enhanced hierarchy support)
+		if task.TaskLevel > 0 {
+			taskResponse.Depth = task.TaskLevel
+		} else {
+			// Fallback: calculate depth from parent chain if task_level is not set
+			taskResponse.Depth = app.calculateTaskDepth(c.Request.Context(), task)
+		}
+
+		// Add debug logging for hierarchy information
+		if task.ParentID != nil {
+			app.logger.Printf("getAllTasksHandler: Task %d is a subtask (parent: %d, depth: %d, children: %d)", 
+				task.ID, *task.ParentID, taskResponse.Depth, childrenCount)
+		}
+
 		taskResponses[i] = taskResponse
 	}
 
@@ -660,6 +720,9 @@ func (app *Application) getAllTasksHandler(c *gin.Context) {
 		Data:       taskResponses,
 		Pagination: paginationMeta,
 	}
+
+	app.logger.Printf("getAllTasksHandler: Successfully processed %d tasks with complete project and hierarchy info", 
+		len(taskResponses))
 
 	response := models.NewSuccessResponse(paginatedResponse, "All tasks retrieved successfully")
 	c.JSON(http.StatusOK, response)
@@ -1088,6 +1151,43 @@ func (app *Application) deleteTaskHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+func (app *Application) bulkDeleteTasksHandler(c *gin.Context) {
+	var request struct {
+		TaskIDs []int `json:"task_ids" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if len(request.TaskIDs) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Task IDs list cannot be empty", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	err := app.db.Tasks().BulkDelete(c.Request.Context(), request.TaskIDs)
+	if err != nil {
+		if err.Error() == "no tasks found to delete" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "No tasks found to delete", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error bulk deleting tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(map[string]interface{}{
+		"deleted_count": len(request.TaskIDs),
+		"message":       fmt.Sprintf("Successfully deleted %d tasks and their children", len(request.TaskIDs)),
+	}, "Tasks deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // System Management Handlers
 
 func (app *Application) getRecycledProjectsHandler(c *gin.Context) {
@@ -1096,6 +1196,14 @@ func (app *Application) getRecycledProjectsHandler(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
+	}
+
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
 	}
 
 	offset := (pagination.Page - 1) * pagination.PageSize
@@ -1185,6 +1293,14 @@ func (app *Application) getRecycledTasksHandler(c *gin.Context) {
 		return
 	}
 
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
+	}
+
 	offset := (pagination.Page - 1) * pagination.PageSize
 	tasks, total, err := app.db.System().GetRecycledTasks(c.Request.Context(), pagination.PageSize, offset)
 	if err != nil {
@@ -1270,6 +1386,14 @@ func (app *Application) getAuditLogsHandler(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
+	}
+
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
 	}
 
 	offset := (pagination.Page - 1) * pagination.PageSize
@@ -1587,6 +1711,206 @@ func (app *Application) getProjectTimelineHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// User management handlers
+
+// getUserProfileHandler gets the current user's profile
+func (app *Application) getUserProfileHandler(c *gin.Context) {
+	// TODO: Extract user ID from JWT token in context
+	// For now, using placeholder user ID
+	userID := 1 // This should come from JWT token middleware
+
+	user, err := app.db.Users().GetByID(c.Request.Context(), userID)
+	if err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"User not found",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(user.ToResponse(), "User profile retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// updateUserProfileHandler updates the current user's profile
+func (app *Application) updateUserProfileHandler(c *gin.Context) {
+	// TODO: Extract user ID from JWT token in context
+	userID := 1 // This should come from JWT token middleware
+
+	var req models.UserProfileUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"Invalid request data",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if err := app.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"Validation failed",
+			app.extractValidationErrors(err),
+		)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Check if username is already taken by another user
+	existingUser, err := app.db.Users().GetByUsername(c.Request.Context(), req.Username)
+	if err == nil && existingUser.ID != userID {
+		response := models.NewErrorResponse(
+			models.ErrCodeConflict,
+			"Username already taken",
+			map[string]string{"username": "This username is already in use"},
+		)
+		c.JSON(http.StatusConflict, response)
+		return
+	}
+
+	// Check if email is already taken by another user
+	existingUser, err = app.db.Users().GetByEmail(c.Request.Context(), req.Email)
+	if err == nil && existingUser.ID != userID {
+		response := models.NewErrorResponse(
+			models.ErrCodeConflict,
+			"Email already taken",
+			map[string]string{"email": "This email is already in use"},
+		)
+		c.JSON(http.StatusConflict, response)
+		return
+	}
+
+	// Update user profile
+	updatedUser, err := app.db.Users().UpdateProfile(c.Request.Context(), userID, req.Username, req.Email)
+	if err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"Failed to update profile",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(updatedUser.ToResponse(), "Profile updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// changePasswordHandler changes the current user's password
+func (app *Application) changePasswordHandler(c *gin.Context) {
+	// TODO: Extract user ID from JWT token in context
+	userID := 1 // This should come from JWT token middleware
+
+	var req models.PasswordChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"Invalid request data",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if err := app.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeValidation,
+			"Validation failed",
+			app.extractValidationErrors(err),
+		)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get current user
+	user, err := app.db.Users().GetByID(c.Request.Context(), userID)
+	if err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeNotFound,
+			"User not found",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Verify current password
+	if !utils.CheckPassword(req.CurrentPassword, user.PasswordHash) {
+		response := models.NewErrorResponse(
+			models.ErrCodeUnauthorized,
+			"Current password is incorrect",
+			map[string]string{"current_password": "Invalid current password"},
+		)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	// Hash new password
+	newPasswordHash, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"Failed to hash password",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Update password
+	err = app.db.Users().UpdatePassword(c.Request.Context(), userID, newPasswordHash)
+	if err != nil {
+		response := models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"Failed to update password",
+			map[string]string{"error": err.Error()},
+		)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Password changed successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// extractValidationErrors extracts validation errors from validator error
+func (app *Application) extractValidationErrors(err error) map[string]string {
+	errors := make(map[string]string)
+	
+	if validationErrors, ok := err.(validator.ValidationErrors); ok {
+		for _, fieldError := range validationErrors {
+			field := fieldError.Field()
+			tag := fieldError.Tag()
+			
+			switch tag {
+			case "required":
+				errors[field] = fmt.Sprintf("%s is required", field)
+			case "email":
+				errors[field] = "Invalid email format"
+			case "min":
+				errors[field] = fmt.Sprintf("%s must be at least %s characters", field, fieldError.Param())
+			case "max":
+				errors[field] = fmt.Sprintf("%s must be no more than %s characters", field, fieldError.Param())
+			case "oneof":
+				errors[field] = fmt.Sprintf("%s must be one of: %s", field, fieldError.Param())
+			default:
+				errors[field] = fmt.Sprintf("%s is invalid", field)
+			}
+		}
+	} else {
+		// Fallback for non-validation errors
+		errors["general"] = err.Error()
+	}
+	
+	return errors
+}
+
 
 // Run starts the application server
 func (app *Application) Run() error {
@@ -1613,6 +1937,34 @@ func (app *Application) Close() error {
 		return app.db.Close()
 	}
 	return nil
+}
+
+// calculateTaskDepth calculates the depth of a task in the hierarchy
+func (app *Application) calculateTaskDepth(ctx context.Context, task *models.Task) int {
+	if task.ParentID == nil {
+		return 0 // Root task has depth 0
+	}
+
+	depth := 0
+	currentParentID := *task.ParentID
+	
+	// Traverse up the parent chain to calculate depth
+	for currentParentID != 0 && depth < 10 { // Max depth limit to prevent infinite loops
+		parentTask, err := app.db.Tasks().GetByID(ctx, currentParentID)
+		if err != nil {
+			// If we can't find the parent, assume current depth
+			app.logger.Printf("calculateTaskDepth: Error finding parent task %d: %v", currentParentID, err)
+			break
+		}
+		
+		depth++
+		if parentTask.ParentID == nil {
+			break // Reached root parent
+		}
+		currentParentID = *parentTask.ParentID
+	}
+	
+	return depth
 }
 
 // validateNoCircularReference checks if setting parentID for taskID would create a circular reference

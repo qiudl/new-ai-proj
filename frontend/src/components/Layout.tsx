@@ -59,6 +59,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const userMenuItems = [
     {
+      key: 'profile',
+      label: '个人资料',
+      icon: <UserOutlined />,
+      onClick: () => navigate('/user-profile'),
+    },
+    {
       key: 'logout',
       label: '退出登录',
       icon: <LogoutOutlined />,
@@ -80,7 +86,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {
           key: '/project-dashboard',
           icon: <DashboardOutlined />,
-          label: '项目Dashboard',
+          label: '项目仪表盘',
         },
         {
           key: '/projects',
@@ -120,6 +126,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: '/audit-logs',
       icon: <AuditOutlined />,
       label: '审计日志',
+    },
+    {
+      key: '/user-profile',
+      icon: <UserOutlined />,
+      label: '个人资料',
     },
   ];
 

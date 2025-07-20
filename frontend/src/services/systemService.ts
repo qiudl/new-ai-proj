@@ -76,9 +76,11 @@ export class SystemService {
     const response = await api.get<BackendPaginatedResponse>(
       `/system/recycle/projects?page=${page}&page_size=${pageSize}`
     );
+    // Since api.interceptors.response already extracts data from response
+    // the response here is already the 'data' part of the backend response
     return {
-      data: (response as any).data as RecycledProject[],
-      pagination: (response as any).pagination
+      data: response.data.data as RecycledProject[],
+      pagination: response.data.pagination
     };
   }
 
@@ -95,9 +97,11 @@ export class SystemService {
     const response = await api.get<BackendPaginatedResponse>(
       `/system/recycle/tasks?page=${page}&page_size=${pageSize}`
     );
+    // Since api.interceptors.response already extracts data from response
+    // the response here is already the 'data' part of the backend response
     return {
-      data: (response as any).data as RecycledTask[],
-      pagination: (response as any).pagination
+      data: response.data.data as RecycledTask[],
+      pagination: response.data.pagination
     };
   }
 
@@ -114,9 +118,11 @@ export class SystemService {
     const response = await api.get<BackendPaginatedResponse>(
       `/system/audit/logs?page=${page}&page_size=${pageSize}`
     );
+    // Since api.interceptors.response already extracts data from response
+    // the response here is already the 'data' part of the backend response
     return {
-      data: (response as any).data as AuditLog[],
-      pagination: (response as any).pagination
+      data: response.data.data as AuditLog[],
+      pagination: response.data.pagination
     };
   }
 
