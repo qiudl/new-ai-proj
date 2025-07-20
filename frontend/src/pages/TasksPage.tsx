@@ -607,12 +607,7 @@ const TasksPage: React.FC = () => {
       const hideLoading = message.loading('正在更新状态...', 0);
 
       await TaskService.updateTask(projectId, taskId, { 
-        title: task.title,
-        description: task.description,
-        status: newStatus as any,
-        assignee_id: task.assignee_id,
-        due_date: task.due_date,
-        custom_fields: task.custom_fields
+        status: newStatus as any
       });
       
       hideLoading();
@@ -645,12 +640,7 @@ const TasksPage: React.FC = () => {
       const hideLoading = message.loading('正在更新截止日期...', 0);
 
       await TaskService.updateTask(projectId, taskId, { 
-        title: task.title,
-        description: task.description,
-        status: task.status,
-        assignee_id: task.assignee_id,
-        due_date: newDueDate || undefined,
-        custom_fields: task.custom_fields
+        due_date: newDueDate || undefined
       });
       
       hideLoading();
@@ -702,12 +692,7 @@ const TasksPage: React.FC = () => {
       }
 
       await TaskService.updateTask(projectId, task.id, {
-        title: trimmedValue,
-        description: task.description,
-        status: task.status,
-        assignee_id: task.assignee_id,
-        due_date: task.due_date,
-        custom_fields: task.custom_fields
+        title: trimmedValue
       });
 
       message.success('任务标题更新成功');

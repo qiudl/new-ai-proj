@@ -14,6 +14,7 @@ import ProjectDashboardPage from './pages/ProjectDashboardPage';
 import TasksPage from './pages/TasksPage';
 import TaskBoardPage from './pages/TaskBoardPage';
 import TaskDetailPageNew from './pages/TaskDetailPageNew';
+import TaskDashboardPage from './pages/TaskDashboardPage';
 import BulkImportPage from './pages/BulkImportPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import AuditLogPage from './pages/AuditLogPage';
@@ -151,6 +152,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <TaskDetailPageNew />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/task-dashboard" element={
+              <PrivateRoute>
+                <Layout>
+                  <TaskDashboardPage />
                 </Layout>
               </PrivateRoute>
             } />

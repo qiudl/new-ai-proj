@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Space } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { userService } from '../services/userService';
+import { User } from '../types/user';
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -12,6 +14,9 @@ import {
   TableOutlined,
   DeleteOutlined,
   AuditOutlined,
+  CalendarOutlined,
+  CustomerServiceOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -23,6 +28,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const handleMenuClick = (key: string) => {
     navigate(key);
@@ -33,26 +39,45 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate('/login');
   };
 
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await userService.getProfile();
+        if (response.success && response.data) {
+          setCurrentUser(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user profile:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
   // 获取当前选中的菜单项
   const getSelectedKeys = () => {
     const path = location.pathname;
+    if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-board')) return ['/task-board'];
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/project-dashboard') return ['/project-dashboard'];
     if (path === '/projects') return ['/projects'];
+    if (path.includes('/customers')) return ['/customers'];
     return [path];
   };
 
   // 获取当前打开的子菜单
   const getOpenKeys = () => {
     const path = location.pathname;
-    if (path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
+    if (path.includes('/task-dashboard') || path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
     }
     if (path.includes('/project-dashboard') || path.includes('/projects')) {
       return ['/project-management'];
+    }
+    if (path.includes('/customers')) {
+      return ['/customer-management'];
     }
     return [];
   };
@@ -101,6 +126,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '任务管理',
       children: [
         {
+          key: '/task-dashboard',
+          icon: <CalendarOutlined />,
+          label: '任务仪表盘',
+        },
+        {
           key: '/task-board',
           icon: <TableOutlined />,
           label: '任务看板',
@@ -114,6 +144,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/bulk-import',
           icon: <ImportOutlined />,
           label: '批量导入',
+        },
+      ],
+    },
+    {
+      key: '/customer-management',
+      icon: <CustomerServiceOutlined />,
+      label: '客户管理',
+      children: [
+        {
+          key: '/customers',
+          icon: <TeamOutlined />,
+          label: '客户列表',
         },
       ],
     },
@@ -137,14 +179,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <AntLayout>
       <Header>
-        <div className="logo">
+        <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
           AI项目管理平台
         </div>
         <div className="user-info">
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space>
               <Avatar icon={<UserOutlined />} />
-              <span>管理员</span>
+              <span>{currentUser?.username || '加载中...'}</span>
             </Space>
           </Dropdown>
         </div>

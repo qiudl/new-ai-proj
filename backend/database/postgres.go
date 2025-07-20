@@ -72,6 +72,11 @@ func (pdb *PostgresDB) System() SystemRepository {
 	return &PostgresSystemRepository{db: pdb.db}
 }
 
+// Audit returns the audit repository
+func (pdb *PostgresDB) Audit() AuditRepository {
+	return NewAuditRepository(pdb.db)
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db
@@ -119,6 +124,11 @@ func (ptx *PostgresTx) Tasks() TaskRepository {
 // Customers returns the customer repository for transaction
 func (ptx *PostgresTx) Customers() CustomerRepository {
 	return NewCustomerRepository(ptx.tx)
+}
+
+// Audit returns the audit repository for transaction
+func (ptx *PostgresTx) Audit() AuditRepository {
+	return NewAuditRepository(ptx.tx)
 }
 
 // Commit commits the transaction

@@ -37,6 +37,12 @@ export interface AuditLog {
   ip_address?: string;
   user_agent?: string;
   created_at: string;
+  user_name?: string;
+  session_id?: string;
+  event_id?: string;
+  description?: string;
+  status?: string;
+  error_message?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -61,6 +67,29 @@ export interface BackendPaginatedResponse {
     has_next: boolean;
     has_prev: boolean;
   };
+}
+
+export interface AuditLogFilter {
+  action?: string;
+  entity_type?: string;
+  user_id?: number;
+  start_date?: string;
+  end_date?: string;
+  ip_address?: string;
+  search?: string;
+  status?: string;
+}
+
+export interface AuditStats {
+  total_events: number;
+  actions_distribution: { action: string; count: number }[];
+  entities_distribution: { entity_type: string; count: number }[];
+  timeline_data: { date: string; count: number }[];
+  top_users: { user_name: string; count: number }[];
+  peak_hours: { hour: number; count: number }[];
+  error_rate: number;
+  unique_users: number;
+  unique_ips: number;
 }
 
 export interface ApiResponse<T> {
@@ -114,16 +143,74 @@ export class SystemService {
   }
 
   // Audit Logs
-  static async getAuditLogs(page = 1, pageSize = 20): Promise<PaginatedResponse<AuditLog>> {
+  static async getAuditLogs(
+    page = 1, 
+    pageSize = 20, 
+    filters: AuditLogFilter = {}
+  ): Promise<PaginatedResponse<AuditLog>> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+
+    // Add filter parameters
+    if (filters.action) params.append('action', filters.action);
+    if (filters.entity_type) params.append('entity_type', filters.entity_type);
+    if (filters.user_id) params.append('user_id', filters.user_id.toString());
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (filters.ip_address) params.append('ip_address', filters.ip_address);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.status) params.append('status', filters.status);
+
     const response = await api.get<BackendPaginatedResponse>(
-      `/system/audit/logs?page=${page}&page_size=${pageSize}`
+      `/system/audit/logs?${params.toString()}`
     );
-    // Since api.interceptors.response already extracts data from response
-    // the response here is already the 'data' part of the backend response
     return {
       data: response.data.data as AuditLog[],
       pagination: response.data.pagination
     };
+  }
+
+  static async getAuditLog(id: number): Promise<AuditLog> {
+    const response = await api.get<ApiResponse<AuditLog>>(`/system/audit/logs/${id}`);
+    return response.data.data;
+  }
+
+  static async getAuditStats(filters: AuditLogFilter = {}): Promise<AuditStats> {
+    const params = new URLSearchParams();
+    
+    // Add filter parameters for stats
+    if (filters.action) params.append('action', filters.action);
+    if (filters.entity_type) params.append('entity_type', filters.entity_type);
+    if (filters.user_id) params.append('user_id', filters.user_id.toString());
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+
+    const response = await api.get<ApiResponse<AuditStats>>(
+      `/system/audit/stats?${params.toString()}`
+    );
+    return response.data.data;
+  }
+
+  static async exportAuditLogs(
+    filters: AuditLogFilter = {},
+    format: 'csv' | 'excel' = 'csv'
+  ): Promise<Blob> {
+    const params = new URLSearchParams({ format });
+    
+    // Add filter parameters
+    if (filters.action) params.append('action', filters.action);
+    if (filters.entity_type) params.append('entity_type', filters.entity_type);
+    if (filters.user_id) params.append('user_id', filters.user_id.toString());
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (filters.search) params.append('search', filters.search);
+
+    const response = await api.get(`/system/audit/export?${params.toString()}`, {
+      responseType: 'blob'
+    });
+    return response.data;
   }
 
 }

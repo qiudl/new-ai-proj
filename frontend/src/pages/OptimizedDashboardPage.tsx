@@ -81,6 +81,39 @@ const OptimizedDashboardPage: React.FC = () => {
     { ttl: 2 * 60 * 1000 }
   );
 
+  // 使用缓存钩子加载今日任务数据
+  const {
+    data: todayTasksData,
+    loading: todayTasksLoading,
+    refresh: refreshTodayTasks
+  } = useCache<any[]>(
+    'dashboard-today-tasks',
+    () => DashboardService.getTodayTasks(),
+    { ttl: 1 * 60 * 1000 }
+  );
+
+  // 使用缓存钩子加载本周任务数据
+  const {
+    data: thisWeekTasksData,
+    loading: thisWeekTasksLoading,
+    refresh: refreshThisWeekTasks
+  } = useCache<any[]>(
+    'dashboard-thisweek-tasks',
+    () => DashboardService.getThisWeekTasks(),
+    { ttl: 2 * 60 * 1000 }
+  );
+
+  // 使用缓存钩子加载逾期任务数据
+  const {
+    data: overdueTasksData,
+    loading: overdueTasksLoading,
+    refresh: refreshOverdueTasks
+  } = useCache<any[]>(
+    'dashboard-overdue-tasks',
+    () => DashboardService.getOverdueTasks(),
+    { ttl: 2 * 60 * 1000 }
+  );
+
   const {
     data: recentActivities,
     loading: activitiesLoading,
@@ -132,7 +165,10 @@ const OptimizedDashboardPage: React.FC = () => {
       refreshActivities(),
       refreshProgress(),
       refreshWorkload(),
-      refreshProductivity()
+      refreshProductivity(),
+      refreshTodayTasks(),
+      refreshThisWeekTasks(),
+      refreshOverdueTasks()
     ]);
   };
 
@@ -320,18 +356,18 @@ const OptimizedDashboardPage: React.FC = () => {
             </Space>
           }>
             <div className="task-overview">
-              <div className="overview-item">
-                <Badge count={5} color="#1890ff">
+              <div className="overview-item" onClick={() => navigate('/task-dashboard?filter=today')} style={{ cursor: 'pointer' }}>
+                <Badge count={todayTasksData?.length || 0} color="#1890ff">
                   <span>今日任务</span>
                 </Badge>
               </div>
-              <div className="overview-item">
-                <Badge count={12} color="#52c41a">
+              <div className="overview-item" onClick={() => navigate('/task-dashboard?filter=thisweek')} style={{ cursor: 'pointer' }}>
+                <Badge count={thisWeekTasksData?.length || 0} color="#52c41a">
                   <span>本周任务</span>
                 </Badge>
               </div>
-              <div className="overview-item">
-                <Badge count={1} color="#ff4d4f">
+              <div className="overview-item" onClick={() => navigate('/task-dashboard?filter=overdue')} style={{ cursor: 'pointer' }}>
+                <Badge count={overdueTasksData?.length || 0} color="#ff4d4f">
                   <span>逾期任务</span>
                 </Badge>
               </div>

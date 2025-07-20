@@ -517,6 +517,75 @@ export class DashboardService {
   }
 
   /**
+   * 获取今日任务
+   */
+  static async getTodayTasks(): Promise<Task[]> {
+    try {
+      const tasks = await this.getAllTasks();
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      return tasks.filter((task: Task) => {
+        if (task.status === 'completed') return false;
+        
+        // 检查到期日期是今天的任务
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() === today.getTime()) return true;
+        }
+        
+        // 检查今天创建的任务
+        if (task.created_at) {
+          const createdDate = new Date(task.created_at);
+          createdDate.setHours(0, 0, 0, 0);
+          if (createdDate.getTime() === today.getTime()) return true;
+        }
+        
+        return false;
+      });
+    } catch (error) {
+      console.error('Error fetching today tasks:', error);
+      throw new Error('Failed to fetch today tasks');
+    }
+  }
+
+  /**
+   * 获取本周任务
+   */
+  static async getThisWeekTasks(): Promise<Task[]> {
+    try {
+      const tasks = await this.getAllTasks();
+      
+      const now = new Date();
+      const thisWeekStart = new Date(now);
+      thisWeekStart.setDate(now.getDate() - now.getDay());
+      thisWeekStart.setHours(0, 0, 0, 0);
+      
+      const nextWeekStart = new Date(thisWeekStart);
+      nextWeekStart.setDate(thisWeekStart.getDate() + 7);
+
+      return tasks.filter((task: Task) => {
+        if (task.status === 'completed') return false;
+        
+        // 检查到期日期在本周的任务
+        if (task.due_date) {
+          const dueDate = new Date(task.due_date);
+          if (dueDate >= thisWeekStart && dueDate < nextWeekStart) return true;
+        }
+        
+        return false;
+      });
+    } catch (error) {
+      console.error('Error fetching this week tasks:', error);
+      throw new Error('Failed to fetch this week tasks');
+    }
+  }
+
+  /**
    * 获取任务统计摘要（用于快速显示）
    */
   static async getTaskSummary(): Promise<{

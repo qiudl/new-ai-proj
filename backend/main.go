@@ -3,6 +3,7 @@ package main
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
+	"ai-project-backend/handlers"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
 	"context"
@@ -26,11 +27,12 @@ var (
 
 // Application holds the application dependencies
 type Application struct {
-	config     *config.Config
-	db         database.DB
-	logger     *log.Logger
-	validator  *validator.Validate
-	jwtManager *utils.JWTManager
+	config          *config.Config
+	db              database.DB
+	logger          *log.Logger
+	validator       *validator.Validate
+	jwtManager      *utils.JWTManager
+	customerHandler *handlers.CustomerHandler
 }
 
 // NewApplication creates a new application instance
@@ -56,12 +58,19 @@ func NewApplication() (*Application, error) {
 		cfg.JWT.Expiration,
 	)
 
+	// Initialize logger
+	logger := log.New(log.Writer(), "[API] ", log.LstdFlags)
+
+	// Initialize handlers
+	customerHandler := handlers.NewCustomerHandler(db, logger, validate)
+
 	return &Application{
-		config:     cfg,
-		db:         db,
-		logger:     log.New(log.Writer(), "[API] ", log.LstdFlags),
-		validator:  validate,
-		jwtManager: jwtManager,
+		config:          cfg,
+		db:              db,
+		logger:          logger,
+		validator:       validate,
+		jwtManager:      jwtManager,
+		customerHandler: customerHandler,
 	}, nil
 }
 
@@ -147,10 +156,10 @@ func (app *Application) setupRouter() *gin.Engine {
 				// Basic tasks routes
 				projects.GET("/:id/tasks", app.getTasksHandler)
 				projects.POST("/:id/tasks", app.createTaskHandler)
+				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
-				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -175,6 +184,9 @@ func (app *Application) setupRouter() *gin.Engine {
 				audit := system.Group("/audit")
 				{
 					audit.GET("/logs", app.getAuditLogsHandler)
+					audit.GET("/logs/:id", app.getAuditLogHandler)
+					audit.GET("/stats", app.getAuditStatsHandler)
+					audit.GET("/export", app.exportAuditLogsHandler)
 				}
 
 			}
@@ -185,6 +197,25 @@ func (app *Application) setupRouter() *gin.Engine {
 				users.GET("/profile", app.getUserProfileHandler)
 				users.PUT("/profile", app.updateUserProfileHandler)
 				users.PUT("/password", app.changePasswordHandler)
+			}
+
+			// Customer management routes
+			customers := authorized.Group("/customers")
+			{
+				customers.GET("", app.customerHandler.GetCustomers)
+				customers.POST("", app.customerHandler.CreateCustomer)
+				customers.GET("/stats", app.customerHandler.GetCustomerStats)
+				customers.GET("/:id", app.customerHandler.GetCustomer)
+				customers.PUT("/:id", app.customerHandler.UpdateCustomer)
+				customers.DELETE("/:id", app.customerHandler.DeleteCustomer)
+
+				// Customer user association routes
+				customers.POST("/:id/users", app.customerHandler.AddCustomerUser)
+				customers.DELETE("/:id/users/:userId", app.customerHandler.RemoveCustomerUser)
+
+				// Customer contact routes
+				customers.GET("/:id/contacts", app.customerHandler.GetCustomerContacts)
+				customers.POST("/:id/contacts", app.customerHandler.CreateContact)
 			}
 		}
 	}
@@ -229,10 +260,10 @@ func (app *Application) setupRouter() *gin.Engine {
 				// Basic tasks routes
 				projects.GET("/:id/tasks", app.getTasksHandler)
 				projects.POST("/:id/tasks", app.createTaskHandler)
+				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
-				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -1381,6 +1412,7 @@ func (app *Application) hardDeleteTaskHandler(c *gin.Context) {
 }
 
 func (app *Application) getAuditLogsHandler(c *gin.Context) {
+	// Parse pagination parameters
 	var pagination models.PaginationParams
 	if err := c.ShouldBindQuery(&pagination); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
@@ -1396,8 +1428,52 @@ func (app *Application) getAuditLogsHandler(c *gin.Context) {
 		pagination.PageSize = 20
 	}
 
-	offset := (pagination.Page - 1) * pagination.PageSize
-	logs, total, err := app.db.System().GetAuditLogs(c.Request.Context(), pagination.PageSize, offset)
+	// Parse filter parameters
+	filter := &models.AuditLogFilter{
+		Limit:  pagination.PageSize,
+		Offset: (pagination.Page - 1) * pagination.PageSize,
+	}
+
+	// Parse query parameters for filtering
+	if action := c.Query("action"); action != "" {
+		filter.Action = action
+	}
+	if entityType := c.Query("entity_type"); entityType != "" {
+		filter.ResourceType = entityType
+	}
+	if resourceType := c.Query("resource_type"); resourceType != "" {
+		filter.ResourceType = resourceType
+	}
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if userID, err := strconv.Atoi(userIDStr); err == nil {
+			filter.UserID = &userID
+		}
+	}
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		if startTime, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			filter.StartTime = startTime
+		}
+	}
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		if endTime, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			filter.EndTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		}
+	}
+	if ipAddress := c.Query("ip_address"); ipAddress != "" {
+		filter.IPAddress = ipAddress
+	}
+	if status := c.Query("status"); status != "" {
+		filter.Status = status
+	}
+	if sessionID := c.Query("session_id"); sessionID != "" {
+		filter.SessionID = sessionID
+	}
+	if search := c.Query("search"); search != "" {
+		filter.Description = search
+	}
+
+	// Get audit logs with enhanced filtering
+	logs, total, err := app.db.System().GetAuditLogsWithFilter(c.Request.Context(), filter)
 	if err != nil {
 		app.logger.Printf("Error getting audit logs: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get audit logs", nil)
@@ -1405,25 +1481,204 @@ func (app *Application) getAuditLogsHandler(c *gin.Context) {
 		return
 	}
 
-	paginationResult := models.Pagination{
+	// Create pagination metadata
+	totalPages := (total + pagination.PageSize - 1) / pagination.PageSize
+	paginationMeta := models.Pagination{
 		Page:       pagination.Page,
 		PageSize:   pagination.PageSize,
 		Total:      int64(total),
-		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
-		HasNext:    pagination.Page*pagination.PageSize < total,
+		TotalPages: totalPages,
+		HasNext:    pagination.Page < totalPages,
 		HasPrev:    pagination.Page > 1,
 	}
 
-	result := models.PaginatedResponse{
+	paginatedResponse := models.PaginatedResponse{
 		Data:       logs,
-		Pagination: paginationResult,
+		Pagination: paginationMeta,
 	}
 
-	response := models.NewSuccessResponse(result, "Audit logs retrieved successfully")
+	response := models.NewSuccessResponse(paginatedResponse, "Audit logs retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
 
-// Hierarchical Task Handlers
+// getAuditLogHandler gets a single audit log by ID
+func (app *Application) getAuditLogHandler(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid audit log ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	auditLog, err := app.db.System().GetAuditLogByID(c.Request.Context(), id)
+	if err != nil {
+		if err.Error() == "audit log not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Audit log not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		app.logger.Printf("Error getting audit log: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve audit log", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(auditLog, "Audit log retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// getAuditStatsHandler gets audit log statistics
+func (app *Application) getAuditStatsHandler(c *gin.Context) {
+	// Parse request parameters
+	filter := &models.AuditLogFilter{
+		StartTime: time.Now().AddDate(0, 0, -7), // Last 7 days by default
+		EndTime:   time.Now(),
+	}
+
+	if startTimeStr := c.Query("start_time"); startTimeStr != "" {
+		if startTime, err := time.Parse("2006-01-02", startTimeStr); err == nil {
+			filter.StartTime = startTime
+		}
+	}
+	if endTimeStr := c.Query("end_time"); endTimeStr != "" {
+		if endTime, err := time.Parse("2006-01-02", endTimeStr); err == nil {
+			filter.EndTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		}
+	}
+
+	// Apply additional filters from query params
+	if action := c.Query("action"); action != "" {
+		filter.Action = action
+	}
+	if entityType := c.Query("entity_type"); entityType != "" {
+		filter.ResourceType = entityType
+	}
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if userID, err := strconv.Atoi(userIDStr); err == nil {
+			filter.UserID = &userID
+		}
+	}
+
+	groupBy := c.DefaultQuery("group_by", "day")
+
+	// Get audit statistics
+	stats, err := app.db.System().GetAuditStats(c.Request.Context(), filter, groupBy)
+	if err != nil {
+		app.logger.Printf("Error getting audit stats: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve audit statistics", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(stats, "Audit statistics retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// exportAuditLogsHandler exports audit logs as CSV or Excel
+func (app *Application) exportAuditLogsHandler(c *gin.Context) {
+	format := c.DefaultQuery("format", "csv")
+	if format != "csv" && format != "excel" {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid format. Supported formats: csv, excel", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Parse filter parameters (similar to getAuditLogsHandler)
+	filter := &models.AuditLogFilter{
+		Limit: 10000, // Set a reasonable limit for export
+	}
+
+	// Parse query parameters for filtering
+	if action := c.Query("action"); action != "" {
+		filter.Action = action
+	}
+	if entityType := c.Query("entity_type"); entityType != "" {
+		filter.ResourceType = entityType
+	}
+	if userIDStr := c.Query("user_id"); userIDStr != "" {
+		if userID, err := strconv.Atoi(userIDStr); err == nil {
+			filter.UserID = &userID
+		}
+	}
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		if startTime, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			filter.StartTime = startTime
+		}
+	}
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		if endTime, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			filter.EndTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		}
+	}
+	if search := c.Query("search"); search != "" {
+		filter.Description = search
+	}
+
+	// Get audit logs for export
+	logs, _, err := app.db.System().GetAuditLogsWithFilter(c.Request.Context(), filter)
+	if err != nil {
+		app.logger.Printf("Error getting audit logs for export: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get audit logs for export", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	if format == "csv" {
+		app.exportAuditLogsAsCSV(c, logs)
+	} else {
+		app.exportAuditLogsAsExcel(c, logs)
+	}
+}
+
+// exportAuditLogsAsCSV exports audit logs as CSV
+func (app *Application) exportAuditLogsAsCSV(c *gin.Context, logs []interface{}) {
+	c.Header("Content-Type", "text/csv")
+	c.Header("Content-Disposition", "attachment;filename=audit_logs.csv")
+
+	// Write CSV header
+	csvContent := "时间,用户,操作,实体类型,实体ID,IP地址,状态,描述\n"
+
+	// Write data rows
+	for _, logInterface := range logs {
+		if log, ok := logInterface.(*models.AuditLog); ok {
+			csvContent += app.formatAuditLogCSVRow(log)
+		}
+	}
+
+	c.String(http.StatusOK, csvContent)
+}
+
+// exportAuditLogsAsExcel exports audit logs as Excel (placeholder implementation)
+func (app *Application) exportAuditLogsAsExcel(c *gin.Context, logs []interface{}) {
+	// For now, return CSV with Excel headers
+	// In a real implementation, you would use a library like excelize
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment;filename=audit_logs.xlsx")
+
+	// For simplicity, return CSV content
+	// TODO: Implement proper Excel export
+	csvContent := "时间,用户,操作,实体类型,实体ID,IP地址,状态,描述\n"
+	for _, logInterface := range logs {
+		if log, ok := logInterface.(*models.AuditLog); ok {
+			csvContent += app.formatAuditLogCSVRow(log)
+		}
+	}
+
+	c.String(http.StatusOK, csvContent)
+}
+
+// formatAuditLogCSVRow formats a single audit log as CSV row
+func (app *Application) formatAuditLogCSVRow(log *models.AuditLog) string {
+	return log.Timestamp.Format("2006-01-02 15:04:05") + "," +
+		log.UserName + "," +
+		log.Action + "," +
+		log.ResourceType + "," +
+		log.ResourceID + "," +
+		log.IPAddress + "," +
+		log.Status + "," +
+		"\"" + log.Description + "\"" + "\n"
+}
 
 // getTaskTreeHandler gets the complete task tree for a project
 func (app *Application) getTaskTreeHandler(c *gin.Context) {

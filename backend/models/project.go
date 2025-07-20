@@ -55,19 +55,6 @@ type RecycledProject struct {
 	DeletedTasksCount  int        `json:"deleted_tasks_count" db:"deleted_tasks_count"`
 }
 
-// AuditLog represents a system audit log entry
-type AuditLog struct {
-	ID         int                    `json:"id" db:"id"`
-	UserID     *int                   `json:"user_id" db:"user_id"`
-	Action     string                 `json:"action" db:"action"`
-	EntityType string                 `json:"entity_type" db:"entity_type"`
-	EntityID   int                    `json:"entity_id" db:"entity_id"`
-	EntityData map[string]interface{} `json:"entity_data" db:"entity_data"`
-	IPAddress  *string                `json:"ip_address,omitempty" db:"ip_address"`
-	UserAgent  *string                `json:"user_agent,omitempty" db:"user_agent"`
-	CreatedAt  time.Time              `json:"created_at" db:"created_at"`
-}
-
 // ToResponse converts Project to ProjectResponse
 func (p *Project) ToResponse() ProjectResponse {
 	return ProjectResponse{

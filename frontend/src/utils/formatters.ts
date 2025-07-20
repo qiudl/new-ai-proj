@@ -250,3 +250,90 @@ export const truncateText = (text: string, maxLength: number): string => {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength) + '...';
 };
+
+// Currency formatting
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency',
+    currency: 'CNY',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
+
+// Customer status color mapping
+export const getStatusColor = (status: string): string => {
+  const colorMap: Record<string, string> = {
+    active: 'green',
+    inactive: 'orange',
+    potential: 'blue',
+    closed: 'red',
+    todo: 'default',
+    in_progress: 'processing',
+    completed: 'success',
+    cancelled: 'error',
+  };
+  return colorMap[status] || 'default';
+};
+
+// Customer priority color mapping
+export const getPriorityColor = (priority: string): string => {
+  const colorMap: Record<string, string> = {
+    high: 'red',
+    medium: 'orange',
+    low: 'green',
+  };
+  return colorMap[priority] || 'default';
+};
+
+// Phone number formatting
+export const formatPhoneNumber = (phone: string): string => {
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Chinese mobile number format
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 7)} ${cleaned.slice(7)}`;
+  }
+  
+  // Default formatting
+  return phone;
+};
+
+// Calculate days difference
+export const getDaysDifference = (dateString: string): number => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = now.getTime() - date.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Calculate days until date
+export const getDaysUntil = (dateString: string): number => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffTime = date.getTime() - now.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
+
+// Email validation
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// Phone validation (Chinese mobile numbers)
+export const isValidPhone = (phone: string): boolean => {
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  return phoneRegex.test(phone.replace(/\D/g, ''));
+};
+
+// URL validation
+export const isValidUrl = (url: string): boolean => {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};

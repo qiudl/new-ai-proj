@@ -65,6 +65,28 @@ type TaskRepository interface {
 	GetProjectTimeline(ctx context.Context, projectID int, limit, offset int) ([]*models.TimelineEvent, int, error)
 }
 
+// AuditRepository defines the interface for audit log operations
+type AuditRepository interface {
+	// Audit log operations
+	CreateAuditLog(ctx context.Context, log *models.AuditLog) error
+	GetAuditLogs(ctx context.Context, filter *models.AuditLogFilter) ([]*models.AuditLog, int64, error)
+	GetAuditLogByID(ctx context.Context, id int64) (*models.AuditLog, error)
+	GetAuditLogByEventID(ctx context.Context, eventID string) (*models.AuditLog, error)
+	
+	// Audit configuration operations
+	GetAuditConfig(ctx context.Context, resourceType, action string) (*models.AuditConfig, error)
+	GetAllAuditConfigs(ctx context.Context) ([]*models.AuditConfig, error)
+	CreateAuditConfig(ctx context.Context, config *models.AuditConfig) error
+	UpdateAuditConfig(ctx context.Context, config *models.AuditConfig) error
+	DeleteAuditConfig(ctx context.Context, id int) error
+	
+	// Audit statistics
+	GetAuditStats(ctx context.Context, req *models.AuditStatsRequest) ([]*models.AuditStats, error)
+	
+	// Data cleanup
+	CleanupExpiredAuditLogs(ctx context.Context) (int64, error)
+}
+
 // SystemRepository defines the interface for system management operations
 type SystemRepository interface {
 	// Recycle bin operations
@@ -76,10 +98,14 @@ type SystemRepository interface {
 	RestoreTask(ctx context.Context, id int) error
 	HardDeleteTask(ctx context.Context, id int) error
 	
-	// Audit log operations
+	// Enhanced audit log operations
+	GetAuditLogsWithFilter(ctx context.Context, filter *models.AuditLogFilter) ([]interface{}, int, error)
+	GetAuditLogByID(ctx context.Context, id int64) (*models.AuditLog, error)
+	GetAuditStats(ctx context.Context, filter *models.AuditLogFilter, groupBy string) (interface{}, error)
+	
+	// Legacy audit log operations (deprecated - use enhanced methods above)
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error)
 	LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error
-	
 }
 
 // DB defines the database interface that combines all repositories
@@ -89,6 +115,7 @@ type DB interface {
 	Tasks() TaskRepository
 	Customers() CustomerRepository
 	System() SystemRepository
+	Audit() AuditRepository
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
@@ -101,6 +128,7 @@ type Tx interface {
 	Projects() ProjectRepository
 	Tasks() TaskRepository
 	Customers() CustomerRepository
+	Audit() AuditRepository
 	Commit() error
 	Rollback() error
 }
