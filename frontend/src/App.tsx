@@ -1,28 +1,44 @@
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider } from 'antd';
+import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
+import PrivateRoute from './components/PrivateRoute';
+import Layout from './components/Layout';
 import './App.css';
 import './styles/task-hierarchy.css';
 
-// Pages
-import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import OptimizedDashboardPage from './pages/OptimizedDashboardPage';
-import ProjectsPage from './pages/ProjectsPage';
-import ProjectDashboardPage from './pages/ProjectDashboardPage';
-import TasksPage from './pages/TasksPage';
-import TaskBoardPage from './pages/TaskBoardPage';
-import TaskDetailPageNew from './pages/TaskDetailPageNew';
-import TaskDashboardPage from './pages/TaskDashboardPage';
-import BulkImportPage from './pages/BulkImportPage';
-import RecycleBinPage from './pages/RecycleBinPage';
-import AuditLogPage from './pages/AuditLogPage';
-import UserProfilePage from './pages/UserProfilePage';
+// Lazy load pages for code splitting
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
+const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboardPage'));
+const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
+const ProjectDashboardPage = React.lazy(() => import('./pages/ProjectDashboardPage'));
+const TasksPage = React.lazy(() => import('./pages/TasksPage'));
+const TaskBoardPage = React.lazy(() => import('./pages/TaskBoardPage'));
+const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
+const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
+const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
+const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
+const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
+const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
+const CustomerListPage = React.lazy(() => import('./pages/CustomerListPage'));
 
-// Components
-import Layout from './components/Layout';
-import PrivateRoute from './components/PrivateRoute';
+// Loading component for Suspense
+const PageLoading = () => (
+  <div style={{ 
+    display: 'flex', 
+    flexDirection: 'column',
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    minHeight: '100vh' 
+  }}>
+    <Spin size="large" />
+    <div style={{ marginTop: '16px', color: '#666', fontSize: '14px' }}>
+      页面加载中...
+    </div>
+  </div>
+);
 
 function App() {
   return (
@@ -35,6 +51,7 @@ function App() {
           }}
         >
           <div className="App">
+          <Suspense fallback={<PageLoading />}>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -187,7 +204,16 @@ function App() {
                 </Layout>
               </PrivateRoute>
             } />
+            
+            <Route path="/customers" element={
+              <PrivateRoute>
+                <Layout>
+                  <CustomerListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
           </Routes>
+          </Suspense>
           </div>
         </Router>
       </ErrorBoundary>

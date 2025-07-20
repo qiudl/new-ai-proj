@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space } from 'antd';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
@@ -17,6 +17,8 @@ import {
   CalendarOutlined,
   CustomerServiceOutlined,
   TeamOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -29,6 +31,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [collapsed, setCollapsed] = useState(() => {
+    // 从localStorage读取用户的折叠状态偏好，默认为false
+    const saved = localStorage.getItem('sidebar-collapsed');
+    return saved ? JSON.parse(saved) : false;
+  });
 
   const handleMenuClick = (key: string) => {
     navigate(key);
@@ -37,6 +44,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const toggleSidebar = () => {
+    const newCollapsed = !collapsed;
+    setCollapsed(newCollapsed);
+    // 保存用户偏好到localStorage
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(newCollapsed));
   };
 
   useEffect(() => {
@@ -69,6 +83,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // 获取当前打开的子菜单
   const getOpenKeys = () => {
+    // 如果侧边栏被折叠，不展开任何子菜单
+    if (collapsed) return [];
+    
     const path = location.pathname;
     if (path.includes('/task-dashboard') || path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
@@ -179,8 +196,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <AntLayout>
       <Header>
-        <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          AI项目管理平台
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Button
+            type="text"
+            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            onClick={toggleSidebar}
+            style={{
+              fontSize: '16px',
+              width: 32,
+              height: 32,
+            }}
+          />
+          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+            AI项目管理平台
+          </div>
         </div>
         <div className="user-info">
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
@@ -192,14 +221,24 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </Header>
       <AntLayout>
-        <Sider width={200} theme="light">
+        <Sider 
+          width={200} 
+          theme="light" 
+          collapsible 
+          collapsed={collapsed} 
+          trigger={null}
+          style={{
+            transition: 'all 0.2s',
+          }}
+        >
           <Menu
             mode="inline"
             selectedKeys={getSelectedKeys()}
-            defaultOpenKeys={getOpenKeys()}
+            defaultOpenKeys={collapsed ? [] : getOpenKeys()}
             style={{ height: '100%', borderRight: 0 }}
             items={sidebarItems}
             onClick={({ key }) => handleMenuClick(key)}
+            inlineCollapsed={collapsed}
           />
         </Sider>
         <Content>

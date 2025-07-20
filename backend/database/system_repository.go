@@ -659,6 +659,30 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	return stats, nil
 }
 
+// GetAuditLogs gets audit logs with basic pagination (legacy method)
+func (r *PostgresSystemRepository) GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error) {
+	// Use the enhanced filter method with default parameters
+	filter := &models.AuditLogFilter{
+		Limit:  limit,
+		Offset: offset,
+	}
+	
+	logs, total, err := r.GetAuditLogsWithFilter(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+	
+	// Convert []interface{} to []*models.AuditLog
+	var auditLogs []*models.AuditLog
+	for _, log := range logs {
+		if auditLog, ok := log.(*models.AuditLog); ok {
+			auditLogs = append(auditLogs, auditLog)
+		}
+	}
+	
+	return auditLogs, total, nil
+}
+
 // LogAction creates a new audit log entry (deprecated - use AuditService instead)
 func (r *PostgresSystemRepository) LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error {
 	// This method is deprecated and maintained for backward compatibility

@@ -3,7 +3,7 @@ package main
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
-	"ai-project-backend/handlers"
+	// "ai-project-backend/handlers"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
 	"context"
@@ -32,7 +32,7 @@ type Application struct {
 	logger          *log.Logger
 	validator       *validator.Validate
 	jwtManager      *utils.JWTManager
-	customerHandler *handlers.CustomerHandler
+	// customerHandler *handlers.CustomerHandler
 }
 
 // NewApplication creates a new application instance
@@ -62,7 +62,7 @@ func NewApplication() (*Application, error) {
 	logger := log.New(log.Writer(), "[API] ", log.LstdFlags)
 
 	// Initialize handlers
-	customerHandler := handlers.NewCustomerHandler(db, logger, validate)
+	// customerHandler := handlers.NewCustomerHandler(db, logger, validate)
 
 	return &Application{
 		config:          cfg,
@@ -70,7 +70,7 @@ func NewApplication() (*Application, error) {
 		logger:          logger,
 		validator:       validate,
 		jwtManager:      jwtManager,
-		customerHandler: customerHandler,
+		// customerHandler: customerHandler,
 	}, nil
 }
 
@@ -199,24 +199,24 @@ func (app *Application) setupRouter() *gin.Engine {
 				users.PUT("/password", app.changePasswordHandler)
 			}
 
-			// Customer management routes
-			customers := authorized.Group("/customers")
-			{
-				customers.GET("", app.customerHandler.GetCustomers)
-				customers.POST("", app.customerHandler.CreateCustomer)
-				customers.GET("/stats", app.customerHandler.GetCustomerStats)
-				customers.GET("/:id", app.customerHandler.GetCustomer)
-				customers.PUT("/:id", app.customerHandler.UpdateCustomer)
-				customers.DELETE("/:id", app.customerHandler.DeleteCustomer)
+			// Customer management routes (temporarily disabled)
+			// customers := authorized.Group("/customers")
+			// {
+			//	customers.GET("", app.customerHandler.GetCustomers)
+			//	customers.POST("", app.customerHandler.CreateCustomer)
+			//	customers.GET("/stats", app.customerHandler.GetCustomerStats)
+			//	customers.GET("/:id", app.customerHandler.GetCustomer)
+			//	customers.PUT("/:id", app.customerHandler.UpdateCustomer)
+			//	customers.DELETE("/:id", app.customerHandler.DeleteCustomer)
 
-				// Customer user association routes
-				customers.POST("/:id/users", app.customerHandler.AddCustomerUser)
-				customers.DELETE("/:id/users/:userId", app.customerHandler.RemoveCustomerUser)
+			//	// Customer user association routes
+			//	customers.POST("/:id/users", app.customerHandler.AddCustomerUser)
+			//	customers.DELETE("/:id/users/:userId", app.customerHandler.RemoveCustomerUser)
 
-				// Customer contact routes
-				customers.GET("/:id/contacts", app.customerHandler.GetCustomerContacts)
-				customers.POST("/:id/contacts", app.customerHandler.CreateContact)
-			}
+			//	// Customer contact routes
+			//	customers.GET("/:id/contacts", app.customerHandler.GetCustomerContacts)
+			//	customers.POST("/:id/contacts", app.customerHandler.CreateContact)
+			// }
 		}
 	}
 

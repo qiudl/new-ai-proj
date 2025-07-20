@@ -210,7 +210,7 @@ func (h *AuditHandler) GetAuditStats(c *gin.Context) {
 	}
 
 	// Enhance stats with additional metrics
-	enhancedStats := h.enhanceAuditStats(c.Request.Context(), stats, filter)
+	enhancedStats := h.enhanceAuditStats(*c, stats, filter)
 
 	response := models.NewSuccessResponse(enhancedStats, "Audit statistics retrieved successfully")
 	c.JSON(http.StatusOK, response)

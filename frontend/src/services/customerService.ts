@@ -1,4 +1,4 @@
-import { Customer, CustomerRequest, CustomerContact, CustomerContactRequest, CustomerFilter, CustomerStats, CustomerUser, CustomerUserRequest, ApiResponse, PaginatedResponse, PaginationParams } from '../types/customer';
+import { Customer, CustomerRequest, CustomerContact, CustomerContactRequest, CustomerFilter, CustomerStats, CustomerUserRequest, ApiResponse, PaginatedResponse, PaginationParams } from '../types/customer';
 
 const API_BASE_URL = '/api/v1/customers';
 

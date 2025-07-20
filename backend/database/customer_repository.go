@@ -69,8 +69,8 @@ func (r *PostgresCustomerRepository) Create(ctx context.Context, customer *model
 	err := exec.QueryRowContext(ctx, query,
 		customer.Name, customer.Company, customer.Industry, customer.ContactPerson,
 		customer.Email, customer.Phone, customer.Address, customer.Website,
-		customer.Description, customer.Status, customer.ContractValue,
-		customer.ContractStartDate, customer.ContractEndDate, customer.Priority,
+		customer.Status, customer.ContractValue,
+		customer.StartDate, customer.EndDate, customer.Priority,
 		customer.CustomFields, customer.CreatedBy,
 	).Scan(&customer.ID, &customer.CreatedAt, &customer.UpdatedAt)
 
@@ -95,8 +95,8 @@ func (r *PostgresCustomerRepository) GetByID(ctx context.Context, id int) (*mode
 	err := exec.QueryRowContext(ctx, query, id).Scan(
 		&customer.ID, &customer.Name, &customer.Company, &customer.Industry,
 		&customer.ContactPerson, &customer.Email, &customer.Phone, &customer.Address,
-		&customer.Website, &customer.Description, &customer.Status, &customer.ContractValue,
-		&customer.ContractStartDate, &customer.ContractEndDate, &customer.Priority,
+		&customer.Website, &customer.Status, &customer.ContractValue,
+		&customer.StartDate, &customer.EndDate, &customer.Priority,
 		&customer.CustomFields, &customer.CreatedBy, &customer.UpdatedBy,
 		&customer.CreatedAt, &customer.UpdatedAt, &customer.DeletedAt,
 	)
@@ -179,8 +179,8 @@ func (r *PostgresCustomerRepository) List(ctx context.Context, limit, offset int
 		err := rows.Scan(
 			&customer.ID, &customer.Name, &customer.Company, &customer.Industry,
 			&customer.ContactPerson, &customer.Email, &customer.Phone, &customer.Address,
-			&customer.Website, &customer.Description, &customer.Status, &customer.ContractValue,
-			&customer.ContractStartDate, &customer.ContractEndDate, &customer.Priority,
+			&customer.Website, &customer.Status, &customer.ContractValue,
+			&customer.StartDate, &customer.EndDate, &customer.Priority,
 			&customer.CustomFields, &customer.CreatedBy, &customer.UpdatedBy,
 			&customer.CreatedAt, &customer.UpdatedAt, &customer.DeletedAt,
 		)
@@ -209,8 +209,8 @@ func (r *PostgresCustomerRepository) Update(ctx context.Context, customer *model
 	err := exec.QueryRowContext(ctx, query,
 		customer.Name, customer.Company, customer.Industry, customer.ContactPerson,
 		customer.Email, customer.Phone, customer.Address, customer.Website,
-		customer.Description, customer.Status, customer.ContractValue,
-		customer.ContractStartDate, customer.ContractEndDate, customer.Priority,
+		customer.Status, customer.ContractValue,
+		customer.StartDate, customer.EndDate, customer.Priority,
 		customer.CustomFields, customer.UpdatedBy, customer.ID,
 	).Scan(&customer.UpdatedAt)
 
@@ -343,8 +343,8 @@ func (r *PostgresCustomerRepository) GetUserCustomers(ctx context.Context, userI
 		err := rows.Scan(
 			&customer.ID, &customer.Name, &customer.Company, &customer.Industry,
 			&customer.ContactPerson, &customer.Email, &customer.Phone, &customer.Address,
-			&customer.Website, &customer.Description, &customer.Status, &customer.ContractValue,
-			&customer.ContractStartDate, &customer.ContractEndDate, &customer.Priority,
+			&customer.Website, &customer.Status, &customer.ContractValue,
+			&customer.StartDate, &customer.EndDate, &customer.Priority,
 			&customer.CustomFields, &customer.CreatedBy, &customer.UpdatedBy,
 			&customer.CreatedAt, &customer.UpdatedAt, &customer.DeletedAt,
 		)
@@ -569,8 +569,8 @@ func (r *PostgresCustomerRepository) GetCustomersByStatus(ctx context.Context, s
 		err := rows.Scan(
 			&customer.ID, &customer.Name, &customer.Company, &customer.Industry,
 			&customer.ContactPerson, &customer.Email, &customer.Phone, &customer.Address,
-			&customer.Website, &customer.Description, &customer.Status, &customer.ContractValue,
-			&customer.ContractStartDate, &customer.ContractEndDate, &customer.Priority,
+			&customer.Website, &customer.Status, &customer.ContractValue,
+			&customer.StartDate, &customer.EndDate, &customer.Priority,
 			&customer.CustomFields, &customer.CreatedBy, &customer.UpdatedBy,
 			&customer.CreatedAt, &customer.UpdatedAt, &customer.DeletedAt,
 		)

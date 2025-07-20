@@ -40,7 +40,7 @@ export class DashboardService {
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects');
+      const projectsResponse = await api.get('/projects?page=1&page_size=100');
       const projects = projectsResponse.data?.data || [];
 
       // 如果没有项目，返回空统计
@@ -184,7 +184,7 @@ export class DashboardService {
   static async getTasksByStatus(): Promise<TasksByStatus> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects');
+      const projectsResponse = await api.get('/projects?page=1&page_size=100');
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据
@@ -218,7 +218,7 @@ export class DashboardService {
   static async getProjectProgress(): Promise<ProjectProgressInfo[]> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects');
+      const projectsResponse = await api.get('/projects?page=1&page_size=100');
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据并计算进度
@@ -252,7 +252,7 @@ export class DashboardService {
   static async getUserWorkload(): Promise<UserWorkload[]> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects');
+      const projectsResponse = await api.get('/projects?page=1&page_size=100');
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据
@@ -323,7 +323,7 @@ export class DashboardService {
    */
   static async getAllProjects(): Promise<Project[]> {
     try {
-      const response = await api.get('/projects');
+      const response = await api.get('/projects?page=1&page_size=100');
       return response.data?.data || [];
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -337,7 +337,7 @@ export class DashboardService {
   static async getAllTasks(): Promise<Task[]> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects');
+      const projectsResponse = await api.get('/projects?page=1&page_size=100');
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据

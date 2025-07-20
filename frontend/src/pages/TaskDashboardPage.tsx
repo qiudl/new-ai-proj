@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Card, 
   Row, 
   Col, 
-  Table, 
   Tag, 
   Button, 
   Space, 
   Typography, 
-  Alert,
   Spin,
   Select,
   Input,
@@ -17,27 +15,18 @@ import {
   Empty,
   Badge,
   Statistic,
-  Calendar,
   List,
   Avatar,
-  Divider,
-  Timeline
+  Divider
 } from 'antd';
 import { 
-  CalendarOutlined,
   ClockCircleOutlined,
-  WarningOutlined,
   CheckCircleOutlined,
-  FilterOutlined,
-  SearchOutlined,
   ReloadOutlined,
   EditOutlined,
   EyeOutlined,
   PlusOutlined,
   TrophyOutlined,
-  LineChartOutlined,
-  TeamOutlined,
-  FireOutlined,
   RocketOutlined,
   LeftOutlined,
   RightOutlined,

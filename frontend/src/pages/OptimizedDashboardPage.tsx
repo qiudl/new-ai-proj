@@ -18,8 +18,7 @@ import {
   Dropdown,
   Input,
   Collapse,
-  Badge,
-  Divider
+  Badge
 } from 'antd';
 import { 
   ProjectOutlined, 
@@ -29,7 +28,6 @@ import {
   UserOutlined,
   CalendarOutlined,
   TrophyOutlined,
-  WarningOutlined,
   LineChartOutlined,
   TeamOutlined,
   FileTextOutlined,
@@ -38,11 +36,9 @@ import {
   PlusOutlined,
   DownOutlined,
   SettingOutlined,
-  SearchOutlined,
   FolderOutlined,
   StarOutlined,
   BellOutlined,
-  UpOutlined,
   RightOutlined,
   EditOutlined
 } from '@ant-design/icons';
@@ -57,12 +53,11 @@ import { TimelineEvent } from '../types/task';
 import { useCache } from '../hooks/useCache';
 import { 
   formatTimeAgo, 
-  getWorkloadStatus, 
-  formatNumber
+  getWorkloadStatus
 } from '../utils/formatters';
 import '../styles/OptimizedDashboard.css';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Search } = Input;
 
 const OptimizedDashboardPage: React.FC = () => {

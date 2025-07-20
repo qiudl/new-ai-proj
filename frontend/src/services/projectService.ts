@@ -54,9 +54,9 @@ class ProjectService {
   async getProjects(params?: PaginationParams): Promise<PaginatedResponse<Project>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.pageSize) queryParams.append('pageSize', params.pageSize.toString());
+    if (params?.pageSize) queryParams.append('page_size', params.pageSize.toString());
     
-    const endpoint = queryParams.toString() ? `/projects?${queryParams}` : '/projects';
+    const endpoint = queryParams.toString() ? `/projects?${queryParams}` : '/projects?page=1&page_size=20';
     return this.request<PaginatedResponse<Project>>(endpoint);
   }
 
