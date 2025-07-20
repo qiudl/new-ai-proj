@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/utils"
 	"context"
 	"fmt"
 	"log"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	_ "github.com/lib/pq"
 )
 
@@ -24,9 +26,11 @@ var (
 
 // Application holds the application dependencies
 type Application struct {
-	config *config.Config
-	db     database.DB
-	logger *log.Logger
+	config     *config.Config
+	db         database.DB
+	logger     *log.Logger
+	validator  *validator.Validate
+	jwtManager *utils.JWTManager
 }
 
 // NewApplication creates a new application instance
@@ -43,10 +47,21 @@ func NewApplication() (*Application, error) {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
 
+	// Initialize validator
+	validate := validator.New()
+
+	// Initialize JWT manager
+	jwtManager := utils.NewJWTManager(
+		cfg.JWT.Secret,
+		cfg.JWT.Expiration,
+	)
+
 	return &Application{
-		config: cfg,
-		db:     db,
-		logger: log.New(log.Writer(), "[API] ", log.LstdFlags),
+		config:     cfg,
+		db:         db,
+		logger:     log.New(log.Writer(), "[API] ", log.LstdFlags),
+		validator:  validate,
+		jwtManager: jwtManager,
 	}, nil
 }
 
@@ -276,10 +291,50 @@ func (app *Application) versionHandler(c *gin.Context) {
 
 // Placeholder handlers - to be implemented in upcoming tasks
 func (app *Application) loginHandler(c *gin.Context) {
-	response := models.NewSuccessResponse(
-		map[string]string{"status": "placeholder"},
-		"Login endpoint - to be implemented in task 2.3",
-	)
+	var req models.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if err := app.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get user by username
+	user, err := app.db.Users().GetByUsername(c.Request.Context(), req.Username)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeAuthentication, "Invalid username or password", nil)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	// Check password
+	if !utils.CheckPassword(req.Password, user.PasswordHash) {
+		response := models.NewErrorResponse(models.ErrCodeAuthentication, "Invalid username or password", nil)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	// Generate JWT token
+	token, err := app.jwtManager.GenerateToken(user.ID, user.Username, user.Role)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to generate token", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Prepare response
+	loginResponse := models.LoginResponse{
+		Token: token,
+		User:  *user,
+	}
+
+	response := models.NewSuccessResponse(loginResponse, "Login successful")
 	c.JSON(http.StatusOK, response)
 }
 

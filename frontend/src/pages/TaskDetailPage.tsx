@@ -515,6 +515,9 @@ const TaskDetailPage: React.FC = () => {
             size="small"
             pagination={false}
             locale={{ emptyText: '暂无子任务' }}
+            expandable={{
+              childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
+            }}
           />
         </Card>
       ),
@@ -536,6 +539,9 @@ const TaskDetailPage: React.FC = () => {
             size="small"
             pagination={false}
             locale={{ emptyText: '暂无更新记录' }}
+            expandable={{
+              childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
+            }}
           />
         </Card>
       ),

@@ -86,6 +86,8 @@ type TaskResponse struct {
 	SortOrder      int          `json:"sort_order"`
 	ParentTitle    string       `json:"parent_title,omitempty"`
 	ChildrenCount  int          `json:"children_count"`
+	Depth          int          `json:"depth"`
+	HasChildren    bool         `json:"has_children"`
 	CreatedAt      time.Time    `json:"created_at"`
 	UpdatedAt      time.Time    `json:"updated_at"`
 }
@@ -200,7 +202,21 @@ func (t *Task) ToResponse() TaskResponse {
 		ParentID:     t.ParentID,
 		TaskLevel:    t.TaskLevel,
 		SortOrder:    t.SortOrder,
+		Depth:        t.TaskLevel, // 默认使用 TaskLevel 作为 Depth
+		HasChildren:  false,       // 默认值，需要在查询时设置
 		CreatedAt:    t.CreatedAt,
 		UpdatedAt:    t.UpdatedAt,
 	}
+}
+
+// ToResponseWithRelations converts Task to TaskResponse with additional relation info
+func (t *Task) ToResponseWithRelations(projectName, assigneeName, parentTitle string, childrenCount int, depth int) TaskResponse {
+	response := t.ToResponse()
+	response.ProjectName = projectName
+	response.AssigneeName = assigneeName
+	response.ParentTitle = parentTitle
+	response.ChildrenCount = childrenCount
+	response.Depth = depth
+	response.HasChildren = childrenCount > 0
+	return response
 }

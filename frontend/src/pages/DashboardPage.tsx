@@ -168,12 +168,17 @@ const DashboardPage: React.FC = () => {
         alignItems: 'center', 
         minHeight: '400px' 
       }}>
-        <Spin size="large" tip="加载工作台数据..." />
+        <Spin size="large" tip="加载工作台数据...">
+          <div style={{ height: '200px', width: '100%' }} />
+        </Spin>
       </div>
     );
   }
 
-  if (hasError && !stats) {
+  // 显示部分错误状态但继续显示可用数据
+  const hasPartialData = stats || recentActivities || projectProgress || userWorkload || productivityStats;
+  
+  if (hasError && !hasPartialData) {
     return (
       <div className="page-container">
         <Alert
@@ -193,6 +198,23 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      {/* 部分错误提示 */}
+      {hasError && hasPartialData && (
+        <Alert
+          message="部分数据加载失败"
+          description="某些模块数据无法加载，显示的数据可能不完整"
+          type="warning"
+          showIcon
+          closable
+          style={{ marginBottom: '16px' }}
+          action={
+            <Button size="small" onClick={refreshAllData} loading={isLoading}>
+              重试
+            </Button>
+          }
+        />
+      )}
+      
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -227,6 +249,11 @@ const DashboardPage: React.FC = () => {
               prefix={<ProjectOutlined style={{ color: '#1890ff' }} />}
               suffix="个"
             />
+            {!stats && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                数据加载中...
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -237,6 +264,11 @@ const DashboardPage: React.FC = () => {
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               suffix="个"
             />
+            {!stats && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                数据加载中...
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -247,6 +279,11 @@ const DashboardPage: React.FC = () => {
               prefix={<ClockCircleOutlined style={{ color: '#fa8c16' }} />}
               suffix="个"
             />
+            {!stats && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                数据加载中...
+              </Text>
+            )}
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
@@ -264,12 +301,17 @@ const DashboardPage: React.FC = () => {
                 </Tag>
               </div>
             )}
+            {!stats && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                数据加载中...
+              </Text>
+            )}
           </Card>
         </Col>
       </Row>
 
       {/* 效率统计 */}
-      {productivityStats && (
+      {(productivityStats || productivityLoading) && (
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col span={24}>
             <Card 
@@ -287,30 +329,45 @@ const DashboardPage: React.FC = () => {
                 <Col xs={24} sm={8}>
                   <Statistic
                     title="本周完成"
-                    value={productivityStats.thisWeek.completed}
+                    value={productivityStats?.thisWeek.completed || 0}
                     suffix="个任务"
                     valueStyle={{ color: '#52c41a', fontSize: 18 }}
                   />
+                  {!productivityStats && (
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      统计计算中...
+                    </Text>
+                  )}
                 </Col>
                 <Col xs={24} sm={8}>
                   <Statistic
                     title="本周创建"
-                    value={productivityStats.thisWeek.created}
+                    value={productivityStats?.thisWeek.created || 0}
                     suffix="个任务"
                     valueStyle={{ color: '#1890ff', fontSize: 18 }}
                   />
+                  {!productivityStats && (
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      统计计算中...
+                    </Text>
+                  )}
                 </Col>
                 <Col xs={24} sm={8}>
                   <Statistic
                     title="效率提升"
-                    value={Math.abs(productivityStats.improvement)}
+                    value={productivityStats ? Math.abs(productivityStats.improvement) : 0}
                     suffix="%"
                     valueStyle={{ 
-                      color: productivityStats.improvement >= 0 ? '#52c41a' : '#ff4d4f',
+                      color: productivityStats && productivityStats.improvement >= 0 ? '#52c41a' : '#ff4d4f',
                       fontSize: 18
                     }}
-                    prefix={productivityStats.improvement >= 0 ? '↗' : '↘'}
+                    prefix={productivityStats && productivityStats.improvement >= 0 ? '↗' : '↘'}
                   />
+                  {!productivityStats && (
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      统计计算中...
+                    </Text>
+                  )}
                 </Col>
               </Row>
             </Card>

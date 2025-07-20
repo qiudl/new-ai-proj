@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface CacheOptions {
   ttl?: number; // Time to live in milliseconds
@@ -73,13 +73,18 @@ export function useCache<T>(
   fetcher: () => Promise<T>,
   options: CacheOptions = {}
 ) {
-  const { ttl = 5 * 60 * 1000, maxSize = 100 } = options;
+  const { ttl = 5 * 60 * 1000 } = options;
+  
+  // 使用 ref 来存储 fetcher，避免依赖变化
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
   
   const [data, setData] = useState<T | null>(() => {
     return globalCache.get<T>(key);
   });
-  const [loading, setLoading] = useState(!data);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   const fetchData = useCallback(async (forceRefresh = false) => {
     // Check cache first
@@ -96,7 +101,7 @@ export function useCache<T>(
       setLoading(true);
       setError(null);
       
-      const result = await fetcher();
+      const result = await fetcherRef.current();
       
       // Cache the result
       globalCache.set<T>(key, result, ttl);
@@ -110,7 +115,7 @@ export function useCache<T>(
     } finally {
       setLoading(false);
     }
-  }, [key, fetcher, ttl]);
+  }, [key, ttl]); // 移除 fetcher 依赖
 
   const invalidate = useCallback(() => {
     globalCache.delete(key);
@@ -121,11 +126,28 @@ export function useCache<T>(
     return fetchData(true);
   }, [fetchData]);
 
+  // 初始化数据加载
   useEffect(() => {
-    if (!data) {
-      fetchData();
+    if (!initialized) {
+      setInitialized(true);
+      
+      // 检查缓存
+      const cachedData = globalCache.get<T>(key);
+      if (cachedData) {
+        setData(cachedData);
+        setLoading(false);
+      } else {
+        // 只有在没有缓存数据时才加载
+        fetchData().catch(console.error);
+      }
     }
-  }, [data, fetchData]);
+  }, [initialized, key]); // 移除 fetchData 依赖避免循环
+
+  // 设置初始加载状态
+  useEffect(() => {
+    const cachedData = globalCache.get<T>(key);
+    setLoading(!cachedData && !initialized);
+  }, [key, initialized]);
 
   return {
     data,

@@ -35,18 +35,34 @@ export interface TasksByStatus {
 
 export class DashboardService {
   /**
-   * 获取工作台统计数据
+   * 获取工作台统计数据（带降级策略）
    */
   static async getDashboardStats(): Promise<DashboardStats> {
     try {
-      // 并发获取项目和任务数据
-      const [projectsResponse, tasksResponse] = await Promise.all([
-        api.get('/projects'),
-        api.get('/tasks')
-      ]);
-
+      // 先获取项目数据
+      const projectsResponse = await api.get('/projects');
       const projects = projectsResponse.data?.data || [];
-      const tasks = tasksResponse.data?.data || [];
+
+      // 如果没有项目，返回空统计
+      if (projects.length === 0) {
+        return this.getEmptyStats();
+      }
+
+      // 为每个项目获取任务数据，使用Promise.allSettled避免单个项目失败影响整体
+      const taskPromises = projects.map((project: any) => 
+        api.get(`/projects/${project.id}/tasks`).catch(error => {
+          console.warn(`Failed to load tasks for project ${project.id}:`, error);
+          return { data: { data: [] } }; // 返回空数组作为降级
+        })
+      );
+      
+      const taskResponses = await Promise.all(taskPromises);
+      
+      // 合并所有任务数据
+      const tasks = taskResponses.reduce((allTasks, response) => {
+        const projectTasks = response.data?.data || [];
+        return allTasks.concat(projectTasks);
+      }, []);
 
       // 计算统计数据
       const totalProjects = projects.length;
@@ -75,8 +91,24 @@ export class DashboardService {
       };
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
-      throw new Error('Failed to fetch dashboard statistics');
+      // 返回空统计作为降级，而不是抛出错误
+      return this.getEmptyStats();
     }
+  }
+
+  /**
+   * 获取空的统计数据（用于降级处理）
+   */
+  private static getEmptyStats(): DashboardStats {
+    return {
+      totalProjects: 0,
+      totalTasks: 0,
+      completedTasks: 0,
+      inProgressTasks: 0,
+      todoTasks: 0,
+      overdueTasks: 0,
+      completionRate: 0
+    };
   }
 
   /**
@@ -84,36 +116,65 @@ export class DashboardService {
    */
   static async getRecentActivities(limit: number = 5): Promise<TimelineEvent[]> {
     try {
-      // 获取所有项目的时间轴事件
-      const projectsResponse = await api.get('/projects');
-      const projects = projectsResponse.data?.data || [];
+      // 模拟从任务数据生成活动事件，因为后端没有timeline端点
+      const tasks = await this.getAllTasks();
       
-      if (projects.length === 0) {
-        return [];
-      }
-
-      // 为每个项目获取时间轴事件
-      const timelinePromises = projects.map((project: Project) => 
-        api.get(`/projects/${project.id}/timeline?page_size=${Math.ceil(limit / projects.length)}`)
-      );
-
-      const timelineResponses = await Promise.all(timelinePromises);
+      // 基于任务的created_at和updated_at生成时间线事件
+      const events: TimelineEvent[] = [];
       
-      // 合并所有时间轴事件
-      const allEvents: TimelineEvent[] = [];
-      timelineResponses.forEach(response => {
-        if (response.data?.data?.data) {
-          allEvents.push(...response.data.data.data);
+      tasks.forEach((task: Task) => {
+        // 任务创建事件
+        events.push({
+          id: task.id * 1000 + 1, // 生成唯一ID
+          task_id: task.id,
+          event_type: 'created',
+          event_date: task.created_at,
+          description: `创建了任务「${task.title}」`,
+          user_id: task.assignee_id,
+          metadata: { status: task.status },
+          username: task.assignee_name || '未知用户',
+          task_title: task.title
+        });
+
+        // 如果任务已完成，添加完成事件
+        if (task.status === 'completed' && task.updated_at !== task.created_at) {
+          events.push({
+            id: task.id * 1000 + 2,
+            task_id: task.id,
+            event_type: 'completed',
+            event_date: task.updated_at,
+            description: `完成了任务「${task.title}」`,
+            user_id: task.assignee_id,
+            metadata: { status: 'completed' },
+            username: task.assignee_name || '未知用户',
+            task_title: task.title
+          });
+        }
+
+        // 如果更新时间不同于创建时间且未完成，添加更新事件
+        if (task.updated_at !== task.created_at && task.status !== 'completed') {
+          events.push({
+            id: task.id * 1000 + 3,
+            task_id: task.id,
+            event_type: 'updated',
+            event_date: task.updated_at,
+            description: `更新了任务「${task.title}」`,
+            user_id: task.assignee_id,
+            metadata: { status: task.status },
+            username: task.assignee_name || '未知用户',
+            task_title: task.title
+          });
         }
       });
 
       // 按时间排序并返回最新的几条
-      return allEvents
+      return events
         .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime())
         .slice(0, limit);
     } catch (error) {
       console.error('Error fetching recent activities:', error);
-      throw new Error('Failed to fetch recent activities');
+      // 返回空数组作为降级
+      return [];
     }
   }
 
@@ -122,8 +183,22 @@ export class DashboardService {
    */
   static async getTasksByStatus(): Promise<TasksByStatus> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 先获取项目数据
+      const projectsResponse = await api.get('/projects');
+      const projects = projectsResponse.data?.data || [];
+
+      // 为每个项目获取任务数据
+      const taskPromises = projects.map((project: any) => 
+        api.get(`/projects/${project.id}/tasks`)
+      );
+      
+      const taskResponses = await Promise.all(taskPromises);
+      
+      // 合并所有任务数据
+      const tasks = taskResponses.reduce((allTasks, response) => {
+        const projectTasks = response.data?.data || [];
+        return allTasks.concat(projectTasks);
+      }, []);
 
       return {
         todo: tasks.filter((task: Task) => task.status === 'todo'),
@@ -142,16 +217,15 @@ export class DashboardService {
    */
   static async getProjectProgress(): Promise<ProjectProgressInfo[]> {
     try {
-      const [projectsResponse, tasksResponse] = await Promise.all([
-        api.get('/projects'),
-        api.get('/tasks')
-      ]);
-
+      // 先获取项目数据
+      const projectsResponse = await api.get('/projects');
       const projects = projectsResponse.data?.data || [];
-      const allTasks = tasksResponse.data?.data || [];
 
-      return projects.map((project: Project) => {
-        const projectTasks = allTasks.filter((task: Task) => task.project_id === project.id);
+      // 为每个项目获取任务数据并计算进度
+      const progressPromises = projects.map(async (project: any) => {
+        const tasksResponse = await api.get(`/projects/${project.id}/tasks`);
+        const projectTasks = tasksResponse.data?.data || [];
+        
         const completedTasks = projectTasks.filter((task: Task) => task.status === 'completed');
         const totalTasks = projectTasks.length;
         const progress = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
@@ -163,9 +237,12 @@ export class DashboardService {
           progress
         };
       });
+
+      return await Promise.all(progressPromises);
     } catch (error) {
       console.error('Error fetching project progress:', error);
-      throw new Error('Failed to fetch project progress');
+      // 返回空数组作为降级
+      return [];
     }
   }
 
@@ -174,8 +251,22 @@ export class DashboardService {
    */
   static async getUserWorkload(): Promise<UserWorkload[]> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 先获取项目数据
+      const projectsResponse = await api.get('/projects');
+      const projects = projectsResponse.data?.data || [];
+
+      // 为每个项目获取任务数据
+      const taskPromises = projects.map((project: any) => 
+        api.get(`/projects/${project.id}/tasks`)
+      );
+      
+      const taskResponses = await Promise.all(taskPromises);
+      
+      // 合并所有任务数据
+      const tasks = taskResponses.reduce((allTasks, response) => {
+        const projectTasks = response.data?.data || [];
+        return allTasks.concat(projectTasks);
+      }, []);
 
       // 按负责人分组任务
       const userTasksMap = new Map<number, {
@@ -222,7 +313,8 @@ export class DashboardService {
       });
     } catch (error) {
       console.error('Error fetching user workload:', error);
-      throw new Error('Failed to fetch user workload');
+      // 返回空数组作为降级
+      return [];
     }
   }
 
@@ -244,8 +336,22 @@ export class DashboardService {
    */
   static async getAllTasks(): Promise<Task[]> {
     try {
-      const response = await api.get('/tasks');
-      return response.data?.data || [];
+      // 先获取项目数据
+      const projectsResponse = await api.get('/projects');
+      const projects = projectsResponse.data?.data || [];
+
+      // 为每个项目获取任务数据
+      const taskPromises = projects.map((project: any) => 
+        api.get(`/projects/${project.id}/tasks`)
+      );
+      
+      const taskResponses = await Promise.all(taskPromises);
+      
+      // 合并所有任务数据
+      return taskResponses.reduce((allTasks, response) => {
+        const projectTasks = response.data?.data || [];
+        return allTasks.concat(projectTasks);
+      }, []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       throw new Error('Failed to fetch tasks');
@@ -270,8 +376,8 @@ export class DashboardService {
    */
   static async getOverdueTasks(): Promise<Task[]> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 获取所有任务
+      const tasks = await this.getAllTasks();
       
       const today = new Date();
       return tasks.filter((task: Task) => {
@@ -289,8 +395,8 @@ export class DashboardService {
    */
   static async getUpcomingTasks(days: number = 3): Promise<Task[]> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 获取所有任务
+      const tasks = await this.getAllTasks();
       
       const today = new Date();
       const futureDate = new Date();
@@ -312,8 +418,8 @@ export class DashboardService {
    */
   static async getHighPriorityTasks(): Promise<Task[]> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 获取所有任务
+      const tasks = await this.getAllTasks();
       
       return tasks.filter((task: Task) => 
         task.custom_fields?.priority === 'high' && 
@@ -348,8 +454,7 @@ export class DashboardService {
   }> {
     try {
       // 获取所有任务来分析趋势
-      const tasksResponse = await api.get('/tasks');
-      const tasks = tasksResponse.data?.data || [];
+      const tasks = await this.getAllTasks();
 
       const now = new Date();
       const thisWeekStart = new Date(now);
@@ -402,7 +507,12 @@ export class DashboardService {
       };
     } catch (error) {
       console.error('Error fetching productivity stats:', error);
-      throw new Error('Failed to fetch productivity statistics');
+      // 返回默认值作为降级
+      return {
+        thisWeek: { completed: 0, created: 0 },
+        lastWeek: { completed: 0, created: 0 },
+        improvement: 0
+      };
     }
   }
 
@@ -415,8 +525,8 @@ export class DashboardService {
     byPriority: Record<string, number>;
   }> {
     try {
-      const response = await api.get('/tasks');
-      const tasks = response.data?.data || [];
+      // 获取所有任务
+      const tasks = await this.getAllTasks();
 
       const byStatus: Record<TaskStatus, number> = {
         todo: 0,

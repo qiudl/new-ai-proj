@@ -92,6 +92,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
     try {
       const values = await form.validateFields();
       
+      // 严格验证项目ID
+      if (!projectId || projectId <= 0) {
+        throw new Error('无效的项目ID，无法创建任务');
+      }
+      
+      // 如果是子任务，确保父任务ID有效
+      const parentId = values.parent_id || parentTask?.id;
+      if (parentId && (!parentTask || !parentTask.project_id)) {
+        throw new Error('父任务信息无效，无法创建子任务');
+      }
+      
       // Transform form values to TaskRequest
       const taskRequest: TaskRequest = {
         title: values.title,
@@ -99,7 +110,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         status: values.status,
         assignee_id: values.assignee_id || undefined,
         due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') + 'T00:00:00Z' : undefined,
-        parent_id: values.parent_id || undefined,
+        parent_id: parentId || undefined,
         custom_fields: {
           priority: values.priority,
           tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],

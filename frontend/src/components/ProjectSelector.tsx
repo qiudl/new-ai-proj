@@ -96,9 +96,13 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           />
         )
       }
-      dropdownStyle={{
-        borderRadius: '8px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+      styles={{
+        popup: {
+          root: {
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+          }
+        }
       }}
     />
   );

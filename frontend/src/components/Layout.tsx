@@ -40,6 +40,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
+    if (path === '/project-dashboard') return ['/project-dashboard'];
+    if (path === '/projects') return ['/projects'];
     return [path];
   };
 
@@ -48,6 +50,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
     if (path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
+    }
+    if (path.includes('/project-dashboard') || path.includes('/projects')) {
+      return ['/project-management'];
     }
     return [];
   };
@@ -68,9 +73,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '工作台',
     },
     {
-      key: '/projects',
+      key: '/project-management',
       icon: <ProjectOutlined />,
       label: '项目管理',
+      children: [
+        {
+          key: '/project-dashboard',
+          icon: <DashboardOutlined />,
+          label: '项目Dashboard',
+        },
+        {
+          key: '/projects',
+          icon: <UnorderedListOutlined />,
+          label: '项目列表',
+        },
+      ],
     },
     {
       key: '/task-management',

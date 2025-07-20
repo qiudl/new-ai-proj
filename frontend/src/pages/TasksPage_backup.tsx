@@ -1,16 +1,44 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Select, Card, Col, Row, Input, DatePicker } from 'antd';
+import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, CaretDownOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
 import TaskModal from '../components/TaskModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
 import { Project } from '../types/project';
-import dayjs from 'dayjs';
-import '../styles/task-inline-edit.css';
-import '../styles/task-hierarchy.css';
+
+// CSS动画样式
+const syncAnimation = `
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .sync-indicator {
+    animation: pulse 1.5s infinite;
+  }
+  .sync-success {
+    animation: fadeIn 0.3s ease-out;
+  }
+`;
+
+// 添加CSS样式到文档
+if (typeof document !== 'undefined') {
+  const styleId = 'task-sync-animations';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = syncAnimation;
+    document.head.appendChild(style);
+  }
+}
 
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -31,6 +59,15 @@ const TasksPage: React.FC = () => {
   const [parentTaskForNew, setParentTaskForNew] = useState<Task | undefined>();
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
   const [subTasks, setSubTasks] = useState<Map<number, Task[]>>(new Map());
+  
+  // 编辑状态管理
+  const [editingFields, setEditingFields] = useState<Map<string, boolean>>(new Map());
+  
+  // 状态联动加载状态
+  const [statusSyncLoading, setStatusSyncLoading] = useState<Set<number>>(new Set());
+  
+  // 防抖机制，避免快速连续更新
+  const [updateTimeouts, setUpdateTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map());
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -56,45 +93,8 @@ const TasksPage: React.FC = () => {
   // 如果URL中有projectId，使用URL中的项目ID，否则使用选择的项目ID
   const effectiveProjectId = projectIdNum || selectedProjectId;
 
-  // 处理全局模式下的父子任务关系
-  useEffect(() => {
-    if (!effectiveProjectId && Array.isArray(tasks) && tasks.length > 0) {
-      // 构建任务映射和父子关系
-      const childrenMap = new Map<number, Task[]>();
-      
-      tasks.forEach(task => {
-        if (task && typeof task === 'object' && task.parent_id) {
-          if (!childrenMap.has(task.parent_id)) {
-            childrenMap.set(task.parent_id, []);
-          }
-          childrenMap.get(task.parent_id)!.push(task);
-        }
-      });
-      
-      // 更新subTasks状态，但只有当内容真正变化时才更新
-      if (childrenMap.size > 0) {
-        setSubTasks(prev => {
-          const newSubTasks = new Map(prev);
-          let hasChanges = false;
-          
-          childrenMap.forEach((children, parentId) => {
-            // 检查是否已存在且内容相同
-            const existing = newSubTasks.get(parentId);
-            if (!existing || existing.length !== children.length || 
-                !existing.every((task, index) => task.id === children[index].id)) {
-              newSubTasks.set(parentId, children);
-              hasChanges = true;
-            }
-          });
-          
-          return hasChanges ? newSubTasks : prev;
-        });
-      }
-    }
-  }, [effectiveProjectId, tasks]);
-
   // Load tasks from API
-  const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
+  const loadTasks = async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
       let response;
@@ -168,10 +168,10 @@ const TasksPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [effectiveProjectId]);
+  };
 
   // 获取全局统计数据
-  const loadGlobalStats = useCallback(async () => {
+  const loadGlobalStats = async () => {
     if (effectiveProjectId) return; // 只在全局模式下获取统计
     
     try {
@@ -195,21 +195,27 @@ const TasksPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading global stats:', error);
     }
-  }, [effectiveProjectId]);
+  };
 
   // 在全局模式下加载统计数据
   useEffect(() => {
     if (!effectiveProjectId) {
       loadGlobalStats();
     }
-  }, [effectiveProjectId, loadGlobalStats]);
+  }, [effectiveProjectId]);
 
   // Load tasks on component mount
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]); // 当loadTasks函数变化时重新加载任务
+  }, [effectiveProjectId]); // 当有效项目ID变化时重新加载任务
   
-  // Initial load is handled by the loadTasks useEffect above
+  // 默认加载全局任务（如果没有指定项目）
+  useEffect(() => {
+    if (!projectId && !selectedProjectId) {
+      // 默认加载全局任务
+      loadTasks();
+    }
+  }, []); // 仅在组件挂载时执行一次
   
   // 项目选择处理函数
   const handleProjectChange = (projectId: number, project?: Project) => {
@@ -230,56 +236,52 @@ const TasksPage: React.FC = () => {
     loadTasks();
   };
 
-  // Handle task creation - 修复项目继承逻辑
+  // Handle task creation
   const handleCreateTask = async (taskData: TaskRequest) => {
     setModalLoading(true);
     try {
-      // 确定项目ID的优先级：父任务项目 > 当前选择的项目
-      let projectId = effectiveProjectId;
+      // 严格验证项目关联要求
+      const projectId = parentTaskForNew ? parentTaskForNew.project_id : effectiveProjectId;
       
-      if (parentTaskForNew) {
-        // 子任务必须使用父任务的项目ID
-        projectId = parentTaskForNew.project_id;
-        
-        if (!projectId || projectId <= 0) {
-          message.error('父任务缺少有效的项目信息，无法创建子任务');
-          return;
-        }
-        
-        // 验证项目一致性
-        if (effectiveProjectId && effectiveProjectId !== projectId) {
-          console.warn(`Project ID mismatch: effective=${effectiveProjectId}, parent=${projectId}`);
-        }
-      } else if (!projectId || projectId <= 0) {
+      if (!projectId || projectId <= 0) {
         message.error('任务必须关联一个有效项目，请先选择项目');
         return;
       }
       
-      // 添加parent_id如果是创建子任务
+      // Add parent_id if creating a subtask
       const requestData = parentTaskForNew 
         ? { ...taskData, parent_id: parentTaskForNew.id }
         : taskData;
       
-      console.log('Creating task with project ID:', projectId, 'Parent:', parentTaskForNew?.id);
+      // 子任务额外验证：确保父任务和子任务在同一项目中
+      if (parentTaskForNew) {
+        if (parentTaskForNew.project_id !== projectId) {
+          message.error('子任务必须与父任务属于同一项目');
+          return;
+        }
+        
+        if (!requestData.parent_id) {
+          message.error('创建子任务时父任务关联失败');
+          return;
+        }
+      }
       
       await TaskService.createTask(projectId, requestData);
       message.success(parentTaskForNew ? '子任务创建成功' : '任务创建成功');
       setTaskModalVisible(false);
       setParentTaskForNew(undefined);
       
-      // 刷新任务列表
+      // Refresh task list and clear expanded subtasks cache to reflect changes
       setSubTasks(new Map());
       setExpandedTasks(new Set());
-      loadTasks(pagination.current, pagination.pageSize);
       
-      // 如果是全局模式下创建的子任务，自动展开父任务
-      if (!effectiveProjectId && parentTaskForNew) {
-        setTimeout(() => {
-          setExpandedTasks(prev => new Set(prev).add(parentTaskForNew.id));
-        }, 500);
+      if (hierarchicalView) {
+        // Force refresh of hierarchical view
+        window.location.reload();
+      } else {
+        loadTasks(pagination.current, pagination.pageSize);
       }
     } catch (error: any) {
-      console.error('Task creation error:', error);
       message.error(error.message || '任务创建失败');
     } finally {
       setModalLoading(false);
@@ -298,6 +300,12 @@ const TasksPage: React.FC = () => {
       if (!projectId || projectId <= 0) {
         message.error('任务缺少有效的项目关联，无法更新');
         return;
+      }
+      
+      // 如果修改了父任务关联，验证新的父任务是否在同一项目中
+      if (taskData.parent_id && taskData.parent_id !== editingTask.parent_id) {
+        // 这里可以添加额外的父任务项目验证逻辑
+        // 但由于我们没有直接访问所有任务列表，暂时依赖后端验证
       }
       
       await TaskService.updateTask(projectId, editingTask.id, taskData);
@@ -372,7 +380,7 @@ const TasksPage: React.FC = () => {
     setTaskModalVisible(true);
   };
 
-  // Handle create subtask - 修复项目继承逻辑
+  // Handle create subtask
   const handleCreateSubTask = (parentTask: Task) => {
     // 严格验证父任务的项目ID
     if (!parentTask.project_id || parentTask.project_id <= 0) {
@@ -380,26 +388,9 @@ const TasksPage: React.FC = () => {
       return;
     }
     
-    // 在全局模式下，自动设置项目选择器到父任务的项目
-    if (!effectiveProjectId && parentTask.project_id) {
-      message.info(`已自动选择项目：${(parentTask as any).project_name || parentTask.project_id}`);
-      setSelectedProjectId(parentTask.project_id);
-      // 如果有项目名称，也设置项目对象
-      if ((parentTask as any).project_name) {
-        setSelectedProject({
-          id: parentTask.project_id,
-          name: (parentTask as any).project_name,
-          description: '',
-          owner_id: 1, // 默认值
-          created_at: '',
-          updated_at: ''
-        });
-      }
-    }
-    
-    // 验证项目一致性
-    if (effectiveProjectId && effectiveProjectId !== parentTask.project_id) {
-      message.warning(`注意：当前选择的项目与父任务项目不一致。子任务将创建在父任务的项目中。`);
+    // 在全局模式下，额外验证项目选择
+    if (!effectiveProjectId) {
+      message.warning('建议先从项目选择器中选择对应项目，确保子任务正确关联');
     }
     
     setEditingTask(undefined);
@@ -453,80 +444,391 @@ const TasksPage: React.FC = () => {
     navigate(`/projects/${task.project_id}/tasks/${task.id}`);
   };
 
-  // Handle status update - 内联编辑状态
-  const handleStatusUpdate = async (taskId: number, newStatus: string, task: Task) => {
+  // 计算父任务应该的状态
+  const calculateParentStatus = (childrenStatuses: TaskStatus[]): TaskStatus => {
+    if (childrenStatuses.length === 0) return 'todo';
+    
+    const statusCounts = childrenStatuses.reduce((acc, status) => {
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {} as Record<TaskStatus, number>);
+    
+    // 如果所有子任务都已完成
+    if (statusCounts.completed === childrenStatuses.length) {
+      return 'completed';
+    }
+    
+    // 如果所有子任务都是待办
+    if (statusCounts.todo === childrenStatuses.length) {
+      return 'todo';
+    }
+    
+    // 如果有任何子任务在进行中，或者是混合状态
+    if (statusCounts.in_progress > 0 || (statusCounts.todo > 0 && statusCounts.completed > 0)) {
+      return 'in_progress';
+    }
+    
+    // 如果所有子任务都已取消
+    if (statusCounts.cancelled === childrenStatuses.length) {
+      return 'cancelled';
+    }
+    
+    // 默认返回进行中
+    return 'in_progress';
+  };
+
+  // 更新父任务状态
+  const updateParentTaskStatus = async (parentTaskId: number, projectId: number) => {
     try {
-      const projectId = effectiveProjectId || task.project_id;
-      if (!projectId) {
-        message.error('无法更新任务状态：缺少项目信息');
-        return;
-      }
-
-      // 添加加载状态提示
-      const hideLoading = message.loading('正在更新状态...', 0);
-
-      await TaskService.updateTask(projectId, taskId, { 
-        title: task.title,
-        description: task.description,
-        status: newStatus as any,
-        assignee_id: task.assignee_id,
-        due_date: task.due_date,
-        custom_fields: task.custom_fields
+      // 添加加载状态
+      setStatusSyncLoading(prev => new Set(prev).add(parentTaskId));
+      
+      // 获取所有子任务
+      const children = await TaskService.getTaskChildren(projectId, parentTaskId);
+      if (children.length === 0) return;
+      
+      // 计算父任务应该的状态
+      const childrenStatuses = children.map(child => child.status);
+      const newParentStatus = calculateParentStatus(childrenStatuses);
+      
+      // 获取父任务当前信息
+      const parentTask = tasks.find(t => t.id === parentTaskId);
+      if (!parentTask || parentTask.status === newParentStatus) return;
+      
+      // 更新父任务状态
+      await TaskService.updateTask(projectId, parentTaskId, {
+        ...parentTask,
+        status: newParentStatus
       });
       
-      hideLoading();
-      message.success('状态更新成功');
+      message.success(`父任务"${parentTask.title}"状态自动更新为"${getStatusText(newParentStatus)}"`, 2);
+      console.log(`父任务 ${parentTaskId} 状态自动更新为: ${newParentStatus}`);
       
-      // 刷新任务列表
-      loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
-      console.error('Status update error:', error);
-      if (error.statusCode === 403) {
-        message.error('权限不足，无法更新任务状态');
-      } else if (error.statusCode === 404) {
-        message.error('任务不存在或已被删除');
-      } else {
-        message.error(error.message || '状态更新失败');
+      // 递归更新上级父任务（如果有的话）
+      if (parentTask.parent_id) {
+        await updateParentTaskStatus(parentTask.parent_id, projectId);
       }
+      
+    } catch (error: any) {
+      console.error('更新父任务状态失败:', error);
+      
+      // 区分不同类型的错误
+      let errorMessage = '父任务状态自动更新失败';
+      if (error.message?.includes('Network')) {
+        errorMessage = '网络异常，父任务状态同步失败';
+      } else if (error.message?.includes('404')) {
+        errorMessage = '父任务不存在，状态同步跳过';
+      } else if (error.message?.includes('403')) {
+        errorMessage = '权限不足，无法更新父任务状态';
+      }
+      
+      message.warning({
+        content: `⚠️ ${errorMessage}`,
+        duration: 3,
+      });
+    } finally {
+      // 移除加载状态
+      setStatusSyncLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(parentTaskId);
+        return newSet;
+      });
     }
   };
 
-  // Handle due date update - 内联编辑截止日期
-  const handleDueDateUpdate = async (taskId: number, newDueDate: string | null, task: Task) => {
+
+  // 确认父任务状态变更是否要联动子任务
+  const confirmParentStatusChange = async (parentTask: Task, newStatus: TaskStatus): Promise<boolean> => {
+    return new Promise(async (resolve) => {
+      let title = '';
+      let content = '';
+      let childrenCount = 0;
+      
+      try {
+        // 获取子任务数量以提供更准确的信息
+        const projectId = effectiveProjectId || parentTask.project_id;
+        const children = await TaskService.getTaskChildren(projectId, parentTask.id);
+        childrenCount = children.length;
+        
+        switch (newStatus) {
+          case 'completed':
+            title = '完成父任务';
+            content = `将父任务"${parentTask.title}"标记为已完成。
+
+该任务有 ${childrenCount} 个子任务，是否同时将所有子任务也标记为已完成？
+
+💡 提示：这将帮助您快速完成整个任务组`;
+            break;
+          case 'todo':
+            title = '重置父任务';
+            content = `将父任务"${parentTask.title}"重置为待办。
+
+是否同时将所有已完成的子任务也重置为待办？
+
+💡 提示：这将重新打开已完成的子任务`;
+            break;
+          case 'cancelled':
+            title = '取消父任务';
+            content = `将父任务"${parentTask.title}"标记为已取消。
+
+该任务有 ${childrenCount} 个子任务，是否同时取消所有子任务？
+
+⚠️ 注意：这将取消整个任务组`;
+            break;
+          default:
+            resolve(false);
+            return;
+        }
+        
+        Modal.confirm({
+          title,
+          content,
+          okText: '是，同时更新子任务',
+          cancelText: '否，只更新父任务',
+          okType: newStatus === 'cancelled' ? 'danger' : 'primary',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+          width: 480,
+        });
+      } catch (error) {
+        console.error('获取子任务信息失败:', error);
+        // 如果获取子任务失败，使用简化版本
+        Modal.confirm({
+          title: `${newStatus === 'completed' ? '完成' : newStatus === 'todo' ? '重置' : '取消'}父任务`,
+          content: `将父任务"${parentTask.title}"标记为"${getStatusText(newStatus)}"，是否同时更新所有子任务？`,
+          okText: '是，同时更新子任务',
+          cancelText: '否，只更新父任务',
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      }
+    });
+  };
+
+  // 批量更新子任务状态
+  const updateChildrenTasksStatus = async (parentTask: Task, newStatus: TaskStatus, projectId: number) => {
+    try {
+      const children = await TaskService.getTaskChildren(projectId, parentTask.id);
+      let updatedCount = 0;
+      
+      for (const child of children) {
+        let shouldUpdate = false;
+        
+        switch (newStatus) {
+          case 'completed':
+            shouldUpdate = child.status !== 'completed';
+            break;
+          case 'todo':
+            shouldUpdate = child.status === 'completed';
+            break;
+          case 'cancelled':
+            shouldUpdate = child.status !== 'cancelled';
+            break;
+          case 'in_progress':
+            shouldUpdate = child.status !== 'in_progress';
+            break;
+        }
+        
+        if (shouldUpdate) {
+          await TaskService.updateTask(projectId, child.id, {
+            ...child,
+            status: newStatus
+          });
+          updatedCount++;
+          
+          // 递归更新子任务的子任务
+          if ((child.custom_fields?.children_count || 0) > 0) {
+            const recursiveCount = await updateChildrenTasksStatus(child, newStatus, projectId);
+            updatedCount += recursiveCount;
+          }
+        }
+      }
+      
+      if (updatedCount > 0) {
+        message.success(
+          `成功批量更新 ${updatedCount} 个子任务状态为"${getStatusText(newStatus)}"`, 
+          3
+        );
+      }
+      
+      return updatedCount;
+    } catch (error) {
+      console.error('批量更新子任务状态失败:', error);
+      message.error('批量更新子任务状态失败');
+      return 0;
+    }
+  };
+
+  // 编辑字段辅助函数
+  const getFieldKey = (taskId: number, field: string) => `${taskId}_${field}`;
+  
+  const isFieldEditing = (taskId: number, field: string) => {
+    return editingFields.get(getFieldKey(taskId, field)) || false;
+  };
+  
+  const setFieldEditing = (taskId: number, field: string, editing: boolean) => {
+    const newMap = new Map(editingFields);
+    newMap.set(getFieldKey(taskId, field), editing);
+    setEditingFields(newMap);
+  };
+
+  // 异步更新字段值
+  const handleFieldUpdate = async (task: Task, field: string, value: any) => {
+    const updateKey = `${task.id}_${field}`;
+    
+    // 清除之前的防抖超时
+    const existingTimeout = updateTimeouts.get(updateKey);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // 乐观更新：立即更新UI
+    if (field === 'status') {
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === task.id ? { ...t, status: value } : t
+        )
+      );
+    }
+    
     try {
       const projectId = effectiveProjectId || task.project_id;
-      if (!projectId) {
-        message.error('无法更新截止日期：缺少项目信息');
-        return;
-      }
-
-      // 添加加载状态提示
-      const hideLoading = message.loading('正在更新截止日期...', 0);
-
-      await TaskService.updateTask(projectId, taskId, { 
+      
+      // 构建更新请求对象 - 只包含必要字段，避免发送所有task数据
+      const updateData: any = {
         title: task.title,
         description: task.description,
         status: task.status,
         assignee_id: task.assignee_id,
-        due_date: newDueDate || undefined,
-        custom_fields: task.custom_fields
-      });
+        due_date: task.due_date,
+        custom_fields: task.custom_fields || {},
+        parent_id: task.parent_id,
+        sort_order: task.sort_order
+      };
       
-      hideLoading();
-      message.success('截止日期更新成功');
+      // 根据字段类型更新对应的数据
+      if (field === 'status') {
+        updateData.status = value;
+        
+        // 添加同步状态标识
+        setStatusSyncLoading(prev => {
+          const newSet = new Set(prev);
+          newSet.add(task.id);
+          return newSet;
+        });
+        
+        // 如果是状态更新，需要处理父子任务联动
+        const isParentTask = (task.custom_fields?.children_count || 0) > 0;
+        if (isParentTask) {
+          const shouldUpdateChildren = await confirmParentStatusChange(task, value);
+          if (shouldUpdateChildren) {
+            await updateChildrenTasksStatus(task, value, projectId);
+          }
+        }
+      } else if (field === 'due_date') {
+        // 确保日期格式正确 - 已经是正确格式的字符串或null
+        updateData.due_date = value;
+      } else if (field === 'priority') {
+        updateData.custom_fields = { ...updateData.custom_fields, priority: value };
+      } else if (field === 'tags') {
+        updateData.custom_fields = { ...updateData.custom_fields, tags: value };
+      } else {
+        console.warn('Unsupported field for update:', field);
+        message.error(`${getFieldDisplayName(field)}暂不支持编辑`);
+        setFieldEditing(task.id, field, false);
+        return;
+      }
+      
+      console.log('Updating field:', field, 'with value:', value);
+      console.log('Update data:', updateData);
+      
+      await TaskService.updateTask(projectId, task.id, updateData);
+      
+      // 如果是子任务状态更新，自动更新父任务状态
+      if (field === 'status' && task.parent_id) {
+        await updateParentTaskStatus(task.parent_id, projectId);
+      }
+      
+      // 显示成功消息并添加特殊样式
+      if (field === 'status') {
+        message.success({
+          content: (
+            <span className="sync-success">
+              状态联动更新成功 ✨
+            </span>
+          ),
+          duration: 2,
+        });
+      } else {
+        message.success(`${getFieldDisplayName(field)}更新成功`);
+      }
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
     } catch (error: any) {
-      console.error('Due date update error:', error);
-      if (error.statusCode === 403) {
-        message.error('权限不足，无法更新截止日期');
-      } else if (error.statusCode === 404) {
-        message.error('任务不存在或已被删除');
+      console.error('Field update error:', error);
+      
+      // 提供重试选项对于网络错误
+      if (error.message?.includes('Network') || error.message?.includes('timeout')) {
+        Modal.confirm({
+          title: '网络错误',
+          content: `${getFieldDisplayName(field)}更新失败，可能是网络问题。是否要重试？`,
+          okText: '重试',
+          cancelText: '取消',
+          onOk: () => {
+            // 重试更新
+            setTimeout(() => {
+              handleFieldUpdate(task, field, value);
+            }, 1000);
+          },
+        });
       } else {
-        message.error(error.message || '截止日期更新失败');
+        // 其他错误直接显示错误信息
+        let errorMessage = `${getFieldDisplayName(field)}更新失败`;
+        if (error.message?.includes('404')) {
+          errorMessage = '任务不存在或已被删除';
+        } else if (error.message?.includes('403')) {
+          errorMessage = '权限不足，无法修改此任务';
+        } else if (error.message?.includes('400')) {
+          errorMessage = '数据格式错误，请检查输入内容';
+        }
+        
+        message.error(errorMessage);
       }
+    } finally {
+      // 清除编辑状态
+      setFieldEditing(task.id, field, false);
+      
+      // 清除同步状态标识
+      if (field === 'status') {
+        setStatusSyncLoading(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(task.id);
+          return newSet;
+        });
+      }
+      
+      // 清除防抖超时
+      const updateKey = `${task.id}_${field}`;
+      setUpdateTimeouts(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(updateKey);
+        return newMap;
+      });
     }
+  };
+
+  // 获取字段显示名称
+  const getFieldDisplayName = (field: string): string => {
+    const fieldNames = {
+      'status': '状态',
+      'assignee_name': '负责人',
+      'assignee': '负责人',
+      'due_date': '截止时间',
+      'priority': '优先级',
+      'tags': '标签'
+    };
+    return fieldNames[field as keyof typeof fieldNames] || '字段';
   };
 
   const getStatusColor = (status: string) => {
@@ -555,6 +857,7 @@ const TasksPage: React.FC = () => {
     }
   };
 
+
   const columns = [
     {
       title: '任务名称',
@@ -568,59 +871,56 @@ const TasksPage: React.FC = () => {
         const isExpanded = expandedTasks.has(record.id);
         
         return (
-          <div className="task-name-with-indent">
-            {/* 缩进空间 */}
-            <div 
-              className="task-indent-space" 
-              style={{ width: depth * 20 }}
-            />
+          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+            {/* 展开/收起按钮和缩进合并区域 */}
+            <div style={{ 
+              width: Math.max(20, depth * 20), 
+              flexShrink: 0, 
+              marginTop: '2px',
+              paddingLeft: depth > 0 ? (depth - 1) * 16 : 0,
+              display: 'flex',
+              justifyContent: depth > 0 ? 'flex-end' : 'flex-start'
+            }}>
+              {hasChildren ? (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
+                  onClick={() => handleToggleExpand(record)}
+                  style={{ 
+                    padding: 0, 
+                    minWidth: '16px', 
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                />
+              ) : (
+                <span style={{ 
+                  display: 'inline-block', 
+                  width: '16px', 
+                  height: '16px',
+                  color: '#d9d9d9',
+                  fontSize: '12px',
+                  textAlign: 'center',
+                  lineHeight: '16px'
+                }}>
+                  {depth > 0 ? '•' : ''}
+                </span>
+              )}
+            </div>
             
-            {/* 层级连接线容器 */}
-            {depth > 0 && (
-              <div className="task-connection-container">
-                <div className="task-connection-line" />
-              </div>
-            )}
-            
-            {/* 层级深度指示器 */}
-            {depth > 0 && (
-              <div className={`task-depth-indicator depth-${Math.min(depth, 4)}`} />
-            )}
-            
-            {/* 展开/收起按钮 */}
-            {hasChildren ? (
-              <button
-                className={`task-expand-button ${isExpanded ? 'expanded' : ''}`}
-                onClick={() => handleToggleExpand(record)}
-                aria-expanded={isExpanded}
-                title={isExpanded ? '折叠子任务' : '展开子任务'}
-              >
-                <CaretRightOutlined />
-              </button>
-            ) : (
-              <span style={{ width: '20px', display: 'inline-block' }} />
-            )}
-            
-            {/* 任务图标 */}
-            {hasChildren && (
-              <span className="parent-task-icon">📁</span>
-            )}
-            {isSubTask && (
-              <span className="sub-task-icon">📄</span>
-            )}
-            
-            {/* 任务名称文本 */}
-            <div className="task-name-text">
+            {/* 任务内容 */}
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ 
                 fontWeight: isSubTask ? 400 : 500,
                 color: isSubTask ? '#666' : '#000',
-                marginBottom: record.description ? '2px' : '0',
+                marginBottom: '2px',
                 lineHeight: '20px'
               }}>
                 {text}
               </div>
-              
-              {/* 任务描述 */}
               {record.description && (
                 <div style={{ 
                   color: '#8c8c8c', 
@@ -664,55 +964,200 @@ const TasksPage: React.FC = () => {
       ),
     }] : []),
 
-    // 状态列 - 增强版内联编辑
+    // 优先级列 - 异步编辑
+    {
+      title: '优先级',
+      dataIndex: 'custom_fields',
+      key: 'priority',
+      width: '10%',
+      render: (customFields: any, record: Task) => {
+        const priority = customFields?.priority as string;
+        const isEditing = isFieldEditing(record.id, 'priority');
+        
+        const priorityConfig = {
+          high: { color: '#ff4d4f', icon: '🔥', text: '高' },
+          medium: { color: '#fa8c16', icon: '⚡', text: '中' },
+          low: { color: '#52c41a', icon: '📝', text: '低' }
+        };
+        
+        return (
+          <div 
+            style={{ 
+              position: 'relative',
+              cursor: 'pointer'
+            }}
+            onMouseEnter={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '1';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '0';
+              }
+            }}
+            onClick={() => {
+              if (!isEditing) {
+                setFieldEditing(record.id, 'priority', true);
+              }
+            }}
+          >
+            {isEditing ? (
+              <Select
+                value={priority}
+                size="small"
+                style={{ width: '90px' }}
+                autoFocus
+                onChange={(value) => handleFieldUpdate(record, 'priority', value)}
+                onBlur={() => setFieldEditing(record.id, 'priority', false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFieldEditing(record.id, 'priority', false);
+                  }
+                }}
+                options={[
+                  { value: 'high', label: '🔥 高' },
+                  { value: 'medium', label: '⚡ 中' },
+                  { value: 'low', label: '📝 低' },
+                ]}
+              />
+            ) : (
+              <>
+                {(() => {
+                  const config = priorityConfig[priority as keyof typeof priorityConfig];
+                  return config ? (
+                    <Tag color={config.color} style={{ border: 'none', fontWeight: 500 }}>
+                      {config.icon} {config.text}
+                    </Tag>
+                  ) : (
+                    <Tag color="default">-</Tag>
+                  );
+                })()}
+                <EditOutlined 
+                  className="edit-icon"
+                  style={{ 
+                    position: 'absolute',
+                    right: '-4px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    fontSize: '12px',
+                    color: '#1890ff',
+                    cursor: 'pointer'
+                  }}
+                />
+              </>
+            )}
+          </div>
+        );
+      },
+    },
+    // 状态列 - 内联编辑设计
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: '12%',
       render: (status: TaskStatus, record: Task) => {
-        const statusConfig = {
-          todo: { color: 'default', text: '待办', bgColor: '#fafafa', dotColor: '#d9d9d9' },
-          in_progress: { color: 'processing', text: '进行中', bgColor: '#e6f7ff', dotColor: '#1890ff' },
-          completed: { color: 'success', text: '已完成', bgColor: '#f6ffed', dotColor: '#52c41a' },
-          cancelled: { color: 'error', text: '已取消', bgColor: '#fff2f0', dotColor: '#ff4d4f' }
-        };
-        
-        const config = statusConfig[status] || statusConfig.todo;
+        const isEditing = isFieldEditing(record.id, 'status');
+        const isSyncing = statusSyncLoading.has(record.id);
         
         return (
-          <Select
-            value={status}
-            onChange={(newStatus) => handleStatusUpdate(record.id, newStatus, record)}
+          <div 
             style={{ 
-              width: '100%',
-              backgroundColor: config.bgColor,
-              borderRadius: '4px'
+              position: 'relative',
+              cursor: isSyncing ? 'not-allowed' : 'pointer',
+              opacity: isSyncing ? 0.7 : 1
             }}
-            variant="borderless"
-            size="small"
-            dropdownStyle={{ minWidth: 140 }}
-            suffixIcon={null}
+            onMouseEnter={(e) => {
+              if (!isEditing && !isSyncing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '1';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isEditing && !isSyncing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '0';
+              }
+            }}
+            onClick={() => {
+              if (!isEditing && !isSyncing) {
+                setFieldEditing(record.id, 'status', true);
+              }
+            }}
           >
-            {Object.entries(statusConfig).map(([key, conf]) => (
-              <Select.Option key={key} value={key}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isSyncing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Tag color={getStatusColor(status)} style={{ fontWeight: 500 }}>
+                  {getStatusText(status)}
+                </Tag>
+                <span className="sync-indicator" style={{ 
+                  fontSize: '12px', 
+                  color: '#1890ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
                   <div style={{
-                    width: 8,
-                    height: 8,
+                    width: '8px',
+                    height: '8px',
                     borderRadius: '50%',
-                    backgroundColor: conf.dotColor
+                    backgroundColor: '#1890ff'
                   }} />
-                  <span style={{ fontWeight: 500 }}>{conf.text}</span>
-                </div>
-              </Select.Option>
-            ))}
-          </Select>
+                  同步中...
+                </span>
+              </div>
+            ) : isEditing ? (
+              <Select
+                value={status}
+                size="small"
+                style={{ width: '100px' }}
+                autoFocus
+                onChange={(newStatus: TaskStatus) => handleFieldUpdate(record, 'status', newStatus)}
+                onBlur={() => setFieldEditing(record.id, 'status', false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFieldEditing(record.id, 'status', false);
+                  }
+                }}
+                options={[
+                  { value: 'todo', label: '待办' },
+                  { value: 'in_progress', label: '进行中' },
+                  { value: 'completed', label: '已完成' },
+                  { value: 'cancelled', label: '已取消' },
+                ]}
+              />
+            ) : (
+              <>
+                <Tag color={getStatusColor(status)} style={{ fontWeight: 500 }}>
+                  {getStatusText(status)}
+                </Tag>
+                <EditOutlined 
+                  className="edit-icon"
+                  style={{ 
+                    position: 'absolute',
+                    right: '-4px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    fontSize: '12px',
+                    color: '#1890ff',
+                    cursor: 'pointer'
+                  }}
+                />
+              </>
+            )}
+          </div>
         );
       },
     },
     
-    // 负责人列
+    // 负责人列 - 暂时只显示，不支持编辑（需要用户管理功能）
     {
       title: '负责人',
       dataIndex: 'assignee_name',
@@ -744,59 +1189,115 @@ const TasksPage: React.FC = () => {
       ),
     },
     
-    // 截止时间列 - 增强版内联编辑
+    // 截止时间列 - 异步编辑
     {
       title: '截止时间',
       dataIndex: 'due_date',
       key: 'due_date',
       width: '12%',
       render: (date: string, record: Task) => {
-        const currentDate = date ? dayjs(date) : null;
-        const now = dayjs();
-        const isOverdue = currentDate && currentDate.isBefore(now, 'day');
-        const isUpcoming = currentDate && currentDate.diff(now, 'day') <= 3 && currentDate.diff(now, 'day') >= 0;
-        
-        let bgColor = '#fafafa';
-        let textColor = '#8c8c8c';
-        let icon = '📅';
-        
-        if (isOverdue) {
-          bgColor = '#fff2f0';
-          textColor = '#ff4d4f';
-          icon = '⚠️';
-        } else if (isUpcoming) {
-          bgColor = '#fff7e6';
-          textColor = '#fa8c16';
-          icon = '⏰';
-        }
+        const isEditing = isFieldEditing(record.id, 'due_date');
         
         return (
-          <DatePicker
-            value={currentDate}
-            onChange={(newDate) => {
-              const dateString = newDate ? newDate.format('YYYY-MM-DD') : null;
-              handleDueDateUpdate(record.id, dateString, record);
-            }}
+          <div 
             style={{ 
-              width: '100%',
-              backgroundColor: bgColor,
-              borderRadius: '4px',
-              color: textColor,
-              fontWeight: 500
+              position: 'relative',
+              cursor: 'pointer'
             }}
-            variant="borderless"
-            size="small"
-            placeholder="设置截止日期"
-            format="YYYY-MM-DD"
-            allowClear
-            suffixIcon={
-              <span style={{ fontSize: '12px' }}>{icon}</span>
-            }
-          />
+            onMouseEnter={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '1';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '0';
+              }
+            }}
+            onClick={() => {
+              if (!isEditing) {
+                setFieldEditing(record.id, 'due_date', true);
+              }
+            }}
+          >
+            {isEditing ? (
+              <DatePicker
+                size="small"
+                defaultValue={date ? dayjs(date) : undefined}
+                autoFocus
+                style={{ width: '130px' }}
+                onChange={(dateValue) => {
+                  // dateValue是dayjs对象或null
+                  const isoDate = dateValue ? dateValue.format('YYYY-MM-DD') : null;
+                  handleFieldUpdate(record, 'due_date', isoDate);
+                }}
+                onBlur={() => setFieldEditing(record.id, 'due_date', false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFieldEditing(record.id, 'due_date', false);
+                  }
+                }}
+                allowClear
+              />
+            ) : (
+              <>
+                {date ? (() => {
+                  const dueDate = new Date(date);
+                  const now = new Date();
+                  const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                  
+                  let color = '#8c8c8c';
+                  let bgColor = '#fafafa';
+                  let icon = '📅';
+                  
+                  if (diffDays < 0) {
+                    color = '#ff4d4f';
+                    bgColor = '#fff2f0';
+                    icon = '⚠️';
+                  } else if (diffDays <= 3) {
+                    color = '#fa8c16';
+                    bgColor = '#fff7e6';
+                    icon = '⏰';
+                  }
+                  
+                  return (
+                    <div style={{
+                      padding: '2px 8px',
+                      backgroundColor: bgColor,
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      color,
+                      fontWeight: 500,
+                      display: 'inline-block'
+                    }}>
+                      {icon} {dueDate.toLocaleDateString()}
+                    </div>
+                  );
+                })() : (
+                  <span style={{ color: '#8c8c8c' }}>未设置</span>
+                )}
+                <EditOutlined 
+                  className="edit-icon"
+                  style={{ 
+                    position: 'absolute',
+                    right: '-4px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    fontSize: '12px',
+                    color: '#1890ff',
+                    cursor: 'pointer'
+                  }}
+                />
+              </>
+            )}
+          </div>
         );
       },
     },
-
     // 创建时间列 - 只在全局视图显示
     ...(!effectiveProjectId ? [{
       title: '创建时间',
@@ -828,46 +1329,118 @@ const TasksPage: React.FC = () => {
       },
     }] : []),
 
-    // 标签列
+    // 标签列 - 异步编辑
     {
       title: '标签',
       key: 'tags',
       width: effectiveProjectId ? '12%' : '10%',
       render: (_: any, record: Task) => {
         const tags = record.custom_fields?.tags || [];
+        const isEditing = isFieldEditing(record.id, 'tags');
         
         return (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-            {Array.isArray(tags) && tags.length > 0 ? (
-              <>
-                {tags.slice(0, 2).map((tag: string) => (
-                  <Tag 
-                    key={tag} 
-                    style={{ 
-                      marginBottom: 2, 
-                      fontSize: '11px',
-                      padding: '0 6px',
-                      lineHeight: '18px',
-                      borderRadius: '9px'
-                    }}
-                    color="blue"
-                  >
-                    {tag}
-                  </Tag>
-                ))}
-                {tags.length > 2 && (
-                  <Tag style={{ 
-                    fontSize: '11px',
-                    padding: '0 6px',
-                    lineHeight: '18px',
-                    borderRadius: '9px'
-                  }}>
-                    +{tags.length - 2}
-                  </Tag>
-                )}
-              </>
+          <div 
+            style={{ 
+              position: 'relative',
+              cursor: 'pointer',
+              minHeight: '24px'
+            }}
+            onMouseEnter={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '1';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isEditing) {
+                const editIcon = e.currentTarget.querySelector('.edit-icon') as HTMLElement;
+                if (editIcon) editIcon.style.opacity = '0';
+              }
+            }}
+            onClick={() => {
+              if (!isEditing) {
+                setFieldEditing(record.id, 'tags', true);
+              }
+            }}
+          >
+            {isEditing ? (
+              <Input
+                size="small"
+                defaultValue={Array.isArray(tags) ? tags.join(', ') : ''}
+                autoFocus
+                style={{ width: '150px' }}
+                placeholder="用逗号分隔标签"
+                onPressEnter={(e) => {
+                  const value = (e.target as HTMLInputElement).value;
+                  const tagArray = value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                  handleFieldUpdate(record, 'tags', tagArray);
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  const tagArray = value.split(',').map(tag => tag.trim()).filter(tag => tag);
+                  const originalTags = Array.isArray(tags) ? tags.join(', ') : '';
+                  if (value !== originalTags) {
+                    handleFieldUpdate(record, 'tags', tagArray);
+                  } else {
+                    setFieldEditing(record.id, 'tags', false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setFieldEditing(record.id, 'tags', false);
+                  }
+                }}
+              />
             ) : (
-              <span style={{ color: '#8c8c8c', fontSize: '12px' }}>无标签</span>
+              <>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                  {Array.isArray(tags) && tags.length > 0 ? (
+                    <>
+                      {tags.slice(0, 2).map((tag: string) => (
+                        <Tag 
+                          key={tag} 
+                          style={{ 
+                            marginBottom: 2, 
+                            fontSize: '11px',
+                            padding: '0 6px',
+                            lineHeight: '18px',
+                            borderRadius: '9px'
+                          }}
+                          color="blue"
+                        >
+                          {tag}
+                        </Tag>
+                      ))}
+                      {tags.length > 2 && (
+                        <Tag style={{ 
+                          fontSize: '11px',
+                          padding: '0 6px',
+                          lineHeight: '18px',
+                          borderRadius: '9px'
+                        }}>
+                          +{tags.length - 2}
+                        </Tag>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#8c8c8c', fontSize: '12px' }}>无标签</span>
+                  )}
+                </div>
+                <EditOutlined 
+                  className="edit-icon"
+                  style={{ 
+                    position: 'absolute',
+                    right: '-4px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    opacity: 0,
+                    transition: 'opacity 0.2s',
+                    fontSize: '12px',
+                    color: '#1890ff',
+                    cursor: 'pointer'
+                  }}
+                />
+              </>
             )}
           </div>
         );
@@ -930,8 +1503,8 @@ const TasksPage: React.FC = () => {
     },
   ];
 
-  // Build expanded data source including subtasks - 修复层级处理
-  const buildExpandedDataSource = useCallback(() => {
+  // Build expanded data source including subtasks
+  const buildExpandedDataSource = () => {
     // Ensure tasks is always an array
     if (!Array.isArray(tasks)) {
       console.warn('Tasks is not an array:', tasks);
@@ -962,49 +1535,10 @@ const TasksPage: React.FC = () => {
       }
     };
     
-    // 在全局模式下，需要特殊处理层级关系
-    if (!effectiveProjectId) {
-      // 构建任务映射和父子关系
-      const taskMap = new Map<number, Task>();
-      const childrenMap = new Map<number, Task[]>();
-      
-      tasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          taskMap.set(task.id, task);
-          if (task.parent_id) {
-            if (!childrenMap.has(task.parent_id)) {
-              childrenMap.set(task.parent_id, []);
-            }
-            childrenMap.get(task.parent_id)!.push(task);
-          }
-        }
-      });
-      
-      // 只显示根任务，子任务通过展开显示
-      const rootTasks = tasks.filter(task => task && typeof task === 'object' && !task.parent_id);
-      rootTasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          addTaskWithChildren(task, 0);
-        }
-      });
-      
-      // 如果有子任务在全局任务列表中，但父任务不在当前页面，单独显示这些"孤儿"子任务
-      const orphanTasks = tasks.filter(task => {
-        if (!task || typeof task !== 'object' || !task.parent_id) return false;
-        // 检查父任务是否在当前任务列表中
-        return !taskMap.has(task.parent_id);
-      });
-      
-      orphanTasks.forEach(task => {
-        if (task && typeof task === 'object') {
-          // 为孤儿任务设置depth为1，表示它是某个不在当前页面的父任务的子任务
-          addTaskWithChildren(task, 1);
-        }
-      });
-      
-    } else {
-      // 项目模式下的原有逻辑
-      const rootTasks = tasks.filter(task => task && typeof task === 'object' && !task.parent_id);
+    // Only add root tasks (tasks without parent_id) from the main tasks list
+    // This prevents duplicate display when subtasks are also in the main list
+    const rootTasks = tasks.filter(task => task && typeof task === 'object' && !task.parent_id);
+    if (Array.isArray(rootTasks)) {
       rootTasks.forEach(task => {
         if (task && typeof task === 'object') {
           addTaskWithChildren(task, 0);
@@ -1013,7 +1547,7 @@ const TasksPage: React.FC = () => {
     }
     
     return result;
-  }, [tasks, effectiveProjectId, expandedTasks, subTasks]);
+  };
 
   return (
     <div className="page-container">
@@ -1314,18 +1848,9 @@ const TasksPage: React.FC = () => {
                 onChange={handleTableChange}
                 rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
                   const depth = record.depth || 0;
-                  const classes = ['task-hierarchy-item'];
-                  
-                  if (depth > 0) {
-                    classes.push(`depth-${Math.min(depth, 6)}`);
-                  }
-                  
-                  // 添加响应式类
-                  if (depth > 6) {
-                    classes.push('depth-warning');
-                  }
-                  
-                  return classes.join(' ');
+                  const baseClass = depth > 0 ? 'subtask-row' : 'main-task-row';
+                  const depthClass = depth > 0 ? `task-hierarchy-item depth-${depth}` : '';
+                  return `${baseClass} ${depthClass}`.trim();
                 }}
                 expandable={{
                   childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
@@ -1372,18 +1897,9 @@ const TasksPage: React.FC = () => {
             onChange={handleTableChange}
             rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
               const depth = record.depth || 0;
-              const classes = ['task-hierarchy-item'];
-              
-              if (depth > 0) {
-                classes.push(`depth-${Math.min(depth, 6)}`);
-              }
-              
-              // 添加响应式类
-              if (depth > 6) {
-                classes.push('depth-warning');
-              }
-              
-              return classes.join(' ');
+              const baseClass = depth > 0 ? 'subtask-row' : 'main-task-row';
+              const depthClass = depth > 0 ? `task-hierarchy-item depth-${depth}` : '';
+              return `${baseClass} ${depthClass}`.trim();
             }}
             expandable={{
               childrenColumnName: 'nonExistentField' // 禁用默认的展开功能

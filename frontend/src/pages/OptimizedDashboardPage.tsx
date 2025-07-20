@@ -64,7 +64,6 @@ import '../styles/OptimizedDashboard.css';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
-const { Panel } = Collapse;
 
 const OptimizedDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -242,7 +241,9 @@ const OptimizedDashboardPage: React.FC = () => {
         alignItems: 'center', 
         minHeight: '400px' 
       }}>
-        <Spin size="large" tip="加载工作台数据..." />
+        <Spin size="large" tip="加载工作台数据...">
+          <div style={{ height: '200px', width: '100%' }} />
+        </Spin>
       </div>
     );
   }
@@ -558,96 +559,94 @@ const OptimizedDashboardPage: React.FC = () => {
           onChange={setCollapsedSections}
           size="small"
           ghost
-        >
-          <Panel 
-            header={
-              <Space>
-                <TeamOutlined style={{ color: '#722ed1' }} />
-                团队工作负载
-                {workloadLoading && <Spin size="small" />}
-              </Space>
-            } 
-            key="team"
-          >
-            {userWorkload && userWorkload.length > 0 ? (
-              <Row gutter={[16, 16]}>
-                {userWorkload.map((user, index) => {
-                  const workloadInfo = getWorkloadStatus(user.totalEstimatedHours);
-                  return (
-                    <Col key={user.id} xs={24} sm={12} md={8} lg={6}>
-                      <Card size="small" className="workload-card">
-                        <div className="workload-header">
-                          <Avatar size="small" icon={<UserOutlined />} />
-                          <Text strong>{user.name}</Text>
-                        </div>
-                        <div className="workload-info">
-                          <div className="workload-tasks">
-                            <Tag color="processing">{user.inProgressTasks} 进行中</Tag>
-                            <Tag color="default">{user.todoTasks} 待办</Tag>
+          items={[
+            {
+              key: 'team',
+              label: (
+                <Space>
+                  <TeamOutlined style={{ color: '#722ed1' }} />
+                  团队工作负载
+                  {workloadLoading && <Spin size="small" />}
+                </Space>
+              ),
+              children: userWorkload && userWorkload.length > 0 ? (
+                <Row gutter={[16, 16]}>
+                  {userWorkload.map((user, index) => {
+                    const workloadInfo = getWorkloadStatus(user.totalEstimatedHours);
+                    return (
+                      <Col key={user.id} xs={24} sm={12} md={8} lg={6}>
+                        <Card size="small" className="workload-card">
+                          <div className="workload-header">
+                            <Avatar size="small" icon={<UserOutlined />} />
+                            <Text strong>{user.name}</Text>
                           </div>
-                          <div className="workload-hours">
-                            <Text type="secondary">预估: {user.totalEstimatedHours}h</Text>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <div style={{ 
-                                width: 8, 
-                                height: 8, 
-                                borderRadius: '50%',
-                                backgroundColor: workloadInfo.color
-                              }} />
-                              <Text type="secondary" style={{ fontSize: 11 }}>
-                                {workloadInfo.text}
-                              </Text>
+                          <div className="workload-info">
+                            <div className="workload-tasks">
+                              <Tag color="processing">{user.inProgressTasks} 进行中</Tag>
+                              <Tag color="default">{user.todoTasks} 待办</Tag>
+                            </div>
+                            <div className="workload-hours">
+                              <Text type="secondary">预估: {user.totalEstimatedHours}h</Text>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <div style={{ 
+                                  width: 8, 
+                                  height: 8, 
+                                  borderRadius: '50%',
+                                  backgroundColor: workloadInfo.color
+                                }} />
+                                <Text type="secondary" style={{ fontSize: 11 }}>
+                                  {workloadInfo.text}
+                                </Text>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </Card>
-                    </Col>
-                  );
-                })}
-              </Row>
-            ) : (
-              <Empty description="暂无团队数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            )}
-          </Panel>
-
-          <Panel 
-            header={
-              <Space>
-                <CalendarOutlined style={{ color: '#1890ff' }} />
-                最近活动
-                {activitiesLoading && <Spin size="small" />}
-              </Space>
-            } 
-            key="activities"
-          >
-            {recentActivities && recentActivities.length > 0 ? (
-              <List
-                size="small"
-                dataSource={recentActivities}
-                renderItem={(activity) => (
-                  <List.Item className="activity-item">
-                    <List.Item.Meta
-                      avatar={<Avatar size="small" icon={<UserOutlined />} />}
-                      title={
-                        <div className="activity-title">
-                          <span>{activity.description}</span>
-                          <Text type="secondary">{formatTimeAgo(activity.event_date)}</Text>
-                        </div>
-                      }
-                      description={
-                        <Text type="secondary" ellipsis>
-                          {activity.task_title} - {activity.username}
-                        </Text>
-                      }
-                    />
-                  </List.Item>
-                )}
-              />
-            ) : (
-              <Empty description="暂无活动记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            )}
-          </Panel>
-        </Collapse>
+                        </Card>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              ) : (
+                <Empty description="暂无团队数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )
+            },
+            {
+              key: 'activities',
+              label: (
+                <Space>
+                  <CalendarOutlined style={{ color: '#1890ff' }} />
+                  最近活动
+                  {activitiesLoading && <Spin size="small" />}
+                </Space>
+              ),
+              children: recentActivities && recentActivities.length > 0 ? (
+                <List
+                  size="small"
+                  dataSource={recentActivities}
+                  renderItem={(activity) => (
+                    <List.Item className="activity-item">
+                      <List.Item.Meta
+                        avatar={<Avatar size="small" icon={<UserOutlined />} />}
+                        title={
+                          <div className="activity-title">
+                            <span>{activity.description}</span>
+                            <Text type="secondary">{formatTimeAgo(activity.event_date)}</Text>
+                          </div>
+                        }
+                        description={
+                          <Text type="secondary" ellipsis>
+                            {activity.task_title} - {activity.username}
+                          </Text>
+                        }
+                      />
+                    </List.Item>
+                  )}
+                />
+              ) : (
+                <Empty description="暂无活动记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              )
+            }
+          ]}
+        />
       </div>
     </div>
   );

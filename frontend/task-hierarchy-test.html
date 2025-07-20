@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务层级样式测试</title>
+    <link rel="stylesheet" href="../src/styles/task-hierarchy.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .test-table tr {
+            border-bottom: 1px solid #f0f0f0;
+            height: 48px;
+        }
+        
+        .test-table td {
+            padding: 12px 16px;
+            vertical-align: middle;
+        }
+        
+        .test-table th {
+            background-color: #fafafa;
+            font-weight: 600;
+            text-align: left;
+            padding: 12px 16px;
+            border-bottom: 2px solid #e8e8e8;
+        }
+        
+        /* 模拟ant-table样式 */
+        .ant-table-tbody > tr {
+            transition: all 0.2s;
+        }
+        
+        .ant-table-tbody > tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .tag-success { background-color: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .tag-processing { background-color: #e6f7ff; color: #1890ff; border: 1px solid #91d5ff; }
+        .tag-default { background-color: #fafafa; color: #8c8c8c; border: 1px solid #d9d9d9; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>任务层级样式测试页面</h1>
+        <p>这个页面用于测试和预览任务层级的CSS样式效果。</p>
+        
+        <h2>层级示例</h2>
+        <table class="test-table ant-table-tbody">
+            <thead>
+                <tr>
+                    <th style="width: 40%;">任务名称</th>
+                    <th style="width: 15%;">状态</th>
+                    <th style="width: 15%;">负责人</th>
+                    <th style="width: 15%;">截止时间</th>
+                    <th style="width: 15%;">操作</th>
+                </tr>
+            </thead>
+            <tbody class="ant-table-tbody">
+                <!-- 根任务 -->
+                <tr class="task-hierarchy-item">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-depth-indicator depth-0"></div>
+                            <button class="task-expand-button expanded">
+                                ▶
+                            </button>
+                            <span class="parent-task-icon">📁</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 500; color: #000;">项目环境搭建</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">搭建开发环境，包括Docker配置</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-processing">进行中</span></td>
+                    <td>张三</td>
+                    <td>2025-07-20</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 第一层子任务 -->
+                <tr class="task-hierarchy-item depth-1">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-indent-space" style="width: 20px;"></div>
+                            <div class="task-connection-container">
+                                <div class="task-connection-line"></div>
+                            </div>
+                            <div class="task-depth-indicator depth-1"></div>
+                            <button class="task-expand-button expanded">
+                                ▶
+                            </button>
+                            <span class="parent-task-icon">📁</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 400; color: #666;">Docker环境配置</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">配置Docker相关环境</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-processing">进行中</span></td>
+                    <td>张三</td>
+                    <td>2025-07-20</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 第二层子任务 -->
+                <tr class="task-hierarchy-item depth-2">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-indent-space" style="width: 40px;"></div>
+                            <div class="task-connection-container">
+                                <div class="task-connection-line"></div>
+                            </div>
+                            <div class="task-depth-indicator depth-2"></div>
+                            <span style="width: 20px; display: inline-block;"></span>
+                            <span class="sub-task-icon">📄</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 400; color: #666;">安装Docker Desktop</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">在开发机器上安装Docker Desktop</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-success">已完成</span></td>
+                    <td>张三</td>
+                    <td>2025-07-19</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 第二层子任务 -->
+                <tr class="task-hierarchy-item depth-2">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-indent-space" style="width: 40px;"></div>
+                            <div class="task-connection-container">
+                                <div class="task-connection-line"></div>
+                            </div>
+                            <div class="task-depth-indicator depth-2"></div>
+                            <span style="width: 20px; display: inline-block;"></span>
+                            <span class="sub-task-icon">📄</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 400; color: #666;">配置Docker Compose文件</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">创建docker-compose.yml配置文件</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-processing">进行中</span></td>
+                    <td>张三</td>
+                    <td>2025-07-20</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 第一层子任务 -->
+                <tr class="task-hierarchy-item depth-1">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-indent-space" style="width: 20px;"></div>
+                            <div class="task-connection-container">
+                                <div class="task-connection-line"></div>
+                            </div>
+                            <div class="task-depth-indicator depth-1"></div>
+                            <span style="width: 20px; display: inline-block;"></span>
+                            <span class="sub-task-icon">📄</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 400; color: #666;">环境测试验证</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">验证Docker环境是否正常工作</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-default">待办</span></td>
+                    <td>张三</td>
+                    <td>2025-07-20</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 第三层子任务示例 -->
+                <tr class="task-hierarchy-item depth-3">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-indent-space" style="width: 60px;"></div>
+                            <div class="task-connection-container">
+                                <div class="task-connection-line"></div>
+                            </div>
+                            <div class="task-depth-indicator depth-3"></div>
+                            <span style="width: 20px; display: inline-block;"></span>
+                            <span class="sub-task-icon">📄</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 400; color: #666;">第三层子任务示例</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">这是一个第三层的子任务</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-default">待办</span></td>
+                    <td>李四</td>
+                    <td>2025-07-21</td>
+                    <td>操作按钮</td>
+                </tr>
+                
+                <!-- 根任务2 -->
+                <tr class="task-hierarchy-item">
+                    <td>
+                        <div class="task-name-with-indent">
+                            <div class="task-depth-indicator depth-0"></div>
+                            <button class="task-expand-button">
+                                ▶
+                            </button>
+                            <span class="parent-task-icon">📁</span>
+                            <div class="task-name-text">
+                                <div style="font-weight: 500; color: #000;">数据库设计</div>
+                                <div style="color: #8c8c8c; font-size: 12px;">设计项目数据库表结构</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="tag tag-default">待办</span></td>
+                    <td>王五</td>
+                    <td>2025-07-21</td>
+                    <td>操作按钮</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2>移动端响应式测试</h2>
+        <div style="max-width: 480px; border: 1px solid #ccc; padding: 16px; margin: 20px 0;">
+            <h3>移动端视图预览</h3>
+            <table class="test-table ant-table-tbody" style="font-size: 14px;">
+                <tbody class="ant-table-tbody">
+                    <tr class="task-hierarchy-item">
+                        <td>
+                            <div class="task-name-with-indent">
+                                <div class="task-depth-indicator depth-0"></div>
+                                <button class="task-expand-button expanded">▶</button>
+                                <span class="parent-task-icon">📁</span>
+                                <div class="task-name-text">
+                                    <div style="font-weight: 500;">主任务</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="task-hierarchy-item depth-1">
+                        <td>
+                            <div class="task-name-with-indent">
+                                <div class="task-indent-space" style="width: 12px;"></div>
+                                <div class="task-depth-indicator depth-1"></div>
+                                <span class="sub-task-icon">📄</span>
+                                <div class="task-name-text">
+                                    <div style="font-weight: 400; color: #666;">子任务</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>暗色主题测试</h2>
+        <div style="background: #1f1f1f; padding: 20px; border-radius: 8px; color: white;">
+            <table class="test-table ant-table-tbody" style="background: #1f1f1f;">
+                <tbody class="ant-table-tbody">
+                    <tr class="task-hierarchy-item depth-1" style="background: #262626; border-left: 3px solid #096dd9;">
+                        <td style="color: white;">
+                            <div class="task-name-with-indent">
+                                <div class="task-indent-space" style="width: 20px;"></div>
+                                <div class="task-depth-indicator depth-1"></div>
+                                <span class="sub-task-icon">📄</span>
+                                <div class="task-name-text">
+                                    <div style="font-weight: 400; color: white;">暗色主题子任务</div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2>样式说明</h2>
+        <ul>
+            <li><strong>层级缩进:</strong> 每一层增加20px缩进空间</li>
+            <li><strong>连接线:</strong> 虚线连接父子任务关系</li>
+            <li><strong>深度指示器:</strong> 彩色竖线表示任务层级</li>
+            <li><strong>展开按钮:</strong> 可点击的箭头图标</li>
+            <li><strong>图标:</strong> 文件夹图标表示父任务，文档图标表示子任务</li>
+            <li><strong>响应式:</strong> 在小屏幕上自动简化样式</li>
+            <li><strong>暗色主题:</strong> 支持暗色模式</li>
+        </ul>
+    </div>
+</body>
+</html>

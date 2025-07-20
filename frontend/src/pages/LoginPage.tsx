@@ -16,29 +16,52 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     
     try {
-      // TODO: Replace with actual API call
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+      
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(values),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem('token', data.token);
-        message.success('登录成功');
-        navigate('/');
-      } else {
+        if (data.success && data.data) {
+          // Store token and user info
+          localStorage.setItem('token', data.data.token);
+          localStorage.setItem('currentUser', JSON.stringify({
+            id: data.data.user.id,
+            username: data.data.user.username,
+            role: data.data.user.role
+          }));
+          message.success('登录成功');
+          navigate('/');
+        } else {
+          message.error(data.message || '登录失败');
+        }
+      } else if (response.status === 401) {
         message.error('用户名或密码错误');
+      } else if (response.status >= 500) {
+        message.error('服务器内部错误，请稍后重试');
+      } else {
+        message.error('登录失败，请检查网络连接');
       }
-    } catch (error) {
-      // For development, simulate successful login
-      console.log('Login attempt:', values);
-      localStorage.setItem('token', 'mock-token');
-      message.success('登录成功（开发模式）');
-      navigate('/');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      
+      if (error.name === 'AbortError') {
+        message.error('登录请求超时，请检查网络连接或稍后重试');
+      } else if (error.message.includes('Failed to fetch')) {
+        message.error('无法连接到服务器，请确保服务已启动');
+      } else {
+        message.error('登录失败，请稍后重试');
+      }
     } finally {
       setLoading(false);
     }
@@ -87,8 +110,8 @@ const LoginPage: React.FC = () => {
         </Form>
         
         <div style={{ textAlign: 'center', marginTop: '16px', color: '#8c8c8c' }}>
-          <p>开发环境默认账号：</p>
-          <p>用户名：admin，密码：任意</p>
+          <p>请使用正确的用户名和密码登录</p>
+          <p>如无法登录，请联系系统管理员</p>
         </div>
       </div>
     </div>

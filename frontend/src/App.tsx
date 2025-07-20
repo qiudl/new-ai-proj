@@ -4,16 +4,17 @@ import { ConfigProvider } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
+import './styles/task-hierarchy.css';
 
 // Pages
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import OptimizedDashboardPage from './pages/OptimizedDashboardPage';
 import ProjectsPage from './pages/ProjectsPage';
+import ProjectDashboardPage from './pages/ProjectDashboardPage';
 import TasksPage from './pages/TasksPage';
 import TaskBoardPage from './pages/TaskBoardPage';
-import TaskListPage from './pages/TaskListPage';
-import TaskDetailPage from './pages/TaskDetailPage';
+import TaskDetailPageNew from './pages/TaskDetailPageNew';
 import BulkImportPage from './pages/BulkImportPage';
 import RecycleBinPage from './pages/RecycleBinPage';
 import AuditLogPage from './pages/AuditLogPage';
@@ -26,7 +27,12 @@ function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <ErrorBoundary>
-        <Router>
+        <Router 
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true
+          }}
+        >
           <div className="App">
           <Routes>
             {/* Public routes */}
@@ -55,6 +61,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <OptimizedDashboardPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/project-dashboard" element={
+              <PrivateRoute>
+                <Layout>
+                  <ProjectDashboardPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -91,10 +105,11 @@ function App() {
               </PrivateRoute>
             } />
             
+            {/* 任务列表页面 - 统一使用TasksPage */}
             <Route path="/task-list" element={
               <PrivateRoute>
                 <Layout>
-                  <TaskListPage />
+                  <TasksPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -107,10 +122,11 @@ function App() {
               </PrivateRoute>
             } />
             
+            {/* 项目任务列表 - 统一使用TasksPage */}
             <Route path="/projects/:projectId/task-list" element={
               <PrivateRoute>
                 <Layout>
-                  <TaskListPage />
+                  <TasksPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -134,7 +150,7 @@ function App() {
             <Route path="/projects/:projectId/tasks/:taskId" element={
               <PrivateRoute>
                 <Layout>
-                  <TaskDetailPage />
+                  <TaskDetailPageNew />
                 </Layout>
               </PrivateRoute>
             } />

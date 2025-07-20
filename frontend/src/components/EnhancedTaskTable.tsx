@@ -426,6 +426,9 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
         scroll={{ x: 1500, y: 600 }}
         size="middle"
         bordered
+        expandable={{
+          childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
+        }}
       />
     </div>
   );

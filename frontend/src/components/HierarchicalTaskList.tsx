@@ -482,6 +482,9 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
             if (level === 0) return 'root-task-row fade-in';
             return `child-task-row level-${level} fade-in`;
           }}
+          expandable={{
+            childrenColumnName: 'nonExistentField' // 禁用默认的展开功能
+          }}
         />
       )}
     </div>
