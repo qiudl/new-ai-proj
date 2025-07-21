@@ -525,7 +525,7 @@ const TaskDashboardPage: React.FC = () => {
                                     day.isToday ? '#f0f9ff' : undefined,
                     boxShadow: day.isToday ? '0 4px 12px rgba(24, 144, 255, 0.15)' : undefined
                   }}
-                  bodyStyle={{ padding: '12px 8px' }}
+                  styles={{ body: { padding: '12px 8px' } }}
                 >
                   <div style={{ minHeight: '220px' }}>
                     {/* 进度条 */}
@@ -563,7 +563,7 @@ const TaskDashboardPage: React.FC = () => {
                               transform: 'translateY(0)',
                             }}
                             onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
-                            bodyStyle={{ padding: '10px' }}
+                            styles={{ body: { padding: '10px' } }}
                             onMouseEnter={(e) => {
                               e.currentTarget.style.transform = 'translateY(-2px)';
                               e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';

@@ -45,6 +45,7 @@ import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
+import TaskTimeline from '../components/TaskTimeline';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -72,10 +73,13 @@ const TaskDetailPageNew: React.FC = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [createSubtaskModalVisible, setCreateSubtaskModalVisible] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   
   // 附加数据状态
   const [projectInfo, setProjectInfo] = useState<any>(null);
   const [parentTask, setParentTask] = useState<Task | null>(null);
+  const [siblingTasks, setSiblingTasks] = useState<Task[]>([]);
   
   // 完成情况相关状态
   const [subtasks, setSubtasks] = useState<Task[]>([]);
@@ -91,6 +95,7 @@ const TaskDetailPageNew: React.FC = () => {
   const [taskUpdates, setTaskUpdates] = useState<TaskUpdate[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  
 
   // 加载任务基本信息
   const loadTask = useCallback(async () => {
@@ -150,13 +155,31 @@ const TaskDetailPageNew: React.FC = () => {
         console.error('Error loading project info:', error);
       }
       
-      // 单独获取父任务信息
+      // 单独获取父任务信息和兄弟任务
       if (task.parent_id) {
         try {
           const parentTaskInfo = await TaskService.getTask(parsedProjectId, task.parent_id);
           setParentTask(parentTaskInfo);
+          
+          // 获取兄弟任务（相同父任务的其他子任务）
+          const siblings = await TaskService.getTaskChildren(parsedProjectId, task.parent_id);
+          const filteredSiblings = Array.isArray(siblings) 
+            ? siblings.filter((sibling: Task) => sibling.id !== task.id)
+            : [];
+          setSiblingTasks(filteredSiblings);
         } catch (error) {
           console.error('Error loading parent task:', error);
+        }
+      } else {
+        // 如果是根任务，获取同级的其他根任务作为兄弟任务
+        try {
+          const rootTasks = await TaskService.getRootTasks(parsedProjectId);
+          const filteredRootSiblings = Array.isArray(rootTasks) 
+            ? rootTasks.filter((rootTask: Task) => rootTask.id !== task.id)
+            : [];
+          setSiblingTasks(filteredRootSiblings);
+        } catch (error) {
+          console.error('Error loading root tasks:', error);
         }
       }
       
@@ -860,6 +883,14 @@ const TaskDetailPageNew: React.FC = () => {
                   >
                     {projectInfo.name} (#{task.project_id})
                   </Button>
+                ) : task.project_name ? (
+                  <Button 
+                    type="link" 
+                    style={{ padding: 0, height: 'auto', fontSize: '14px' }}
+                    onClick={() => navigate(`/projects/${task.project_id}`)}
+                  >
+                    {task.project_name} (#{task.project_id})
+                  </Button>
                 ) : (
                   `项目 #${task.project_id}`
                 )}
@@ -883,7 +914,24 @@ const TaskDetailPageNew: React.FC = () => {
                 {dayjs(task.created_at).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>
               <Descriptions.Item label="更新时间">
-                {dayjs(task.updated_at).format('YYYY-MM-DD HH:mm')}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>{dayjs(task.updated_at).format('YYYY-MM-DD HH:mm')}</span>
+                  {(task.updated_by_username || task.updated_by) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ color: '#8c8c8c' }}>by</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Avatar 
+                          size={16} 
+                          icon={<UserOutlined />}
+                          style={{ backgroundColor: '#1890ff', fontSize: '8px' }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#595959' }}>
+                          {task.updated_by_username || `用户${task.updated_by}`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </Descriptions.Item>
               {task.due_date && (
                 <Descriptions.Item label="截止时间">
@@ -911,19 +959,220 @@ const TaskDetailPageNew: React.FC = () => {
               <Button 
                 block 
                 icon={<HistoryOutlined />}
-                onClick={() => {/* 查看完整历史 */}}
+                onClick={() => setShowHistory(!showHistory)}
+                type={showHistory ? 'primary' : 'default'}
               >
-                查看完整历史
+                {showHistory ? '隐藏历史记录' : '查看完整历史'}
               </Button>
               <Button 
                 block 
                 icon={<ClockCircleOutlined />}
-                onClick={() => {/* 时间线视图 */}}
+                onClick={() => setShowTimeline(!showTimeline)}
+                type={showTimeline ? 'primary' : 'default'}
               >
-                时间线视图
+                {showTimeline ? '隐藏时间线' : '时间线视图'}
               </Button>
             </Space>
           </Card>
+
+          {/* 相关任务 */}
+          <Card title="相关任务" style={{ marginBottom: '16px' }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {/* 父任务 */}
+              {parentTask && (
+                <div>
+                  <Text strong style={{ fontSize: '12px', color: '#8c8c8c' }}>父任务</Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Button 
+                      type="link" 
+                      style={{ 
+                        padding: 0, 
+                        height: 'auto', 
+                        fontSize: '13px',
+                        textAlign: 'left',
+                        width: '100%',
+                        justifyContent: 'flex-start'
+                      }}
+                      onClick={() => navigate(`/projects/${task.project_id}/tasks/${parentTask.id}`)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {getStatusConfig(parentTask.status).icon}
+                        <span>{parentTask.title}</span>
+                      </div>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 子任务 */}
+              {subtasks.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                    子任务 ({subtasks.length})
+                  </Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {subtasks.slice(0, 3).map((subtask) => (
+                        <Button 
+                          key={subtask.id}
+                          type="link" 
+                          style={{ 
+                            padding: 0, 
+                            height: 'auto', 
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            width: '100%',
+                            justifyContent: 'flex-start'
+                          }}
+                          onClick={() => navigate(`/projects/${subtask.project_id}/tasks/${subtask.id}`)}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {getStatusConfig(subtask.status).icon}
+                            <span>{subtask.title}</span>
+                          </div>
+                        </Button>
+                      ))}
+                      {subtasks.length > 3 && (
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          还有 {subtasks.length - 3} 个子任务...
+                        </Text>
+                      )}
+                    </Space>
+                  </div>
+                </div>
+              )}
+
+              {/* 兄弟任务 */}
+              {siblingTasks.length > 0 && (
+                <div>
+                  <Text strong style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                    兄弟任务 ({siblingTasks.length})
+                  </Text>
+                  <div style={{ marginTop: '4px' }}>
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      {siblingTasks.slice(0, 3).map((sibling) => (
+                        <Button 
+                          key={sibling.id}
+                          type="link" 
+                          style={{ 
+                            padding: 0, 
+                            height: 'auto', 
+                            fontSize: '13px',
+                            textAlign: 'left',
+                            width: '100%',
+                            justifyContent: 'flex-start'
+                          }}
+                          onClick={() => navigate(`/projects/${sibling.project_id}/tasks/${sibling.id}`)}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {getStatusConfig(sibling.status).icon}
+                            <span>{sibling.title}</span>
+                          </div>
+                        </Button>
+                      ))}
+                      {siblingTasks.length > 3 && (
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          还有 {siblingTasks.length - 3} 个兄弟任务...
+                        </Text>
+                      )}
+                    </Space>
+                  </div>
+                </div>
+              )}
+
+              {/* 无相关任务时的提示 */}
+              {!parentTask && subtasks.length === 0 && siblingTasks.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+                  <BranchesOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+                  <div style={{ fontSize: '12px' }}>暂无相关任务</div>
+                </div>
+              )}
+            </Space>
+          </Card>
+
+          {/* 时间线视图 */}
+          {showTimeline && (
+            <Card 
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>任务时间线</span>
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    onClick={() => setShowTimeline(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              }
+              style={{ marginBottom: '16px' }}
+            >
+              {timelineEvents.length > 0 ? (
+                <TaskTimeline 
+                  events={timelineEvents}
+                  onRefresh={() => loadAllTaskData()}
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+                  <ClockCircleOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+                  <div>暂无时间线数据</div>
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* 历史记录视图 */}
+          {showHistory && (
+            <Card 
+              title={
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>历史记录</span>
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    onClick={() => setShowHistory(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+              }
+              style={{ marginBottom: '16px' }}
+            >
+              {taskUpdates.length > 0 ? (
+                <Timeline>
+                  {taskUpdates.map((update, index) => (
+                    <Timeline.Item
+                      key={index}
+                      color="blue"
+                    >
+                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                        {dayjs(update.created_at).format('MM-DD HH:mm')}
+                      </div>
+                      <div style={{ fontWeight: 500 }}>
+                        {update.update_type}
+                      </div>
+                      {update.updated_by_username && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#595959' }}>
+                          <UserOutlined />
+                          {update.updated_by_username}
+                        </div>
+                      )}
+                      {update.notes && (
+                        <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                          {update.notes}
+                        </div>
+                      )}
+                    </Timeline.Item>
+                  ))}
+                </Timeline>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
+                  <HistoryOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+                  <div>暂无历史记录</div>
+                </div>
+              )}
+            </Card>
+          )}
 
           {/* 任务提醒 */}
           {timeRemaining && timeRemaining.type !== 'normal' && (
@@ -939,6 +1188,106 @@ const TaskDetailPageNew: React.FC = () => {
         </Col>
       </Row>
 
+      {/* 时间线视图 */}
+      {showTimeline && (
+        <Card 
+          title="任务时间线" 
+          style={{ marginTop: '16px' }}
+          extra={
+            <Button 
+              size="small" 
+              onClick={() => setShowTimeline(false)}
+            >
+              关闭
+            </Button>
+          }
+        >
+          <TaskTimeline 
+            events={timelineEvents}
+            loading={dataLoading}
+            onRefresh={() => {
+              if (projectId && taskId) {
+                const parsedProjectId = parseInt(projectId);
+                const parsedTaskId = parseInt(taskId);
+                if (!isNaN(parsedProjectId) && !isNaN(parsedTaskId)) {
+                  TaskService.getTaskTimeline(parsedProjectId, parsedTaskId, { page: 1, page_size: 50 })
+                    .then(response => {
+                      const timeline = Array.isArray(response.data) ? response.data : [];
+                      setTimelineEvents(timeline);
+                    })
+                    .catch(error => console.error('Error refreshing timeline:', error));
+                }
+              }
+            }}
+          />
+        </Card>
+      )}
+
+      {/* 历史记录视图 */}
+      {showHistory && (
+        <Card 
+          title="任务更新历史" 
+          style={{ marginTop: '16px' }}
+          extra={
+            <Button 
+              size="small" 
+              onClick={() => setShowHistory(false)}
+            >
+              关闭
+            </Button>
+          }
+        >
+          <Timeline mode="left">
+            {taskUpdates.map((update, index) => (
+              <Timeline.Item
+                key={update.id || index}
+                dot={
+                  <Avatar 
+                    size="small" 
+                    style={{ 
+                      backgroundColor: update.updated_by_username === 'admin' ? '#1890ff' : '#52c41a' 
+                    }}
+                    icon={<UserOutlined />}
+                  >
+                    {update.updated_by_username?.charAt(0)?.toUpperCase() || 'U'}
+                  </Avatar>
+                }
+              >
+                <div style={{ marginLeft: 8 }}>
+                  <div style={{ marginBottom: 4 }}>
+                    <Tag color="blue">{update.update_type}</Tag>
+                    <span style={{ marginLeft: 8, color: '#666' }}>
+                      {dayjs(update.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                    </span>
+                  </div>
+                  <div style={{ marginBottom: 8 }}>
+                    <Text strong>{update.updated_by_username || '未知用户'}</Text>
+                  </div>
+                  <div>
+                    <Text type="secondary">旧值: </Text>
+                    <Text>{update.old_value || '空'}</Text>
+                    <Divider type="vertical" />
+                    <Text type="secondary">新值: </Text>
+                    <Text>{update.new_value}</Text>
+                  </div>
+                  {update.notes && (
+                    <div style={{ marginTop: 8, padding: 8, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>备注: </Text>
+                      <Text style={{ fontSize: 12 }}>{update.notes}</Text>
+                    </div>
+                  )}
+                </div>
+              </Timeline.Item>
+            ))}
+          </Timeline>
+          {taskUpdates.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+              暂无更新历史
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* 编辑任务模态框 */}
       {task && editModalVisible && projectId && !isNaN(parseInt(projectId)) && (
         <TaskModal
@@ -948,6 +1297,10 @@ const TaskDetailPageNew: React.FC = () => {
           onOk={handleUpdateTask}
           onCancel={() => setEditModalVisible(false)}
           loading={modalLoading}
+          onEditDetails={() => {
+            setEditModalVisible(false);
+            navigate(`/projects/${projectId}/tasks/${taskId}/edit`);
+          }}
         />
       )}
 

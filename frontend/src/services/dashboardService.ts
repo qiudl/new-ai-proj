@@ -50,7 +50,7 @@ export class DashboardService {
 
       // 为每个项目获取任务数据，使用Promise.allSettled避免单个项目失败影响整体
       const taskPromises = projects.map((project: any) => 
-        api.get(`/projects/${project.id}/tasks`).catch(error => {
+        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`).catch(error => {
           console.warn(`Failed to load tasks for project ${project.id}:`, error);
           return { data: { data: [] } }; // 返回空数组作为降级
         })
@@ -189,7 +189,7 @@ export class DashboardService {
 
       // 为每个项目获取任务数据
       const taskPromises = projects.map((project: any) => 
-        api.get(`/projects/${project.id}/tasks`)
+        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
       const taskResponses = await Promise.all(taskPromises);
@@ -223,7 +223,7 @@ export class DashboardService {
 
       // 为每个项目获取任务数据并计算进度
       const progressPromises = projects.map(async (project: any) => {
-        const tasksResponse = await api.get(`/projects/${project.id}/tasks`);
+        const tasksResponse = await api.get(`/projects/${project.id}/tasks?page=1&page_size=100`);
         const projectTasks = tasksResponse.data?.data || [];
         
         const completedTasks = projectTasks.filter((task: Task) => task.status === 'completed');
@@ -257,7 +257,7 @@ export class DashboardService {
 
       // 为每个项目获取任务数据
       const taskPromises = projects.map((project: any) => 
-        api.get(`/projects/${project.id}/tasks`)
+        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
       const taskResponses = await Promise.all(taskPromises);
@@ -342,7 +342,7 @@ export class DashboardService {
 
       // 为每个项目获取任务数据
       const taskPromises = projects.map((project: any) => 
-        api.get(`/projects/${project.id}/tasks`)
+        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
       const taskResponses = await Promise.all(taskPromises);
@@ -363,7 +363,7 @@ export class DashboardService {
    */
   static async getProjectTasks(projectId: number): Promise<Task[]> {
     try {
-      const response = await api.get(`/projects/${projectId}/tasks`);
+      const response = await api.get(`/projects/${projectId}/tasks?page=1&page_size=100`);
       return response.data?.data || [];
     } catch (error) {
       console.error('Error fetching project tasks:', error);

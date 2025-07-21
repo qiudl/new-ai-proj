@@ -8,7 +8,7 @@ class CustomerService {
     const params = new URLSearchParams();
     
     if (pagination?.page) params.append('page', pagination.page.toString());
-    if (pagination?.pageSize) params.append('pageSize', pagination.pageSize.toString());
+    if (pagination?.pageSize) params.append('page_size', pagination.pageSize.toString());
     if (filters?.status) params.append('status', filters.status);
     if (filters?.priority) params.append('priority', filters.priority);
     if (filters?.industry) params.append('industry', filters.industry);
@@ -163,7 +163,7 @@ class CustomerService {
     const params = new URLSearchParams();
     
     if (pagination?.page) params.append('page', pagination.page.toString());
-    if (pagination?.pageSize) params.append('pageSize', pagination.pageSize.toString());
+    if (pagination?.pageSize) params.append('page_size', pagination.pageSize.toString());
 
     const response = await fetch(`${API_BASE_URL}/${customerId}/contacts?${params.toString()}`);
     if (!response.ok) {

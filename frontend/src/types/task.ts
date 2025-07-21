@@ -15,6 +15,9 @@ export interface Task {
   children_count?: number;
   created_at: string;
   updated_at: string;
+  updated_by?: number;
+  updated_by_username?: string;
+  project_name?: string;
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';

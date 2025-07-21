@@ -7,7 +7,10 @@ import {
   DatePicker,
   Row,
   Col,
+  Button,
+  Space,
 } from 'antd';
+import { EditOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
 import { TaskService } from '../services/taskService';
 import dayjs from 'dayjs';
@@ -24,6 +27,7 @@ interface TaskModalProps {
   loading?: boolean;
   parentTask?: Task;
   allowParentSelection?: boolean;
+  onEditDetails?: () => void;
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -35,6 +39,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
   loading = false,
   parentTask,
   allowParentSelection = false,
+  onEditDetails,
 }) => {
   const [form] = Form.useForm();
   const [parentTasks, setParentTasks] = useState<Task[]>([]);
@@ -149,13 +154,51 @@ const TaskModal: React.FC<TaskModalProps> = ({
   };
 
 
+  // 自定义footer，编辑模式下添加"编辑详情"按钮
+  const renderFooter = () => {
+    const buttons = [];
+    
+    // 取消按钮
+    buttons.push(
+      <Button key="cancel" onClick={handleCancel}>
+        取消
+      </Button>
+    );
+    
+    // 编辑详情按钮（仅在编辑模式下显示）
+    if (task && onEditDetails) {
+      buttons.push(
+        <Button 
+          key="editDetails" 
+          icon={<EditOutlined />}
+          onClick={onEditDetails}
+        >
+          编辑详情
+        </Button>
+      );
+    }
+    
+    // 确定按钮
+    buttons.push(
+      <Button 
+        key="ok" 
+        type="primary" 
+        loading={loading}
+        onClick={handleOk}
+      >
+        {task ? '更新' : '创建'}
+      </Button>
+    );
+    
+    return buttons;
+  };
+
   return (
     <Modal
       title={getModalTitle()}
       open={visible}
-      onOk={handleOk}
+      footer={renderFooter()}
       onCancel={handleCancel}
-      confirmLoading={loading}
       width={600}
       destroyOnHidden
     >

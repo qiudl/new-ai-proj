@@ -8,33 +8,6 @@ import (
 	"strings"
 )
 
-// CustomerRepository defines the interface for customer data operations
-type CustomerRepository interface {
-	// Customer CRUD operations
-	Create(ctx context.Context, customer *models.Customer) (*models.Customer, error)
-	GetByID(ctx context.Context, id int) (*models.Customer, error)
-	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Customer, int, error)
-	Update(ctx context.Context, customer *models.Customer) (*models.Customer, error)
-	Delete(ctx context.Context, id int) error
-	
-	// Customer-User association operations
-	AssociateUser(ctx context.Context, customerUser *models.CustomerUser) (*models.CustomerUser, error)
-	DisassociateUser(ctx context.Context, customerID, userID int) error
-	GetCustomerUsers(ctx context.Context, customerID int) ([]*models.CustomerUser, error)
-	GetUserCustomers(ctx context.Context, userID int) ([]*models.Customer, error)
-	UpdateUserRole(ctx context.Context, customerID, userID int, role string, permissions models.CustomFields) error
-	
-	// Contact records operations
-	CreateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
-	GetContacts(ctx context.Context, customerID int, limit, offset int) ([]*models.CustomerContact, int, error)
-	UpdateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
-	DeleteContact(ctx context.Context, id int) error
-	
-	// Statistics and reports
-	GetCustomerStats(ctx context.Context) (map[string]interface{}, error)
-	GetCustomersByStatus(ctx context.Context, status string) ([]*models.Customer, error)
-	GetUpcomingContacts(ctx context.Context, userID int, days int) ([]*models.CustomerContact, error)
-}
 
 // PostgresCustomerRepository implements CustomerRepository for PostgreSQL
 type PostgresCustomerRepository struct {
@@ -59,10 +32,10 @@ func (r *PostgresCustomerRepository) Create(ctx context.Context, customer *model
 	query := `
 		INSERT INTO customers (
 			name, company, industry, contact_person, email, phone, address, website, 
-			description, status, contract_value, contract_start_date, contract_end_date, 
+			status, contract_value, start_date, end_date, 
 			priority, custom_fields, created_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		) RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
@@ -85,7 +58,7 @@ func (r *PostgresCustomerRepository) Create(ctx context.Context, customer *model
 func (r *PostgresCustomerRepository) GetByID(ctx context.Context, id int) (*models.Customer, error) {
 	query := `
 		SELECT id, name, company, industry, contact_person, email, phone, address, website,
-		       description, status, contract_value, contract_start_date, contract_end_date,
+		       status, contract_value, start_date, end_date,
 		       priority, custom_fields, created_by, updated_by, created_at, updated_at, deleted_at
 		FROM customers
 		WHERE id = $1 AND deleted_at IS NULL`
@@ -158,7 +131,7 @@ func (r *PostgresCustomerRepository) List(ctx context.Context, limit, offset int
 	// Get customers
 	query := fmt.Sprintf(`
 		SELECT id, name, company, industry, contact_person, email, phone, address, website,
-		       description, status, contract_value, contract_start_date, contract_end_date,
+		       status, contract_value, start_date, end_date,
 		       priority, custom_fields, created_by, updated_by, created_at, updated_at, deleted_at
 		FROM customers
 		WHERE %s
@@ -199,10 +172,10 @@ func (r *PostgresCustomerRepository) Update(ctx context.Context, customer *model
 		UPDATE customers SET
 			name = $1, company = $2, industry = $3, contact_person = $4,
 			email = $5, phone = $6, address = $7, website = $8,
-			description = $9, status = $10, contract_value = $11,
-			contract_start_date = $12, contract_end_date = $13, priority = $14,
-			custom_fields = $15, updated_by = $16, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $17 AND deleted_at IS NULL
+			status = $9, contract_value = $10,
+			start_date = $11, end_date = $12, priority = $13,
+			custom_fields = $14, updated_by = $15, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $16 AND deleted_at IS NULL
 		RETURNING updated_at`
 
 	exec := r.getExecer()
@@ -322,8 +295,8 @@ func (r *PostgresCustomerRepository) GetCustomerUsers(ctx context.Context, custo
 func (r *PostgresCustomerRepository) GetUserCustomers(ctx context.Context, userID int) ([]*models.Customer, error) {
 	query := `
 		SELECT c.id, c.name, c.company, c.industry, c.contact_person, c.email, c.phone,
-		       c.address, c.website, c.description, c.status, c.contract_value,
-		       c.contract_start_date, c.contract_end_date, c.priority, c.custom_fields,
+		       c.address, c.website, c.status, c.contract_value,
+		       c.start_date, c.end_date, c.priority, c.custom_fields,
 		       c.created_by, c.updated_by, c.created_at, c.updated_at, c.deleted_at
 		FROM customers c
 		INNER JOIN customer_users cu ON c.id = cu.customer_id
@@ -550,7 +523,7 @@ func (r *PostgresCustomerRepository) GetCustomerStats(ctx context.Context) (map[
 func (r *PostgresCustomerRepository) GetCustomersByStatus(ctx context.Context, status string) ([]*models.Customer, error) {
 	query := `
 		SELECT id, name, company, industry, contact_person, email, phone, address, website,
-		       description, status, contract_value, contract_start_date, contract_end_date,
+		       status, contract_value, start_date, end_date,
 		       priority, custom_fields, created_by, updated_by, created_at, updated_at, deleted_at
 		FROM customers
 		WHERE status = $1 AND deleted_at IS NULL

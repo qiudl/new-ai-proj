@@ -103,7 +103,7 @@ const TaskBoardPage: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`/api/projects/${selectedProjectId}/tasks`, {
+      const response = await fetch(`/api/projects/${selectedProjectId}/tasks?page=1&page_size=100`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },

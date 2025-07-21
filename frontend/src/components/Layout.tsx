@@ -12,6 +12,7 @@ import {
   AppstoreOutlined,
   UnorderedListOutlined,
   TableOutlined,
+  DatabaseOutlined,
   DeleteOutlined,
   AuditOutlined,
   CalendarOutlined,
@@ -156,6 +157,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/tasks',
           icon: <UnorderedListOutlined />,
           label: '任务列表',
+        },
+        {
+          key: '/tasks/all-fields',
+          icon: <DatabaseOutlined />,
+          label: '全字段列表',
         },
         {
           key: '/bulk-import',

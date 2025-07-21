@@ -17,6 +17,8 @@ const ProjectDashboardPage = React.lazy(() => import('./pages/ProjectDashboardPa
 const TasksPage = React.lazy(() => import('./pages/TasksPage'));
 const TaskBoardPage = React.lazy(() => import('./pages/TaskBoardPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
+const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
+const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
 const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
@@ -140,6 +142,14 @@ function App() {
               </PrivateRoute>
             } />
             
+            <Route path="/tasks/all-fields" element={
+              <PrivateRoute>
+                <Layout>
+                  <AllFieldsTaskListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
             {/* 项目任务列表 - 统一使用TasksPage */}
             <Route path="/projects/:projectId/task-list" element={
               <PrivateRoute>
@@ -161,6 +171,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <BulkImportPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/projects/:projectId/tasks/:taskId/edit" element={
+              <PrivateRoute>
+                <Layout>
+                  <TaskEditPage />
                 </Layout>
               </PrivateRoute>
             } />

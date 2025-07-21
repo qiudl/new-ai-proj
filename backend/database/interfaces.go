@@ -65,6 +65,33 @@ type TaskRepository interface {
 	GetProjectTimeline(ctx context.Context, projectID int, limit, offset int) ([]*models.TimelineEvent, int, error)
 }
 
+// CustomerRepository defines the interface for customer database operations
+type CustomerRepository interface {
+	Create(ctx context.Context, customer *models.Customer) (*models.Customer, error)
+	GetByID(ctx context.Context, id int) (*models.Customer, error)
+	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Customer, int, error)
+	Update(ctx context.Context, customer *models.Customer) (*models.Customer, error)
+	Delete(ctx context.Context, id int) error
+	
+	// Customer user associations
+	AssociateUser(ctx context.Context, customerUser *models.CustomerUser) (*models.CustomerUser, error)
+	DisassociateUser(ctx context.Context, customerID, userID int) error
+	GetCustomerUsers(ctx context.Context, customerID int) ([]*models.CustomerUser, error)
+	GetUserCustomers(ctx context.Context, userID int) ([]*models.Customer, error)
+	UpdateUserRole(ctx context.Context, customerID, userID int, role string, permissions models.CustomFields) error
+	
+	// Customer contacts
+	CreateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
+	GetContacts(ctx context.Context, customerID int, limit, offset int) ([]*models.CustomerContact, int, error)
+	UpdateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
+	DeleteContact(ctx context.Context, id int) error
+	
+	// Statistics and reports
+	GetCustomerStats(ctx context.Context) (map[string]interface{}, error)
+	GetCustomersByStatus(ctx context.Context, status string) ([]*models.Customer, error)
+	GetUpcomingContacts(ctx context.Context, userID int, days int) ([]*models.CustomerContact, error)
+}
+
 // AuditRepository defines the interface for audit log operations
 type AuditRepository interface {
 	// Audit log operations

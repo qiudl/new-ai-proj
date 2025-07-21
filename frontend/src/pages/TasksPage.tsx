@@ -249,23 +249,30 @@ const TasksPage: React.FC = () => {
     if (effectiveProjectId) return; // 只在全局模式下获取统计
     
     try {
-      // 获取不分页的全局任务数据用于统计
-      const response: any = await TaskService.getAllTasks({
-        page: 1,
-        page_size: 1000 // 获取足够多的数据用于统计
-      });
+      // 分批获取全局任务数据用于统计
+      let allTasks: any[] = [];
+      let page = 1;
+      const pageSize = 100;
+      let hasMore = true;
       
-      if (response && response.data) {
-        // Validate that data is an array
-        let allTasks: any[] = [];
-        if (Array.isArray(response.data)) {
-          allTasks = response.data;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          allTasks = response.data.data;
+      while (hasMore) {
+        const response: any = await TaskService.getAllTasks({
+          page,
+          page_size: pageSize
+        });
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          allTasks = allTasks.concat(response.data);
+          
+          // 检查是否还有更多数据
+          hasMore = response.pagination && response.pagination.has_next;
+          page++;
         } else {
-          console.warn('Global stats: tasks data is not an array:', response.data);
-          allTasks = [];
+          hasMore = false;
         }
+      }
+      
+      if (allTasks.length > 0) {
         
         // Filter out invalid tasks
         const validTasks = allTasks.filter((task: any) => 
@@ -283,7 +290,7 @@ const TasksPage: React.FC = () => {
         }
         
         const stats = {
-          totalTasks: response.pagination?.total || validTasks.length,
+          totalTasks: validTasks.length,
           todoTasks: validTasks.filter((task: any) => task.status === 'todo').length,
           inProgressTasks: validTasks.filter((task: any) => task.status === 'in_progress').length,
           completedTasks: validTasks.filter((task: any) => task.status === 'completed').length,
@@ -1204,7 +1211,7 @@ const TasksPage: React.FC = () => {
             }}
             variant="borderless"
             size="small"
-            dropdownStyle={{ minWidth: 140 }}
+            styles={{ popup: { root: { minWidth: 140 } } }}
             suffixIcon={null}
           >
             {Object.entries(statusConfig).map(([key, conf]) => (
