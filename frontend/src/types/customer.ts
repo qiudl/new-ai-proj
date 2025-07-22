@@ -55,7 +55,9 @@ export interface CustomerUser {
 export interface CustomerUserRequest {
   userId: number;
   role: 'contact' | 'manager' | 'viewer' | 'admin';
-  permissions?: string[];
+  isPrimary?: boolean;
+  permissions?: Record<string, any>;
+  accessLevel?: number;
 }
 
 // Customer contact record
@@ -63,10 +65,13 @@ export interface CustomerContact {
   id: number;
   customerId: number;
   contactType: 'email' | 'phone' | 'meeting' | 'visit' | 'other';
-  subject: string;
-  notes?: string;
+  subject?: string;
+  content?: string;
   contactDate: string;
-  createdBy: number;
+  nextContactDate?: string;
+  status: 'planned' | 'completed' | 'cancelled';
+  result?: string;
+  contactedBy?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,9 +79,12 @@ export interface CustomerContact {
 // Customer contact request
 export interface CustomerContactRequest {
   contactType: 'email' | 'phone' | 'meeting' | 'visit' | 'other';
-  subject: string;
-  notes?: string;
-  contactDate: string;
+  subject?: string;
+  content?: string;
+  contactDate?: string;
+  nextContactDate?: string;
+  status: 'planned' | 'completed' | 'cancelled';
+  result?: string;
 }
 
 // Customer filter options

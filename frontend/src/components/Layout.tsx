@@ -20,6 +20,7 @@ import {
   TeamOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -72,13 +73,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getSelectedKeys = () => {
     const path = location.pathname;
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
-    if (path.includes('/task-board')) return ['/task-board'];
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/project-dashboard') return ['/project-dashboard'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/customers')) return ['/customers'];
+    if (path.includes('/companies')) return ['/companies'];
     return [path];
   };
 
@@ -88,14 +89,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (collapsed) return [];
     
     const path = location.pathname;
-    if (path.includes('/task-dashboard') || path.includes('/task-board') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
+    if (path.includes('/task-dashboard') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
     }
     if (path.includes('/project-dashboard') || path.includes('/projects')) {
       return ['/project-management'];
     }
-    if (path.includes('/customers')) {
+    if (path.includes('/customers') || path.includes('/companies')) {
       return ['/customer-management'];
+    }
+    if (path.includes('/permissions')) {
+      return [];
     }
     return [];
   };
@@ -149,11 +153,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '任务仪表盘',
         },
         {
-          key: '/task-board',
-          icon: <TableOutlined />,
-          label: '任务看板',
-        },
-        {
           key: '/tasks',
           icon: <UnorderedListOutlined />,
           label: '任务列表',
@@ -176,11 +175,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '客户管理',
       children: [
         {
-          key: '/customers',
+          key: '/companies',
           icon: <TeamOutlined />,
-          label: '客户列表',
+          label: '企业客户',
+        },
+        {
+          key: '/customers',
+          icon: <UserOutlined />,
+          label: '个人客户 (旧)',
         },
       ],
+    },
+    {
+      key: '/permissions',
+      icon: <SafetyOutlined />,
+      label: '权限管理',
     },
     {
       key: '/recycle-bin',

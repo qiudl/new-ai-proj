@@ -317,27 +317,6 @@ type CustomerStats struct {
 	ByPriority              []PriorityStats       `json:"by_priority"`
 }
 
-// IndustryStats represents statistics by industry
-type IndustryStats struct {
-	Industry   string  `json:"industry"`
-	Count      int     `json:"count"`
-	Percentage float64 `json:"percentage"`
-	Revenue    float64 `json:"revenue"`
-}
-
-// StatusStats represents statistics by status
-type StatusStats struct {
-	Status     string  `json:"status"`
-	Count      int     `json:"count"`
-	Percentage float64 `json:"percentage"`
-}
-
-// PriorityStats represents statistics by priority
-type PriorityStats struct {
-	Priority   string  `json:"priority"`
-	Count      int     `json:"count"`
-	Percentage float64 `json:"percentage"`
-}
 
 // CustomerAnalytics represents comprehensive customer analytics
 type CustomerAnalytics struct {

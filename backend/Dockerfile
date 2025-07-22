@@ -27,9 +27,13 @@ WORKDIR /app
 # Copy go mod files
 COPY go.mod go.sum ./
 
-# Download dependencies
+# Download dependencies with proper cache permissions
 ENV GOPROXY=https://goproxy.cn,direct
-RUN go mod download && go mod verify
+ENV GOPATH=/go
+ENV GOCACHE=/go/cache
+RUN mkdir -p /go/cache /go/pkg/mod && \
+    chmod -R 777 /go && \
+    go mod download && go mod verify
 
 # ======================================
 # Stage 2: Development Environment
@@ -44,8 +48,9 @@ RUN go install github.com/air-verse/air@latest && \
 # Copy source code
 COPY . .
 
-# Change ownership
-RUN chown -R appuser:appgroup /app
+# Change ownership and fix Go cache permissions
+RUN chown -R appuser:appgroup /app && \
+    chown -R appuser:appgroup /go
 
 # Switch to non-root user
 USER appuser

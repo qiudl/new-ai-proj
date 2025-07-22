@@ -572,8 +572,8 @@ const OptimizedDashboardPage: React.FC = () => {
               <Button block size="small" icon={<ProjectOutlined />} onClick={() => navigate('/projects')}>
                 项目管理
               </Button>
-              <Button block size="small" icon={<CheckCircleOutlined />} onClick={() => navigate('/task-board')}>
-                任务看板
+              <Button block size="small" icon={<CheckCircleOutlined />} onClick={() => navigate('/tasks')}>
+                任务管理
               </Button>
               <Button block size="small" icon={<LineChartOutlined />} onClick={() => navigate('/analytics')}>
                 数据分析

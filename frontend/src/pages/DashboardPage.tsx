@@ -147,10 +147,10 @@ const DashboardPage: React.FC = () => {
       action: () => navigate('/bulk-import'),
     },
     {
-      title: '任务看板',
-      description: '可视化任务管理看板',
+      title: '任务管理',
+      description: '管理和查看所有任务',
       icon: <CheckCircleOutlined style={{ fontSize: 18, color: '#fa8c16' }} />,
-      action: () => navigate('/task-board'),
+      action: () => navigate('/tasks'),
     },
     {
       title: '数据分析',

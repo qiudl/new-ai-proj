@@ -62,9 +62,19 @@ func (pdb *PostgresDB) Tasks() TaskRepository {
 	return &PostgresTaskRepository{db: pdb.db}
 }
 
-// Customers returns the customer repository
+// Customers returns the customer repository (deprecated, use Companies instead)
 func (pdb *PostgresDB) Customers() CustomerRepository {
 	return NewCustomerRepository(pdb.db)
+}
+
+// Companies returns the company repository (new enterprise customer model)
+func (pdb *PostgresDB) Companies() CompanyRepository {
+	return NewCompanyRepository(pdb.db)
+}
+
+// Permissions returns the permission repository (enterprise permission management)
+func (pdb *PostgresDB) Permissions() PermissionRepository {
+	return NewPermissionRepository(pdb.db)
 }
 
 // System returns the system repository
@@ -121,9 +131,19 @@ func (ptx *PostgresTx) Tasks() TaskRepository {
 	return &PostgresTaskRepository{db: ptx.tx}
 }
 
-// Customers returns the customer repository for transaction
+// Customers returns the customer repository for transaction (deprecated, use Companies instead)
 func (ptx *PostgresTx) Customers() CustomerRepository {
 	return NewCustomerRepository(ptx.tx)
+}
+
+// Companies returns the company repository for transaction (new enterprise customer model)
+func (ptx *PostgresTx) Companies() CompanyRepository {
+	return NewCompanyRepository(ptx.tx)
+}
+
+// Permissions returns the permission repository for transaction (enterprise permission management)
+func (ptx *PostgresTx) Permissions() PermissionRepository {
+	return NewPermissionRepository(ptx.tx)
 }
 
 // Audit returns the audit repository for transaction

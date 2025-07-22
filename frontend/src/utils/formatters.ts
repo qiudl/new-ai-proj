@@ -52,6 +52,19 @@ export const formatDate = (dateStr: string): string => {
   }
 };
 
+// 格式化日期时间为完整格式
+export const formatDateTime = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 // 格式化任务状态
 export const formatTaskStatus = (status: TaskStatus): { text: string; color: string } => {
   const statusMap = {

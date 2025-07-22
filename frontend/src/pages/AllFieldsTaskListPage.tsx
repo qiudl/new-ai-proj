@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Table,
   Card,
@@ -17,6 +17,7 @@ import {
   Typography,
   Badge,
   Input,
+  Form,
   MenuProps
 } from 'antd';
 import {
@@ -32,9 +33,22 @@ import {
   UserOutlined,
   CalendarOutlined,
   ProjectOutlined,
-  BranchesOutlined
+  BranchesOutlined,
+  FilterFilled,
+  PlusOutlined,
+  MinusCircleOutlined,
+  ClearOutlined,
+  SaveOutlined,
+  FolderOutlined,
+  FileExcelOutlined,
+  FileTextOutlined,
+  WifiOutlined,
+  DisconnectOutlined,
+  SyncOutlined,
+  NotificationOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+// Note: Drag and drop functionality temporarily disabled due to missing dependencies
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
@@ -45,6 +59,8 @@ import '../styles/AllFieldsTaskList.css';
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { RangePicker } = DatePicker;
+
+// Note: Sortable column header simplified - drag functionality temporarily disabled
 
 // 自定义字段配置
 interface CustomFieldConfig {
@@ -67,6 +83,23 @@ interface ColumnConfig {
   sortable: boolean;
   resizable: boolean;
   customField?: boolean;
+}
+
+// 高级筛选器配置
+interface AdvancedFilter {
+  id: string;
+  field: string;
+  operator: string;
+  value: any;
+  logicalOperator?: 'AND' | 'OR';
+}
+
+// 筛选器字段选项
+interface FilterFieldOption {
+  value: string;
+  label: string;
+  dataType: 'string' | 'number' | 'date' | 'select' | 'multiSelect';
+  options?: { value: any; label: string }[];
 }
 
 // 默认自定义字段配置
@@ -163,9 +196,132 @@ const AllFieldsTaskListPage: React.FC = () => {
   const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([]);
   const [customFields] = useState<CustomFieldConfig[]>(DEFAULT_CUSTOM_FIELDS);
   const [guideVisible, setGuideVisible] = useState(false);
+  
+  // 高级筛选器状态
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilter[]>([]);
+  const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
+  const [filterForm] = Form.useForm();
+  
+  // WebSocket实时更新状态
+  const [wsConnected, setWsConnected] = useState(false);
+  const [realtimeUpdates, setRealtimeUpdates] = useState(true);
+  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [wsSettingsVisible, setWsSettingsVisible] = useState(false);
+  const [notificationSettings, setNotificationSettings] = useState({
+    showCreateNotifications: true,
+    showUpdateNotifications: true,
+    showDeleteNotifications: true,
+    autoRefreshInterval: 30000, // 30秒
+  });
+  
+  // 筛选器字段选项配置
+  const filterFieldOptions: FilterFieldOption[] = useMemo(() => [
+    { value: 'title', label: '任务标题', dataType: 'string' },
+    { value: 'status', label: '状态', dataType: 'select', options: [
+      { value: 'todo', label: '待开始' },
+      { value: 'in_progress', label: '进行中' },
+      { value: 'completed', label: '已完成' },
+      { value: 'cancelled', label: '已取消' }
+    ]},
+    { value: 'project_name', label: '所属项目', dataType: 'string' },
+    { value: 'assignee_name', label: '负责人', dataType: 'string' },
+    { value: 'due_date', label: '截止时间', dataType: 'date' },
+    { value: 'created_at', label: '创建时间', dataType: 'date' },
+    { value: 'updated_at', label: '更新时间', dataType: 'date' },
+    { value: 'priority', label: '优先级', dataType: 'select', options: [
+      { value: 'high', label: '高' },
+      { value: 'medium', label: '中' },
+      { value: 'low', label: '低' },
+      { value: 'urgent', label: '紧急' }
+    ]},
+    { value: 'estimated_hours', label: '预估工时', dataType: 'number' },
+    { value: 'actual_hours', label: '实际工时', dataType: 'number' },
+    { value: 'progress', label: '进度', dataType: 'number' },
+  ], []);
+  
+  // 筛选器操作符选项
+  const getOperatorOptions = (dataType: string) => {
+    switch (dataType) {
+      case 'string':
+        return [
+          { value: 'contains', label: '包含' },
+          { value: 'equals', label: '等于' },
+          { value: 'startsWith', label: '开始于' },
+          { value: 'endsWith', label: '结束于' },
+          { value: 'notContains', label: '不包含' },
+          { value: 'notEquals', label: '不等于' }
+        ];
+      case 'number':
+        return [
+          { value: 'equals', label: '等于' },
+          { value: 'notEquals', label: '不等于' },
+          { value: 'greater', label: '大于' },
+          { value: 'greaterOrEqual', label: '大于等于' },
+          { value: 'less', label: '小于' },
+          { value: 'lessOrEqual', label: '小于等于' }
+        ];
+      case 'date':
+        return [
+          { value: 'equals', label: '等于' },
+          { value: 'before', label: '早于' },
+          { value: 'after', label: '晚于' },
+          { value: 'between', label: '介于' }
+        ];
+      case 'select':
+      case 'multiSelect':
+        return [
+          { value: 'equals', label: '等于' },
+          { value: 'notEquals', label: '不等于' },
+          { value: 'in', label: '包含在' },
+          { value: 'notIn', label: '不包含在' }
+        ];
+      default:
+        return [{ value: 'equals', label: '等于' }];
+    }
+  };
+  
+  // Note: Drag sensors temporarily disabled
+
+  // 删除任务
+  const handleDeleteTask = useCallback(async (task: Task) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除任务"${task.title}"吗？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await TaskService.deleteTask(task.project_id, task.id);
+          message.success('任务删除成功');
+          loadData();
+        } catch (error) {
+          message.error('删除失败');
+        }
+      },
+    });
+  }, []);
 
   // 初始化列配置
   const initializeColumns = useCallback(() => {
+    // 尝试从本地存储加载配置
+    let savedConfigs: ColumnConfig[] | null = null;
+    try {
+      const saved = localStorage.getItem('allFieldsTaskList_columnConfigs');
+      savedConfigs = saved ? JSON.parse(saved) : null;
+    } catch (error) {
+      console.warn('Failed to load column configs from localStorage:', error);
+    }
+    
+    if (savedConfigs && savedConfigs.length > 0) {
+      setColumnConfigs(savedConfigs);
+      return;
+    }
+    
+    // 默认列配置
     const fixedColumns: ColumnConfig[] = [
       {
         key: 'id',
@@ -287,7 +443,15 @@ const AllFieldsTaskListPage: React.FC = () => {
       customField: true,
     }));
 
-    setColumnConfigs([...fixedColumns, ...dynamicColumns, ...customFieldColumns]);
+    const defaultConfigs = [...fixedColumns, ...dynamicColumns, ...customFieldColumns];
+    setColumnConfigs(defaultConfigs);
+    
+    // 保存默认配置到本地存储
+    try {
+      localStorage.setItem('allFieldsTaskList_columnConfigs', JSON.stringify(defaultConfigs));
+    } catch (error) {
+      console.warn('Failed to save column configs to localStorage:', error);
+    }
   }, [customFields]);
 
   // 生成表格列定义
@@ -498,7 +662,7 @@ const AllFieldsTaskListPage: React.FC = () => {
           return baseColumn;
       }
     });
-  }, [columnConfigs, customFields, navigate]);
+  }, [columnConfigs, customFields, navigate, handleDeleteTask]);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -526,6 +690,11 @@ const AllFieldsTaskListPage: React.FC = () => {
           taskData = taskData.filter(task => task.project_id === filters.project_id);
         }
         
+        // 应用高级筛选器
+        if (advancedFilters.length > 0) {
+          taskData = taskData.filter(task => matchesAdvancedFilters(task));
+        }
+        
         setTasks(taskData);
         setPagination(prev => ({
           ...prev,
@@ -542,27 +711,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.current, pagination.pageSize, filters]);
-
-  // 删除任务
-  const handleDeleteTask = async (task: Task) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除任务"${task.title}"吗？`,
-      okText: '删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await TaskService.deleteTask(task.project_id, task.id);
-          message.success('任务删除成功');
-          loadData();
-        } catch (error) {
-          message.error('删除失败');
-        }
-      },
-    });
-  };
+  }, [filters, pagination.current, pagination.pageSize, advancedFilters]);
 
   // 批量删除
   const handleBatchDelete = async () => {
@@ -599,12 +748,308 @@ const AllFieldsTaskListPage: React.FC = () => {
 
   // 列显示控制
   const handleColumnVisibilityChange = (columnKey: string, visible: boolean) => {
-    setColumnConfigs(prev => 
-      prev.map(col => 
+    setColumnConfigs(prev => {
+      const newConfigs = prev.map(col => 
         col.key === columnKey ? { ...col, visible } : col
-      )
+      );
+      
+      // 保存到本地存储
+      saveColumnConfigsToStorage(newConfigs);
+      return newConfigs;
+    });
+  };
+  
+  // 重置列配置
+  const handleResetColumns = () => {
+    try {
+      localStorage.removeItem('allFieldsTaskList_columnConfigs');
+      initializeColumns();
+      message.success('列配置已重置');
+    } catch (error) {
+      message.error('重置失败');
+    }
+  };
+
+  // 保存列配置到本地存储
+  const saveColumnConfigsToStorage = useCallback((configs: ColumnConfig[]) => {
+    try {
+      localStorage.setItem('allFieldsTaskList_columnConfigs', JSON.stringify(configs));
+    } catch (error) {
+      console.warn('Failed to save column configs to localStorage:', error);
+    }
+  }, []);
+
+  // 高级筛选器处理函数
+  const addAdvancedFilter = () => {
+    const newFilter: AdvancedFilter = {
+      id: `filter_${Date.now()}`,
+      field: '',
+      operator: '',
+      value: '',
+      logicalOperator: advancedFilters.length > 0 ? 'AND' : undefined
+    };
+    setAdvancedFilters([...advancedFilters, newFilter]);
+  };
+
+  const removeAdvancedFilter = (filterId: string) => {
+    setAdvancedFilters(prev => prev.filter(f => f.id !== filterId));
+  };
+
+  const updateAdvancedFilter = (filterId: string, updates: Partial<AdvancedFilter>) => {
+    setAdvancedFilters(prev => 
+      prev.map(f => f.id === filterId ? { ...f, ...updates } : f)
     );
   };
+
+  const clearAdvancedFilters = () => {
+    setAdvancedFilters([]);
+    setAdvancedFilterVisible(false);
+  };
+
+  const applyAdvancedFilters = () => {
+    // 这里可以扩展为更复杂的筛选逻辑
+    // 目前先关闭面板，实际筛选逻辑在loadData中处理
+    setAdvancedFilterVisible(false);
+    loadData();
+    message.success(`已应用 ${advancedFilters.length} 个高级筛选条件`);
+  };
+
+  // 检查任务是否符合高级筛选条件
+  const matchesAdvancedFilters = useCallback((task: Task) => {
+    if (advancedFilters.length === 0) return true;
+
+    // 简化的筛选逻辑 - 这里可以根据需要扩展
+    return advancedFilters.every((filter) => {
+      if (!filter.field || !filter.operator) return true;
+
+      const fieldValue = getTaskFieldValue(task, filter.field);
+      return matchesFilterCondition(fieldValue, filter.operator, filter.value);
+    });
+  }, [advancedFilters]);
+
+  const getTaskFieldValue = (task: Task, field: string) => {
+    if (field.startsWith('custom_')) {
+      const customKey = field.replace('custom_', '');
+      return task.custom_fields?.[customKey];
+    }
+    return (task as any)[field];
+  };
+
+  const matchesFilterCondition = (fieldValue: any, operator: string, filterValue: any) => {
+    if (fieldValue == null || filterValue == null) return false;
+
+    switch (operator) {
+      case 'contains':
+        return String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+      case 'equals':
+        return fieldValue === filterValue;
+      case 'notEquals':
+        return fieldValue !== filterValue;
+      case 'startsWith':
+        return String(fieldValue).toLowerCase().startsWith(String(filterValue).toLowerCase());
+      case 'endsWith':
+        return String(fieldValue).toLowerCase().endsWith(String(filterValue).toLowerCase());
+      case 'notContains':
+        return !String(fieldValue).toLowerCase().includes(String(filterValue).toLowerCase());
+      case 'greater':
+        return Number(fieldValue) > Number(filterValue);
+      case 'greaterOrEqual':
+        return Number(fieldValue) >= Number(filterValue);
+      case 'less':
+        return Number(fieldValue) < Number(filterValue);
+      case 'lessOrEqual':
+        return Number(fieldValue) <= Number(filterValue);
+      case 'before':
+        return dayjs(fieldValue).isBefore(dayjs(filterValue));
+      case 'after':
+        return dayjs(fieldValue).isAfter(dayjs(filterValue));
+      case 'in':
+        return Array.isArray(filterValue) ? filterValue.includes(fieldValue) : fieldValue === filterValue;
+      case 'notIn':
+        return Array.isArray(filterValue) ? !filterValue.includes(fieldValue) : fieldValue !== filterValue;
+      default:
+        return true;
+    }
+  };
+
+  // WebSocket连接管理
+  const connectWebSocket = useCallback(() => {
+    if (!realtimeUpdates) return;
+    
+    try {
+      setConnectionStatus('connecting');
+      
+      // 这里使用模拟的WebSocket地址，实际部署时需要替换为真实的WebSocket服务器地址
+      const wsUrl = process.env.NODE_ENV === 'production' 
+        ? 'wss://your-domain.com/ws/tasks' 
+        : 'ws://localhost:8080/ws/tasks';
+      
+      const ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket连接已建立');
+        setWsConnected(true);
+        setConnectionStatus('connected');
+        
+        // 发送认证消息
+        const token = localStorage.getItem('token');
+        if (token) {
+          ws.send(JSON.stringify({
+            type: 'auth',
+            token: token
+          }));
+        }
+        
+        // 订阅任务更新
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          channel: 'tasks'
+        }));
+      };
+      
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          handleWebSocketMessage(message);
+        } catch (error) {
+          console.error('解析WebSocket消息失败:', error);
+        }
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket连接已关闭');
+        setWsConnected(false);
+        setConnectionStatus('disconnected');
+        
+        // 自动重连（如果启用了实时更新）
+        if (realtimeUpdates) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connectWebSocket();
+          }, 5000); // 5秒后重连
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket错误:', error);
+        setConnectionStatus('error');
+      };
+      
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('WebSocket连接失败:', error);
+      setConnectionStatus('error');
+    }
+  }, [realtimeUpdates]);
+
+  const disconnectWebSocket = useCallback(() => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    setWsConnected(false);
+    setConnectionStatus('disconnected');
+  }, []);
+
+  const handleWebSocketMessage = useCallback((message: any) => {
+    setLastUpdateTime(dayjs().format('HH:mm:ss'));
+    
+    switch (message.type) {
+      case 'task_created':
+        handleTaskCreated(message.data);
+        break;
+      case 'task_updated':
+        handleTaskUpdated(message.data);
+        break;
+      case 'task_deleted':
+        handleTaskDeleted(message.data);
+        break;
+      case 'bulk_update':
+        handleBulkUpdate(message.data);
+        break;
+      default:
+        console.log('未知的WebSocket消息类型:', message.type);
+    }
+  }, []);
+
+  const handleTaskCreated = useCallback((taskData: Task) => {
+    setTasks(prevTasks => {
+      // 检查任务是否已存在，避免重复添加
+      if (prevTasks.some(task => task.id === taskData.id)) {
+        return prevTasks;
+      }
+      
+      const newTasks = [taskData, ...prevTasks];
+      
+      // 根据设置显示通知
+      if (notificationSettings.showCreateNotifications) {
+        message.info(`新任务已创建: ${taskData.title}`, 3);
+      }
+      
+      return newTasks;
+    });
+  }, [notificationSettings.showCreateNotifications]);
+
+  const handleTaskUpdated = useCallback((taskData: Task) => {
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task => 
+        task.id === taskData.id ? { ...task, ...taskData } : task
+      );
+      
+      // 根据设置显示通知
+      if (notificationSettings.showUpdateNotifications) {
+        message.info(`任务已更新: ${taskData.title}`, 3);
+      }
+      
+      return updatedTasks;
+    });
+  }, [notificationSettings.showUpdateNotifications]);
+
+  const handleTaskDeleted = useCallback((taskId: number) => {
+    setTasks(prevTasks => {
+      const deletedTask = prevTasks.find(task => task.id === taskId);
+      const filteredTasks = prevTasks.filter(task => task.id !== taskId);
+      
+      // 根据设置显示通知
+      if (notificationSettings.showDeleteNotifications && deletedTask) {
+        message.warning(`任务已删除: ${deletedTask.title}`, 3);
+      }
+      
+      return filteredTasks;
+    });
+  }, [notificationSettings.showDeleteNotifications]);
+
+  const handleBulkUpdate = useCallback((updates: { taskIds: number[], changes: Partial<Task> }) => {
+    setTasks(prevTasks => {
+      const updatedTasks = prevTasks.map(task => 
+        updates.taskIds.includes(task.id) 
+          ? { ...task, ...updates.changes }
+          : task
+      );
+      
+      // 显示通知
+      message.info(`批量更新了 ${updates.taskIds.length} 个任务`, 3);
+      
+      return updatedTasks;
+    });
+  }, []);
+
+  const toggleRealtimeUpdates = useCallback(() => {
+    if (realtimeUpdates) {
+      disconnectWebSocket();
+      setRealtimeUpdates(false);
+      message.success('实时更新已关闭');
+    } else {
+      setRealtimeUpdates(true);
+      connectWebSocket();
+      message.success('实时更新已开启');
+    }
+  }, [realtimeUpdates, disconnectWebSocket, connectWebSocket]);
+
+  // Note: Drag end handler temporarily disabled
 
   // 导出功能
   const handleExport = () => {
@@ -652,24 +1097,89 @@ const AllFieldsTaskListPage: React.FC = () => {
 
   // 列设置菜单
   const getColumnSettingsMenu = (): MenuProps => ({
-    items: columnConfigs
-      .filter(col => col.key !== 'actions')
-      .map(column => ({
-        key: column.key,
+    items: [
+      ...columnConfigs
+        .filter(col => col.key !== 'actions')
+        .map(column => ({
+          key: column.key,
+          label: (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '200px' }}>
+              <Checkbox
+                checked={column.visible}
+                onChange={(e) => handleColumnVisibilityChange(column.key, e.target.checked)}
+              >
+                {column.title}
+              </Checkbox>
+              <Space>
+                {column.customField && (
+                  <Tag color="blue" style={{ fontSize: '11px', padding: '2px 6px' }}>自定义</Tag>
+                )}
+                {column.fixed && (
+                  <Tag color="orange" style={{ fontSize: '11px', padding: '2px 6px' }}>固定</Tag>
+                )}
+              </Space>
+            </div>
+          ),
+        })),
+      {
+        type: 'divider',
+        key: 'divider'
+      },
+      {
+        key: 'reset',
         label: (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: '200px' }}>
-            <Checkbox
-              checked={column.visible}
-              onChange={(e) => handleColumnVisibilityChange(column.key, e.target.checked)}
-            >
-              {column.title}
-            </Checkbox>
-            {column.customField && (
-              <Tag color="blue" style={{ fontSize: '11px', padding: '2px 6px' }}>自定义</Tag>
-            )}
-          </div>
+          <Button 
+            type="text" 
+            danger 
+            size="small" 
+            onClick={handleResetColumns}
+            style={{ width: '100%', textAlign: 'left' }}
+          >
+            重置列配置
+          </Button>
         ),
-      })),
+      },
+      {
+        key: 'selectAll',
+        label: (
+          <Button 
+            type="text" 
+            size="small" 
+            onClick={() => {
+              setColumnConfigs(prev => {
+                const newConfigs = prev.map(col => ({ ...col, visible: true }));
+                saveColumnConfigsToStorage(newConfigs);
+                return newConfigs;
+              });
+            }}
+            style={{ width: '100%', textAlign: 'left' }}
+          >
+            显示所有列
+          </Button>
+        ),
+      },
+      {
+        key: 'selectNone',
+        label: (
+          <Button 
+            type="text" 
+            size="small" 
+            onClick={() => {
+              setColumnConfigs(prev => {
+                const newConfigs = prev.map(col => 
+                  col.fixed ? col : { ...col, visible: false }
+                );
+                saveColumnConfigsToStorage(newConfigs);
+                return newConfigs;
+              });
+            }}
+            style={{ width: '100%', textAlign: 'left' }}
+          >
+            隐藏可选列
+          </Button>
+        ),
+      }
+    ],
   });
 
   useEffect(() => {
@@ -679,6 +1189,49 @@ const AllFieldsTaskListPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // WebSocket连接管理
+  useEffect(() => {
+    if (realtimeUpdates) {
+      connectWebSocket();
+    }
+
+    // 清理函数
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [realtimeUpdates, connectWebSocket, disconnectWebSocket]);
+
+  // 页面卸载时断开WebSocket连接
+  useEffect(() => {
+    return () => {
+      disconnectWebSocket();
+    };
+  }, [disconnectWebSocket]);
+
+  // 自动刷新定时器
+  useEffect(() => {
+    if (notificationSettings.autoRefreshInterval > 0 && realtimeUpdates) {
+      const interval = setInterval(() => {
+        loadData();
+      }, notificationSettings.autoRefreshInterval);
+
+      return () => clearInterval(interval);
+    }
+  }, [notificationSettings.autoRefreshInterval, realtimeUpdates, loadData]);
+
+  // 加载保存的WebSocket设置
+  useEffect(() => {
+    try {
+      const savedSettings = localStorage.getItem('wsSettings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        setNotificationSettings(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to load WebSocket settings:', error);
+    }
+  }, []);
 
   // 行选择配置
   const rowSelection = {
@@ -721,6 +1274,35 @@ const AllFieldsTaskListPage: React.FC = () => {
             >
               使用指南
             </Button>
+            <Space.Compact>
+              <Button 
+                icon={realtimeUpdates ? (
+                  wsConnected ? <WifiOutlined /> : <SyncOutlined spin />
+                ) : <DisconnectOutlined />}
+                type={realtimeUpdates ? (wsConnected ? "default" : "default") : "text"}
+                onClick={toggleRealtimeUpdates}
+                size="small"
+                style={{
+                  color: realtimeUpdates ? (wsConnected ? '#52c41a' : '#faad14') : '#999'
+                }}
+              >
+                {realtimeUpdates ? (wsConnected ? '实时更新' : '连接中...') : '离线模式'}
+              </Button>
+              <Button
+                icon={<SettingOutlined />}
+                size="small"
+                onClick={() => setWsSettingsVisible(true)}
+                title="实时更新设置"
+              />
+            </Space.Compact>
+            {lastUpdateTime && wsConnected && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                最后更新: {lastUpdateTime}
+              </Text>
+            )}
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              💡 点击列头进行排序
+            </Text>
           </Space>
         </div>
 
@@ -772,6 +1354,13 @@ const AllFieldsTaskListPage: React.FC = () => {
             >
               应用筛选
             </Button>
+            <Button 
+              icon={<FilterFilled />}
+              type={advancedFilters.length > 0 ? "primary" : "default"}
+              onClick={() => setAdvancedFilterVisible(true)}
+            >
+              高级筛选 {advancedFilters.length > 0 && `(${advancedFilters.length})`}
+            </Button>
           </Space>
         </Card>
 
@@ -798,31 +1387,347 @@ const AllFieldsTaskListPage: React.FC = () => {
         )}
       </div>
 
+      {/* WebSocket连接状态提示 */}
+      {realtimeUpdates && connectionStatus === 'error' && (
+        <div style={{ marginBottom: '16px' }}>
+          <Card size="small" style={{ backgroundColor: '#fff2f0', borderColor: '#ffccc7' }}>
+            <Space>
+              <DisconnectOutlined style={{ color: '#ff4d4f' }} />
+              <Text type="danger">实时连接失败，正在尝试重新连接...</Text>
+              <Button size="small" onClick={connectWebSocket}>手动重连</Button>
+            </Space>
+          </Card>
+        </div>
+      )}
+
       {/* 表格 */}
       <Card>
         <div className="all-fields-table">
           <Table
-          columns={generateTableColumns}
-          dataSource={tasks}
-          rowKey="id"
-          rowSelection={rowSelection}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => 
-              `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            onChange: (page, pageSize) => {
-              setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 50 }));
-            },
-          }}
-          loading={loading}
-          scroll={{ x: 'max-content', y: 600 }}
-          size="small"
-          bordered
+            columns={generateTableColumns}
+            dataSource={tasks}
+            rowKey="id"
+            rowSelection={rowSelection}
+            pagination={{
+              ...pagination,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => 
+                `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+              onChange: (page, pageSize) => {
+                setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 50 }));
+              },
+            }}
+            loading={loading}
+            scroll={{ x: 'max-content', y: 600 }}
+            size="small"
+            bordered
           />
         </div>
       </Card>
+
+      {/* WebSocket设置模态框 */}
+      <Modal
+        title={
+          <Space>
+            <WifiOutlined />
+            实时更新设置
+          </Space>
+        }
+        open={wsSettingsVisible}
+        onCancel={() => setWsSettingsVisible(false)}
+        footer={
+          <Space>
+            <Button onClick={() => setWsSettingsVisible(false)}>
+              取消
+            </Button>
+            <Button 
+              type="primary" 
+              onClick={() => {
+                // 保存设置到localStorage
+                localStorage.setItem('wsSettings', JSON.stringify(notificationSettings));
+                setWsSettingsVisible(false);
+                message.success('设置已保存');
+              }}
+            >
+              保存设置
+            </Button>
+          </Space>
+        }
+        width={600}
+      >
+        <div style={{ marginBottom: '24px' }}>
+          <Title level={4}>连接状态</Title>
+          <Space>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {connectionStatus === 'connected' && <WifiOutlined style={{ color: '#52c41a' }} />}
+              {connectionStatus === 'connecting' && <SyncOutlined spin style={{ color: '#faad14' }} />}
+              {connectionStatus === 'disconnected' && <DisconnectOutlined style={{ color: '#999' }} />}
+              {connectionStatus === 'error' && <DisconnectOutlined style={{ color: '#ff4d4f' }} />}
+              <Text>
+                {connectionStatus === 'connected' && '已连接'}
+                {connectionStatus === 'connecting' && '连接中...'}
+                {connectionStatus === 'disconnected' && '未连接'}
+                {connectionStatus === 'error' && '连接错误'}
+              </Text>
+            </div>
+            <Button size="small" onClick={realtimeUpdates ? disconnectWebSocket : connectWebSocket}>
+              {realtimeUpdates ? '断开连接' : '重新连接'}
+            </Button>
+          </Space>
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          <Title level={4}>通知设置</Title>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <Checkbox
+                checked={notificationSettings.showCreateNotifications}
+                onChange={(e) => setNotificationSettings(prev => ({
+                  ...prev,
+                  showCreateNotifications: e.target.checked
+                }))}
+              >
+                新建任务通知
+              </Checkbox>
+            </div>
+            <div>
+              <Checkbox
+                checked={notificationSettings.showUpdateNotifications}
+                onChange={(e) => setNotificationSettings(prev => ({
+                  ...prev,
+                  showUpdateNotifications: e.target.checked
+                }))}
+              >
+                任务更新通知
+              </Checkbox>
+            </div>
+            <div>
+              <Checkbox
+                checked={notificationSettings.showDeleteNotifications}
+                onChange={(e) => setNotificationSettings(prev => ({
+                  ...prev,
+                  showDeleteNotifications: e.target.checked
+                }))}
+              >
+                任务删除通知
+              </Checkbox>
+            </div>
+          </Space>
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          <Title level={4}>性能设置</Title>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <Text>自动刷新间隔:</Text>
+            <Select
+              value={notificationSettings.autoRefreshInterval}
+              onChange={(value) => setNotificationSettings(prev => ({
+                ...prev,
+                autoRefreshInterval: value
+              }))}
+              style={{ width: 120 }}
+            >
+              <Option value={10000}>10秒</Option>
+              <Option value={30000}>30秒</Option>
+              <Option value={60000}>1分钟</Option>
+              <Option value={300000}>5分钟</Option>
+              <Option value={0}>关闭</Option>
+            </Select>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+          <Title level={5}>说明</Title>
+          <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.6' }}>
+            <div>• 实时更新功能依赖WebSocket连接，需要后端服务支持</div>
+            <div>• 在网络不稳定的环境下，建议关闭实时更新以提高性能</div>
+            <div>• 通知设置可以帮助您只关注重要的变更</div>
+            <div>• 自动刷新会定期更新数据，但会增加服务器负载</div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 高级筛选器模态框 */}
+      <Modal
+        title={
+          <Space>
+            <FilterFilled />
+            高级筛选器
+          </Space>
+        }
+        open={advancedFilterVisible}
+        onCancel={() => setAdvancedFilterVisible(false)}
+        footer={
+          <Space>
+            <Button onClick={() => setAdvancedFilterVisible(false)}>
+              取消
+            </Button>
+            <Button onClick={clearAdvancedFilters}>
+              <ClearOutlined />
+              清空
+            </Button>
+            <Button type="primary" onClick={applyAdvancedFilters}>
+              应用筛选
+            </Button>
+          </Space>
+        }
+        width={800}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: '16px' }}>
+          <Button 
+            type="dashed" 
+            icon={<PlusOutlined />}
+            onClick={addAdvancedFilter}
+            block
+          >
+            添加筛选条件
+          </Button>
+        </div>
+
+        {advancedFilters.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+            <FilterOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+            <div>暂无筛选条件，点击上方按钮添加</div>
+          </div>
+        ) : (
+          <div>
+            {advancedFilters.map((filter, index) => {
+              const selectedField = filterFieldOptions.find(f => f.value === filter.field);
+              const operatorOptions = selectedField ? getOperatorOptions(selectedField.dataType) : [];
+              
+              return (
+                <Card 
+                  key={filter.id} 
+                  size="small" 
+                  style={{ marginBottom: '12px' }}
+                  title={
+                    <Space>
+                      {index > 0 && (
+                        <Select
+                          value={filter.logicalOperator}
+                          onChange={(value) => updateAdvancedFilter(filter.id, { logicalOperator: value })}
+                          style={{ width: 80 }}
+                          size="small"
+                        >
+                          <Option value="AND">且</Option>
+                          <Option value="OR">或</Option>
+                        </Select>
+                      )}
+                      <span>筛选条件 {index + 1}</span>
+                    </Space>
+                  }
+                  extra={
+                    <Button 
+                      type="text" 
+                      danger 
+                      size="small"
+                      icon={<MinusCircleOutlined />}
+                      onClick={() => removeAdvancedFilter(filter.id)}
+                    />
+                  }
+                >
+                  <Space.Compact style={{ display: 'flex', gap: '8px' }}>
+                    <Select
+                      placeholder="选择字段"
+                      value={filter.field}
+                      onChange={(value) => updateAdvancedFilter(filter.id, { field: value, operator: '', value: '' })}
+                      style={{ flex: 1 }}
+                    >
+                      {filterFieldOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                          {option.label}
+                        </Option>
+                      ))}
+                    </Select>
+                    
+                    <Select
+                      placeholder="选择操作符"
+                      value={filter.operator}
+                      onChange={(value) => updateAdvancedFilter(filter.id, { operator: value, value: '' })}
+                      style={{ flex: 1 }}
+                      disabled={!filter.field}
+                    >
+                      {operatorOptions.map(option => (
+                        <Option key={option.value} value={option.value}>
+                          {option.label}
+                        </Option>
+                      ))}
+                    </Select>
+                    
+                    <div style={{ flex: 1 }}>
+                      {selectedField?.dataType === 'select' && selectedField.options ? (
+                        <Select
+                          placeholder="选择值"
+                          value={filter.value}
+                          onChange={(value) => updateAdvancedFilter(filter.id, { value })}
+                          style={{ width: '100%' }}
+                          disabled={!filter.operator}
+                        >
+                          {selectedField.options.map(option => (
+                            <Option key={option.value} value={option.value}>
+                              {option.label}
+                            </Option>
+                          ))}
+                        </Select>
+                      ) : selectedField?.dataType === 'date' ? (
+                        <DatePicker
+                          placeholder="选择日期"
+                          value={filter.value ? dayjs(filter.value) : null}
+                          onChange={(date) => updateAdvancedFilter(filter.id, { value: date?.format('YYYY-MM-DD') })}
+                          style={{ width: '100%' }}
+                          disabled={!filter.operator}
+                        />
+                      ) : selectedField?.dataType === 'number' ? (
+                        <Input
+                          type="number"
+                          placeholder="输入数值"
+                          value={filter.value}
+                          onChange={(e) => updateAdvancedFilter(filter.id, { value: e.target.value })}
+                          disabled={!filter.operator}
+                        />
+                      ) : (
+                        <Input
+                          placeholder="输入值"
+                          value={filter.value}
+                          onChange={(e) => updateAdvancedFilter(filter.id, { value: e.target.value })}
+                          disabled={!filter.operator}
+                        />
+                      )}
+                    </div>
+                  </Space.Compact>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+        
+        {advancedFilters.length > 0 && (
+          <div style={{ marginTop: '16px', padding: '12px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
+            <Text strong>筛选预览：</Text>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666' }}>
+              {advancedFilters.map((filter, index) => {
+                const field = filterFieldOptions.find(f => f.value === filter.field);
+                const operator = field ? getOperatorOptions(field.dataType).find(op => op.value === filter.operator) : null;
+                
+                return (
+                  <span key={filter.id}>
+                    {index > 0 && (
+                      <Tag color={filter.logicalOperator === 'AND' ? 'blue' : 'orange'} style={{ margin: '0 4px' }}>
+                        {filter.logicalOperator === 'AND' ? '且' : '或'}
+                      </Tag>
+                    )}
+                    <Tag color="green">{field?.label || '?'}</Tag>
+                    <Tag>{operator?.label || '?'}</Tag>
+                    <Tag color="purple">{filter.value || '?'}</Tag>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* 使用指南 */}
       <AllFieldsTableGuide 

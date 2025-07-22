@@ -44,17 +44,17 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
   useEffect(() => {
     if (customer) {
       // Convert customer data to form data
-      const formData: CustomerFormData = {
+      const formData: any = {
         ...customer,
-        startDate: customer.startDate ? dayjs(customer.startDate).toDate() : null,
-        endDate: customer.endDate ? dayjs(customer.endDate).toDate() : null,
+        startDate: customer.startDate ? dayjs(customer.startDate) : null,
+        endDate: customer.endDate ? dayjs(customer.endDate) : null,
         contractValue: customer.contractValue || null,
       };
       form.setFieldsValue(formData);
     }
   }, [customer, form]);
 
-  const handleSubmit = async (values: CustomerFormData) => {
+  const handleSubmit = async (values: any) => {
     setSubmitting(true);
     try {
       // Convert form data to API request format
@@ -317,7 +317,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({
                 {
                   validator: (_, value) => {
                     const startDate = form.getFieldValue('startDate');
-                    if (!value || !startDate || value.isAfter(startDate)) {
+                    if (!value || !startDate || dayjs(value).isAfter(dayjs(startDate))) {
                       return Promise.resolve();
                     }
                     return Promise.reject(new Error('结束日期必须晚于开始日期'));

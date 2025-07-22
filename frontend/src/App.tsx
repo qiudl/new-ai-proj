@@ -15,7 +15,6 @@ const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboa
 const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
 const ProjectDashboardPage = React.lazy(() => import('./pages/ProjectDashboardPage'));
 const TasksPage = React.lazy(() => import('./pages/TasksPage'));
-const TaskBoardPage = React.lazy(() => import('./pages/TaskBoardPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
@@ -25,6 +24,12 @@ const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
 const CustomerListPage = React.lazy(() => import('./pages/CustomerListPage'));
+const CustomerCreatePage = React.lazy(() => import('./pages/CustomerCreatePage'));
+const CustomerEditPage = React.lazy(() => import('./pages/CustomerEditPage'));
+const CustomerDetailPage = React.lazy(() => import('./pages/CustomerDetailPage'));
+const CompanyListPage = React.lazy(() => import('./pages/CompanyListPage'));
+const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
+const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -105,22 +110,6 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <TasksPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/task-board" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskBoardPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/projects/:projectId/task-board" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskBoardPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -223,10 +212,61 @@ function App() {
               </PrivateRoute>
             } />
             
+            {/* Legacy customer management routes */}
             <Route path="/customers" element={
               <PrivateRoute>
                 <Layout>
                   <CustomerListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/customers/create" element={
+              <PrivateRoute>
+                <Layout>
+                  <CustomerCreatePage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/customers/:customerId/edit" element={
+              <PrivateRoute>
+                <Layout>
+                  <CustomerEditPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/customers/:customerId" element={
+              <PrivateRoute>
+                <Layout>
+                  <CustomerDetailPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* New enterprise customer management routes */}
+            <Route path="/companies" element={
+              <PrivateRoute>
+                <Layout>
+                  <CompanyListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/companies/create" element={
+              <PrivateRoute>
+                <Layout>
+                  <CompanyCreatePage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Permission management routes */}
+            <Route path="/permissions" element={
+              <PrivateRoute>
+                <Layout>
+                  <PermissionManagementPage />
                 </Layout>
               </PrivateRoute>
             } />

@@ -19,14 +19,16 @@ const AllFieldsTableGuide: React.FC<AllFieldsTableGuideProps> = ({ visible, onCl
         <div>
           <Title level={4}>全字段任务列表功能</Title>
           <Paragraph>
-            全字段任务列表是一个强大的任务管理工具，让您可以在一个页面内查看所有任务的完整信息。
+            全字段任务列表是一个强大的任务管理工具，集成了现代化的数据管理功能，让您可以高效地管理和查看所有任务信息。
           </Paragraph>
           <Space direction="vertical" style={{ width: '100%' }}>
             <div>✅ 显示所有任务字段（固定字段 + 自定义字段）</div>
-            <div>✅ 列的显示/隐藏控制</div>
-            <div>✅ 高级过滤和搜索功能</div>
+            <div>✅ 列拖拽排序和显示/隐藏控制</div>
+            <div>✅ 高级筛选器和搜索功能</div>
+            <div>✅ 个人视图配置保存和管理</div>
+            <div>✅ Excel/CSV双格式导出</div>
+            <div>✅ WebSocket实时更新</div>
             <div>✅ 批量操作支持</div>
-            <div>✅ 数据导出功能</div>
             <div>✅ 响应式设计</div>
           </Space>
         </div>
@@ -116,21 +118,92 @@ const AllFieldsTableGuide: React.FC<AllFieldsTableGuideProps> = ({ visible, onCl
       )
     },
     {
+      title: '视图管理',
+      content: (
+        <div>
+          <Title level={4}>个人视图配置</Title>
+          <Paragraph>
+            视图管理功能让您可以保存和切换不同的表格配置：
+          </Paragraph>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>💾 <Text strong>保存视图：</Text> 保存当前的列设置和筛选条件</div>
+            <div>🔄 <Text strong>切换视图：</Text> 快速切换不同的工作场景配置</div>
+            <div>⭐ <Text strong>默认视图：</Text> 设置页面加载时的默认配置</div>
+            <div>📋 <Text strong>复制视图：</Text> 基于现有视图创建新配置</div>
+            <div>🗑️ <Text strong>删除视图：</Text> 移除不需要的视图配置</div>
+          </Space>
+          <Paragraph style={{ marginTop: '16px' }}>
+            <Text strong>使用技巧：</Text> 为不同的工作任务创建专门的视图，如"今日待办"、"项目概览"、"进度跟踪"等。
+          </Paragraph>
+        </div>
+      )
+    },
+    {
+      title: '高级筛选',
+      content: (
+        <div>
+          <Title level={4}>高级筛选器</Title>
+          <Paragraph>
+            高级筛选器提供强大的数据筛选能力：
+          </Paragraph>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>🔍 <Text strong>多条件筛选：</Text> 同时设置多个筛选条件</div>
+            <div>⚙️ <Text strong>逻辑操作符：</Text> 支持"且(AND)"和"或(OR)"逻辑连接</div>
+            <div>📝 <Text strong>智能操作符：</Text> 根据字段类型提供合适的比较方式</div>
+            <div>📅 <Text strong>日期筛选：</Text> 支持日期范围和时间比较</div>
+            <div>🔢 <Text strong>数值筛选：</Text> 支持大于、小于、等于等数值比较</div>
+            <div>🏷️ <Text strong>预览功能：</Text> 实时预览筛选条件的可读性描述</div>
+          </Space>
+          <Paragraph style={{ marginTop: '16px' }}>
+            <Text strong>示例：</Text> "状态 等于 进行中 且 优先级 等于 高 且 截止时间 早于 明天"
+          </Paragraph>
+        </div>
+      )
+    },
+    {
       title: '数据导出',
       content: (
         <div>
           <Title level={4}>导出功能</Title>
           <Paragraph>
-            点击右上角的 <DownloadOutlined /> "导出" 按钮可以：
+            支持多种格式的数据导出：
           </Paragraph>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <div>📄 导出为CSV格式文件</div>
-            <div>📊 包含当前显示的所有列</div>
-            <div>🔍 导出当前筛选结果</div>
-            <div>📅 文件名包含导出日期</div>
+            <div>📗 <Text strong>Excel格式：</Text> 包含样式、多工作表、元数据信息</div>
+            <div>📄 <Text strong>CSV格式：</Text> 轻量级格式，适合数据分析</div>
+            <div>📊 <Text strong>智能内容：</Text> 状态中文化、日期格式统一</div>
+            <div>🔍 <Text strong>筛选结果：</Text> 导出当前筛选和视图的数据</div>
+            <div>📅 <Text strong>时间戳：</Text> 文件名自动包含导出时间</div>
           </Space>
           <Paragraph style={{ marginTop: '16px' }}>
-            <Text strong>注意：</Text> 导出的数据会根据您当前的列设置和筛选条件确定。
+            <Text strong>Excel特色：</Text> 包含任务数据工作表和导出信息工作表，方便数据追溯。
+          </Paragraph>
+        </div>
+      )
+    },
+    {
+      title: '实时更新',
+      content: (
+        <div>
+          <Title level={4}>WebSocket实时更新</Title>
+          <Paragraph>
+            实时更新功能让多用户协作更加顺畅：
+          </Paragraph>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>🔄 <Text strong>实时同步：</Text> 其他用户的修改实时显示</div>
+            <div>🔔 <Text strong>智能通知：</Text> 可配置的变更通知提醒</div>
+            <div>⚡ <Text strong>自动重连：</Text> 网络断开时自动重新连接</div>
+            <div>⚙️ <Text strong>性能控制：</Text> 可调节自动刷新间隔</div>
+            <div>🛡️ <Text strong>冲突处理：</Text> 智能去重避免数据冲突</div>
+          </Space>
+          <Paragraph style={{ marginTop: '16px' }}>
+            <Text strong>连接状态：</Text> 
+            <Space>
+              <span>🟢 已连接</span>
+              <span>🟡 连接中</span>
+              <span>⚪ 离线模式</span>
+              <span>🔴 连接错误</span>
+            </Space>
           </Paragraph>
         </div>
       )

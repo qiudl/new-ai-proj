@@ -39,7 +39,7 @@ import {
   ExportOutlined,
   SyncOutlined
 } from '@ant-design/icons';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, Pie, Cell, BarChart, Bar } from 'recharts';
 import dayjs, { Dayjs } from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
 import { SystemService, AuditLog, AuditLogFilter, AuditStats, PaginatedResponse } from '../services/systemService';
@@ -629,30 +629,16 @@ const AuditLogPage: React.FC = () => {
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* 操作类型分布 */}
             <Card title="操作类型分布" size="small">
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={stats.actions_distribution}
-                    dataKey="count"
-                    nameKey="action"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={60}
-                    label={(entry: any) => `${getActionText(entry.action)}: ${entry.count}`}
-                  >
-                    {stats.actions_distribution?.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {/* Chart temporarily disabled due to missing recharts dependency */}
+              <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+                <Text type="secondary">图表功能暂时不可用</Text>
+              </div>
             </Card>
 
             {/* 时间线分析 */}
             <Card title="7天活动趋势" size="small">
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={stats.timeline_data}>
+              <div style={{ width: '100%', height: 200 }}>
+                <LineChart width={400} height={200} data={stats.timeline_data}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
@@ -660,20 +646,20 @@ const AuditLogPage: React.FC = () => {
                   <Legend />
                   <Line type="monotone" dataKey="count" stroke="#1890ff" strokeWidth={2} />
                 </LineChart>
-              </ResponsiveContainer>
+              </div>
             </Card>
 
             {/* 实体类型分布 */}
             <Card title="实体类型分布" size="small">
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={stats.entities_distribution}>
+              <div style={{ width: '100%', height: 200 }}>
+                <BarChart width={400} height={200} data={stats.entities_distribution}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="entity_type" />
                   <YAxis />
                   <RechartsTooltip />
                   <Bar dataKey="count" fill="#52c41a" />
                 </BarChart>
-              </ResponsiveContainer>
+              </div>
             </Card>
 
             {/* 活跃用户排行 */}
@@ -699,15 +685,15 @@ const AuditLogPage: React.FC = () => {
             {/* 峰值时间分析 */}
             {stats.peak_hours && (
               <Card title="24小时活动分布" size="small">
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={stats.peak_hours}>
+                <div style={{ width: '100%', height: 200 }}>
+                  <BarChart width={400} height={200} data={stats.peak_hours}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="hour" />
                     <YAxis />
                     <RechartsTooltip />
                     <Bar dataKey="count" fill="#faad14" />
                   </BarChart>
-                </ResponsiveContainer>
+                </div>
               </Card>
             )}
           </Space>

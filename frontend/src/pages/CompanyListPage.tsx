@@ -25,20 +25,23 @@ import {
   DeleteOutlined,
   EyeOutlined,
   FilterOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  TeamOutlined,
+  PhoneOutlined,
+  BuildOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Customer, CustomerFilter, PaginationParams } from '../types/customer';
-import customerService from '../services/customerService';
+import { Company, CompanyFilter, PaginationParams } from '../types/company';
+import companyService from '../services/companyService';
 import { formatCurrency, formatDate, getStatusColor, getPriorityColor } from '../utils/formatters';
 
 const { Search } = Input;
 const { Option } = Select;
 const { Title, Text } = Typography;
 
-const CustomerListPage: React.FC = () => {
+const CompanyListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({
     current: 1,
@@ -48,11 +51,11 @@ const CustomerListPage: React.FC = () => {
     showQuickJumper: true,
     showTotal: (total: number) => `共 ${total} 条记录`,
   });
-  const [filters, setFilters] = useState<CustomerFilter>({});
+  const [filters, setFilters] = useState<CompanyFilter>({});
   const [stats, setStats] = useState<any>(null);
 
-  // Load customers data
-  const loadCustomers = useCallback(async () => {
+  // Load companies data
+  const loadCompanies = useCallback(async () => {
     setLoading(true);
     try {
       const paginationParams: PaginationParams = {
@@ -60,34 +63,34 @@ const CustomerListPage: React.FC = () => {
         pageSize: pagination.pageSize,
       };
 
-      const response = await customerService.getCustomers(paginationParams, filters);
-      setCustomers(response.data);
+      const response = await companyService.getCompanies(paginationParams, filters);
+      setCompanies(response.data);
       setPagination(prev => ({
         ...prev,
         total: response.pagination.total,
         current: response.pagination.page,
       }));
     } catch (error) {
-      console.error('Failed to load customers:', error);
-      message.error('加载客户列表失败');
+      console.error('Failed to load companies:', error);
+      message.error('加载企业列表失败');
     } finally {
       setLoading(false);
     }
   }, [pagination.current, pagination.pageSize, filters]);
 
-  // Load customer statistics
+  // Load company statistics
   const loadStats = useCallback(async () => {
     try {
-      const statsData = await customerService.getCustomerStats();
+      const statsData = await companyService.getCompanyStats();
       setStats(statsData);
     } catch (error) {
-      console.error('Failed to load customer stats:', error);
+      console.error('Failed to load company stats:', error);
     }
   }, []);
 
   useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
+    loadCompanies();
+  }, [loadCompanies]);
 
   useEffect(() => {
     loadStats();
@@ -100,7 +103,7 @@ const CustomerListPage: React.FC = () => {
   };
 
   // Handle filter change
-  const handleFilterChange = (key: keyof CustomerFilter, value: string) => {
+  const handleFilterChange = (key: keyof CompanyFilter, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPagination(prev => ({ ...prev, current: 1 }));
   };
@@ -120,42 +123,49 @@ const CustomerListPage: React.FC = () => {
     }));
   };
 
-  // Handle delete customer
+  // Handle delete company
   const handleDelete = async (id: number, name: string) => {
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除客户"${name}"吗？此操作不可恢复。`,
+      content: `确定要删除企业"${name}"吗？此操作不可恢复。`,
       okText: '确定',
       cancelText: '取消',
       okType: 'danger',
       onOk: async () => {
         try {
-          await customerService.deleteCustomer(id);
-          message.success('客户删除成功');
-          loadCustomers();
+          await companyService.deleteCompany(id);
+          message.success('企业删除成功');
+          loadCompanies();
           loadStats();
         } catch (error) {
-          console.error('Failed to delete customer:', error);
-          message.error('删除客户失败');
+          console.error('Failed to delete company:', error);
+          message.error('删除企业失败');
         }
       },
     });
   };
 
   // Table columns configuration
-  const columns: ColumnsType<Customer> = [
+  const columns: ColumnsType<Company> = [
     {
-      title: '客户名称',
-      dataIndex: 'name',
-      key: 'name',
+      title: '企业名称',
+      dataIndex: 'companyName',
+      key: 'companyName',
       fixed: 'left',
-      width: 150,
-      render: (text: string, record: Customer) => (
+      width: 200,
+      render: (text: string, record: Company) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{text}</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.company}
-          </Text>
+          <div style={{ fontWeight: 500, marginBottom: 4 }}>{text}</div>
+          <Space size="small">
+            {record.companyCode && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {record.companyCode}
+              </Text>
+            )}
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.companyTypeText}
+            </Text>
+          </Space>
         </div>
       ),
     },
@@ -164,18 +174,25 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'industry',
       key: 'industry',
       width: 100,
+      render: (text: string) => text || '-',
     },
     {
-      title: '联系人',
-      dataIndex: 'contactPerson',
-      key: 'contactPerson',
-      width: 100,
-      render: (text: string, record: Customer) => (
+      title: '联系方式',
+      key: 'contact',
+      width: 150,
+      render: (_, record: Company) => (
         <div>
-          <div>{text}</div>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.email}
-          </Text>
+          {record.mainEmail && (
+            <div style={{ fontSize: '12px', marginBottom: 2 }}>
+              <Text type="secondary">{record.mainEmail}</Text>
+            </div>
+          )}
+          {record.mainPhone && (
+            <div style={{ fontSize: '12px' }}>
+              <PhoneOutlined style={{ marginRight: 4 }} />
+              <Text type="secondary">{record.mainPhone}</Text>
+            </div>
+          )}
         </div>
       ),
     },
@@ -184,42 +201,48 @@ const CustomerListPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: string) => {
-        const statusMap = {
-          active: '活跃',
-          inactive: '非活跃',
-          potential: '潜在',
-          closed: '已关闭'
-        };
-        return (
-          <Tag color={getStatusColor(status)}>
-            {statusMap[status as keyof typeof statusMap] || status}
-          </Tag>
-        );
-      },
+      render: (status: string, record: Company) => (
+        <Tag color={getStatusColor(status)}>
+          {record.statusText}
+        </Tag>
+      ),
     },
     {
       title: '优先级',
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
-      render: (priority: string) => {
-        const priorityMap = {
-          high: '高',
-          medium: '中',
-          low: '低'
-        };
-        return (
-          <Tag color={getPriorityColor(priority)}>
-            {priorityMap[priority as keyof typeof priorityMap] || priority}
-          </Tag>
-        );
-      },
+      render: (priority: string, record: Company) => (
+        <Tag color={getPriorityColor(priority)}>
+          {record.priorityText}
+        </Tag>
+      ),
     },
     {
-      title: '合同金额',
-      dataIndex: 'contractValue',
-      key: 'contractValue',
+      title: '规模',
+      key: 'scale',
+      width: 120,
+      render: (_, record: Company) => (
+        <div>
+          {record.companySizeText && (
+            <div style={{ fontSize: '12px', marginBottom: 2 }}>
+              <BuildOutlined style={{ marginRight: 4 }} />
+              <Text type="secondary">{record.companySizeText}</Text>
+            </div>
+          )}
+          {record.employeeCount && (
+            <div style={{ fontSize: '12px' }}>
+              <TeamOutlined style={{ marginRight: 4 }} />
+              <Text type="secondary">{record.employeeCount}人</Text>
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: '年度合同金额',
+      dataIndex: 'annualContractValue',
+      key: 'annualContractValue',
       width: 120,
       render: (value: number) => value ? formatCurrency(value) : '-',
     },
@@ -235,7 +258,7 @@ const CustomerListPage: React.FC = () => {
       key: 'actions',
       fixed: 'right',
       width: 150,
-      render: (_, record: Customer) => (
+      render: (_, record: Company) => (
         <Space size="small">
           <Tooltip title="查看详情">
             <Button
@@ -243,7 +266,7 @@ const CustomerListPage: React.FC = () => {
               icon={<EyeOutlined />}
               size="small"
               onClick={() => {
-                navigate(`/customers/${record.id}`);
+                navigate(`/companies/${record.id}`);
               }}
             />
           </Tooltip>
@@ -253,7 +276,7 @@ const CustomerListPage: React.FC = () => {
               icon={<EditOutlined />}
               size="small"
               onClick={() => {
-                navigate(`/customers/${record.id}/edit`);
+                navigate(`/companies/${record.id}/edit`);
               }}
             />
           </Tooltip>
@@ -263,7 +286,7 @@ const CustomerListPage: React.FC = () => {
               danger
               icon={<DeleteOutlined />}
               size="small"
-              onClick={() => handleDelete(record.id, record.name)}
+              onClick={() => handleDelete(record.id, record.companyName)}
             />
           </Tooltip>
         </Space>
@@ -274,45 +297,64 @@ const CustomerListPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <Title level={2}>客户管理</Title>
+        <Title level={2}>企业客户管理</Title>
 
         {/* Statistics Cards */}
         {stats && (
           <Row gutter={16} style={{ marginBottom: '24px' }}>
-            <Col span={6}>
+            <Col span={4}>
               <Card>
                 <Statistic
-                  title="总客户数"
-                  value={stats.totalCustomers}
+                  title="企业总数"
+                  value={stats.totalCompanies}
                   valueStyle={{ color: '#1890ff' }}
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col span={4}>
               <Card>
                 <Statistic
-                  title="活跃客户"
-                  value={stats.activeCustomers}
+                  title="活跃企业"
+                  value={stats.activeCompanies}
                   valueStyle={{ color: '#52c41a' }}
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col span={4}>
               <Card>
                 <Statistic
-                  title="潜在客户"
-                  value={stats.potentialCustomers}
+                  title="潜在企业"
+                  value={stats.potentialCompanies}
                   valueStyle={{ color: '#faad14' }}
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col span={4}>
               <Card>
                 <Statistic
-                  title="合同总额"
-                  value={stats.totalContractValue}
+                  title="高优先级"
+                  value={stats.highPriorityCompanies}
+                  valueStyle={{ color: '#f5222d' }}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic
+                  title="年度合同总额"
+                  value={stats.totalAnnualContractValue}
                   formatter={(value) => formatCurrency(Number(value))}
                   valueStyle={{ color: '#722ed1' }}
+                />
+              </Card>
+            </Col>
+            <Col span={4}>
+              <Card>
+                <Statistic
+                  title="平均合同金额"
+                  value={stats.averageAnnualContractValue}
+                  formatter={(value) => formatCurrency(Number(value))}
+                  valueStyle={{ color: '#13c2c2' }}
                 />
               </Card>
             </Col>
@@ -324,7 +366,7 @@ const CustomerListPage: React.FC = () => {
           <Row gutter={16} align="middle">
             <Col flex="300px">
               <Search
-                placeholder="搜索客户名称、公司或联系人"
+                placeholder="搜索企业名称、邮箱或电话"
                 allowClear
                 enterButton={<SearchOutlined />}
                 onSearch={handleSearch}
@@ -338,7 +380,7 @@ const CustomerListPage: React.FC = () => {
                 onChange={(value) => handleFilterChange('status', value)}
                 value={filters.status}
               >
-                {customerService.getStatusOptions().map(option => (
+                {companyService.getStatusOptions().map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
                   </Option>
@@ -353,7 +395,7 @@ const CustomerListPage: React.FC = () => {
                 onChange={(value) => handleFilterChange('priority', value)}
                 value={filters.priority}
               >
-                {customerService.getPriorityOptions().map(option => (
+                {companyService.getPriorityOptions().map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
                   </Option>
@@ -380,7 +422,7 @@ const CustomerListPage: React.FC = () => {
                 <Button
                   icon={<ReloadOutlined />}
                   onClick={() => {
-                    loadCustomers();
+                    loadCompanies();
                     loadStats();
                   }}
                 >
@@ -390,10 +432,10 @@ const CustomerListPage: React.FC = () => {
                   type="primary"
                   icon={<PlusOutlined />}
                   onClick={() => {
-                    navigate('/customers/create');
+                    navigate('/companies/create');
                   }}
                 >
-                  新建客户
+                  新建企业
                 </Button>
               </Space>
             </Col>
@@ -401,15 +443,15 @@ const CustomerListPage: React.FC = () => {
         </Card>
       </div>
 
-      {/* Customers Table */}
+      {/* Companies Table */}
       <Card>
         <Table
           columns={columns}
-          dataSource={customers}
+          dataSource={companies}
           rowKey="id"
           loading={loading}
           pagination={false}
-          scroll={{ x: 1200 }}
+          scroll={{ x: 1400 }}
           size="middle"
         />
         
@@ -432,4 +474,4 @@ const CustomerListPage: React.FC = () => {
   );
 };
 
-export default CustomerListPage;
+export default CompanyListPage;
