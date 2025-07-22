@@ -523,15 +523,27 @@ ${JSON.stringify(companyInfo, null, 2)}
     availableProviders: AIProvider[];
   }> {
     try {
-      const enabledConfigResponse = await aiConfigDatabaseService.getEnabledConfig();
-      const statsResponse = await aiConfigDatabaseService.getConfigStats();
+      // 先尝试获取AI配置，如果失败则返回默认值
+      const [enabledConfigResponse, statsResponse] = await Promise.allSettled([
+        aiConfigDatabaseService.getEnabledConfig(),
+        aiConfigDatabaseService.getConfigStats()
+      ]);
+      
+      // 处理启用的配置响应
+      const enabledConfig = enabledConfigResponse.status === 'fulfilled' && 
+        enabledConfigResponse.value.success ? 
+        enabledConfigResponse.value.data : null;
+      
+      // 处理统计响应
+      const stats = statsResponse.status === 'fulfilled' && 
+        statsResponse.value.success ? 
+        statsResponse.value.data : null;
       
       return {
-        hasConfig: enabledConfigResponse.success && !!enabledConfigResponse.data,
-        currentProvider: enabledConfigResponse.data?.provider,
-        availableProviders: statsResponse.success && statsResponse.data ? 
-          statsResponse.data.providers.map((p: { provider: AIProvider }) => p.provider) : 
-          ['openai', 'claude', 'deepseek']
+        hasConfig: !!enabledConfig,
+        currentProvider: enabledConfig?.provider,
+        availableProviders: stats?.providers?.map((p: { provider: AIProvider }) => p.provider) || 
+          ['openai', 'claude', 'deepseek'] // 默认可用提供商
       };
     } catch (error) {
       return {

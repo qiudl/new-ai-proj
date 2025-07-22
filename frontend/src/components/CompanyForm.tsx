@@ -84,8 +84,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         const status = await aiCompanyService.getAIStatus();
         setAiStatus(status);
       } catch (error) {
-        console.error('获取AI状态失败:', error);
-        setAiStatus({ hasConfig: false, currentProvider: undefined, availableProviders: [] });
+        console.warn('获取AI状态失败，使用默认配置:', error);
+        setAiStatus({ 
+          hasConfig: false, 
+          currentProvider: undefined, 
+          availableProviders: ['openai', 'claude', 'deepseek'] 
+        });
       }
     };
     loadAiStatus();

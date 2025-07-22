@@ -73,47 +73,47 @@ type CompanyRequest struct {
 // CompanyResponse represents the response format for a company
 type CompanyResponse struct {
 	ID                   int        `json:"id"`
-	CompanyName          string     `json:"company_name"`
-	CompanyCode          *string    `json:"company_code"`
+	CompanyName          string     `json:"companyName"`
+	CompanyCode          *string    `json:"companyCode"`
 	Industry             *string    `json:"industry"`
-	CompanyType          string     `json:"company_type"`
-	CompanyTypeText      string     `json:"company_type_text"`
-	BusinessLicense      *string    `json:"business_license"`
-	TaxNumber            *string    `json:"tax_number"`
-	LegalRepresentative  *string    `json:"legal_representative"`
+	CompanyType          string     `json:"companyType"`
+	CompanyTypeText      string     `json:"companyTypeText"`
+	BusinessLicense      *string    `json:"businessLicense"`
+	TaxNumber            *string    `json:"taxNumber"`
+	LegalRepresentative  *string    `json:"legalRepresentative"`
 	
 	Address              *string    `json:"address"`
 	City                 *string    `json:"city"`
 	Province             *string    `json:"province"`
-	PostalCode           *string    `json:"postal_code"`
+	PostalCode           *string    `json:"postalCode"`
 	Website              *string    `json:"website"`
-	MainPhone            *string    `json:"main_phone"`
-	MainEmail            *string    `json:"main_email"`
+	MainPhone            *string    `json:"mainPhone"`
+	MainEmail            *string    `json:"mainEmail"`
 	
 	Status               string     `json:"status"`
-	StatusText           string     `json:"status_text"`
+	StatusText           string     `json:"statusText"`
 	Priority             string     `json:"priority"`
-	PriorityText         string     `json:"priority_text"`
-	AnnualContractValue  *float64   `json:"annual_contract_value"`
-	TotalContractValue   *float64   `json:"total_contract_value"`
-	StartDate            *time.Time `json:"start_date"`
+	PriorityText         string     `json:"priorityText"`
+	AnnualContractValue  *float64   `json:"annualContractValue"`
+	TotalContractValue   *float64   `json:"totalContractValue"`
+	StartDate            *time.Time `json:"startDate"`
 	
-	EmployeeCount        *int       `json:"employee_count"`
-	CompanySize          *string    `json:"company_size"`
-	CompanySizeText      *string    `json:"company_size_text"`
+	EmployeeCount        *int       `json:"employeeCount"`
+	CompanySize          *string    `json:"companySize"`
+	CompanySizeText      *string    `json:"companySizeText"`
 	
-	CreatedBy            int        `json:"created_by"`
-	CreatedByName        *string    `json:"created_by_name,omitempty"`
-	UpdatedBy            *int       `json:"updated_by"`
-	UpdatedByName        *string    `json:"updated_by_name,omitempty"`
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	CreatedBy            int        `json:"createdBy"`
+	CreatedByName        *string    `json:"createdByName,omitempty"`
+	UpdatedBy            *int       `json:"updatedBy"`
+	UpdatedByName        *string    `json:"updatedByName,omitempty"`
+	CreatedAt            time.Time  `json:"createdAt"`
+	UpdatedAt            time.Time  `json:"updatedAt"`
 	
 	// Related data
-	UserCount            int        `json:"user_count,omitempty"`
-	ProjectCount         int        `json:"project_count,omitempty"`
-	ContractCount        int        `json:"contract_count,omitempty"`
-	LastContactDate      *time.Time `json:"last_contact_date,omitempty"`
+	UserCount            int        `json:"userCount,omitempty"`
+	ProjectCount         int        `json:"projectCount,omitempty"`
+	ContractCount        int        `json:"contractCount,omitempty"`
+	LastContactDate      *time.Time `json:"lastContactDate,omitempty"`
 }
 
 // CompanyUser represents a user within a company
@@ -164,8 +164,8 @@ type CompanyUserRequest struct {
 // CompanyUserResponse represents the response format for a company user
 type CompanyUserResponse struct {
 	ID                   int        `json:"id"`
-	CustomerID           int        `json:"customer_id"`
-	CompanyName          string     `json:"company_name,omitempty"`
+	CustomerID           int        `json:"customerId"`
+	CompanyName          string     `json:"companyName,omitempty"`
 	
 	Name                 string     `json:"name"`
 	Position             *string    `json:"position"`
@@ -173,21 +173,21 @@ type CompanyUserResponse struct {
 	Email                *string    `json:"email"`
 	Phone                *string    `json:"phone"`
 	Mobile               *string    `json:"mobile"`
-	WorkPhone            *string    `json:"work_phone"`
+	WorkPhone            *string    `json:"workPhone"`
 	
 	Role                 string     `json:"role"`
-	RoleText             string     `json:"role_text"`
-	IsPrimaryContact     bool       `json:"is_primary_contact"`
-	CanMakeDecisions     bool       `json:"can_make_decisions"`
-	AccessLevel          int        `json:"access_level"`
-	AccessLevelText      string     `json:"access_level_text"`
+	RoleText             string     `json:"roleText"`
+	IsPrimaryContact     bool       `json:"isPrimaryContact"`
+	CanMakeDecisions     bool       `json:"canMakeDecisions"`
+	AccessLevel          int        `json:"accessLevel"`
+	AccessLevelText      string     `json:"accessLevelText"`
 	
 	Status               string     `json:"status"`
-	StatusText           string     `json:"status_text"`
+	StatusText           string     `json:"statusText"`
 	Notes                *string    `json:"notes"`
 	
-	CreatedAt            time.Time  `json:"created_at"`
-	UpdatedAt            time.Time  `json:"updated_at"`
+	CreatedAt            time.Time  `json:"createdAt"`
+	UpdatedAt            time.Time  `json:"updatedAt"`
 }
 
 // CompanyContact represents a contact record with a company

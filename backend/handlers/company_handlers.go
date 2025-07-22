@@ -205,7 +205,8 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 
 	var req models.CompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		h.logger.Printf("Error binding JSON request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, fmt.Sprintf("Invalid request body: %v", err), nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
@@ -224,27 +225,88 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	// Update company fields
-	existingCompany.CompanyName = req.CompanyName
-	existingCompany.CompanyCode = req.CompanyCode
-	existingCompany.Industry = req.Industry
-	existingCompany.CompanyType = req.CompanyType
-	existingCompany.BusinessLicense = req.BusinessLicense
-	existingCompany.TaxNumber = req.TaxNumber
-	existingCompany.LegalRepresentative = req.LegalRepresentative
-	existingCompany.Address = req.Address
-	existingCompany.City = req.City
-	existingCompany.Province = req.Province
-	existingCompany.PostalCode = req.PostalCode
-	existingCompany.Website = req.Website
-	existingCompany.MainPhone = req.MainPhone
-	existingCompany.MainEmail = req.MainEmail
-	existingCompany.Status = req.Status
-	existingCompany.Priority = req.Priority
-	existingCompany.AnnualContractValue = req.AnnualContractValue
-	existingCompany.StartDate = req.StartDate
-	existingCompany.EmployeeCount = req.EmployeeCount
-	existingCompany.CompanySize = req.CompanySize
+	// Check if company name is being changed and if the new name already exists
+	if req.CompanyName != existingCompany.CompanyName {
+		// Check if the new company name already exists
+		companies, _, err := h.db.Companies().List(c.Request.Context(), 1000, 0, map[string]interface{}{
+			"company_name": req.CompanyName,
+		})
+		if err != nil {
+			h.logger.Printf("Error checking company name uniqueness: %v", err)
+		} else if len(companies) > 0 {
+			// Check if any of the found companies has a different ID
+			for _, company := range companies {
+				if company.ID != companyID {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+						"Company name already exists. Please choose a different name.", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+			}
+		}
+	}
+
+	// Update company fields only if provided in request
+	if req.CompanyName != "" {
+		existingCompany.CompanyName = req.CompanyName
+	}
+	if req.CompanyCode != nil && *req.CompanyCode != "" {
+		existingCompany.CompanyCode = req.CompanyCode
+	}
+	if req.Industry != nil && *req.Industry != "" {
+		existingCompany.Industry = req.Industry
+	}
+	if req.CompanyType != "" {
+		existingCompany.CompanyType = req.CompanyType
+	}
+	if req.BusinessLicense != nil && *req.BusinessLicense != "" {
+		existingCompany.BusinessLicense = req.BusinessLicense
+	}
+	if req.TaxNumber != nil && *req.TaxNumber != "" {
+		existingCompany.TaxNumber = req.TaxNumber
+	}
+	if req.LegalRepresentative != nil && *req.LegalRepresentative != "" {
+		existingCompany.LegalRepresentative = req.LegalRepresentative
+	}
+	if req.Address != nil && *req.Address != "" {
+		existingCompany.Address = req.Address
+	}
+	if req.City != nil && *req.City != "" {
+		existingCompany.City = req.City
+	}
+	if req.Province != nil && *req.Province != "" {
+		existingCompany.Province = req.Province
+	}
+	if req.PostalCode != nil && *req.PostalCode != "" {
+		existingCompany.PostalCode = req.PostalCode
+	}
+	if req.Website != nil && *req.Website != "" {
+		existingCompany.Website = req.Website
+	}
+	if req.MainPhone != nil && *req.MainPhone != "" {
+		existingCompany.MainPhone = req.MainPhone
+	}
+	if req.MainEmail != nil && *req.MainEmail != "" {
+		existingCompany.MainEmail = req.MainEmail
+	}
+	if req.Status != "" {
+		existingCompany.Status = req.Status
+	}
+	if req.Priority != "" {
+		existingCompany.Priority = req.Priority
+	}
+	if req.AnnualContractValue != nil {
+		existingCompany.AnnualContractValue = req.AnnualContractValue
+	}
+	if req.StartDate != nil {
+		existingCompany.StartDate = req.StartDate
+	}
+	if req.EmployeeCount != nil {
+		existingCompany.EmployeeCount = req.EmployeeCount
+	}
+	if req.CompanySize != nil && *req.CompanySize != "" {
+		existingCompany.CompanySize = req.CompanySize
+	}
 
 	userID := 1 // TODO: Get from authenticated user context
 	existingCompany.UpdatedBy = &userID

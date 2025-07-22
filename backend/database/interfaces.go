@@ -133,6 +133,9 @@ type SystemRepository interface {
 	// Legacy audit log operations (deprecated - use enhanced methods above)
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error)
 	LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error
+	
+	// Project statistics
+	GetProjectStats(ctx context.Context, projectID int) (map[string]interface{}, error)
 }
 
 // CompanyRepository defines the interface for company operations (new enterprise model)

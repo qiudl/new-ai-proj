@@ -29,7 +29,6 @@ import CompanyForm from '../components/CompanyForm';
 import dayjs from 'dayjs';
 
 const { Title } = Typography;
-const { TabPane } = Tabs;
 
 const CompanyEditPage: React.FC = () => {
   const navigate = useNavigate();
@@ -242,100 +241,102 @@ const CompanyEditPage: React.FC = () => {
         onChange={setActiveTab}
         type="card"
         style={{ background: '#fff' }}
-      >
-        <TabPane 
-          tab={
-            <span>
-              <EditOutlined />
-              基本信息
-            </span>
-          } 
-          key="basic"
-        >
-          <div style={{ padding: '16px' }}>
-            <CompanyForm 
-              form={form}
-              company={company}
-              onValuesChange={handleValuesChange}
-            />
-            
-            {/* 底部操作栏 */}
-            <Card size="small" style={{ marginTop: '16px' }}>
-              <div style={{ textAlign: 'center' }}>
-                <Space size="large">
-                  <Button size="large" onClick={handleCancel}>
-                    取消修改
-                  </Button>
-                  <Button 
-                    type="primary" 
-                    size="large"
-                    icon={<SaveOutlined />}
-                    onClick={handleSubmit}
-                    loading={submitting}
-                    disabled={!hasChanges}
-                  >
-                    {hasChanges ? '保存修改' : '无修改'}
-                  </Button>
-                </Space>
+        items={[
+          {
+            key: 'basic',
+            label: (
+              <span>
+                <EditOutlined />
+                基本信息
+              </span>
+            ),
+            children: (
+              <div style={{ padding: '16px' }}>
+                <CompanyForm 
+                  form={form}
+                  company={company}
+                  onValuesChange={handleValuesChange}
+                />
+                
+                {/* 底部操作栏 */}
+                <Card size="small" style={{ marginTop: '16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <Space size="large">
+                      <Button size="large" onClick={handleCancel}>
+                        取消修改
+                      </Button>
+                      <Button 
+                        type="primary" 
+                        size="large"
+                        icon={<SaveOutlined />}
+                        onClick={handleSubmit}
+                        loading={submitting}
+                        disabled={!hasChanges}
+                      >
+                        {hasChanges ? '保存修改' : '无修改'}
+                      </Button>
+                    </Space>
+                  </div>
+                  
+                  <div style={{ 
+                    marginTop: '16px', 
+                    textAlign: 'center', 
+                    color: '#8c8c8c', 
+                    fontSize: '12px' 
+                  }}>
+                    <p style={{ margin: 0 }}>
+                      最后更新时间: {dayjs(company.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0' }}>
+                      创建时间: {dayjs(company.createdAt).format('YYYY-MM-DD HH:mm:ss')}
+                    </p>
+                  </div>
+                </Card>
               </div>
-              
-              <div style={{ 
-                marginTop: '16px', 
-                textAlign: 'center', 
-                color: '#8c8c8c', 
-                fontSize: '12px' 
-              }}>
-                <p style={{ margin: 0 }}>
-                  最后更新时间: {dayjs(company.updatedAt).format('YYYY-MM-DD HH:mm:ss')}
-                </p>
-                <p style={{ margin: '4px 0 0 0' }}>
-                  创建时间: {dayjs(company.createdAt).format('YYYY-MM-DD HH:mm:ss')}
-                </p>
+            )
+          },
+          {
+            key: 'contacts',
+            label: (
+              <span>
+                <UserOutlined />
+                联系人管理
+              </span>
+            ),
+            disabled: true,
+            children: (
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                <Alert
+                  message="功能开发中"
+                  description="联系人管理功能正在开发中，将支持添加、编辑和管理企业联系人信息。"
+                  type="info"
+                  showIcon
+                />
               </div>
-            </Card>
-          </div>
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <UserOutlined />
-              联系人管理
-            </span>
-          } 
-          key="contacts"
-          disabled
-        >
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Alert
-              message="功能开发中"
-              description="联系人管理功能正在开发中，将支持添加、编辑和管理企业联系人信息。"
-              type="info"
-              showIcon
-            />
-          </div>
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <PhoneOutlined />
-              沟通记录
-            </span>
-          } 
-          key="communications"
-          disabled
-        >
-          <div style={{ padding: '40px', textAlign: 'center' }}>
-            <Alert
-              message="功能开发中"
-              description="沟通记录功能正在开发中，将支持记录和管理与企业的所有沟通历史。"
-              type="info"
-              showIcon
-            />
-          </div>
-        </TabPane>
-      </Tabs>
+            )
+          },
+          {
+            key: 'communications',
+            label: (
+              <span>
+                <PhoneOutlined />
+                沟通记录
+              </span>
+            ),
+            disabled: true,
+            children: (
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                <Alert
+                  message="功能开发中"
+                  description="沟通记录功能正在开发中，将支持记录和管理与企业的所有沟通历史。"
+                  type="info"
+                  showIcon
+                />
+              </div>
+            )
+          }
+        ]}
+      />
     </div>
   );
 };

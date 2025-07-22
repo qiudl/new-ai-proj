@@ -810,3 +810,66 @@ func (r *PostgresSystemRepository) HardDeleteProject(ctx context.Context, id int
 
 	return nil
 }
+
+// GetProjectStats gets project statistics from the project_task_stats view
+func (r *PostgresSystemRepository) GetProjectStats(ctx context.Context, projectID int) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+	
+	// Query project stats from database view
+	query := `
+		SELECT 
+			COALESCE(total_tasks, 0) as total_tasks,
+			COALESCE(completed_tasks, 0) as completed_tasks,
+			COALESCE(in_progress_tasks, 0) as in_progress_tasks,
+			COALESCE(todo_tasks, 0) as todo_tasks,
+			COALESCE(completion_percentage, 0) as completion_percentage
+		FROM project_task_stats 
+		WHERE project_id = $1
+	`
+
+	exec := r.getExecer()
+	var taskCount, completedTaskCount, inProgressTasks, todoTasks int
+	var progress float64
+	
+	err := exec.QueryRowContext(ctx, query, projectID).Scan(
+		&taskCount,
+		&completedTaskCount,
+		&inProgressTasks,
+		&todoTasks,
+		&progress,
+	)
+
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			// Project exists but has no tasks, return zero stats
+			taskCount = 0
+			completedTaskCount = 0
+			inProgressTasks = 0
+			todoTasks = 0
+			progress = 0
+		} else {
+			return nil, fmt.Errorf("failed to get project stats: %w", err)
+		}
+	}
+
+	// Count unique users assigned to project tasks
+	userCountQuery := `
+		SELECT COUNT(DISTINCT assigned_to) 
+		FROM tasks 
+		WHERE project_id = $1 AND assigned_to IS NOT NULL AND deleted_at IS NULL
+	`
+	var userCount int
+	err = exec.QueryRowContext(ctx, userCountQuery, projectID).Scan(&userCount)
+	if err != nil {
+		userCount = 0 // Default to 0 if query fails
+	}
+
+	stats["task_count"] = taskCount
+	stats["completed_task_count"] = completedTaskCount
+	stats["in_progress_tasks"] = inProgressTasks
+	stats["todo_tasks"] = todoTasks
+	stats["progress"] = progress
+	stats["user_count"] = userCount
+
+	return stats, nil
+}

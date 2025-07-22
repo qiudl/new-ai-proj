@@ -460,6 +460,12 @@ func (r *PostgresCompanyRepository) buildWhereClause(filters map[string]interfac
 		argIndex++
 	}
 
+	if companyName, ok := filters["company_name"].(string); ok && companyName != "" {
+		conditions = append(conditions, fmt.Sprintf("company_name = $%d", argIndex))
+		args = append(args, companyName)
+		argIndex++
+	}
+
 	if search, ok := filters["search"].(string); ok && search != "" {
 		conditions = append(conditions, fmt.Sprintf("(company_name ILIKE $%d OR main_email ILIKE $%d OR main_phone ILIKE $%d)", argIndex, argIndex, argIndex))
 		args = append(args, "%"+search+"%")

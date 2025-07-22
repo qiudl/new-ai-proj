@@ -78,18 +78,8 @@ const ProjectDetailPage: React.FC = () => {
     try {
       setLoading(true);
       
-      // 并行获取项目详情和统计信息
-      const [projectDetail, projectStats] = await Promise.all([
-        projectService.getProjectDetail(Number(projectId)),
-        projectService.getProjectStats(Number(projectId)).catch(() => null)
-      ]);
-
-      // 如果统计信息获取成功，更新项目详情
-      if (projectStats) {
-        projectDetail.task_count = projectStats.task_count;
-        projectDetail.completed_task_count = projectStats.completed_task_count;
-        projectDetail.progress = projectStats.progress;
-      }
+      // 获取项目详情（现在使用组合API调用）
+      const projectDetail = await projectService.getProjectDetail(Number(projectId));
 
       setProject(projectDetail);
     } catch (error) {

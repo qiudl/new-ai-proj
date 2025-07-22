@@ -78,7 +78,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
-    if (path === '/project-dashboard') return ['/project-dashboard'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/companies')) return ['/companies'];
     return [path];
@@ -93,7 +92,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-dashboard') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
     }
-    if (path.includes('/project-dashboard') || path.includes('/projects')) {
+    if (path.includes('/projects')) {
       return ['/project-management'];
     }
     if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config')) {
@@ -131,11 +130,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <ProjectOutlined />,
       label: '项目管理',
       children: [
-        {
-          key: '/project-dashboard',
-          icon: <DashboardOutlined />,
-          label: '项目仪表盘',
-        },
         {
           key: '/projects',
           icon: <UnorderedListOutlined />,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
@@ -86,13 +86,12 @@ const TasksPage: React.FC = () => {
     loadCurrentProject();
   }, [projectIdNum]);
 
-  // 处理全局模式下的父子任务关系
+  // 全局模式下预处理父子关系 - 预填充 subTasks 并自动展开有子任务的父任务
   useEffect(() => {
     if (!effectiveProjectId && Array.isArray(tasks) && tasks.length > 0) {
-      // 构建任务映射和父子关系
       const childrenMap = new Map<number, Task[]>();
       
-      // 额外验证每个任务对象
+      // 构建父子关系映射
       const validTasks = tasks.filter(task => 
         task && 
         typeof task === 'object' && 
@@ -100,7 +99,7 @@ const TasksPage: React.FC = () => {
       );
       
       validTasks.forEach(task => {
-        if (task && typeof task === 'object' && task.parent_id && typeof task.parent_id === 'number') {
+        if (task.parent_id && typeof task.parent_id === 'number') {
           if (!childrenMap.has(task.parent_id)) {
             childrenMap.set(task.parent_id, []);
           }
@@ -108,7 +107,7 @@ const TasksPage: React.FC = () => {
         }
       });
       
-      // 更新subTasks状态，但只有当内容真正变化时才更新
+      // 预填充 subTasks 并自动展开有子任务的父任务
       if (childrenMap.size > 0) {
         setSubTasks(prev => {
           const newSubTasks = new Map(prev);
@@ -121,10 +120,27 @@ const TasksPage: React.FC = () => {
                 !existing.every((task, index) => task.id === children[index].id)) {
               newSubTasks.set(parentId, children);
               hasChanges = true;
+              console.log(`Updated subtasks for parent ${parentId}: ${children.length} children`);
             }
           });
           
           return hasChanges ? newSubTasks : prev;
+        });
+        
+        // 自动展开所有有子任务的父任务（在全局模式下）
+        setExpandedTasks(prev => {
+          const newExpanded = new Set(prev);
+          let hasNewExpansions = false;
+          
+          childrenMap.forEach((children, parentId) => {
+            if (!newExpanded.has(parentId)) {
+              newExpanded.add(parentId);
+              hasNewExpansions = true;
+              console.log(`Auto-expanding parent task ${parentId} with ${children.length} children`);
+            }
+          });
+          
+          return hasNewExpansions ? newExpanded : prev;
         });
       }
     }
@@ -798,7 +814,7 @@ const TasksPage: React.FC = () => {
   };
 
 
-  // Build expanded data source including subtasks - 修复层级处理和数据验证
+  // Build expanded data source including subtasks - 修复depth计算问题
   const buildExpandedDataSource = useCallback(() => {
     try {
       // Ensure tasks is always an array and not null/undefined
@@ -830,7 +846,10 @@ const TasksPage: React.FC = () => {
             return;
           }
           
-          result.push({ ...task, isSubTask: depth > 0, depth });
+          // 确保depth是有效数字
+          const safeDepth = Math.max(0, depth || 0);
+          
+          result.push({ ...task, isSubTask: safeDepth > 0, depth: safeDepth });
           
           // Add expanded subtasks recursively
           if (expandedTasks.has(task.id)) {
@@ -838,7 +857,8 @@ const TasksPage: React.FC = () => {
             if (Array.isArray(children)) {
               children.forEach(child => {
                 if (child && typeof child === 'object' && typeof child.id === 'number') {
-                  addTaskWithChildren(child, depth + 1);
+                  // 关键修复：确保子任务的depth正确递增
+                  addTaskWithChildren(child, safeDepth + 1);
                 }
               });
             }
@@ -848,50 +868,32 @@ const TasksPage: React.FC = () => {
         }
       };
       
-      // 在全局模式下，需要特殊处理层级关系
+      // 修复：在全局模式下，需要同时处理根任务和已展开的子任务
       if (!effectiveProjectId) {
-        // 构建任务映射和父子关系
+        // 全局模式：构建完整的任务层级
         const taskMap = new Map<number, Task>();
-        const childrenMap = new Map<number, Task[]>();
+        const rootTasks: Task[] = [];
         
+        // 建立任务映射
         validTasks.forEach(task => {
-          if (task && typeof task === 'object' && typeof task.id === 'number') {
-            taskMap.set(task.id, task);
-            if (task.parent_id && typeof task.parent_id === 'number') {
-              if (!childrenMap.has(task.parent_id)) {
-                childrenMap.set(task.parent_id, []);
-              }
-              childrenMap.get(task.parent_id)!.push(task);
-            }
+          taskMap.set(task.id, task);
+        });
+        
+        // 找出根任务
+        validTasks.forEach(task => {
+          if (!task.parent_id) {
+            rootTasks.push(task);
           }
         });
         
-        // 只显示根任务，子任务通过展开显示
-        const rootTasks = validTasks.filter(task => 
-          task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
-        );
-        rootTasks.forEach(task => {
-          if (task && typeof task === 'object' && typeof task.id === 'number') {
-            addTaskWithChildren(task, 0);
-          }
+        // 递归处理根任务
+        rootTasks.forEach(rootTask => {
+          addTaskWithChildren(rootTask, 0);
         });
         
-        // 如果有子任务在全局任务列表中，但父任务不在当前页面，单独显示这些"孤儿"子任务
-        const orphanTasks = validTasks.filter(task => {
-          if (!task || typeof task !== 'object' || typeof task.id !== 'number' || !task.parent_id) return false;
-          // 检查父任务是否在当前任务列表中
-          return !taskMap.has(task.parent_id);
-        });
-        
-        orphanTasks.forEach(task => {
-          if (task && typeof task === 'object' && typeof task.id === 'number') {
-            // 为孤儿任务设置depth为1，表示它是某个不在当前页面的父任务的子任务
-            addTaskWithChildren(task, 1);
-          }
-        });
-        
+        console.log(`Global mode: processed ${rootTasks.length} root tasks, result: ${result.length} items`);
       } else {
-        // 项目模式下的原有逻辑
+        // 项目模式：只处理根任务（子任务通过API动态加载）
         const rootTasks = validTasks.filter(task => 
           task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
         );
@@ -903,12 +905,14 @@ const TasksPage: React.FC = () => {
       }
       
       // 确保返回值是数组
-      return Array.isArray(result) ? result : [];
+      const finalResult = Array.isArray(result) ? result : [];
+      console.log(`buildExpandedDataSource final result: ${finalResult.length} items`);
+      return finalResult;
     } catch (error) {
       console.error('Error in buildExpandedDataSource:', error);
       return [];
     }
-  }, [tasks, effectiveProjectId, expandedTasks, subTasks]);
+  }, [tasks, expandedTasks, subTasks, effectiveProjectId]);
 
   // 使用 useMemo 创建稳定的数据源
   const stableDataSource = useMemo(() => {
@@ -958,9 +962,7 @@ const TasksPage: React.FC = () => {
           indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < stableDataSource.length}
           onChange={(e) => handleSelectAll(e.target.checked)}
           checked={stableDataSource.length > 0 && selectedTaskIds.length === stableDataSource.length}
-        >
-          选择
-        </Checkbox>
+        />
       ),
       dataIndex: 'selection',
       key: 'selection',
@@ -976,7 +978,7 @@ const TasksPage: React.FC = () => {
       title: '任务名称',
       dataIndex: 'title',
       key: 'title',
-      width: effectiveProjectId ? '35%' : '25%',
+      width: effectiveProjectId ? '35%' : '30%', // 增加全局模式下的宽度以容纳缩进
       render: (text: string, record: Task & { isSubTask?: boolean; depth?: number }) => {
         const depth = record.depth || 0;
         const isSubTask = depth > 0;
@@ -984,25 +986,13 @@ const TasksPage: React.FC = () => {
         const isExpanded = expandedTasks.has(record.id);
         
         return (
-          <div className="task-name-with-indent">
-            {/* 缩进空间 */}
-            <div 
-              className="task-indent-space" 
-              style={{ width: depth * 20 }}
-            />
-            
-            {/* 层级连接线容器 */}
-            {depth > 0 && (
-              <div className="task-connection-container">
-                <div className="task-connection-line" />
-              </div>
-            )}
-            
-            {/* 层级深度指示器 */}
-            {depth > 0 && (
-              <div className={`task-depth-indicator depth-${Math.min(depth, 4)}`} />
-            )}
-            
+          <div style={{ 
+            paddingLeft: depth * 20, // 直接使用paddingLeft，就像HierarchicalTaskList一样
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            width: '100%'
+          }}>
             {/* 展开/收起按钮 */}
             {hasChildren ? (
               <button
@@ -1011,6 +1001,18 @@ const TasksPage: React.FC = () => {
                 aria-expanded={isExpanded}
                 title={loadingChildren.has(record.id) ? '加载中...' : (isExpanded ? '折叠子任务' : '展开子任务')}
                 disabled={loadingChildren.has(record.id)}
+                style={{ 
+                  padding: 0, 
+                  minWidth: 20, 
+                  height: 20,
+                  color: '#1890ff',
+                  fontSize: '14px',
+                  flexShrink: 0,
+                  marginRight: 4,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer'
+                }}
               >
                 {loadingChildren.has(record.id) ? (
                   <span className="loading-spinner">⟳</span>
@@ -1019,139 +1021,87 @@ const TasksPage: React.FC = () => {
                 )}
               </button>
             ) : (
-              <span style={{ width: '20px', display: 'inline-block' }} />
+              <div style={{ width: 20, height: 20, flexShrink: 0, marginRight: 4 }} />
             )}
             
-            {/* 任务图标 */}
-            {hasChildren && (
-              <span className="parent-task-icon">📁</span>
-            )}
-            {isSubTask && (
-              <span className="sub-task-icon">📄</span>
+            {/* 层级标识 */}
+            {depth > 0 && (
+              <BranchesOutlined 
+                style={{ 
+                  color: '#8c8c8c', 
+                  fontSize: 12,
+                  marginRight: 4,
+                  flexShrink: 0
+                }} 
+              />
             )}
             
-            {/* 任务名称文本 */}
-            <div 
-              className="task-name-text"
-              onMouseEnter={(e) => {
-                const editIcon = e.currentTarget.querySelector('.task-title-edit-icon');
-                if (editIcon) {
-                  (editIcon as HTMLElement).style.opacity = '1';
-                }
-              }}
-              onMouseLeave={(e) => {
-                const editIcon = e.currentTarget.querySelector('.task-title-edit-icon');
-                if (editIcon) {
-                  (editIcon as HTMLElement).style.opacity = '0';
-                }
-              }}
-            >
-              {editingTitle === record.id ? (
-                <div className="inline-edit-buttons">
-                  <input
-                    type="text"
-                    value={editingTitleValue}
-                    onChange={(e) => setEditingTitleValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleTitleSave(record);
-                      } else if (e.key === 'Escape') {
-                        handleTitleCancel();
-                      }
-                    }}
-                    onBlur={() => handleTitleSave(record)}
-                    autoFocus
-                    className="inline-edit-input"
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: isSubTask ? 400 : 500,
-                      color: isSubTask ? '#666' : '#000',
-                      width: '300px',
-                      lineHeight: '20px',
-                      padding: '4px 8px'
-                    }}
-                  />
-                  <button
-                    onClick={() => handleTitleSave(record)}
-                    className="inline-edit-button save"
-                    disabled={savingTitle}
-                  >
-                    {savingTitle ? '保存中...' : '保存'}
-                  </button>
-                  <button
-                    onClick={handleTitleCancel}
-                    className="inline-edit-button cancel"
-                  >
-                    取消
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewTask(record);
-                    }}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ 
+                fontWeight: depth === 0 ? 600 : 500,
+                fontSize: depth === 0 ? '15px' : '14px',
+                color: depth === 0 ? '#262626' : '#595959',
+                lineHeight: '1.4',
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8
+              }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewTask(record);
+                  }}
+                  style={{ 
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    border: 'none',
+                    background: 'none',
+                    padding: 0,
+                    font: 'inherit',
+                    textAlign: 'left',
+                    wordBreak: 'break-word'
+                  }}
+                  title="点击查看任务详情"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.textDecoration = 'underline';
+                    e.currentTarget.style.color = '#1890ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.textDecoration = 'none';
+                    e.currentTarget.style.color = 'inherit';
+                  }}
+                >
+                  {text}
+                </button>
+                {hasChildren && (
+                  <Tag 
+                    color="blue" 
                     style={{ 
-                      fontWeight: isSubTask ? 400 : 500,
-                      color: isSubTask ? '#1890ff' : '#1890ff',
-                      marginBottom: record.description ? '2px' : '0',
-                      lineHeight: '20px',
-                      cursor: 'pointer',
-                      textDecoration: 'none',
-                      border: 'none',
-                      background: 'none',
-                      padding: 0,
-                      font: 'inherit'
-                    }}
-                    title="点击查看任务详情"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.textDecoration = 'underline';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.textDecoration = 'none';
+                      fontSize: 11,
+                      padding: '0 6px',
+                      lineHeight: '18px',
+                      height: '18px',
+                      flexShrink: 0
                     }}
                   >
-                    {text}
-                  </button>
-                  <div
-                    className="task-title-edit-icon"
-                    style={{
-                      opacity: 0,
-                      transition: 'opacity 0.2s',
-                      cursor: 'pointer',
-                      color: '#999',
-                      fontSize: '12px'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTitleEdit(record);
-                    }}
-                    title="编辑任务标题"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#1890ff';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = '#999';
-                    }}
-                  >
-                    ✏️
-                  </div>
-                </div>
-              )}
-              
-              {/* 任务描述 */}
+                    {record.custom_fields?.children_count} 子任务
+                  </Tag>
+                )}
+              </div>
               {record.description && (
                 <div style={{ 
                   color: '#8c8c8c', 
-                  fontSize: 12, 
+                  fontSize: 12,
+                  marginTop: 2,
                   lineHeight: '1.3',
-                  maxWidth: '300px',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  wordBreak: 'break-word'
                 }}>
-                  {record.description}
+                  {record.description.length > 50 
+                    ? `${record.description.substring(0, 50)}...` 
+                    : record.description
+                  }
                 </div>
               )}
             </div>
@@ -1165,7 +1115,7 @@ const TasksPage: React.FC = () => {
       title: '所属项目',
       dataIndex: 'project_name',
       key: 'project_name',
-      width: '15%',
+      width: '12%', // 减少项目列宽度以给任务名称列更多空间
       render: (name: string, record: Task) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{

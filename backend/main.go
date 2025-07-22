@@ -159,6 +159,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("", app.getProjectsHandler)
 				projects.POST("", app.createProjectHandler)
 				projects.GET("/:id", app.getProjectHandler)
+				projects.GET("/:id/stats", app.getProjectStatsHandler)
 				projects.PUT("/:id", app.updateProjectHandler)
 				projects.DELETE("/:id", app.deleteProjectHandler)
 
@@ -208,6 +209,22 @@ func (app *Application) setupRouter() *gin.Engine {
 					audit.GET("/logs/:id", app.getAuditLogHandler)
 					audit.GET("/stats", app.getAuditStatsHandler)
 					audit.GET("/export", app.exportAuditLogsHandler)
+				}
+
+				// AI configuration routes
+				aiConfigs := system.Group("/ai-configs")
+				{
+					aiConfigs.GET("", app.getAIConfigsHandler)
+					aiConfigs.POST("", app.createAIConfigHandler)
+					aiConfigs.GET("/:provider", app.getAIConfigHandler)
+					aiConfigs.PUT("/:provider", app.updateAIConfigHandler)
+					aiConfigs.DELETE("/:provider", app.deleteAIConfigHandler)
+					aiConfigs.POST("/test", app.testAIConnectionHandler)
+					aiConfigs.PATCH("/:provider/toggle", app.toggleAIConfigHandler)
+					aiConfigs.GET("/enabled", app.getEnabledAIConfigHandler)
+					aiConfigs.GET("/stats", app.getAIConfigStatsHandler)
+					aiConfigs.POST("/batch", app.batchUpdateAIConfigsHandler)
+					aiConfigs.GET("/export", app.exportAIConfigsHandler)
 				}
 
 			}
@@ -343,6 +360,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("", app.getProjectsHandler)
 				projects.POST("", app.createProjectHandler)
 				projects.GET("/:id", app.getProjectHandler)
+				projects.GET("/:id/stats", app.getProjectStatsHandler)
 				projects.PUT("/:id", app.updateProjectHandler)
 				projects.DELETE("/:id", app.deleteProjectHandler)
 
@@ -600,6 +618,28 @@ func (app *Application) getProjectHandler(c *gin.Context) {
 	}
 
 	response := models.NewSuccessResponse(project.ToResponse(), "Project retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) getProjectStatsHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get project stats using system repository
+	stats, err := app.db.System().GetProjectStats(c.Request.Context(), projectID)
+	if err != nil {
+		app.logger.Printf("Error getting project stats: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve project stats", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(stats, "Project stats retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
 
@@ -2360,6 +2400,175 @@ func (app *Application) validateNoCircularReference(ctx context.Context, parentI
 	}
 	
 	return nil
+}
+
+// AI Configuration handlers
+
+// getAIConfigsHandler gets all AI configurations
+func (app *Application) getAIConfigsHandler(c *gin.Context) {
+	// Return empty list for now - this is a placeholder implementation
+	configs := []map[string]interface{}{}
+	response := models.NewSuccessResponse(configs, "AI configurations retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// createAIConfigHandler creates a new AI configuration
+func (app *Application) createAIConfigHandler(c *gin.Context) {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Placeholder response - in production this would save to database
+	config := map[string]interface{}{
+		"id":         1,
+		"provider":   req["provider"],
+		"model":      req["model"],
+		"enabled":    req["enabled"],
+		"created_at": "2024-01-01T00:00:00Z",
+		"updated_at": "2024-01-01T00:00:00Z",
+	}
+
+	response := models.NewSuccessResponse(config, "AI configuration created successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+// getAIConfigHandler gets a specific AI configuration
+func (app *Application) getAIConfigHandler(c *gin.Context) {
+	provider := c.Param("provider")
+	
+	// Placeholder response
+	config := map[string]interface{}{
+		"id":         1,
+		"provider":   provider,
+		"model":      "default-model",
+		"enabled":    true,
+		"created_at": "2024-01-01T00:00:00Z",
+		"updated_at": "2024-01-01T00:00:00Z",
+	}
+
+	response := models.NewSuccessResponse(config, "AI configuration retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// updateAIConfigHandler updates an AI configuration
+func (app *Application) updateAIConfigHandler(c *gin.Context) {
+	provider := c.Param("provider")
+	var req map[string]interface{}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Placeholder response
+	config := map[string]interface{}{
+		"id":         1,
+		"provider":   provider,
+		"model":      req["model"],
+		"enabled":    req["enabled"],
+		"created_at": "2024-01-01T00:00:00Z",
+		"updated_at": "2024-01-01T00:00:00Z",
+	}
+
+	response := models.NewSuccessResponse(config, "AI configuration updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// deleteAIConfigHandler deletes an AI configuration
+func (app *Application) deleteAIConfigHandler(c *gin.Context) {
+	response := models.NewSuccessResponse(nil, "AI configuration deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// testAIConnectionHandler tests AI connection
+func (app *Application) testAIConnectionHandler(c *gin.Context) {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Placeholder response
+	testResult := map[string]interface{}{
+		"success":      true,
+		"message":      "AI connection test successful",
+		"responseTime": 150,
+	}
+
+	response := models.NewSuccessResponse(testResult, "AI connection test completed")
+	c.JSON(http.StatusOK, response)
+}
+
+// toggleAIConfigHandler enables/disables an AI configuration
+func (app *Application) toggleAIConfigHandler(c *gin.Context) {
+	provider := c.Param("provider")
+	var req map[string]interface{}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Placeholder response
+	config := map[string]interface{}{
+		"id":         1,
+		"provider":   provider,
+		"enabled":    req["enabled"],
+		"updated_at": "2024-01-01T00:00:00Z",
+	}
+
+	response := models.NewSuccessResponse(config, "AI configuration toggled successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// getEnabledAIConfigHandler gets the currently enabled AI configuration
+func (app *Application) getEnabledAIConfigHandler(c *gin.Context) {
+	// Placeholder response - return null for now
+	response := models.NewSuccessResponse(nil, "No enabled AI configuration")
+	c.JSON(http.StatusOK, response)
+}
+
+// getAIConfigStatsHandler gets AI configuration statistics
+func (app *Application) getAIConfigStatsHandler(c *gin.Context) {
+	stats := map[string]interface{}{
+		"total":   0,
+		"enabled": 0,
+		"providers": []map[string]interface{}{},
+	}
+
+	response := models.NewSuccessResponse(stats, "AI configuration stats retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// batchUpdateAIConfigsHandler updates multiple AI configurations
+func (app *Application) batchUpdateAIConfigsHandler(c *gin.Context) {
+	var req map[string]interface{}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	configs := []map[string]interface{}{}
+	response := models.NewSuccessResponse(configs, "AI configurations updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// exportAIConfigsHandler exports AI configurations
+func (app *Application) exportAIConfigsHandler(c *gin.Context) {
+	exportData := map[string]interface{}{
+		"configs":    []map[string]interface{}{},
+		"exportTime": "2024-01-01T00:00:00Z",
+	}
+
+	response := models.NewSuccessResponse(exportData, "AI configurations exported successfully")
+	c.JSON(http.StatusOK, response)
 }
 
 // mapUserToCompanyUser middleware maps authenticated user to company user

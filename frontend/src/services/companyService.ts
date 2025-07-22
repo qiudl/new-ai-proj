@@ -1,7 +1,7 @@
 import { 
-  Company, 
+  Company as CompanyType, 
   CompanyRequest, 
-  CompanyUser,
+  CompanyUser as CompanyUserType,
   CompanyUserRequest,
   CompanyContact, 
   CompanyContactRequest, 
@@ -11,6 +11,10 @@ import {
   PaginatedResponse, 
   PaginationParams 
 } from '../types/company';
+
+// 兼容项目类型定义
+type Company = CompanyType;
+type CompanyUser = CompanyUserType;
 
 const API_BASE_URL = '/api/v1/companies';
 
@@ -41,12 +45,41 @@ class CompanyService {
 
   // Create new company
   async createCompany(companyData: CompanyRequest): Promise<Company> {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      company_name: companyData.companyName,
+      company_code: companyData.companyCode,
+      industry: companyData.industry,
+      company_type: companyData.companyType,
+      business_license: companyData.businessLicense,
+      tax_number: companyData.taxNumber,
+      legal_representative: companyData.legalRepresentative,
+      address: companyData.address,
+      city: companyData.city,
+      province: companyData.province,
+      postal_code: companyData.postalCode,
+      website: companyData.website,
+      main_phone: companyData.mainPhone,
+      main_email: companyData.mainEmail,
+      status: companyData.status,
+      priority: companyData.priority,
+      annual_contract_value: companyData.annualContractValue,
+      start_date: companyData.startDate,
+      employee_count: companyData.employeeCount,
+      company_size: companyData.companySize,
+    };
+
+    // Remove undefined values
+    const cleanedData = Object.fromEntries(
+      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+    );
+
     const response = await fetch(API_BASE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(companyData),
+      body: JSON.stringify(cleanedData),
     });
 
     if (!response.ok) {
@@ -79,12 +112,41 @@ class CompanyService {
 
   // Update company
   async updateCompany(id: number, companyData: Partial<CompanyRequest>): Promise<Company> {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      company_name: companyData.companyName,
+      company_code: companyData.companyCode,
+      industry: companyData.industry,
+      company_type: companyData.companyType,
+      business_license: companyData.businessLicense,
+      tax_number: companyData.taxNumber,
+      legal_representative: companyData.legalRepresentative,
+      address: companyData.address,
+      city: companyData.city,
+      province: companyData.province,
+      postal_code: companyData.postalCode,
+      website: companyData.website,
+      main_phone: companyData.mainPhone,
+      main_email: companyData.mainEmail,
+      status: companyData.status,
+      priority: companyData.priority,
+      annual_contract_value: companyData.annualContractValue,
+      start_date: companyData.startDate,
+      employee_count: companyData.employeeCount,
+      company_size: companyData.companySize,
+    };
+
+    // Remove undefined values
+    const cleanedData = Object.fromEntries(
+      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+    );
+
     const response = await fetch(`${API_BASE_URL}/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(companyData),
+      body: JSON.stringify(cleanedData),
     });
 
     if (!response.ok) {
@@ -149,12 +211,35 @@ class CompanyService {
 
   // Create company user
   async createCompanyUser(companyId: number, userData: CompanyUserRequest): Promise<CompanyUser> {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      customer_id: userData.customerId,
+      name: userData.name,
+      position: userData.position,
+      department: userData.department,
+      email: userData.email,
+      phone: userData.phone,
+      mobile: userData.mobile,
+      work_phone: userData.workPhone,
+      role: userData.role,
+      is_primary_contact: userData.isPrimaryContact,
+      can_make_decisions: userData.canMakeDecisions,
+      access_level: userData.accessLevel,
+      status: userData.status,
+      notes: userData.notes,
+    };
+
+    // Remove undefined values
+    const cleanedData = Object.fromEntries(
+      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+    );
+
     const response = await fetch(`${API_BASE_URL}/${companyId}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(userData),
+      body: JSON.stringify(cleanedData),
     });
 
     if (!response.ok) {
@@ -304,6 +389,65 @@ class CompanyService {
       { value: 'no_response', label: '无回应' },
       { value: 'follow_up_needed', label: '需要跟进' }
     ];
+  }
+
+  // 搜索客户（用于选择器）
+  async searchCompanies(keyword: string): Promise<Company[]> {
+    const params = new URLSearchParams();
+    params.append('search', keyword);
+    params.append('page_size', '50'); // 限制返回数量
+    
+    const response = await fetch(`${API_BASE_URL}?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const apiResponse: ApiResponse<PaginatedResponse<Company[]>> = await response.json();
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.message || 'Failed to search companies');
+    }
+
+    return apiResponse.data.data;
+  }
+
+  // 批量获取客户信息
+  async getCompaniesByIds(ids: number[]): Promise<Company[]> {
+    if (ids.length === 0) return [];
+    
+    const params = new URLSearchParams();
+    params.append('ids', ids.join(','));
+    
+    const response = await fetch(`${API_BASE_URL}/batch?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const apiResponse: ApiResponse<Company[]> = await response.json();
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.message || 'Failed to fetch companies');
+    }
+
+    return apiResponse.data;
+  }
+
+  // 获取多个客户的用户列表
+  async getUsersByCompanies(companyIds: number[]): Promise<{ companyId: number; users: CompanyUser[] }[]> {
+    if (companyIds.length === 0) return [];
+    
+    const params = new URLSearchParams();
+    params.append('company_ids', companyIds.join(','));
+    
+    const response = await fetch(`${API_BASE_URL}/users/batch?${params.toString()}`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const apiResponse: ApiResponse<{ companyId: number; users: CompanyUser[] }[]> = await response.json();
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.message || 'Failed to fetch company users');
+    }
+
+    return apiResponse.data;
   }
 }
 

@@ -13,7 +13,6 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
 const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboardPage'));
 const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
-const ProjectDashboardPage = React.lazy(() => import('./pages/ProjectDashboardPage'));
 const TasksPage = React.lazy(() => import('./pages/TasksPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
@@ -24,11 +23,14 @@ const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
 const CompanyListPage = React.lazy(() => import('./pages/CompanyListPage'));
+const CompanyDetailPage = React.lazy(() => import('./pages/CompanyDetailPage'));
 const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
 const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
+const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
+const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageNew'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -89,18 +91,35 @@ function App() {
               </PrivateRoute>
             } />
             
-            <Route path="/project-dashboard" element={
-              <PrivateRoute>
-                <Layout>
-                  <ProjectDashboardPage />
-                </Layout>
-              </PrivateRoute>
-            } />
             
             <Route path="/projects" element={
               <PrivateRoute>
                 <Layout>
                   <ProjectsPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/projects/:projectId" element={
+              <PrivateRoute>
+                <Layout>
+                  <ProjectDetailPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/projects/:projectId/edit" element={
+              <PrivateRoute>
+                <Layout>
+                  <ProjectEditPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/projects/create" element={
+              <PrivateRoute>
+                <Layout>
+                  <ProjectEditPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -216,6 +235,14 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <CompanyListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/companies/:id" element={
+              <PrivateRoute>
+                <Layout>
+                  <CompanyDetailPage />
                 </Layout>
               </PrivateRoute>
             } />
