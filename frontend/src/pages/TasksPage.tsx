@@ -814,7 +814,7 @@ const TasksPage: React.FC = () => {
   };
 
 
-  // Build expanded data source including subtasks - 修复depth计算问题
+  // Build expanded data source - 只显示根任务，子任务在列内展开
   const buildExpandedDataSource = useCallback(() => {
     try {
       // Ensure tasks is always an array and not null/undefined
@@ -836,83 +836,26 @@ const TasksPage: React.FC = () => {
         return [];
       }
 
-      const result: (Task & { isSubTask?: boolean; depth?: number })[] = [];
+      // 只返回根任务，子任务通过列内展开显示
+      const rootTasks = validTasks.filter(task => 
+        task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
+      );
       
-      // Recursive function to add tasks and their expanded children
-      const addTaskWithChildren = (task: Task, depth: number) => {
-        try {
-          if (!task || typeof task !== 'object' || typeof task.id !== 'number') {
-            console.warn('Invalid task object:', task);
-            return;
-          }
-          
-          // 确保depth是有效数字
-          const safeDepth = Math.max(0, depth || 0);
-          
-          result.push({ ...task, isSubTask: safeDepth > 0, depth: safeDepth });
-          
-          // Add expanded subtasks recursively
-          if (expandedTasks.has(task.id)) {
-            const children = subTasks.get(task.id) || [];
-            if (Array.isArray(children)) {
-              children.forEach(child => {
-                if (child && typeof child === 'object' && typeof child.id === 'number') {
-                  // 关键修复：确保子任务的depth正确递增
-                  addTaskWithChildren(child, safeDepth + 1);
-                }
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error adding task with children:', error, task);
-        }
-      };
+      console.log(`Found ${rootTasks.length} root tasks out of ${validTasks.length} total tasks`);
       
-      // 修复：在全局模式下，需要同时处理根任务和已展开的子任务
-      if (!effectiveProjectId) {
-        // 全局模式：构建完整的任务层级
-        const taskMap = new Map<number, Task>();
-        const rootTasks: Task[] = [];
-        
-        // 建立任务映射
-        validTasks.forEach(task => {
-          taskMap.set(task.id, task);
-        });
-        
-        // 找出根任务
-        validTasks.forEach(task => {
-          if (!task.parent_id) {
-            rootTasks.push(task);
-          }
-        });
-        
-        // 递归处理根任务
-        rootTasks.forEach(rootTask => {
-          addTaskWithChildren(rootTask, 0);
-        });
-        
-        console.log(`Global mode: processed ${rootTasks.length} root tasks, result: ${result.length} items`);
-      } else {
-        // 项目模式：只处理根任务（子任务通过API动态加载）
-        const rootTasks = validTasks.filter(task => 
-          task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
-        );
-        rootTasks.forEach(task => {
-          if (task && typeof task === 'object' && typeof task.id === 'number') {
-            addTaskWithChildren(task, 0);
-          }
-        });
-      }
+      // 为根任务添加 depth: 0
+      const result = rootTasks.map(task => ({
+        ...task,
+        isSubTask: false,
+        depth: 0
+      }));
       
-      // 确保返回值是数组
-      const finalResult = Array.isArray(result) ? result : [];
-      console.log(`buildExpandedDataSource final result: ${finalResult.length} items`);
-      return finalResult;
+      return Array.isArray(result) ? result : [];
     } catch (error) {
       console.error('Error in buildExpandedDataSource:', error);
       return [];
     }
-  }, [tasks, expandedTasks, subTasks, effectiveProjectId]);
+  }, [tasks]); // 只依赖 tasks，不需要 expandedTasks 和 subTasks
 
   // 使用 useMemo 创建稳定的数据源
   const stableDataSource = useMemo(() => {
@@ -986,125 +929,241 @@ const TasksPage: React.FC = () => {
         const isExpanded = expandedTasks.has(record.id);
         
         return (
-          <div style={{ 
-            paddingLeft: depth * 20, // 直接使用paddingLeft，就像HierarchicalTaskList一样
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            width: '100%'
-          }}>
-            {/* 展开/收起按钮 */}
-            {hasChildren ? (
-              <button
-                className={`task-expand-button ${isExpanded ? 'expanded' : ''} ${loadingChildren.has(record.id) ? 'loading' : ''}`}
-                onClick={() => handleToggleExpand(record)}
-                aria-expanded={isExpanded}
-                title={loadingChildren.has(record.id) ? '加载中...' : (isExpanded ? '折叠子任务' : '展开子任务')}
-                disabled={loadingChildren.has(record.id)}
-                style={{ 
-                  padding: 0, 
-                  minWidth: 20, 
-                  height: 20,
-                  color: '#1890ff',
-                  fontSize: '14px',
-                  flexShrink: 0,
-                  marginRight: 4,
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer'
-                }}
-              >
-                {loadingChildren.has(record.id) ? (
-                  <span className="loading-spinner">⟳</span>
-                ) : (
-                  <CaretRightOutlined />
-                )}
-              </button>
-            ) : (
-              <div style={{ width: 20, height: 20, flexShrink: 0, marginRight: 4 }} />
-            )}
-            
-            {/* 层级标识 */}
-            {depth > 0 && (
-              <BranchesOutlined 
-                style={{ 
-                  color: '#8c8c8c', 
-                  fontSize: 12,
-                  marginRight: 4,
-                  flexShrink: 0
-                }} 
-              />
-            )}
-            
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ 
-                fontWeight: depth === 0 ? 600 : 500,
-                fontSize: depth === 0 ? '15px' : '14px',
-                color: depth === 0 ? '#262626' : '#595959',
-                lineHeight: '1.4',
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 8
-              }}>
+          <div>
+            {/* 主任务 */}
+            <div style={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%'
+            }}>
+              {/* 展开/收起按钮 */}
+              {hasChildren ? (
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewTask(record);
-                  }}
+                  className={`task-expand-button ${isExpanded ? 'expanded' : ''} ${loadingChildren.has(record.id) ? 'loading' : ''}`}
+                  onClick={() => handleToggleExpand(record)}
+                  aria-expanded={isExpanded}
+                  title={loadingChildren.has(record.id) ? '加载中...' : (isExpanded ? '折叠子任务' : '展开子任务')}
+                  disabled={loadingChildren.has(record.id)}
                   style={{ 
-                    color: 'inherit',
-                    cursor: 'pointer',
-                    textDecoration: 'none',
+                    padding: 0, 
+                    minWidth: 20, 
+                    height: 20,
+                    color: '#1890ff',
+                    fontSize: '14px',
+                    flexShrink: 0,
+                    marginRight: 4,
                     border: 'none',
-                    background: 'none',
-                    padding: 0,
-                    font: 'inherit',
-                    textAlign: 'left',
-                    wordBreak: 'break-word'
-                  }}
-                  title="点击查看任务详情"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.textDecoration = 'underline';
-                    e.currentTarget.style.color = '#1890ff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.textDecoration = 'none';
-                    e.currentTarget.style.color = 'inherit';
+                    background: 'transparent',
+                    cursor: 'pointer'
                   }}
                 >
-                  {text}
+                  {loadingChildren.has(record.id) ? (
+                    <span className="loading-spinner">⟳</span>
+                  ) : (
+                    <CaretRightOutlined />
+                  )}
                 </button>
-                {hasChildren && (
-                  <Tag 
-                    color="blue" 
+              ) : (
+                <div style={{ width: 20, height: 20, flexShrink: 0, marginRight: 4 }} />
+              )}
+              
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ 
+                  fontWeight: depth === 0 ? 600 : 500,
+                  fontSize: depth === 0 ? '15px' : '14px',
+                  color: depth === 0 ? '#262626' : '#595959',
+                  lineHeight: '1.4',
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 8
+                }}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewTask(record);
+                    }}
                     style={{ 
-                      fontSize: 11,
-                      padding: '0 6px',
-                      lineHeight: '18px',
-                      height: '18px',
-                      flexShrink: 0
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      textDecoration: 'none',
+                      border: 'none',
+                      background: 'none',
+                      padding: 0,
+                      font: 'inherit',
+                      textAlign: 'left',
+                      wordBreak: 'break-word'
+                    }}
+                    title="点击查看任务详情"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.textDecoration = 'underline';
+                      e.currentTarget.style.color = '#1890ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.textDecoration = 'none';
+                      e.currentTarget.style.color = 'inherit';
                     }}
                   >
-                    {record.custom_fields?.children_count} 子任务
-                  </Tag>
+                    {text}
+                  </button>
+                  {hasChildren && (
+                    <Tag 
+                      color="blue" 
+                      style={{ 
+                        fontSize: 11,
+                        padding: '0 6px',
+                        lineHeight: '18px',
+                        height: '18px',
+                        flexShrink: 0
+                      }}
+                    >
+                      {record.custom_fields?.children_count} 子任务
+                    </Tag>
+                  )}
+                </div>
+                {record.description && (
+                  <div style={{ 
+                    color: '#8c8c8c', 
+                    fontSize: 12,
+                    marginTop: 2,
+                    lineHeight: '1.3',
+                    wordBreak: 'break-word'
+                  }}>
+                    {record.description.length > 50 
+                      ? `${record.description.substring(0, 50)}...` 
+                      : record.description
+                    }
+                  </div>
                 )}
               </div>
-              {record.description && (
-                <div style={{ 
-                  color: '#8c8c8c', 
-                  fontSize: 12,
-                  marginTop: 2,
-                  lineHeight: '1.3',
-                  wordBreak: 'break-word'
-                }}>
-                  {record.description.length > 50 
-                    ? `${record.description.substring(0, 50)}...` 
-                    : record.description
-                  }
-                </div>
-              )}
             </div>
+            
+            {/* 子任务展开区域 - 只在任务名称列内显示 */}
+            {isExpanded && (
+              <div style={{ 
+                marginTop: 8,
+                borderLeft: '2px solid #e6f7ff',
+                paddingLeft: 16,
+                backgroundColor: '#fafafa',
+                borderRadius: '4px',
+                padding: '8px 0 8px 16px'
+              }}>
+                {loadingChildren.has(record.id) ? (
+                  <div style={{ 
+                    color: '#8c8c8c', 
+                    fontSize: '13px',
+                    padding: '8px 0'
+                  }}>
+                    加载子任务中...
+                  </div>
+                ) : (
+                  <>
+                    {(subTasks.get(record.id) || []).map((subTask, index) => (
+                      <div 
+                        key={subTask.id}
+                        style={{
+                          padding: '6px 0',
+                          borderBottom: index < (subTasks.get(record.id) || []).length - 1 ? '1px solid #f0f0f0' : 'none'
+                        }}
+                      >
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          fontSize: '14px'
+                        }}>
+                          <span style={{ 
+                            color: '#8c8c8c',
+                            fontSize: '12px',
+                            flexShrink: 0
+                          }}>
+                            └─
+                          </span>
+                          <button
+                            onClick={() => handleViewTask(subTask)}
+                            style={{
+                              color: '#595959',
+                              cursor: 'pointer',
+                              textDecoration: 'none',
+                              border: 'none',
+                              background: 'none',
+                              padding: 0,
+                              font: 'inherit',
+                              textAlign: 'left',
+                              flex: 1
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = '#1890ff';
+                              e.currentTarget.style.textDecoration = 'underline';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = '#595959';
+                              e.currentTarget.style.textDecoration = 'none';
+                            }}
+                          >
+                            {subTask.title}
+                          </button>
+                          <div style={{
+                            display: 'flex',
+                            gap: 4,
+                            alignItems: 'center'
+                          }}>
+                            <Tag 
+                              color={subTask.status === 'completed' ? 'success' : subTask.status === 'in_progress' ? 'processing' : 'default'}
+                              style={{ fontSize: '10px', margin: 0 }}
+                            >
+                              {subTask.status === 'completed' ? '完成' : subTask.status === 'in_progress' ? '进行中' : '待办'}
+                            </Tag>
+                            <button
+                              onClick={() => handleEditTask(subTask)}
+                              style={{
+                                color: '#1890ff',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                padding: '2px 4px'
+                              }}
+                              title="编辑子任务"
+                            >
+                              编辑
+                            </button>
+                          </div>
+                        </div>
+                        {subTask.description && (
+                          <div style={{
+                            color: '#8c8c8c',
+                            fontSize: '12px',
+                            marginTop: 4,
+                            marginLeft: 20
+                          }}>
+                            {subTask.description}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div style={{ 
+                      marginTop: 8,
+                      textAlign: 'center'
+                    }}>
+                      <Button
+                        type="dashed"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={() => handleCreateSubTask(record)}
+                        style={{
+                          fontSize: '12px',
+                          height: '24px'
+                        }}
+                      >
+                        添加子任务
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         );
       },
