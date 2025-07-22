@@ -163,7 +163,8 @@ const OptimizedDashboardPage: React.FC = () => {
       refreshProductivity(),
       refreshTodayTasks(),
       refreshThisWeekTasks(),
-      refreshOverdueTasks()
+      refreshOverdueTasks(),
+      refreshProjects()
     ]);
   };
 
@@ -230,21 +231,29 @@ const OptimizedDashboardPage: React.FC = () => {
     { title: '测试部署', dueDate: '1周后', priority: 'medium' }
   ], []);
 
-  // 项目导航数据
-  const projectNavigation = useMemo(() => [
-    {
-      id: '1',
-      name: '项目A',
-      tasks: ['任务1', '任务2'],
-      starred: true
-    },
-    {
-      id: '2', 
-      name: '项目B',
-      tasks: ['任务3'],
-      starred: false
-    }
-  ], []);
+  // 获取真实项目数据用于导航
+  const {
+    data: projectsData,
+    loading: projectsLoading,
+    refresh: refreshProjects
+  } = useCache<any[]>(
+    'dashboard-projects',
+    () => DashboardService.getAllProjects(),
+    { ttl: 5 * 60 * 1000 } // 5分钟缓存
+  );
+
+  // 处理项目导航数据
+  const projectNavigation = useMemo(() => {
+    if (!projectsData) return [];
+    
+    return projectsData.map(project => ({
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      starred: false, // 暂时设为false，后续可以添加收藏功能
+      taskCount: 0 // 将在渲染时动态获取
+    }));
+  }, [projectsData]);
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -374,27 +383,39 @@ const OptimizedDashboardPage: React.FC = () => {
             <Space>
               <FolderOutlined style={{ color: '#52c41a' }} />
               项目导航
+              {projectsLoading && <Spin size="small" />}
             </Space>
           }>
             <div className="project-navigation">
-              {projectNavigation.map(project => (
-                <div key={project.id} className="project-nav-item">
-                  <div className="project-name">
-                    <Space>
-                      <RightOutlined style={{ fontSize: 10 }} />
-                      <span>{project.name}</span>
-                      {project.starred && <StarOutlined style={{ color: '#faad14', fontSize: 12 }} />}
-                    </Space>
+              {projectNavigation.length > 0 ? (
+                projectNavigation.map(project => (
+                  <div 
+                    key={project.id} 
+                    className="project-nav-item"
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="project-name">
+                      <Space>
+                        <RightOutlined style={{ fontSize: 10 }} />
+                        <span title={project.description}>{project.name}</span>
+                        {project.starred && <StarOutlined style={{ color: '#faad14', fontSize: 12 }} />}
+                      </Space>
+                    </div>
+                    <div className="project-tasks">
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        点击查看项目详情
+                      </Text>
+                    </div>
                   </div>
-                  <div className="project-tasks">
-                    {project.tasks.map((task, index) => (
-                      <div key={index} className="task-nav-item">
-                        • {task}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <Empty 
+                  description="暂无项目数据" 
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  style={{ padding: '20px 0' }}
+                />
+              )}
             </div>
           </Card>
         </Col>

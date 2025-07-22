@@ -68,11 +68,11 @@ export function useAsyncData<T>(
         setLoading(false);
       }
     }
-  }, [asyncFunction, loading, onError]);
+  }, [asyncFunction, onError]); // Remove 'loading' from dependencies to prevent infinite loop
 
   useEffect(() => {
     fetchData();
-  }, dependencies);
+  }, [fetchData, ...dependencies]);
 
   const handleSetData = useCallback((newData: T) => {
     setData(newData);

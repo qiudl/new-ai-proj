@@ -204,11 +204,11 @@ const AllFieldsTaskListPage: React.FC = () => {
   
   // WebSocket实时更新状态
   const [wsConnected, setWsConnected] = useState(false);
-  const [realtimeUpdates, setRealtimeUpdates] = useState(true);
+  const [realtimeUpdates, setRealtimeUpdates] = useState(false); // 默认关闭，避免WebSocket错误
   const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error' | 'disabled'>('disconnected');
   const [wsSettingsVisible, setWsSettingsVisible] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     showCreateNotifications: true,
@@ -283,7 +283,19 @@ const AllFieldsTaskListPage: React.FC = () => {
     }
   };
   
-  // Note: Drag sensors temporarily disabled
+  // 拖拽约束：只有中间的动态列和自定义字段列可以拖拽
+  const isDraggableColumn = useCallback((columnKey: string) => {
+    // 左侧固定列：不可拖拽
+    const leftFixedKeys = ['selection', 'id', 'title', 'status'];
+    
+    // 右侧固定列：不可拖拽
+    const rightFixedKeys = ['actions'];
+    
+    // 只有不在固定列中的列才可以拖拽
+    return !leftFixedKeys.includes(columnKey) && !rightFixedKeys.includes(columnKey);
+  }, []);
+
+  // Note: Drag sensors temporarily disabled - 等待@dnd-kit依赖安装后启用
 
   // 删除任务
   const handleDeleteTask = useCallback(async (task: Task) => {
@@ -443,7 +455,13 @@ const AllFieldsTaskListPage: React.FC = () => {
       customField: true,
     }));
 
-    const defaultConfigs = [...fixedColumns, ...dynamicColumns, ...customFieldColumns];
+    // 分离左侧固定列和右侧操作列
+    const leftFixedColumns = fixedColumns.filter(col => col.key !== 'actions');
+    const rightFixedColumns = fixedColumns.filter(col => col.key === 'actions');
+    
+    // 正确的列顺序：左侧固定 + 中间可移动(动态+自定义) + 右侧固定操作
+    // 这确保了操作列始终在最右侧，自定义字段在中间可以拖拽排序
+    const defaultConfigs = [...leftFixedColumns, ...dynamicColumns, ...customFieldColumns, ...rightFixedColumns];
     setColumnConfigs(defaultConfigs);
     
     // 保存默认配置到本地存储
@@ -877,12 +895,29 @@ const AllFieldsTaskListPage: React.FC = () => {
     if (!realtimeUpdates) return;
     
     try {
+      // 检查WebSocket功能是否可用
+      if (!window.WebSocket) {
+        console.warn('浏览器不支持WebSocket');
+        setConnectionStatus('error');
+        return;
+      }
+
+      // 检查是否在开发环境中禁用WebSocket（避免错误日志）
+      const isWebSocketEnabled = localStorage.getItem('enableWebSocket') !== 'false';
+      if (!isWebSocketEnabled) {
+        console.log('WebSocket功能已禁用');
+        setConnectionStatus('disabled');
+        return;
+      }
+
       setConnectionStatus('connecting');
       
       // 这里使用模拟的WebSocket地址，实际部署时需要替换为真实的WebSocket服务器地址
       const wsUrl = process.env.NODE_ENV === 'production' 
         ? 'wss://your-domain.com/ws/tasks' 
         : 'ws://localhost:8080/ws/tasks';
+      
+      console.log('尝试连接WebSocket:', wsUrl);
       
       const ws = new WebSocket(wsUrl);
       
@@ -916,22 +951,34 @@ const AllFieldsTaskListPage: React.FC = () => {
         }
       };
       
-      ws.onclose = () => {
-        console.log('WebSocket连接已关闭');
+      ws.onclose = (event) => {
+        console.log('WebSocket连接已关闭, 代码:', event.code, '原因:', event.reason);
         setWsConnected(false);
         setConnectionStatus('disconnected');
+        
+        // 如果是正常关闭或者服务器拒绝连接，不要重连
+        if (event.code === 1000 || event.code === 1006) {
+          console.log('WebSocket连接被正常关闭或服务器不可用，停止重连');
+          return;
+        }
         
         // 自动重连（如果启用了实时更新）
         if (realtimeUpdates) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connectWebSocket();
-          }, 5000); // 5秒后重连
+          }, 10000); // 增加到10秒后重连，减少频率
         }
       };
       
       ws.onerror = (error) => {
-        console.error('WebSocket错误:', error);
+        console.warn('WebSocket连接错误 - 这是正常的，如果后端WebSocket服务未启动');
         setConnectionStatus('error');
+        
+        // 如果连接立即失败，禁用WebSocket功能
+        if (ws.readyState === WebSocket.CONNECTING) {
+          localStorage.setItem('enableWebSocket', 'false');
+          console.log('WebSocket服务不可用，已自动禁用');
+        }
       };
       
       wsRef.current = ws;
@@ -1098,6 +1145,24 @@ const AllFieldsTaskListPage: React.FC = () => {
   // 列设置菜单
   const getColumnSettingsMenu = (): MenuProps => ({
     items: [
+      {
+        key: 'info',
+        label: (
+          <div style={{ 
+            padding: '8px 0', 
+            borderBottom: '1px solid #f0f0f0', 
+            marginBottom: '8px',
+            fontSize: '12px',
+            color: '#666'
+          }}>
+            <div>💡 列布局说明：</div>
+            <div>• 左侧：ID、标题、状态（固定不可移动）</div>
+            <div>• 中间：项目、自定义字段（可拖拽排序）</div>
+            <div>• 右侧：操作按钮（固定不可移动）</div>
+          </div>
+        ),
+        disabled: true,
+      },
       ...columnConfigs
         .filter(col => col.key !== 'actions')
         .map(column => ({
@@ -1116,6 +1181,9 @@ const AllFieldsTaskListPage: React.FC = () => {
                 )}
                 {column.fixed && (
                   <Tag color="orange" style={{ fontSize: '11px', padding: '2px 6px' }}>固定</Tag>
+                )}
+                {isDraggableColumn(column.key) && (
+                  <Tag color="green" style={{ fontSize: '11px', padding: '2px 6px' }}>可移动</Tag>
                 )}
               </Space>
             </div>
@@ -1388,13 +1456,24 @@ const AllFieldsTaskListPage: React.FC = () => {
       </div>
 
       {/* WebSocket连接状态提示 */}
-      {realtimeUpdates && connectionStatus === 'error' && (
+      {realtimeUpdates && (connectionStatus === 'error' || connectionStatus === 'disabled') && (
         <div style={{ marginBottom: '16px' }}>
-          <Card size="small" style={{ backgroundColor: '#fff2f0', borderColor: '#ffccc7' }}>
+          <Card size="small" style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}>
             <Space>
-              <DisconnectOutlined style={{ color: '#ff4d4f' }} />
-              <Text type="danger">实时连接失败，正在尝试重新连接...</Text>
-              <Button size="small" onClick={connectWebSocket}>手动重连</Button>
+              <DisconnectOutlined style={{ color: '#faad14' }} />
+              <div>
+                <Text>实时更新功能不可用</Text>
+                <br />
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  {connectionStatus === 'disabled' 
+                    ? 'WebSocket已自动禁用。后端服务未启动WebSocket支持。'
+                    : '无法连接到WebSocket服务。这不影响正常功能使用。'
+                  }
+                </Text>
+              </div>
+              <Button size="small" onClick={() => setRealtimeUpdates(false)}>
+                关闭实时更新
+              </Button>
             </Space>
           </Card>
         </div>
@@ -1464,16 +1543,29 @@ const AllFieldsTaskListPage: React.FC = () => {
               {connectionStatus === 'connecting' && <SyncOutlined spin style={{ color: '#faad14' }} />}
               {connectionStatus === 'disconnected' && <DisconnectOutlined style={{ color: '#999' }} />}
               {connectionStatus === 'error' && <DisconnectOutlined style={{ color: '#ff4d4f' }} />}
+              {connectionStatus === 'disabled' && <DisconnectOutlined style={{ color: '#d9d9d9' }} />}
               <Text>
                 {connectionStatus === 'connected' && '已连接'}
                 {connectionStatus === 'connecting' && '连接中...'}
                 {connectionStatus === 'disconnected' && '未连接'}
                 {connectionStatus === 'error' && '连接错误'}
+                {connectionStatus === 'disabled' && '已禁用'}
               </Text>
             </div>
             <Button size="small" onClick={realtimeUpdates ? disconnectWebSocket : connectWebSocket}>
               {realtimeUpdates ? '断开连接' : '重新连接'}
             </Button>
+            {connectionStatus === 'error' && (
+              <Button 
+                size="small" 
+                onClick={() => {
+                  localStorage.removeItem('enableWebSocket');
+                  message.success('WebSocket功能已重置，请刷新页面');
+                }}
+              >
+                重置WebSocket
+              </Button>
+            )}
           </Space>
         </div>
 

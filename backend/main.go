@@ -34,9 +34,10 @@ type Application struct {
 	jwtManager        *utils.JWTManager
 	// authMiddleware    *middleware.AuthMiddleware    // TODO: Fix interface issues
 	// permissionMiddleware *middleware.PermissionMiddleware // TODO: Fix interface issues
-	customerHandler   *handlers.CustomerHandler
-	companyHandler    *handlers.CompanyHandler
-	permissionHandler *handlers.PermissionHandler
+	customerHandler     *handlers.CustomerHandler
+	companyHandler      *handlers.CompanyHandler
+	permissionHandler   *handlers.PermissionHandler
+	userManagementHandler *handlers.UserManagementHandler
 }
 
 // NewApplication creates a new application instance
@@ -75,16 +76,19 @@ func NewApplication() (*Application, error) {
 	customerHandler := handlers.NewCustomerHandler(db, logger, validate)
 	companyHandler := handlers.NewCompanyHandler(db, logger, validate)
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
+	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
+	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
 
 	return &Application{
-		config:            cfg,
-		db:                db,
-		logger:            logger,
-		validator:         validate,
-		jwtManager:        jwtManager,
-		customerHandler:   customerHandler,
-		companyHandler:    companyHandler,
-		permissionHandler: permissionHandler,
+		config:              cfg,
+		db:                  db,
+		logger:              logger,
+		validator:           validate,
+		jwtManager:          jwtManager,
+		customerHandler:     customerHandler,
+		companyHandler:      companyHandler,
+		permissionHandler:   permissionHandler,
+		userManagementHandler: userManagementHandler,
 	}, nil
 }
 
@@ -294,6 +298,25 @@ func (app *Application) setupRouter() *gin.Engine {
 				permissions.GET("/users/:id/overrides", app.permissionHandler.GetPermissionOverrides)
 				permissions.DELETE("/users/:id/overrides/:permissionCode", app.permissionHandler.RemovePermissionOverride)
 				permissions.GET("/users/:id/conflicts", app.permissionHandler.AnalyzePermissionConflicts)
+			}
+
+			// Admin user management routes (admin only)
+			admin := authorized.Group("/admin")
+			{
+				// User management (admin only)
+				adminUsers := admin.Group("/users")
+				{
+					adminUsers.GET("", app.userManagementHandler.GetUserList)
+					adminUsers.POST("", app.userManagementHandler.CreateUser)
+					adminUsers.GET("/stats", app.userManagementHandler.GetUserStats)
+					adminUsers.GET("/export", app.userManagementHandler.ExportUsers)
+					adminUsers.POST("/batch", app.userManagementHandler.BatchUpdateUsers)
+					adminUsers.GET("/:id", app.userManagementHandler.GetUser)
+					adminUsers.PUT("/:id", app.userManagementHandler.UpdateUser)
+					adminUsers.DELETE("/:id", app.userManagementHandler.DeleteUser)
+					adminUsers.POST("/:id/reset-password", app.userManagementHandler.ResetUserPassword)
+					adminUsers.PUT("/:id/status", app.userManagementHandler.UpdateUserStatus)
+				}
 			}
 		}
 	}

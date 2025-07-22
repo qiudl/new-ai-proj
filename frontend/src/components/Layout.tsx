@@ -21,6 +21,8 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   SafetyOutlined,
+  RobotOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -78,7 +80,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/project-dashboard') return ['/project-dashboard'];
     if (path === '/projects') return ['/projects'];
-    if (path.includes('/customers')) return ['/customers'];
     if (path.includes('/companies')) return ['/companies'];
     return [path];
   };
@@ -95,11 +96,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/project-dashboard') || path.includes('/projects')) {
       return ['/project-management'];
     }
-    if (path.includes('/customers') || path.includes('/companies')) {
-      return ['/customer-management'];
-    }
-    if (path.includes('/permissions')) {
-      return [];
+    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config')) {
+      return ['/system-management'];
     }
     return [];
   };
@@ -110,6 +108,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '个人资料',
       icon: <UserOutlined />,
       onClick: () => navigate('/user-profile'),
+    },
+    {
+      type: 'divider' as const,
     },
     {
       key: 'logout',
@@ -170,26 +171,31 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       ],
     },
     {
-      key: '/customer-management',
+      key: '/companies',
       icon: <CustomerServiceOutlined />,
-      label: '客户管理',
-      children: [
-        {
-          key: '/companies',
-          icon: <TeamOutlined />,
-          label: '企业客户',
-        },
-        {
-          key: '/customers',
-          icon: <UserOutlined />,
-          label: '个人客户 (旧)',
-        },
-      ],
+      label: '企业客户',
     },
     {
-      key: '/permissions',
+      key: '/system-management',
       icon: <SafetyOutlined />,
-      label: '权限管理',
+      label: '系统管理',
+      children: [
+        {
+          key: '/user-management',
+          icon: <TeamOutlined />,
+          label: '用户管理',
+        },
+        {
+          key: '/permissions',
+          icon: <SafetyOutlined />,
+          label: '权限管理',
+        },
+        {
+          key: '/ai-config',
+          icon: <RobotOutlined />,
+          label: 'AI配置',
+        },
+      ],
     },
     {
       key: '/recycle-bin',

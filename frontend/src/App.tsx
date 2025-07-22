@@ -23,13 +23,12 @@ const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
-const CustomerListPage = React.lazy(() => import('./pages/CustomerListPage'));
-const CustomerCreatePage = React.lazy(() => import('./pages/CustomerCreatePage'));
-const CustomerEditPage = React.lazy(() => import('./pages/CustomerEditPage'));
-const CustomerDetailPage = React.lazy(() => import('./pages/CustomerDetailPage'));
 const CompanyListPage = React.lazy(() => import('./pages/CompanyListPage'));
 const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
+const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
+const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
+const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -212,40 +211,7 @@ function App() {
               </PrivateRoute>
             } />
             
-            {/* Legacy customer management routes */}
-            <Route path="/customers" element={
-              <PrivateRoute>
-                <Layout>
-                  <CustomerListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/customers/create" element={
-              <PrivateRoute>
-                <Layout>
-                  <CustomerCreatePage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/customers/:customerId/edit" element={
-              <PrivateRoute>
-                <Layout>
-                  <CustomerEditPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/customers/:customerId" element={
-              <PrivateRoute>
-                <Layout>
-                  <CustomerDetailPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-
-            {/* New enterprise customer management routes */}
+            {/* Enterprise customer management routes */}
             <Route path="/companies" element={
               <PrivateRoute>
                 <Layout>
@@ -261,12 +227,38 @@ function App() {
                 </Layout>
               </PrivateRoute>
             } />
+            
+            <Route path="/companies/:id/edit" element={
+              <PrivateRoute>
+                <Layout>
+                  <CompanyEditPage />
+                </Layout>
+              </PrivateRoute>
+            } />
 
             {/* Permission management routes */}
             <Route path="/permissions" element={
               <PrivateRoute>
                 <Layout>
                   <PermissionManagementPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* User management routes */}
+            <Route path="/user-management" element={
+              <PrivateRoute>
+                <Layout>
+                  <UserManagementPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* AI configuration routes */}
+            <Route path="/ai-config" element={
+              <PrivateRoute>
+                <Layout>
+                  <AIConfigPage />
                 </Layout>
               </PrivateRoute>
             } />
