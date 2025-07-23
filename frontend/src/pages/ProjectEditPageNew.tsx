@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Card,
   Form,
@@ -70,6 +70,7 @@ interface ProjectCompanyUser {
 const ProjectEditPageNew: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -103,9 +104,18 @@ const ProjectEditPageNew: React.FC = () => {
         priority: 'medium',
         progress: 0
       });
+      
+      // 检查URL参数中的companyId，如果有则预选择该企业
+      const companyIdParam = searchParams.get('companyId');
+      if (companyIdParam) {
+        const companyId = parseInt(companyIdParam);
+        if (!isNaN(companyId)) {
+          setSelectedCompanies([companyId]);
+        }
+      }
     }
     loadCompanies();
-  }, [projectId, form]);
+  }, [projectId, form, searchParams]);
 
   useEffect(() => {
     if (selectedCompanies.length > 0) {
@@ -132,6 +142,7 @@ const ProjectEditPageNew: React.FC = () => {
         status: projectData.status || 'planning',
         priority: projectData.priority || 'medium',
         progress: projectData.progress || 0,
+        budget: projectData.budget,
         date_range: projectData.start_date && projectData.end_date ? [
           dayjs(projectData.start_date),
           dayjs(projectData.end_date)
@@ -431,30 +442,31 @@ const ProjectEditPageNew: React.FC = () => {
     try {
       setSubmitting(true);
       
-      if (selectedCompanies.length === 0) {
-        message.error('请至少选择一个关联客户');
-        return;
-      }
-      
-      // 处理表单数据
+      const processedUserIds = selectedUsers.filter(key => key && typeof key === 'string').map(key => {
+        const [userId] = key.split('_');
+        return Number(userId);
+      }).filter(id => !isNaN(id));
+
       const projectData: ProjectRequest = {
-        name: values.name,
-        description: values.description,
-        company_id: selectedCompanies.length > 0 ? selectedCompanies[0] : undefined, // 主客户ID（向后兼容）
-        company_ids: selectedCompanies,
-        user_ids: selectedUsers.filter(key => key && typeof key === 'string').map(key => {
-          const [userId] = key.split('_');
-          return Number(userId);
-        }),
-        status: values.status,
-        priority: values.priority,
-        progress: values.progress,
-        start_date: values.date_range?.[0]?.format('YYYY-MM-DD'),
-        end_date: values.date_range?.[1]?.format('YYYY-MM-DD')
+        name: values.name?.trim() || '',
+        description: values.description?.trim() || '',
+        company_id: selectedCompanies.length > 0 ? selectedCompanies[0] : undefined,
+        company_ids: selectedCompanies.length > 0 ? selectedCompanies : undefined,
+        user_ids: processedUserIds.length > 0 ? processedUserIds : undefined,
+        status: values.status || 'planning',
+        priority: values.priority || 'medium',
+        progress: values.progress || 0,
+        budget: values.budget || undefined,
+        start_date: values.date_range?.[0]?.format('YYYY-MM-DD') || undefined,
+        end_date: values.date_range?.[1]?.format('YYYY-MM-DD') || undefined
       };
 
-      // 注意：用户角色信息目前仅用于前端显示
-      // 如果将来后端支持用户角色，可以在这里添加 user_roles 字段
+      console.log('Project form data:', {
+        selectedCompanies,
+        selectedUsers,
+        formValues: values,
+        projectData
+      });
 
       if (isEditing && projectId) {
         await projectService.updateProject(Number(projectId), projectData);
@@ -614,6 +626,7 @@ const ProjectEditPageNew: React.FC = () => {
         </Card>
       </div>
 
+
       {/* 表单内容 */}
       <Form
         form={form}
@@ -717,8 +730,23 @@ const ProjectEditPageNew: React.FC = () => {
                     />
                   </Form.Item>
                 </Col>
-                
               </Row>
+
+              <Form.Item
+                label="项目预算"
+                name="budget"
+                rules={[
+                  { type: 'number', min: 0, message: '预算应大于0' }
+                ]}
+              >
+                <InputNumber
+                  style={{ width: '100%' }}
+                  placeholder="请输入项目预算（可选）"
+                  min={0}
+                  precision={2}
+                  addonBefore="¥"
+                />
+              </Form.Item>
 
               <Form.Item
                 label="项目周期"

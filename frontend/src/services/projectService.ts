@@ -1,5 +1,6 @@
 import { Project, ProjectRequest, ProjectDetail, ProjectUser, ProjectActivity } from '../types/project';
 import { Task } from '../types/task';
+import api from './api';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
@@ -28,28 +29,33 @@ export interface ApiResponse<T> {
 }
 
 class ProjectService {
-  private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-    
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+  private async request<T>(endpoint: string, options?: { method?: string; data?: any }): Promise<T> {
+    try {
+      let response;
+      const fullEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      
+      switch (options?.method?.toUpperCase()) {
+        case 'POST':
+          response = await api.post(fullEndpoint, options.data);
+          break;
+        case 'PUT':
+          response = await api.put(fullEndpoint, options.data);
+          break;
+        case 'DELETE':
+          response = await api.delete(fullEndpoint);
+          break;
+        case 'GET':
+        default:
+          response = await api.get(fullEndpoint);
+          break;
+      }
+      
+      // axios interceptor已经处理了响应格式化，直接返回data
+      return response.data || response;
+    } catch (error: any) {
+      console.error('API Error:', error);
+      throw error;
     }
-
-    const result: ApiResponse<T> = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.message || 'API request failed');
-    }
-
-    return result.data;
   }
 
   async getProjects(params?: PaginationParams): Promise<PaginatedResponse<Project>> {
@@ -77,54 +83,68 @@ class ProjectService {
   async createProject(project: ProjectRequest): Promise<Project> {
     // Convert camelCase to snake_case for backend
     const backendData = {
-      name: project.name,
-      description: project.description,
+      name: project.name?.trim(),
+      description: project.description?.trim(),
       company_id: project.company_id,
       company_ids: project.company_ids,
       user_ids: project.user_ids,
       status: project.status,
       priority: project.priority,
+      progress: project.progress,
       start_date: project.start_date,
       end_date: project.end_date,
       budget: project.budget,
-      progress: project.progress,
     };
 
-    // Remove undefined values
+    // Remove undefined and empty values
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+      Object.entries(backendData).filter(([_, value]) => {
+        if (value === undefined || value === null) return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        if (typeof value === 'string' && value === '') return false;
+        return true;
+      })
     );
+
+    console.log('Creating project with data:', cleanedData);
 
     return this.request<Project>('/projects', {
       method: 'POST',
-      body: JSON.stringify(cleanedData),
+      data: cleanedData,
     });
   }
 
   async updateProject(id: number, project: ProjectRequest): Promise<Project> {
     // Convert camelCase to snake_case for backend
     const backendData = {
-      name: project.name,
-      description: project.description,
+      name: project.name?.trim(),
+      description: project.description?.trim(),
       company_id: project.company_id,
       company_ids: project.company_ids,
       user_ids: project.user_ids,
       status: project.status,
       priority: project.priority,
+      progress: project.progress,
       start_date: project.start_date,
       end_date: project.end_date,
       budget: project.budget,
-      progress: project.progress,
     };
 
-    // Remove undefined values
+    // Remove undefined and empty values
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+      Object.entries(backendData).filter(([_, value]) => {
+        if (value === undefined || value === null) return false;
+        if (Array.isArray(value) && value.length === 0) return false;
+        if (typeof value === 'string' && value === '') return false;
+        return true;
+      })
     );
+
+    console.log('Updating project with data:', cleanedData);
 
     return this.request<Project>(`/projects/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(cleanedData),
+      data: cleanedData,
     });
   }
 
@@ -135,7 +155,6 @@ class ProjectService {
   }
 
   // 获取项目详情（包含用户和活动）
-  // 注意：这个方法使用组合API调用，因为后端没有 /projects/{id}/detail 端点
   async getProjectDetail(id: number): Promise<ProjectDetail> {
     const [project, users, stats] = await Promise.all([
       this.getProject(id),
@@ -145,7 +164,7 @@ class ProjectService {
 
     return {
       ...project,
-      users: users,
+      users: Array.isArray(users) ? users : [],
       task_count: stats.task_count,
       completed_task_count: stats.completed_task_count,
       user_count: stats.user_count,
@@ -178,7 +197,7 @@ class ProjectService {
   }): Promise<ProjectUser> {
     return this.request<ProjectUser>(`/projects/${id}/users`, {
       method: 'POST',
-      body: JSON.stringify(user),
+      data: user,
     });
   }
 
@@ -189,24 +208,26 @@ class ProjectService {
     });
   }
 
-  // 获取项目活动记录
+  // 获取项目活动记录（暂未实现）
   async getProjectActivities(id: number, params?: PaginationParams): Promise<PaginatedResponse<ProjectActivity>> {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.pageSize) queryParams.append('page_size', params.pageSize.toString());
-    
-    const endpoint = queryParams.toString() ? 
-      `/projects/${id}/activities?${queryParams}` : 
-      `/projects/${id}/activities?page=1&page_size=20`;
-    return this.request<PaginatedResponse<ProjectActivity>>(endpoint);
+    console.warn('getProjectActivities: Backend API not implemented');
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        page_size: 20,
+        total: 0,
+        total_pages: 0,
+        has_next: false,
+        has_prev: false
+      }
+    };
   }
 
-  // 更新项目状态
+  // 更新项目状态（暂未实现）
   async updateProjectStatus(id: number, status: string): Promise<Project> {
-    return this.request<Project>(`/projects/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
+    console.warn('updateProjectStatus: Backend API not implemented');
+    throw new Error('Project status update functionality not implemented in backend');
   }
 
   // 获取项目统计信息

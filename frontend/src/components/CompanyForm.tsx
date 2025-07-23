@@ -247,17 +247,18 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 placeholder="请输入企业名称"
                 onChange={handleCompanyNameChange}
                 suffix={
-                  !disabled && form.getFieldValue('companyName')?.trim() && (
-                    <Tooltip title="点击使用AI智能填充">
-                      <Button 
-                        type="text" 
-                        size="small"
-                        icon={<RobotOutlined />}
-                        onClick={handleAiSearch}
-                        style={{ color: '#1890ff' }}
-                      />
-                    </Tooltip>
-                  )
+                  <Tooltip title="点击使用AI智能填充">
+                    <Button 
+                      type="text" 
+                      size="small"
+                      icon={<RobotOutlined />}
+                      onClick={handleAiSearch}
+                      style={{ 
+                        color: '#1890ff',
+                        visibility: !disabled && form.getFieldValue('companyName')?.trim() ? 'visible' : 'hidden'
+                      }}
+                    />
+                  </Tooltip>
                 }
               />
             </Form.Item>

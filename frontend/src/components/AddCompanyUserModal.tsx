@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Form,
@@ -36,6 +36,7 @@ interface AddCompanyUserModalProps {
   visible: boolean;
   companyId: number;
   companyName: string;
+  editUser?: CompanyUser; // 编辑用户时传入用户数据
   onCancel: () => void;
   onSuccess: (user: CompanyUser) => void;
 }
@@ -44,11 +45,36 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
   visible,
   companyId,
   companyName,
+  editUser,
   onCancel,
   onSuccess,
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  // 编辑模式时初始化表单
+  useEffect(() => {
+    if (visible && editUser) {
+      form.setFieldsValue({
+        name: editUser.name,
+        position: editUser.position,
+        department: editUser.department,
+        email: editUser.email,
+        phone: editUser.phone,
+        mobile: editUser.mobile,
+        workPhone: editUser.workPhone,
+        role: editUser.role,
+        isPrimaryContact: editUser.isPrimaryContact,
+        canMakeDecisions: editUser.canMakeDecisions,
+        accessLevel: editUser.accessLevel,
+        status: editUser.status,
+        notes: editUser.notes,
+      });
+    } else if (visible && !editUser) {
+      // 添加模式时重置表单
+      form.resetFields();
+    }
+  }, [visible, editUser, form]);
 
   // 处理表单提交
   const handleSubmit = async () => {
@@ -74,14 +100,27 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
         notes: values.notes,
       };
 
-      const newUser = await companyService.createCompanyUser(companyId, userData);
+      let updatedUser: CompanyUser;
       
-      message.success('企业用户添加成功');
+      if (editUser) {
+        // 编辑模式
+        updatedUser = await companyService.updateCompanyUser(companyId, editUser.id, userData);
+        message.success('企业用户更新成功');
+      } else {
+        // 添加模式
+        updatedUser = await companyService.createCompanyUser(companyId, userData);
+        message.success('企业用户添加成功');
+      }
+      
       form.resetFields();
-      onSuccess(newUser);
+      onSuccess(updatedUser);
     } catch (error) {
-      console.error('Failed to create company user:', error);
-      message.error('添加企业用户失败');
+      console.error('Failed to save company user:', error);
+      if (editUser) {
+        message.error('更新企业用户失败');
+      } else {
+        message.error('添加企业用户失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -108,7 +147,7 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
       title={
         <Space>
           <UserOutlined />
-          为 "{companyName}" 添加用户
+          {editUser ? `编辑用户 - ${editUser.name}` : `为 "${companyName}" 添加用户`}
         </Space>
       }
       open={visible}
@@ -116,7 +155,7 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
       onOk={handleSubmit}
       confirmLoading={loading}
       width={800}
-      destroyOnClose
+      destroyOnHidden
       okText="添加用户"
       cancelText="取消"
     >

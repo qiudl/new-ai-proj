@@ -11,12 +11,13 @@ import {
   PaginatedResponse, 
   PaginationParams 
 } from '../types/company';
+import api from './api';
 
 // 兼容项目类型定义
 type Company = CompanyType;
 type CompanyUser = CompanyUserType;
 
-const API_BASE_URL = '/api/v1/companies';
+const API_BASE_URL = '/companies';
 
 class CompanyService {
   // Get list of companies with pagination and filtering
@@ -30,17 +31,8 @@ class CompanyService {
     if (filters?.industry) params.append('industry', filters.industry);
     if (filters?.search) params.append('search', filters.search);
 
-    const response = await fetch(`${API_BASE_URL}?${params.toString()}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<PaginatedResponse<Company[]>> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch companies');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}?${params.toString()}`);
+    return response.data;
   }
 
   // Create new company
@@ -74,40 +66,14 @@ class CompanyService {
       Object.entries(backendData).filter(([_, value]) => value !== undefined)
     );
 
-    const response = await fetch(API_BASE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(cleanedData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<Company> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to create company');
-    }
-
-    return apiResponse.data;
+    const response = await api.post(API_BASE_URL, cleanedData);
+    return response.data;
   }
 
   // Get company by ID
   async getCompany(id: number): Promise<Company> {
-    const response = await fetch(`${API_BASE_URL}/${id}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<Company> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch company');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}/${id}`);
+    return response.data;
   }
 
   // Update company
@@ -141,72 +107,25 @@ class CompanyService {
       Object.entries(backendData).filter(([_, value]) => value !== undefined)
     );
 
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(cleanedData),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<Company> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to update company');
-    }
-
-    return apiResponse.data;
+    const response = await api.put(`${API_BASE_URL}/${id}`, cleanedData);
+    return response.data;
   }
 
   // Delete company
   async deleteCompany(id: number): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/${id}`, {
-      method: 'DELETE',
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<null> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to delete company');
-    }
+    await api.delete(`${API_BASE_URL}/${id}`);
   }
 
   // Get company statistics
   async getCompanyStats(): Promise<CompanyStats> {
-    const response = await fetch(`${API_BASE_URL}/stats`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<CompanyStats> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch company statistics');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}/stats`);
+    return response.data;
   }
 
   // Get company users
   async getCompanyUsers(companyId: number): Promise<CompanyUser[]> {
-    const response = await fetch(`${API_BASE_URL}/${companyId}/users`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<CompanyUser[]> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch company users');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}/${companyId}/users`);
+    return response.data;
   }
 
   // Create company user
@@ -250,6 +169,52 @@ class CompanyService {
     const apiResponse: ApiResponse<CompanyUser> = await response.json();
     if (!apiResponse.success) {
       throw new Error(apiResponse.message || 'Failed to create company user');
+    }
+
+    return apiResponse.data;
+  }
+
+  // Update company user
+  async updateCompanyUser(companyId: number, userId: number, userData: CompanyUserRequest): Promise<CompanyUser> {
+    // Convert camelCase to snake_case for backend
+    const backendData = {
+      customer_id: userData.customerId,
+      name: userData.name,
+      position: userData.position,
+      department: userData.department,
+      email: userData.email,
+      phone: userData.phone,
+      mobile: userData.mobile,
+      work_phone: userData.workPhone,
+      role: userData.role,
+      is_primary_contact: userData.isPrimaryContact,
+      can_make_decisions: userData.canMakeDecisions,
+      access_level: userData.accessLevel,
+      status: userData.status,
+      notes: userData.notes,
+    };
+
+    // Remove undefined values
+    const cleanedData = Object.fromEntries(
+      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+    );
+
+    const response = await fetch(`${API_BASE_URL}/${companyId}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cleanedData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const apiResponse: ApiResponse<CompanyUser> = await response.json();
+    if (!apiResponse.success) {
+      throw new Error(apiResponse.message || 'Failed to update company user');
     }
 
     return apiResponse.data;
@@ -397,17 +362,8 @@ class CompanyService {
     params.append('search', keyword);
     params.append('page_size', '50'); // 限制返回数量
     
-    const response = await fetch(`${API_BASE_URL}?${params.toString()}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<PaginatedResponse<Company[]>> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to search companies');
-    }
-
-    return apiResponse.data.data;
+    const response = await api.get(`${API_BASE_URL}?${params.toString()}`);
+    return response.data.data;
   }
 
   // 批量获取客户信息
@@ -417,17 +373,8 @@ class CompanyService {
     const params = new URLSearchParams();
     params.append('ids', ids.join(','));
     
-    const response = await fetch(`${API_BASE_URL}/batch?${params.toString()}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<Company[]> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch companies');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}/batch?${params.toString()}`);
+    return response.data;
   }
 
   // 获取多个客户的用户列表
@@ -437,17 +384,8 @@ class CompanyService {
     const params = new URLSearchParams();
     params.append('company_ids', companyIds.join(','));
     
-    const response = await fetch(`${API_BASE_URL}/users/batch?${params.toString()}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiResponse: ApiResponse<{ companyId: number; users: CompanyUser[] }[]> = await response.json();
-    if (!apiResponse.success) {
-      throw new Error(apiResponse.message || 'Failed to fetch company users');
-    }
-
-    return apiResponse.data;
+    const response = await api.get(`${API_BASE_URL}/users/batch?${params.toString()}`);
+    return response.data;
   }
 }
 

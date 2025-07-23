@@ -662,9 +662,18 @@ const TasksPage: React.FC = () => {
       // 添加加载状态提示
       const hideLoading = message.loading('正在更新截止日期...', 0);
 
-      await TaskService.updateTask(projectId, taskId, { 
-        due_date: newDueDate || undefined
-      });
+      // 检查是否有变化
+      const currentDueDate = task.due_date;
+      if (currentDueDate === newDueDate) {
+        hideLoading();
+        return; // 没有变化，不需要更新
+      }
+
+      const updateData: Partial<TaskRequest> = {
+        due_date: newDueDate || ""
+      };
+      
+      await TaskService.updateTask(projectId, taskId, updateData);
       
       hideLoading();
       message.success('截止日期更新成功');

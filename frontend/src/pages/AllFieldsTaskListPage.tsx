@@ -34,6 +34,8 @@ import {
   CalendarOutlined,
   ProjectOutlined,
   BranchesOutlined,
+  CaretRightOutlined,
+  CaretDownOutlined,
   FilterFilled,
   PlusOutlined,
   MinusCircleOutlined,
@@ -61,6 +63,14 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 // Note: Sortable column header simplified - drag functionality temporarily disabled
+
+// 扩展Task接口以支持层级显示
+interface HierarchicalTask extends Task {
+  children?: HierarchicalTask[];
+  level?: number;
+  hasChildren?: boolean;
+  isExpanded?: boolean;
+}
 
 // 自定义字段配置
 interface CustomFieldConfig {
@@ -177,6 +187,10 @@ const AllFieldsTaskListPage: React.FC = () => {
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  
+  // 层级管理状态
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<number>>(new Set());
+  const [hierarchicalTasks, setHierarchicalTasks] = useState<HierarchicalTask[]>([]);
   
   // 分页和过滤
   const [pagination, setPagination] = useState({
@@ -316,6 +330,78 @@ const AllFieldsTaskListPage: React.FC = () => {
       },
     });
   }, []);
+
+  // 处理任务层级结构
+  const processHierarchicalTasks = useCallback((allTasks: Task[]): HierarchicalTask[] => {
+    const taskMap = new Map<number, HierarchicalTask>();
+    const rootTasks: HierarchicalTask[] = [];
+    
+    // 建立任务映射
+    allTasks.forEach(task => {
+      taskMap.set(task.id, { ...task, children: [] });
+    });
+    
+    // 构建层级关系
+    allTasks.forEach(task => {
+      const taskWithChildren = taskMap.get(task.id);
+      if (taskWithChildren) {
+        if (task.parent_id && taskMap.has(task.parent_id)) {
+          // 是子任务，添加到父任务的children数组
+          const parentTask = taskMap.get(task.parent_id);
+          if (parentTask && parentTask.children) {
+            parentTask.children.push(taskWithChildren);
+          }
+        } else {
+          // 是根任务
+          rootTasks.push(taskWithChildren);
+        }
+      }
+    });
+    
+    return rootTasks;
+  }, []);
+
+  // 展开/折叠任务
+  const toggleTaskExpansion = useCallback((taskId: number) => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  // 扁平化任务列表（用于表格显示）
+  const flattenTasksForTable = useCallback((tasks: HierarchicalTask[], level = 0): HierarchicalTask[] => {
+    const result: HierarchicalTask[] = [];
+    
+    tasks.forEach(task => {
+      // 添加当前任务，包含层级信息
+      const taskWithLevel = { 
+        ...task, 
+        level,
+        hasChildren: task.children && task.children.length > 0,
+        isExpanded: expandedTaskIds.has(task.id)
+      };
+      result.push(taskWithLevel);
+      
+      // 如果任务已展开且有子任务，递归添加子任务
+      if (expandedTaskIds.has(task.id) && task.children && task.children.length > 0) {
+        result.push(...flattenTasksForTable(task.children, level + 1));
+      }
+    });
+    
+    return result;
+  }, [expandedTaskIds]);
+
+  // 更新分层任务数据
+  useEffect(() => {
+    const hierarchical = processHierarchicalTasks(tasks);
+    setHierarchicalTasks(hierarchical);
+  }, [tasks, processHierarchicalTasks]);
 
   // 初始化列配置
   const initializeColumns = useCallback(() => {
@@ -472,6 +558,11 @@ const AllFieldsTaskListPage: React.FC = () => {
     }
   }, [customFields]);
 
+  // 获取用于表格显示的扁平化任务数据
+  const displayTasks = useMemo(() => {
+    return flattenTasksForTable(hierarchicalTasks);
+  }, [hierarchicalTasks, flattenTasksForTable]);
+
   // 生成表格列定义
   const generateTableColumns = useMemo(() => {
     const visibleColumns = columnConfigs.filter(config => config.visible);
@@ -499,20 +590,79 @@ const AllFieldsTaskListPage: React.FC = () => {
         case 'title':
           return {
             ...baseColumn,
-            render: (title: string, record: Task) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {record.parent_id && (
-                  <BranchesOutlined style={{ color: '#8c8c8c' }} />
-                )}
-                <Button
-                  type="link"
-                  style={{ padding: 0, height: 'auto', textAlign: 'left' }}
-                  onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
+            render: (title: string, record: any) => {
+              const hasChildren = record.hasChildren || false;
+              const isExpanded = record.isExpanded || false;
+              const level = record.level || 0;
+              
+              return (
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px',
+                    paddingLeft: level * 24 // 根据层级缩进
+                  }}
                 >
-                  {title}
-                </Button>
-              </div>
-            ),
+                  {/* 展开/折叠按钮 */}
+                  {hasChildren ? (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTaskExpansion(record.id);
+                      }}
+                      style={{ 
+                        width: 20, 
+                        height: 20, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        minWidth: 20
+                      }}
+                    />
+                  ) : (
+                    <div style={{ width: 20, height: 20, minWidth: 20 }} />
+                  )}
+                  
+                  {/* 层级指示器 */}
+                  {level > 0 && (
+                    <BranchesOutlined style={{ color: '#8c8c8c', fontSize: '12px' }} />
+                  )}
+                  
+                  {/* 任务标题 */}
+                  <Button
+                    type="link"
+                    style={{ 
+                      padding: 0, 
+                      height: 'auto', 
+                      textAlign: 'left',
+                      fontWeight: level === 0 ? 600 : 400,
+                      fontSize: level === 0 ? '14px' : '13px'
+                    }}
+                    onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
+                  >
+                    {title}
+                  </Button>
+                  
+                  {/* 子任务数量标识 */}
+                  {hasChildren && (
+                    <Tag 
+                      color="blue" 
+                      style={{ 
+                        fontSize: '11px',
+                        marginLeft: '8px',
+                        lineHeight: '16px'
+                      }}
+                    >
+                      {record.children?.length || 0} 子任务
+                    </Tag>
+                  )}
+                </div>
+              );
+            },
           };
 
         case 'status':
@@ -629,6 +779,8 @@ const AllFieldsTaskListPage: React.FC = () => {
         case 'actions':
           return {
             ...baseColumn,
+            fixed: 'right', // 确保操作列固定在右侧
+            width: 120, // 固定宽度
             render: (_: any, record: Task) => (
               <Space size="small">
                 <Tooltip title="查看详情">
@@ -1482,9 +1634,52 @@ const AllFieldsTaskListPage: React.FC = () => {
       {/* 表格 */}
       <Card>
         <div className="all-fields-table">
+          <style>
+            {`
+              .task-level-0 {
+                background-color: #fafafa;
+                font-weight: 600;
+              }
+              .task-level-1 {
+                background-color: #f5f5f5;
+              }
+              .task-level-2 {
+                background-color: #f0f0f0;
+              }
+              .task-level-3 {
+                background-color: #ebebeb;
+              }
+              .task-child {
+                border-left: 2px solid #e6f7ff;
+              }
+              .task-has-children {
+                font-weight: 500;
+              }
+              .ant-table-tbody > tr.task-child:hover {
+                background-color: #e6f7ff !important;
+              }
+              .ant-table-tbody > tr.task-level-0:hover {
+                background-color: #f0f9ff !important;
+              }
+              .ant-table-thead th[data-column-key="actions"] {
+                position: sticky !important;
+                right: 0 !important;
+                z-index: 2 !important;
+                background: white !important;
+                box-shadow: -2px 0 4px rgba(0,0,0,0.1) !important;
+              }
+              .ant-table-tbody td[data-column-key="actions"] {
+                position: sticky !important;
+                right: 0 !important;
+                z-index: 1 !important;
+                background: inherit !important;
+                box-shadow: -2px 0 4px rgba(0,0,0,0.1) !important;
+              }
+            `}
+          </style>
           <Table
             columns={generateTableColumns}
-            dataSource={tasks}
+            dataSource={displayTasks}
             rowKey="id"
             rowSelection={rowSelection}
             pagination={{
@@ -1499,6 +1694,17 @@ const AllFieldsTaskListPage: React.FC = () => {
             }}
             loading={loading}
             scroll={{ x: 'max-content', y: 600 }}
+            rowClassName={(record: any) => {
+              const level = record.level || 0;
+              const classes = [`task-level-${level}`];
+              if (record.hasChildren) {
+                classes.push('task-has-children');
+              }
+              if (level > 0) {
+                classes.push('task-child');
+              }
+              return classes.join(' ');
+            }}
             size="small"
             bordered
           />
@@ -1665,7 +1871,7 @@ const AllFieldsTaskListPage: React.FC = () => {
           </Space>
         }
         width={800}
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ marginBottom: '16px' }}>
           <Button 

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorHandling';
 
 // API Base Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

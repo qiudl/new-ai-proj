@@ -100,7 +100,7 @@ const PermissionManagementPage: React.FC = () => {
       const response = await permissionService.getRoles();
       setRoles(response.roles || []);
     } catch (error) {
-      message.error('Failed to load roles');
+      message.error('加载角色失败');
     } finally {
       setLoading(false);
     }
@@ -111,7 +111,7 @@ const PermissionManagementPage: React.FC = () => {
       const response = await permissionService.getPermissions();
       setPermissions(response.permissions || []);
     } catch (error) {
-      message.error('Failed to load permissions');
+      message.error('加载权限失败');
     }
   };
 
@@ -129,7 +129,7 @@ const PermissionManagementPage: React.FC = () => {
         ]);
       }
     } catch (error) {
-      message.error('Failed to load company users');
+      message.error('加载企业用户失败');
       // Set mock data on error
       setCompanyUsers([
         { id: 1, name: '张三', email: 'zhangsan@company.com', status: 'active', roleName: '项目经理' },
@@ -148,12 +148,12 @@ const PermissionManagementPage: React.FC = () => {
       };
       
       await permissionService.createRole(roleData);
-      message.success('Role created successfully');
+      message.success('角色创建成功');
       setRoleModalVisible(false);
       roleForm.resetFields();
       loadRoles();
     } catch (error) {
-      message.error('Failed to create role');
+      message.error('创建角色失败');
     }
   };
 
@@ -168,23 +168,23 @@ const PermissionManagementPage: React.FC = () => {
       };
       
       await permissionService.updateRole(selectedRole.id, roleData);
-      message.success('Role updated successfully');
+      message.success('角色更新成功');
       setRoleModalVisible(false);
       roleForm.resetFields();
       setSelectedRole(null);
       loadRoles();
     } catch (error) {
-      message.error('Failed to update role');
+      message.error('更新角色失败');
     }
   };
 
   const handleDeleteRole = async (roleId: number) => {
     try {
       await permissionService.deleteRole(roleId);
-      message.success('Role deleted successfully');
+      message.success('角色删除成功');
       loadRoles();
     } catch (error) {
-      message.error('Failed to delete role');
+      message.error('删除角色失败');
     }
   };
 
@@ -196,7 +196,7 @@ const PermissionManagementPage: React.FC = () => {
       setSelectedRole(role);
       setPermissionModalVisible(true);
     } catch (error) {
-      message.error('Failed to load role permissions');
+      message.error('加载角色权限失败');
     } finally {
       setLoading(false);
     }
@@ -210,7 +210,7 @@ const PermissionManagementPage: React.FC = () => {
       setSelectedUser(user);
       setUserPermissionModalVisible(true);
     } catch (error) {
-      message.error('Failed to load user permissions');
+      message.error('加载用户权限失败');
     } finally {
       setLoading(false);
     }
@@ -218,42 +218,42 @@ const PermissionManagementPage: React.FC = () => {
 
   const roleColumns = [
     {
-      title: 'Role Code',
+      title: '角色代码',
       dataIndex: 'roleCode',
       key: 'roleCode',
     },
     {
-      title: 'Role Name', 
+      title: '角色名称', 
       dataIndex: 'roleName',
       key: 'roleName',
     },
     {
-      title: 'Description',
+      title: '描述',
       dataIndex: 'roleDescription',
       key: 'roleDescription',
     },
     {
-      title: 'Type',
+      title: '类型',
       dataIndex: 'isSystemRole',
       key: 'isSystemRole',
       render: (isSystemRole: boolean) => (
         <Tag color={isSystemRole ? 'red' : 'blue'}>
-          {isSystemRole ? 'System' : 'Custom'}
+          {isSystemRole ? '系统角色' : '自定义角色'}
         </Tag>
       ),
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'isActive',
       key: 'isActive',
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'green' : 'default'}>
-          {isActive ? 'Active' : 'Inactive'}
+          {isActive ? '激活' : '停用'}
         </Tag>
       ),
     },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       render: (text: any, record: Role) => (
         <Space>
@@ -262,7 +262,7 @@ const PermissionManagementPage: React.FC = () => {
             icon={<SafetyOutlined />}
             onClick={() => handleViewRolePermissions(record)}
           >
-            Permissions
+            权限
           </Button>
           {!record.isSystemRole && (
             <>
@@ -275,16 +275,16 @@ const PermissionManagementPage: React.FC = () => {
                   setRoleModalVisible(true);
                 }}
               >
-                Edit
+                编辑
               </Button>
               <Popconfirm
-                title="Are you sure to delete this role?"
+                title="确认要删除这个角色吗？"
                 onConfirm={() => handleDeleteRole(record.id)}
-                okText="Yes"
-                cancelText="No"
+                okText="确认"
+                cancelText="取消"
               >
                 <Button type="link" danger icon={<DeleteOutlined />}>
-                  Delete
+                  删除
                 </Button>
               </Popconfirm>
             </>
@@ -296,40 +296,40 @@ const PermissionManagementPage: React.FC = () => {
 
   const permissionColumns = [
     {
-      title: 'Permission Code',
+      title: '权限代码',
       dataIndex: 'permissionCode',
       key: 'permissionCode',
     },
     {
-      title: 'Name',
+      title: '名称',
       dataIndex: 'permissionName',
       key: 'permissionName',
     },
     {
-      title: 'Module',
+      title: '模块',
       dataIndex: 'module',
       key: 'module',
       render: (module: string) => <Tag color="geekblue">{module}</Tag>,
     },
     {
-      title: 'Resource',
+      title: '资源',
       dataIndex: 'resource',
       key: 'resource',
     },
     {
-      title: 'Action',
+      title: '操作',
       dataIndex: 'action',
       key: 'action',
       render: (action: string) => <Tag color="green">{action}</Tag>,
     },
     {
-      title: 'Granted',
+      title: '是否授权',
       dataIndex: 'isGranted',
       key: 'isGranted',
       render: (isGranted: boolean) => (
         isGranted !== undefined ? (
           <Tag color={isGranted ? 'green' : 'red'}>
-            {isGranted ? 'Yes' : 'No'}
+            {isGranted ? '是' : '否'}
           </Tag>
         ) : null
       ),
@@ -338,33 +338,33 @@ const PermissionManagementPage: React.FC = () => {
 
   const userColumns = [
     {
-      title: 'Name',
+      title: '姓名',
       dataIndex: 'name',
       key: 'name',
     },
     {
-      title: 'Email',
+      title: '邮箱',
       dataIndex: 'email',
       key: 'email',
     },
     {
-      title: 'Role',
+      title: '角色',
       dataIndex: 'roleName',
       key: 'roleName',
-      render: (roleName: string) => roleName ? <Tag color="blue">{roleName}</Tag> : <Tag>No Role</Tag>,
+      render: (roleName: string) => roleName ? <Tag color="blue">{roleName}</Tag> : <Tag>无角色</Tag>,
     },
     {
-      title: 'Status',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
         <Tag color={status === 'active' ? 'green' : 'default'}>
-          {status}
+          {status === 'active' ? '激活' : '停用'}
         </Tag>
       ),
     },
     {
-      title: 'Actions',
+      title: '操作',
       key: 'actions',
       render: (text: any, record: CompanyUser) => (
         <Space>
@@ -373,7 +373,7 @@ const PermissionManagementPage: React.FC = () => {
             icon={<UserOutlined />}
             onClick={() => handleViewUserPermissions(record)}
           >
-            Permissions
+            权限
           </Button>
         </Space>
       ),
@@ -383,15 +383,15 @@ const PermissionManagementPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       <Title level={2}>
-        <SettingOutlined /> Permission Management
+        <SettingOutlined /> 权限管理
       </Title>
       
       <Card>
         <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab={<span><TeamOutlined />Roles</span>} key="roles">
+          <TabPane tab={<span><TeamOutlined />角色</span>} key="roles">
             <Row justify="space-between" style={{ marginBottom: 16 }}>
               <Col>
-                <Title level={4}>Role Management</Title>
+                <Title level={4}>角色管理</Title>
               </Col>
               <Col>
                 <Button
@@ -403,7 +403,7 @@ const PermissionManagementPage: React.FC = () => {
                     setRoleModalVisible(true);
                   }}
                 >
-                  Create Role
+                  创建角色
                 </Button>
               </Col>
             </Row>
@@ -417,16 +417,16 @@ const PermissionManagementPage: React.FC = () => {
             />
           </TabPane>
 
-          <TabPane tab={<span><SafetyOutlined />Permissions</span>} key="permissions">
+          <TabPane tab={<span><SafetyOutlined />权限</span>} key="permissions">
             <Row justify="space-between" style={{ marginBottom: 16 }}>
               <Col>
-                <Title level={4}>System Permissions</Title>
+                <Title level={4}>系统权限</Title>
               </Col>
             </Row>
             
             <Alert
-              message="System Permissions"
-              description="These are built-in permissions that cannot be modified. They can be assigned to roles."
+              message="系统权限"
+              description="这些是内置权限，不可修改。可以分配给角色。"
               type="info"
               style={{ marginBottom: 16 }}
             />
@@ -440,10 +440,10 @@ const PermissionManagementPage: React.FC = () => {
             />
           </TabPane>
 
-          <TabPane tab={<span><UserOutlined />Users</span>} key="users">
+          <TabPane tab={<span><UserOutlined />用户</span>} key="users">
             <Row justify="space-between" style={{ marginBottom: 16 }}>
               <Col>
-                <Title level={4}>User Permissions</Title>
+                <Title level={4}>用户权限</Title>
               </Col>
             </Row>
             
@@ -460,7 +460,7 @@ const PermissionManagementPage: React.FC = () => {
 
       {/* Role Modal */}
       <Modal
-        title={selectedRole ? 'Edit Role' : 'Create Role'}
+        title={selectedRole ? '编辑角色' : '创建角色'}
         open={roleModalVisible}
         onCancel={() => {
           setRoleModalVisible(false);
@@ -477,33 +477,33 @@ const PermissionManagementPage: React.FC = () => {
         >
           {!selectedRole && (
             <Form.Item
-              label="Role Code"
+              label="角色代码"
               name="roleCode"
-              rules={[{ required: true, message: 'Please enter role code' }]}
+              rules={[{ required: true, message: '请输入角色代码' }]}
             >
-              <Input placeholder="e.g., PROJECT_MANAGER" />
+              <Input placeholder="例：PROJECT_MANAGER" />
             </Form.Item>
           )}
           
           <Form.Item
-            label="Role Name"
+            label="角色名称"
             name="roleName"
-            rules={[{ required: true, message: 'Please enter role name' }]}
+            rules={[{ required: true, message: '请输入角色名称' }]}
           >
-            <Input placeholder="e.g., Project Manager" />
+            <Input placeholder="例：项目经理" />
           </Form.Item>
           
           <Form.Item
-            label="Description"
+            label="描述"
             name="roleDescription"
           >
-            <Input.TextArea rows={3} placeholder="Role description" />
+            <Input.TextArea rows={3} placeholder="角色描述" />
           </Form.Item>
           
-          <Form.Item label="Permissions" name="permissions">
+          <Form.Item label="权限" name="permissions">
             <Select
               mode="multiple"
-              placeholder="Select permissions"
+              placeholder="选择权限"
               style={{ width: '100%' }}
             >
               {permissions.map(permission => (
@@ -517,14 +517,14 @@ const PermissionManagementPage: React.FC = () => {
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit">
-                {selectedRole ? 'Update' : 'Create'}
+                {selectedRole ? '更新' : '创建'}
               </Button>
               <Button onClick={() => {
                 setRoleModalVisible(false);
                 setSelectedRole(null);
                 roleForm.resetFields();
               }}>
-                Cancel
+                取消
               </Button>
             </Space>
           </Form.Item>
@@ -533,7 +533,7 @@ const PermissionManagementPage: React.FC = () => {
 
       {/* Role Permissions Modal */}
       <Modal
-        title={`Permissions for ${selectedRole?.roleName}`}
+        title={`${selectedRole?.roleName} 的权限`}
         open={permissionModalVisible}
         onCancel={() => {
           setPermissionModalVisible(false);
@@ -553,7 +553,7 @@ const PermissionManagementPage: React.FC = () => {
 
       {/* User Permissions Modal */}
       <Modal
-        title={`Permissions for ${selectedUser?.name}`}
+        title={`${selectedUser?.name} 的权限`}
         open={userPermissionModalVisible}
         onCancel={() => {
           setUserPermissionModalVisible(false);
@@ -566,8 +566,8 @@ const PermissionManagementPage: React.FC = () => {
         {selectedUserPermissions && (
           <div>
             <div style={{ marginBottom: 16 }}>
-              <Title level={5}>User Role: {selectedUserPermissions.role?.roleName || 'No Role'}</Title>
-              <Title level={5}>Effective Permissions:</Title>
+              <Title level={5}>用户角色：{selectedUserPermissions.role?.roleName || '无角色'}</Title>
+              <Title level={5}>有效权限：</Title>
             </div>
             
             <Table

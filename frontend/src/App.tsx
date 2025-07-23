@@ -31,6 +31,8 @@ const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage')
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageNew'));
+const DocumentListPage = React.lazy(() => import('./pages/DocumentListPage'));
+const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -120,6 +122,39 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <ProjectEditPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Document management routes */}
+            <Route path="/projects/:projectId/documents" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentListPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/projects/:projectId/documents/new" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentEditorPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/documents/:id/edit" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentEditorPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/documents/:id" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentEditorPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -259,6 +294,15 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <CompanyEditPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Global document management routes */}
+            <Route path="/documents" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentListPage />
                 </Layout>
               </PrivateRoute>
             } />

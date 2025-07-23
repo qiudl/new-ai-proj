@@ -28,6 +28,7 @@ type ProjectRepository interface {
 	Update(ctx context.Context, project *models.Project) (*models.Project, error)
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)
+	ListWithCompanyInfo(ctx context.Context, limit, offset int) ([]*models.ProjectWithCompany, int, error)
 	
 	// Recycle bin operations
 	GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error)
@@ -201,6 +202,21 @@ type PermissionRepository interface {
 	GetPermissionAuditLogs(ctx context.Context, companyUserID *int, limit, offset int) ([]*models.PermissionAuditLog, int, error)
 }
 
+// DocumentRepository defines the interface for document database operations
+type DocumentRepository interface {
+	Create(ctx context.Context, document *models.Document) (*models.Document, error)
+	GetByID(ctx context.Context, id int) (*models.Document, error)
+	GetByProjectID(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.Document, int, error)
+	Update(ctx context.Context, document *models.Document) (*models.Document, error)
+	Delete(ctx context.Context, id int) error
+	
+	// Additional query methods
+	GetWithRelations(ctx context.Context, id int) (*models.DocumentResponse, error)
+	GetListWithRelations(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
+	GetAllDocumentsWithRelations(ctx context.Context, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
+	Search(ctx context.Context, projectID int, searchTerm string, limit, offset int) ([]*models.Document, int, error)
+}
+
 // DB defines the database interface that combines all repositories
 type DB interface {
 	Users() UserRepository
@@ -211,6 +227,7 @@ type DB interface {
 	Permissions() PermissionRepository // Enterprise permission management
 	System() SystemRepository
 	Audit() AuditRepository
+	Documents() DocumentRepository
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
@@ -226,6 +243,7 @@ type Tx interface {
 	Companies() CompanyRepository
 	Permissions() PermissionRepository
 	Audit() AuditRepository
+	Documents() DocumentRepository
 	Commit() error
 	Rollback() error
 }

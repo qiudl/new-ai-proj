@@ -41,18 +41,19 @@ import {
   ClockCircleOutlined,
   PlusOutlined,
   DeleteOutlined,
+  FileTextOutlined,
   PhoneOutlined,
   MailOutlined,
   NumberOutlined,
   BankOutlined,
   BuildOutlined,
   FundProjectionScreenOutlined,
-  BarChartOutlined,
-  FileTextOutlined
+  BarChartOutlined
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
 import { Task } from '../types/task';
+import DocumentList from '../components/DocumentList';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -412,7 +413,7 @@ const ProjectDetailPage: React.FC = () => {
             <Col xs={24} sm={12} md={6}>
               <Statistic
                 title="团队成员"
-                value={project.users.length}
+                value={project.users?.length || 0}
                 prefix={<TeamOutlined />}
               />
             </Col>
@@ -509,7 +510,7 @@ const ProjectDetailPage: React.FC = () => {
             }
           >
             <Row gutter={[16, 16]}>
-              {project.users.map((user) => (
+              {(project.users || []).map((user) => (
                 <Col xs={24} sm={12} lg={8} key={user.id}>
                   <Card size="small" hoverable>
                     <div style={{ textAlign: 'center' }}>
@@ -596,11 +597,25 @@ const ProjectDetailPage: React.FC = () => {
           </Card>
         </TabPane>
 
+        <TabPane tab={
+          <span>
+            <FileTextOutlined />
+            项目文档
+          </span>
+        } key="documents">
+          <DocumentList 
+            projectId={project.id} 
+            projectName={project.name}
+            onCreateDocument={() => navigate(`/projects/${project.id}/documents/new`)}
+            onEditDocument={(document) => navigate(`/documents/${document.id}/edit`)}
+          />
+        </TabPane>
+
         <TabPane tab="项目动态" key="activities">
           <Card title="项目动态时间线">
-            {project.activities.length > 0 ? (
+            {(project.activities || []).length > 0 ? (
               <Timeline>
-                {project.activities.map((activity) => (
+                {(project.activities || []).map((activity) => (
                   <Timeline.Item
                     key={activity.id}
                     dot={getActivityIcon(activity.type)}

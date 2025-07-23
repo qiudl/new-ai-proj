@@ -90,6 +90,9 @@ const CompanyEditPage: React.FC = () => {
       setHasChanges(false);
       message.success('企业信息更新成功！');
       
+      // 跳转到企业详情页
+      navigate(`/companies/${companyId}`);
+      
     } catch (error) {
       console.error('更新企业信息失败:', error);
       if (error instanceof Error) {

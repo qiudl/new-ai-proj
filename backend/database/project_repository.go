@@ -23,13 +23,14 @@ func (r *PostgresProjectRepository) getExecer() execer {
 // Create creates a new project
 func (r *PostgresProjectRepository) Create(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `
-		INSERT INTO projects (name, description, owner_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO projects (name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		project.Name, project.Description, project.OwnerID)
+		project.Name, project.Description, project.OwnerID, project.CompanyID,
+		project.Status, project.Priority, project.Progress, project.StartDate, project.EndDate, project.Budget)
 
 	err := row.Scan(&project.ID, &project.CreatedAt, &project.UpdatedAt)
 	if err != nil {
@@ -42,7 +43,7 @@ func (r *PostgresProjectRepository) Create(ctx context.Context, project *models.
 // GetByID gets a project by ID (only non-deleted)
 func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*models.Project, error) {
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
+		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -52,6 +53,8 @@ func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*model
 
 	err := row.Scan(
 		&project.ID, &project.Name, &project.Description, &project.OwnerID,
+		&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+		&project.StartDate, &project.EndDate, &project.Budget,
 		&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 	)
 
@@ -79,7 +82,7 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
+		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects 
 		WHERE owner_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -97,6 +100,8 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 		err := rows.Scan(
 			&project.ID, &project.Name, &project.Description, &project.OwnerID,
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
 		if err != nil {
@@ -117,13 +122,16 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `
 		UPDATE projects 
-		SET name = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+		SET name = $2, description = $3, company_id = $4, status = $5, priority = $6, 
+		    progress = $7, start_date = $8, end_date = $9, budget = $10, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		project.ID, project.Name, project.Description)
+		project.ID, project.Name, project.Description, project.CompanyID,
+		project.Status, project.Priority, project.Progress, project.StartDate, 
+		project.EndDate, project.Budget)
 
 	err := row.Scan(&project.UpdatedAt)
 	if err != nil {
@@ -155,7 +163,7 @@ func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-// List gets all projects with pagination
+// List gets all projects with pagination (原始方法，保持兼容性)
 func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int) ([]*models.Project, int, error) {
 	// Get total count
 	countQuery := `SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL`
@@ -169,7 +177,7 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, created_at, updated_at, deleted_at
+		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects 
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -187,6 +195,8 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 		err := rows.Scan(
 			&project.ID, &project.Name, &project.Description, &project.OwnerID,
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
 		if err != nil {
@@ -194,6 +204,63 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 		}
 
 		projects = append(projects, project)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return projects, total, nil
+}
+
+// ListWithCompanyInfo 新增方法：获取包含客户信息的项目列表
+func (r *PostgresProjectRepository) ListWithCompanyInfo(ctx context.Context, limit, offset int) ([]*models.ProjectWithCompany, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM projects WHERE deleted_at IS NULL`
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get project count: %w", err)
+	}
+
+	// Get projects with company information using LEFT JOIN
+	query := `
+		SELECT 
+			p.id, p.name, p.description, p.owner_id, p.company_id, 
+			p.status, p.priority, p.progress, p.start_date, p.end_date, 
+			p.budget, p.created_at, p.updated_at, p.deleted_at,
+			c.company_name
+		FROM projects p
+		LEFT JOIN customers c ON p.company_id = c.id AND c.deleted_at IS NULL
+		WHERE p.deleted_at IS NULL
+		ORDER BY p.created_at DESC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := exec.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list projects with company info: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []*models.ProjectWithCompany
+	for rows.Next() {
+		projectWithCompany := &models.ProjectWithCompany{}
+
+		err := rows.Scan(
+			&projectWithCompany.ID, &projectWithCompany.Name, &projectWithCompany.Description, 
+			&projectWithCompany.OwnerID, &projectWithCompany.CompanyID, &projectWithCompany.Status, 
+			&projectWithCompany.Priority, &projectWithCompany.Progress, &projectWithCompany.StartDate, 
+			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt, 
+			&projectWithCompany.UpdatedAt, &projectWithCompany.DeletedAt,
+			&projectWithCompany.CompanyName,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan project with company: %w", err)
+		}
+
+		projects = append(projects, projectWithCompany)
 	}
 
 	if err := rows.Err(); err != nil {

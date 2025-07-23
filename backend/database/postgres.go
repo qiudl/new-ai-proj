@@ -87,6 +87,11 @@ func (pdb *PostgresDB) Audit() AuditRepository {
 	return NewAuditRepository(pdb.db)
 }
 
+// Documents returns the document repository
+func (pdb *PostgresDB) Documents() DocumentRepository {
+	return &PostgresDocumentRepository{db: pdb.db}
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db
@@ -149,6 +154,11 @@ func (ptx *PostgresTx) Permissions() PermissionRepository {
 // Audit returns the audit repository for transaction
 func (ptx *PostgresTx) Audit() AuditRepository {
 	return NewAuditRepository(ptx.tx)
+}
+
+// Documents returns the document repository for transaction
+func (ptx *PostgresTx) Documents() DocumentRepository {
+	return &PostgresDocumentRepository{db: ptx.tx}
 }
 
 // Commit commits the transaction

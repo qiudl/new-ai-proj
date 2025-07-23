@@ -30,13 +30,14 @@ func (r *PostgresUserRepository) getExecer() execer {
 // Create creates a new user
 func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) (*models.User, error) {
 	query := `
-		INSERT INTO users (username, email, password_hash, role)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.Username, user.Email, user.PasswordHash, user.Role)
+		user.Username, user.Email, user.PasswordHash, user.UserType, 
+		user.CompanyID, user.CompanyUserID, user.Role)
 
 	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
@@ -49,7 +50,8 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 // GetByID gets a user by ID
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, role, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users WHERE id = $1`
 
 	exec := r.getExecer()
@@ -59,7 +61,9 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.Role, &user.CreatedAt, &user.UpdatedAt,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -75,7 +79,8 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 // GetByUsername gets a user by username
 func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, role, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users WHERE username = $1`
 
 	exec := r.getExecer()
@@ -85,7 +90,9 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.Role, &user.CreatedAt, &user.UpdatedAt,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -101,7 +108,8 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 // GetByEmail gets a user by email
 func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, role, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users WHERE email = $1`
 
 	exec := r.getExecer()
@@ -111,7 +119,9 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.Role, &user.CreatedAt, &user.UpdatedAt,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -128,13 +138,15 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) (*models.User, error) {
 	query := `
 		UPDATE users 
-		SET username = $2, email = $3, password_hash = $4, role = $5, updated_at = CURRENT_TIMESTAMP
+		SET username = $2, email = $3, password_hash = $4, user_type = $5, 
+		    company_id = $6, company_user_id = $7, role = $8, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.ID, user.Username, user.Email, user.PasswordHash, user.Role)
+		user.ID, user.Username, user.Email, user.PasswordHash, 
+		user.UserType, user.CompanyID, user.CompanyUserID, user.Role)
 
 	err := row.Scan(&user.UpdatedAt)
 	if err != nil {
@@ -180,7 +192,8 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 
 	// Get users with pagination
 	query := `
-		SELECT id, username, email, password_hash, role, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users 
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2`
@@ -197,7 +210,9 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 
 		err := rows.Scan(
 			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-			&user.Role, &user.CreatedAt, &user.UpdatedAt,
+			&user.UserType, &user.CompanyID, &user.CompanyUserID,
+			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
@@ -219,13 +234,18 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int, 
 		UPDATE users 
 		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
-		RETURNING id, username, email, password_hash, role, created_at, updated_at`
+		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
+		          role, status, profile, last_login_at, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, userID, username, email)
 
 	user := &models.User{}
-	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.Role, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash, 
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("user not found")

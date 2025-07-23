@@ -1,4 +1,7 @@
-export type UserRole = 'admin' | 'project_manager' | 'developer' | 'client';
+export type UserType = 'system' | 'company';
+export type SystemUserRole = 'admin' | 'project_manager' | 'developer';
+export type CompanyUserRole = 'company_admin' | 'company_user';
+export type UserRole = SystemUserRole | CompanyUserRole;
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 export interface UserProfile {
@@ -12,6 +15,9 @@ export interface User {
   id: number;
   username: string;
   email: string;
+  user_type: UserType;
+  company_id?: number;
+  company_user_id?: number;
   role: UserRole;
   status: UserStatus;
   profile: UserProfile;
@@ -24,6 +30,8 @@ export interface UserCreateRequest {
   username: string;
   email: string;
   password: string;
+  user_type: UserType;
+  company_id?: number;
   role: UserRole;
   profile?: UserProfile;
 }
@@ -31,6 +39,8 @@ export interface UserCreateRequest {
 export interface UserUpdateRequest {
   username?: string;
   email?: string;
+  user_type?: UserType;
+  company_id?: number;
   role?: UserRole;
   status?: UserStatus;
   profile?: UserProfile;
@@ -54,6 +64,7 @@ export interface PasswordResetRequest {
 export interface UserListParams {
   page?: number;
   page_size?: number;
+  user_type?: UserType;
   role?: UserRole;
   status?: UserStatus;
   search?: string;
@@ -76,8 +87,22 @@ export interface LoginResponse {
   user: User;
 }
 
-// 角色权限配置
-export const USER_ROLE_CONFIG = {
+// 用户类型配置
+export const USER_TYPE_CONFIG = {
+  system: {
+    label: '系统用户',
+    color: '#1890ff',
+    description: '拥有系统级权限，可跨企业操作'
+  },
+  company: {
+    label: '企业用户',
+    color: '#722ed1',
+    description: '仅能访问所属企业相关的项目和数据'
+  }
+} as const;
+
+// 系统用户角色配置
+export const SYSTEM_USER_ROLE_CONFIG = {
   admin: {
     label: '系统管理员',
     color: '#f50',
@@ -92,12 +117,27 @@ export const USER_ROLE_CONFIG = {
     label: '研发工程师',
     color: '#52c41a',
     permissions: ['task_execute', 'project_view']
-  },
-  client: {
-    label: '甲方客户',
-    color: '#722ed1',
-    permissions: ['project_view_readonly', 'task_view_readonly']
   }
+} as const;
+
+// 企业用户角色配置
+export const COMPANY_USER_ROLE_CONFIG = {
+  company_admin: {
+    label: '企业管理员',
+    color: '#fa541c',
+    permissions: ['company_manage', 'project_view', 'task_view', 'user_manage_company']
+  },
+  company_user: {
+    label: '企业普通用户',
+    color: '#faad14',
+    permissions: ['project_view_limited', 'task_view_assigned']
+  }
+} as const;
+
+// 角色权限配置（兼容性）
+export const USER_ROLE_CONFIG = {
+  ...SYSTEM_USER_ROLE_CONFIG,
+  ...COMPANY_USER_ROLE_CONFIG
 } as const;
 
 export const USER_STATUS_CONFIG = {
@@ -114,3 +154,21 @@ export const USER_STATUS_CONFIG = {
     color: '#f50'
   }
 } as const;
+
+// 工具函数
+export const getRoleConfigByType = (userType: UserType) => {
+  return userType === 'system' ? SYSTEM_USER_ROLE_CONFIG : COMPANY_USER_ROLE_CONFIG;
+};
+
+export const getValidRolesForUserType = (userType: UserType): UserRole[] => {
+  if (userType === 'system') {
+    return Object.keys(SYSTEM_USER_ROLE_CONFIG) as SystemUserRole[];
+  } else {
+    return Object.keys(COMPANY_USER_ROLE_CONFIG) as CompanyUserRole[];
+  }
+};
+
+export const validateUserRole = (userType: UserType, role: UserRole): boolean => {
+  const validRoles = getValidRolesForUserType(userType);
+  return validRoles.includes(role);
+};

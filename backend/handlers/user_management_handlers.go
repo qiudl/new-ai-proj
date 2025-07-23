@@ -51,6 +51,7 @@ func (h *UserManagementHandler) GetUserList(c *gin.Context) {
 
 	params.Role = c.Query("role")
 	params.Status = c.Query("status")
+	params.UserType = c.Query("user_type")
 	params.Search = c.Query("search")
 
 	// Validate parameters
@@ -124,6 +125,20 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
+	// Validate user type and role combination
+	if err := models.ValidateUserRole(req.UserType, req.Role); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid role for user type", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+		return
+	}
+
+	// Validate company requirements
+	if err := models.ValidateCompanyUserFields(req.UserType, req.CompanyID); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+		return
+	}
+
 	// Hash password
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -134,12 +149,14 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 
 	// Create user
 	user := &models.User{
-		Username:     req.Username,
-		Email:        req.Email,
+		Username:  req.Username,
+		Email:     req.Email,
 		PasswordHash: string(passwordHash),
-		Role:         req.Role,
-		Status:       "active", // Default status
-		Profile:      req.Profile,
+		UserType:  req.UserType,
+		CompanyID: req.CompanyID,
+		Role:      req.Role,
+		Status:    "active", // Default status
+		Profile:   req.Profile,
 	}
 
 	createdUser, err := h.userRepo.CreateUser(c.Request.Context(), user)
@@ -178,6 +195,49 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeValidation, "Validation failed", err.Error())
 		c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
 		return
+	}
+
+	// Get current user to validate changes
+	if req.UserType != nil && req.Role != nil {
+		// Validate user type and role combination
+		if err := models.ValidateUserRole(*req.UserType, *req.Role); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid role for user type", err.Error())
+			c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+			return
+		}
+	} else if req.UserType != nil || req.Role != nil {
+		// If only one is provided, get current user to validate
+		currentUser, err := h.userRepo.GetUserByID(c.Request.Context(), userID)
+		if err != nil {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found", fmt.Sprintf("User with ID %d not found", userID))
+			c.JSON(models.GetStatusCode(models.ErrCodeNotFound), response)
+			return
+		}
+		
+		userType := currentUser.UserType
+		role := currentUser.Role
+		
+		if req.UserType != nil {
+			userType = *req.UserType
+		}
+		if req.Role != nil {
+			role = *req.Role
+		}
+		
+		if err := models.ValidateUserRole(userType, role); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid role for user type", err.Error())
+			c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+			return
+		}
+	}
+
+	// Validate company requirements if user type is being changed
+	if req.UserType != nil {
+		if err := models.ValidateCompanyUserFields(*req.UserType, req.CompanyID); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid company fields", err.Error())
+			c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
+			return
+		}
 	}
 
 	// Update user

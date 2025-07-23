@@ -46,7 +46,6 @@ import AddCompanyUserModal from '../components/AddCompanyUserModal';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 const CompanyDetailPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,6 +61,7 @@ const CompanyDetailPage: React.FC = () => {
   const [contactsLoading, setContactsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('projects');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<CompanyUser | undefined>(undefined);
 
   const companyId = parseInt(id || '0');
 
@@ -186,10 +186,18 @@ const CompanyDetailPage: React.FC = () => {
   };
 
   // 处理添加用户成功
-  const handleAddUserSuccess = (newUser: CompanyUser) => {
-    setCompanyUsers(prev => [...prev, newUser]);
+  const handleAddUserSuccess = (updatedUser: CompanyUser) => {
+    if (editingUser) {
+      // 编辑模式：更新现有用户
+      setCompanyUsers(prev => 
+        prev.map(user => user.id === updatedUser.id ? updatedUser : user)
+      );
+    } else {
+      // 添加模式：添加新用户
+      setCompanyUsers(prev => [...prev, updatedUser]);
+    }
     setShowAddUserModal(false);
-    message.success('企业用户添加成功');
+    setEditingUser(undefined);
   };
 
   // 删除企业用户
@@ -431,8 +439,8 @@ const CompanyDetailPage: React.FC = () => {
               icon={<EditOutlined />}
               size="small"
               onClick={() => {
-                // 编辑用户功能待实现
-                message.info('编辑用户功能待实现');
+                setEditingUser(record);
+                setShowAddUserModal(true);
               }}
             />
           </Tooltip>
@@ -582,223 +590,232 @@ const CompanyDetailPage: React.FC = () => {
 
       {/* 内容标签页 */}
       <Card>
-        <Tabs activeKey={activeTab} onChange={handleTabChange}>
-          {/* 企业项目 */}
-          <TabPane
-            tab={
-              <span>
-                <ProjectOutlined />
-                企业项目
-                {companyProjects.length > 0 && <Badge count={companyProjects.length} style={{ marginLeft: 8 }} />}
-              </span>
-            }
-            key="projects"
-          >
-            <div style={{ marginBottom: '16px' }}>
-              <Button 
-                type="primary" 
-                icon={<ProjectOutlined />}
-                onClick={() => navigate('/projects/create')}
-              >
-                新建项目
-              </Button>
-            </div>
-            
-            <Table
-              columns={projectColumns}
-              dataSource={companyProjects}
-              rowKey="id"
-              loading={projectsLoading}
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total) => `共 ${total} 个项目`,
-              }}
-              locale={{
-                emptyText: <Empty description="该企业暂无项目" />
-              }}
-            />
-          </TabPane>
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={handleTabChange}
+          items={[
+            {
+              label: (
+                <span>
+                  <ProjectOutlined />
+                  企业项目
+                  {companyProjects.length > 0 && <Badge count={companyProjects.length} style={{ marginLeft: 8 }} />}
+                </span>
+              ),
+              key: 'projects',
+              children: (
+                <div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<ProjectOutlined />}
+                      onClick={() => navigate(`/projects/create?companyId=${company.id}`)}
+                    >
+                      新建项目
+                    </Button>
+                  </div>
+                  
+                  <Table
+                    columns={projectColumns}
+                    dataSource={companyProjects}
+                    rowKey="id"
+                    loading={projectsLoading}
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total) => `共 ${total} 个项目`,
+                    }}
+                    locale={{
+                      emptyText: <Empty description="该企业暂无项目" />
+                    }}
+                  />
+                </div>
+              ),
+            },
+            {
+              label: (
+                <span>
+                  <BankOutlined />
+                  基本信息
+                </span>
+              ),
+              key: 'basic',
+              children: (
+                <div>
+                  <Row gutter={24}>
+                    <Col span={12}>
+                      <Descriptions title="企业信息" column={1} bordered>
+                        <Descriptions.Item label="企业名称">{company.companyName}</Descriptions.Item>
+                        <Descriptions.Item label="企业代码">{company.companyCode || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="企业类型">{company.companyTypeText}</Descriptions.Item>
+                        <Descriptions.Item label="行业">{company.industry || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="法定代表人">{company.legalRepresentative || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="营业执照">{company.businessLicense || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="税号">{company.taxNumber || '-'}</Descriptions.Item>
+                      </Descriptions>
+                    </Col>
+                    <Col span={12}>
+                      <Descriptions title="联系信息" column={1} bordered>
+                        <Descriptions.Item label="地址">
+                          {[company.address, company.city, company.province]
+                            .filter(Boolean)
+                            .join(', ') || '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="邮政编码">{company.postalCode || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="网站">
+                          {company.website ? (
+                            <a href={company.website} target="_blank" rel="noopener noreferrer">
+                              <GlobalOutlined style={{ marginRight: 4 }} />
+                              {company.website}
+                            </a>
+                          ) : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="主要电话">
+                          {company.mainPhone ? (
+                            <span>
+                              <PhoneOutlined style={{ marginRight: 4 }} />
+                              {company.mainPhone}
+                            </span>
+                          ) : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="主要邮箱">
+                          {company.mainEmail ? (
+                            <span>
+                              <MailOutlined style={{ marginRight: 4 }} />
+                              {company.mainEmail}
+                            </span>
+                          ) : '-'}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Col>
+                  </Row>
 
-          {/* 基本信息 */}
-          <TabPane
-            tab={
-              <span>
-                <BankOutlined />
-                基本信息
-              </span>
-            }
-            key="basic"
-          >
-            <Row gutter={24}>
-              <Col span={12}>
-                <Descriptions title="企业信息" column={1} bordered>
-                  <Descriptions.Item label="企业名称">{company.companyName}</Descriptions.Item>
-                  <Descriptions.Item label="企业代码">{company.companyCode || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="企业类型">{company.companyTypeText}</Descriptions.Item>
-                  <Descriptions.Item label="行业">{company.industry || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="法定代表人">{company.legalRepresentative || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="营业执照">{company.businessLicense || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="税号">{company.taxNumber || '-'}</Descriptions.Item>
-                </Descriptions>
-              </Col>
-              <Col span={12}>
-                <Descriptions title="联系信息" column={1} bordered>
-                  <Descriptions.Item label="地址">
-                    {[company.address, company.city, company.province]
-                      .filter(Boolean)
-                      .join(', ') || '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="邮政编码">{company.postalCode || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="网站">
-                    {company.website ? (
-                      <a href={company.website} target="_blank" rel="noopener noreferrer">
-                        <GlobalOutlined style={{ marginRight: 4 }} />
-                        {company.website}
-                      </a>
-                    ) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="主要电话">
-                    {company.mainPhone ? (
-                      <span>
-                        <PhoneOutlined style={{ marginRight: 4 }} />
-                        {company.mainPhone}
-                      </span>
-                    ) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="主要邮箱">
-                    {company.mainEmail ? (
-                      <span>
-                        <MailOutlined style={{ marginRight: 4 }} />
-                        {company.mainEmail}
-                      </span>
-                    ) : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Col>
-            </Row>
+                  <Divider />
 
-            <Divider />
+                  <Row gutter={24}>
+                    <Col span={12}>
+                      <Descriptions title="商务信息" column={1} bordered>
+                        <Descriptions.Item label="状态">
+                          <Tag color={getStatusColor(company.status)}>{company.statusText}</Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="优先级">
+                          <Tag color={getPriorityColor(company.priority)}>{company.priorityText}</Tag>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="年度合同金额">
+                          {company.annualContractValue ? formatCurrency(company.annualContractValue) : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="总合同金额">
+                          {company.totalContractValue ? formatCurrency(company.totalContractValue) : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="合作开始时间">
+                          {company.startDate ? formatDate(company.startDate) : '-'}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Col>
+                    <Col span={12}>
+                      <Descriptions title="规模信息" column={1} bordered>
+                        <Descriptions.Item label="企业规模">{company.companySizeText || '-'}</Descriptions.Item>
+                        <Descriptions.Item label="员工数量">
+                          {company.employeeCount ? (
+                            <span>
+                              <TeamOutlined style={{ marginRight: 4 }} />
+                              {company.employeeCount}人
+                            </span>
+                          ) : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="关联用户数">{company.userCount || 0}</Descriptions.Item>
+                        <Descriptions.Item label="关联项目数">{company.projectCount || 0}</Descriptions.Item>
+                        <Descriptions.Item label="合同数量">{company.contractCount || 0}</Descriptions.Item>
+                        <Descriptions.Item label="最后联系时间">
+                          {company.lastContactDate ? formatDate(company.lastContactDate) : '-'}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Col>
+                  </Row>
 
-            <Row gutter={24}>
-              <Col span={12}>
-                <Descriptions title="商务信息" column={1} bordered>
-                  <Descriptions.Item label="状态">
-                    <Tag color={getStatusColor(company.status)}>{company.statusText}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="优先级">
-                    <Tag color={getPriorityColor(company.priority)}>{company.priorityText}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="年度合同金额">
-                    {company.annualContractValue ? formatCurrency(company.annualContractValue) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="总合同金额">
-                    {company.totalContractValue ? formatCurrency(company.totalContractValue) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="合作开始时间">
-                    {company.startDate ? formatDate(company.startDate) : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Col>
-              <Col span={12}>
-                <Descriptions title="规模信息" column={1} bordered>
-                  <Descriptions.Item label="企业规模">{company.companySizeText || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="员工数量">
-                    {company.employeeCount ? (
-                      <span>
-                        <TeamOutlined style={{ marginRight: 4 }} />
-                        {company.employeeCount}人
-                      </span>
-                    ) : '-'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="关联用户数">{company.userCount || 0}</Descriptions.Item>
-                  <Descriptions.Item label="关联项目数">{company.projectCount || 0}</Descriptions.Item>
-                  <Descriptions.Item label="合同数量">{company.contractCount || 0}</Descriptions.Item>
-                  <Descriptions.Item label="最后联系时间">
-                    {company.lastContactDate ? formatDate(company.lastContactDate) : '-'}
-                  </Descriptions.Item>
-                </Descriptions>
-              </Col>
-            </Row>
+                  <Divider />
 
-            <Divider />
-
-            <Descriptions title="系统信息" column={2} bordered>
-              <Descriptions.Item label="创建者">{company.createdByName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="更新者">{company.updatedByName || '-'}</Descriptions.Item>
-              <Descriptions.Item label="创建时间">{formatDate(company.createdAt)}</Descriptions.Item>
-              <Descriptions.Item label="更新时间">{formatDate(company.updatedAt)}</Descriptions.Item>
-            </Descriptions>
-          </TabPane>
-
-          {/* 企业用户 */}
-          <TabPane
-            tab={
-              <span>
-                <UserOutlined />
-                企业用户
-                {companyUsers.length > 0 && <Badge count={companyUsers.length} style={{ marginLeft: 8 }} />}
-              </span>
-            }
-            key="users"
-          >
-            <div style={{ marginBottom: '16px' }}>
-              <Button 
-                type="primary" 
-                icon={<UserOutlined />}
-                onClick={() => setShowAddUserModal(true)}
-              >
-                添加用户
-              </Button>
-            </div>
-            
-            <Table
-              columns={userColumns}
-              dataSource={companyUsers}
-              rowKey="id"
-              loading={usersLoading}
-              pagination={false}
-              locale={{
-                emptyText: <Empty description="暂无企业用户" />
-              }}
-            />
-          </TabPane>
-
-          {/* 联系记录 */}
-          <TabPane
-            tab={
-              <span>
-                <HistoryOutlined />
-                联系记录
-                {companyContacts.length > 0 && <Badge count={companyContacts.length} style={{ marginLeft: 8 }} />}
-              </span>
-            }
-            key="contacts"
-          >
-            <div style={{ marginBottom: '16px' }}>
-              <Button type="primary" icon={<ContactsOutlined />}>
-                添加联系记录
-              </Button>
-            </div>
-            
-            <Table
-              columns={contactColumns}
-              dataSource={companyContacts}
-              rowKey="id"
-              loading={contactsLoading}
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showQuickJumper: true,
-                showTotal: (total) => `共 ${total} 条记录`,
-              }}
-              locale={{
-                emptyText: <Empty description="暂无联系记录" />
-              }}
-            />
-          </TabPane>
-        </Tabs>
+                  <Descriptions title="系统信息" column={2} bordered>
+                    <Descriptions.Item label="创建者">{company.createdByName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="更新者">{company.updatedByName || '-'}</Descriptions.Item>
+                    <Descriptions.Item label="创建时间">{formatDate(company.createdAt)}</Descriptions.Item>
+                    <Descriptions.Item label="更新时间">{formatDate(company.updatedAt)}</Descriptions.Item>
+                  </Descriptions>
+                </div>
+              ),
+            },
+            {
+              label: (
+                <span>
+                  <UserOutlined />
+                  企业用户
+                  {companyUsers.length > 0 && <Badge count={companyUsers.length} style={{ marginLeft: 8 }} />}
+                </span>
+              ),
+              key: 'users',
+              children: (
+                <div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<UserOutlined />}
+                      onClick={() => setShowAddUserModal(true)}
+                    >
+                      添加用户
+                    </Button>
+                  </div>
+                  
+                  <Table
+                    columns={userColumns}
+                    dataSource={companyUsers}
+                    rowKey="id"
+                    loading={usersLoading}
+                    pagination={false}
+                    locale={{
+                      emptyText: <Empty description="暂无企业用户" />
+                    }}
+                  />
+                </div>
+              ),
+            },
+            {
+              label: (
+                <span>
+                  <HistoryOutlined />
+                  联系记录
+                  {companyContacts.length > 0 && <Badge count={companyContacts.length} style={{ marginLeft: 8 }} />}
+                </span>
+              ),
+              key: 'contacts',
+              children: (
+                <div>
+                  <div style={{ marginBottom: '16px' }}>
+                    <Button type="primary" icon={<ContactsOutlined />}>
+                      添加联系记录
+                    </Button>
+                  </div>
+                  
+                  <Table
+                    columns={contactColumns}
+                    dataSource={companyContacts}
+                    rowKey="id"
+                    loading={contactsLoading}
+                    pagination={{
+                      pageSize: 10,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total) => `共 ${total} 条记录`,
+                    }}
+                    locale={{
+                      emptyText: <Empty description="暂无联系记录" />
+                    }}
+                  />
+                </div>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* 添加用户Modal */}
@@ -807,7 +824,11 @@ const CompanyDetailPage: React.FC = () => {
           visible={showAddUserModal}
           companyId={company.id}
           companyName={company.companyName}
-          onCancel={() => setShowAddUserModal(false)}
+          editUser={editingUser}
+          onCancel={() => {
+            setShowAddUserModal(false);
+            setEditingUser(undefined);
+          }}
           onSuccess={handleAddUserSuccess}
         />
       )}

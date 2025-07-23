@@ -4,9 +4,11 @@ import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
 	"ai-project-backend/handlers"
+	"ai-project-backend/middleware"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -38,6 +40,7 @@ type Application struct {
 	companyHandler      *handlers.CompanyHandler
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
+	documentHandler     *handlers.DocumentHandler
 }
 
 // NewApplication creates a new application instance
@@ -78,6 +81,7 @@ func NewApplication() (*Application, error) {
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
+	documentHandler := handlers.NewDocumentHandler(db, logger, validate)
 
 	return &Application{
 		config:              cfg,
@@ -89,6 +93,7 @@ func NewApplication() (*Application, error) {
 		companyHandler:      companyHandler,
 		permissionHandler:   permissionHandler,
 		userManagementHandler: userManagementHandler,
+		documentHandler:     documentHandler,
 	}, nil
 }
 
@@ -143,11 +148,13 @@ func (app *Application) setupRouter() *gin.Engine {
 			auth.POST("/logout", app.logoutHandler)
 		}
 
-		// Protected routes (TODO: implement proper authentication)
+		// Protected routes (with user type access control)
 		authorized := api.Group("/")
-		// Temporarily disable complex auth middleware until interface issues are resolved
-		// authorized.Use(app.authMiddleware.RateLimitMiddleware())
-		// authorized.Use(app.authMiddleware.RequireAuth())
+		// Apply JWT authentication middleware first
+		authorized.Use(middleware.AuthMiddleware(app.jwtManager))
+		// Apply user type access control middleware
+		authorized.Use(middleware.UserTypeAccessMiddleware())
+		authorized.Use(middleware.CompanyAccessMiddleware())
 		authorized.Use(app.mapUserToCompanyUser()) // Map authenticated user to company user
 		{
 			// Global tasks route (all projects) - for compatibility
@@ -185,10 +192,21 @@ func (app *Application) setupRouter() *gin.Engine {
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
+				
+				// Project user management
+				projects.GET("/:id/users", app.getProjectUsersHandler)
+				projects.POST("/:id/users", app.addProjectUserHandler)
+				projects.DELETE("/:id/users/:userId", app.removeProjectUserHandler)
+				
+				// Document management routes
+				projects.GET("/:id/documents", app.documentHandler.GetProjectDocuments)
+				projects.POST("/:id/documents", app.documentHandler.CreateDocument)
 			}
 
-			// System management routes (admin only)
+			// System management routes (system users only)
 			system := authorized.Group("/system")
+			// Apply system user only middleware
+			system.Use(middleware.SystemUserOnlyMiddleware())
 			{
 				// Recycle bin routes
 				recycle := system.Group("/recycle")
@@ -283,45 +301,60 @@ func (app *Application) setupRouter() *gin.Engine {
 				companies.POST("/:id/contacts", app.companyHandler.CreateCompanyContact)
 			}
 
-			// Permission management routes (enterprise permission system)
+			// Document global routes
+			authorized.GET("/documents", app.documentHandler.GetAllDocuments)
+			
+			// Document CRUD routes (direct access by document ID)
+			authorized.GET("/documents/:id", app.documentHandler.GetDocument)
+			authorized.PUT("/documents/:id", app.documentHandler.UpdateDocument)
+			authorized.DELETE("/documents/:id", app.documentHandler.DeleteDocument)
+
+			// Permission management routes (system users with appropriate roles)
 			permissions := authorized.Group("/permissions")
+			// Most permission operations require system user access
+			permissions.Use(middleware.SystemUserOnlyMiddleware())
 			{
 				// Role management (require admin permissions)
-				permissions.GET("/roles", app.permissionHandler.GetRoles)
-				permissions.POST("/roles", app.permissionHandler.CreateRole)
-				permissions.PUT("/roles/:id", app.permissionHandler.UpdateRole)
-				permissions.DELETE("/roles/:id", app.permissionHandler.DeleteRole)
+				permissions.GET("/roles", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetRoles)
+				permissions.POST("/roles", middleware.AdminOnlyMiddleware(), app.permissionHandler.CreateRole)
+				permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.UpdateRole)
+				permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.DeleteRole)
 				
 				// Role permissions
-				permissions.GET("/roles/:id/permissions", app.permissionHandler.GetRolePermissions)
-				permissions.POST("/roles/:id/permissions", app.permissionHandler.SetRolePermissions)
+				permissions.GET("/roles/:id/permissions", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetRolePermissions)
+				permissions.POST("/roles/:id/permissions", middleware.AdminOnlyMiddleware(), app.permissionHandler.SetRolePermissions)
 				
 				// Permissions (read-only for most users)
 				permissions.GET("", app.permissionHandler.GetPermissions) // Basic read access for UI
 				
-				// User permissions
-				permissions.GET("/users/:id", app.permissionHandler.GetUserPermissions)
-				permissions.PUT("/users/:id", app.permissionHandler.UpdateUserPermissions)
+				// User permissions (admin and project managers can view, admin can update)
+				permissions.GET("/users/:id", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetUserPermissions)
+				permissions.PUT("/users/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.UpdateUserPermissions)
 				
 				// Permission checking (any authenticated user can check own permissions)
 				permissions.POST("/check", app.permissionHandler.CheckUserPermission)
 				
-				// Audit logs
-				permissions.GET("/audit-logs", app.permissionHandler.GetPermissionAuditLogs)
+				// Audit logs (admin only)
+				permissions.GET("/audit-logs", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetPermissionAuditLogs)
 				
-				// Permission inheritance and override management
-				permissions.GET("/users/:id/trace", app.permissionHandler.GetPermissionTrace)
-				permissions.POST("/users/:id/overrides", app.permissionHandler.SetPermissionOverride)
-				permissions.GET("/users/:id/overrides", app.permissionHandler.GetPermissionOverrides)
-				permissions.DELETE("/users/:id/overrides/:permissionCode", app.permissionHandler.RemovePermissionOverride)
-				permissions.GET("/users/:id/conflicts", app.permissionHandler.AnalyzePermissionConflicts)
+				// Permission inheritance and override management (admin only)
+				permissions.GET("/users/:id/trace", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetPermissionTrace)
+				permissions.POST("/users/:id/overrides", middleware.AdminOnlyMiddleware(), app.permissionHandler.SetPermissionOverride)
+				permissions.GET("/users/:id/overrides", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetPermissionOverrides)
+				permissions.DELETE("/users/:id/overrides/:permissionCode", middleware.AdminOnlyMiddleware(), app.permissionHandler.RemovePermissionOverride)
+				permissions.GET("/users/:id/conflicts", middleware.AdminOnlyMiddleware(), app.permissionHandler.AnalyzePermissionConflicts)
 			}
 
-			// Admin user management routes (admin only)
+			// Admin user management routes (admin only - system users with admin role)
 			admin := authorized.Group("/admin")
+			// Apply system user only middleware and admin role restriction
+			admin.Use(middleware.SystemUserOnlyMiddleware())
+			admin.Use(middleware.AdminOnlyMiddleware())
 			{
 				// User management (admin only)
 				adminUsers := admin.Group("/users")
+				// Additional role-based access control for user management operations
+				adminUsers.Use(middleware.RoleBasedAccessMiddleware("admin"))
 				{
 					adminUsers.GET("", app.userManagementHandler.GetUserList)
 					adminUsers.POST("", app.userManagementHandler.CreateUser)
@@ -348,9 +381,14 @@ func (app *Application) setupRouter() *gin.Engine {
 			auth.POST("/logout", app.logoutHandler)
 		}
 
-		// Protected routes (will be implemented with auth middleware)
+		// Protected routes (with user type access control - legacy API compatibility)
 		authorized := legacyApi.Group("/")
-		// authorized.Use(app.authMiddleware()) // Will be implemented in next task
+		// Apply JWT authentication middleware first
+		authorized.Use(middleware.AuthMiddleware(app.jwtManager))
+		// Apply user type access control middleware
+		authorized.Use(middleware.UserTypeAccessMiddleware())
+		authorized.Use(middleware.CompanyAccessMiddleware())
+		authorized.Use(app.mapUserToCompanyUser())
 		{
 			// Global tasks route (all projects)
 			authorized.GET("/tasks", app.getAllTasksHandler)
@@ -481,7 +519,7 @@ func (app *Application) loginHandler(c *gin.Context) {
 	}
 
 	// Generate JWT token
-	token, err := app.jwtManager.GenerateToken(user.ID, user.Username, user.Role)
+	token, err := app.jwtManager.GenerateToken(user.ID, user.Username, user.Role, user.UserType)
 	if err != nil {
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to generate token", nil)
 		c.JSON(http.StatusInternalServerError, response)
@@ -526,18 +564,18 @@ func (app *Application) getProjectsHandler(c *gin.Context) {
 	offset := (pagination.Page - 1) * pagination.PageSize
 
 	// Get projects from database
-	projects, total, err := app.db.Projects().List(c.Request.Context(), pagination.PageSize, offset)
+	projectsWithCompany, total, err := app.db.Projects().ListWithCompanyInfo(c.Request.Context(), pagination.PageSize, offset)
 	if err != nil {
-		app.logger.Printf("Error getting projects: %v", err)
+		app.logger.Printf("Error getting projects with company info: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve projects", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
 	// Convert to response format
-	projectResponses := make([]models.ProjectResponse, len(projects))
-	for i, project := range projects {
-		projectResponses[i] = project.ToResponse()
+	projectResponses := make([]models.ProjectResponse, len(projectsWithCompany))
+	for i, projectWithCompany := range projectsWithCompany {
+		projectResponses[i] = projectWithCompany.ToResponse()
 	}
 
 	// Create pagination metadata
@@ -575,11 +613,41 @@ func (app *Application) createProjectHandler(c *gin.Context) {
 		return
 	}
 
+	// Parse date strings to time.Time
+	var startDate, endDate *time.Time
+	if req.StartDate != nil && *req.StartDate != "" {
+		if parsed, err := time.Parse("2006-01-02", *req.StartDate); err == nil {
+			startDate = &parsed
+		}
+	}
+	if req.EndDate != nil && *req.EndDate != "" {
+		if parsed, err := time.Parse("2006-01-02", *req.EndDate); err == nil {
+			endDate = &parsed
+		}
+	}
+
+	// Set default values
+	status := req.Status
+	if status == "" {
+		status = "planning"
+	}
+	priority := req.Priority
+	if priority == "" {
+		priority = "medium"
+	}
+
 	// Create project model (for now, use owner_id = 1 as default)
 	project := &models.Project{
 		Name:        req.Name,
 		Description: req.Description,
 		OwnerID:     1, // TODO: Get from authenticated user context
+		CompanyID:   req.CompanyID,
+		Status:      status,
+		Priority:    priority,
+		Progress:    req.Progress,
+		StartDate:   startDate,
+		EndDate:     endDate,
+		Budget:      req.Budget,
 	}
 
 	// Create project in database
@@ -589,6 +657,31 @@ func (app *Application) createProjectHandler(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create project", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
+	}
+
+	// Handle company associations if provided
+	if len(req.CompanyIDs) > 0 {
+		for i, companyID := range req.CompanyIDs {
+			isPrimary := (i == 0) // First company is primary
+			if err := app.createProjectCompanyAssociation(c.Request.Context(), createdProject.ID, companyID, isPrimary); err != nil {
+				app.logger.Printf("Warning: Failed to create company association for project %d, company %d: %v", createdProject.ID, companyID, err)
+			}
+		}
+	} else if req.CompanyID != nil {
+		// Handle legacy single company_id
+		if err := app.createProjectCompanyAssociation(c.Request.Context(), createdProject.ID, *req.CompanyID, true); err != nil {
+			app.logger.Printf("Warning: Failed to create company association for project %d, company %d: %v", createdProject.ID, *req.CompanyID, err)
+		}
+	}
+
+	// Handle user assignments if provided
+	if len(req.UserIDs) > 0 {
+		for i, userID := range req.UserIDs {
+			isPrimary := (i == 0) // First user is primary
+			if err := app.createProjectUserAssignment(c.Request.Context(), createdProject.ID, userID, "customer", isPrimary); err != nil {
+				app.logger.Printf("Warning: Failed to create user assignment for project %d, user %d: %v", createdProject.ID, userID, err)
+			}
+		}
 	}
 
 	response := models.NewSuccessResponse(createdProject.ToResponse(), "Project created successfully")
@@ -673,12 +766,45 @@ func (app *Application) updateProjectHandler(c *gin.Context) {
 		return
 	}
 
+	// Parse date strings to time.Time for update
+	var startDate, endDate *time.Time
+	if req.StartDate != nil && *req.StartDate != "" {
+		if parsed, err := time.Parse("2006-01-02", *req.StartDate); err == nil {
+			startDate = &parsed
+		}
+	}
+	if req.EndDate != nil && *req.EndDate != "" {
+		if parsed, err := time.Parse("2006-01-02", *req.EndDate); err == nil {
+			endDate = &parsed
+		}
+	}
+
 	// Update project fields
 	if req.Name != "" {
 		existingProject.Name = req.Name
 	}
 	if req.Description != "" {
 		existingProject.Description = req.Description
+	}
+	if req.CompanyID != nil {
+		existingProject.CompanyID = req.CompanyID
+	}
+	if req.Status != "" {
+		existingProject.Status = req.Status
+	}
+	if req.Priority != "" {
+		existingProject.Priority = req.Priority
+	}
+	// Update progress (0 is a valid value)
+	existingProject.Progress = req.Progress
+	if startDate != nil {
+		existingProject.StartDate = startDate
+	}
+	if endDate != nil {
+		existingProject.EndDate = endDate
+	}
+	if req.Budget != nil {
+		existingProject.Budget = req.Budget
 	}
 
 	// Update project in database
@@ -688,6 +814,53 @@ func (app *Application) updateProjectHandler(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update project", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
+	}
+
+	// Handle company associations update if provided
+	if len(req.CompanyIDs) > 0 {
+		// Clear existing company associations
+		db := app.db.GetDB().(*sql.DB)
+		_, err := db.ExecContext(c.Request.Context(), "DELETE FROM project_companies WHERE project_id = $1", projectID)
+		if err != nil {
+			app.logger.Printf("Warning: Failed to clear existing company associations: %v", err)
+		}
+
+		// Add new company associations
+		for i, companyID := range req.CompanyIDs {
+			isPrimary := (i == 0) // First company is primary
+			if err := app.createProjectCompanyAssociation(c.Request.Context(), projectID, companyID, isPrimary); err != nil {
+				app.logger.Printf("Warning: Failed to create company association for project %d, company %d: %v", projectID, companyID, err)
+			}
+		}
+	} else if req.CompanyID != nil {
+		// Handle legacy single company_id
+		db := app.db.GetDB().(*sql.DB)
+		_, err := db.ExecContext(c.Request.Context(), "DELETE FROM project_companies WHERE project_id = $1", projectID)
+		if err != nil {
+			app.logger.Printf("Warning: Failed to clear existing company associations: %v", err)
+		}
+
+		if err := app.createProjectCompanyAssociation(c.Request.Context(), projectID, *req.CompanyID, true); err != nil {
+			app.logger.Printf("Warning: Failed to create company association for project %d, company %d: %v", projectID, *req.CompanyID, err)
+		}
+	}
+
+	// Handle user assignments update if provided
+	if len(req.UserIDs) > 0 {
+		// Clear existing user assignments
+		db := app.db.GetDB().(*sql.DB)
+		_, err := db.ExecContext(c.Request.Context(), "DELETE FROM project_users WHERE project_id = $1", projectID)
+		if err != nil {
+			app.logger.Printf("Warning: Failed to clear existing user assignments: %v", err)
+		}
+
+		// Add new user assignments
+		for i, userID := range req.UserIDs {
+			isPrimary := (i == 0) // First user is primary
+			if err := app.createProjectUserAssignment(c.Request.Context(), projectID, userID, "customer", isPrimary); err != nil {
+				app.logger.Printf("Warning: Failed to create user assignment for project %d, user %d: %v", projectID, userID, err)
+			}
+		}
 	}
 
 	response := models.NewSuccessResponse(updatedProject.ToResponse(), "Project updated successfully")
@@ -717,6 +890,144 @@ func (app *Application) deleteProjectHandler(c *gin.Context) {
 	}
 
 	response := models.NewSuccessResponse(nil, "Project deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// Project User Management Handlers
+
+func (app *Application) getProjectUsersHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Query project users with user details
+	query := `
+		SELECT pu.id, pu.project_id, pu.user_id, pu.role, pu.is_primary, 
+		       u.username, u.email, pu.created_at
+		FROM project_users pu
+		JOIN users u ON pu.user_id = u.id
+		WHERE pu.project_id = $1
+		ORDER BY pu.is_primary DESC, pu.created_at ASC`
+
+	db := app.db.GetDB().(*sql.DB)
+	rows, err := db.QueryContext(c.Request.Context(), query, projectID)
+	if err != nil {
+		app.logger.Printf("Error querying project users: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve project users", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+	defer rows.Close()
+
+	var users []models.ProjectUserResponse
+	for rows.Next() {
+		var user models.ProjectUserResponse
+		var roleName string
+		
+		err := rows.Scan(
+			&user.ID, &user.ProjectID, &user.UserID, &user.Role, &user.IsPrimary,
+			&user.UserName, &user.UserEmail, &user.JoinedAt,
+		)
+		if err != nil {
+			app.logger.Printf("Error scanning project user: %v", err)
+			continue
+		}
+
+		// Map role to display name
+		roleMap := map[string]string{
+			"manager":    "项目经理",
+			"developer":  "开发人员", 
+			"designer":   "设计师",
+			"consultant": "顾问",
+			"customer":   "客户代表",
+		}
+		if displayName, ok := roleMap[user.Role]; ok {
+			roleName = displayName
+		} else {
+			roleName = user.Role
+		}
+		user.RoleName = roleName
+
+		users = append(users, user)
+	}
+
+	response := models.NewSuccessResponse(users, "Project users retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) addProjectUserHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req struct {
+		UserID    int    `json:"user_id" binding:"required"`
+		Role      string `json:"role" binding:"required,oneof=manager developer designer consultant customer"`
+		IsPrimary bool   `json:"is_primary"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Add user to project
+	if err := app.createProjectUserAssignment(c.Request.Context(), projectID, req.UserID, req.Role, req.IsPrimary); err != nil {
+		app.logger.Printf("Error adding user to project: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to add user to project", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "User added to project successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+func (app *Application) removeProjectUserHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userIDStr := c.Param("userId")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Remove user from project
+	query := `DELETE FROM project_users WHERE project_id = $1 AND user_id = $2`
+	db := app.db.GetDB().(*sql.DB)
+	result, err := db.ExecContext(c.Request.Context(), query, projectID, userID)
+	if err != nil {
+		app.logger.Printf("Error removing user from project: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to remove user from project", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in project", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "User removed from project successfully")
 	c.JSON(http.StatusOK, response)
 }
 
@@ -2111,9 +2422,28 @@ func (app *Application) getProjectTimelineHandler(c *gin.Context) {
 
 // getUserProfileHandler gets the current user's profile
 func (app *Application) getUserProfileHandler(c *gin.Context) {
-	// TODO: Extract user ID from JWT token in context
-	// For now, using placeholder user ID
-	userID := 1 // This should come from JWT token middleware
+	// Extract user ID from context (set by mapUserToCompanyUser middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		response := models.NewErrorResponse(
+			models.ErrCodeUnauthorized,
+			"User not authenticated",
+			map[string]string{"error": "No user context found"},
+		)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	userID, ok := userIDInterface.(int)
+	if !ok {
+		response := models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"Invalid user context",
+			map[string]string{"error": "Invalid user ID format"},
+		)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
 
 	user, err := app.db.Users().GetByID(c.Request.Context(), userID)
 	if err != nil {
@@ -2132,8 +2462,28 @@ func (app *Application) getUserProfileHandler(c *gin.Context) {
 
 // updateUserProfileHandler updates the current user's profile
 func (app *Application) updateUserProfileHandler(c *gin.Context) {
-	// TODO: Extract user ID from JWT token in context
-	userID := 1 // This should come from JWT token middleware
+	// Extract user ID from context (set by mapUserToCompanyUser middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		response := models.NewErrorResponse(
+			models.ErrCodeUnauthorized,
+			"User not authenticated",
+			map[string]string{"error": "No user context found"},
+		)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	userID, ok := userIDInterface.(int)
+	if !ok {
+		response := models.NewErrorResponse(
+			models.ErrCodeInternal,
+			"Invalid user context",
+			map[string]string{"error": "Invalid user ID format"},
+		)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
 
 	var req models.UserProfileUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -2571,25 +2921,138 @@ func (app *Application) exportAIConfigsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// mapUserToCompanyUser middleware maps authenticated user to company user
+// mapUserToCompanyUser middleware maps authenticated user to company user and sets user type
 func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// For demo purposes, simulate authentication by setting a default user
-		// In production, this would be replaced by proper JWT authentication
+		// Get Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			response := models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"认证失败，请重新登录",
+				"Authorization header is required",
+			)
+			c.JSON(http.StatusUnauthorized, response)
+			c.Abort()
+			return
+		}
+
+		// Extract token from "Bearer <token>" format
+		tokenParts := []string{}
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			tokenParts = append(tokenParts, authHeader[7:])
+		}
+
+		if len(tokenParts) == 0 {
+			response := models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"认证失败，请重新登录",
+				"Invalid authorization format",
+			)
+			c.JSON(http.StatusUnauthorized, response)
+			c.Abort()
+			return
+		}
+
+		token := tokenParts[0]
+
+		// Validate and parse JWT token
+		claims, err := app.jwtManager.ValidateToken(token)
+		if err != nil {
+			app.logger.Printf("Token validation error: %v", err)
+			response := models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"认证失败，请重新登录",
+				"Invalid or expired token",
+			)
+			c.JSON(http.StatusUnauthorized, response)
+			c.Abort()
+			return
+		}
+
+		// Get user ID from claims
+		userID := int(claims.UserID)
 		
-		// Simulate logged-in user (use admin user for testing)
-		userID := 1 // Default to admin user
-		
-		// Set user context for compatibility
+		// Get user information from database to determine user type
+		user, err := app.db.Users().GetByID(c.Request.Context(), userID)
+		if err != nil {
+			app.logger.Printf("User lookup error for userID %d: %v", userID, err)
+			response := models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"认证失败，请重新登录",
+				"User not found",
+			)
+			c.JSON(http.StatusUnauthorized, response)
+			c.Abort()
+			return
+		}
+
+		// Set basic user context for compatibility
 		c.Set("user_id", userID)
-		c.Set("user_name", "admin")
-		c.Set("user_role", "admin")
+		c.Set("user_name", user.Username)
+		c.Set("user_role", user.Role)
+		
+		// Set user type information for middleware
+		userType := "system" // Default to system user for backward compatibility
+		var companyID interface{}
+		
+		// Determine user type based on role:
+		// - admin, project_manager, developer = system users
+		// - company_admin, company_user = company users
+		if user.Role == "company_admin" || user.Role == "company_user" {
+			userType = "company"
+			// For company users, you would get their company_id from the user record
+			// For demo, we'll set a default company ID
+			companyID = 1
+		}
+		
+		c.Set("user_type", userType)
+		c.Set("company_id", companyID)
 		
 		// Map to company user (for demo, use same ID)
 		c.Set("company_user_id", userID)
 		
+		// Log user type information for debugging
+		app.logger.Printf("mapUserToCompanyUser: userID=%d, userType=%s, role=%s, companyID=%v", 
+			userID, userType, user.Role, companyID)
+		
 		c.Next()
 	}
+}
+
+// Helper function to create project-company association
+func (app *Application) createProjectCompanyAssociation(ctx context.Context, projectID, companyID int, isPrimary bool) error {
+	query := `
+		INSERT INTO project_companies (project_id, company_id, is_primary, role)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (project_id, company_id) DO UPDATE SET
+			is_primary = EXCLUDED.is_primary,
+			role = EXCLUDED.role,
+			updated_at = now()`
+	
+	role := "客户"
+	if isPrimary {
+		role = "主客户"
+	}
+	
+	db := app.db.GetDB().(*sql.DB)
+	_, err := db.ExecContext(ctx, query, projectID, companyID, isPrimary, role)
+	return err
+}
+
+// Helper function to create project-user assignment
+func (app *Application) createProjectUserAssignment(ctx context.Context, projectID, userID int, role string, isPrimary bool) error {
+	query := `
+		INSERT INTO project_users (project_id, user_id, role, is_primary)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (project_id, user_id) DO UPDATE SET
+			role = EXCLUDED.role,
+			is_primary = EXCLUDED.is_primary,
+			updated_at = now()`
+	
+	db := app.db.GetDB().(*sql.DB)
+	_, err := db.ExecContext(ctx, query, projectID, userID, role, isPrimary)
+	return err
 }
 
 func main() {

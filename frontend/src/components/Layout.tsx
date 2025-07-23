@@ -23,6 +23,7 @@ import {
   SafetyOutlined,
   RobotOutlined,
   SettingOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -60,16 +61,52 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No token found, redirecting to login');
+          navigate('/login');
+          return;
+        }
+
+        console.log('Fetching user profile...');
         const response = await userService.getProfile();
+        console.log('User profile response:', response);
+        
         if (response.success && response.data) {
           setCurrentUser(response.data);
+          console.log('User profile loaded successfully:', response.data);
+        } else {
+          console.error('Failed to load user profile:', response.message);
+          // Don't redirect to login for profile fetch failure, user might still be authenticated
         }
       } catch (error) {
         console.error('Failed to fetch user profile:', error);
+        
+        // Check if it's an authentication error
+        if (error && typeof error === 'object' && 'type' in error) {
+          if ((error as any).type === 'AUTHENTICATION') {
+            console.log('Authentication error detected, redirecting to login');
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            navigate('/login');
+            return;
+          }
+        }
+        
+        // For other errors, don't redirect but show a fallback
+        console.log('Non-authentication error, continuing with fallback user data');
+        const storedUser = localStorage.getItem('currentUser');
+        if (storedUser) {
+          try {
+            setCurrentUser(JSON.parse(storedUser));
+          } catch (parseError) {
+            console.error('Failed to parse stored user data:', parseError);
+          }
+        }
       }
     };
     fetchUser();
-  }, []);
+  }, [navigate]);
 
   // 获取当前选中的菜单项
   const getSelectedKeys = () => {
@@ -80,6 +117,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/companies')) return ['/companies'];
+    if (path.includes('/documents')) return ['/documents'];
     return [path];
   };
 
@@ -94,6 +132,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
     if (path.includes('/projects')) {
       return ['/project-management'];
+    }
+    if (path.includes('/documents')) {
+      return ['/document-management'];
     }
     if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config')) {
       return ['/system-management'];
@@ -168,6 +209,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       key: '/companies',
       icon: <CustomerServiceOutlined />,
       label: '企业客户',
+    },
+    {
+      key: '/document-management',
+      icon: <FileTextOutlined />,
+      label: '文档管理',
+      children: [
+        {
+          key: '/documents',
+          icon: <FileTextOutlined />,
+          label: '所有文档',
+        },
+      ],
     },
     {
       key: '/system-management',

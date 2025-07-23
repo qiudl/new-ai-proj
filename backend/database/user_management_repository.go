@@ -29,13 +29,14 @@ func (r *UserManagementRepository) getExecer() execer {
 // CreateUser creates a new user with enhanced fields
 func (r *UserManagementRepository) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	query := `
-		INSERT INTO users (username, email, password_hash, role, status, profile)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role, status, profile)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.Username, user.Email, user.PasswordHash, user.Role, user.Status, user.Profile)
+		user.Username, user.Email, user.PasswordHash, user.UserType, 
+		user.CompanyID, user.CompanyUserID, user.Role, user.Status, user.Profile)
 
 	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
@@ -48,7 +49,8 @@ func (r *UserManagementRepository) CreateUser(ctx context.Context, user *models.
 // GetUserByID gets a user by ID with all fields
 func (r *UserManagementRepository) GetUserByID(ctx context.Context, id int) (*models.User, error) {
 	query := `
-		SELECT id, username, email, password_hash, role, status, profile, last_login_at, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id, 
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users WHERE id = $1`
 
 	exec := r.getExecer()
@@ -57,6 +59,7 @@ func (r *UserManagementRepository) GetUserByID(ctx context.Context, id int) (*mo
 	user := &models.User{}
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
@@ -86,6 +89,16 @@ func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *
 	if req.Email != nil {
 		setParts = append(setParts, fmt.Sprintf("email = $%d", argIndex))
 		args = append(args, *req.Email)
+		argIndex++
+	}
+	if req.UserType != nil {
+		setParts = append(setParts, fmt.Sprintf("user_type = $%d", argIndex))
+		args = append(args, *req.UserType)
+		argIndex++
+	}
+	if req.CompanyID != nil {
+		setParts = append(setParts, fmt.Sprintf("company_id = $%d", argIndex))
+		args = append(args, *req.CompanyID)
 		argIndex++
 	}
 	if req.Role != nil {
@@ -119,7 +132,8 @@ func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *
 		UPDATE users 
 		SET %s
 		WHERE %s
-		RETURNING id, username, email, password_hash, role, status, profile, last_login_at, created_at, updated_at`,
+		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
+		          role, status, profile, last_login_at, created_at, updated_at`,
 		strings.Join(setParts, ", "), whereClause)
 
 	exec := r.getExecer()
@@ -128,6 +142,7 @@ func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *
 	user := &models.User{}
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
@@ -184,6 +199,12 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 		argIndex++
 	}
 
+	if params.UserType != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("user_type = $%d", argIndex))
+		args = append(args, params.UserType)
+		argIndex++
+	}
+
 	if params.Search != "" {
 		searchPattern := "%" + params.Search + "%"
 		whereConditions = append(whereConditions, fmt.Sprintf("(username ILIKE $%d OR email ILIKE $%d OR profile->>'name' ILIKE $%d)", argIndex, argIndex, argIndex))
@@ -211,7 +232,8 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 
 	// Get users with pagination
 	query := fmt.Sprintf(`
-		SELECT id, username, email, password_hash, role, status, profile, last_login_at, created_at, updated_at
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, created_at, updated_at
 		FROM users 
 		%s
 		ORDER BY created_at DESC
@@ -231,6 +253,7 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 
 		err := rows.Scan(
 			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+			&user.UserType, &user.CompanyID, &user.CompanyUserID,
 			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 			&user.CreatedAt, &user.UpdatedAt,
 		)
@@ -279,7 +302,8 @@ func (r *UserManagementRepository) UpdateUserStatus(ctx context.Context, userID 
 		UPDATE users 
 		SET status = $2, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, username, email, password_hash, role, status, profile, last_login_at, created_at, updated_at`
+		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
+		          role, status, profile, last_login_at, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, userID, status)
@@ -287,6 +311,7 @@ func (r *UserManagementRepository) UpdateUserStatus(ctx context.Context, userID 
 	user := &models.User{}
 	err := row.Scan(
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
@@ -387,7 +412,8 @@ func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.Us
 			"admin":           adminCount,
 			"project_manager": pmCount,
 			"developer":       devCount,
-			"client":          clientCount,
+			"company_admin":   0, // TODO: Add company_admin count from view
+			"company_user":    0, // TODO: Add company_user count from view
 		},
 		ByStatus: map[string]int{
 			"active":    activeStatus,

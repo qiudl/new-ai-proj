@@ -17,7 +17,8 @@ import {
   Statistic,
   Badge,
   Dropdown,
-  Typography
+  Typography,
+  Radio
 } from 'antd';
 import {
   UserOutlined,
@@ -30,21 +31,29 @@ import {
   KeyOutlined,
   StopOutlined,
   CheckCircleOutlined,
-  TeamOutlined
+  TeamOutlined,
+  BuildOutlined,
+  BankOutlined
 } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 // import { useNavigate } from 'react-router-dom';
 import { 
   User, 
+  UserType,
   UserRole, 
   UserStatus, 
   UserCreateRequest, 
   UserUpdateRequest,
   UserListParams,
+  USER_TYPE_CONFIG,
   USER_ROLE_CONFIG,
-  USER_STATUS_CONFIG 
+  USER_STATUS_CONFIG,
+  getRoleConfigByType,
+  getValidRolesForUserType,
+  validateUserRole 
 } from '../types/user';
 import { UserManagementService } from '../services/userManagementService';
+import CompanyService from '../services/companyService';
 // import { useAsyncData } from '../hooks/useAsyncData';
 import { formatTimeAgo } from '../utils/formatters';
 
@@ -60,6 +69,13 @@ const UserManagementPage: React.FC = () => {
     page_size: 20
   });
 
+  // 用户类型相关状态
+  const [selectedUserType, setSelectedUserType] = useState<UserType>('system');
+  const [availableRoles, setAvailableRoles] = useState<UserRole[]>([]);
+  const [companies, setCompanies] = useState<any[]>([]); // 企业列表
+  const [companiesLoading, setCompaniesLoading] = useState(false); // 企业加载状态
+  const [companySearchKeyword, setCompanySearchKeyword] = useState<string>(''); // 企业搜索关键字
+
   // 模态框状态
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -71,6 +87,93 @@ const UserManagementPage: React.FC = () => {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
+
+  // 处理用户类型变更
+  const handleUserTypeChange = useCallback((userType: UserType) => {
+    setSelectedUserType(userType);
+    const roles = getValidRolesForUserType(userType);
+    setAvailableRoles(roles);
+    
+    // 重置角色字段
+    if (createForm && createModalVisible) {
+      createForm.setFieldValue('role', undefined);
+      // 强制更新表单以触发重新渲染
+      createForm.validateFields(['role']).catch(() => {});
+    }
+    if (editForm && editModalVisible) {
+      editForm.setFieldValue('role', undefined);
+      // 强制更新表单以触发重新渲染
+      editForm.validateFields(['role']).catch(() => {});
+    }
+  }, [createForm, editForm, createModalVisible, editModalVisible]);
+
+  // 初始化可用角色
+  useEffect(() => {
+    const roles = getValidRolesForUserType(selectedUserType);
+    setAvailableRoles(roles);
+  }, [selectedUserType]);
+
+  // 获取企业列表（连接真实API）
+  const fetchCompanies = useCallback(async () => {
+    try {
+      setCompaniesLoading(true);
+      // 获取所有活跃企业，用于企业用户选择器
+      const response = await CompanyService.getCompanies(
+        { page: 1, pageSize: 100 }, // 获取前100个企业，足够用于选择器
+        { status: 'active' } // 只获取活跃企业
+      );
+      
+      // 转换为前端期望的格式
+      const companiesList = response.data.map(company => ({
+        id: company.id,
+        name: company.companyName,
+        // 保留原始数据以备将来使用
+        originalData: company
+      }));
+      
+      setCompanies(companiesList);
+    } catch (error) {
+      console.error('Failed to fetch companies:', error);
+      message.error('获取企业列表失败');
+      // 设置默认的企业数据作为回退
+      setCompanies([
+        { id: 1, name: '企业数据加载失败，请刷新重试' }
+      ]);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  }, []);
+
+  // 搜索企业（支持输入搜索）
+  const searchCompanies = useCallback(async (keyword: string) => {
+    if (!keyword || keyword.length < 2) {
+      // 如果搜索关键字太短，返回默认企业列表
+      return fetchCompanies();
+    }
+
+    try {
+      setCompaniesLoading(true);
+      const searchResults = await CompanyService.searchCompanies(keyword);
+      
+      // 转换为前端期望的格式
+      const companiesList = searchResults.map(company => ({
+        id: company.id,
+        name: company.companyName,
+        originalData: company
+      }));
+      
+      setCompanies(companiesList);
+    } catch (error) {
+      console.error('Failed to search companies:', error);
+      message.error('搜索企业失败');
+    } finally {
+      setCompaniesLoading(false);
+    }
+  }, [fetchCompanies]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
 
   // 用户数据状态
   const [usersData, setUsersData] = useState<any>(null);
@@ -154,13 +257,35 @@ const UserManagementPage: React.FC = () => {
   // 创建用户
   const handleCreateUser = useCallback(async (values: UserCreateRequest) => {
     try {
+      console.log('创建用户表单数据:', values);
+      
+      // 验证必填字段
+      if (!values.role) {
+        message.error('请选择角色');
+        return;
+      }
+      
+      if (!values.user_type) {
+        message.error('请选择用户类型');
+        return;
+      }
+      
+      // 验证用户类型和角色的匹配性
+      const isValidRole = validateUserRole(values.user_type as UserType, values.role as UserRole);
+      if (!isValidRole) {
+        message.error(`所选角色不适用于${values.user_type === 'system' ? '系统' : '企业'}用户类型`);
+        return;
+      }
+      
       await UserManagementService.createUser(values);
       message.success('用户创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
+      setSelectedUserType('system'); // 重置为默认值
       refreshUsers();
       refreshStats();
     } catch (error) {
+      console.error('创建用户失败:', error);
       message.error('用户创建失败');
     }
   }, [createForm, refreshUsers, refreshStats]);
@@ -266,10 +391,13 @@ const UserManagementPage: React.FC = () => {
     editForm.setFieldsValue({
       username: user.username,
       email: user.email,
+      user_type: user.user_type,
+      company_id: user.company_id,
       role: user.role,
       status: user.status,
       profile: user.profile
     });
+    setSelectedUserType(user.user_type);
     setEditModalVisible(true);
   }, [editForm]);
 
@@ -291,8 +419,8 @@ const UserManagementPage: React.FC = () => {
           <Avatar 
             size={40} 
             src={user.profile?.avatar} 
-            icon={<UserOutlined />}
-            style={{ backgroundColor: USER_ROLE_CONFIG[user.role].color }}
+            icon={user.user_type === 'system' ? <BuildOutlined /> : <BankOutlined />}
+            style={{ backgroundColor: USER_TYPE_CONFIG[user.user_type].color }}
           />
           <div>
             <div style={{ fontWeight: 500 }}>{user.profile?.name || user.username}</div>
@@ -308,19 +436,33 @@ const UserManagementPage: React.FC = () => {
       width: 200,
     },
     {
+      title: '用户类型',
+      dataIndex: 'user_type',
+      key: 'user_type',
+      width: 120,
+      render: (userType: UserType) => (
+        <Tag 
+          color={USER_TYPE_CONFIG[userType].color}
+          icon={userType === 'system' ? <BuildOutlined /> : <BankOutlined />}
+        >
+          {USER_TYPE_CONFIG[userType].label}
+        </Tag>
+      ),
+      filters: Object.entries(USER_TYPE_CONFIG).map(([key, config]) => ({
+        text: config.label,
+        value: key,
+      })),
+    },
+    {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
       width: 120,
       render: (role: UserRole) => (
-        <Tag color={USER_ROLE_CONFIG[role].color}>
-          {USER_ROLE_CONFIG[role].label}
+        <Tag color={USER_ROLE_CONFIG[role]?.color}>
+          {USER_ROLE_CONFIG[role]?.label || role}
         </Tag>
       ),
-      filters: Object.entries(USER_ROLE_CONFIG).map(([key, config]) => ({
-        text: config.label,
-        value: key,
-      })),
     },
     {
       title: '状态',
@@ -337,6 +479,32 @@ const UserManagementPage: React.FC = () => {
         text: config.label,
         value: key,
       })),
+    },
+    {
+      title: '企业',
+      key: 'company',
+      width: 120,
+      render: (_, user) => {
+        if (user.user_type === 'company' && user.company_id) {
+          const company = companies.find(c => c.id === user.company_id);
+          return company ? (
+            <Tooltip title={`企业ID: ${user.company_id}`}>
+              <Text ellipsis style={{ maxWidth: 100 }}>
+                {company.name}
+              </Text>
+            </Tooltip>
+          ) : (
+            <Text type="secondary">
+              {companiesLoading ? '加载中...' : `企业${user.company_id}`}
+            </Text>
+          );
+        }
+        return user.user_type === 'system' ? (
+          <Text type="secondary">-</Text>
+        ) : (
+          <Text type="warning">未关联</Text>
+        );
+      },
     },
     {
       title: '部门',
@@ -520,7 +688,7 @@ const UserManagementPage: React.FC = () => {
       {/* 操作工具栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={6}>
             <Search
               placeholder="搜索用户名、邮箱..."
               allowClear
@@ -528,7 +696,24 @@ const UserManagementPage: React.FC = () => {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={24} sm={4}>
+          <Col xs={24} sm={3}>
+            <Select
+              placeholder="用户类型"
+              allowClear
+              style={{ width: '100%' }}
+              onChange={(value) => handleFilter('user_type', value)}
+            >
+              {Object.entries(USER_TYPE_CONFIG).map(([key, config]) => (
+                <Option key={key} value={key}>
+                  <Space>
+                    {key === 'system' ? <BuildOutlined /> : <BankOutlined />}
+                    {config.label}
+                  </Space>
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={24} sm={3}>
             <Select
               placeholder="角色筛选"
               allowClear
@@ -540,7 +725,7 @@ const UserManagementPage: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={24} sm={4}>
+          <Col xs={24} sm={3}>
             <Select
               placeholder="状态筛选"
               allowClear
@@ -552,7 +737,7 @@ const UserManagementPage: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12}>
             <Space>
               <Button 
                 type="primary" 
@@ -623,6 +808,8 @@ const UserManagementPage: React.FC = () => {
         onCancel={() => {
           setCreateModalVisible(false);
           createForm.resetFields();
+          setSelectedUserType('system');
+          setAvailableRoles(getValidRolesForUserType('system'));
         }}
         onOk={() => createForm.submit()}
         width={600}
@@ -631,7 +818,52 @@ const UserManagementPage: React.FC = () => {
           form={createForm}
           layout="vertical"
           onFinish={handleCreateUser}
+          onFinishFailed={(errorInfo) => {
+            console.error('表单验证失败:', errorInfo);
+            console.log('当前表单值:', createForm.getFieldsValue());
+            
+            const failedFields = errorInfo.errorFields?.map(field => ({
+              name: field.name,
+              errors: field.errors
+            }));
+            console.error('验证失败的字段:', failedFields);
+            
+            if (failedFields?.some(field => field.name.includes('role'))) {
+              message.error('请选择角色');
+            } else {
+              message.error('请完善表单信息');
+            }
+          }}
+          initialValues={{ user_type: 'system', role: undefined }}
         >
+          <Form.Item
+            name="user_type"
+            label="用户类型"
+            rules={[{ required: true, message: '请选择用户类型' }]}
+          >
+            <Radio.Group 
+              onChange={(e) => {
+                const newUserType = e.target.value;
+                handleUserTypeChange(newUserType);
+                // 清空角色选择
+                createForm.setFieldValue('role', undefined);
+              }}
+            >
+              <Radio value="system">
+                <Space>
+                  <BuildOutlined />
+                  系统用户
+                </Space>
+              </Radio>
+              <Radio value="company">
+                <Space>
+                  <BankOutlined />
+                  企业用户
+                </Space>
+              </Radio>
+            </Radio.Group>
+          </Form.Item>
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -658,6 +890,48 @@ const UserManagementPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          
+          {/* 企业用户需要选择企业 */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, current) => prev.user_type !== current.user_type}
+          >
+            {({ getFieldValue }) => {
+              const userType = getFieldValue('user_type');
+              return userType === 'company' ? (
+                <Form.Item
+                  name="company_id"
+                  label="所属企业"
+                  rules={[{ required: true, message: '请选择所属企业' }]}
+                >
+                  <Select 
+                    placeholder="请选择企业"
+                    showSearch
+                    loading={companiesLoading}
+                    filterOption={false} // 禁用默认过滤，使用自定义搜索
+                    onSearch={(value) => {
+                      setCompanySearchKeyword(value);
+                      searchCompanies(value);
+                    }}
+                    onFocus={() => {
+                      // 当选择器获得焦点时，确保有企业数据
+                      if (companies.length === 0) {
+                        fetchCompanies();
+                      }
+                    }}
+                    notFoundContent={companiesLoading ? '加载中...' : '没有找到企业'}
+                  >
+                    {companies.map(company => (
+                      <Option key={company.id} value={company.id}>
+                        {company.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              ) : null;
+            }}
+          </Form.Item>
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -673,18 +947,36 @@ const UserManagementPage: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item
-                name="role"
-                label="角色"
-                rules={[{ required: true, message: '请选择角色' }]}
+                noStyle
+                shouldUpdate={(prev, current) => prev.user_type !== current.user_type}
               >
-                <Select placeholder="请选择角色">
-                  {Object.entries(USER_ROLE_CONFIG).map(([key, config]) => (
-                    <Option key={key} value={key}>{config.label}</Option>
-                  ))}
-                </Select>
+                {({ getFieldValue }) => {
+                  const userType = getFieldValue('user_type') || selectedUserType;
+                  const roleConfig = getRoleConfigByType(userType);
+                  
+                  return (
+                    <Form.Item
+                      name="role"
+                      label="角色"
+                      rules={[{ required: true, message: '请选择角色' }]}
+                      dependencies={['user_type']}
+                    >
+                      <Select 
+                        placeholder={`请选择${userType === 'system' ? '系统' : '企业'}用户角色`}
+                        allowClear
+                        onClear={() => createForm.setFieldValue('role', undefined)}
+                      >
+                        {Object.entries(roleConfig).map(([key, config]) => (
+                          <Option key={key} value={key}>{config.label}</Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  );
+                }}
               </Form.Item>
             </Col>
           </Row>
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name={['profile', 'name']} label="姓名">
@@ -720,6 +1012,34 @@ const UserManagementPage: React.FC = () => {
           layout="vertical"
           onFinish={handleEditUser}
         >
+          <Form.Item
+            name="user_type"
+            label="用户类型"
+            rules={[{ required: true, message: '请选择用户类型' }]}
+          >
+            <Radio.Group 
+              onChange={(e) => {
+                const newUserType = e.target.value;
+                handleUserTypeChange(newUserType);
+                // 清空角色选择
+                editForm.setFieldValue('role', undefined);
+              }}
+            >
+              <Radio value="system">
+                <Space>
+                  <BuildOutlined />
+                  系统用户
+                </Space>
+              </Radio>
+              <Radio value="company">
+                <Space>
+                  <BankOutlined />
+                  企业用户
+                </Space>
+              </Radio>
+            </Radio.Group>
+          </Form.Item>
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -746,18 +1066,77 @@ const UserManagementPage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          
+          {/* 企业用户需要选择企业 */}
+          <Form.Item
+            noStyle
+            shouldUpdate={(prev, current) => prev.user_type !== current.user_type}
+          >
+            {({ getFieldValue }) => {
+              const userType = getFieldValue('user_type');
+              return userType === 'company' ? (
+                <Form.Item
+                  name="company_id"
+                  label="所属企业"
+                  rules={[{ required: true, message: '请选择所属企业' }]}
+                >
+                  <Select 
+                    placeholder="请选择企业"
+                    showSearch
+                    loading={companiesLoading}
+                    filterOption={false} // 禁用默认过滤，使用自定义搜索
+                    onSearch={(value) => {
+                      setCompanySearchKeyword(value);
+                      searchCompanies(value);
+                    }}
+                    onFocus={() => {
+                      // 当选择器获得焦点时，确保有企业数据
+                      if (companies.length === 0) {
+                        fetchCompanies();
+                      }
+                    }}
+                    notFoundContent={companiesLoading ? '加载中...' : '没有找到企业'}
+                  >
+                    {companies.map(company => (
+                      <Option key={company.id} value={company.id}>
+                        {company.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              ) : null;
+            }}
+          </Form.Item>
+          
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="role"
-                label="角色"
-                rules={[{ required: true, message: '请选择角色' }]}
+                noStyle
+                shouldUpdate={(prev, current) => prev.user_type !== current.user_type}
               >
-                <Select placeholder="请选择角色">
-                  {Object.entries(USER_ROLE_CONFIG).map(([key, config]) => (
-                    <Option key={key} value={key}>{config.label}</Option>
-                  ))}
-                </Select>
+                {({ getFieldValue }) => {
+                  const userType = getFieldValue('user_type') || selectedUserType;
+                  const roleConfig = getRoleConfigByType(userType);
+                  
+                  return (
+                    <Form.Item
+                      name="role"
+                      label="角色"
+                      rules={[{ required: true, message: '请选择角色' }]}
+                      dependencies={['user_type']}
+                    >
+                      <Select 
+                        placeholder={`请选择${userType === 'system' ? '系统' : '企业'}用户角色`}
+                        allowClear
+                        onClear={() => editForm.setFieldValue('role', undefined)}
+                      >
+                        {Object.entries(roleConfig).map(([key, config]) => (
+                          <Option key={key} value={key}>{config.label}</Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
+                  );
+                }}
               </Form.Item>
             </Col>
             <Col span={12}>

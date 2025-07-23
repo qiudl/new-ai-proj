@@ -15,7 +15,6 @@ import {
   Typography,
   Row,
   Col,
-  Statistic,
   Divider
 } from 'antd';
 import {
@@ -52,7 +51,6 @@ const CompanyListPage: React.FC = () => {
     showTotal: (total: number) => `共 ${total} 条记录`,
   });
   const [filters, setFilters] = useState<CompanyFilter>({});
-  const [stats, setStats] = useState<any>(null);
 
   // Load companies data
   const loadCompanies = useCallback(async () => {
@@ -78,23 +76,9 @@ const CompanyListPage: React.FC = () => {
     }
   }, [pagination.current, pagination.pageSize, filters]);
 
-  // Load company statistics
-  const loadStats = useCallback(async () => {
-    try {
-      const statsData = await companyService.getCompanyStats();
-      setStats(statsData);
-    } catch (error) {
-      console.error('Failed to load company stats:', error);
-    }
-  }, []);
-
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
-
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
 
   // Handle search
   const handleSearch = (value: string) => {
@@ -136,7 +120,6 @@ const CompanyListPage: React.FC = () => {
           await companyService.deleteCompany(id);
           message.success('企业删除成功');
           loadCompanies();
-          loadStats();
         } catch (error) {
           console.error('Failed to delete company:', error);
           message.error('删除企业失败');
@@ -299,68 +282,6 @@ const CompanyListPage: React.FC = () => {
       <div style={{ marginBottom: '24px' }}>
         <Title level={2}>企业客户管理</Title>
 
-        {/* Statistics Cards */}
-        {stats && (
-          <Row gutter={16} style={{ marginBottom: '24px' }}>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="企业总数"
-                  value={stats.totalCompanies}
-                  valueStyle={{ color: '#1890ff' }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="活跃企业"
-                  value={stats.activeCompanies}
-                  valueStyle={{ color: '#52c41a' }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="潜在企业"
-                  value={stats.potentialCompanies}
-                  valueStyle={{ color: '#faad14' }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="高优先级"
-                  value={stats.highPriorityCompanies}
-                  valueStyle={{ color: '#f5222d' }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="年度合同总额"
-                  value={stats.totalAnnualContractValue}
-                  formatter={(value) => formatCurrency(Number(value))}
-                  valueStyle={{ color: '#722ed1' }}
-                />
-              </Card>
-            </Col>
-            <Col span={4}>
-              <Card>
-                <Statistic
-                  title="平均合同金额"
-                  value={stats.averageAnnualContractValue}
-                  formatter={(value) => formatCurrency(Number(value))}
-                  valueStyle={{ color: '#13c2c2' }}
-                />
-              </Card>
-            </Col>
-          </Row>
-        )}
-
         {/* Filters and Actions */}
         <Card style={{ marginBottom: '16px' }}>
           <Row gutter={16} align="middle">
@@ -423,7 +344,6 @@ const CompanyListPage: React.FC = () => {
                   icon={<ReloadOutlined />}
                   onClick={() => {
                     loadCompanies();
-                    loadStats();
                   }}
                 >
                   刷新
