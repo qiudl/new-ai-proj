@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined } from '@ant-design/icons';
+import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
@@ -9,6 +9,7 @@ import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
 import { Project } from '../types/project';
 import { projectService } from '../services/projectService';
+import TimerService from '../services/timerService';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
@@ -46,6 +47,10 @@ const TasksPage: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentProject, setCurrentProject] = useState<Project | undefined>();
+  
+  // 计时器状态
+  const [currentTimerTask, setCurrentTimerTask] = useState<number | null>(null);
+  const [timerLoading, setTimerLoading] = useState<Set<number>>(new Set());
   
   // 全局统计状态
   const [globalStats, setGlobalStats] = useState<{
@@ -327,10 +332,11 @@ const TasksPage: React.FC = () => {
     }
   }, [effectiveProjectId, loadGlobalStats]);
 
-  // Load tasks on component mount
+  // Load tasks on component mount and load current timer
   useEffect(() => {
     loadTasks();
   }, [loadTasks]); // 当loadTasks函数变化时重新加载任务
+  
   
   // Initial load is handled by the loadTasks useEffect above
   
@@ -752,6 +758,75 @@ const TasksPage: React.FC = () => {
     setEditingTitleValue('');
   };
 
+  // 加载当前计时器状态
+  const loadCurrentTimer = useCallback(async () => {
+    try {
+      const response = await TimerService.getCurrentTimer();
+      if (response.is_running && response.task_id) {
+        setCurrentTimerTask(response.task_id);
+      } else {
+        setCurrentTimerTask(null);
+      }
+    } catch (error) {
+      console.error('Failed to load current timer:', error);
+    }
+  }, []);
+
+  // 处理开始计时
+  const handleStartTimer = async (task: Task) => {
+    if (currentTimerTask) {
+      message.warning('已有任务在计时中，请先停止当前计时');
+      return;
+    }
+
+    const taskId = task.id;
+    setTimerLoading(prev => new Set(prev).add(taskId));
+    
+    try {
+      await TimerService.startTimer(taskId);
+      setCurrentTimerTask(taskId);
+      message.success(`开始计时: ${task.title}`);
+    } catch (error: any) {
+      console.error('Failed to start timer:', error);
+      message.error('开始计时失败');
+    } finally {
+      setTimerLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+    }
+  };
+
+  // 处理停止计时
+  const handleStopTimer = async (task: Task) => {
+    const taskId = task.id;
+    setTimerLoading(prev => new Set(prev).add(taskId));
+    
+    try {
+      const response = await TimerService.stopTimer();
+      setCurrentTimerTask(null);
+      message.success(`计时结束: ${response.task_title} (${response.formatted_time})`);
+      
+      // 刷新任务列表以更新总时长
+      loadTasks(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error('Failed to stop timer:', error);
+      message.error('停止计时失败');
+    } finally {
+      setTimerLoading(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+    }
+  };
+
+  // Load current timer on component mount
+  useEffect(() => {
+    loadCurrentTimer();
+  }, [loadCurrentTimer]);
+
   // 批量选择处理函数
   const handleSelectTask = (taskId: number, checked: boolean) => {
     setSelectedTaskIds(prev => {
@@ -1124,6 +1199,44 @@ const TasksPage: React.FC = () => {
                             >
                               {subTask.status === 'completed' ? '完成' : subTask.status === 'in_progress' ? '进行中' : '待办'}
                             </Tag>
+                            
+                            {/* 子任务计时器按钮 */}
+                            {subTask.status !== 'completed' && subTask.status !== 'cancelled' && (
+                              currentTimerTask === subTask.id ? (
+                                <button
+                                  onClick={() => handleStopTimer(subTask)}
+                                  disabled={timerLoading.has(subTask.id)}
+                                  style={{
+                                    color: '#52c41a',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    padding: '2px 4px'
+                                  }}
+                                  title="停止计时"
+                                >
+                                  {timerLoading.has(subTask.id) ? '⏳' : '⏸️'}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleStartTimer(subTask)}
+                                  disabled={timerLoading.has(subTask.id) || (!!currentTimerTask && currentTimerTask !== subTask.id)}
+                                  style={{
+                                    color: currentTimerTask && currentTimerTask !== subTask.id ? '#d9d9d9' : '#1890ff',
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: currentTimerTask && currentTimerTask !== subTask.id ? 'not-allowed' : 'pointer',
+                                    fontSize: '12px',
+                                    padding: '2px 4px'
+                                  }}
+                                  title={currentTimerTask && currentTimerTask !== subTask.id ? "已有任务在计时中" : "开始计时"}
+                                >
+                                  {timerLoading.has(subTask.id) ? '⏳' : '▶️'}
+                                </button>
+                              )
+                            )}
+                            
                             <button
                               onClick={() => handleEditTask(subTask)}
                               style={{
@@ -1414,57 +1527,89 @@ const TasksPage: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 120,
-      render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => (
-        <Space size="small">
-          {/* 添加子任务按钮 */}
-          <Button
-            type="text"
-            size="small"
-            icon={<AppstoreAddOutlined />}
-            onClick={() => handleCreateSubTask(record)}
-            title="添加子任务"
-          />
-          
-          {/* 查看按钮 - 外显 */}
-          <Button
-            type="text"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewTask(record)}
-            title="查看详情"
-          />
-          
-          {/* 更多操作下拉菜单 */}
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'history',
-                  label: '更新历史',
-                  icon: <HistoryOutlined />,
-                  onClick: () => navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=history`),
-                },
-                {
-                  key: 'edit',
-                  label: '编辑',
-                  icon: <EditOutlined />,
-                  onClick: () => handleEditTask(record),
-                },
-                {
-                  key: 'delete',
-                  label: '删除',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                  onClick: () => handleDeleteTask(record),
-                },
-              ],
-            }}
-          >
-            <Button type="text" size="small" icon={<MoreOutlined />} title="更多操作" />
-          </Dropdown>
-        </Space>
-      ),
+      width: 160, // 增加宽度以容纳计时器按钮
+      render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => {
+        const isTimerRunning = currentTimerTask === record.id;
+        const isTimerLoadingForTask = timerLoading.has(record.id);
+        const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
+        
+        return (
+          <Space size="small">
+            {/* 计时器按钮 */}
+            {canStartTimer && (
+              isTimerRunning ? (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PauseCircleOutlined />}
+                  onClick={() => handleStopTimer(record)}
+                  loading={isTimerLoadingForTask}
+                  title="停止计时"
+                  style={{ color: '#52c41a' }}
+                />
+              ) : (
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PlayCircleOutlined />}
+                  onClick={() => handleStartTimer(record)}
+                  loading={isTimerLoadingForTask}
+                  disabled={!!currentTimerTask && !isTimerRunning}
+                  title={currentTimerTask && !isTimerRunning ? "已有任务在计时中" : "开始计时"}
+                  style={{ color: currentTimerTask && !isTimerRunning ? '#d9d9d9' : '#1890ff' }}
+                />
+              )
+            )}
+            
+            {/* 添加子任务按钮 */}
+            <Button
+              type="text"
+              size="small"
+              icon={<AppstoreAddOutlined />}
+              onClick={() => handleCreateSubTask(record)}
+              title="添加子任务"
+            />
+            
+            {/* 查看按钮 - 外显 */}
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => handleViewTask(record)}
+              title="查看详情"
+            />
+            
+            {/* 更多操作下拉菜单 */}
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'history',
+                    label: '更新历史',
+                    icon: <HistoryOutlined />,
+                    onClick: () => navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=history`),
+                  },
+                  {
+                    key: 'edit',
+                    label: '编辑',
+                    icon: <EditOutlined />,
+                    onClick: () => handleEditTask(record),
+                  },
+                  {
+                    key: 'delete',
+                    label: '删除',
+                    icon: <DeleteOutlined />,
+                    danger: true,
+                    onClick: () => handleDeleteTask(record),
+                  },
+                ],
+              }}
+            >
+              <Button type="text" size="small" icon={<MoreOutlined />} title="更多操作" />
+            </Dropdown>
+          </Space>
+        );
+      },
     },
   ];
 

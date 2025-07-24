@@ -130,28 +130,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-dashboard') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
       return ['/task-management'];
     }
-    if (path.includes('/projects')) {
-      return ['/project-management'];
+    if (path.includes('/projects') || path.includes('/companies')) {
+      return ['/project-customer-management'];
     }
     if (path.includes('/documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config')) {
+    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs')) {
       return ['/system-management'];
     }
     return [];
   };
 
   const userMenuItems = [
-    {
-      key: 'profile',
-      label: '个人资料',
-      icon: <UserOutlined />,
-      onClick: () => navigate('/user-profile'),
-    },
-    {
-      type: 'divider' as const,
-    },
     {
       key: 'logout',
       label: '退出登录',
@@ -167,14 +158,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '工作台',
     },
     {
-      key: '/project-management',
+      key: '/project-customer-management',
       icon: <ProjectOutlined />,
-      label: '项目管理',
+      label: '项目客户',
       children: [
         {
           key: '/projects',
           icon: <UnorderedListOutlined />,
           label: '项目列表',
+        },
+        {
+          key: '/companies',
+          icon: <CustomerServiceOutlined />,
+          label: '企业客户',
         },
       ],
     },
@@ -204,11 +200,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '批量导入',
         },
       ],
-    },
-    {
-      key: '/companies',
-      icon: <CustomerServiceOutlined />,
-      label: '企业客户',
     },
     {
       key: '/document-management',
@@ -242,22 +233,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <RobotOutlined />,
           label: 'AI配置',
         },
+        {
+          key: '/recycle-bin',
+          icon: <DeleteOutlined />,
+          label: '回收站',
+        },
+        {
+          key: '/audit-logs',
+          icon: <AuditOutlined />,
+          label: '审计日志',
+        },
       ],
-    },
-    {
-      key: '/recycle-bin',
-      icon: <DeleteOutlined />,
-      label: '回收站',
-    },
-    {
-      key: '/audit-logs',
-      icon: <AuditOutlined />,
-      label: '审计日志',
-    },
-    {
-      key: '/user-profile',
-      icon: <UserOutlined />,
-      label: '个人资料',
     },
   ];
 

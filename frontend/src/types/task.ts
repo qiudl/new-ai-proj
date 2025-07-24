@@ -18,6 +18,7 @@ export interface Task {
   updated_by?: number;
   updated_by_username?: string;
   project_name?: string;
+  total_time_seconds?: number;
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
@@ -44,6 +45,8 @@ export interface TaskFilter {
 export interface PaginationParams {
   page?: number;
   page_size?: number;
+  sort_by?: string;
+  sort_order?: string;
 }
 
 export interface Pagination {

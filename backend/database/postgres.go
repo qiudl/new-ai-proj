@@ -92,6 +92,11 @@ func (pdb *PostgresDB) Documents() DocumentRepository {
 	return &PostgresDocumentRepository{db: pdb.db}
 }
 
+// Timer returns the timer repository
+func (pdb *PostgresDB) Timer() TimerRepository {
+	return NewTimerRepository(pdb.db)
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db
@@ -159,6 +164,11 @@ func (ptx *PostgresTx) Audit() AuditRepository {
 // Documents returns the document repository for transaction
 func (ptx *PostgresTx) Documents() DocumentRepository {
 	return &PostgresDocumentRepository{db: ptx.tx}
+}
+
+// Timer returns the timer repository for transaction
+func (ptx *PostgresTx) Timer() TimerRepository {
+	return NewTimerRepository(ptx.tx)
 }
 
 // Commit commits the transaction

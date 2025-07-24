@@ -41,6 +41,7 @@ type Application struct {
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
 	documentHandler     *handlers.DocumentHandler
+	timerHandler        *handlers.TimerHandler
 }
 
 // NewApplication creates a new application instance
@@ -82,6 +83,7 @@ func NewApplication() (*Application, error) {
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
 	documentHandler := handlers.NewDocumentHandler(db, logger, validate)
+	timerHandler := handlers.NewTimerHandler(db)
 
 	return &Application{
 		config:              cfg,
@@ -94,6 +96,7 @@ func NewApplication() (*Application, error) {
 		permissionHandler:   permissionHandler,
 		userManagementHandler: userManagementHandler,
 		documentHandler:     documentHandler,
+		timerHandler:        timerHandler,
 	}, nil
 }
 
@@ -303,11 +306,22 @@ func (app *Application) setupRouter() *gin.Engine {
 
 			// Document global routes
 			authorized.GET("/documents", app.documentHandler.GetAllDocuments)
+			authorized.POST("/documents", app.documentHandler.CreateGlobalDocument)
+			authorized.GET("/documents/stats", app.documentHandler.GetDocumentStats)
 			
 			// Document CRUD routes (direct access by document ID)
 			authorized.GET("/documents/:id", app.documentHandler.GetDocument)
 			authorized.PUT("/documents/:id", app.documentHandler.UpdateDocument)
 			authorized.DELETE("/documents/:id", app.documentHandler.DeleteDocument)
+
+			// Timer routes
+			timer := authorized.Group("/timer")
+			{
+				timer.POST("/start", app.timerHandler.StartTimer)
+				timer.POST("/stop", app.timerHandler.StopTimer)
+				timer.GET("/current", app.timerHandler.GetCurrentTimer)
+				timer.GET("/stats", app.timerHandler.GetTimerStats)
+			}
 
 			// Permission management routes (system users with appropriate roles)
 			permissions := authorized.Group("/permissions")

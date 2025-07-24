@@ -11,7 +11,7 @@ import './styles/task-hierarchy.css';
 // Lazy load pages for code splitting
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
-const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboardPage'));
+const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboardPageEnhanced'));
 const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
 const TasksPage = React.lazy(() => import('./pages/TasksPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
@@ -33,6 +33,7 @@ const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageNew'));
 const DocumentListPage = React.lazy(() => import('./pages/DocumentListPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
+const FlexibleTableTestPage = React.lazy(() => import('./pages/FlexibleTableTestPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -136,6 +137,14 @@ function App() {
             } />
 
             <Route path="/projects/:projectId/documents/new" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentEditorPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/documents/new" element={
               <PrivateRoute>
                 <Layout>
                   <DocumentEditorPage />
@@ -330,6 +339,15 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <AIConfigPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* FlexibleDataTable test page */}
+            <Route path="/test/flexible-table" element={
+              <PrivateRoute>
+                <Layout>
+                  <FlexibleTableTestPage />
                 </Layout>
               </PrivateRoute>
             } />

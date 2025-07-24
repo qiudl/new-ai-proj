@@ -35,20 +35,21 @@ func (cf *CustomFields) Scan(value interface{}) error {
 
 // Task represents a task in the system
 type Task struct {
-	ID           int          `json:"id" db:"id"`
-	ProjectID    int          `json:"project_id" db:"project_id" validate:"required"`
-	Title        string       `json:"title" db:"title" validate:"required,min=1,max=255"`
-	Description  string       `json:"description" db:"description"`
-	Status       string       `json:"status" db:"status" validate:"required,oneof=todo in_progress completed cancelled"`
-	AssigneeID   *int         `json:"assignee_id" db:"assignee_id"`
-	DueDate      *time.Time   `json:"due_date" db:"due_date"`
-	CustomFields CustomFields `json:"custom_fields" db:"custom_fields"`
-	ParentID     *int         `json:"parent_id" db:"parent_id"`
-	TaskLevel    int          `json:"task_level" db:"task_level"`
-	SortOrder    int          `json:"sort_order" db:"sort_order"`
-	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
-	DeletedAt    *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
+	ID                int          `json:"id" db:"id"`
+	ProjectID         int          `json:"project_id" db:"project_id" validate:"required"`
+	Title             string       `json:"title" db:"title" validate:"required,min=1,max=255"`
+	Description       string       `json:"description" db:"description"`
+	Status            string       `json:"status" db:"status" validate:"required,oneof=todo in_progress completed cancelled"`
+	AssigneeID        *int         `json:"assignee_id" db:"assignee_id"`
+	DueDate           *time.Time   `json:"due_date" db:"due_date"`
+	CustomFields      CustomFields `json:"custom_fields" db:"custom_fields"`
+	ParentID          *int         `json:"parent_id" db:"parent_id"`
+	TaskLevel         int          `json:"task_level" db:"task_level"`
+	SortOrder         int          `json:"sort_order" db:"sort_order"`
+	TotalTimeSeconds  int          `json:"total_time_seconds" db:"total_time_seconds"`
+	CreatedAt         time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at" db:"updated_at"`
+	DeletedAt         *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // TaskRequest represents a task creation/update request

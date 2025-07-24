@@ -278,7 +278,7 @@ const ProjectDetailPage: React.FC = () => {
       render: (text: string, record: Task) => (
         <Button 
           type="link" 
-          onClick={() => navigate(`/tasks/${record.id}`)}
+          onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
           style={{ padding: 0, fontSize: '14px' }}
         >
           {text}
@@ -607,7 +607,6 @@ const ProjectDetailPage: React.FC = () => {
             projectId={project.id} 
             projectName={project.name}
             onCreateDocument={() => navigate(`/projects/${project.id}/documents/new`)}
-            onEditDocument={(document) => navigate(`/documents/${document.id}/edit`)}
           />
         </TabPane>
 

@@ -27,6 +27,7 @@ import {
   DeleteOutlined, 
   ArrowLeftOutlined, 
   PlusOutlined, 
+  ImportOutlined,
   BranchesOutlined, 
   HistoryOutlined, 
   ClockCircleOutlined,
@@ -70,9 +71,10 @@ const TaskDetailPageNew: React.FC = () => {
   // 核心状态
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editModalVisible, setEditModalVisible] = useState(false);
+  // 统一的任务模态框状态管理
+  const [taskModalVisible, setTaskModalVisible] = useState(false);
+  const [taskModalMode, setTaskModalMode] = useState<'edit' | 'createSubtask'>('edit');
   const [modalLoading, setModalLoading] = useState(false);
-  const [createSubtaskModalVisible, setCreateSubtaskModalVisible] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   
@@ -293,7 +295,8 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   const handleEditTask = () => {
-    setEditModalVisible(true);
+    setTaskModalMode('edit');
+    setTaskModalVisible(true);
   };
 
   const handleUpdateTask = async (taskData: any) => {
@@ -309,7 +312,7 @@ const TaskDetailPageNew: React.FC = () => {
       setModalLoading(true);
       await TaskService.updateTask(parsedProjectId, task.id, taskData);
       message.success('任务更新成功');
-      setEditModalVisible(false);
+      setTaskModalVisible(false);
       loadTask();
     } catch (error) {
       message.error('任务更新失败');
@@ -346,7 +349,28 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   const handleCreateSubtask = () => {
-    setCreateSubtaskModalVisible(true);
+    setTaskModalMode('createSubtask');
+    setTaskModalVisible(true);
+  };
+
+  // 批量导入子任务处理函数
+  const handleBulkImportSubtasks = () => {
+    if (!task || !projectId) {
+      message.error('任务信息不完整，无法进行批量导入');
+      return;
+    }
+    
+    // 跳转到批量导入页面，带上父任务参数
+    navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task.id}`);
+  };
+
+  // 统一的任务模态框提交处理
+  const handleTaskModalSubmit = async (taskData: any) => {
+    if (taskModalMode === 'edit') {
+      await handleUpdateTask(taskData);
+    } else if (taskModalMode === 'createSubtask') {
+      await handleCreateSubtaskSubmit(taskData);
+    }
   };
 
   const handleCreateSubtaskSubmit = async (taskData: any) => {
@@ -368,7 +392,7 @@ const TaskDetailPageNew: React.FC = () => {
       
       await TaskService.createTask(parsedProjectId, subtaskData);
       message.success('子任务创建成功');
-      setCreateSubtaskModalVisible(false);
+      setTaskModalVisible(false);
       
       // 重新加载所有数据
       loadTask();
@@ -634,14 +658,24 @@ const TaskDetailPageNew: React.FC = () => {
               }
               style={{ marginBottom: '24px' }}
               extra={
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />} 
-                  size="small"
-                  onClick={handleCreateSubtask}
-                >
-                  添加子任务
-                </Button>
+                <Space size="small">
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    size="small"
+                    onClick={handleCreateSubtask}
+                  >
+                    添加子任务
+                  </Button>
+                  <Button 
+                    type="default" 
+                    icon={<ImportOutlined />} 
+                    size="small"
+                    onClick={handleBulkImportSubtasks}
+                  >
+                    批量导入
+                  </Button>
+                </Space>
               }
             >
               <Table
@@ -955,6 +989,13 @@ const TaskDetailPageNew: React.FC = () => {
                 onClick={handleCreateSubtask}
               >
                 创建子任务
+              </Button>
+              <Button 
+                block 
+                icon={<ImportOutlined />}
+                onClick={handleBulkImportSubtasks}
+              >
+                批量导入任务
               </Button>
               <Button 
                 block 
@@ -1288,31 +1329,26 @@ const TaskDetailPageNew: React.FC = () => {
         </Card>
       )}
 
-      {/* 编辑任务模态框 */}
-      {task && editModalVisible && projectId && !isNaN(parseInt(projectId)) && (
+      {/* 统一的任务模态框 */}
+      {taskModalVisible && projectId && !isNaN(parseInt(projectId)) && (
         <TaskModal
-          visible={editModalVisible}
-          task={task}
+          visible={taskModalVisible}
+          task={taskModalMode === 'edit' ? task : undefined}
+          parentTask={taskModalMode === 'createSubtask' ? task : undefined}
           projectId={parseInt(projectId)}
-          onOk={handleUpdateTask}
-          onCancel={() => setEditModalVisible(false)}
+          onOk={handleTaskModalSubmit}
+          onCancel={() => setTaskModalVisible(false)}
           loading={modalLoading}
           onEditDetails={() => {
-            setEditModalVisible(false);
-            navigate(`/projects/${projectId}/tasks/${taskId}/edit`);
+            setTaskModalVisible(false);
+            if (taskModalMode === 'edit') {
+              // 编辑模式：跳转到当前任务的编辑页面
+              navigate(`/projects/${projectId}/tasks/${taskId}/edit`);
+            } else if (taskModalMode === 'createSubtask') {
+              // 创建子任务模式：跳转到批量导入页面，可以创建多个子任务
+              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.id}`);
+            }
           }}
-        />
-      )}
-
-      {/* 创建子任务模态框 */}
-      {createSubtaskModalVisible && projectId && !isNaN(parseInt(projectId)) && (
-        <TaskModal
-          visible={createSubtaskModalVisible}
-          projectId={parseInt(projectId)}
-          onOk={handleCreateSubtaskSubmit}
-          onCancel={() => setCreateSubtaskModalVisible(false)}
-          loading={modalLoading}
-          parentTask={task}
         />
       )}
     </div>

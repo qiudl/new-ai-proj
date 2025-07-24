@@ -37,19 +37,23 @@ func (p *UserProfile) Scan(value interface{}) error {
 
 // User represents a user in the system
 type User struct {
-	ID            int          `json:"id" db:"id"`
-	Username      string       `json:"username" db:"username" validate:"required,min=3,max=50"`
-	Email         string       `json:"email" db:"email" validate:"required,email"`
-	PasswordHash  string       `json:"-" db:"password_hash"`
-	UserType      string       `json:"user_type" db:"user_type" validate:"required,oneof=system company"`
-	CompanyID     *int         `json:"company_id,omitempty" db:"company_id"`
-	CompanyUserID *int         `json:"company_user_id,omitempty" db:"company_user_id"`
-	Role          string       `json:"role" db:"role" validate:"required"`
-	Status        string       `json:"status" db:"status" validate:"required,oneof=active inactive suspended"`
-	Profile       UserProfile  `json:"profile" db:"profile"`
-	LastLoginAt   *time.Time   `json:"last_login_at,omitempty" db:"last_login_at"`
-	CreatedAt     time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time    `json:"updated_at" db:"updated_at"`
+	ID                  int          `json:"id" db:"id"`
+	Username            string       `json:"username" db:"username" validate:"required,min=3,max=50"`
+	Email               string       `json:"email" db:"email" validate:"required,email"`
+	PasswordHash        string       `json:"-" db:"password_hash"`
+	UserType            string       `json:"user_type" db:"user_type" validate:"required,oneof=system company"`
+	CompanyID           *int         `json:"company_id,omitempty" db:"company_id"`
+	CompanyUserID       *int         `json:"company_user_id,omitempty" db:"company_user_id"`
+	Role                string       `json:"role" db:"role" validate:"required"`
+	Status              string       `json:"status" db:"status" validate:"required,oneof=active inactive suspended"`
+	Profile             UserProfile  `json:"profile" db:"profile"`
+	LastLoginAt         *time.Time   `json:"last_login_at,omitempty" db:"last_login_at"`
+	// Timer fields
+	CurrentTimingTaskID *int         `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
+	TimingStartTime     *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
+	TimingStatus        string       `json:"timing_status" db:"timing_status"`
+	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
 }
 
 // UserCreateRequest represents a user creation request

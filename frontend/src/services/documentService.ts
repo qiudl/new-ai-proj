@@ -1,4 +1,17 @@
 import api from './api';
+import { 
+  Document, 
+  CreateDocumentRequest, 
+  UpdateDocumentRequest,
+  DocumentFilter as DocFilter,
+  DocumentListResponse,
+  DocumentStats,
+  DocumentListItem,
+  DocumentVersion,
+  DocumentAssociation,
+  ProjectOption,
+  CustomerOption
+} from '../types/document';
 
 // Type-safe API wrapper that knows about the response interceptor
 const apiCall = {
@@ -17,88 +30,136 @@ const apiCall = {
   delete: async (url: string): Promise<void> => {
     await api.delete(url);
   },
+  postFormData: async <T>(url: string, formData: FormData): Promise<T> => {
+    const response = await api.post(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response as T;
+  },
 };
 
-// 文档数据类型
-export interface Document {
-  id: number;
-  project_id: number;
-  project_name?: string;
-  title: string;
-  content: string;
-  created_by: number;
-  creator_name?: string;
-  created_at: string;
-  updated_at: string;
+// 文件上传相关类型
+export interface FileUploadResponse {
+  url: string;
+  filename: string;
+  size: number;
+  mime_type: string;
 }
 
-// 文档列表项类型
-export interface DocumentListItem {
-  id: number;
-  project_id: number;
-  project_name?: string;
-  title: string;
-  created_by: number;
-  creator_name?: string;
-  created_at: string;
-  updated_at: string;
-  content_size: number;
-}
-
-// 文档请求类型
-export interface DocumentRequest {
-  title: string;
-  content: string;
-}
-
-// 文档过滤器类型
-export interface DocumentFilter {
-  search?: string;
-  sort_by?: 'created_at' | 'updated_at' | 'title';
-  order?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
-}
-
-// 文档列表响应类型
-export interface DocumentListResponse {
-  data: DocumentListItem[];
-  total: number;
-  page: number;
-  limit: number;
+export interface ImageUploadRequest {
+  file: File;
+  project_id?: number;
+  customer_id?: number;
+  description?: string;
 }
 
 // 文档API服务类
 export class DocumentService {
   // 获取所有文档列表
-  static async getAllDocuments(filter?: DocumentFilter): Promise<DocumentListResponse> {
-    const params = new URLSearchParams();
+  static async getAllDocuments(filter?: DocFilter): Promise<DocumentListResponse> {
+    const searchParams = new URLSearchParams();
     
-    if (filter?.search) params.append('search', filter.search);
-    if (filter?.sort_by) params.append('sort_by', filter.sort_by);
-    if (filter?.order) params.append('order', filter.order);
-    if (filter?.page) params.append('page', filter.page.toString());
-    if (filter?.limit) params.append('limit', filter.limit.toString());
+    if (filter?.search) searchParams.append('search', filter.search);
+    if (filter?.type) searchParams.append('type', filter.type);
+    if (filter?.status) searchParams.append('status', filter.status);
+    if (filter?.project_id) searchParams.append('project_id', filter.project_id.toString());
+    if (filter?.customer_id) searchParams.append('customer_id', filter.customer_id.toString());
+    if (filter?.owner_id) searchParams.append('owner_id', filter.owner_id.toString());
+    if (filter?.category) searchParams.append('category', filter.category);
+    if (filter?.visibility) searchParams.append('visibility', filter.visibility);
+    if (filter?.sort_by) searchParams.append('sort_by', filter.sort_by);
+    if (filter?.order) searchParams.append('order', filter.order);
+    if (filter?.page) searchParams.append('page', filter.page.toString());
+    if (filter?.limit) searchParams.append('limit', filter.limit.toString());
+    if (filter?.tags) {
+      filter.tags.forEach(tag => searchParams.append('tags', tag));
+    }
+    if (filter?.include_deleted) searchParams.append('include_deleted', 'true');
 
-    const url = `/documents${params.toString() ? '?' + params.toString() : ''}`;
-    return apiCall.get<DocumentListResponse>(url);
+    const url = `/documents${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    
+    // 后端返回的格式是 { data: [], total: number, page: number, limit: number }
+    // 需要转换为前端期望的格式 { documents: [], total: number, ... }
+    const response = await apiCall.get<{
+      data: DocumentListItem[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(url);
+    
+    return {
+      documents: response.data,
+      total: response.total,
+      page: response.page,
+      limit: response.limit,
+      has_more: response.data.length === response.limit
+    };
   }
 
   // 获取项目文档列表
   static async getProjectDocuments(
     projectId: number, 
-    filter?: DocumentFilter
+    filter?: DocFilter
   ): Promise<DocumentListResponse> {
-    const params = new URLSearchParams();
+    const searchParams = new URLSearchParams();
     
-    if (filter?.search) params.append('search', filter.search);
-    if (filter?.sort_by) params.append('sort_by', filter.sort_by);
-    if (filter?.order) params.append('order', filter.order);
-    if (filter?.page) params.append('page', filter.page.toString());
-    if (filter?.limit) params.append('limit', filter.limit.toString());
+    if (filter?.search) searchParams.append('search', filter.search);
+    if (filter?.type) searchParams.append('type', filter.type);
+    if (filter?.status) searchParams.append('status', filter.status);
+    if (filter?.category) searchParams.append('category', filter.category);
+    if (filter?.visibility) searchParams.append('visibility', filter.visibility);
+    if (filter?.sort_by) searchParams.append('sort_by', filter.sort_by);
+    if (filter?.order) searchParams.append('order', filter.order);
+    if (filter?.page) searchParams.append('page', filter.page.toString());
+    if (filter?.limit) searchParams.append('limit', filter.limit.toString());
+    if (filter?.tags) {
+      filter.tags.forEach(tag => searchParams.append('tags', tag));
+    }
+    if (filter?.include_deleted) searchParams.append('include_deleted', 'true');
 
-    const url = `/projects/${projectId}/documents${params.toString() ? '?' + params.toString() : ''}`;
-    return apiCall.get<DocumentListResponse>(url);
+    const url = `/projects/${projectId}/documents${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    
+    // 后端返回的格式是 { data: [], total: number, page: number, limit: number }
+    // 需要转换为前端期望的格式 { documents: [], total: number, ... }
+    const response = await apiCall.get<{
+      data: DocumentListItem[];
+      total: number;
+      page: number;
+      limit: number;
+    }>(url);
+    
+    return {
+      documents: response.data,
+      total: response.total,
+      page: response.page,
+      limit: response.limit,
+      has_more: response.data.length === response.limit
+    };
+  }
+
+  // 获取客户文档列表
+  static async getCustomerDocuments(
+    customerId: number,
+    filter?: DocFilter
+  ): Promise<DocumentListResponse> {
+    const updatedFilter = { ...filter, customer_id: customerId };
+    return this.getAllDocuments(updatedFilter);
+  }
+
+  // 获取个人文档列表
+  static async getPersonalDocuments(
+    userId: number,
+    filter?: DocFilter
+  ): Promise<DocumentListResponse> {
+    const updatedFilter = { 
+      ...filter, 
+      owner_id: userId,
+      project_id: undefined,
+      customer_id: undefined
+    };
+    return this.getAllDocuments(updatedFilter);
   }
 
   // 获取单个文档
@@ -107,17 +168,22 @@ export class DocumentService {
   }
 
   // 创建文档
-  static async createDocument(
-    projectId: number, 
-    data: DocumentRequest
-  ): Promise<Document> {
-    return apiCall.post<Document>(`/projects/${projectId}/documents`, data);
+  static async createDocument(data: CreateDocumentRequest): Promise<Document> {
+    // 根据关联类型选择不同的API端点
+    if (data.project_id) {
+      return apiCall.post<Document>(`/projects/${data.project_id}/documents`, data);
+    } else if (data.customer_id) {
+      return apiCall.post<Document>(`/customers/${data.customer_id}/documents`, data);
+    } else {
+      // 个人文档或全局文档
+      return apiCall.post<Document>(`/documents`, data);
+    }
   }
 
   // 更新文档
   static async updateDocument(
     documentId: number, 
-    data: DocumentRequest
+    data: UpdateDocumentRequest
   ): Promise<Document> {
     return apiCall.put<Document>(`/documents/${documentId}`, data);
   }
@@ -127,36 +193,127 @@ export class DocumentService {
     return apiCall.delete(`/documents/${documentId}`);
   }
 
+  // 上传文件
+  static async uploadFile(
+    file: File, 
+    type: 'image' | 'pdf' | 'document',
+    options?: {
+      project_id?: number;
+      customer_id?: number;
+      description?: string;
+    }
+  ): Promise<FileUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options?.project_id) {
+      formData.append('project_id', options.project_id.toString());
+    }
+    if (options?.customer_id) {
+      formData.append('customer_id', options.customer_id.toString());
+    }
+    if (options?.description) {
+      formData.append('description', options.description);
+    }
+
+    const endpoint = type === 'image' ? '/upload/image' : 
+                    type === 'pdf' ? '/upload/pdf' : '/upload/document';
+    return apiCall.postFormData<FileUploadResponse>(endpoint, formData);
+  }
+
+  // 向后兼容的方法
+  static async uploadImage(request: ImageUploadRequest): Promise<FileUploadResponse> {
+    return this.uploadFile(request.file, 'image', {
+      project_id: request.project_id,
+      customer_id: request.customer_id,
+      description: request.description,
+    });
+  }
+
+  // 获取文档统计信息
+  static async getDocumentStats(options?: {
+    project_id?: number;
+    customer_id?: number;
+  }): Promise<DocumentStats> {
+    const searchParams = new URLSearchParams();
+    if (options?.project_id) searchParams.append('project_id', options.project_id.toString());
+    if (options?.customer_id) searchParams.append('customer_id', options.customer_id.toString());
+    
+    const url = `/documents/stats${searchParams.toString() ? '?' + searchParams.toString() : ''}`;
+    return apiCall.get<DocumentStats>(url);
+  }
+
   // 搜索文档
   static async searchDocuments(
-    projectId: number,
     searchTerm: string,
-    options?: { limit?: number; offset?: number }
+    options?: { 
+      project_id?: number;
+      customer_id?: number;
+      limit?: number; 
+      offset?: number;
+      type?: string;
+      status?: string;
+    }
   ): Promise<DocumentListResponse> {
-    const params = new URLSearchParams({
+    const filter: DocFilter = {
       search: searchTerm,
+      project_id: options?.project_id,
+      customer_id: options?.customer_id,
+      type: options?.type as any,
+      status: options?.status as any,
+      limit: options?.limit,
+      page: options?.offset ? Math.floor(options.offset / (options.limit || 20)) + 1 : undefined,
+    };
+
+    return this.getAllDocuments(filter);
+  }
+
+  // 获取文档版本历史
+  static async getDocumentVersions(documentId: number): Promise<DocumentVersion[]> {
+    return apiCall.get<DocumentVersion[]>(`/documents/${documentId}/versions`);
+  }
+
+  // 恢复文档版本
+  static async restoreDocumentVersion(documentId: number, versionId: number): Promise<Document> {
+    return apiCall.post<Document>(`/documents/${documentId}/versions/${versionId}/restore`);
+  }
+
+  // 分享文档
+  static async shareDocument(
+    documentId: number, 
+    userIds: number[], 
+    message?: string
+  ): Promise<{ shared_users: Array<{ id: number; username: string; email: string }> }> {
+    return apiCall.post(`/documents/${documentId}/share`, {
+      user_ids: userIds,
+      message,
     });
-    
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.offset) params.append('page', Math.floor(options.offset / (options.limit || 20) + 1).toString());
-
-    return apiCall.get<DocumentListResponse>(`/projects/${projectId}/documents?${params.toString()}`);
   }
 
-  // 批量操作文档（预留接口）
+  // 批量操作文档
   static async batchDeleteDocuments(documentIds: number[]): Promise<void> {
-    // TODO: 实现批量删除API
-    return Promise.all(documentIds.map(id => this.deleteDocument(id))).then(() => void 0);
+    return apiCall.post('/documents/batch', {
+      action: 'delete',
+      document_ids: documentIds,
+    });
   }
 
-  // 复制文档（预留接口）
+  // 复制文档
   static async duplicateDocument(documentId: number, newTitle?: string): Promise<Document> {
     const originalDoc = await this.getDocument(documentId);
-    const duplicatedDoc: DocumentRequest = {
+    const duplicatedDoc: CreateDocumentRequest = {
       title: newTitle || `${originalDoc.title} (副本)`,
       content: originalDoc.content,
+      type: originalDoc.type,
+      project_id: originalDoc.project_id || undefined,
+      customer_id: originalDoc.customer_id || undefined,
+      status: originalDoc.status,
+      category: originalDoc.category,
+      subcategory: originalDoc.subcategory,
+      visibility: originalDoc.visibility,
+      tags: originalDoc.tags,
+      description: originalDoc.description,
     };
-    return this.createDocument(originalDoc.project_id, duplicatedDoc);
+    return this.createDocument(duplicatedDoc);
   }
 
   // 导出文档（预留接口）
@@ -171,25 +328,37 @@ export class DocumentService {
     });
   }
 
-  // 获取文档统计信息（预留接口）
-  static async getDocumentStats(projectId: number): Promise<{
-    total: number;
-    totalSize: number;
-    lastUpdated?: string;
-  }> {
-    // TODO: 实现文档统计API，暂时通过列表接口计算
-    const response = await this.getProjectDocuments(projectId, { limit: 1000 });
-    return {
-      total: response.total,
-      totalSize: response.data.reduce((sum, doc) => sum + doc.content_size, 0),
-      lastUpdated: response.data.length > 0 
-        ? response.data.sort((a, b) => 
-            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-          )[0].updated_at 
-        : undefined,
-    };
+  // 获取可用项目列表（用于关联选择）
+  static async getAvailableProjects(): Promise<ProjectOption[]> {
+    // 这里应该调用项目服务，暂时返回空数组
+    return [];
+  }
+
+  // 获取可用客户列表（用于关联选择）
+  static async getAvailableCustomers(): Promise<CustomerOption[]> {
+    // 这里应该调用客户服务，暂时返回空数组
+    return [];
   }
 }
 
 // 默认导出服务实例
 export const documentService = DocumentService;
+
+// Re-export types for convenience
+export type {
+  Document,
+  CreateDocumentRequest as DocumentRequest,
+  UpdateDocumentRequest,
+  DocumentFilter as DocFilter,
+  DocumentListResponse,
+  DocumentStats,
+  DocumentListItem,
+  DocumentVersion,
+  DocumentAssociation,
+  ProjectOption,
+  CustomerOption
+} from '../types/document';
+
+// Legacy compatibility types
+export type DocumentListParams = DocFilter;
+export type { DocumentListItem as DocumentItem } from '../types/document';

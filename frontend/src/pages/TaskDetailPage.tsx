@@ -569,14 +569,20 @@ const TaskDetailPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Breadcrumb>
-          <Breadcrumb.Item>
-            <Button type="link" icon={<ArrowLeftOutlined />} onClick={handleBack}>
-              任务列表
-            </Button>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>{task?.title}</Breadcrumb.Item>
-        </Breadcrumb>
+        <Breadcrumb
+          items={[
+            {
+              title: (
+                <Button type="link" icon={<ArrowLeftOutlined />} onClick={handleBack}>
+                  任务列表
+                </Button>
+              )
+            },
+            {
+              title: task?.title
+            }
+          ]}
+        />
         <Space>
           <Button icon={<EditOutlined />} onClick={handleEdit}>
             编辑任务

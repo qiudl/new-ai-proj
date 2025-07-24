@@ -215,6 +215,25 @@ type DocumentRepository interface {
 	GetListWithRelations(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
 	GetAllDocumentsWithRelations(ctx context.Context, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
 	Search(ctx context.Context, projectID int, searchTerm string, limit, offset int) ([]*models.Document, int, error)
+	GetGlobalDocumentCount(ctx context.Context) (int, error)
+}
+
+// TimerRepository defines the interface for timer operations
+type TimerRepository interface {
+	// Time log operations
+	Create(ctx context.Context, log *models.TaskTimeLog) error
+	GetByID(ctx context.Context, id int) (*models.TaskTimeLog, error)
+	GetByUserID(ctx context.Context, userID int, limit, offset int) ([]*models.TaskTimeLog, int, error)
+	GetByTaskID(ctx context.Context, taskID int, limit, offset int) ([]*models.TaskTimeLog, int, error)
+	GetByUserAndTaskToday(ctx context.Context, userID, taskID int) ([]models.TaskTimeLog, error)
+	GetTodayTotalByUser(ctx context.Context, userID int) (int, error)
+	GetRecentTasksByUser(ctx context.Context, userID int, limit int) ([]models.RecentTimedTask, error)
+	Update(ctx context.Context, log *models.TaskTimeLog) error
+	Delete(ctx context.Context, id int) error
+
+	// Timer statistics
+	GetUserTimerStats(ctx context.Context, userID int) (*models.TimerStatsResponse, error)
+	GetTaskTimeBreakdown(ctx context.Context, userID int, limit int) ([]models.TaskTimeBreakdown, error)
 }
 
 // DB defines the database interface that combines all repositories
@@ -228,6 +247,7 @@ type DB interface {
 	System() SystemRepository
 	Audit() AuditRepository
 	Documents() DocumentRepository
+	Timer() TimerRepository
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
@@ -244,6 +264,7 @@ type Tx interface {
 	Permissions() PermissionRepository
 	Audit() AuditRepository
 	Documents() DocumentRepository
+	Timer() TimerRepository
 	Commit() error
 	Rollback() error
 }

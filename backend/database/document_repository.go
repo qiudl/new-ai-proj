@@ -539,14 +539,22 @@ func (r *PostgresDocumentRepository) GetAllDocumentsWithRelations(ctx context.Co
 			d.project_id,
 			p.name as project_name,
 			d.title,
+			d.type,
+			d.status,
+			d.category,
+			d.subcategory,
+			d.visibility,
+			d.tags,
+			d.description,
+			d.version,
 			d.created_by,
 			u.username as creator_name,
 			d.created_at,
 			d.updated_at,
 			LENGTH(COALESCE(d.content, '')) as content_size
 		FROM documents d
-		JOIN projects p ON d.project_id = p.id
-		JOIN users u ON d.created_by = u.id
+		LEFT JOIN projects p ON d.project_id = p.id
+		LEFT JOIN users u ON d.created_by = u.id
 		%s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d
@@ -563,13 +571,28 @@ func (r *PostgresDocumentRepository) GetAllDocumentsWithRelations(ctx context.Co
 	var documents []*models.DocumentListResponse
 	for rows.Next() {
 		doc := &models.DocumentListResponse{}
+		var projectName sql.NullString
+		var creatorName sql.NullString
+		var tags models.StringArray
+		var category sql.NullString
+		var subcategory sql.NullString
+		var description sql.NullString
+		
 		err := rows.Scan(
 			&doc.ID,
 			&doc.ProjectID,
-			&doc.ProjectName,
+			&projectName,
 			&doc.Title,
+			&doc.Type,
+			&doc.Status,
+			&category,
+			&subcategory,
+			&doc.Visibility,
+			&tags,
+			&description,
+			&doc.Version,
 			&doc.CreatedBy,
-			&doc.CreatorName,
+			&creatorName,
 			&doc.CreatedAt,
 			&doc.UpdatedAt,
 			&doc.ContentSize,
@@ -577,6 +600,35 @@ func (r *PostgresDocumentRepository) GetAllDocumentsWithRelations(ctx context.Co
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan document: %w", err)
 		}
+		
+		// Handle nullable fields
+		if projectName.Valid {
+			doc.ProjectName = projectName.String
+		}
+		if creatorName.Valid {
+			doc.CreatorName = creatorName.String
+		}
+		if category.Valid {
+			doc.Category = &category.String
+		}
+		if subcategory.Valid {
+			doc.Subcategory = &subcategory.String
+		}
+		if description.Valid {
+			doc.Description = &description.String
+		}
+		
+		// Convert StringArray to []string
+		doc.Tags = []string(tags)
+		
+		// Set association type based on relations
+		doc.AssociationType = doc.GetAssociationType()
+		
+		// Set default permissions (can be enhanced with proper permission checking)
+		doc.CanEdit = true
+		doc.CanDelete = true
+		doc.CanShare = true
+		
 		documents = append(documents, doc)
 	}
 
@@ -585,4 +637,17 @@ func (r *PostgresDocumentRepository) GetAllDocumentsWithRelations(ctx context.Co
 	}
 
 	return documents, total, nil
+}
+
+// GetGlobalDocumentCount returns the count of global documents (project_id IS NULL)
+func (r *PostgresDocumentRepository) GetGlobalDocumentCount(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM documents WHERE project_id IS NULL`
+	
+	var count int
+	err := r.getExecer().QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get global document count: %w", err)
+	}
+	
+	return count, nil
 }

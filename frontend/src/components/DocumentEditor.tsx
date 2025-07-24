@@ -20,9 +20,11 @@ import {
   DeleteOutlined,
   EyeOutlined,
   EditOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { documentService, Document, DocumentRequest } from '../services/documentService';
+import { DocumentType, DocumentStatus } from '../types/document';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -57,12 +59,24 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   // 状态管理
   const [documentData, setDocumentData] = useState<Document>({
     id: 0,
-    project_id: finalProjectId || 0,
+    project_id: finalProjectId || null,
+    customer_id: null,
+    owner_id: 1,
     title: '',
     content: '',
-    created_by: 0,
+    type: 'markdown' as DocumentType,
+    status: 'draft' as DocumentStatus,
+    visibility: 'private',
+    shared_with: [],
+    tags: [],
+    version: 1,
+    created_by: 1,
     created_at: '',
     updated_at: '',
+    association_type: finalProjectId ? 'project' : 'personal',
+    can_edit: true,
+    can_delete: true,
+    can_share: true,
     ...initialData,
   });
   const [loading, setLoading] = useState(false);
@@ -101,11 +115,19 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
       const requestData: DocumentRequest = {
         title: documentData.title.trim(),
         content: documentData.content,
+        type: documentData.type,
+        status: documentData.status,
+        project_id: documentData.project_id || undefined,
+        customer_id: documentData.customer_id || undefined,
+        visibility: documentData.visibility,
+        shared_with: documentData.shared_with,
+        tags: documentData.tags,
+        description: documentData.description,
       };
 
       const savedDocument = finalDocumentId 
         ? await documentService.updateDocument(finalDocumentId, requestData)
-        : await documentService.createDocument(documentData.project_id, requestData);
+        : await documentService.createDocument(requestData);
 
       setDocumentData(savedDocument);
       setHasChanges(false);
@@ -139,8 +161,14 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
       if (onDelete) {
         onDelete(finalDocumentId);
       } else {
-        // 返回项目文档列表
-        navigate(`/projects/${documentData.project_id}/documents`);
+        // 返回相应的文档列表
+        if (documentData.project_id) {
+          navigate(`/projects/${documentData.project_id}/documents`);
+        } else if (documentData.customer_id) {
+          navigate(`/customers/${documentData.customer_id}/documents`);
+        } else {
+          navigate('/documents');
+        }
       }
     } catch (error) {
       console.error('Failed to delete document:', error);
@@ -219,40 +247,55 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   return (
     <div style={{ padding: '0 24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>
-          <Button 
-            type="link" 
-            onClick={() => navigate('/projects')}
-            style={{ padding: 0 }}
-          >
-            项目管理
-          </Button>
-        </Breadcrumb.Item>
-        {documentData.project_name && (
-          <Breadcrumb.Item>
-            <Button
-              type="link"
-              onClick={() => navigate(`/projects/${documentData.project_id}`)}
-              style={{ padding: 0 }}
-            >
-              {documentData.project_name}
-            </Button>
-          </Breadcrumb.Item>
-        )}
-        <Breadcrumb.Item>
-          <Button
-            type="link"
-            onClick={() => navigate(`/projects/${documentData.project_id}/documents`)}
-            style={{ padding: 0 }}
-          >
-            文档管理
-          </Button>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          {finalDocumentId ? documentData.title || '文档详情' : '新建文档'}
-        </Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb 
+        style={{ marginBottom: 16 }}
+        items={[
+          {
+            title: (
+              <Link to="/">
+                <HomeOutlined />
+                <span>首页</span>
+              </Link>
+            )
+          },
+          {
+            title: (
+              <Link to="/projects">
+                项目管理
+              </Link>
+            )
+          },
+          ...(documentData.project_name ? [{
+            title: (
+              <Link to={`/projects/${documentData.project_id}`}>
+                {documentData.project_name}
+              </Link>
+            )
+          }] : documentData.customer_name ? [{
+            title: (
+              <Link to={`/customers/${documentData.customer_id}`}>
+                {documentData.customer_name}
+              </Link>
+            )
+          }] : []),
+          {
+            title: (
+              <Link to={
+                documentData.project_id 
+                  ? `/projects/${documentData.project_id}/documents`
+                  : documentData.customer_id 
+                    ? `/customers/${documentData.customer_id}/documents`
+                    : '/documents'
+              }>
+                <FileTextOutlined /> 文档管理
+              </Link>
+            )
+          },
+          {
+            title: finalDocumentId ? documentData.title || '文档详情' : '新建文档'
+          }
+        ]}
+      />
 
       <Card>
         <Spin spinning={loading}>

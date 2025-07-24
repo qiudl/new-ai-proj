@@ -52,7 +52,8 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, parent_id, task_level, sort_order, created_at, updated_at, deleted_at
+		       custom_fields, parent_id, task_level, sort_order, total_time_seconds,
+		       created_at, updated_at, deleted_at
 		FROM tasks WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -68,7 +69,7 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-		&parentID, &task.TaskLevel, &task.SortOrder,
+		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 		&task.CreatedAt, &updatedAt, &task.DeletedAt,
 	)
 
@@ -294,14 +295,15 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 	query := `
 		UPDATE tasks 
 		SET title = $2, description = $3, assignee_id = $4, status = $5,
-		    due_date = $6, custom_fields = $7
+		    due_date = $6, custom_fields = $7, total_time_seconds = $8,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
-		RETURNING created_at`
+		RETURNING updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ID, task.Title, task.Description, task.AssigneeID,
-		task.Status, task.DueDate, customFieldsJSON)
+		task.Status, task.DueDate, customFieldsJSON, task.TotalTimeSeconds)
 
 	err = row.Scan(&task.UpdatedAt)
 	if err != nil {

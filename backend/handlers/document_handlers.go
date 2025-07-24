@@ -118,7 +118,7 @@ func (h *DocumentHandler) CreateDocument(c *gin.Context) {
 
 	// Create document
 	document := &models.Document{
-		ProjectID: projectID,
+		ProjectID: &projectID,
 		Title:     req.Title,
 		Content:   req.Content,
 		CreatedBy: userID,
@@ -127,6 +127,86 @@ func (h *DocumentHandler) CreateDocument(c *gin.Context) {
 	createdDocument, err := h.db.Documents().Create(c.Request.Context(), document)
 	if err != nil {
 		h.logger.Printf("Failed to create document: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Internal server error",
+			"message": "Failed to create document",
+		})
+		return
+	}
+
+	// Get document with relations for response
+	response, err := h.db.Documents().GetWithRelations(c.Request.Context(), createdDocument.ID)
+	if err != nil {
+		// If we can't get relations, return basic response
+		basicResponse := createdDocument.ToResponse()
+		response = &basicResponse
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
+// CreateGlobalDocument creates a new global document (not project-specific)
+// @Summary Create global document
+// @Description Create a new global document (project_id = 0)
+// @Tags documents
+// @Accept json
+// @Produce json
+// @Param document body models.DocumentRequest true "Document data"
+// @Success 201 {object} models.DocumentResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/documents [post]
+func (h *DocumentHandler) CreateGlobalDocument(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Unauthorized",
+			"message": "User ID not found in context",
+		})
+		return
+	}
+	
+	userID, ok := userIDInterface.(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Unauthorized",
+			"message": "Invalid user ID format",
+		})
+		return
+	}
+
+	// Parse request body
+	var req models.DocumentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Create global document (project_id = nil)
+	document := &models.Document{
+		ProjectID: nil, // Global document
+		Title:     req.Title,
+		Content:   req.Content,
+		CreatedBy: userID,
+	}
+
+	createdDocument, err := h.db.Documents().Create(c.Request.Context(), document)
+	if err != nil {
+		h.logger.Printf("Failed to create global document: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Internal server error",
 			"message": "Failed to create document",
@@ -176,7 +256,7 @@ func (h *DocumentHandler) GetProjectDocuments(c *gin.Context) {
 
 	// Parse filter parameters
 	filter := &models.DocumentFilter{
-		ProjectID: projectID,
+		ProjectID: &projectID,
 		Search:    c.Query("search"),
 		SortBy:    c.DefaultQuery("sort_by", "updated_at"),
 		Order:     c.DefaultQuery("order", "desc"),
@@ -376,7 +456,7 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	}
 
 	// Parse request body
-	var req models.DocumentRequest
+	var req models.UpdateDocumentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request body",
@@ -389,6 +469,15 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	if err := h.validate.Struct(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Validation failed",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	// Validate association
+	if err := req.ValidateAssociation(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Association validation failed",
 			"message": err.Error(),
 		})
 		return
@@ -413,17 +502,33 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	}
 
 	// Check permissions - only creator or project owner can edit
-	project, err := h.db.Projects().GetByID(c.Request.Context(), existingDocument.ProjectID)
-	if err != nil {
-		h.logger.Printf("Failed to get project: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Internal server error",
-			"message": "Failed to verify permissions",
-		})
-		return
+	// For global documents (ProjectID = nil), skip project permission check
+	var project *models.Project
+	if existingDocument.ProjectID != nil {
+		var err error
+		project, err = h.db.Projects().GetByID(c.Request.Context(), *existingDocument.ProjectID)
+		if err != nil {
+			h.logger.Printf("Failed to get project: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Internal server error",
+				"message": "Failed to verify permissions",
+			})
+			return
+		}
 	}
 
-	if existingDocument.CreatedBy != userID && project.OwnerID != userID {
+	// Permission check: for global documents, only creator can edit
+	// For project documents, creator or project owner can edit
+	if existingDocument.ProjectID == nil {
+		// Global document - only creator can edit
+		if existingDocument.CreatedBy != userID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":   "Forbidden",
+				"message": "You don't have permission to edit this global document",
+			})
+			return
+		}
+	} else if existingDocument.CreatedBy != userID && project.OwnerID != userID {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error":   "Forbidden",
 			"message": "You don't have permission to edit this document",
@@ -431,9 +536,43 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 		return
 	}
 
-	// Update document
-	existingDocument.Title = req.Title
-	existingDocument.Content = req.Content
+	// Update document fields (only update non-nil fields)
+	if req.Title != nil {
+		existingDocument.Title = *req.Title
+	}
+	if req.Content != nil {
+		existingDocument.Content = *req.Content
+	}
+	if req.Type != nil {
+		existingDocument.Type = *req.Type
+	}
+	if req.Status != nil {
+		existingDocument.Status = *req.Status
+	}
+	if req.ProjectID != nil {
+		existingDocument.ProjectID = req.ProjectID
+	}
+	if req.CustomerID != nil {
+		existingDocument.CustomerID = req.CustomerID
+	}
+	if req.Category != nil {
+		existingDocument.Category = req.Category
+	}
+	if req.Subcategory != nil {
+		existingDocument.Subcategory = req.Subcategory
+	}
+	if req.Visibility != nil {
+		existingDocument.Visibility = *req.Visibility
+	}
+	if req.SharedWith != nil {
+		existingDocument.SharedWith = *req.SharedWith
+	}
+	if req.Tags != nil {
+		existingDocument.Tags = *req.Tags
+	}
+	if req.Description != nil {
+		existingDocument.Description = req.Description
+	}
 
 	updatedDocument, err := h.db.Documents().Update(c.Request.Context(), existingDocument)
 	if err != nil {
@@ -518,17 +657,33 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	}
 
 	// Check permissions - only creator or project owner can delete
-	project, err := h.db.Projects().GetByID(c.Request.Context(), existingDocument.ProjectID)
-	if err != nil {
-		h.logger.Printf("Failed to get project: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Internal server error",
-			"message": "Failed to verify permissions",
-		})
-		return
+	// For global documents (ProjectID = nil), skip project permission check
+	var project *models.Project
+	if existingDocument.ProjectID != nil {
+		var err error
+		project, err = h.db.Projects().GetByID(c.Request.Context(), *existingDocument.ProjectID)
+		if err != nil {
+			h.logger.Printf("Failed to get project: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Internal server error",
+				"message": "Failed to verify permissions",
+			})
+			return
+		}
 	}
 
-	if existingDocument.CreatedBy != userID && project.OwnerID != userID {
+	// Permission check: for global documents, only creator can delete
+	// For project documents, creator or project owner can delete
+	if existingDocument.ProjectID == nil {
+		// Global document - only creator can delete
+		if existingDocument.CreatedBy != userID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"error":   "Forbidden",
+				"message": "You don't have permission to delete this global document",
+			})
+			return
+		}
+	} else if existingDocument.CreatedBy != userID && project.OwnerID != userID {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error":   "Forbidden",
 			"message": "You don't have permission to delete this document",
@@ -548,4 +703,75 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// GetDocumentStats gets document statistics
+// @Summary Get document statistics
+// @Description Get global document statistics (total, by type, by status, recent count)
+// @Tags documents
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/documents/stats [get]
+func (h *DocumentHandler) GetDocumentStats(c *gin.Context) {
+	// Get user ID from context (set by auth middleware)
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Unauthorized",
+			"message": "User ID not found in context",
+		})
+		return
+	}
+	
+	_, ok := userIDInterface.(int)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error":   "Unauthorized",
+			"message": "Invalid user ID format",
+		})
+		return
+	}
+
+	// Get document statistics from database
+	// For now, we'll implement basic stats. In a real implementation,
+	// you might want to cache these or use database views
+	
+	// Get total count of global documents (project_id IS NULL)
+	totalDocuments, err := h.db.Documents().GetGlobalDocumentCount(c.Request.Context())
+	if err != nil {
+		h.logger.Printf("Failed to get total document count: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Internal server error",
+			"message": "Failed to get document statistics",
+		})
+		return
+	}
+
+	// Get documents by type (simplified - just return mock data for now)
+	byType := map[string]int{
+		"markdown": totalDocuments, // Assuming all are markdown for now
+		"image":    0,
+		"pdf":      0,
+	}
+
+	// Get documents by status (simplified - assuming all are draft for now)
+	byStatus := map[string]int{
+		"draft":     totalDocuments,
+		"published": 0,
+		"archived":  0,
+	}
+
+	// Get recent count (last 7 days) - simplified for now
+	recentCount := 0 // TODO: Implement proper recent count query
+
+	stats := map[string]interface{}{
+		"total":        totalDocuments,
+		"by_type":      byType,
+		"by_status":    byStatus,
+		"recent_count": recentCount,
+	}
+
+	c.JSON(http.StatusOK, stats)
 }

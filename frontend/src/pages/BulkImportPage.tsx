@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Input, Card, message, Steps, Alert } from 'antd';
 import { ImportOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectSelector from '../components/ProjectSelector';
 import TaskSelector from '../components/TaskSelector';
 import { Project } from '../types/project';
 import { Task } from '../types/task';
+import { TaskOption } from '../types/timer';
+import { TaskService } from '../services/taskService';
 
 const { TextArea } = Input;
 
 const BulkImportPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
     urlProjectId ? parseInt(urlProjectId) : undefined
@@ -22,6 +25,33 @@ const BulkImportPage: React.FC = () => {
   const [jsonData, setJsonData] = useState('');
   const [parsedTasks, setParsedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // 处理从URL参数预设父任务
+  useEffect(() => {
+    const parentTaskIdParam = searchParams.get('parentTaskId');
+    if (parentTaskIdParam && selectedProjectId) {
+      const parentTaskId = parseInt(parentTaskIdParam);
+      if (!isNaN(parentTaskId)) {
+        setSelectedParentTaskId(parentTaskId);
+        // 可以在这里调用API获取父任务详情
+        loadParentTaskDetails(selectedProjectId, parentTaskId);
+      }
+    }
+  }, [searchParams, selectedProjectId]);
+
+  // 加载父任务详情
+  const loadParentTaskDetails = async (projectId: number, taskId: number) => {
+    try {
+      const task = await TaskService.getTask(projectId, taskId);
+      setSelectedParentTask(task);
+      message.success(`已预设父任务: ${task.title}`);
+    } catch (error) {
+      console.error('加载父任务详情失败:', error);
+      message.warning('无法加载父任务详情，请手动选择');
+      // 清除无效的父任务ID
+      setSelectedParentTaskId(undefined);
+    }
+  };
 
   const handleProjectChange = (projectId: number, project?: Project) => {
     setSelectedProjectId(projectId);
@@ -39,9 +69,9 @@ const BulkImportPage: React.FC = () => {
     }
   };
 
-  const handleParentTaskChange = (taskId: number | undefined, task?: Task) => {
+  const handleParentTaskChange = (taskId: number | undefined, task?: Task | TaskOption) => {
     setSelectedParentTaskId(taskId);
-    setSelectedParentTask(task);
+    setSelectedParentTask(task as Task);
     // Reset form when parent task changes
     setCurrentStep(0);
     setJsonData('');
@@ -97,25 +127,64 @@ const BulkImportPage: React.FC = () => {
       
       console.log('Importing to project:', selectedProjectId, 'tasks:', parsedTasks.length);
       
-      // Format data according to BulkImportRequest
-      const bulkImportRequest = {
-        tasks: parsedTasks.map(task => ({
-          title: task.title,
-          description: task.description || '',
-          status: task.status || 'todo',
-          assignee_id: task.assignee_id || undefined,
-          due_date: task.due_date ? task.due_date + 'T00:00:00Z' : undefined,
-          custom_fields: task.custom_fields || {},
-          // 如果用户选择了父任务，且当前任务没有parent_id，则设置为选择的父任务
-          parent_id: task.parent_id || selectedParentTaskId || undefined,
-          sort_order: task.sort_order || undefined
-        }))
-      };
+      // First pass: Create tasks without parent relationships
+      const createdTasks: any[] = [];
+      const tasksToCreate = parsedTasks.map((task, index) => ({
+        title: task.title,
+        description: task.description || '',
+        status: task.status || 'todo',
+        assignee_id: task.assignee_id || undefined,
+        due_date: task.due_date ? task.due_date + 'T00:00:00Z' : undefined,
+        custom_fields: task.custom_fields || {},
+        // 如果用户选择了父任务，且当前任务没有parent_id和parent_index，则设置为选择的父任务
+        parent_id: task.parent_id || (task.parent_index === undefined ? selectedParentTaskId : undefined),
+        sort_order: task.sort_order || undefined,
+        // 保存原始索引和parent_index用于后续处理
+        _original_index: index,
+        _parent_index: task.parent_index
+      }));
 
-      const result = await TaskService.bulkImportTasks(
-        selectedProjectId,
-        bulkImportRequest
-      );
+      // Handle hierarchical relationships using parent_index
+      const taskIdMap: { [index: number]: number } = {};
+      
+      for (let i = 0; i < tasksToCreate.length; i++) {
+        const taskData = tasksToCreate[i];
+        const parentIndex = taskData._parent_index;
+        
+        // If this task has a parent_index, wait for parent to be created first
+        if (typeof parentIndex === 'number' && parentIndex >= 0 && parentIndex < tasksToCreate.length) {
+          // Ensure parent task is created first
+          if (!taskIdMap[parentIndex]) {
+            const parentTask = { ...tasksToCreate[parentIndex] };
+            const { _original_index, _parent_index, ...cleanParentTask } = parentTask;
+            
+            const parentResult = await TaskService.createTask(selectedProjectId, cleanParentTask);
+            taskIdMap[parentIndex] = parentResult.id;
+            createdTasks.push(parentResult);
+          }
+          
+          // Set parent_id to the created parent's ID
+          taskData.parent_id = taskIdMap[parentIndex];
+        }
+        
+        // Clean up temp fields
+        const { _original_index: origIndex, _parent_index: parentIdx, ...cleanTaskData } = taskData;
+        
+        // Create the task
+        if (!taskIdMap[i]) {
+          const result = await TaskService.createTask(selectedProjectId, cleanTaskData);
+          taskIdMap[i] = result.id;
+          createdTasks.push(result);
+        }
+      }
+
+      // Format response similar to bulk import
+      const result = {
+        total_tasks: tasksToCreate.length,
+        success_count: createdTasks.length,
+        failure_count: tasksToCreate.length - createdTasks.length,
+        imported_tasks: createdTasks.map(task => task.id)
+      };
       
       setCurrentStep(2);
       message.success(`成功导入 ${result.success_count} 个任务`);
@@ -152,7 +221,7 @@ const BulkImportPage: React.FC = () => {
     "title": "UI组件设计",
     "description": "设计新的用户界面组件",
     "status": "todo",
-    "parent_id": 1,
+    "parent_index": 0,
     "assignee_id": 1,
     "due_date": "2025-07-22",
     "custom_fields": {
@@ -165,7 +234,7 @@ const BulkImportPage: React.FC = () => {
     "title": "前端代码实现",
     "description": "实现前端界面代码",
     "status": "todo",
-    "parent_id": 1,
+    "parent_index": 0,
     "assignee_id": 1,
     "due_date": "2025-07-28",
     "custom_fields": {
@@ -178,7 +247,7 @@ const BulkImportPage: React.FC = () => {
     "title": "功能测试",
     "description": "测试新功能的各项指标",
     "status": "todo",
-    "parent_id": 1,
+    "parent_index": 0,
     "assignee_id": 1,
     "due_date": "2025-07-30",
     "custom_fields": {
@@ -238,6 +307,17 @@ const BulkImportPage: React.FC = () => {
             )}
           </div>
           
+          {/* 预设父任务提示 */}
+          {searchParams.get('parentTaskId') && selectedParentTask && (
+            <Alert
+              message="已自动设置父任务"
+              description={`将导入的任务作为"${selectedParentTask.title} (id=${selectedParentTask.id})"的子任务`}
+              type="info"
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
+          
           {/* 父任务选择行 */}
           {selectedProjectId && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -262,7 +342,7 @@ const BulkImportPage: React.FC = () => {
                   border: '1px solid #bae7ff'
                 }}>
                   <span style={{ color: '#1890ff', fontWeight: 500 }}>
-                    作为子任务导入到: {selectedParentTask.title}
+                    作为子任务导入到: {selectedParentTask.title} (id={selectedParentTask.id})
                   </span>
                 </div>
               )}
@@ -296,8 +376,9 @@ const BulkImportPage: React.FC = () => {
                   <br /><br />
                   <strong>层级任务支持：</strong>
                   <br />• 使用上方的"父任务"选择器，可以将所有导入的任务作为某个现有任务的子任务
-                  <br />• 或在JSON中使用 parent_id 字段指定每个任务的父任务（parent_id 对应父任务在数组中的索引位置，从1开始）
-                  <br />• 两种方式可以结合使用，JSON中的 parent_id 会优先于父任务选择器
+                  <br />• 或在JSON中使用 parent_index 字段指定每个任务的父任务（parent_index 对应父任务在数组中的索引位置，从0开始）
+                  <br />• 例如：任务索引0是主任务，任务索引1和2设置 "parent_index": 0 即可成为主任务的子任务
+                  <br />• 两种方式可以结合使用，JSON中的 parent_index 会优先于父任务选择器
                 </>
               }
               type="info"

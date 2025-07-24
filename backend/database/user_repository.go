@@ -51,7 +51,9 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, created_at, updated_at
+		       role, status, profile, last_login_at, 
+		       current_timing_task_id, timing_start_time, timing_status,
+		       created_at, updated_at
 		FROM users WHERE id = $1`
 
 	exec := r.getExecer()
@@ -63,6 +65,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CurrentTimingTaskID, &user.TimingStartTime, &user.TimingStatus,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -80,7 +83,9 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, created_at, updated_at
+		       role, status, profile, last_login_at,
+		       current_timing_task_id, timing_start_time, timing_status,
+		       created_at, updated_at
 		FROM users WHERE username = $1`
 
 	exec := r.getExecer()
@@ -92,6 +97,7 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CurrentTimingTaskID, &user.TimingStartTime, &user.TimingStatus,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -139,14 +145,17 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 	query := `
 		UPDATE users 
 		SET username = $2, email = $3, password_hash = $4, user_type = $5, 
-		    company_id = $6, company_user_id = $7, role = $8, updated_at = CURRENT_TIMESTAMP
+		    company_id = $6, company_user_id = $7, role = $8, status = $9,
+		    current_timing_task_id = $10, timing_start_time = $11, timing_status = $12,
+		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		user.ID, user.Username, user.Email, user.PasswordHash, 
-		user.UserType, user.CompanyID, user.CompanyUserID, user.Role)
+		user.UserType, user.CompanyID, user.CompanyUserID, user.Role, user.Status,
+		user.CurrentTimingTaskID, user.TimingStartTime, user.TimingStatus)
 
 	err := row.Scan(&user.UpdatedAt)
 	if err != nil {

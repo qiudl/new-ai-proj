@@ -25,7 +25,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
-import { documentService, DocumentListItem, DocumentFilter } from '../services/documentService';
+import { documentService, DocumentListItem } from '../services/documentService';
+import { DocumentFilter } from '../types/document';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -61,8 +62,8 @@ const DocumentList: React.FC<DocumentListProps> = ({
     setLoading(true);
     try {
       const filter: DocumentFilter = {
-        page,
-        limit: pageSize,
+        page: page || 1,
+        limit: pageSize || 20,
         sort_by: sortBy,
         order: order,
       };
@@ -72,9 +73,9 @@ const DocumentList: React.FC<DocumentListProps> = ({
       }
 
       const data = projectId 
-        ? await documentService.getProjectDocuments(projectId, filter)
-        : await documentService.getAllDocuments(filter);
-      setDocuments(data.data || []);
+        ? await documentService.getProjectDocuments(projectId, filter as any)
+        : await documentService.getAllDocuments(filter as any);
+      setDocuments(data.documents || []);
       setTotal(data.total || 0);
     } catch (error) {
       console.error('Failed to fetch documents:', error);
@@ -112,6 +113,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
+  // 处理查看文档
+  const handleViewDocument = (document: DocumentListItem) => {
+    // 默认导航到查看页面
+    navigate(`/documents/${document.id}`);
+  };
+
   // 处理编辑文档
   const handleEditDocument = (document: DocumentListItem) => {
     if (onEditDocument) {
@@ -146,7 +153,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           <FileTextOutlined style={{ color: '#1890ff' }} />
           <Button 
             type="link" 
-            onClick={() => handleEditDocument(record)}
+            onClick={() => handleViewDocument(record)}
             style={{ padding: 0 }}
           >
             {title}

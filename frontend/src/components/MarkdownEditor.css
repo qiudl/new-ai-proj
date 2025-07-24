@@ -1,0 +1,346 @@
+/* Markdown编辑器样式 */
+.markdown-editor {
+  position: relative;
+  background: #fff;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.markdown-editor.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  border: none;
+  border-radius: 0;
+}
+
+/* 加载遮罩 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.8);
+  z-index: 100;
+}
+
+/* 文档标题 */
+.document-title {
+  padding: 16px 16px 8px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.document-title .ant-input {
+  padding: 8px 0;
+  font-size: 20px !important;
+  font-weight: bold;
+}
+
+.document-title .ant-input:focus {
+  border-bottom: 2px solid #1890ff;
+}
+
+/* 工具栏 */
+.markdown-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #d9d9d9;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #d9d9d9;
+  margin: 0 8px;
+}
+
+/* 保存状态 */
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.status-saved {
+  color: #52c41a;
+}
+
+.status-pending {
+  color: #faad14;
+}
+
+.status-error {
+  color: #ff4d4f;
+}
+
+/* 编辑区域 */
+.editor-content {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 单一模式 */
+.editor-pane,
+.preview-pane {
+  height: 100%;
+  padding: 16px;
+}
+
+/* 分屏模式 */
+.split-pane {
+  display: flex;
+  height: 100%;
+}
+
+.editor-half,
+.preview-half {
+  flex: 1;
+  position: relative;
+}
+
+.editor-half {
+  padding: 16px;
+  border-right: 1px solid #d9d9d9;
+}
+
+.preview-half {
+  padding: 0;
+  background: #fafafa;
+}
+
+/* Markdown文本域 */
+.markdown-textarea {
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  border: none !important;
+  box-shadow: none !important;
+  resize: none !important;
+}
+
+.markdown-textarea:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Markdown预览区域 */
+.markdown-preview {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+  color: #24292e;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.markdown-preview h1 {
+  font-size: 2em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 10px;
+}
+
+.markdown-preview h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #eaecef;
+  padding-bottom: 8px;
+}
+
+.markdown-preview h3 {
+  font-size: 1.25em;
+}
+
+.markdown-preview h4 {
+  font-size: 1em;
+}
+
+.markdown-preview h5 {
+  font-size: 0.875em;
+}
+
+.markdown-preview h6 {
+  font-size: 0.85em;
+  color: #6a737d;
+}
+
+.markdown-preview p {
+  margin-bottom: 16px;
+}
+
+.markdown-preview blockquote {
+  margin: 0 0 16px 0;
+  padding: 0 1em;
+  color: #6a737d;
+  border-left: 4px solid #dfe2e5;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  margin-bottom: 16px;
+  padding-left: 2em;
+}
+
+.markdown-preview li {
+  margin-bottom: 4px;
+}
+
+.markdown-preview code {
+  background: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 85%;
+  margin: 0;
+  padding: 2px 4px;
+}
+
+.markdown-preview pre {
+  background: #f6f8fa;
+  border-radius: 6px;
+  font-size: 85%;
+  line-height: 1.45;
+  margin-bottom: 16px;
+  overflow: auto;
+  padding: 16px;
+}
+
+.markdown-preview pre code {
+  background: transparent;
+  border: 0;
+  font-size: 100%;
+  margin: 0;
+  padding: 0;
+  white-space: pre;
+  word-break: normal;
+}
+
+.markdown-preview table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.markdown-preview table th,
+.markdown-preview table td {
+  border: 1px solid #dfe2e5;
+  padding: 6px 13px;
+}
+
+.markdown-preview table th {
+  background: #f6f8fa;
+  font-weight: 600;
+}
+
+.markdown-preview table tr:nth-child(2n) {
+  background: #f6f8fa;
+}
+
+.markdown-preview img {
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.markdown-preview a {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.markdown-preview a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview hr {
+  background: #e1e4e8;
+  border: 0;
+  height: 2px;
+  margin: 24px 0;
+}
+
+/* 任务列表 */
+.markdown-preview input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .split-pane {
+    flex-direction: column;
+  }
+  
+  .editor-half {
+    border-right: none;
+    border-bottom: 1px solid #d9d9d9;
+  }
+  
+  .toolbar-left {
+    order: 1;
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .toolbar-right {
+    order: 2;
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+
+/* 滚动条样式 */
+.markdown-preview::-webkit-scrollbar,
+.markdown-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.markdown-preview::-webkit-scrollbar-track,
+.markdown-textarea::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.markdown-preview::-webkit-scrollbar-thumb,
+.markdown-textarea::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.markdown-preview::-webkit-scrollbar-thumb:hover,
+.markdown-textarea::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
