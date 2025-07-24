@@ -1,0 +1,248 @@
+// Memory Management Utilities for Timer Components
+
+interface MemoryInfo {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+class MemoryManager {
+  private static checkInterval: NodeJS.Timeout | null = null;
+  private static isMonitoring = false;
+  private static readonly MEMORY_WARNING_THRESHOLD = 100; // 100MB
+  private static readonly MEMORY_CRITICAL_THRESHOLD = 200; // 200MB
+  private static readonly CHECK_INTERVAL = 30000; // 30 seconds
+
+  // Start memory monitoring
+  static startMonitoring(): void {
+    if (this.isMonitoring || this.checkInterval) {
+      return;
+    }
+
+    this.isMonitoring = true;
+    console.log('🧠 Memory monitoring started');
+
+    this.checkInterval = setInterval(() => {
+      this.checkMemoryUsage();
+    }, this.CHECK_INTERVAL);
+
+    // Initial check
+    this.checkMemoryUsage();
+  }
+
+  // Stop memory monitoring
+  static stopMonitoring(): void {
+    if (!this.isMonitoring) {
+      return;
+    }
+
+    this.isMonitoring = false;
+    
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+
+    console.log('🧠 Memory monitoring stopped');
+  }
+
+  // Check current memory usage
+  private static checkMemoryUsage(): void {
+    if (!this.isMonitoring) {
+      this.stopMonitoring();
+      return;
+    }
+
+    try {
+      const memoryInfo = this.getMemoryInfo();
+      if (!memoryInfo) {
+        return;
+      }
+
+      const usedMB = memoryInfo.usedJSHeapSize / (1024 * 1024);
+      
+      if (usedMB > this.MEMORY_CRITICAL_THRESHOLD) {
+        console.error(`❌ Critical memory usage: ${usedMB.toFixed(2)}MB`);
+        this.performEmergencyCleanup();
+      } else if (usedMB > this.MEMORY_WARNING_THRESHOLD) {
+        console.warn(`⚠️ High memory usage: ${usedMB.toFixed(2)}MB`);
+        this.performGentleCleanup();
+      }
+    } catch (error) {
+      console.warn('Memory check failed:', error);
+    }
+  }
+
+  // Get memory information
+  static getMemoryInfo(): MemoryInfo | null {
+    if ('memory' in performance) {
+      return (performance as any).memory as MemoryInfo;
+    }
+    return null;
+  }
+
+  // Get formatted memory usage
+  static getMemoryUsageString(): string {
+    const memoryInfo = this.getMemoryInfo();
+    if (!memoryInfo) {
+      return 'Memory info not available';
+    }
+
+    const used = (memoryInfo.usedJSHeapSize / (1024 * 1024)).toFixed(2);
+    const total = (memoryInfo.totalJSHeapSize / (1024 * 1024)).toFixed(2);
+    const limit = (memoryInfo.jsHeapSizeLimit / (1024 * 1024)).toFixed(2);
+
+    return `Used: ${used}MB / Total: ${total}MB / Limit: ${limit}MB`;
+  }
+
+  // Perform gentle cleanup
+  private static performGentleCleanup(): void {
+    try {
+      // Clear old localStorage entries
+      this.cleanupOldStorage();
+      
+      // Clear expired session data
+      this.clearExpiredSessionData();
+      
+      console.log('🧹 Gentle memory cleanup completed');
+    } catch (error) {
+      console.error('Gentle cleanup failed:', error);
+    }
+  }
+
+  // Perform emergency cleanup
+  private static performEmergencyCleanup(): void {
+    try {
+      // All gentle cleanup actions
+      this.performGentleCleanup();
+      
+      // More aggressive cleanup
+      this.clearAllTimerStorage();
+      
+      // Force garbage collection if available
+      this.forceGarbageCollection();
+      
+      console.log('🚨 Emergency memory cleanup completed');
+    } catch (error) {
+      console.error('Emergency cleanup failed:', error);
+    }
+  }
+
+  // Clean up old localStorage entries
+  private static cleanupOldStorage(): void {
+    try {
+      const now = Date.now();
+      const keys = Object.keys(localStorage);
+      
+      keys.forEach(key => {
+        if (key.startsWith('timer_temp_') || key.includes('_cache_')) {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            const age = now - (data.timestamp || 0);
+            
+            // Remove entries older than 1 hour
+            if (age > 3600000) {
+              localStorage.removeItem(key);
+            }
+          } catch (e) {
+            // Remove corrupted entries
+            localStorage.removeItem(key);
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to cleanup old storage:', error);
+    }
+  }
+
+  // Clear expired session data
+  private static clearExpiredSessionData(): void {
+    try {
+      const sessionKeys = Object.keys(sessionStorage);
+      const now = Date.now();
+      
+      sessionKeys.forEach(key => {
+        if (key.startsWith('timer_')) {
+          try {
+            const data = JSON.parse(sessionStorage.getItem(key) || '{}');
+            const age = now - (data.timestamp || 0);
+            
+            // Remove session data older than 30 minutes
+            if (age > 1800000) {
+              sessionStorage.removeItem(key);
+            }
+          } catch (e) {
+            sessionStorage.removeItem(key);
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to clear expired session data:', error);
+    }
+  }
+
+  // Clear all timer-related storage
+  private static clearAllTimerStorage(): void {
+    try {
+      // localStorage cleanup
+      const localKeys = Object.keys(localStorage);
+      localKeys.forEach(key => {
+        if (key.includes('timer') || key.includes('Timer') || key.includes('notification')) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // sessionStorage cleanup
+      const sessionKeys = Object.keys(sessionStorage);
+      sessionKeys.forEach(key => {
+        if (key.includes('timer') || key.includes('Timer')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to clear timer storage:', error);
+    }
+  }
+
+  // Force garbage collection if available
+  private static forceGarbageCollection(): void {
+    if ('gc' in window && typeof (window as any).gc === 'function') {
+      try {
+        (window as any).gc();
+        console.log('🗑️ Forced garbage collection');
+      } catch (error) {
+        console.warn('Failed to force garbage collection:', error);
+      }
+    }
+  }
+
+  // Manual cleanup trigger
+  static performManualCleanup(): void {
+    console.log('🧹 Performing manual cleanup...');
+    this.performEmergencyCleanup();
+  }
+
+  // Check if memory usage is critical
+  static isMemoryUsageCritical(): boolean {
+    const memoryInfo = this.getMemoryInfo();
+    if (!memoryInfo) {
+      return false;
+    }
+
+    const usedMB = memoryInfo.usedJSHeapSize / (1024 * 1024);
+    return usedMB > this.MEMORY_CRITICAL_THRESHOLD;
+  }
+
+  // Get memory usage percentage
+  static getMemoryUsagePercentage(): number {
+    const memoryInfo = this.getMemoryInfo();
+    if (!memoryInfo) {
+      return 0;
+    }
+
+    return (memoryInfo.usedJSHeapSize / memoryInfo.jsHeapSizeLimit) * 100;
+  }
+}
+
+export default MemoryManager;
+export type { MemoryInfo };

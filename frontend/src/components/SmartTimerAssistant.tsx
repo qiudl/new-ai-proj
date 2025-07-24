@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Card, 
   Switch, 
@@ -86,6 +86,10 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
   currentTimerState, 
   onSettingsChange 
 }) => {
+  // MEMORY OPTIMIZATION: Use refs for timers and mounted state
+  const analysisTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+  
   const [settings, setSettings] = useState<SmartSettings>({
     autoBreakReminder: true,
     focusTimeOptimization: true,
@@ -286,20 +290,35 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
     }
   }, [settings]);
 
-  // Run analysis and checks periodically
+  // MEMORY OPTIMIZATION: Stop analysis timer
+  const stopAnalysisTimer = useCallback(() => {
+    if (analysisTimerRef.current) {
+      clearInterval(analysisTimerRef.current);
+      analysisTimerRef.current = null;
+    }
+  }, []);
+
+  // Run analysis and checks periodically with proper cleanup
   useEffect(() => {
-    const interval = setInterval(() => {
+    // Start analysis timer with memory optimization
+    analysisTimerRef.current = setInterval(() => {
+      if (!isMountedRef.current) return;
+      
       analyzeProductivity();
       checkBreakReminder();
       triggerHealthReminders();
     }, 60000); // Every minute
 
-    return () => clearInterval(interval);
-  }, [analyzeProductivity, checkBreakReminder, triggerHealthReminders]);
+    return () => {
+      stopAnalysisTimer();
+    };
+  }, [analyzeProductivity, checkBreakReminder, triggerHealthReminders, stopAnalysisTimer]);
 
-  // Calculate daily progress (mock implementation)
+  // Calculate daily progress (mock implementation) with memory optimization
   useEffect(() => {
     const calculateProgress = () => {
+      if (!isMountedRef.current) return;
+      
       // In real implementation, this would fetch actual data
       const mockProgress = Math.min(100, (currentTimerState?.elapsedSeconds || 0) / (settings.dailyGoal * 60) * 100);
       setDailyProgress(Math.round(mockProgress));
@@ -307,6 +326,14 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
 
     calculateProgress();
   }, [currentTimerState, settings.dailyGoal]);
+
+  // CRITICAL: Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      stopAnalysisTimer();
+    };
+  }, [stopAnalysisTimer]);
 
   const handleSettingChange = (key: keyof SmartSettings, value: any) => {
     const newSettings = { ...settings, [key]: value };

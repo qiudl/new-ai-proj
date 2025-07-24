@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox } from 'antd';
 import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -18,6 +18,10 @@ import '../styles/task-inline-edit-enhanced.css';
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+
+  // MEMORY OPTIMIZATION: Use refs for timers and mounted state
+  const timerUpdateRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
   // State management
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -403,8 +407,11 @@ const TasksPage: React.FC = () => {
       
       // 如果是全局模式下创建的子任务，自动展开父任务
       if (!effectiveProjectId && parentTaskForNew) {
-        setTimeout(() => {
-          setExpandedTasks(prev => new Set(prev).add(parentTaskForNew.id));
+        // MEMORY OPTIMIZATION: Use ref for timeout
+        timerUpdateRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setExpandedTasks(prev => new Set(prev).add(parentTaskForNew.id));
+          }
         }, 500);
       }
     } catch (error: any) {
@@ -1613,6 +1620,25 @@ const TasksPage: React.FC = () => {
     },
   ];
 
+  // CRITICAL: Cleanup on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      
+      // Clear all timers
+      if (timerUpdateRef.current) {
+        clearTimeout(timerUpdateRef.current);
+        timerUpdateRef.current = null;
+      }
+      
+      // Clear large state objects to free memory
+      setTasks([]);
+      setSubTasks(new Map());
+      setExpandedTasks(new Set());
+      setSelectedTaskIds([]);
+    };
+  }, []);
+
   return (
     <div className="page-container">
       {/* 项目选择卡片 - 增强样式 */}
@@ -2008,9 +2034,11 @@ const TasksPage: React.FC = () => {
         
         // 如果模态框应该显示但没有有效的项目ID，显示错误提示
         if (taskModalVisible && !modalProjectId) {
-          // 自动关闭模态框并显示错误
-          setTimeout(() => {
-            setTaskModalVisible(false);
+          // MEMORY OPTIMIZATION: Use ref for timeout
+          timerUpdateRef.current = setTimeout(() => {
+            if (isMountedRef.current) {
+              setTaskModalVisible(false);
+            }
             setEditingTask(undefined);
             setParentTaskForNew(undefined);
             message.error('操作失败：缺少项目信息，请刷新页面后重试');
@@ -2035,4 +2063,20 @@ const TasksPage: React.FC = () => {
   );
 };
 
-export default TasksPage;
+// MEMORY OPTIMIZATION: Add cleanup useEffect for TasksPage
+const TasksPageWithCleanup: React.FC = () => {
+  const tasksPageRef = useRef<any>(null);
+  
+  useEffect(() => {
+    return () => {
+      // Clear any pending timers on unmount
+      if (tasksPageRef.current?.timerUpdateRef?.current) {
+        clearTimeout(tasksPageRef.current.timerUpdateRef.current);
+      }
+    };
+  }, []);
+  
+  return <TasksPage />;
+};
+
+export default TasksPageWithCleanup;

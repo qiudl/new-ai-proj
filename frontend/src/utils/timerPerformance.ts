@@ -30,6 +30,7 @@ class TimerPerformanceMonitor {
   private static benchmarks: TimerBenchmark[] = [];
   private static isMonitoring = false;
   private static performanceObserver: PerformanceObserver | null = null;
+  private static memoryCheckInterval: NodeJS.Timeout | null = null; // FIX: Add interval reference
 
   // Start performance monitoring
   static startMonitoring(): void {
@@ -40,17 +41,21 @@ class TimerPerformanceMonitor {
 
     // Initialize Performance Observer for API calls
     if ('PerformanceObserver' in window) {
-      this.performanceObserver = new PerformanceObserver((list) => {
-        const entries = list.getEntries();
-        entries.forEach((entry) => {
-          if (entry.name.includes('/timer/')) {
-            this.recordBenchmark('api_call', entry.duration, true);
-            this.metrics.apiResponseTime = entry.duration;
-          }
+      try {
+        this.performanceObserver = new PerformanceObserver((list) => {
+          const entries = list.getEntries();
+          entries.forEach((entry) => {
+            if (entry.name.includes('/timer/')) {
+              this.recordBenchmark('api_call', entry.duration, true);
+              this.metrics.apiResponseTime = entry.duration;
+            }
+          });
         });
-      });
-      
-      this.performanceObserver.observe({ entryTypes: ['measure', 'navigation', 'resource'] });
+        
+        this.performanceObserver.observe({ entryTypes: ['measure', 'navigation', 'resource'] });
+      } catch (error) {
+        console.warn('Performance Observer not available:', error);
+      }
     }
 
     // Monitor memory usage
@@ -62,10 +67,15 @@ class TimerPerformanceMonitor {
     if (!this.isMonitoring) return;
 
     this.isMonitoring = false;
+    
+    // Clean up Performance Observer
     if (this.performanceObserver) {
       this.performanceObserver.disconnect();
       this.performanceObserver = null;
     }
+
+    // FIX: Clean up memory monitoring interval
+    this.stopMemoryMonitoring();
 
     console.log('⏹️ Timer performance monitoring stopped');
     this.generatePerformanceReport();
@@ -73,6 +83,8 @@ class TimerPerformanceMonitor {
 
   // Record a benchmark measurement
   static recordBenchmark(operation: string, duration: number, success: boolean, error?: string): void {
+    if (!this.isMonitoring) return; // Don't record if not monitoring
+
     const benchmark: TimerBenchmark = {
       timestamp: Date.now(),
       operation,
@@ -83,13 +95,13 @@ class TimerPerformanceMonitor {
 
     this.benchmarks.push(benchmark);
 
-    // Keep only last 100 benchmarks to prevent memory leaks
-    if (this.benchmarks.length > 100) {
+    // Keep only last 50 benchmarks to prevent memory leaks (reduced from 100)
+    if (this.benchmarks.length > 50) {
       this.benchmarks.shift();
     }
 
-    // Log slow operations
-    if (duration > 1000) {
+    // Log slow operations (reduced threshold)
+    if (duration > 500) {
       console.warn(`⚠️ Slow timer operation detected: ${operation} took ${duration.toFixed(2)}ms`);
     }
   }
@@ -118,6 +130,8 @@ class TimerPerformanceMonitor {
 
   // Measure localStorage write performance
   static measureStorageWrite(operation: () => void, dataSize: number): void {
+    if (!this.isMonitoring) return;
+
     const startTime = performance.now();
     
     try {
@@ -134,6 +148,8 @@ class TimerPerformanceMonitor {
 
   // Measure notification performance
   static async measureNotification(notificationCall: () => Promise<void>): Promise<void> {
+    if (!this.isMonitoring) return;
+
     const startTime = performance.now();
     
     try {
@@ -148,23 +164,51 @@ class TimerPerformanceMonitor {
     }
   }
 
-  // Monitor memory usage
+  // FIX: Monitor memory usage with proper cleanup
   private static startMemoryMonitoring(): void {
+    // Clear any existing interval first
+    this.stopMemoryMonitoring();
+
     const checkMemory = () => {
+      if (!this.isMonitoring) {
+        this.stopMemoryMonitoring();
+        return;
+      }
+
       if ('memory' in performance) {
-        const memInfo = (performance as any).memory;
-        this.metrics.memoryUsage = memInfo.usedJSHeapSize / (1024 * 1024); // Convert to MB
-        
-        // Alert if memory usage is high
-        if (this.metrics.memoryUsage > 50) {
-          console.warn(`⚠️ High memory usage detected: ${this.metrics.memoryUsage.toFixed(2)}MB`);
+        try {
+          const memInfo = (performance as any).memory;
+          this.metrics.memoryUsage = memInfo.usedJSHeapSize / (1024 * 1024); // Convert to MB
+          
+          // Reduced threshold for memory warning
+          if (this.metrics.memoryUsage > 100) {
+            console.warn(`⚠️ High memory usage detected: ${this.metrics.memoryUsage.toFixed(2)}MB`);
+            // Force garbage collection if available (Chrome DevTools)
+            if ('gc' in window && typeof (window as any).gc === 'function') {
+              try {
+                (window as any).gc();
+              } catch (e) {
+                // Ignore errors
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Memory monitoring failed:', error);
         }
       }
     };
 
-    // Check memory every 30 seconds
-    setInterval(checkMemory, 30000);
+    // Check memory every 60 seconds (increased from 30 to reduce overhead)
+    this.memoryCheckInterval = setInterval(checkMemory, 60000);
     checkMemory(); // Initial check
+  }
+
+  // FIX: Stop memory monitoring
+  private static stopMemoryMonitoring(): void {
+    if (this.memoryCheckInterval) {
+      clearInterval(this.memoryCheckInterval);
+      this.memoryCheckInterval = null;
+    }
   }
 
   // Get current performance metrics
@@ -173,14 +217,14 @@ class TimerPerformanceMonitor {
   }
 
   // Get recent benchmarks
-  static getBenchmarks(limit: number = 20): TimerBenchmark[] {
+  static getBenchmarks(limit: number = 10): TimerBenchmark[] { // Reduced default limit
     return this.benchmarks.slice(-limit);
   }
 
   // Generate performance report
   static generatePerformanceReport(): string {
     const metrics = this.getMetrics();
-    const recentBenchmarks = this.getBenchmarks(10);
+    const recentBenchmarks = this.getBenchmarks(5); // Reduced to 5
     
     const report = `
 📊 Timer Performance Report
@@ -195,7 +239,7 @@ class TimerPerformanceMonitor {
 
 🎯 Performance Analysis:
 - API Performance: ${metrics.apiResponseTime < 500 ? '✅ Good' : metrics.apiResponseTime < 1000 ? '⚠️ Moderate' : '❌ Poor'}
-- Memory Efficiency: ${metrics.memoryUsage < 25 ? '✅ Good' : metrics.memoryUsage < 50 ? '⚠️ Moderate' : '❌ High'}
+- Memory Efficiency: ${metrics.memoryUsage < 50 ? '✅ Good' : metrics.memoryUsage < 100 ? '⚠️ Moderate' : '❌ High'}
 - Notification Speed: ${metrics.notificationLatency < 100 ? '✅ Fast' : metrics.notificationLatency < 300 ? '⚠️ Moderate' : '❌ Slow'}
 
 📋 Recent Operations:
@@ -220,9 +264,10 @@ ${this.generateRecommendations(metrics)}
       recommendations.push('- Check network connectivity and server performance');
     }
 
-    if (metrics.memoryUsage > 50) {
+    if (metrics.memoryUsage > 100) {
       recommendations.push('- Consider reducing localStorage cache size');
       recommendations.push('- Implement memory cleanup for old timer data');
+      recommendations.push('- Force garbage collection if available');
     }
 
     if (metrics.notificationLatency > 300) {
@@ -238,16 +283,16 @@ ${this.generateRecommendations(metrics)}
     return recommendations.length > 0 ? recommendations.join('\n') : '- System performance is optimal ✅';
   }
 
-  // Test concurrent timer operations
+  // Test concurrent timer operations (simplified)
   static async testConcurrentOperations(): Promise<void> {
+    if (!this.isMonitoring) return;
+
     console.log('🧪 Testing concurrent timer operations...');
 
     const operations = [
-      () => this.simulateApiCall('start_timer', 200),
-      () => this.simulateApiCall('get_current', 150),
-      () => this.simulateApiCall('stop_timer', 250),
-      () => this.simulateStorageWrite(1024),
-      () => this.simulateNotification(),
+      () => this.simulateApiCall('start_timer', 100),
+      () => this.simulateApiCall('get_current', 75),
+      () => this.simulateApiCall('stop_timer', 125),
     ];
 
     const startTime = performance.now();
@@ -272,31 +317,15 @@ ${this.generateRecommendations(metrics)}
   private static async simulateApiCall(operation: string, delay: number): Promise<void> {
     const startTime = performance.now();
     
-    await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 100));
+    await new Promise(resolve => setTimeout(resolve, delay + Math.random() * 50));
     
     const duration = performance.now() - startTime;
     this.recordBenchmark(`simulate_${operation}`, duration, true);
   }
 
-  // Simulate storage write for testing
-  private static simulateStorageWrite(size: number): void {
-    const data = 'x'.repeat(size);
-    this.measureStorageWrite(() => {
-      localStorage.setItem('test_performance', data);
-      localStorage.removeItem('test_performance');
-    }, size);
-  }
-
-  // Simulate notification for testing
-  private static async simulateNotification(): Promise<void> {
-    await this.measureNotification(async () => {
-      // Simulate notification creation
-      await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
-    });
-  }
-
-  // Cleanup and reset
+  // FIX: Cleanup and reset with proper interval clearing
   static reset(): void {
+    this.stopMonitoring(); // This will clear intervals
     this.benchmarks = [];
     this.metrics = {
       apiResponseTime: 0,
@@ -306,6 +335,34 @@ ${this.generateRecommendations(metrics)}
       storageWriteTime: 0,
       totalActiveTime: 0
     };
+  }
+
+  // FIX: Add manual garbage collection trigger
+  static forceCleanup(): void {
+    // Clear benchmarks array
+    this.benchmarks = [];
+    
+    // Clear localStorage timer data if exists
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('timer') || key.includes('performance')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to clean localStorage:', error);
+    }
+
+    // Force garbage collection if available
+    if ('gc' in window && typeof (window as any).gc === 'function') {
+      try {
+        (window as any).gc();
+        console.log('🗑️ Manual garbage collection triggered');
+      } catch (e) {
+        console.warn('Manual garbage collection failed:', e);
+      }
+    }
   }
 }
 

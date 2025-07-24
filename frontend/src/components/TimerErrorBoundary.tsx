@@ -1,6 +1,7 @@
 import React, { Component, ReactNode } from 'react';
 import { Card, Alert, Button, Typography } from 'antd';
-import { ReloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ExclamationCircleOutlined, ClearOutlined } from '@ant-design/icons';
+import TimerPerformanceMonitor from '../utils/timerPerformance';
 
 const { Title, Text } = Typography;
 
@@ -27,18 +28,63 @@ class TimerErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: any) {
     console.error('Timer Error Boundary caught an error:', error, errorInfo);
+    
+    // Check if it's a memory-related error
+    const isMemoryError = error.message?.includes('memory') || 
+                         error.message?.includes('Memory') ||
+                         error.name === 'RangeError';
+    
+    if (isMemoryError) {
+      console.warn('Memory-related error detected, triggering cleanup');
+      this.performMemoryCleanup();
+    }
+    
     this.setState({
       error,
       errorInfo
     });
   }
 
+  performMemoryCleanup = () => {
+    try {
+      // Stop performance monitoring
+      TimerPerformanceMonitor.stopMonitoring();
+      
+      // Force cleanup
+      TimerPerformanceMonitor.forceCleanup();
+      
+      // Clear timer-related localStorage
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.startsWith('timer') || key.includes('Timer')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Force garbage collection if available
+      if ('gc' in window && typeof (window as any).gc === 'function') {
+        (window as any).gc();
+      }
+      
+      console.log('Memory cleanup completed');
+    } catch (cleanupError) {
+      console.error('Error during memory cleanup:', cleanupError);
+    }
+  };
+
   handleReload = () => {
+    this.performMemoryCleanup();
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
     window.location.reload();
   };
 
   handleRetry = () => {
+    this.performMemoryCleanup();
+    this.setState({ hasError: false, error: undefined, errorInfo: undefined });
+  };
+
+  handleCleanup = () => {
+    this.performMemoryCleanup();
     this.setState({ hasError: false, error: undefined, errorInfo: undefined });
   };
 
@@ -93,6 +139,14 @@ class TimerErrorBoundary extends Component<Props, State> {
                 style={{ marginRight: '12px' }}
               >
                 刷新页面
+              </Button>
+              
+              <Button 
+                icon={<ClearOutlined />}
+                onClick={this.handleCleanup}
+                style={{ marginRight: '12px' }}
+              >
+                清理并重试
               </Button>
               
               <Button 

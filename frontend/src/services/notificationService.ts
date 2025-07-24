@@ -18,6 +18,7 @@ class NotificationService {
   private static sounds: Map<string, HTMLAudioElement> = new Map();
   private static isEnabled = true;
   private static permissionStatus: NotificationPermission = 'default';
+  private static activeAudios: Set<HTMLAudioElement> = new Set(); // Track active audio elements
 
   // Initialize notification service
   static async initialize(): Promise<void> {
@@ -109,7 +110,7 @@ class NotificationService {
     }
   }
 
-  // Play sound notification
+  // Play sound notification with memory cleanup
   static async playSound(soundName: string, options: SoundOptions = {}): Promise<void> {
     if (!this.isEnabled) {
       return;
@@ -126,6 +127,21 @@ class NotificationService {
       const audioClone = audio.cloneNode() as HTMLAudioElement;
       audioClone.volume = options.volume ?? 0.5;
       audioClone.loop = options.loop ?? false;
+
+      // Track active audio for cleanup
+      this.activeAudios.add(audioClone);
+
+      // Clean up audio element when finished
+      const cleanup = () => {
+        this.activeAudios.delete(audioClone);
+        audioClone.removeEventListener('ended', cleanup);
+        audioClone.removeEventListener('pause', cleanup);
+        audioClone.removeEventListener('error', cleanup);
+      };
+
+      audioClone.addEventListener('ended', cleanup);
+      audioClone.addEventListener('pause', cleanup);
+      audioClone.addEventListener('error', cleanup);
 
       // Play sound
       await audioClone.play();
@@ -221,6 +237,27 @@ class NotificationService {
         tag: 'test-notification',
       }),
     ]);
+  }
+
+  // Cleanup method to prevent memory leaks
+  static cleanup(): void {
+    // Stop all active audio
+    this.activeAudios.forEach(audio => {
+      audio.pause();
+      audio.currentTime = 0;
+    });
+    this.activeAudios.clear();
+
+    // Clear preloaded sounds
+    this.sounds.clear();
+
+    // Close audio context
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      this.audioContext.close().catch(error => {
+        console.warn('Failed to close audio context:', error);
+      });
+      this.audioContext = null;
+    }
   }
 }
 

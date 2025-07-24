@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { 
   Card, 
   Row, 
@@ -12,7 +12,6 @@ import {
   Spin, 
   Alert,
   Typography,
-  Space,
   Empty,
   Tooltip,
   Dropdown,
@@ -27,17 +26,13 @@ import {
   ProjectOutlined, 
   CheckCircleOutlined, 
   ClockCircleOutlined, 
-  ImportOutlined,
   UserOutlined,
   CalendarOutlined,
   TrophyOutlined,
   WarningOutlined,
-  LineChartOutlined,
   TeamOutlined,
-  FileTextOutlined,
   BulbOutlined,
   ReloadOutlined,
-  PlusOutlined,
   DownOutlined,
   SettingOutlined,
   SearchOutlined,
@@ -51,7 +46,6 @@ import {
   FireOutlined,
   FolderOpenOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import { 
   DashboardService, 
   DashboardStats, 
@@ -70,8 +64,6 @@ import {
 } from '../utils/formatters';
 import TimerCard from '../components/TimerCard';
 import TimerStatsCard from '../components/TimerStatsCard';
-import TimerWorkflow from '../components/TimerWorkflow';
-import SmartTimerAssistant from '../components/SmartTimerAssistant';
 import TodayStatsCard from '../components/TodayStatsCard';
 import TaskProgressCard from '../components/TaskProgressCard';
 import RecentTasksList from '../components/RecentTasksList';
@@ -99,7 +91,10 @@ interface ProjectNavItem {
 }
 
 const OptimizedDashboardPageEnhanced: React.FC = () => {
-  const navigate = useNavigate();
+  
+  // MEMORY OPTIMIZATION: Use refs for timers and mounted state
+  const isMountedRef = useRef(true);
+  
   const [collapsedSections, setCollapsedSections] = useState<string[]>(['team', 'activities']);
   const [starredProjects, setStarredProjects] = useState<Set<number>>(new Set());
   const [expandedProjectKeys, setExpandedProjectKeys] = useState<string[]>([]);
@@ -109,15 +104,17 @@ const OptimizedDashboardPageEnhanced: React.FC = () => {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [currentTaskTitle, setCurrentTaskTitle] = useState<string | undefined>();
   
-  // 处理计时器状态更新
+  // 处理计时器状态更新 - MEMORY OPTIMIZED
   const handleTimerUpdate = useCallback((isRunning: boolean, taskTitle?: string) => {
+    if (!isMountedRef.current) return;
+    
     setIsTimerRunning(isRunning);
     setCurrentTaskTitle(taskTitle);
     // 触发统计卡片刷新
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
-  // 使用缓存钩子加载各类数据
+  // 使用缓存钩子加载各类数据 - MEMORY OPTIMIZED
   const {
     data: stats,
     loading: statsLoading,
@@ -126,6 +123,8 @@ const OptimizedDashboardPageEnhanced: React.FC = () => {
   } = useCache(
     'dashboard-stats',
     async () => {
+      if (!isMountedRef.current) throw new Error('Component unmounted');
+      
       // 模拟API调用
       await new Promise(resolve => setTimeout(resolve, 1000));
       return {
@@ -136,8 +135,19 @@ const OptimizedDashboardPageEnhanced: React.FC = () => {
         teamMembers: 24,
         overdueTasks: 15
       };
-    }
+    },
+    { ttl: 2 * 60 * 1000 } // 2 minutes cache
   );
+
+  // CRITICAL: Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      // Clear large state objects
+      setStarredProjects(new Set());
+      setExpandedProjectKeys([]);
+    };
+  }, []);
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -156,102 +166,33 @@ const OptimizedDashboardPageEnhanced: React.FC = () => {
         <Col xs={24} lg={16}>
           {/* 计时器卡片 */}
           <Row gutter={[24, 24]}>
-            <Col xs={24} lg={16}>
+            <Col span={24}>
               <TimerErrorBoundary>
                 <TimerCard onTimerUpdate={handleTimerUpdate} />
               </TimerErrorBoundary>
             </Col>
-            <Col xs={24} lg={8}>
-              <TimerErrorBoundary>
-                <SmartTimerAssistant 
-                  currentTimerState={{
-                    isRunning: isTimerRunning,
-                    elapsedSeconds: 0, // This would be passed from TimerCard in real implementation
-                    taskTitle: currentTaskTitle
-                  }}
-                />
-              </TimerErrorBoundary>
-            </Col>
           </Row>
 
-          {/* 工作流程卡片 */}
-          <Row gutter={[24, 24]} style={{ marginTop: '24px' }}>
-            <Col span={24}>
-              <TimerErrorBoundary>
-                <TimerWorkflow 
-                  tasks={[]} // This would be populated with actual tasks
-                  onWorkflowUpdate={(isActive, currentStep) => {
-                    // Handle workflow updates
-                    console.log('Workflow update:', { isActive, currentStep });
-                  }}
-                />
-              </TimerErrorBoundary>
-            </Col>
-          </Row>
 
           {/* 统计卡片行 */}
           <Row gutter={[12, 12]} style={{ marginTop: '24px' }}>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <TimerErrorBoundary>
                 <TodayStatsCard refreshTrigger={refreshTrigger} />
               </TimerErrorBoundary>
             </Col>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <TimerErrorBoundary>
                 <TimerStatsCard refreshTrigger={refreshTrigger} />
               </TimerErrorBoundary>
             </Col>
-            <Col xs={24} md={12}>
+            <Col xs={24} md={8}>
               <TimerErrorBoundary>
                 <TaskProgressCard refreshTrigger={refreshTrigger} />
               </TimerErrorBoundary>
             </Col>
           </Row>
 
-          {/* 项目统计卡片 */}
-          <Row gutter={[12, 12]} style={{ marginTop: '24px' }}>
-            <Col xs={12} sm={6}>
-              <Card>
-                <Statistic
-                  title="总项目数"
-                  value={stats?.totalProjects || 0}
-                  prefix={<ProjectOutlined />}
-                  loading={statsLoading}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Card>
-                <Statistic
-                  title="活跃项目"
-                  value={stats?.activeProjects || 0}
-                  prefix={<FolderOpenOutlined />}
-                  loading={statsLoading}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Card>
-                <Statistic
-                  title="完成任务"
-                  value={stats?.completedTasks || 0}
-                  prefix={<CheckCircleOutlined />}
-                  valueStyle={{ color: '#52c41a' }}
-                  loading={statsLoading}
-                />
-              </Card>
-            </Col>
-            <Col xs={12} sm={6}>
-              <Card>
-                <Statistic
-                  title="总任务数"
-                  value={stats?.totalTasks || 0}
-                  prefix={<FileTextOutlined />}
-                  loading={statsLoading}
-                />
-              </Card>
-            </Col>
-          </Row>
         </Col>
 
         {/* 右侧边栏 */}
@@ -264,44 +205,6 @@ const OptimizedDashboardPageEnhanced: React.FC = () => {
             onTimerUpdate={handleTimerUpdate}
           />
 
-          {/* 快速操作卡片 */}
-          <Card 
-            title="快速操作" 
-            style={{ marginTop: '24px' }}
-            styles={{ body: { padding: '16px' } }}
-          >
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />} 
-                block
-                onClick={() => navigate('/tasks')}
-              >
-                新建任务
-              </Button>
-              <Button 
-                icon={<ProjectOutlined />} 
-                block
-                onClick={() => navigate('/projects')}
-              >
-                管理项目
-              </Button>
-              <Button 
-                icon={<ImportOutlined />} 
-                block
-                onClick={() => navigate('/projects/1/bulk-import')}
-              >
-                批量导入
-              </Button>
-              <Button 
-                icon={<LineChartOutlined />} 
-                block
-                onClick={() => navigate('/tasks')}
-              >
-                查看报表
-              </Button>
-            </Space>
-          </Card>
 
           {/* 系统信息卡片 */}
           {statsError && (

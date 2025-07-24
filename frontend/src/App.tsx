@@ -52,6 +52,7 @@ const PageLoading = () => (
 );
 
 function App() {
+
   return (
     <ConfigProvider locale={zhCN}>
       <ErrorBoundary>
@@ -62,7 +63,8 @@ function App() {
           }}
         >
           <div className="App">
-          <Suspense fallback={<PageLoading />}>
+            
+            <Suspense fallback={<PageLoading />}>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -351,6 +353,7 @@ function App() {
                 </Layout>
               </PrivateRoute>
             } />
+
           </Routes>
           </Suspense>
           </div>

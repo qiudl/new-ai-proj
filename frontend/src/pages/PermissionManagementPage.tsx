@@ -31,7 +31,6 @@ import {
 import { permissionService } from '../services/permissionService';
 import companyService from '../services/companyService';
 
-const { TabPane } = Tabs;
 const { Title } = Typography;
 const { Option } = Select;
 
@@ -387,75 +386,95 @@ const PermissionManagementPage: React.FC = () => {
       </Title>
       
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab={<span><TeamOutlined />角色</span>} key="roles">
-            <Row justify="space-between" style={{ marginBottom: 16 }}>
-              <Col>
-                <Title level={4}>角色管理</Title>
-              </Col>
-              <Col>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => {
-                    setSelectedRole(null);
-                    roleForm.resetFields();
-                    setRoleModalVisible(true);
-                  }}
-                >
-                  创建角色
-                </Button>
-              </Col>
-            </Row>
-            
-            <Table
-              columns={roleColumns}
-              dataSource={roles}
-              rowKey="id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-
-          <TabPane tab={<span><SafetyOutlined />权限</span>} key="permissions">
-            <Row justify="space-between" style={{ marginBottom: 16 }}>
-              <Col>
-                <Title level={4}>系统权限</Title>
-              </Col>
-            </Row>
-            
-            <Alert
-              message="系统权限"
-              description="这些是内置权限，不可修改。可以分配给角色。"
-              type="info"
-              style={{ marginBottom: 16 }}
-            />
-            
-            <Table
-              columns={permissionColumns.filter(col => col.key !== 'isGranted')}
-              dataSource={permissions}
-              rowKey="id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-
-          <TabPane tab={<span><UserOutlined />用户</span>} key="users">
-            <Row justify="space-between" style={{ marginBottom: 16 }}>
-              <Col>
-                <Title level={4}>用户权限</Title>
-              </Col>
-            </Row>
-            
-            <Table
-              columns={userColumns}
-              dataSource={companyUsers}
-              rowKey="id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-        </Tabs>
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'roles',
+              label: <span><TeamOutlined />角色</span>,
+              children: (
+                <>
+                  <Row justify="space-between" style={{ marginBottom: 16 }}>
+                    <Col>
+                      <Title level={4}>角色管理</Title>
+                    </Col>
+                    <Col>
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                          setSelectedRole(null);
+                          roleForm.resetFields();
+                          setRoleModalVisible(true);
+                        }}
+                      >
+                        创建角色
+                      </Button>
+                    </Col>
+                  </Row>
+                  
+                  <Table
+                    columns={roleColumns}
+                    dataSource={roles}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 10 }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'permissions',
+              label: <span><SafetyOutlined />权限</span>,
+              children: (
+                <>
+                  <Row justify="space-between" style={{ marginBottom: 16 }}>
+                    <Col>
+                      <Title level={4}>系统权限</Title>
+                    </Col>
+                  </Row>
+                  
+                  <Alert
+                    message="系统权限"
+                    description="这些是内置权限，不可修改。可以分配给角色。"
+                    type="info"
+                    style={{ marginBottom: 16 }}
+                  />
+                  
+                  <Table
+                    columns={permissionColumns.filter(col => col.key !== 'isGranted')}
+                    dataSource={permissions}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 10 }}
+                  />
+                </>
+              ),
+            },
+            {
+              key: 'users',
+              label: <span><UserOutlined />用户</span>,
+              children: (
+                <>
+                  <Row justify="space-between" style={{ marginBottom: 16 }}>
+                    <Col>
+                      <Title level={4}>用户权限</Title>
+                    </Col>
+                  </Row>
+                  
+                  <Table
+                    columns={userColumns}
+                    dataSource={companyUsers}
+                    rowKey="id"
+                    loading={loading}
+                    pagination={{ pageSize: 10 }}
+                  />
+                </>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* Role Modal */}
