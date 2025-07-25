@@ -534,11 +534,11 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                     value={filters.folder_id}
                     onChange={(value) => handleFilterChange('folder_id', value)}
                   >
-                    {availableFolders.map(folder => (
+                    {Array.isArray(availableFolders) ? availableFolders.map(folder => (
                       <Option key={folder.id} value={folder.id}>
                         <FolderOutlined /> {folder.name}
                       </Option>
-                    ))}
+                    )) : null}
                   </Select>
                 </div>
                 

@@ -265,7 +265,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                 key={pdf.id}
                 size="small"
                 style={{ background: '#f9f9f9' }}
-                bodyStyle={{ padding: '12px' }}
+                styles={{ body: { padding: '12px' } }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   {/* PDF图标 */}
@@ -357,7 +357,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         onCancel={() => setPreviewVisible(false)}
         width="90%"
         style={{ maxWidth: '1000px', top: 20 }}
-        bodyStyle={{ padding: '16px', height: '70vh' }}
+        styles={{ body: { padding: '16px', height: '70vh' } }}
       >
         {previewPDF && (
           <div style={{ height: '100%', border: '1px solid #d9d9d9', borderRadius: '4px' }}>

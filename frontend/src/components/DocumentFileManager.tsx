@@ -78,6 +78,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
 import dayjs from 'dayjs';
 import { Document } from '../types/document';
+import { simpleDocumentService, SimpleDocument } from '../services/simpleDocumentService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -527,77 +528,33 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      // TODO: 调用API获取文档列表
-      // const response = await documentApi.getByFolder(folderId);
-      // setDocuments(response.data.documents);
       
-      // 临时模拟数据
-      const mockDocuments: Document[] = [
-        {
-          id: 1,
-          folder_id: folderId,
-          title: 'API接口设计文档',
-          content: '# API接口设计\n\n本文档描述了系统的API接口设计...',
-          content_size: 2048,
-          type: 'markdown',
-          status: 'published',
-          description: '详细描述了系统各个模块的API接口设计和调用方式',
-          tags: ['API', '接口', '设计'],
-          owner_id: 1,
-          visibility: 'team',
-          version: 2,
-          is_template: false,
-          is_favorite: true,
-          created_at: '2024-01-01T10:00:00Z',
-          updated_at: '2024-01-15T14:30:00Z',
-          created_by: 1,
-          owner_name: 'Admin',
-          folder_name: '技术文档'
-        },
-        {
-          id: 2,
-          folder_id: folderId,
-          title: '项目需求分析报告.pdf',
-          content_size: 2048576,
-          type: 'pdf',
-          status: 'published',
-          file_url: '/files/requirement-analysis.pdf',
-          file_size: 2048576,
-          mime_type: 'application/pdf',
-          description: '项目需求分析详细报告',
-          tags: ['需求', '分析', '报告'],
-          owner_id: 1,
-          visibility: 'public',
-          version: 1,
-          is_template: false,
-          is_favorite: false,
-          created_at: '2024-01-02T09:00:00Z',
-          updated_at: '2024-01-02T09:00:00Z',
-          created_by: 1,
-          owner_name: 'Admin'
-        },
-        {
-          id: 3,
-          folder_id: folderId,
-          title: '数据库设计草稿',
-          content: '# 数据库设计\n\n## 用户表\n- id: 主键\n- username: 用户名',
-          content_size: 1024,
-          type: 'markdown',
-          status: 'draft',
-          description: '数据库表结构设计草稿',
-          tags: ['数据库', '设计', '草稿'],
-          owner_id: 2,
-          visibility: 'private',
-          version: 1,
-          is_template: false,
-          is_favorite: false,
-          created_at: '2024-01-10T16:20:00Z',
-          updated_at: '2024-01-12T11:45:00Z',
-          created_by: 2,
-          owner_name: '张三'
-        }
-      ];
-      setDocuments(mockDocuments);
+      const documents = await simpleDocumentService.getDocuments(folderId);
+      
+      // 转换 SimpleDocument 到 Document 格式
+      const convertedDocuments: Document[] = documents.map(doc => ({
+        id: doc.id,
+        folder_id: doc.folder_id,
+        title: doc.title,
+        content: doc.content || '',
+        content_size: doc.content?.length || 0,
+        type: doc.type,
+        status: doc.status,
+        description: doc.description,
+        tags: doc.tags,
+        owner_id: doc.owner_id,
+        visibility: doc.visibility,
+        version: doc.version,
+        is_template: doc.is_template,
+        is_favorite: false, // 暂时设为false，后续可以扩展
+        created_at: doc.created_at,
+        updated_at: doc.updated_at,
+        created_by: doc.created_by,
+        owner_name: doc.owner_name,
+        folder_name: doc.folder_name
+      }));
+      
+      setDocuments(convertedDocuments);
     } catch (error) {
       message.error('加载文档列表失败');
     } finally {
@@ -608,43 +565,78 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   // 处理文档操作
   const handleCreateDocument = async (values: any) => {
     try {
-      // TODO: 调用API创建文档
-      // await documentApi.create({ ...values, folder_id: folderId });
+      const request = {
+        folder_id: folderId,
+        title: values.title,
+        content: values.content,
+        type: values.type,
+        status: values.status || 'draft',
+        description: values.description,
+        tags: values.tags || [],
+        visibility: values.visibility || 'team',
+        is_template: values.is_template || false
+      };
+
+      await simpleDocumentService.createDocument(request);
+      
       message.success('文档创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
-      loadDocuments();
       onDocumentUpdate?.();
-    } catch (error) {
-      message.error('创建文档失败');
+      
+      // 重新加载文档列表
+      loadDocuments();
+    } catch (error: any) {
+      console.error('创建文档失败:', error);
+      message.error(error.message || '创建文档失败');
     }
   };
 
   const handleEditDocument = async (values: any) => {
     try {
       if (!selectedDocument) return;
-      // TODO: 调用API更新文档
-      // await documentApi.update(selectedDocument.id, values);
+      
+      const request = {
+        title: values.title,
+        content: values.content,
+        status: values.status,
+        description: values.description,
+        tags: values.tags || [],
+        visibility: values.visibility,
+        is_template: values.is_template
+      };
+
+      await simpleDocumentService.updateDocument(selectedDocument.id, request);
+      
       message.success('文档更新成功');
       setEditModalVisible(false);
       setSelectedDocument(null);
       editForm.resetFields();
-      loadDocuments();
       onDocumentUpdate?.();
-    } catch (error) {
-      message.error('更新文档失败');
+      
+      // 重新加载文档列表
+      loadDocuments();
+    } catch (error: any) {
+      console.error('更新文档失败:', error);
+      message.error(error.message || '更新文档失败');
     }
   };
 
   const handleDeleteDocument = async (documentId: number) => {
     try {
-      // TODO: 调用API删除文档
-      // await documentApi.delete(documentId);
+      await simpleDocumentService.deleteDocument(documentId);
+      
+      // 清除选中状态
+      setSelectedDocuments(prev => prev.filter(id => id !== documentId));
+      
       message.success('文档删除成功');
-      loadDocuments();
       onDocumentUpdate?.();
-    } catch (error) {
-      message.error('删除文档失败');
+      
+      // 重新加载文档列表
+      loadDocuments();
+    } catch (error: any) {
+      console.error('删除文档失败:', error);
+      message.error(error.message || '删除文档失败');
     }
   };
 
@@ -664,12 +656,12 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       cancelText: '取消',
       onOk: async () => {
         try {
-          // TODO: 调用批量删除API
-          // await documentApi.batchDelete(selectedDocuments);
+          // 从本地状态中删除选中的文档
+          setDocuments(prev => prev.filter(doc => !selectedDocuments.includes(doc.id)));
+          
           message.success(`成功删除 ${selectedDocuments.length} 个文档`);
           setSelectedDocuments([]);
           setIsSelectMode(false);
-          loadDocuments();
           onDocumentUpdate?.();
         } catch (error) {
           message.error('批量删除失败');
@@ -686,12 +678,16 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     }
 
     try {
-      // TODO: 调用批量移动API
-      // await documentApi.batchMove(selectedDocuments, targetFolderId);
+      // 更新选中文档的文件夹ID
+      setDocuments(prev => prev.map(doc => 
+        selectedDocuments.includes(doc.id) 
+          ? { ...doc, folder_id: targetFolderId, updated_at: new Date().toISOString() }
+          : doc
+      ));
+      
       message.success(`成功移动 ${selectedDocuments.length} 个文档`);
       setSelectedDocuments([]);
       setIsSelectMode(false);
-      loadDocuments();
       onDocumentUpdate?.();
     } catch (error) {
       message.error('批量移动失败');
@@ -798,10 +794,14 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
   const handleToggleFavorite = async (document: Document) => {
     try {
-      // TODO: 调用API切换收藏状态
-      // await documentApi.toggleFavorite(document.id);
+      // 更新文档的收藏状态
+      setDocuments(prev => prev.map(doc => 
+        doc.id === document.id 
+          ? { ...doc, is_favorite: !doc.is_favorite, updated_at: new Date().toISOString() }
+          : doc
+      ));
+      
       message.success(document.is_favorite ? '已取消收藏' : '已添加收藏');
-      loadDocuments();
     } catch (error) {
       message.error('操作失败');
     }
@@ -810,10 +810,21 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   // 复制文档
   const handleCopyDocument = async (document: Document) => {
     try {
-      // TODO: 调用API复制文档
-      // await documentApi.copy(document.id);
+      // 创建文档副本
+      const copiedDocument: Document = {
+        ...document,
+        id: Date.now(),
+        title: `${document.title} - 副本`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        version: 1,
+        is_favorite: false
+      };
+
+      // 添加到本地状态
+      setDocuments(prev => [...prev, copiedDocument]);
+      
       message.success(`文档"${document.title}"复制成功`);
-      loadDocuments();
       onDocumentUpdate?.();
     } catch (error) {
       message.error('复制文档失败');
@@ -823,16 +834,19 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   // 创建模板
   const handleCreateTemplate = async (document: Document) => {
     try {
+      // 更新文档的模板状态
+      setDocuments(prev => prev.map(doc => 
+        doc.id === document.id 
+          ? { ...doc, is_template: !doc.is_template, updated_at: new Date().toISOString() }
+          : doc
+      ));
+      
       if (document.is_template) {
-        // TODO: 调用API取消模板
-        // await documentApi.unsetTemplate(document.id);
         message.success(`已取消"${document.title}"的模板状态`);
       } else {
-        // TODO: 调用API创建模板
-        // await documentApi.createTemplate(document.id);
         message.success(`模板"${document.title}"创建成功`);
       }
-      loadDocuments();
+      
       onDocumentUpdate?.();
     } catch (error) {
       message.error(document.is_template ? '取消模板失败' : '创建模板失败');

@@ -14,6 +14,11 @@ type PostgresDocumentRepository struct {
 	db interface{}
 }
 
+// NewDocumentRepository creates a new document repository
+func NewDocumentRepository(db *sql.DB) DocumentRepository {
+	return &PostgresDocumentRepository{db: db}
+}
+
 // getExecer returns the appropriate execer (DB or Tx)
 func (r *PostgresDocumentRepository) getExecer() execer {
 	if tx, ok := r.db.(*sql.Tx); ok {

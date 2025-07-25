@@ -181,7 +181,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
             size="small"
             hoverable
             style={{ height: 140 }}
-            bodyStyle={{ padding: 12 }}
+            styles={{ body: { padding: 12 } }}
             onClick={() => onDocumentSelect?.(document)}
           >
             <div style={{ textAlign: 'center' }}>
@@ -212,7 +212,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
       <Card 
         size="small" 
         style={{ marginBottom: 8 }}
-        bodyStyle={{ padding: '8px 12px' }}
+        styles={{ body: { padding: '8px 12px' } }}
       >
         <Row justify="space-between" align="middle">
           <Col>

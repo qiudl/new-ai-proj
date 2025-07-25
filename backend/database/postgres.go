@@ -90,14 +90,14 @@ func (pdb *PostgresDB) Audit() AuditRepository {
 
 // Documents returns the document repository
 func (pdb *PostgresDB) Documents() DocumentRepository {
-	// TODO: Fix DocumentRepository implementation
+	// TODO: Fix DocumentRepository implementation issues
 	return nil // 临时注释，避免编译错误
-	// return &PostgresDocumentRepository{db: pdb.db}
+	// return NewDocumentRepository(pdb.db)
 }
 
 // DocumentFolders returns the document folder repository
 func (pdb *PostgresDB) DocumentFolders() DocumentFolderRepository {
-	// TODO: Fix DocumentFolderRepository implementation
+	// TODO: Fix DocumentFolderRepository implementation issues  
 	return nil // 临时注释，避免编译错误
 	// return NewDocumentFolderRepository(pdb.db)
 }

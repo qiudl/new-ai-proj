@@ -39,10 +39,11 @@ import DocumentPermissionPanel from '../components/DocumentPermissionPanel';
 import ResponsiveDocumentManager from '../components/ResponsiveDocumentManager';
 import MobilePermissionPanel from '../components/MobilePermissionPanel';
 import DocumentVersionPanel from '../components/DocumentVersionPanel';
+import { documentFolderService } from '../services/documentFolderService';
 
 const { Title, Text } = Typography;
 const { Content, Sider } = Layout;
-const { TreeNode } = Tree;
+// Removed TreeNode import as we'll use treeData instead
 const { Search } = Input;
 const { Option } = Select;
 const { useBreakpoint } = Grid;
@@ -53,6 +54,7 @@ const DocumentManagerPage: React.FC = () => {
 
   // 状态管理
   const [loading, setLoading] = useState(false);
+  const [dragLoading, setDragLoading] = useState(false);
   const [folders, setFolders] = useState<DocumentFolder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
@@ -77,82 +79,21 @@ const DocumentManagerPage: React.FC = () => {
   const loadFolderTree = async () => {
     try {
       setLoading(true);
-      // TODO: 调用API获取文件夹树
-      // const response = await documentFolderApi.getTree();
-      // setFolders(response.data.tree);
+      const response = await documentFolderService.getFolderTree();
       
-      // 临时模拟数据
-      const mockFolders: DocumentFolder[] = [
-        {
-          id: 1,
-          name: '项目文档',
-          parent_folder_id: undefined,
-          owner_id: 1,
-          visibility: 'team',
-          color: '#1890ff',
-          icon: 'project',
-          sort_order: 1,
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-          created_by: 1,
-          documents_count: 5,
-          subfolders_count: 2,
-          owner_name: 'Admin',
-          children: [
-            {
-              id: 2,
-              name: '需求文档',
-              parent_folder_id: 1,
-              owner_id: 1,
-              visibility: 'team',
-              color: '#52c41a',
-              icon: 'requirement',
-              sort_order: 1,
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z',
-              created_by: 1,
-              documents_count: 3,
-              subfolders_count: 0,
-              owner_name: 'Admin',
-            },
-            {
-              id: 3,
-              name: '设计文档',
-              parent_folder_id: 1,
-              owner_id: 1,
-              visibility: 'team',
-              color: '#fa8c16',
-              icon: 'design',
-              sort_order: 2,
-              created_at: '2024-01-01T00:00:00Z',
-              updated_at: '2024-01-01T00:00:00Z',
-              created_by: 1,
-              documents_count: 2,
-              subfolders_count: 0,
-              owner_name: 'Admin',
-            }
-          ]
-        },
-        {
-          id: 4,
-          name: '技术文档',
-          parent_folder_id: undefined,
-          owner_id: 1,
-          visibility: 'public',
-          color: '#722ed1',
-          icon: 'tech',
-          sort_order: 2,
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-          created_by: 1,
-          documents_count: 8,
-          subfolders_count: 1,
-          owner_name: 'Admin',
-        }
-      ];
-      setFolders(mockFolders);
+      // 确保 folders 始终为数组
+      let foldersData = response.tree || response;
+      if (!Array.isArray(foldersData)) {
+        console.warn('getFolderTree returned non-array data:', foldersData);
+        foldersData = [];
+      }
+      
+      setFolders(foldersData);
     } catch (error) {
+      console.error('加载文件夹失败:', error);
       message.error('加载文件夹失败');
+      // 确保在错误情况下也设置为空数组
+      setFolders([]);
     } finally {
       setLoading(false);
     }
@@ -162,18 +103,26 @@ const DocumentManagerPage: React.FC = () => {
   // 创建文件夹
   const handleCreateFolder = async (values: any) => {
     try {
-      // TODO: 调用API创建文件夹
-      // await documentFolderApi.create({
-      //   ...values,
-      //   parent_folder_id: selectedFolderId
-      // });
-      
+      const request = {
+        name: values.name,
+        description: values.description,
+        parent_folder_id: selectedFolderId || undefined,
+        visibility: values.visibility || 'team',
+        color: values.color || '#1890ff',
+        icon: values.icon || 'folder',
+        sort_order: 0
+      };
+
+      await documentFolderService.createFolder(request);
       message.success('文件夹创建成功');
       setFolderModalVisible(false);
       folderForm.resetFields();
+      
+      // 重新加载文件夹树
       loadFolderTree();
-    } catch (error) {
-      message.error('创建文件夹失败');
+    } catch (error: any) {
+      console.error('创建文件夹失败:', error);
+      message.error(error.message || '创建文件夹失败');
     }
   };
 
@@ -181,33 +130,44 @@ const DocumentManagerPage: React.FC = () => {
   const handleEditFolder = async (values: any) => {
     try {
       if (!currentEditingFolder) return;
-      
-      // TODO: 调用API更新文件夹
-      // await documentFolderApi.update(currentEditingFolder.id, values);
+
+      const request = {
+        name: values.name,
+        description: values.description,
+        visibility: values.visibility,
+        color: values.color
+      };
+
+      await documentFolderService.updateFolder(currentEditingFolder.id, request);
       
       message.success('文件夹更新成功');
       setEditFolderModalVisible(false);
       setCurrentEditingFolder(null);
       editFolderForm.resetFields();
+      
+      // 重新加载文件夹树
       loadFolderTree();
-    } catch (error) {
-      message.error('更新文件夹失败');
+    } catch (error: any) {
+      console.error('更新文件夹失败:', error);
+      message.error(error.message || '更新文件夹失败');
     }
   };
 
   // 删除文件夹
   const handleDeleteFolder = async (folder: DocumentFolder) => {
     try {
-      // TODO: 调用API删除文件夹
-      // await documentFolderApi.delete(folder.id);
+      await documentFolderService.deleteFolder(folder.id);
       
       message.success('文件夹删除成功');
       if (selectedFolderId === folder.id) {
         setSelectedFolderId(null);
       }
+      
+      // 重新加载文件夹树
       loadFolderTree();
-    } catch (error) {
-      message.error('删除文件夹失败');
+    } catch (error: any) {
+      console.error('删除文件夹失败:', error);
+      message.error(error.message || '删除文件夹失败');
     }
   };
 
@@ -255,74 +215,206 @@ const DocumentManagerPage: React.FC = () => {
     };
   };
 
-  // 渲染文件夹树
-  const renderFolderTree = (folders: DocumentFolder[]) => {
-    return folders.map(folder => (
-      <TreeNode
-        key={folder.id}
-        title={
-          <div
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '2px 0'
-            }}
-          >
-            <Space>
-              <FolderOutlined style={{ color: folder.color }} />
-              <span>{folder.name}</span>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                ({folder.documents_count || 0})
-              </Text>
-            </Space>
-            
-            <Space size="small" style={{ opacity: 0.6 }}>
-              <Tooltip title="编辑文件夹">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditFolderModal(folder);
-                  }}
-                  style={{ fontSize: '12px' }}
-                />
-              </Tooltip>
-              <Tooltip title="删除文件夹">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<DeleteOutlined />}
-                  danger
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    Modal.confirm({
-                      title: '确认删除',
-                      content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除文件夹内的所有文档。`,
-                      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
-                      okText: '删除',
-                      okType: 'danger',
-                      cancelText: '取消',
-                      onOk: () => handleDeleteFolder(folder)
-                    });
-                  }}
-                  style={{ fontSize: '12px' }}
-                />
-              </Tooltip>
-            </Space>
-          </div>
+  // 计算新的排序位置
+  const calculateNewSortOrder = (siblings: DocumentFolder[], dropPosition: number, targetFolder?: DocumentFolder): number => {
+    if (!siblings || siblings.length === 0) {
+      return 1;
+    }
+
+    // 按照 sort_order 排序
+    const sortedSiblings = [...siblings].sort((a, b) => a.sort_order - b.sort_order);
+    
+    if (!targetFolder) {
+      // 如果没有目标文件夹，放在最后
+      return (sortedSiblings[sortedSiblings.length - 1]?.sort_order || 0) + 1;
+    }
+
+    const targetIndex = sortedSiblings.findIndex(f => f.id === targetFolder.id);
+    
+    if (dropPosition < 0) {
+      // 插入到目标之前
+      if (targetIndex === 0) {
+        return Math.max(1, targetFolder.sort_order - 1);
+      } else {
+        const prevFolder = sortedSiblings[targetIndex - 1];
+        return Math.floor((prevFolder.sort_order + targetFolder.sort_order) / 2) || (targetFolder.sort_order - 1);
+      }
+    } else {
+      // 插入到目标之后
+      if (targetIndex === sortedSiblings.length - 1) {
+        return targetFolder.sort_order + 1;
+      } else {
+        const nextFolder = sortedSiblings[targetIndex + 1];
+        return Math.floor((targetFolder.sort_order + nextFolder.sort_order) / 2) || (targetFolder.sort_order + 1);
+      }
+    }
+  };
+
+  // 获取同级文件夹
+  const getSiblingFolders = (parentId: number | undefined): DocumentFolder[] => {
+    const findSiblings = (folders: DocumentFolder[], targetParentId: number | undefined): DocumentFolder[] => {
+      const siblings: DocumentFolder[] = [];
+      
+      for (const folder of folders) {
+        if (folder.parent_folder_id === targetParentId) {
+          siblings.push(folder);
         }
-        data-folder={folder}
-      >
-        {folder.children && renderFolderTree(folder.children)}
-      </TreeNode>
-    ));
+        if (folder.children) {
+          siblings.push(...findSiblings(folder.children, targetParentId));
+        }
+      }
+      
+      return siblings;
+    };
+
+    return findSiblings(folders, parentId);
+  };
+
+  // 处理文件夹拖拽
+  const handleDrop = async (info: any) => {
+    const dropKey = info.node.key;
+    const dragKey = info.dragNode.key;
+    const dropPos = info.node.pos.split('-');
+    const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
+
+    console.log('Drop info:', {
+      dropKey,
+      dragKey,
+      dropPosition,
+      dropToGap: info.dropToGap
+    });
+
+    try {
+      setDragLoading(true);
+      
+      // 找到被拖拽的文件夹
+      const dragFolder = findFolderById(folders, Number(dragKey));
+      if (!dragFolder) {
+        message.error('找不到被拖拽的文件夹');
+        return;
+      }
+
+      let newParentId: number | undefined;
+      let newSortOrder = 0;
+
+      if (!info.dropToGap) {
+        // 拖拽到文件夹内部（作为子文件夹）
+        newParentId = Number(dropKey);
+        const siblings = getSiblingFolders(newParentId);
+        newSortOrder = calculateNewSortOrder(siblings, dropPosition);
+      } else {
+        // 拖拽到同级别位置
+        const dropFolder = findFolderById(folders, Number(dropKey));
+        if (dropFolder) {
+          newParentId = dropFolder.parent_folder_id;
+          const siblings = getSiblingFolders(newParentId);
+          newSortOrder = calculateNewSortOrder(siblings, dropPosition, dropFolder);
+        }
+      }
+
+      // 调用移动文件夹接口
+      await documentFolderService.moveFolder(Number(dragKey), {
+        parent_folder_id: newParentId,
+        sort_order: newSortOrder
+      });
+
+      message.success('文件夹移动成功');
+      // 重新加载文件夹树
+      await loadFolderTree();
+    } catch (error: any) {
+      console.error('移动文件夹失败:', error);
+      message.error(error.message || '移动文件夹失败');
+    } finally {
+      setDragLoading(false);
+    }
+  };
+
+  // 查找文件夹的辅助函数
+  const findFolderById = (folders: DocumentFolder[], id: number): DocumentFolder | null => {
+    for (const folder of folders) {
+      if (folder.id === id) {
+        return folder;
+      }
+      if (folder.children) {
+        const found = findFolderById(folder.children, id);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return null;
+  };
+
+  // 转换文件夹数据为树结构
+  const convertFoldersToTreeData = (folders: DocumentFolder[]): any[] => {
+    if (!Array.isArray(folders)) {
+      console.warn('convertFoldersToTreeData received non-array folders:', folders);
+      return [];
+    }
+    
+    return folders.map(folder => ({
+      key: folder.id,
+      title: (
+        <div
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            padding: '2px 0'
+          }}
+        >
+          <Space>
+            <FolderOutlined style={{ color: folder.color }} />
+            <span>{folder.name}</span>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              ({folder.documents_count || 0})
+            </Text>
+          </Space>
+          
+          <Space size="small" style={{ opacity: 0.6 }}>
+            <Tooltip title="编辑文件夹">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openEditFolderModal(folder);
+                }}
+                style={{ fontSize: '12px' }}
+              />
+            </Tooltip>
+            <Tooltip title="删除文件夹">
+              <Button
+                type="text"
+                size="small"
+                icon={<DeleteOutlined />}
+                danger
+                onClick={(e) => {
+                  e.stopPropagation();
+                  Modal.confirm({
+                    title: '确认删除',
+                    content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除文件夹内的所有文档。`,
+                    icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                    okText: '删除',
+                    okType: 'danger',
+                    cancelText: '取消',
+                    onOk: () => handleDeleteFolder(folder)
+                  });
+                }}
+                style={{ fontSize: '12px' }}
+              />
+            </Tooltip>
+          </Space>
+        </div>
+      ),
+      children: folder.children ? convertFoldersToTreeData(folder.children) : undefined,
+      folder: folder // Store folder data for access
+    }));
   };
 
 
@@ -376,18 +468,46 @@ const DocumentManagerPage: React.FC = () => {
                 />
                 
                 <Tree
+                  className="folder-tree"
                   showLine
                   showIcon
                   defaultExpandAll
+                  draggable
+                  blockNode
+                  treeData={convertFoldersToTreeData(folders)}
                   selectedKeys={selectedFolderId ? [selectedFolderId.toString()] : []}
                   onSelect={(keys) => {
                     if (keys.length > 0) {
                       setSelectedFolderId(Number(keys[0]));
                     }
                   }}
-                >
-                  {renderFolderTree(folders)}
-                </Tree>
+                  onDrop={handleDrop}
+                  allowDrop={({ dropNode, dropPosition, dragNode }) => {
+                    // 防止将文件夹拖拽到自己或其子文件夹中
+                    const dragId = Number(dragNode.key);
+                    const dropId = Number(dropNode.key);
+                    
+                    // 不能拖拽到自己
+                    if (dragId === dropId) {
+                      return false;
+                    }
+                    
+                    // 检查是否拖拽到自己的子文件夹中
+                    const isDescendant = (parentId: number, childId: number): boolean => {
+                      const parent = findFolderById(folders, parentId);
+                      if (!parent || !parent.children) return false;
+                      
+                      for (const child of parent.children) {
+                        if (child.id === childId || isDescendant(child.id, childId)) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    };
+                    
+                    return !isDescendant(dragId, dropId);
+                  }}
+                />
               </>
             )}
           </Space>
@@ -401,16 +521,17 @@ const DocumentManagerPage: React.FC = () => {
         }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             {/* 面包屑导航 */}
-            <Breadcrumb>
-              <Breadcrumb.Item>
-                <a onClick={() => setSelectedFolderId(null)}>根目录</a>
-              </Breadcrumb.Item>
-              {breadcrumbPath.map(folder => (
-                <Breadcrumb.Item key={folder.id}>
-                  <a onClick={() => setSelectedFolderId(folder.id)}>{folder.name}</a>
-                </Breadcrumb.Item>
-              ))}
-            </Breadcrumb>
+            <Breadcrumb
+              items={[
+                {
+                  title: <a onClick={() => setSelectedFolderId(null)}>根目录</a>
+                },
+                ...breadcrumbPath.map(folder => ({
+                  title: <a onClick={() => setSelectedFolderId(folder.id)}>{folder.name}</a>,
+                  key: folder.id
+                }))
+              ]}
+            />
 
             {/* Main Content Tabs */}
             <Tabs

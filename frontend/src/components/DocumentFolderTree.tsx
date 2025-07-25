@@ -78,14 +78,25 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
     try {
       setLoading(true);
       const response = await documentFolderService.getFolderTree();
-      setFolders(response.tree);
       
-      // 自动展开根文件夹
-      const rootKeys = response.tree.map(folder => folder.id.toString());
-      setExpandedKeys(rootKeys);
+      // 确保 tree 始终为数组
+      const treeData = response.tree;
+      if (!Array.isArray(treeData)) {
+        console.warn('getFolderTree returned non-array tree data:', treeData);
+        setFolders([]);
+        setExpandedKeys([]);
+      } else {
+        setFolders(treeData);
+        // 自动展开根文件夹
+        const rootKeys = treeData.map(folder => folder.id.toString());
+        setExpandedKeys(rootKeys);
+      }
     } catch (error) {
       console.error('Error loading folder tree:', error);
       message.error('加载文件夹树失败');
+      // 确保在错误情况下也设置为空数组
+      setFolders([]);
+      setExpandedKeys([]);
     } finally {
       setLoading(false);
     }
@@ -292,7 +303,8 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
   const handleMoveFolder = async (folderId: number, targetParentId: number) => {
     try {
       await documentFolderService.moveFolder(folderId, {
-        target_parent_id: targetParentId === 0 ? undefined : targetParentId
+        parent_folder_id: targetParentId === 0 ? undefined : targetParentId,
+        sort_order: 0
       });
       message.success('文件夹移动成功');
       loadFolderTree();

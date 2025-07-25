@@ -1055,9 +1055,10 @@ const AllFieldsTaskListPage: React.FC = () => {
       }
 
       // 检查是否在开发环境中禁用WebSocket（避免错误日志）
-      const isWebSocketEnabled = localStorage.getItem('enableWebSocket') !== 'false';
+      // 默认禁用WebSocket，因为后端未实现WebSocket服务
+      const isWebSocketEnabled = localStorage.getItem('enableWebSocket') === 'true';
       if (!isWebSocketEnabled) {
-        console.log('WebSocket功能已禁用');
+        console.log('WebSocket功能已禁用 - 后端WebSocket服务未实现');
         setConnectionStatus('disabled');
         return;
       }

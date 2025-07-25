@@ -71,10 +71,8 @@ export interface TaskTimeLog {
 // Timer state management
 export interface TimerState {
   isRunning: boolean;
-  currentTask?: {
-    id: number;
-    title: string;
-  };
+  taskId?: number;
+  taskTitle?: string;
   startTime?: Date;
   elapsedSeconds: number;
   formattedTime: string;

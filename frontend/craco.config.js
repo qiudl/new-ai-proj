@@ -83,7 +83,7 @@ module.exports = {
       ignored: /node_modules/
     },
     client: {
-      webSocketURL: 'ws://localhost:3000/ws'
+      webSocketURL: 'ws://localhost/ws'
     }
   }
 };

@@ -54,7 +54,11 @@ import {
 import { projectService } from '../services/projectService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
 import { Task } from '../types/task';
+import { TaskService } from '../services/taskService';
+import TimerStartButton from '../components/TimerStartButton';
+import { useTimer } from '../contexts/TimerContext';
 import DocumentList from '../components/DocumentList';
+import '../styles/timer-components.css';
 
 const { Title, Text, Paragraph } = Typography;
 // const { TabPane } = Tabs; // Deprecated, using items instead
@@ -62,12 +66,102 @@ const { Title, Text, Paragraph } = Typography;
 const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const { timerState } = useTimer();
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userForm] = Form.useForm();
+
+  // Load project tasks
+  const loadTasks = async () => {
+    if (!projectId) return;
+    
+    try {
+      const response = await TaskService.getTasks(parseInt(projectId), {
+        page: 1,
+        page_size: 50, // Load first 50 tasks for project detail view
+      });
+      
+      if (response?.data && Array.isArray(response.data)) {
+        setTasks(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      message.error('加载任务列表失败');
+    }
+  };
+
+  const taskColumns: ColumnsType<Task> = [
+    {
+      title: '任务名称',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string, record: Task) => (
+        <Button 
+          type="link" 
+          onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
+          style={{ padding: 0, fontSize: '14px' }}
+        >
+          {text}
+        </Button>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => (
+        <Tag color={getTaskStatusColor(status)}>
+          {getTaskStatusText(status)}
+        </Tag>
+      ),
+    },
+    {
+      title: '负责人',
+      dataIndex: 'assignee_name',
+      key: 'assignee_name',
+      width: 120,
+    },
+    {
+      title: '截止日期',
+      dataIndex: 'due_date',
+      key: 'due_date',
+      width: 120,
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: any, record: Task) => {
+        const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
+        
+        return (
+          <Space size="small">
+            {canStartTimer && (
+              <TimerStartButton
+                task={record}
+                size="small"
+                type="text"
+                className="project-detail-timer-button"
+              />
+            )}
+            <Button
+              type="text"
+              size="small"
+              onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
+              title="查看详情"
+            >
+              查看
+            </Button>
+          </Space>
+        );
+      },
+    },
+  ];
 
   // Tabs configuration using items (modern approach)
   const tabItems = [
@@ -171,10 +265,41 @@ const ProjectDetailPage: React.FC = () => {
       key: 'tasks',
       label: '项目任务',
       children: (
-        <Card title="任务列表">
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
-            任务管理功能开发中...
-          </div>
+        <Card title="任务列表" extra={
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />}
+            onClick={() => navigate(`/projects/${projectId}/tasks`)}
+          >
+            管理任务
+          </Button>
+        }>
+          <Table
+            dataSource={tasks}
+            columns={taskColumns}
+            rowKey="id"
+            pagination={tasks.length > 10 ? {
+              pageSize: 10,
+              showSizeChanger: false,
+              showQuickJumper: false,
+              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
+            } : false}
+            rowClassName={(record: Task) => {
+              // 高亮当前计时的任务行
+              if (timerState.isRunning && timerState.taskId === record.id) {
+                return 'timer-active-row';
+              }
+              return '';
+            }}
+            locale={{
+              emptyText: (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description="暂无任务"
+                />
+              )
+            }}
+          />
         </Card>
       )
     },
@@ -210,7 +335,7 @@ const ProjectDetailPage: React.FC = () => {
   useEffect(() => {
     if (projectId) {
       loadProjectDetail();
-      loadProjectTasks();
+      loadTasks();
     }
   }, [projectId]);
 
@@ -230,69 +355,6 @@ const ProjectDetailPage: React.FC = () => {
     }
   };
 
-  const loadProjectTasks = async () => {
-    try {
-      // 调用实际API
-      const response = await projectService.getProjectTasks(Number(projectId), { page: 1, pageSize: 50 });
-      
-      // 如果API调用成功，使用真实数据
-      if (response && response.data) {
-        setTasks(response.data);
-        return;
-      }
-    } catch (error) {
-      console.error('获取项目任务失败:', error);
-    }
-    
-    // 如果API调用失败，使用模拟数据
-    const mockTasks: Task[] = [
-      {
-        id: 1,
-        title: '需求调研',
-        description: '深入了解客户需求，制定详细的需求文档',
-        status: 'completed',
-        project_id: Number(projectId),
-        assignee_id: 102,
-        assignee_name: '李经理',
-        task_level: 0,
-        sort_order: 1,
-        created_at: '2024-01-15T10:00:00Z',
-        updated_at: '2024-01-17T18:00:00Z',
-        due_date: '2024-01-20T23:59:59Z'
-      },
-      {
-        id: 2,
-        title: '系统架构设计',
-        description: '设计系统整体架构，包括前端、后端和数据库设计',
-        status: 'in_progress',
-        project_id: Number(projectId),
-        assignee_id: 103,
-        assignee_name: '王开发',
-        task_level: 0,
-        sort_order: 2,
-        created_at: '2024-01-18T09:00:00Z',
-        updated_at: '2024-01-20T15:30:00Z',
-        due_date: '2024-01-25T23:59:59Z'
-      },
-      {
-        id: 3,
-        title: 'UI界面设计',
-        description: '设计用户界面原型和交互逻辑',
-        status: 'todo',
-        project_id: Number(projectId),
-        assignee_id: 104,
-        assignee_name: '赵工程师',
-        task_level: 0,
-        sort_order: 3,
-        created_at: '2024-01-19T10:00:00Z',
-        updated_at: '2024-01-19T10:00:00Z',
-        due_date: '2024-01-30T23:59:59Z'
-      }
-    ];
-    
-    setTasks(mockTasks);
-    message.warning('任务数据使用模拟数据，请检查API连接');
-  };
 
   const getRoleIcon = (role: ProjectUserRole) => {
     const iconMap = {
@@ -408,47 +470,6 @@ const ProjectDetailPage: React.FC = () => {
     setUserModalVisible(false);
     userForm.resetFields();
   };
-
-  const taskColumns: ColumnsType<Task> = [
-    {
-      title: '任务名称',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: Task) => (
-        <Button 
-          type="link" 
-          onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
-          style={{ padding: 0, fontSize: '14px' }}
-        >
-          {text}
-        </Button>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={getTaskStatusColor(status)}>
-          {getTaskStatusText(status)}
-        </Tag>
-      ),
-    },
-    {
-      title: '负责人',
-      dataIndex: 'assignee_name',
-      key: 'assignee_name',
-      width: 120,
-    },
-    {
-      title: '截止日期',
-      dataIndex: 'due_date',
-      key: 'due_date',
-      width: 120,
-      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-',
-    },
-  ];
 
   if (loading) {
     return (

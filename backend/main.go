@@ -40,8 +40,9 @@ type Application struct {
 	companyHandler      *handlers.CompanyHandler
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
-	// documentHandler     *handlers.DocumentHandler // 临时注释，避免编译错误
-	// documentFolderHandler *handlers.DocumentFolderHandlers // 临时注释，避免编译错误
+	// 简化版文档管理处理器
+	simpleDocumentHandler       *handlers.SimpleDocumentHandler
+	simpleDocumentFolderHandler *handlers.SimpleDocumentFolderHandler
 	// documentRelationHandler *handlers.DocumentRelationHandler // 临时注释，避免编译错误
 	// documentVersionHandler *handlers.DocumentVersionHandler // 临时注释，避免编译错误
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
@@ -87,8 +88,9 @@ func NewApplication() (*Application, error) {
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
-	// documentHandler := handlers.NewDocumentHandler(db, logger, validate) // 临时注释，避免编译错误
-	// documentFolderHandler := handlers.NewDocumentFolderHandlers(db) // 临时注释，避免编译错误
+	// 简化版文档管理处理器
+	simpleDocumentHandler := handlers.NewSimpleDocumentHandler()
+	simpleDocumentFolderHandler := handlers.NewSimpleDocumentFolderHandler()
 	// documentRelationHandler := handlers.NewDocumentRelationHandler(db) // 临时注释，避免编译错误
 	// documentVersionHandler := handlers.NewDocumentVersionHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
@@ -105,8 +107,9 @@ func NewApplication() (*Application, error) {
 		companyHandler:      companyHandler,
 		permissionHandler:   permissionHandler,
 		userManagementHandler: userManagementHandler,
-		// documentHandler:     documentHandler, // 临时注释，避免编译错误
-		// documentFolderHandler: documentFolderHandler, // 临时注释，避免编译错误
+		// 简化版文档管理处理器
+		simpleDocumentHandler:       simpleDocumentHandler,
+		simpleDocumentFolderHandler: simpleDocumentFolderHandler,
 		// documentRelationHandler: documentRelationHandler, // 临时注释，避免编译错误
 		// documentVersionHandler: documentVersionHandler, // 临时注释，避免编译错误
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
@@ -217,8 +220,8 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.DELETE("/:id/users/:userId", app.removeProjectUserHandler)
 				
 				// Document management routes
-// 				// projects.GET("/:id/documents", app.documentHandler.GetProjectDocuments) // 临时注释，避免编译错误 // 临时注释，避免编译错误
-// 				// projects.POST("/:id/documents", app.documentHandler.CreateDocument) // 临时注释，避免编译错误 // 临时注释，避免编译错误
+				// projects.GET("/:id/documents", app.documentHandler.GetProjectDocuments) // 临时注释，避免编译错误
+				// projects.POST("/:id/documents", app.documentHandler.CreateDocument) // 临时注释，避免编译错误
 			}
 
 			// System management routes (system users only)
@@ -319,28 +322,28 @@ func (app *Application) setupRouter() *gin.Engine {
 				companies.POST("/:id/contacts", app.companyHandler.CreateCompanyContact)
 			}
 
-			// Document global routes
-// 			authorized.GET("/documents", app.documentHandler.GetAllDocuments) // 临时注释，避免编译错误
-// 			authorized.POST("/documents", app.documentHandler.CreateGlobalDocument) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/stats", app.documentHandler.GetDocumentStats) // 临时注释，避免编译错误
+			// 简化版文档管理路由
+			authorized.GET("/documents", app.simpleDocumentHandler.GetDocuments)
+			authorized.POST("/documents", app.simpleDocumentHandler.CreateDocument)
 			
 			// Document CRUD routes (direct access by document ID)
-// 			authorized.GET("/documents/:id", app.documentHandler.GetDocument) // 临时注释，避免编译错误
-// 			authorized.PUT("/documents/:id", app.documentHandler.UpdateDocument) // 临时注释，避免编译错误
-// 			authorized.DELETE("/documents/:id", app.documentHandler.DeleteDocument) // 临时注释，避免编译错误
+			authorized.GET("/documents/:id", app.simpleDocumentHandler.GetDocument)
+			authorized.PUT("/documents/:id", app.simpleDocumentHandler.UpdateDocument)
+			authorized.DELETE("/documents/:id", app.simpleDocumentHandler.DeleteDocument)
+			authorized.POST("/documents/:id/copy", app.simpleDocumentHandler.CopyDocument)
+			authorized.POST("/documents/:id/toggle-template", app.simpleDocumentHandler.ToggleTemplate)
 
-			// Document Folder routes
-			// documentFolders := authorized.Group("/document-folders") // 临时注释，避免编译错误
+			// 简化版文档文件夹路由
+			documentFolders := authorized.Group("/document-folders")
 			{
-// 				documentFolders.POST("", app.documentFolderHandler.CreateDocumentFolder) // 临时注释，避免编译错误
-// 				documentFolders.GET("", app.documentFolderHandler.ListDocumentFolders) // 临时注释，避免编译错误
-// 				documentFolders.GET("/tree", app.documentFolderHandler.GetDocumentFolderTree) // 临时注释，避免编译错误
-// 				documentFolders.GET("/stats", app.documentFolderHandler.GetAllDocumentFolderStats) // 临时注释，避免编译错误
-// 				documentFolders.GET("/:id", app.documentFolderHandler.GetDocumentFolder) // 临时注释，避免编译错误
-// 				documentFolders.PUT("/:id", app.documentFolderHandler.UpdateDocumentFolder) // 临时注释，避免编译错误
-// 				documentFolders.DELETE("/:id", app.documentFolderHandler.DeleteDocumentFolder) // 临时注释，避免编译错误
-// 				documentFolders.POST("/:id/move", app.documentFolderHandler.MoveDocumentFolder) // 临时注释，避免编译错误
-// 				documentFolders.GET("/:id/stats", app.documentFolderHandler.GetDocumentFolderStats) // 临时注释，避免编译错误
+				documentFolders.POST("", app.simpleDocumentFolderHandler.CreateFolder)
+				documentFolders.GET("", app.simpleDocumentFolderHandler.ListFolders)
+				documentFolders.GET("/tree", app.simpleDocumentFolderHandler.GetFolderTree)
+				documentFolders.GET("/:id", app.simpleDocumentFolderHandler.GetFolder)
+				documentFolders.PUT("/:id", app.simpleDocumentFolderHandler.UpdateFolder)
+				documentFolders.DELETE("/:id", app.simpleDocumentFolderHandler.DeleteFolder)
+				documentFolders.POST("/:id/move", app.simpleDocumentFolderHandler.MoveFolder)
+				documentFolders.POST("/batch-update", app.simpleDocumentFolderHandler.BatchUpdateFolders)
 			}
 
 			// Document Relation routes

@@ -7,17 +7,22 @@ import { TaskService } from '../services/taskService';
 import TaskModal from '../components/TaskModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
+import TimerStartButton from '../components/TimerStartButton';
+import { useTimer } from '../contexts/TimerContext';
 import { Project } from '../types/project';
 import { projectService } from '../services/projectService';
-import TimerService from '../services/timerService';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
 import '../styles/task-inline-edit-enhanced.css';
+import '../styles/timer-components.css';
 
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  
+  // Global timer context
+  const { timerState } = useTimer();
 
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const timerUpdateRef = useRef<NodeJS.Timeout | null>(null);
@@ -52,9 +57,6 @@ const TasksPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentProject, setCurrentProject] = useState<Project | undefined>();
   
-  // 计时器状态
-  const [currentTimerTask, setCurrentTimerTask] = useState<number | null>(null);
-  const [timerLoading, setTimerLoading] = useState<Set<number>>(new Set());
   
   // 全局统计状态
   const [globalStats, setGlobalStats] = useState<{
@@ -765,74 +767,6 @@ const TasksPage: React.FC = () => {
     setEditingTitleValue('');
   };
 
-  // 加载当前计时器状态
-  const loadCurrentTimer = useCallback(async () => {
-    try {
-      const response = await TimerService.getCurrentTimer();
-      if (response.is_running && response.task_id) {
-        setCurrentTimerTask(response.task_id);
-      } else {
-        setCurrentTimerTask(null);
-      }
-    } catch (error) {
-      console.error('Failed to load current timer:', error);
-    }
-  }, []);
-
-  // 处理开始计时
-  const handleStartTimer = async (task: Task) => {
-    if (currentTimerTask) {
-      message.warning('已有任务在计时中，请先停止当前计时');
-      return;
-    }
-
-    const taskId = task.id;
-    setTimerLoading(prev => new Set(prev).add(taskId));
-    
-    try {
-      await TimerService.startTimer(taskId);
-      setCurrentTimerTask(taskId);
-      message.success(`开始计时: ${task.title}`);
-    } catch (error: any) {
-      console.error('Failed to start timer:', error);
-      message.error('开始计时失败');
-    } finally {
-      setTimerLoading(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
-    }
-  };
-
-  // 处理停止计时
-  const handleStopTimer = async (task: Task) => {
-    const taskId = task.id;
-    setTimerLoading(prev => new Set(prev).add(taskId));
-    
-    try {
-      const response = await TimerService.stopTimer();
-      setCurrentTimerTask(null);
-      message.success(`计时结束: ${response.task_title} (${response.formatted_time})`);
-      
-      // 刷新任务列表以更新总时长
-      loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
-      console.error('Failed to stop timer:', error);
-      message.error('停止计时失败');
-    } finally {
-      setTimerLoading(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
-    }
-  };
-
-  // Load current timer on component mount
-  useEffect(() => {
-    loadCurrentTimer();
-  }, [loadCurrentTimer]);
 
   // 批量选择处理函数
   const handleSelectTask = (taskId: number, checked: boolean) => {
@@ -1209,39 +1143,12 @@ const TasksPage: React.FC = () => {
                             
                             {/* 子任务计时器按钮 */}
                             {subTask.status !== 'completed' && subTask.status !== 'cancelled' && (
-                              currentTimerTask === subTask.id ? (
-                                <button
-                                  onClick={() => handleStopTimer(subTask)}
-                                  disabled={timerLoading.has(subTask.id)}
-                                  style={{
-                                    color: '#52c41a',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                    padding: '2px 4px'
-                                  }}
-                                  title="停止计时"
-                                >
-                                  {timerLoading.has(subTask.id) ? '⏳' : '⏸️'}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleStartTimer(subTask)}
-                                  disabled={timerLoading.has(subTask.id) || (!!currentTimerTask && currentTimerTask !== subTask.id)}
-                                  style={{
-                                    color: currentTimerTask && currentTimerTask !== subTask.id ? '#d9d9d9' : '#1890ff',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: currentTimerTask && currentTimerTask !== subTask.id ? 'not-allowed' : 'pointer',
-                                    fontSize: '12px',
-                                    padding: '2px 4px'
-                                  }}
-                                  title={currentTimerTask && currentTimerTask !== subTask.id ? "已有任务在计时中" : "开始计时"}
-                                >
-                                  {timerLoading.has(subTask.id) ? '⏳' : '▶️'}
-                                </button>
-                              )
+                              <TimerStartButton
+                                task={subTask}
+                                size="small"
+                                type="text"
+                                className="subtask-timer-button"
+                              />
                             )}
                             
                             <button
@@ -1536,36 +1443,18 @@ const TasksPage: React.FC = () => {
       key: 'action',
       width: 160, // 增加宽度以容纳计时器按钮
       render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => {
-        const isTimerRunning = currentTimerTask === record.id;
-        const isTimerLoadingForTask = timerLoading.has(record.id);
         const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
         
         return (
           <Space size="small">
             {/* 计时器按钮 */}
             {canStartTimer && (
-              isTimerRunning ? (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PauseCircleOutlined />}
-                  onClick={() => handleStopTimer(record)}
-                  loading={isTimerLoadingForTask}
-                  title="停止计时"
-                  style={{ color: '#52c41a' }}
-                />
-              ) : (
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => handleStartTimer(record)}
-                  loading={isTimerLoadingForTask}
-                  disabled={!!currentTimerTask && !isTimerRunning}
-                  title={currentTimerTask && !isTimerRunning ? "已有任务在计时中" : "开始计时"}
-                  style={{ color: currentTimerTask && !isTimerRunning ? '#d9d9d9' : '#1890ff' }}
-                />
-              )
+              <TimerStartButton
+                task={record}
+                size="small"
+                type="text"
+                className="task-list-timer-button"
+              />
             )}
             
             {/* 添加子任务按钮 */}
@@ -1962,6 +1851,11 @@ const TasksPage: React.FC = () => {
                     classes.push('depth-warning');
                   }
                   
+                  // 高亮当前计时的任务行
+                  if (timerState.isRunning && timerState.taskId === record.id) {
+                    classes.push('timer-active-row');
+                  }
+                  
                   return classes.join(' ');
                 }}
                 expandable={{
@@ -2018,6 +1912,11 @@ const TasksPage: React.FC = () => {
               // 添加响应式类
               if (depth > 6) {
                 classes.push('depth-warning');
+              }
+              
+              // 高亮当前计时的任务行
+              if (timerState.isRunning && timerState.taskId === record.id) {
+                classes.push('timer-active-row');
               }
               
               return classes.join(' ');

@@ -1,0 +1,1 @@
+{"success":true,"message":"Service is healthy","data":{"build_time":"unknown","database":"connected","git_commit":"unknown","status":"healthy","timestamp":"2025-07-25T13:44:32.503610927Z","version":"dev"},"timestamp":"2025-07-25T13:44:32.503613094Z"}

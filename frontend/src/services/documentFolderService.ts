@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
 
 // 文档文件夹接口
 export interface DocumentFolder {
@@ -79,7 +79,18 @@ export interface DocumentFolderStats {
 }
 
 export interface MoveFolderRequest {
-  target_parent_id?: number;
+  parent_folder_id?: number;
+  sort_order: number;
+}
+
+export interface FolderUpdate {
+  id: number;
+  parent_folder_id?: number;
+  sort_order: number;
+}
+
+export interface BatchUpdateFoldersRequest {
+  folders: FolderUpdate[];
 }
 
 export interface APIResponse<T> {
@@ -91,7 +102,7 @@ export interface APIResponse<T> {
 
 class DocumentFolderService {
   private getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || 'dummy-token-for-testing';
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -102,7 +113,7 @@ class DocumentFolderService {
   async createFolder(request: CreateDocumentFolderRequest): Promise<DocumentFolder> {
     try {
       const response = await axios.post<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/api/v1/document-folders`,
+        `${API_BASE_URL}/document-folders`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -122,7 +133,7 @@ class DocumentFolderService {
   async getFolder(id: number): Promise<DocumentFolder> {
     try {
       const response = await axios.get<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}`,
+        `${API_BASE_URL}/document-folders/${id}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -141,7 +152,7 @@ class DocumentFolderService {
   async updateFolder(id: number, request: UpdateDocumentFolderRequest): Promise<DocumentFolder> {
     try {
       const response = await axios.put<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}`,
+        `${API_BASE_URL}/document-folders/${id}`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -161,7 +172,7 @@ class DocumentFolderService {
   async deleteFolder(id: number): Promise<void> {
     try {
       const response = await axios.delete<APIResponse<void>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}`,
+        `${API_BASE_URL}/document-folders/${id}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -198,7 +209,7 @@ class DocumentFolderService {
       }
 
       const response = await axios.get<APIResponse<ListFoldersResponse>>(
-        `${API_BASE_URL}/api/v1/document-folders?${params}`,
+        `${API_BASE_URL}/document-folders?${params}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -222,7 +233,7 @@ class DocumentFolderService {
       }
 
       const response = await axios.get<APIResponse<FolderTreeResponse>>(
-        `${API_BASE_URL}/api/v1/document-folders/tree?${params}`,
+        `${API_BASE_URL}/document-folders/tree?${params}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -241,7 +252,7 @@ class DocumentFolderService {
   async getFolderStats(id: number): Promise<DocumentFolderStats> {
     try {
       const response = await axios.get<APIResponse<DocumentFolderStats>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}/stats`,
+        `${API_BASE_URL}/document-folders/${id}/stats`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -260,7 +271,7 @@ class DocumentFolderService {
   async moveFolder(id: number, request: MoveFolderRequest): Promise<void> {
     try {
       const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}/move`,
+        `${API_BASE_URL}/document-folders/${id}/move`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -278,7 +289,7 @@ class DocumentFolderService {
   async getFolderChildren(id: number): Promise<DocumentFolder[]> {
     try {
       const response = await axios.get<APIResponse<DocumentFolder[]>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}/children`,
+        `${API_BASE_URL}/document-folders/${id}/children`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -305,7 +316,7 @@ class DocumentFolderService {
         total_count: number;
         has_more: boolean;
       }>>(
-        `${API_BASE_URL}/api/v1/document-folders/${id}/documents?limit=${limit}&offset=${offset}`,
+        `${API_BASE_URL}/document-folders/${id}/documents?limit=${limit}&offset=${offset}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -324,7 +335,7 @@ class DocumentFolderService {
   async moveDocument(documentId: number, folderId: number | 'root'): Promise<void> {
     try {
       const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/api/v1/document-folders/move-document/${documentId}/to/${folderId}`,
+        `${API_BASE_URL}/document-folders/move-document/${documentId}/to/${folderId}`,
         {},
         { headers: this.getAuthHeaders() }
       );
@@ -338,11 +349,29 @@ class DocumentFolderService {
     }
   }
 
+  // 批量更新文件夹排序
+  async batchUpdateFolders(request: BatchUpdateFoldersRequest): Promise<void> {
+    try {
+      const response = await axios.post<APIResponse<void>>(
+        `${API_BASE_URL}/document-folders/batch-update`,
+        request,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to batch update folders');
+      }
+    } catch (error: any) {
+      console.error('Error batch updating folders:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to batch update folders');
+    }
+  }
+
   // 获取用户文件夹统计
   async getUserFolderStats(): Promise<any> {
     try {
       const response = await axios.get<APIResponse<any>>(
-        `${API_BASE_URL}/api/v1/document-folders/stats`,
+        `${API_BASE_URL}/document-folders/stats`,
         { headers: this.getAuthHeaders() }
       );
       

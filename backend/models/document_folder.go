@@ -99,7 +99,7 @@ type ListFoldersResponse struct {
 
 // FolderTreeResponse 文件夹树响应
 type FolderTreeResponse struct {
-	Folders []DocumentFolderTree `json:"folders"`
+	Tree []DocumentFolderTree `json:"tree"`
 }
 
 // DocumentFolderTree 文档文件夹树结构

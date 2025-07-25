@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Grid, Drawer, Button, Card, Space, Typography, Row, Col, Affix, BackTop } from 'antd';
+import { Grid, Drawer, Button, Card, Space, Typography, Row, Col, Affix, FloatButton } from 'antd';
 import { MenuOutlined, UpOutlined } from '@ant-design/icons';
 import DocumentFileManager from './DocumentFileManager';
 import MobileDocumentList from './MobileDocumentList';
@@ -67,7 +67,7 @@ const ResponsiveDocumentManager: React.FC<ResponsiveDocumentManagerProps> = ({
               backgroundColor: '#fff',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}
-            bodyStyle={{ padding: '12px 16px' }}
+            styles={{ body: { padding: '12px 16px' } }}
           >
             <Row justify="space-between" align="middle">
               <Col>
@@ -154,20 +154,13 @@ const ResponsiveDocumentManager: React.FC<ResponsiveDocumentManagerProps> = ({
         </Drawer>
 
         {/* Back to Top */}
-        <BackTop>
-          <div style={{
-            height: 40,
-            width: 40,
-            lineHeight: '40px',
-            borderRadius: 4,
-            backgroundColor: '#1890ff',
-            color: '#fff',
-            textAlign: 'center',
-            fontSize: 14,
-          }}>
-            <UpOutlined />
-          </div>
-        </BackTop>
+        <FloatButton.BackTop
+          style={{
+            right: 24,
+            bottom: 24,
+          }}
+          icon={<UpOutlined />}
+        />
       </div>
     );
   }
