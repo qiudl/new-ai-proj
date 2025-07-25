@@ -40,7 +40,7 @@ type Application struct {
 	companyHandler      *handlers.CompanyHandler
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
-	// 简化版文档管理处理器
+	// 文档管理处理器 (简化版本)
 	simpleDocumentHandler       *handlers.SimpleDocumentHandler
 	simpleDocumentFolderHandler *handlers.SimpleDocumentFolderHandler
 	// documentRelationHandler *handlers.DocumentRelationHandler // 临时注释，避免编译错误
@@ -88,7 +88,7 @@ func NewApplication() (*Application, error) {
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
-	// 简化版文档管理处理器
+	// 文档管理处理器 (简化版本)
 	simpleDocumentHandler := handlers.NewSimpleDocumentHandler()
 	simpleDocumentFolderHandler := handlers.NewSimpleDocumentFolderHandler()
 	// documentRelationHandler := handlers.NewDocumentRelationHandler(db) // 临时注释，避免编译错误

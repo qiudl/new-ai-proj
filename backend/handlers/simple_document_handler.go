@@ -5,67 +5,20 @@ import (
 	"strconv"
 	"time"
 
+	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"github.com/gin-gonic/gin"
 )
 
 // SimpleDocumentHandler 简化的文档处理器
 type SimpleDocumentHandler struct {
-	// 临时内存存储，后续可以替换为数据库
-	documents map[int]*models.Document
-	nextID    int
+	db database.DB
 }
 
 // NewSimpleDocumentHandler 创建新的简化文档处理器
-func NewSimpleDocumentHandler() *SimpleDocumentHandler {
-	documents := make(map[int]*models.Document)
-	
-	// 初始化一些示例数据
-	documents[1] = &models.Document{
-		ID:          1,
-		FolderID:    intPtr(1),
-		Title:       "API接口设计文档",
-		Content:     stringPtr("# API接口设计\n\n本文档描述了系统的API接口设计..."),
-		Type:        models.DocumentTypeMarkdown,
-		Status:      models.DocumentStatusPublished,
-		Description: stringPtr("详细描述了系统各个模块的API接口设计和调用方式"),
-		Tags:        []string{"API", "接口", "设计"},
-		OwnerID:     1,
-		Visibility:  models.VisibilityTeam,
-		Version:     2,
-		IsTemplate:  false,
-		CreatedAt:   time.Now().Add(-24 * time.Hour),
-		UpdatedAt:   time.Now(),
-		CreatedBy:   1,
-		OwnerName:   stringPtr("Admin"),
-		FolderName:  stringPtr("项目文档"),
-	}
-	
-	documents[2] = &models.Document{
-		ID:          2,
-		FolderID:    intPtr(1),
-		Title:       "项目需求分析报告",
-		Type:        models.DocumentTypePDF,
-		Status:      models.DocumentStatusPublished,
-		FileURL:     stringPtr("/files/requirement-analysis.pdf"),
-		FileSize:    int64Ptr(2048576),
-		MimeType:    stringPtr("application/pdf"),
-		Description: stringPtr("项目需求分析详细报告"),
-		Tags:        []string{"需求", "分析", "报告"},
-		OwnerID:     1,
-		Visibility:  models.VisibilityPublic,
-		Version:     1,
-		IsTemplate:  false,
-		CreatedAt:   time.Now().Add(-48 * time.Hour),
-		UpdatedAt:   time.Now().Add(-48 * time.Hour),
-		CreatedBy:   1,
-		OwnerName:   stringPtr("Admin"),
-		FolderName:  stringPtr("项目文档"),
-	}
-
+func NewSimpleDocumentHandler(db database.DB) *SimpleDocumentHandler {
 	return &SimpleDocumentHandler{
-		documents: documents,
-		nextID:    3,
+		db: db,
 	}
 }
 

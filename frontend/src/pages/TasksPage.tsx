@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox } from 'antd';
+import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip } from 'antd';
 import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
@@ -8,14 +8,18 @@ import TaskModal from '../components/TaskModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
 import TimerStartButton from '../components/TimerStartButton';
+import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
+import ResizableTitle from '../components/ResizableTitle';
 import { useTimer } from '../contexts/TimerContext';
 import { Project } from '../types/project';
 import { projectService } from '../services/projectService';
+import { formatRelativeTime, formatExactTime, getTimeStyle, getUpdateTimestamp } from '../utils/dateUtils';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
 import '../styles/task-inline-edit-enhanced.css';
 import '../styles/timer-components.css';
+import '../styles/resizable-columns.css';
 
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -54,6 +58,128 @@ const TasksPage: React.FC = () => {
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
+  const projectIdNum = parseInt(projectId || '0');
+  
+  // 如果URL中有projectId，使用URL中的项目ID，否则使用选择的项目ID  
+  const effectiveProjectId = projectIdNum || selectedProjectId;
+  
+  // 列自定义配置状态 - 使用useMemo创建默认配置
+  const defaultColumnConfigs = useMemo((): ColumnConfig[] => [
+    {
+      key: 'selection',
+      title: '选择',
+      visible: true,
+      required: true,
+      description: '批量选择任务',
+      width: 60,
+      minWidth: 60,
+      maxWidth: 100,
+      resizable: false
+    },
+    {
+      key: 'title',
+      title: '任务名称',
+      visible: true,
+      required: true,
+      description: '任务标题和描述',
+      width: effectiveProjectId ? 400 : 350,
+      minWidth: 200,
+      maxWidth: 600,
+      resizable: true
+    },
+    ...(!effectiveProjectId ? [{
+      key: 'project_name',
+      title: '所属项目',
+      visible: true,
+      required: false,
+      description: '任务所属的项目',
+      width: 150,
+      minWidth: 100,
+      maxWidth: 200,
+      resizable: true
+    }] : []),
+    {
+      key: 'status',
+      title: '状态',
+      visible: true,
+      required: false,
+      description: '任务当前状态',
+      width: 120,
+      minWidth: 80,
+      maxWidth: 160,
+      resizable: true
+    },
+    {
+      key: 'assignee_name',
+      title: '负责人',
+      visible: true,
+      required: false,
+      description: '任务负责人',
+      width: 120,
+      minWidth: 80,
+      maxWidth: 160,
+      resizable: true
+    },
+    {
+      key: 'due_date',
+      title: '截止时间',
+      visible: true,
+      required: false,
+      description: '任务截止日期',
+      width: 140,
+      minWidth: 100,
+      maxWidth: 180,
+      resizable: true
+    },
+    {
+      key: 'updated_at',
+      title: '最后更新',
+      visible: true,
+      required: false,
+      description: '任务最后更新时间',
+      width: 120,
+      minWidth: 80,
+      maxWidth: 160,
+      resizable: true
+    },
+    ...(!effectiveProjectId ? [{
+      key: 'created_at',
+      title: '创建时间',
+      visible: false, // 默认隐藏，因为有了更新时间
+      required: false,
+      description: '任务创建时间',
+      width: 120,
+      minWidth: 80,
+      maxWidth: 160,
+      resizable: true
+    }] : []),
+    {
+      key: 'tags',
+      title: '标签',
+      visible: true,
+      required: false,
+      description: '任务标签',
+      width: effectiveProjectId ? 120 : 100,
+      minWidth: 80,
+      maxWidth: 200,
+      resizable: true
+    },
+    {
+      key: 'action',
+      title: '操作',
+      visible: true,
+      required: true,
+      description: '任务操作按钮',
+      width: 160,
+      minWidth: 120,
+      maxWidth: 200,
+      resizable: true
+    }
+  ], [effectiveProjectId]);
+
+  const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>(defaultColumnConfigs);
+  
+  // 项目筛选相关状态  
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentProject, setCurrentProject] = useState<Project | undefined>();
   
@@ -72,11 +198,6 @@ const TasksPage: React.FC = () => {
     completedTasks: 0,
     projectCount: 0
   });
-
-  const projectIdNum = parseInt(projectId || '0');
-  
-  // 如果URL中有projectId，使用URL中的项目ID，否则使用选择的项目ID
-  const effectiveProjectId = projectIdNum || selectedProjectId;
 
   // Load project information when projectId is provided in URL
   useEffect(() => {
@@ -167,12 +288,16 @@ const TasksPage: React.FC = () => {
         response = await TaskService.getTasks(effectiveProjectId, {
           page,
           page_size: pageSize,
+          sort_by: 'updated_at',
+          sort_order: 'desc', // 默认按最后更新时间倒序
         });
       } else {
         // Load all tasks across projects
         response = await TaskService.getAllTasks({
           page,
           page_size: pageSize,
+          sort_by: 'updated_at',
+          sort_order: 'desc', // 默认按最后更新时间倒序
         });
       }
       
@@ -225,9 +350,17 @@ const TasksPage: React.FC = () => {
         console.warn(`Filtered out ${tasksData.length - validTasks.length} invalid tasks`);
       }
       
-      // 确保设置有效的数组
+      // 确保设置有效的数组并按最后更新时间排序
       const finalTasks = Array.isArray(validTasks) ? validTasks : [];
-      setTasks(finalTasks);
+      
+      // 客户端排序：按最后更新时间倒序（最新的在前面）
+      const sortedTasks = finalTasks.sort((a, b) => {
+        const timestampA = getUpdateTimestamp(a.updated_at);
+        const timestampB = getUpdateTimestamp(b.updated_at);
+        return timestampB - timestampA; // 倒序：最新的在前
+      });
+      
+      setTasks(sortedTasks);
       
       // 修复分页计算，确保total不会超过实际需要的页数
       const actualTotal = response.pagination?.total || 0;
@@ -923,6 +1056,596 @@ const TasksPage: React.FC = () => {
     }
   }, [buildExpandedDataSource, tasks]);
 
+  // 当项目变化时，更新列配置
+  useEffect(() => {
+    setColumnConfigs(defaultColumnConfigs);
+  }, [defaultColumnConfigs]);
+
+  // 列宽度调整处理器
+  const handleColumnResize = useCallback((key: string, width: number) => {
+    setColumnConfigs(prev => {
+      const newConfigs = prev.map(config => 
+        config.key === key ? { ...config, width } : config
+      );
+      
+      // 保存到localStorage
+      const storageKey = `task-columns-${effectiveProjectId || 'global'}`;
+      localStorage.setItem(storageKey, JSON.stringify(newConfigs));
+      
+      return newConfigs;
+    });
+  }, [effectiveProjectId]);
+
+  // 创建可调整大小的标题
+  const createResizableTitle = useCallback((config: ColumnConfig, title: React.ReactNode) => {
+    if (!config.resizable) {
+      return title;
+    }
+    
+    return (
+      <ResizableTitle
+        width={typeof config.width === 'number' ? config.width : 120}
+        onResize={(width) => handleColumnResize(config.key, width)}
+        minWidth={config.minWidth}
+        maxWidth={config.maxWidth}
+      >
+        {title}
+      </ResizableTitle>
+    );
+  }, [handleColumnResize]);
+
+  // 根据配置生成实际的表格列
+  const generateColumns = useCallback(() => {
+    const visibleConfigs = columnConfigs.filter(config => config.visible);
+    
+    return visibleConfigs.map(config => {
+      switch (config.key) {
+        case 'selection':
+          return {
+            title: createResizableTitle(config, 
+              <Checkbox
+                indeterminate={selectedTaskIds.length > 0 && selectedTaskIds.length < stableDataSource.length}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+                checked={stableDataSource.length > 0 && selectedTaskIds.length === stableDataSource.length}
+              />
+            ),
+            dataIndex: 'selection',
+            key: 'selection',
+            width: config.width,
+            render: (_: any, record: Task) => (
+              <Checkbox
+                checked={selectedTaskIds.includes(record.id)}
+                onChange={(e) => handleSelectTask(record.id, e.target.checked)}
+              />
+            ),
+          };
+          
+        case 'updated_at':
+          return {
+            title: createResizableTitle(config, '最后更新'),
+            dataIndex: 'updated_at',
+            key: 'updated_at',
+            width: config.width,
+            render: (date: string) => {
+              if (!date) return '-';
+              
+              const relativeTime = formatRelativeTime(date);
+              const exactTime = formatExactTime(date);
+              const style = getTimeStyle(date, 'updated');
+              
+              return (
+                <Tooltip title={exactTime}>
+                  <span style={style}>
+                    {relativeTime}
+                  </span>
+                </Tooltip>
+              );
+            },
+          };
+          
+        case 'title':
+          return {
+            title: createResizableTitle(config, '任务名称'),
+            dataIndex: 'title',
+            key: 'title',
+            width: config.width,
+            render: (text: string, record: Task & { isSubTask?: boolean; depth?: number }) => {
+              const depth = record.depth || 0;
+              const hasChildren = (record.custom_fields?.children_count || 0) > 0;
+              const isExpanded = expandedTasks.has(record.id);
+              
+              return (
+                <div>
+                  <div style={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    width: '100%'
+                  }}>
+                    {hasChildren ? (
+                      <button
+                        className={`task-expand-button ${isExpanded ? 'expanded' : ''} ${loadingChildren.has(record.id) ? 'loading' : ''}`}
+                        onClick={() => handleToggleExpand(record)}
+                        disabled={loadingChildren.has(record.id)}
+                        style={{ 
+                          padding: 0, 
+                          minWidth: 20, 
+                          height: 20,
+                          color: '#1890ff',
+                          fontSize: '14px',
+                          flexShrink: 0,
+                          marginRight: 4,
+                          border: 'none',
+                          background: 'transparent',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {loadingChildren.has(record.id) ? (
+                          <span className="loading-spinner">⟳</span>
+                        ) : (
+                          <CaretRightOutlined />
+                        )}
+                      </button>
+                    ) : (
+                      <div style={{ width: 20, height: 20, flexShrink: 0, marginRight: 4 }} />
+                    )}
+                    
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ 
+                        fontWeight: depth === 0 ? 600 : 500,
+                        fontSize: depth === 0 ? '15px' : '14px',
+                        color: depth === 0 ? '#262626' : '#595959',
+                        lineHeight: '1.4',
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: 8
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewTask(record);
+                          }}
+                          style={{ 
+                            color: 'inherit',
+                            cursor: 'pointer',
+                            textDecoration: 'none',
+                            border: 'none',
+                            background: 'none',
+                            padding: 0,
+                            font: 'inherit',
+                            textAlign: 'left',
+                            wordBreak: 'break-word'
+                          }}
+                          title="点击查看任务详情"
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.textDecoration = 'underline';
+                            e.currentTarget.style.color = '#1890ff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.textDecoration = 'none';
+                            e.currentTarget.style.color = 'inherit';
+                          }}
+                        >
+                          {text}
+                        </button>
+                        {hasChildren && (
+                          <Tag 
+                            color="blue" 
+                            style={{ 
+                              fontSize: 11,
+                              padding: '0 6px',
+                              lineHeight: '18px',
+                              height: '18px',
+                              flexShrink: 0
+                            }}
+                          >
+                            {record.custom_fields?.children_count} 子任务
+                          </Tag>
+                        )}
+                      </div>
+                      {record.description && (
+                        <div style={{ 
+                          color: '#8c8c8c', 
+                          fontSize: 12,
+                          marginTop: 2,
+                          lineHeight: '1.3',
+                          wordBreak: 'break-word'
+                        }}>
+                          {record.description.length > 50 
+                            ? `${record.description.substring(0, 50)}...` 
+                            : record.description
+                          }
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* 子任务展开区域 */}
+                  {isExpanded && (
+                    <div style={{ 
+                      marginTop: 8,
+                      borderLeft: '2px solid #e6f7ff',
+                      paddingLeft: 16,
+                      backgroundColor: '#fafafa',
+                      borderRadius: '4px',
+                      padding: '8px 0 8px 16px'
+                    }}>
+                      {loadingChildren.has(record.id) ? (
+                        <div style={{ color: '#8c8c8c', fontSize: '13px', padding: '8px 0' }}>
+                          加载子任务中...
+                        </div>
+                      ) : (
+                        <>
+                          {(subTasks.get(record.id) || []).map((subTask, index) => (
+                            <div 
+                              key={subTask.id}
+                              style={{
+                                padding: '6px 0',
+                                borderBottom: index < (subTasks.get(record.id) || []).length - 1 ? '1px solid #f0f0f0' : 'none'
+                              }}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                fontSize: '14px'
+                              }}>
+                                <span style={{ color: '#8c8c8c', fontSize: '12px', flexShrink: 0 }}>└─</span>
+                                <button
+                                  onClick={() => handleViewTask(subTask)}
+                                  style={{
+                                    color: '#595959',
+                                    cursor: 'pointer',
+                                    textDecoration: 'none',
+                                    border: 'none',
+                                    background: 'none',
+                                    padding: 0,
+                                    font: 'inherit',
+                                    textAlign: 'left',
+                                    flex: 1
+                                  }}
+                                >
+                                  {subTask.title}
+                                </button>
+                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                                  <Tag 
+                                    color={subTask.status === 'completed' ? 'success' : subTask.status === 'in_progress' ? 'processing' : 'default'}
+                                    style={{ fontSize: '10px', margin: 0 }}
+                                  >
+                                    {subTask.status === 'completed' ? '完成' : subTask.status === 'in_progress' ? '进行中' : '待办'}
+                                  </Tag>
+                                  <button
+                                    onClick={() => handleEditTask(subTask)}
+                                    style={{
+                                      color: '#1890ff',
+                                      background: 'none',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      fontSize: '12px',
+                                      padding: '2px 4px'
+                                    }}
+                                  >
+                                    编辑
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          <div style={{ marginTop: 8, textAlign: 'center' }}>
+                            <Button
+                              type="dashed"
+                              size="small"
+                              icon={<PlusOutlined />}
+                              onClick={() => handleCreateSubTask(record)}
+                              style={{ fontSize: '12px', height: '24px' }}
+                            >
+                              添加子任务
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            },
+          };
+          
+        case 'project_name':
+          return {
+            title: createResizableTitle(config, '所属项目'),
+            dataIndex: 'project_name',
+            key: 'project_name',
+            width: config.width,
+            render: (name: string, record: Task) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: `hsl(${(record.project_id * 137.5) % 360}, 70%, 60%)`
+                }} />
+                <span style={{ fontWeight: 500, color: '#262626' }}>
+                  {name || '未知项目'}
+                </span>
+              </div>
+            ),
+          };
+          
+        case 'status':
+          return {
+            title: createResizableTitle(config, '状态'),
+            dataIndex: 'status',
+            key: 'status',
+            width: config.width,
+            render: (status: TaskStatus, record: Task) => {
+              const statusConfig = {
+                todo: { color: 'default', text: '待办', bgColor: '#fafafa', dotColor: '#d9d9d9' },
+                in_progress: { color: 'processing', text: '进行中', bgColor: '#e6f7ff', dotColor: '#1890ff' },
+                completed: { color: 'success', text: '已完成', bgColor: '#f6ffed', dotColor: '#52c41a' },
+                cancelled: { color: 'error', text: '已取消', bgColor: '#fff2f0', dotColor: '#ff4d4f' }
+              };
+              
+              const configData = statusConfig[status] || statusConfig.todo;
+              
+              return (
+                <Select
+                  value={status}
+                  onChange={(newStatus) => handleStatusUpdate(record.id, newStatus, record)}
+                  style={{ 
+                    width: '100%',
+                    backgroundColor: configData.bgColor,
+                    borderRadius: '4px'
+                  }}
+                  variant="borderless"
+                  size="small"
+                  suffixIcon={null}
+                >
+                  {Object.entries(statusConfig).map(([key, conf]) => (
+                    <Select.Option key={key} value={key}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <div style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: conf.dotColor
+                        }} />
+                        <span style={{ fontWeight: 500 }}>{conf.text}</span>
+                      </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+              );
+            },
+          };
+          
+        case 'assignee_name':
+          return {
+            title: createResizableTitle(config, '负责人'),
+            dataIndex: 'assignee_name',
+            key: 'assignee_name',
+            width: config.width,
+            render: (name: string) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: name ? '#1890ff' : '#d9d9d9',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  color: 'white',
+                  fontWeight: 500
+                }}>
+                  {name ? name.charAt(0).toUpperCase() : '?'}
+                </div>
+                <span style={{ 
+                  color: name ? '#262626' : '#8c8c8c',
+                  fontSize: '13px'
+                }}>
+                  {name || '未分配'}
+                </span>
+              </div>
+            ),
+          };
+          
+        case 'due_date':
+          return {
+            title: createResizableTitle(config, '截止时间'),
+            dataIndex: 'due_date',
+            key: 'due_date',
+            width: config.width,
+            render: (date: string, record: Task) => {
+              const currentDate = date ? dayjs(date) : null;
+              const now = dayjs();
+              const isOverdue = currentDate && currentDate.isBefore(now, 'day');
+              const isUpcoming = currentDate && currentDate.diff(now, 'day') <= 3 && currentDate.diff(now, 'day') >= 0;
+              
+              let bgColor = '#fafafa';
+              let textColor = '#8c8c8c';
+              let icon = '📅';
+              
+              if (isOverdue) {
+                bgColor = '#fff2f0';
+                textColor = '#ff4d4f';
+                icon = '⚠️';
+              } else if (isUpcoming) {
+                bgColor = '#fff7e6';
+                textColor = '#fa8c16';
+                icon = '⏰';
+              }
+              
+              return (
+                <DatePicker
+                  value={currentDate}
+                  onChange={(newDate) => {
+                    const dateString = newDate ? newDate.format('YYYY-MM-DD') : null;
+                    handleDueDateUpdate(record.id, dateString, record);
+                  }}
+                  style={{ 
+                    width: '100%',
+                    backgroundColor: bgColor,
+                    borderRadius: '4px',
+                    color: textColor,
+                    fontWeight: 500
+                  }}
+                  variant="borderless"
+                  size="small"
+                  placeholder="设置截止日期"
+                  format="YYYY-MM-DD"
+                  allowClear
+                  suffixIcon={<span style={{ fontSize: '12px' }}>{icon}</span>}
+                />
+              );
+            },
+          };
+          
+        case 'created_at':
+          return {
+            title: createResizableTitle(config, '创建时间'),
+            dataIndex: 'created_at',
+            key: 'created_at',
+            width: config.width,
+            render: (date: string) => {
+              if (!date) return '-';
+              
+              const relativeTime = formatRelativeTime(date);
+              const exactTime = formatExactTime(date);
+              const style = getTimeStyle(date, 'created');
+              
+              return (
+                <Tooltip title={exactTime}>
+                  <span style={style}>
+                    {relativeTime}
+                  </span>
+                </Tooltip>
+              );
+            },
+          };
+          
+        case 'tags':
+          return {
+            title: createResizableTitle(config, '标签'),
+            key: 'tags',
+            width: config.width,
+            render: (_: any, record: Task) => {
+              const tags = record.custom_fields?.tags || [];
+              
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+                  {Array.isArray(tags) && tags.length > 0 ? (
+                    <>
+                      {tags.slice(0, 2).map((tag: string) => (
+                        <Tag 
+                          key={tag} 
+                          style={{ 
+                            marginBottom: 2, 
+                            fontSize: '11px',
+                            padding: '0 6px',
+                            lineHeight: '18px',
+                            borderRadius: '9px'
+                          }}
+                          color="blue"
+                        >
+                          {tag}
+                        </Tag>
+                      ))}
+                      {tags.length > 2 && (
+                        <Tag style={{ 
+                          fontSize: '11px',
+                          padding: '0 6px',
+                          lineHeight: '18px',
+                          borderRadius: '9px'
+                        }}>
+                          +{tags.length - 2}
+                        </Tag>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#8c8c8c', fontSize: '12px' }}>无标签</span>
+                  )}
+                </div>
+              );
+            },
+          };
+          
+        case 'action':
+          return {
+            title: createResizableTitle(config, '操作'),
+            key: 'action',
+            width: config.width,
+            render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => {
+              const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
+              
+              return (
+                <Space size="small">
+                  {canStartTimer && (
+                    <TimerStartButton
+                      task={record}
+                      size="small"
+                      type="text"
+                      className="task-list-timer-button"
+                    />
+                  )}
+                  
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<AppstoreAddOutlined />}
+                    onClick={() => handleCreateSubTask(record)}
+                    title="添加子任务"
+                  />
+                  
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => handleViewTask(record)}
+                    title="查看详情"
+                  />
+                  
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'history',
+                          label: '更新历史',
+                          icon: <HistoryOutlined />,
+                          onClick: () => navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=history`),
+                        },
+                        {
+                          key: 'edit',
+                          label: '编辑',
+                          icon: <EditOutlined />,
+                          onClick: () => handleEditTask(record),
+                        },
+                        {
+                          key: 'delete',
+                          label: '删除',
+                          icon: <DeleteOutlined />,
+                          danger: true,
+                          onClick: () => handleDeleteTask(record),
+                        },
+                      ],
+                    }}
+                  >
+                    <Button type="text" size="small" icon={<MoreOutlined />} title="更多操作" />
+                  </Dropdown>
+                </Space>
+              );
+            },
+          };
+          
+        default:
+          return null;
+      }
+    }).filter(Boolean) as any[];
+  }, [columnConfigs, selectedTaskIds, stableDataSource, effectiveProjectId, expandedTasks, loadingChildren, subTasks]);
+
+  // 保留原有的静态columns定义作为备用（当前使用generateColumns）
   const columns = [
     {
       title: (
@@ -1728,6 +2451,12 @@ const TasksPage: React.FC = () => {
                 </div>
               )}
 
+              <ColumnCustomizer
+                columns={columnConfigs}
+                onChange={setColumnConfigs}
+                storageKey={`task-columns-${effectiveProjectId || 'global'}`}
+              />
+
               <Button
                 type="default"
                 icon={<ImportOutlined />}
@@ -1828,7 +2557,7 @@ const TasksPage: React.FC = () => {
               </div>
               <Table
                 dataSource={Array.isArray(stableDataSource) ? stableDataSource : []}
-                columns={columns}
+                columns={generateColumns()}
                 rowKey="id"
                 loading={loading}
                 pagination={pagination.total > pagination.pageSize ? {
@@ -1891,7 +2620,7 @@ const TasksPage: React.FC = () => {
           {/* 全局任务表格 */}
           <Table
             dataSource={Array.isArray(stableDataSource) ? stableDataSource : []}
-            columns={columns}
+            columns={generateColumns()}
             rowKey="id"
             loading={loading}
             pagination={pagination.total > pagination.pageSize ? {

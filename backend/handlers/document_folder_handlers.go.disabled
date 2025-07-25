@@ -36,7 +36,7 @@ func NewDocumentFolderHandlers(db database.DB) *DocumentFolderHandlers {
 func (h *DocumentFolderHandlers) CreateFolder(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -45,7 +45,7 @@ func (h *DocumentFolderHandlers) CreateFolder(c *gin.Context) {
 
 	var req models.CreateDocumentFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid request format",
 			Error:   err.Error(),
@@ -55,7 +55,7 @@ func (h *DocumentFolderHandlers) CreateFolder(c *gin.Context) {
 
 	folder, err := h.db.DocumentFolders().Create(c.Request.Context(), &req, userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to create folder",
 			Error:   err.Error(),
@@ -63,7 +63,7 @@ func (h *DocumentFolderHandlers) CreateFolder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, models.APIResponse[*models.DocumentFolder]{
+	c.JSON(http.StatusCreated, models.APIResponse{
 		Success: true,
 		Message: "Folder created successfully",
 		Data:    folder,
@@ -85,7 +85,7 @@ func (h *DocumentFolderHandlers) GetFolder(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -98,7 +98,7 @@ func (h *DocumentFolderHandlers) GetFolder(c *gin.Context) {
 		if err.Error() == "folder not found" {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder",
 			Error:   err.Error(),
@@ -106,7 +106,7 @@ func (h *DocumentFolderHandlers) GetFolder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse[*models.DocumentFolder]{
+	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Folder retrieved successfully",
 		Data:    folder,
@@ -131,7 +131,7 @@ func (h *DocumentFolderHandlers) GetFolder(c *gin.Context) {
 func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -141,7 +141,7 @@ func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -150,7 +150,7 @@ func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 
 	var req models.UpdateDocumentFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid request format",
 			Error:   err.Error(),
@@ -166,7 +166,7 @@ func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 		} else if err.Error() == "permission denied: not folder owner" {
 			status = http.StatusForbidden
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to update folder",
 			Error:   err.Error(),
@@ -174,7 +174,7 @@ func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse[*models.DocumentFolder]{
+	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Folder updated successfully",
 		Data:    folder,
@@ -197,7 +197,7 @@ func (h *DocumentFolderHandlers) UpdateFolder(c *gin.Context) {
 func (h *DocumentFolderHandlers) DeleteFolder(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -207,7 +207,7 @@ func (h *DocumentFolderHandlers) DeleteFolder(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -224,7 +224,7 @@ func (h *DocumentFolderHandlers) DeleteFolder(c *gin.Context) {
 		} else if err.Error() == "cannot delete folder with children" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to delete folder",
 			Error:   err.Error(),
@@ -232,7 +232,7 @@ func (h *DocumentFolderHandlers) DeleteFolder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse[interface{}]{
+	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Folder deleted successfully",
 	})
@@ -257,7 +257,7 @@ func (h *DocumentFolderHandlers) DeleteFolder(c *gin.Context) {
 func (h *DocumentFolderHandlers) ListFolders(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -266,7 +266,7 @@ func (h *DocumentFolderHandlers) ListFolders(c *gin.Context) {
 
 	var req models.ListFoldersRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid query parameters",
 			Error:   err.Error(),
@@ -281,7 +281,7 @@ func (h *DocumentFolderHandlers) ListFolders(c *gin.Context) {
 
 	response, err := h.db.DocumentFolders().List(c.Request.Context(), &req, userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to list folders",
 			Error:   err.Error(),
@@ -309,7 +309,7 @@ func (h *DocumentFolderHandlers) ListFolders(c *gin.Context) {
 func (h *DocumentFolderHandlers) GetFolderTree(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -320,7 +320,7 @@ func (h *DocumentFolderHandlers) GetFolderTree(c *gin.Context) {
 
 	response, err := h.db.DocumentFolders().GetTree(c.Request.Context(), userID.(int), visibility)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder tree",
 			Error:   err.Error(),
@@ -350,7 +350,7 @@ func (h *DocumentFolderHandlers) GetFolderStats(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -363,7 +363,7 @@ func (h *DocumentFolderHandlers) GetFolderStats(c *gin.Context) {
 		if err.Error() == "folder not found" {
 			status = http.StatusNotFound
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder stats",
 			Error:   err.Error(),
@@ -396,7 +396,7 @@ func (h *DocumentFolderHandlers) GetFolderStats(c *gin.Context) {
 func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -406,7 +406,7 @@ func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -415,7 +415,7 @@ func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 
 	var req models.MoveFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid request format",
 			Error:   err.Error(),
@@ -433,7 +433,7 @@ func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 		} else if err.Error() == "circular reference detected" {
 			status = http.StatusConflict
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to move folder",
 			Error:   err.Error(),
@@ -441,7 +441,7 @@ func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse[interface{}]{
+	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Folder moved successfully",
 	})
@@ -461,7 +461,7 @@ func (h *DocumentFolderHandlers) MoveFolder(c *gin.Context) {
 func (h *DocumentFolderHandlers) GetFolderChildren(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -471,7 +471,7 @@ func (h *DocumentFolderHandlers) GetFolderChildren(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid folder ID",
 		})
@@ -480,7 +480,7 @@ func (h *DocumentFolderHandlers) GetFolderChildren(c *gin.Context) {
 
 	children, err := h.db.DocumentFolders().GetChildren(c.Request.Context(), id, userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder children",
 			Error:   err.Error(),
@@ -511,7 +511,7 @@ func (h *DocumentFolderHandlers) GetFolderChildren(c *gin.Context) {
 func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -524,7 +524,7 @@ func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 	if idStr != "root" {
 		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+			c.JSON(http.StatusBadRequest, models.APIResponse{
 				Success: false,
 				Message: "Invalid folder ID",
 			})
@@ -536,7 +536,7 @@ func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 	limitStr := c.DefaultQuery("limit", "50")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid limit parameter",
 		})
@@ -546,7 +546,7 @@ func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 	offsetStr := c.DefaultQuery("offset", "0")
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid offset parameter",
 		})
@@ -555,7 +555,7 @@ func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 
 	documents, totalCount, err := h.db.DocumentFolders().GetDocumentsByFolder(c.Request.Context(), folderID, userID.(int), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder documents",
 			Error:   err.Error(),
@@ -593,7 +593,7 @@ func (h *DocumentFolderHandlers) GetFolderDocuments(c *gin.Context) {
 func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -603,7 +603,7 @@ func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 	documentIDStr := c.Param("document_id")
 	documentID, err := strconv.Atoi(documentIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+		c.JSON(http.StatusBadRequest, models.APIResponse{
 			Success: false,
 			Message: "Invalid document ID",
 		})
@@ -616,7 +616,7 @@ func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 	if folderIDStr != "root" {
 		id, err := strconv.Atoi(folderIDStr)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, models.APIResponse[interface{}]{
+			c.JSON(http.StatusBadRequest, models.APIResponse{
 				Success: false,
 				Message: "Invalid folder ID",
 			})
@@ -631,7 +631,7 @@ func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 		if err.Error() == "document not found or permission denied" {
 			status = http.StatusForbidden
 		}
-		c.JSON(status, models.APIResponse[interface{}]{
+		c.JSON(status, models.APIResponse{
 			Success: false,
 			Message: "Failed to move document",
 			Error:   err.Error(),
@@ -639,7 +639,7 @@ func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.APIResponse[interface{}]{
+	c.JSON(http.StatusOK, models.APIResponse{
 		Success: true,
 		Message: "Document moved successfully",
 	})
@@ -657,7 +657,7 @@ func (h *DocumentFolderHandlers) MoveDocument(c *gin.Context) {
 func (h *DocumentFolderHandlers) GetUserFolderStats(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, models.APIResponse[interface{}]{
+		c.JSON(http.StatusUnauthorized, models.APIResponse{
 			Success: false,
 			Message: "Unauthorized",
 		})
@@ -666,7 +666,7 @@ func (h *DocumentFolderHandlers) GetUserFolderStats(c *gin.Context) {
 
 	stats, err := h.db.DocumentFolders().GetFolderStats(c.Request.Context(), userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, models.APIResponse[interface{}]{
+		c.JSON(http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Message: "Failed to get folder stats",
 			Error:   err.Error(),

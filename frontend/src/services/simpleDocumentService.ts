@@ -21,6 +21,12 @@ export interface SimpleDocument {
   created_by: number;
   owner_name?: string;
   folder_name?: string;
+  project_id?: number;
+  project_name?: string;
+  customer_id?: number;
+  customer_name?: string;
+  category?: string;
+  is_favorite?: boolean;
 }
 
 export interface CreateDocumentRequest {
@@ -33,6 +39,9 @@ export interface CreateDocumentRequest {
   tags?: string[];
   visibility?: 'private' | 'team' | 'public';
   is_template?: boolean;
+  project_id?: number;
+  customer_id?: number;
+  category?: string;
 }
 
 export interface UpdateDocumentRequest {

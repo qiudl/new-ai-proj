@@ -546,12 +546,17 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         visibility: doc.visibility,
         version: doc.version,
         is_template: doc.is_template,
-        is_favorite: false, // 暂时设为false，后续可以扩展
+        is_favorite: doc.is_favorite || false,
         created_at: doc.created_at,
         updated_at: doc.updated_at,
         created_by: doc.created_by,
         owner_name: doc.owner_name,
-        folder_name: doc.folder_name
+        folder_name: doc.folder_name,
+        project_id: doc.project_id,
+        project_name: doc.project_name,
+        customer_id: doc.customer_id,
+        customer_name: doc.customer_name,
+        category: doc.category
       }));
       
       setDocuments(convertedDocuments);
@@ -574,7 +579,10 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         description: values.description,
         tags: values.tags || [],
         visibility: values.visibility || 'team',
-        is_template: values.is_template || false
+        is_template: values.is_template || false,
+        project_id: values.project_id,
+        customer_id: values.customer_id,
+        category: values.category
       };
 
       await simpleDocumentService.createDocument(request);
@@ -1048,6 +1056,55 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       )
     },
     {
+      title: '项目',
+      dataIndex: 'project_name',
+      key: 'project_name',
+      width: 120,
+      render: (projectName) => (
+        projectName ? (
+          <Tag color="blue">{projectName}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
+      )
+    },
+    {
+      title: '客户',
+      dataIndex: 'customer_name',
+      key: 'customer_name', 
+      width: 120,
+      render: (customerName) => (
+        customerName ? (
+          <Tag color="green">{customerName}</Tag>
+        ) : (
+          <Text type="secondary">-</Text>
+        )
+      )
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 100,
+      render: (category) => {
+        const categoryMap = {
+          contract: { label: '合同', color: 'red' },
+          requirement: { label: '需求', color: 'blue' },
+          design: { label: '设计', color: 'purple' },
+          technical: { label: '技术', color: 'orange' },
+          report: { label: '报告', color: 'cyan' },
+          other: { label: '其他', color: 'gray' }
+        };
+        
+        if (category && categoryMap[category as keyof typeof categoryMap]) {
+          const config = categoryMap[category as keyof typeof categoryMap];
+          return <Tag color={config.color}>{config.label}</Tag>;
+        }
+        
+        return <Text type="secondary">-</Text>;
+      }
+    },
+    {
       title: '所有者',
       dataIndex: 'owner_name',
       key: 'owner_name',
@@ -1131,53 +1188,37 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
         return (
           <Space size="small">
-            <Tooltip title="查看">
-              <Button
-                type="text"
-                size="small"
-                icon={<EyeOutlined />}
-                onClick={() => {
-                  setSelectedDocument(record);
-                  setPreviewModalVisible(true);
-                }}
-              />
-            </Tooltip>
-            <Tooltip title="编辑">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setSelectedDocument(record);
-                  editForm.setFieldsValue({
-                    title: record.title,
-                    description: record.description,
-                    tags: record.tags,
-                    status: record.status,
-                    visibility: record.visibility,
-                    is_template: record.is_template
-                  });
-                  setEditModalVisible(true);
-                }}
-              />
-            </Tooltip>
-            <Tooltip title={record.is_favorite ? '取消收藏' : '收藏'}>
-              <Button
-                type="text"
-                size="small"
-                icon={record.is_favorite ? <StarFilled /> : <StarOutlined />}
-                onClick={() => handleToggleFavorite(record)}
-                style={{ color: record.is_favorite ? '#faad14' : undefined }}
-              />
-            </Tooltip>
-            <Tooltip title="下载">
-              <Button
-                type="text"
-                size="small"
-                icon={<DownloadOutlined />}
-                onClick={() => handleDownloadDocument(record)}
-              />
-            </Tooltip>
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                // 先显示预览模态框
+                setSelectedDocument(record);
+                setPreviewModalVisible(true);
+              }}
+            >
+              查看
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                // 导航到文档编辑页面
+                window.open(`/documents/edit/${record.id}`, '_blank');
+              }}
+            >
+              编辑
+            </Button>
+            <Button
+              type="text"
+              size="small"
+              icon={<DownloadOutlined />}
+              onClick={() => handleDownloadDocument(record)}
+            >
+              下载
+            </Button>
             <Dropdown
               menu={{ items: moreActions }}
               trigger={['click']}
@@ -1187,7 +1228,9 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
                 type="text"
                 size="small"
                 icon={<MoreOutlined />}
-              />
+              >
+                更多
+              </Button>
             </Dropdown>
             <Popconfirm
               title="确认删除"
@@ -1196,14 +1239,14 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               okText="删除"
               cancelText="取消"
             >
-              <Tooltip title="删除">
-                <Button
-                  type="text"
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                />
-              </Tooltip>
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+              >
+                删除
+              </Button>
             </Popconfirm>
           </Space>
         );
@@ -1583,6 +1626,55 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
           </Form.Item>
           
           <Form.Item
+            name="project_id"
+            label="关联项目"
+          >
+            <Select
+              placeholder="选择项目（可选）"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {/* TODO: 动态加载项目选项 */}
+              <Option value={1}>示例项目1</Option>
+              <Option value={2}>示例项目2</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="customer_id"
+            label="关联客户"
+          >
+            <Select
+              placeholder="选择客户（可选）"
+              allowClear
+              showSearch
+              optionFilterProp="children"
+            >
+              {/* TODO: 动态加载客户选项 */}
+              <Option value={1}>示例客户1</Option>
+              <Option value={2}>示例客户2</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="category"
+            label="文档分类"
+          >
+            <Select
+              placeholder="选择文档分类（可选）"
+              allowClear
+            >
+              <Option value="contract">合同文档</Option>
+              <Option value="requirement">需求文档</Option>
+              <Option value="design">设计文档</Option>
+              <Option value="technical">技术文档</Option>
+              <Option value="report">报告文档</Option>
+              <Option value="other">其他</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
             name="is_template"
             label="设为模板"
             valuePropName="checked"
@@ -1780,6 +1872,18 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
           setSelectedDocument(null);
         }}
         footer={[
+          <Button
+            key="view-detail"
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              if (selectedDocument) {
+                window.open(`/documents/view/${selectedDocument.id}`, '_blank');
+              }
+            }}
+          >
+            详细查看
+          </Button>,
           <Button
             key="download"
             icon={<DownloadOutlined />}
