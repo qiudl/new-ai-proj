@@ -12,32 +12,32 @@ class TimerService {
   // Start timer for a specific task
   static async startTimer(taskId: number): Promise<TimerStartResponse> {
     const request: TimerStartRequest = { task_id: taskId };
-    const response = await api.post('/timer/start', request);
+    const response = await api.post('timer/start', request);
     return response as unknown as TimerStartResponse;
   }
 
   // Stop current timer
   static async stopTimer(): Promise<TimerStopResponse> {
-    const response = await api.post('/timer/stop');
+    const response = await api.post('timer/stop');
     return response as unknown as TimerStopResponse;
   }
 
   // Get current timer status
   static async getCurrentTimer(): Promise<TimerCurrentResponse> {
-    const response = await api.get('/timer/current');
+    const response = await api.get('timer/current');
     return response as unknown as TimerCurrentResponse;
   }
 
   // Get timer statistics
   static async getTimerStats(): Promise<TimerStatsResponse> {
-    const response = await api.get('/timer/stats');
+    const response = await api.get('timer/stats');
     return response as unknown as TimerStatsResponse;
   }
 
   // Get available tasks for timer selection
   static async getAvailableTasks(): Promise<TaskOption[]> {
     // Get all tasks with todo or in_progress status
-    const response = await api.get('/tasks?status=todo,in_progress&limit=50');
+    const response = await api.get('tasks?status=todo,in_progress&limit=50');
     
     // Transform the response to TaskOption format - response already contains the data due to interceptor
     if (response?.data && Array.isArray(response.data)) {

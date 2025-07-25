@@ -273,12 +273,13 @@ const AICompanySearch: React.FC<AICompanySearchProps> = ({
 
         {loading && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <Spin size="large" tip="AI正在分析企业信息，请稍候..." />
-            <div style={{ marginTop: 16, color: '#8c8c8c' }}>
-              <Text type="secondary">
-                正在从多个数据源获取企业信息...
-              </Text>
-            </div>
+            <Spin size="large" tip="AI正在分析企业信息，请稍候...">
+              <div style={{ marginTop: 16, color: '#8c8c8c' }}>
+                <Text type="secondary">
+                  正在从多个数据源获取企业信息...
+                </Text>
+              </div>
+            </Spin>
           </div>
         )}
 

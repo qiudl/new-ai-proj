@@ -15,7 +15,8 @@ import {
   Input,
   Select,
   Row,
-  Grid
+  Grid,
+  Tooltip
 } from 'antd';
 import {
   FolderOutlined,
@@ -26,7 +27,9 @@ import {
   LinkOutlined,
   SearchOutlined,
   TeamOutlined,
-  HistoryOutlined
+  HistoryOutlined,
+  EditOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
 import { DocumentFolder } from '../types/document';
 import DocumentFileManager from '../components/DocumentFileManager';
@@ -58,9 +61,12 @@ const DocumentManagerPage: React.FC = () => {
   
   // 模态框状态
   const [folderModalVisible, setFolderModalVisible] = useState(false);
+  const [editFolderModalVisible, setEditFolderModalVisible] = useState(false);
+  const [currentEditingFolder, setCurrentEditingFolder] = useState<DocumentFolder | null>(null);
   
   // 表单
   const [folderForm] = Form.useForm();
+  const [editFolderForm] = Form.useForm();
 
   // 初始化数据
   useEffect(() => {
@@ -171,6 +177,83 @@ const DocumentManagerPage: React.FC = () => {
     }
   };
 
+  // 编辑文件夹
+  const handleEditFolder = async (values: any) => {
+    try {
+      if (!currentEditingFolder) return;
+      
+      // TODO: 调用API更新文件夹
+      // await documentFolderApi.update(currentEditingFolder.id, values);
+      
+      message.success('文件夹更新成功');
+      setEditFolderModalVisible(false);
+      setCurrentEditingFolder(null);
+      editFolderForm.resetFields();
+      loadFolderTree();
+    } catch (error) {
+      message.error('更新文件夹失败');
+    }
+  };
+
+  // 删除文件夹
+  const handleDeleteFolder = async (folder: DocumentFolder) => {
+    try {
+      // TODO: 调用API删除文件夹
+      // await documentFolderApi.delete(folder.id);
+      
+      message.success('文件夹删除成功');
+      if (selectedFolderId === folder.id) {
+        setSelectedFolderId(null);
+      }
+      loadFolderTree();
+    } catch (error) {
+      message.error('删除文件夹失败');
+    }
+  };
+
+  // 打开编辑文件夹模态框
+  const openEditFolderModal = (folder: DocumentFolder) => {
+    setCurrentEditingFolder(folder);
+    editFolderForm.setFieldsValue({
+      name: folder.name,
+      description: folder.description,
+      visibility: folder.visibility,
+      color: folder.color
+    });
+    setEditFolderModalVisible(true);
+  };
+
+
+  // 获取文件夹右键菜单
+  const getFolderContextMenu = (folder: DocumentFolder) => {
+    return {
+      items: [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          onClick: () => openEditFolderModal(folder)
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => {
+            Modal.confirm({
+              title: '确认删除',
+              content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除文件夹内的所有文档。`,
+              icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+              okText: '删除',
+              okType: 'danger',
+              cancelText: '取消',
+              onOk: () => handleDeleteFolder(folder)
+            });
+          }
+        }
+      ]
+    };
+  };
 
   // 渲染文件夹树
   const renderFolderTree = (folders: DocumentFolder[]) => {
@@ -178,13 +261,62 @@ const DocumentManagerPage: React.FC = () => {
       <TreeNode
         key={folder.id}
         title={
-          <Space>
-            <FolderOutlined style={{ color: folder.color }} />
-            <span>{folder.name}</span>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              ({folder.documents_count || 0})
-            </Text>
-          </Space>
+          <div
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              padding: '2px 0'
+            }}
+          >
+            <Space>
+              <FolderOutlined style={{ color: folder.color }} />
+              <span>{folder.name}</span>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                ({folder.documents_count || 0})
+              </Text>
+            </Space>
+            
+            <Space size="small" style={{ opacity: 0.6 }}>
+              <Tooltip title="编辑文件夹">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditFolderModal(folder);
+                  }}
+                  style={{ fontSize: '12px' }}
+                />
+              </Tooltip>
+              <Tooltip title="删除文件夹">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    Modal.confirm({
+                      title: '确认删除',
+                      content: `确定要删除文件夹"${folder.name}"吗？此操作将同时删除文件夹内的所有文档。`,
+                      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+                      okText: '删除',
+                      okType: 'danger',
+                      cancelText: '取消',
+                      onOk: () => handleDeleteFolder(folder)
+                    });
+                  }}
+                  style={{ fontSize: '12px' }}
+                />
+              </Tooltip>
+            </Space>
+          </div>
         }
         data-folder={folder}
       >
@@ -486,6 +618,64 @@ const DocumentManagerPage: React.FC = () => {
             name="color"
             label="颜色"
             initialValue="#1890ff"
+          >
+            <Select>
+              <Option value="#1890ff">蓝色</Option>
+              <Option value="#52c41a">绿色</Option>
+              <Option value="#fa8c16">橙色</Option>
+              <Option value="#722ed1">紫色</Option>
+              <Option value="#f5222d">红色</Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* 编辑文件夹模态框 */}
+      <Modal
+        title="编辑文件夹"
+        open={editFolderModalVisible}
+        onOk={() => editFolderForm.submit()}
+        onCancel={() => {
+          setEditFolderModalVisible(false);
+          setCurrentEditingFolder(null);
+          editFolderForm.resetFields();
+        }}
+        width={500}
+      >
+        <Form
+          form={editFolderForm}
+          layout="vertical"
+          onFinish={handleEditFolder}
+        >
+          <Form.Item
+            name="name"
+            label="文件夹名称"
+            rules={[{ required: true, message: '请输入文件夹名称' }]}
+          >
+            <Input placeholder="请输入文件夹名称" />
+          </Form.Item>
+          
+          <Form.Item
+            name="description"
+            label="描述"
+          >
+            <Input.TextArea placeholder="请输入文件夹描述（可选）" />
+          </Form.Item>
+          
+          <Form.Item
+            name="visibility"
+            label="可见性"
+          >
+            <Select>
+              <Option value="private">私有</Option>
+              <Option value="team">团队</Option>
+              <Option value="public">公开</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="color"
+            label="颜色"
           >
             <Select>
               <Option value="#1890ff">蓝色</Option>

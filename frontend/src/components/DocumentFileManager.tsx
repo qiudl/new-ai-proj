@@ -42,7 +42,9 @@ import {
   List,
   Switch,
   Radio,
-  Spin
+  Spin,
+  Dropdown,
+  MenuProps
 } from 'antd';
 import {
   FileOutlined,
@@ -63,7 +65,14 @@ import {
   StarFilled,
   CopyOutlined,
   ClockCircleOutlined,
-  UserOutlined
+  UserOutlined,
+  FileTextOutlined,
+  ExportOutlined,
+  MoreOutlined,
+  BookOutlined,
+  FileWordOutlined,
+  FilePdfOutlined,
+  FileMarkdownOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
@@ -177,6 +186,18 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
               onClick={() => onEdit(document)}
             >
               编辑
+            </Button>,
+            <Button
+              type="text"
+              icon={<CopyOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                // 触发复制操作
+                const event = new CustomEvent('copyDocument', { detail: document });
+                window.dispatchEvent(event);
+              }}
+            >
+              复制
             </Button>,
             <Button
               type="text"
@@ -321,6 +342,28 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             </Button>
             <Button
               type="text"
+              icon={<CopyOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                // 触发复制操作
+                const event = new CustomEvent('copyDocument', { detail: document });
+                window.dispatchEvent(event);
+              }}
+              size="small"
+            >
+              复制
+            </Button>
+            <Button
+              type="text"
+              icon={<MoreOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                // TODO: 显示更多操作菜单
+              }}
+              size="small"
+            />
+            <Button
+              type="text"
               icon={<DeleteOutlined />}
               danger
               onClick={() => onDelete(document)}
@@ -356,6 +399,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   );
   
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocuments, setSelectedDocuments] = useState<number[]>([]);
+  const [isSelectMode, setIsSelectMode] = useState(false);
   
   // Handle drag end
   const handleDragEnd = (event: DragEndEvent) => {
@@ -412,6 +457,21 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   useEffect(() => {
     loadDocuments();
   }, [folderId]);
+
+  // 监听自定义复制文档事件
+  useEffect(() => {
+    const handleCopyDocumentEvent = (event: any) => {
+      const document = event.detail;
+      if (document) {
+        handleCopyDocument(document);
+      }
+    };
+
+    window.addEventListener('copyDocument', handleCopyDocumentEvent);
+    return () => {
+      window.removeEventListener('copyDocument', handleCopyDocumentEvent);
+    };
+  }, []);
 
   // 应用过滤和搜索
   useEffect(() => {
@@ -588,6 +648,154 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     }
   };
 
+  // 批量删除文档
+  const handleBatchDelete = async () => {
+    if (selectedDocuments.length === 0) {
+      message.warning('请选择要删除的文档');
+      return;
+    }
+
+    Modal.confirm({
+      title: '批量删除确认',
+      content: `确定要删除选中的 ${selectedDocuments.length} 个文档吗？此操作不可撤销。`,
+      icon: <DeleteOutlined style={{ color: '#ff4d4f' }} />,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          // TODO: 调用批量删除API
+          // await documentApi.batchDelete(selectedDocuments);
+          message.success(`成功删除 ${selectedDocuments.length} 个文档`);
+          setSelectedDocuments([]);
+          setIsSelectMode(false);
+          loadDocuments();
+          onDocumentUpdate?.();
+        } catch (error) {
+          message.error('批量删除失败');
+        }
+      }
+    });
+  };
+
+  // 批量移动文档
+  const handleBatchMove = async (targetFolderId: number) => {
+    if (selectedDocuments.length === 0) {
+      message.warning('请选择要移动的文档');
+      return;
+    }
+
+    try {
+      // TODO: 调用批量移动API
+      // await documentApi.batchMove(selectedDocuments, targetFolderId);
+      message.success(`成功移动 ${selectedDocuments.length} 个文档`);
+      setSelectedDocuments([]);
+      setIsSelectMode(false);
+      loadDocuments();
+      onDocumentUpdate?.();
+    } catch (error) {
+      message.error('批量移动失败');
+    }
+  };
+
+  // 批量复制文档
+  const handleBatchCopy = async () => {
+    if (selectedDocuments.length === 0) {
+      message.warning('请选择要复制的文档');
+      return;
+    }
+
+    try {
+      // TODO: 调用批量复制API
+      // await documentApi.batchCopy(selectedDocuments);
+      message.success(`成功复制 ${selectedDocuments.length} 个文档`);
+      setSelectedDocuments([]);
+      setIsSelectMode(false);
+      loadDocuments();
+      onDocumentUpdate?.();
+    } catch (error) {
+      message.error('批量复制失败');
+    }
+  };
+
+  // 批量导出文档
+  const handleBatchExport = async (format: 'pdf' | 'word' | 'zip') => {
+    if (selectedDocuments.length === 0) {
+      message.warning('请选择要导出的文档');
+      return;
+    }
+
+    try {
+      // TODO: 调用批量导出API
+      // const blob = await documentApi.batchExport(selectedDocuments, format);
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `documents_export.${format}`;
+      // a.click();
+      message.success(`成功导出 ${selectedDocuments.length} 个文档`);
+    } catch (error) {
+      message.error('批量导出失败');
+    }
+  };
+
+  // 批量设置为模板
+  const handleBatchTemplate = async (isTemplate: boolean) => {
+    if (selectedDocuments.length === 0) {
+      message.warning('请选择要操作的文档');
+      return;
+    }
+
+    try {
+      // TODO: 调用批量设置模板API
+      // await documentApi.batchSetTemplate(selectedDocuments, isTemplate);
+      message.success(`成功${isTemplate ? '设置' : '取消'} ${selectedDocuments.length} 个文档为模板`);
+      setSelectedDocuments([]);
+      setIsSelectMode(false);
+      loadDocuments();
+      onDocumentUpdate?.();
+    } catch (error) {
+      message.error('批量操作失败');
+    }
+  };
+
+  // 切换选择模式
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedDocuments([]);
+  };
+
+  // 选择/取消选择文档
+  const toggleDocumentSelection = (documentId: number) => {
+    setSelectedDocuments(prev => {
+      if (prev.includes(documentId)) {
+        return prev.filter(id => id !== documentId);
+      } else {
+        return [...prev, documentId];
+      }
+    });
+  };
+
+  // 全选/取消全选
+  const toggleSelectAll = () => {
+    if (selectedDocuments.length === filteredDocuments.length) {
+      setSelectedDocuments([]);
+    } else {
+      setSelectedDocuments(filteredDocuments.map(doc => doc.id));
+    }
+  };
+
+  // 获取选中的文档信息
+  const getSelectedDocumentsInfo = () => {
+    const selectedDocs = documents.filter(doc => selectedDocuments.includes(doc.id));
+    return {
+      total: selectedDocs.length,
+      templates: selectedDocs.filter(doc => doc.is_template).length,
+      drafts: selectedDocs.filter(doc => doc.status === 'draft').length,
+      published: selectedDocs.filter(doc => doc.status === 'published').length
+    };
+  };
+
   const handleToggleFavorite = async (document: Document) => {
     try {
       // TODO: 调用API切换收藏状态
@@ -596,6 +804,54 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       loadDocuments();
     } catch (error) {
       message.error('操作失败');
+    }
+  };
+
+  // 复制文档
+  const handleCopyDocument = async (document: Document) => {
+    try {
+      // TODO: 调用API复制文档
+      // await documentApi.copy(document.id);
+      message.success(`文档"${document.title}"复制成功`);
+      loadDocuments();
+      onDocumentUpdate?.();
+    } catch (error) {
+      message.error('复制文档失败');
+    }
+  };
+
+  // 创建模板
+  const handleCreateTemplate = async (document: Document) => {
+    try {
+      if (document.is_template) {
+        // TODO: 调用API取消模板
+        // await documentApi.unsetTemplate(document.id);
+        message.success(`已取消"${document.title}"的模板状态`);
+      } else {
+        // TODO: 调用API创建模板
+        // await documentApi.createTemplate(document.id);
+        message.success(`模板"${document.title}"创建成功`);
+      }
+      loadDocuments();
+      onDocumentUpdate?.();
+    } catch (error) {
+      message.error(document.is_template ? '取消模板失败' : '创建模板失败');
+    }
+  };
+
+  // 导出文档
+  const handleExportDocument = async (document: Document, format: 'pdf' | 'word' | 'markdown') => {
+    try {
+      // TODO: 调用API导出文档
+      // const blob = await documentApi.export(document.id, format);
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `${document.title}.${format}`;
+      // a.click();
+      message.success(`文档"${document.title}"导出成功`);
+    } catch (error) {
+      message.error('导出文档失败');
     }
   };
 
@@ -616,28 +872,80 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     }
   };
 
+  // 上传状态
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [uploadingFiles, setUploadingFiles] = useState<string[]>([]);
+
   // 文件上传配置
   const uploadProps: UploadProps = {
     name: 'file',
     multiple: true,
     action: '/api/v1/documents/upload', // TODO: 替换为实际上传接口
+    data: {
+      folder_id: folderId
+    },
     onChange(info) {
-      const { status } = info.file;
-      if (status === 'done') {
-        message.success(`${info.file.name} 上传成功`);
+      const { status, uid, name } = info.file;
+      
+      if (status === 'uploading') {
+        setUploadingFiles(prev => prev.includes(uid) ? prev : [...prev, uid]);
+        const progress = info.file.percent || 0;
+        setUploadProgress(prev => ({ ...prev, [uid]: progress }));
+      } else if (status === 'done') {
+        message.success(`${name} 上传成功`);
+        setUploadingFiles(prev => prev.filter(id => id !== uid));
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[uid];
+          return newProgress;
+        });
         loadDocuments();
         onDocumentUpdate?.();
       } else if (status === 'error') {
-        message.error(`${info.file.name} 上传失败`);
+        message.error(`${name} 上传失败`);
+        setUploadingFiles(prev => prev.filter(id => id !== uid));
+        setUploadProgress(prev => {
+          const newProgress = { ...prev };
+          delete newProgress[uid];
+          return newProgress;
+        });
       }
     },
     beforeUpload: (file) => {
-      const isLt10M = file.size / 1024 / 1024 < 10;
-      if (!isLt10M) {
-        message.error('文件大小不能超过 10MB!');
+      // 文件大小限制（可配置）
+      const maxSize = 50; // 50MB
+      const isLtMaxSize = file.size / 1024 / 1024 < maxSize;
+      if (!isLtMaxSize) {
+        message.error(`文件大小不能超过 ${maxSize}MB!`);
+        return false;
       }
-      return isLt10M;
-    }
+
+      // 文件类型限制（可配置）
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+        'text/markdown',
+        'image/jpeg',
+        'image/png',
+        'image/gif'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        message.error('不支持的文件类型!');
+        return false;
+      }
+
+      return true;
+    },
+    onDrop(e) {
+      console.log('Dropped files', e.dataTransfer.files);
+    },
+    showUploadList: true,
+    listType: 'text'
   };
 
   // 表格列定义
@@ -753,74 +1061,139 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 180,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="查看">
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => {
-                setSelectedDocument(record);
-                setPreviewModalVisible(true);
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setSelectedDocument(record);
-                editForm.setFieldsValue({
-                  title: record.title,
-                  description: record.description,
-                  tags: record.tags,
-                  status: record.status,
-                  visibility: record.visibility,
-                  is_template: record.is_template
-                });
-                setEditModalVisible(true);
-              }}
-            />
-          </Tooltip>
-          <Tooltip title={record.is_favorite ? '取消收藏' : '收藏'}>
-            <Button
-              type="text"
-              size="small"
-              icon={record.is_favorite ? <StarFilled /> : <StarOutlined />}
-              onClick={() => handleToggleFavorite(record)}
-              style={{ color: record.is_favorite ? '#faad14' : undefined }}
-            />
-          </Tooltip>
-          <Tooltip title="下载">
-            <Button
-              type="text"
-              size="small"
-              icon={<DownloadOutlined />}
-              onClick={() => handleDownloadDocument(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这个文档吗？"
-            onConfirm={() => handleDeleteDocument(record.id)}
-            okText="删除"
-            cancelText="取消"
-          >
-            <Tooltip title="删除">
+      width: 200,
+      render: (_, record) => {
+        const moreActions: MenuProps['items'] = [
+          {
+            key: 'copy',
+            label: '复制文档',
+            icon: <CopyOutlined />,
+            onClick: () => handleCopyDocument(record)
+          },
+          {
+            key: 'template',
+            label: record.is_template ? '取消模板' : '创建模板',
+            icon: <BookOutlined />,
+            onClick: () => handleCreateTemplate(record)
+          },
+          {
+            type: 'divider'
+          },
+          {
+            key: 'export',
+            label: '导出',
+            icon: <ExportOutlined />,
+            children: [
+              {
+                key: 'export-pdf',
+                label: '导出为 PDF',
+                icon: <FilePdfOutlined />,
+                onClick: () => handleExportDocument(record, 'pdf')
+              },
+              {
+                key: 'export-word',
+                label: '导出为 Word',
+                icon: <FileWordOutlined />,
+                onClick: () => handleExportDocument(record, 'word')
+              },
+              {
+                key: 'export-markdown',
+                label: '导出为 Markdown',
+                icon: <FileMarkdownOutlined />,
+                onClick: () => handleExportDocument(record, 'markdown')
+              }
+            ]
+          },
+          {
+            key: 'share',
+            label: '分享文档',
+            icon: <ShareAltOutlined />,
+            onClick: () => {
+              // TODO: 实现分享功能
+              message.info('分享功能即将上线');
+            }
+          }
+        ];
+
+        return (
+          <Space size="small">
+            <Tooltip title="查看">
               <Button
                 type="text"
                 size="small"
-                danger
-                icon={<DeleteOutlined />}
+                icon={<EyeOutlined />}
+                onClick={() => {
+                  setSelectedDocument(record);
+                  setPreviewModalVisible(true);
+                }}
               />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      )
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  setSelectedDocument(record);
+                  editForm.setFieldsValue({
+                    title: record.title,
+                    description: record.description,
+                    tags: record.tags,
+                    status: record.status,
+                    visibility: record.visibility,
+                    is_template: record.is_template
+                  });
+                  setEditModalVisible(true);
+                }}
+              />
+            </Tooltip>
+            <Tooltip title={record.is_favorite ? '取消收藏' : '收藏'}>
+              <Button
+                type="text"
+                size="small"
+                icon={record.is_favorite ? <StarFilled /> : <StarOutlined />}
+                onClick={() => handleToggleFavorite(record)}
+                style={{ color: record.is_favorite ? '#faad14' : undefined }}
+              />
+            </Tooltip>
+            <Tooltip title="下载">
+              <Button
+                type="text"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => handleDownloadDocument(record)}
+              />
+            </Tooltip>
+            <Dropdown
+              menu={{ items: moreActions }}
+              trigger={['click']}
+              placement="bottomRight"
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<MoreOutlined />}
+              />
+            </Dropdown>
+            <Popconfirm
+              title="确认删除"
+              description="确定要删除这个文档吗？"
+              onConfirm={() => handleDeleteDocument(record.id)}
+              okText="删除"
+              cancelText="取消"
+            >
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      }
     }
   ];
 
@@ -851,6 +1224,100 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
             >
               上传文件
             </Button>
+            
+            <Divider type="vertical" />
+            
+            {/* 批量操作 */}
+            <Button
+              type={isSelectMode ? 'primary' : 'default'}
+              icon={isSelectMode ? <EyeOutlined /> : <AppstoreOutlined />}
+              onClick={toggleSelectMode}
+            >
+              {isSelectMode ? '退出选择' : '批量操作'}
+            </Button>
+            
+            {isSelectMode && (
+              <>
+                <Button
+                  onClick={toggleSelectAll}
+                  size="small"
+                >
+                  {selectedDocuments.length === filteredDocuments.length ? '取消全选' : '全选'}
+                </Button>
+                <Badge count={selectedDocuments.length} showZero>
+                  <Button
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={handleBatchDelete}
+                    disabled={selectedDocuments.length === 0}
+                  >
+                    批量删除
+                  </Button>
+                </Badge>
+                <Button
+                  icon={<CopyOutlined />}
+                  onClick={handleBatchCopy}
+                  disabled={selectedDocuments.length === 0}
+                >
+                  批量复制
+                </Button>
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'batch-template-set',
+                        label: '设为模板',
+                        icon: <BookOutlined />,
+                        onClick: () => handleBatchTemplate(true),
+                        disabled: selectedDocuments.length === 0
+                      },
+                      {
+                        key: 'batch-template-unset',
+                        label: '取消模板',
+                        icon: <FileTextOutlined />,
+                        onClick: () => handleBatchTemplate(false),
+                        disabled: selectedDocuments.length === 0
+                      },
+                      {
+                        type: 'divider'
+                      },
+                      {
+                        key: 'batch-export',
+                        label: '批量导出',
+                        icon: <ExportOutlined />,
+                        children: [
+                          {
+                            key: 'batch-export-pdf',
+                            label: '导出为 PDF',
+                            onClick: () => handleBatchExport('pdf')
+                          },
+                          {
+                            key: 'batch-export-word',
+                            label: '导出为 Word',
+                            onClick: () => handleBatchExport('word')
+                          },
+                          {
+                            key: 'batch-export-zip',
+                            label: '打包下载',
+                            onClick: () => handleBatchExport('zip')
+                          }
+                        ],
+                        disabled: selectedDocuments.length === 0
+                      }
+                    ]
+                  }}
+                  trigger={['click']}
+                  disabled={selectedDocuments.length === 0}
+                >
+                  <Button
+                    icon={<MoreOutlined />}
+                    disabled={selectedDocuments.length === 0}
+                  >
+                    更多操作
+                  </Button>
+                </Dropdown>
+              </>
+            )}
           </Space>
           
           <Space>
@@ -1202,19 +1669,92 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       <Modal
         title="上传文件"
         open={uploadModalVisible}
-        onCancel={() => setUploadModalVisible(false)}
-        footer={null}
-        width={500}
+        onCancel={() => {
+          if (uploadingFiles.length === 0) {
+            setUploadModalVisible(false);
+          } else {
+            Modal.confirm({
+              title: '确认关闭',
+              content: '有文件正在上传中，关闭将取消上传，确定要关闭吗？',
+              onOk: () => {
+                setUploadModalVisible(false);
+                setUploadingFiles([]);
+                setUploadProgress({});
+              }
+            });
+          }
+        }}
+        footer={[
+          <Button 
+            key="close" 
+            onClick={() => setUploadModalVisible(false)}
+            disabled={uploadingFiles.length > 0}
+          >
+            关闭
+          </Button>
+        ]}
+        width={600}
+        maskClosable={uploadingFiles.length === 0}
       >
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text strong>支持的文件类型：</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              最大 50MB
+            </Text>
+          </div>
+          <Space wrap>
+            <Tag color="blue">PDF</Tag>
+            <Tag color="green">Word</Tag>
+            <Tag color="orange">Excel</Tag>
+            <Tag color="purple">Markdown</Tag>
+            <Tag color="default">Text</Tag>
+            <Tag color="pink">图片</Tag>
+          </Space>
+        </div>
+        
         <Upload.Dragger {...uploadProps}>
           <p className="ant-upload-drag-icon">
             <UploadOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
           </p>
           <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
           <p className="ant-upload-hint">
-            支持单个或批量上传，文件大小限制 10MB 以内
+            支持单个或批量上传，支持 PDF、Word、Excel、Markdown、文本和图片文件
           </p>
         </Upload.Dragger>
+        
+        {/* 上传进度显示 */}
+        {uploadingFiles.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Title level={5}>上传进度</Title>
+            {uploadingFiles.map(fileId => {
+              const progress = uploadProgress[fileId] || 0;
+              return (
+                <div key={fileId} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text>文件 {fileId.slice(-8)}</Text>
+                    <Text>{Math.round(progress)}%</Text>
+                  </div>
+                  <Progress 
+                    percent={progress} 
+                    status={progress === 100 ? 'success' : 'active'}
+                    strokeColor={{
+                      '0%': '#108ee9',
+                      '100%': '#87d068',
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+        
+        {/* 上传提示 */}
+        <div style={{ marginTop: 16, padding: 12, backgroundColor: '#f6ffed', border: '1px solid #b7eb8f', borderRadius: 4 }}>
+          <Text type="secondary" style={{ fontSize: '12px' }}>
+            📝 提示：上传后的文件将保存在当前文件夹中，您可以在文件列表中管理和编辑这些文件。
+          </Text>
+        </div>
       </Modal>
 
       {/* 文档预览模态框 */}

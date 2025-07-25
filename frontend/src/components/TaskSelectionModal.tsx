@@ -297,7 +297,9 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
             <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
               {tasksLoading ? (
                 <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <Spin size="large" tip="加载任务中..." />
+                  <Spin size="large" tip="加载任务中...">
+                    <div style={{ height: '100px', width: '100%' }} />
+                  </Spin>
                 </div>
               ) : filteredTasks.length === 0 ? (
                 <Empty

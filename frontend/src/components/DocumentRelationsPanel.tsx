@@ -24,7 +24,15 @@ import {
   UserOutlined,
   ProjectOutlined,
   CheckSquareOutlined,
-  InfoCircleOutlined
+  InfoCircleOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ExportOutlined,
+  ShareAltOutlined,
+  EyeOutlined,
+  CopyOutlined,
+  ReloadOutlined,
+  PartitionOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 
