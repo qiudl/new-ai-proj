@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Typography, Button } from 'antd';
-import { UndoOutlined } from '@ant-design/icons';
+import { Typography, Button, Switch } from 'antd';
+import { UndoOutlined, DragOutlined, InteractionOutlined } from '@ant-design/icons';
 import { Responsive, WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -67,6 +67,7 @@ const DashboardPage: React.FC = () => {
   // Grid layout state
   const [layouts, setLayouts] = useState(defaultLayouts);
   const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
+  const [isDragMode, setIsDragMode] = useState(false);
   
   // Component configuration state
   const [componentConfigs, setComponentConfigs] = useState<Record<string, GridItemConfig>>({
@@ -167,16 +168,33 @@ const DashboardPage: React.FC = () => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
+  // Handle drag mode toggle
+  const toggleDragMode = useCallback(() => {
+    setIsDragMode(prev => {
+      const newValue = !prev;
+      try {
+        localStorage.setItem('dashboardDragMode', JSON.stringify(newValue));
+        console.log('Saved drag mode to localStorage:', newValue);
+      } catch (error) {
+        console.warn('Failed to save drag mode to localStorage:', error);
+      }
+      return newValue;
+    });
+  }, []);
+
   // Handle layout change
   const handleLayoutChange = useCallback((layout: any[], layouts: any) => {
+    if (!isDragMode) return; // Only save when in drag mode
+    
     setLayouts(layouts);
     // Save to localStorage
     try {
       localStorage.setItem('dashboardLayouts', JSON.stringify(layouts));
+      console.log('Layout saved to localStorage');
     } catch (error) {
       console.warn('Failed to save layout to localStorage:', error);
     }
-  }, []);
+  }, [isDragMode]);
 
   // Handle breakpoint change
   const handleBreakpointChange = useCallback((breakpoint: string) => {
@@ -188,15 +206,23 @@ const DashboardPage: React.FC = () => {
     try {
       const savedLayouts = localStorage.getItem('dashboardLayouts');
       const savedConfigs = localStorage.getItem('dashboardComponentConfigs');
+      const savedDragMode = localStorage.getItem('dashboardDragMode');
       
       if (savedLayouts) {
         const parsedLayouts = JSON.parse(savedLayouts);
         setLayouts(parsedLayouts);
+        console.log('Loaded saved layouts from localStorage');
       }
       
       if (savedConfigs) {
         const parsedConfigs = JSON.parse(savedConfigs);
         setComponentConfigs(prev => ({ ...prev, ...parsedConfigs }));
+        console.log('Loaded saved component configs from localStorage');
+      }
+
+      if (savedDragMode) {
+        setIsDragMode(JSON.parse(savedDragMode));
+        console.log('Loaded saved drag mode from localStorage');
       }
     } catch (error) {
       console.warn('Failed to load dashboard configs from localStorage:', error);
@@ -281,6 +307,8 @@ const DashboardPage: React.FC = () => {
     try {
       localStorage.removeItem('dashboardLayouts');
       localStorage.removeItem('dashboardComponentConfigs');
+      localStorage.removeItem('dashboardDragMode');
+      console.log('Reset layouts and cleared localStorage');
     } catch (error) {
       console.warn('Failed to clear dashboard configs from localStorage:', error);
     }
@@ -295,14 +323,29 @@ const DashboardPage: React.FC = () => {
             工作台
           </Title>
           <Text type="secondary">
-            管理您的项目、任务和工作时间 · 可拖拽网格布局
+            管理您的项目、任务和工作时间 · {isDragMode ? '拖拽模式已启用' : '正常交互模式'}
           </Text>
         </div>
-        <div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <InteractionOutlined style={{ color: isDragMode ? '#999' : '#1890ff' }} />
+            <Switch
+              checked={isDragMode}
+              onChange={toggleDragMode}
+              checkedChildren={<DragOutlined />}
+              unCheckedChildren={<InteractionOutlined />}
+              title={isDragMode ? '切换到正常模式' : '切换到拖拽模式'}
+            />
+            <DragOutlined style={{ color: isDragMode ? '#1890ff' : '#999' }} />
+            <Text type="secondary" style={{ fontSize: '12px', marginLeft: '4px' }}>
+              {isDragMode ? '拖拽模式' : '正常模式'}
+            </Text>
+          </div>
           <Button 
             icon={<UndoOutlined />}
             onClick={resetLayout}
             title="恢复默认布局"
+            disabled={!isDragMode}
           >
             重置布局
           </Button>
@@ -318,16 +361,20 @@ const DashboardPage: React.FC = () => {
         rowHeight={60}
         margin={[16, 16]}
         containerPadding={[0, 0]}
-        isDraggable={true}
-        isResizable={true}
+        isDraggable={isDragMode}
+        isResizable={isDragMode}
         onLayoutChange={handleLayoutChange}
         onBreakpointChange={handleBreakpointChange}
-        draggableHandle=".grid-item-drag-handle"
+        draggableHandle={isDragMode ? ".grid-item-drag-handle" : ""}
         useCSSTransforms={true}
       >
           {/* Timer Card */}
           <div key="timer" style={{ background: 'transparent', position: 'relative' }}>
-            <div className="grid-item-drag-handle" title="拖拽移动"></div>
+            <div 
+              className="grid-item-drag-handle" 
+              title="拖拽移动"
+              style={{ display: isDragMode ? 'block' : 'none' }}
+            ></div>
             <GridItemSettings
               componentId="timer"
               config={componentConfigs.timer}
@@ -342,7 +389,11 @@ const DashboardPage: React.FC = () => {
 
           {/* Today Stats Card */}
           <div key="today-stats" style={{ background: 'transparent', position: 'relative' }}>
-            <div className="grid-item-drag-handle" title="拖拽移动"></div>
+            <div 
+              className="grid-item-drag-handle" 
+              title="拖拽移动"
+              style={{ display: isDragMode ? 'block' : 'none' }}
+            ></div>
             <GridItemSettings
               componentId="today-stats"
               config={componentConfigs['today-stats']}
@@ -357,7 +408,11 @@ const DashboardPage: React.FC = () => {
 
           {/* Timer Stats Card */}
           <div key="timer-stats" style={{ background: 'transparent', position: 'relative' }}>
-            <div className="grid-item-drag-handle" title="拖拽移动"></div>
+            <div 
+              className="grid-item-drag-handle" 
+              title="拖拽移动"
+              style={{ display: isDragMode ? 'block' : 'none' }}
+            ></div>
             <GridItemSettings
               componentId="timer-stats"
               config={componentConfigs['timer-stats']}
@@ -372,7 +427,11 @@ const DashboardPage: React.FC = () => {
 
           {/* Task Progress Card */}
           <div key="task-progress" style={{ background: 'transparent', position: 'relative' }}>
-            <div className="grid-item-drag-handle" title="拖拽移动"></div>
+            <div 
+              className="grid-item-drag-handle" 
+              title="拖拽移动"
+              style={{ display: isDragMode ? 'block' : 'none' }}
+            ></div>
             <GridItemSettings
               componentId="task-progress"
               config={componentConfigs['task-progress']}
@@ -387,7 +446,11 @@ const DashboardPage: React.FC = () => {
 
           {/* Recent Tasks List */}
           <div key="recent-tasks" style={{ background: 'transparent', position: 'relative' }}>
-            <div className="grid-item-drag-handle" title="拖拽移动"></div>
+            <div 
+              className="grid-item-drag-handle" 
+              title="拖拽移动"
+              style={{ display: isDragMode ? 'block' : 'none' }}
+            ></div>
             <GridItemSettings
               componentId="recent-tasks"
               config={componentConfigs['recent-tasks']}
