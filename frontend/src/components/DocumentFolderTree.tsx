@@ -131,25 +131,66 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
               justifyContent: 'space-between',
               width: '100%',
               opacity: isCut ? 0.5 : 1,
-              textDecoration: isCut ? 'line-through' : 'none'
+              textDecoration: isCut ? 'line-through' : 'none',
+              minHeight: '24px',
+              padding: '2px 0'
             }}
           >
-            <Space size="small">
-              <span style={{ color: folder.color || '#1890ff' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              flex: 1,
+              minWidth: 0,
+              overflow: 'hidden'
+            }}>
+              <span style={{ 
+                color: folder.color || '#1890ff',
+                fontSize: '14px',
+                lineHeight: 1,
+                flexShrink: 0
+              }}>
                 {isSelected ? <FolderOpenOutlined /> : <FolderOutlined />}
               </span>
-              <Text strong={isSelected}>
+              <Text 
+                strong={isSelected}
+                style={{
+                  fontSize: '13px',
+                  lineHeight: '20px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                  minWidth: 0
+                }}
+                title={folder.name}
+              >
                 {folder.name}
               </Text>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
+              <Text 
+                type="secondary" 
+                style={{ 
+                  fontSize: '11px',
+                  lineHeight: '16px',
+                  flexShrink: 0,
+                  color: '#999'
+                }}
+              >
                 ({folder.documents_count || 0})
               </Text>
               {folder.visibility === 'private' && (
-                <Text type="secondary" style={{ fontSize: '10px' }}>
+                <Text 
+                  type="secondary" 
+                  style={{ 
+                    fontSize: '9px',
+                    lineHeight: '12px',
+                    flexShrink: 0
+                  }}
+                >
                   🔒
                 </Text>
               )}
-            </Space>
+            </div>
             
             <Dropdown
               menu={{
@@ -164,7 +205,18 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
               <Button 
                 type="text" 
                 icon={<EllipsisOutlined />}
-                style={{ opacity: 0.7 }}
+                size="small"
+                style={{ 
+                  opacity: 0,
+                  transition: 'opacity 0.2s ease',
+                  width: '20px',
+                  height: '20px',
+                  minWidth: '20px',
+                  padding: 0,
+                  flexShrink: 0,
+                  fontSize: '12px'
+                }}
+                className="folder-action-button"
                 onClick={(e) => e.stopPropagation()}
               />
             </Dropdown>
@@ -191,10 +243,28 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
           created_by: 0
         } as DocumentFolder,
         title: (
-          <Space size="small">
-            <FolderOutlined style={{ color: '#666' }} />
-            <Text>根目录</Text>
-          </Space>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '4px',
+            minHeight: '20px',
+            padding: '1px 0'
+          }}>
+            <FolderOutlined style={{ 
+              color: '#666',
+              fontSize: '14px',
+              flexShrink: 0
+            }} />
+            <Text style={{
+              fontSize: '13px',
+              lineHeight: '18px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              根目录
+            </Text>
+          </div>
         )
       });
     }
@@ -399,10 +469,14 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
         draggable={draggable}
         onDrop={handleDrop}
         height={height}
-        virtual
+        virtual={false}
         blockNode
         showLine={{ showLeafIcon: false }}
-        switcherIcon={<FolderOutlined />}
+        showIcon={false}
+        className="optimized-folder-tree"
+        style={{
+          fontSize: '13px'
+        }}
       />
 
       {/* 文件夹创建/编辑模态框 */}

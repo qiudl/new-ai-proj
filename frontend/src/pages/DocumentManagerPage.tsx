@@ -364,18 +364,56 @@ const DocumentManagerPage: React.FC = () => {
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
-            padding: '2px 0'
+            padding: '2px 0',
+            minHeight: '24px',
+            width: '100%'
           }}
         >
-          <Space>
-            <FolderOutlined style={{ color: folder.color }} />
-            <span>{folder.name}</span>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            flex: 1,
+            minWidth: 0,
+            overflow: 'hidden'
+          }}>
+            <FolderOutlined 
+              style={{ 
+                color: folder.color,
+                fontSize: '14px',
+                lineHeight: 1,
+                flexShrink: 0
+              }} 
+            />
+            <span style={{
+              fontSize: '13px',
+              lineHeight: '20px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+              minWidth: 0
+            }}>
+              {folder.name}
+            </span>
+            <Text 
+              type="secondary" 
+              style={{ 
+                fontSize: '11px',
+                lineHeight: '16px',
+                flexShrink: 0,
+                color: '#999'
+              }}
+            >
               ({folder.documents_count || 0})
             </Text>
-          </Space>
+          </div>
           
-          <Space size="small" style={{ opacity: 0.6 }}>
+          <Space size={2} style={{ 
+            opacity: 0,
+            transition: 'opacity 0.2s ease',
+            flexShrink: 0
+          }} className="folder-actions">
             <Tooltip title="编辑文件夹">
               <Button
                 type="text"
@@ -385,7 +423,13 @@ const DocumentManagerPage: React.FC = () => {
                   e.stopPropagation();
                   openEditFolderModal(folder);
                 }}
-                style={{ fontSize: '12px' }}
+                style={{ 
+                  width: '20px',
+                  height: '20px',
+                  minWidth: '20px',
+                  padding: 0,
+                  fontSize: '11px'
+                }}
               />
             </Tooltip>
             <Tooltip title="删除文件夹">
@@ -406,7 +450,13 @@ const DocumentManagerPage: React.FC = () => {
                     onOk: () => handleDeleteFolder(folder)
                   });
                 }}
-                style={{ fontSize: '12px' }}
+                style={{ 
+                  width: '20px',
+                  height: '20px',
+                  minWidth: '20px',
+                  padding: 0,
+                  fontSize: '11px'
+                }}
               />
             </Tooltip>
           </Space>
@@ -419,7 +469,7 @@ const DocumentManagerPage: React.FC = () => {
 
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh' }} className="document-manager">
       <Sider 
         width={isMobile ? '100%' : 280}
         theme="light"
@@ -468,12 +518,14 @@ const DocumentManagerPage: React.FC = () => {
                 />
                 
                 <Tree
-                  className="folder-tree"
-                  showLine
-                  showIcon
+                  className="folder-tree document-manager-tree"
+                  showLine={{ showLeafIcon: false }}
+                  showIcon={false}
                   defaultExpandAll
                   draggable
                   blockNode
+                  virtual={false}
+                  height={400}
                   treeData={convertFoldersToTreeData(folders)}
                   selectedKeys={selectedFolderId ? [selectedFolderId.toString()] : []}
                   onSelect={(keys) => {
