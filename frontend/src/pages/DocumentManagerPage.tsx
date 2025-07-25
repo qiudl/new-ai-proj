@@ -352,7 +352,39 @@ const DocumentManagerPage: React.FC = () => {
       return [];
     }
     
-    return folders.map(folder => ({
+    // 从平级列表构建树形结构
+    const buildTree = (folders: DocumentFolder[]): DocumentFolder[] => {
+      const folderMap = new Map<number, DocumentFolder & { children?: DocumentFolder[] }>();
+      const rootFolders: (DocumentFolder & { children?: DocumentFolder[] })[] = [];
+
+      // 创建文件夹映射，并初始化children数组
+      folders.forEach(folder => {
+        folderMap.set(folder.id, { ...folder, children: [] });
+      });
+
+      // 构建树形结构
+      folders.forEach(folder => {
+        const folderWithChildren = folderMap.get(folder.id)!;
+        if (folder.parent_folder_id) {
+          const parent = folderMap.get(folder.parent_folder_id);
+          if (parent) {
+            parent.children!.push(folderWithChildren);
+          } else {
+            // 如果父文件夹不存在，作为根文件夹处理
+            rootFolders.push(folderWithChildren);
+          }
+        } else {
+          rootFolders.push(folderWithChildren);
+        }
+      });
+
+      return rootFolders;
+    };
+
+    // 构建树形结构
+    const treeStructure = buildTree(folders);
+    
+    const convertToTreeNode = (folder: DocumentFolder & { children?: DocumentFolder[] }): any => ({
       key: folder.id,
       title: (
         <div
@@ -462,9 +494,11 @@ const DocumentManagerPage: React.FC = () => {
           </Space>
         </div>
       ),
-      children: folder.children ? convertFoldersToTreeData(folder.children) : undefined,
+      children: folder.children && folder.children.length > 0 ? folder.children.map(convertToTreeNode) : undefined,
       folder: folder // Store folder data for access
-    }));
+    });
+
+    return treeStructure.map(convertToTreeNode);
   };
 
 

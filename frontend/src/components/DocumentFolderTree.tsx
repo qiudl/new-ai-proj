@@ -115,7 +115,35 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
 
   // 转换为Tree组件需要的数据结构
   const treeData: TreeDataNode[] = useMemo(() => {
-    const convertToTreeNode = (folder: DocumentFolder): TreeDataNode => {
+    // 从平级列表构建树形结构
+    const buildTree = (folders: DocumentFolder[]): DocumentFolder[] => {
+      const folderMap = new Map<number, DocumentFolder & { children?: DocumentFolder[] }>();
+      const rootFolders: (DocumentFolder & { children?: DocumentFolder[] })[] = [];
+
+      // 创建文件夹映射，并初始化children数组
+      folders.forEach(folder => {
+        folderMap.set(folder.id, { ...folder, children: [] });
+      });
+
+      // 构建树形结构
+      folders.forEach(folder => {
+        const folderWithChildren = folderMap.get(folder.id)!;
+        if (folder.parent_folder_id) {
+          const parent = folderMap.get(folder.parent_folder_id);
+          if (parent) {
+            parent.children!.push(folderWithChildren);
+          } else {
+            // 如果父文件夹不存在，作为根文件夹处理
+            rootFolders.push(folderWithChildren);
+          }
+        } else {
+          rootFolders.push(folderWithChildren);
+        }
+      });
+
+      return rootFolders;
+    };
+    const convertToTreeNode = (folder: DocumentFolder & { children?: DocumentFolder[] }): TreeDataNode => {
       const nodeKey = folder.id.toString();
       const isSelected = selectedKeys.includes(nodeKey);
       const isCut = cutFolder?.id === folder.id;
@@ -222,11 +250,13 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
             </Dropdown>
           </div>
         ),
-        children: folder.children ? folder.children.map(convertToTreeNode) : undefined
+        children: folder.children && folder.children.length > 0 ? folder.children.map(convertToTreeNode) : undefined
       };
     };
 
-    const rootData: TreeDataNode[] = folders.map(convertToTreeNode);
+    // 构建树形结构
+    const treeStructure = buildTree(folders);
+    const rootData: TreeDataNode[] = treeStructure.map(convertToTreeNode);
     
     // 如果显示根选项，添加根节点
     if (showRootOption) {

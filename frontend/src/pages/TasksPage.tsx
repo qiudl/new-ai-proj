@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
@@ -182,6 +182,12 @@ const TasksPage: React.FC = () => {
   // 项目筛选相关状态  
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentProject, setCurrentProject] = useState<Project | undefined>();
+  
+  // 全局任务提示显示状态
+  const [showGlobalTaskTip, setShowGlobalTaskTip] = useState(() => {
+    const saved = localStorage.getItem('show-global-task-tip');
+    return saved !== 'false'; // 默认显示，除非用户手动关闭过
+  });
   
   
   // 全局统计状态
@@ -1056,10 +1062,32 @@ const TasksPage: React.FC = () => {
     }
   }, [buildExpandedDataSource, tasks]);
 
-  // 当项目变化时，更新列配置
+  // 当项目变化时，加载列配置
   useEffect(() => {
-    setColumnConfigs(defaultColumnConfigs);
-  }, [defaultColumnConfigs]);
+    const storageKey = `task-columns-${effectiveProjectId || 'global'}`;
+    const saved = localStorage.getItem(storageKey);
+    
+    if (saved) {
+      try {
+        const savedConfigs = JSON.parse(saved);
+        // 合并默认配置和保存的配置
+        const mergedConfigs = defaultColumnConfigs.map(defaultConfig => {
+          const savedConfig = savedConfigs.find((s: ColumnConfig) => s.key === defaultConfig.key);
+          return savedConfig ? {
+            ...defaultConfig,
+            visible: savedConfig.visible !== undefined ? savedConfig.visible : defaultConfig.visible,
+            width: savedConfig.width !== undefined ? savedConfig.width : defaultConfig.width
+          } : defaultConfig;
+        });
+        setColumnConfigs(mergedConfigs);
+      } catch (error) {
+        console.warn('Failed to load column configuration:', error);
+        setColumnConfigs(defaultColumnConfigs);
+      }
+    } else {
+      setColumnConfigs(defaultColumnConfigs);
+    }
+  }, [defaultColumnConfigs, effectiveProjectId]);
 
   // 列宽度调整处理器
   const handleColumnResize = useCallback((key: string, width: number) => {
@@ -1075,6 +1103,12 @@ const TasksPage: React.FC = () => {
       return newConfigs;
     });
   }, [effectiveProjectId]);
+
+  // 关闭全局任务提示
+  const handleCloseGlobalTaskTip = useCallback(() => {
+    setShowGlobalTaskTip(false);
+    localStorage.setItem('show-global-task-tip', 'false');
+  }, []);
 
   // 创建可调整大小的标题
   const createResizableTitle = useCallback((config: ColumnConfig, title: React.ReactNode) => {
@@ -2604,18 +2638,36 @@ const TasksPage: React.FC = () => {
             minHeight: '500px'
           }}
         >
-          <div style={{ 
-            marginBottom: '16px', 
-            padding: '12px 16px',
-            backgroundColor: '#f0f9ff',
-            borderRadius: '6px',
-            border: '1px solid #bae7ff'
-          }}>
-            <strong style={{ color: '#1890ff' }}>全局任务视图</strong>
-            <span style={{ marginLeft: '8px', color: '#666' }}>
-              显示所有项目的任务，支持筛选、搜索和跨项目管理
-            </span>
-          </div>
+          {showGlobalTaskTip && (
+            <div style={{ 
+              marginBottom: '16px', 
+              padding: '12px 16px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '6px',
+              border: '1px solid #bae7ff',
+              position: 'relative'
+            }}>
+              <strong style={{ color: '#1890ff' }}>全局任务视图</strong>
+              <span style={{ marginLeft: '8px', color: '#666' }}>
+                显示所有项目的任务，支持筛选、搜索和跨项目管理
+              </span>
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined />}
+                onClick={handleCloseGlobalTaskTip}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#999',
+                  fontSize: '12px'
+                }}
+                title="关闭提示"
+              />
+            </div>
+          )}
           
           {/* 全局任务表格 */}
           <Table

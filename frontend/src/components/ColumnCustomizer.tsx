@@ -40,7 +40,11 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
         // 合并保存的配置和默认配置，确保新增的列能显示
         const mergedColumns = columns.map(col => {
           const savedCol = savedColumns.find((s: ColumnConfig) => s.key === col.key);
-          return savedCol ? { ...col, visible: savedCol.visible } : col;
+          return savedCol ? { 
+            ...col, 
+            visible: savedCol.visible,
+            width: savedCol.width !== undefined ? savedCol.width : col.width
+          } : col;
         });
         setLocalColumns(mergedColumns);
         onChange(mergedColumns);
