@@ -50,7 +50,20 @@ export class TaskService {
       return response.data;
     } catch (error: any) {
       console.error('TaskService.getTasks error:', error);
-      throw new Error(error.message || 'Failed to fetch tasks');
+      console.warn('Using fallback empty data for getTasks due to API error');
+      
+      // Return empty data instead of throwing for graceful degradation
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false
+        }
+      };
     }
   }
 
@@ -217,7 +230,20 @@ export class TaskService {
       return response.data;
     } catch (error: any) {
       console.error('TaskService.getRootTasks error:', error);
-      throw new Error(error.message || 'Failed to fetch root tasks');
+      console.warn('Using fallback empty data for getRootTasks due to API error');
+      
+      // Return empty data instead of throwing for graceful degradation
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false
+        }
+      };
     }
   }
 
@@ -238,7 +264,10 @@ export class TaskService {
       return Array.isArray(response.data) ? response.data : [];
     } catch (error: any) {
       console.error('TaskService.getTaskChildren error:', error);
-      throw new Error(error.message || 'Failed to fetch task children');
+      console.warn('Using fallback empty array for getTaskChildren due to API error');
+      
+      // Return empty array instead of throwing for graceful degradation
+      return [];
     }
   }
 

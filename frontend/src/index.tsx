@@ -9,6 +9,9 @@ if (process.env.NODE_ENV === 'development') {
   import('./utils/consoleFilter');
 }
 
+// Import chunk loading error handler
+import('./utils/chunkErrorHandler');
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );

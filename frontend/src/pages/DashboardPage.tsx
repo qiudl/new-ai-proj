@@ -1,27 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Typography, Button } from 'antd';
 import { UndoOutlined } from '@ant-design/icons';
-// Grid layout temporarily disabled due to dependency issues
-// import RGL, { Responsive, WidthProvider } from 'react-grid-layout';
-// import 'react-grid-layout/css/styles.css';
-// import 'react-resizable/css/styles.css';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 
-import { 
-  DashboardService, 
-  DashboardStats, 
-  ProjectProgressInfo, 
-  UserWorkload 
-} from '../services/dashboardService';
-import { TaskService } from '../services/taskService';
-import { projectService } from '../services/projectService';
-import { Task, TimelineEvent, TaskStatus } from '../types/task';
-import { Project } from '../types/project';
-import { useCache } from '../hooks/useCache';
-import { 
-  formatTimeAgo, 
-  getWorkloadStatus, 
-  formatNumber
-} from '../utils/formatters';
 import TimerCard from '../components/TimerCard';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';
@@ -33,14 +16,14 @@ import '../styles/OptimizedDashboard.css';
 import '../styles/grid-layout.css';
 
 const { Title, Text } = Typography;
-// const ResponsiveGridLayout = WidthProvider(Responsive);
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // Grid layout configuration with auto-expanding height
 const defaultLayouts = {
   lg: [
     // First row: Timer (7/12) + Recent Tasks (5/12) with increased auto height
-    { i: 'timer', x: 0, y: 0, w: 7, h: 6, minW: 5, minH: 4, maxH: Infinity },
-    { i: 'recent-tasks', x: 7, y: 0, w: 5, h: 6, minW: 4, minH: 4, maxH: Infinity },
+    { i: 'timer', x: 0, y: 0, w: 7, h: 6, minW: 5, minH: 4, maxH: 20 },
+    { i: 'recent-tasks', x: 7, y: 0, w: 5, h: 6, minW: 4, minH: 4, maxH: 20 },
     // Second row: Statistics cards  
     { i: 'today-stats', x: 0, y: 6, w: 4, h: 2, minW: 3, minH: 2 },
     { i: 'timer-stats', x: 4, y: 6, w: 4, h: 2, minW: 3, minH: 2 },
@@ -48,8 +31,8 @@ const defaultLayouts = {
   ],
   md: [
     // First row: Timer (6/10) + Recent Tasks (4/10) with auto height
-    { i: 'timer', x: 0, y: 0, w: 6, h: 5, minW: 4, minH: 4, maxH: Infinity },
-    { i: 'recent-tasks', x: 6, y: 0, w: 4, h: 5, minW: 3, minH: 4, maxH: Infinity },
+    { i: 'timer', x: 0, y: 0, w: 6, h: 5, minW: 4, minH: 4, maxH: 16 },
+    { i: 'recent-tasks', x: 6, y: 0, w: 4, h: 5, minW: 3, minH: 4, maxH: 16 },
     // Second row: Statistics cards
     { i: 'today-stats', x: 0, y: 5, w: 3, h: 2, minW: 2, minH: 2 },
     { i: 'timer-stats', x: 3, y: 5, w: 3, h: 2, minW: 2, minH: 2 },
@@ -57,8 +40,8 @@ const defaultLayouts = {
   ],
   sm: [
     // Medium screens: Timer (4/6) + Recent Tasks (2/6) with auto height
-    { i: 'timer', x: 0, y: 0, w: 4, h: 5, minW: 3, minH: 4, maxH: Infinity },
-    { i: 'recent-tasks', x: 4, y: 0, w: 2, h: 5, minW: 2, minH: 4, maxH: Infinity },
+    { i: 'timer', x: 0, y: 0, w: 4, h: 5, minW: 3, minH: 4, maxH: 12 },
+    { i: 'recent-tasks', x: 4, y: 0, w: 2, h: 5, minW: 2, minH: 4, maxH: 12 },
     // Statistics stack vertically
     { i: 'today-stats', x: 0, y: 5, w: 2, h: 2, minW: 2, minH: 2 },
     { i: 'timer-stats', x: 2, y: 5, w: 2, h: 2, minW: 2, minH: 2 },
@@ -66,8 +49,8 @@ const defaultLayouts = {
   ],
   xs: [
     // Small screens: Stack vertically with auto height
-    { i: 'timer', x: 0, y: 0, w: 4, h: 5, minW: 4, minH: 4, maxH: Infinity },
-    { i: 'recent-tasks', x: 0, y: 5, w: 4, h: 5, minW: 4, minH: 4, maxH: Infinity },
+    { i: 'timer', x: 0, y: 0, w: 4, h: 5, minW: 4, minH: 4, maxH: 10 },
+    { i: 'recent-tasks', x: 0, y: 5, w: 4, h: 5, minW: 4, minH: 4, maxH: 10 },
     { i: 'today-stats', x: 0, y: 10, w: 4, h: 2, minW: 4, minH: 2 },
     { i: 'timer-stats', x: 0, y: 12, w: 4, h: 2, minW: 4, minH: 2 },
     { i: 'task-progress', x: 0, y: 14, w: 4, h: 2, minW: 4, minH: 2 }
@@ -141,8 +124,6 @@ const DashboardPage: React.FC = () => {
   
   // 计时器状态管理
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [currentTaskTitle, setCurrentTaskTitle] = useState<string | undefined>();
   
   // 处理组件配置更新
   const handleComponentConfigChange = useCallback((componentId: string, newConfig: Partial<GridItemConfig>) => {
@@ -182,8 +163,6 @@ const DashboardPage: React.FC = () => {
   const handleTimerUpdate = useCallback((isRunning: boolean, taskTitle?: string) => {
     if (!isMountedRef.current) return;
     
-    setIsTimerRunning(isRunning);
-    setCurrentTaskTitle(taskTitle);
     // 触发统计卡片刷新
     setRefreshTrigger(prev => prev + 1);
   }, []);
@@ -330,15 +309,21 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Simple CSS Grid Layout */}
-      <div 
-        className="dashboard-grid-container"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '16px',
-          padding: '0'
-        }}
+      {/* React Grid Layout */}
+      <ResponsiveGridLayout
+        className="dashboard-grid-layout"
+        layouts={layouts}
+        breakpoints={breakpoints}
+        cols={cols}
+        rowHeight={60}
+        margin={[16, 16]}
+        containerPadding={[0, 0]}
+        isDraggable={true}
+        isResizable={true}
+        onLayoutChange={handleLayoutChange}
+        onBreakpointChange={handleBreakpointChange}
+        draggableHandle=".grid-item-drag-handle"
+        useCSSTransforms={true}
       >
           {/* Timer Card */}
           <div key="timer" style={{ background: 'transparent', position: 'relative' }}>
@@ -417,7 +402,7 @@ const DashboardPage: React.FC = () => {
               onTimerUpdate={handleTimerUpdate}
             />
           </div>
-      </div>
+      </ResponsiveGridLayout>
     </div>
   );
 };

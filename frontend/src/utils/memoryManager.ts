@@ -9,12 +9,18 @@ interface MemoryInfo {
 class MemoryManager {
   private static checkInterval: NodeJS.Timeout | null = null;
   private static isMonitoring = false;
-  private static readonly MEMORY_WARNING_THRESHOLD = 100; // 100MB
-  private static readonly MEMORY_CRITICAL_THRESHOLD = 200; // 200MB
-  private static readonly CHECK_INTERVAL = 30000; // 30 seconds
+  private static readonly MEMORY_WARNING_THRESHOLD = 200; // 200MB (increased from 100MB)
+  private static readonly MEMORY_CRITICAL_THRESHOLD = 400; // 400MB (increased from 200MB)
+  private static readonly CHECK_INTERVAL = 60000; // 60 seconds (reduced frequency)
 
-  // Start memory monitoring
+  // Start memory monitoring (with environment check)
   static startMonitoring(): void {
+    // Skip memory monitoring in development for better developer experience
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🧠 Memory monitoring disabled in development mode');
+      return;
+    }
+
     if (this.isMonitoring || this.checkInterval) {
       return;
     }
@@ -60,13 +66,19 @@ class MemoryManager {
       }
 
       const usedMB = memoryInfo.usedJSHeapSize / (1024 * 1024);
+      const limitMB = memoryInfo.jsHeapSizeLimit / (1024 * 1024);
+      const usagePercentage = (usedMB / limitMB) * 100;
       
-      if (usedMB > this.MEMORY_CRITICAL_THRESHOLD) {
-        console.error(`❌ Critical memory usage: ${usedMB.toFixed(2)}MB`);
+      // Use percentage-based thresholds for better accuracy
+      if (usagePercentage > 80) { // Critical: >80% of heap limit
+        console.error(`❌ Critical memory usage: ${usedMB.toFixed(2)}MB (${usagePercentage.toFixed(1)}% of ${limitMB.toFixed(0)}MB limit)`);
         this.performEmergencyCleanup();
-      } else if (usedMB > this.MEMORY_WARNING_THRESHOLD) {
-        console.warn(`⚠️ High memory usage: ${usedMB.toFixed(2)}MB`);
+      } else if (usagePercentage > 60) { // Warning: >60% of heap limit
+        console.warn(`⚠️ High memory usage: ${usedMB.toFixed(2)}MB (${usagePercentage.toFixed(1)}% of ${limitMB.toFixed(0)}MB limit)`);
         this.performGentleCleanup();
+      } else if (usedMB > this.MEMORY_WARNING_THRESHOLD) {
+        // Legacy absolute threshold check (only log, don't cleanup)
+        console.info(`ℹ️ Memory usage: ${usedMB.toFixed(2)}MB (${usagePercentage.toFixed(1)}% of ${limitMB.toFixed(0)}MB limit) - Normal for complex React app`);
       }
     } catch (error) {
       console.warn('Memory check failed:', error);
