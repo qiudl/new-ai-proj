@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Typography, Button, Switch } from 'antd';
 import { UndoOutlined, DragOutlined, InteractionOutlined } from '@ant-design/icons';
 import { Responsive, WidthProvider } from 'react-grid-layout';
+import { useTimer } from '../contexts/TimerContext';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
@@ -61,6 +62,9 @@ const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480 };
 const cols = { lg: 12, md: 10, sm: 6, xs: 4 };
 
 const DashboardPage: React.FC = () => {
+  // Global timer context
+  const { timerState } = useTimer();
+  
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const isMountedRef = useRef(true);
   
@@ -160,7 +164,7 @@ const DashboardPage: React.FC = () => {
     });
   }, [componentConfigs]);
 
-  // 处理计时器状态更新 - MEMORY OPTIMIZED
+  // Handle timer updates from global context - MEMORY OPTIMIZED
   const handleTimerUpdate = useCallback((isRunning: boolean, taskTitle?: string) => {
     if (!isMountedRef.current) return;
     
@@ -237,6 +241,14 @@ const DashboardPage: React.FC = () => {
       console.warn('Failed to save component configs to localStorage:', error);
     }
   }, [componentConfigs]);
+
+  // Handle timer state changes from global context
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    
+    // 触发统计卡片刷新当定时器状态改变时
+    setRefreshTrigger(prev => prev + 1);
+  }, [timerState.isRunning]);
 
   // CRITICAL: Cleanup on unmount
   useEffect(() => {
@@ -383,7 +395,7 @@ const DashboardPage: React.FC = () => {
               componentName="定时器"
             />
             <TimerErrorBoundary>
-              <TimerCard onTimerUpdate={handleTimerUpdate} />
+              <TimerCard />
             </TimerErrorBoundary>
           </div>
 
@@ -462,7 +474,6 @@ const DashboardPage: React.FC = () => {
               limit={8}
               showTimer={true}
               title="最近任务"
-              onTimerUpdate={handleTimerUpdate}
             />
           </div>
       </ResponsiveGridLayout>

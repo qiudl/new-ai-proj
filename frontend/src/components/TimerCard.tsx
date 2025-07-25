@@ -1,177 +1,32 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Card, Button, Typography, Space, message, Spin, Tooltip, Switch } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, ClockCircleOutlined, WifiOutlined, DisconnectOutlined, SoundOutlined, NotificationOutlined, QuestionCircleOutlined, ProjectOutlined } from '@ant-design/icons';
-import TimerService from '../services/timerService';
 import NotificationService from '../services/notificationService';
-import TimerPerformanceMonitor from '../utils/timerPerformance';
-import MemoryManager from '../utils/memoryManager';
 import TaskSelectionModal from './TaskSelectionModal';
-import { TimerState, TaskOption, TimerCurrentResponse } from '../types/timer';
+import { useTimer } from '../contexts/TimerContext';
+import { TaskOption } from '../types/timer';
 import { Task } from '../types/task';
 
 const { Title, Text } = Typography;
 
 interface TimerCardProps {
-  onTimerUpdate?: (isRunning: boolean, taskTitle?: string) => void;
+  // No props needed - using global timer context
 }
 
-const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
-  const [timerState, setTimerState] = useState<TimerState>({
-    isRunning: false,
-    elapsedSeconds: 0,
-    formattedTime: '00:00:00'
-  });
+const TimerCard: React.FC<TimerCardProps> = () => {
+  // Use global timer context
+  const { timerState, isLoading, connectionStatus, startTimer, stopTimer, refreshTimer } = useTimer();
 
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [selectedTaskTitle, setSelectedTaskTitle] = useState<string>('');
   const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(NotificationService.isNotificationEnabled());
-  const [lastMilestone, setLastMilestone] = useState<number>(0);
 
-  // MEMORY OPTIMIZATION: Use refs for timers to prevent memory leaks
-  const localTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Use refs for component mounted state
   const isMountedRef = useRef(true);
-  
-  // MEMORY OPTIMIZATION: Store callbacks in refs to prevent recreating dependencies
-  const onTimerUpdateRef = useRef(onTimerUpdate);
-  onTimerUpdateRef.current = onTimerUpdate;
-  
-  // Store milestone check function in ref to avoid dependency issues
-  const checkTimerMilestonesRef = useRef<((elapsedSeconds: number) => void) | null>(null);
 
-  // MEMORY OPTIMIZATION: Enhanced timer cleanup
-  const stopLocalTimer = useCallback(() => {
-    if (localTimerRef.current) {
-      clearInterval(localTimerRef.current);
-      localTimerRef.current = null;
-    }
-  }, []);
 
-  const stopRefreshTimer = useCallback(() => {
-    if (refreshTimerRef.current) {
-      clearInterval(refreshTimerRef.current);
-      refreshTimerRef.current = null;
-    }
-  }, []);
 
-  // MEMORY OPTIMIZATION: Start local timer with proper cleanup
-  const startLocalTimer = useCallback((startTime: Date) => {
-    stopLocalTimer(); // Always clear existing timer first
-    
-    localTimerRef.current = setInterval(() => {
-      // CRITICAL: Check if component is still mounted
-      if (!isMountedRef.current) {
-        return;
-      }
-      
-      const elapsed = TimerService.getElapsedSeconds(startTime);
-      const formatted = TimerService.formatDuration(elapsed);
-      
-      setTimerState(prev => ({
-        ...prev,
-        elapsedSeconds: elapsed,
-        formattedTime: formatted
-      }));
-
-      // Check for milestones (throttled to prevent excessive notifications)
-      if (checkTimerMilestonesRef.current) {
-        checkTimerMilestonesRef.current(elapsed);
-      }
-    }, 1000);
-  }, [stopLocalTimer]);
-
-  // MEMORY OPTIMIZATION: Simplified timer restoration with cleanup
-  const restoreTimerFromLocalStorage = useCallback(() => {
-    try {
-      const savedState = localStorage.getItem('timerState');
-      
-      if (!savedState) return false;
-      
-      const parsed = JSON.parse(savedState);
-      const lastSyncTime = new Date(parsed.lastSyncTime);
-      const timeSinceSync = (Date.now() - lastSyncTime.getTime()) / 1000;
-      
-      // Reduced restoration window for memory efficiency
-      if (timeSinceSync < 180 && parsed.isRunning && parsed.startTime) { // 3 minutes max
-        const startTime = new Date(parsed.startTime);
-        const currentElapsed = TimerService.getElapsedSeconds(startTime);
-        
-        setTimerState({
-          isRunning: true,
-          currentTask: parsed.currentTask,
-          startTime,
-          elapsedSeconds: currentElapsed,
-          formattedTime: TimerService.formatDuration(currentElapsed)
-        });
-        
-        // Restore milestone tracking
-        if (parsed.lastMilestone) {
-          setLastMilestone(parsed.lastMilestone);
-        }
-        
-        // Start local timer updates
-        startLocalTimer(startTime);
-        
-        // Notify parent component
-        if (onTimerUpdateRef.current) {
-          onTimerUpdateRef.current(true, parsed.currentTask?.title);
-        }
-        
-        message.success(`已恢复计时状态: ${parsed.currentTask?.title || '未知任务'}`);
-        return true;
-      } else if (parsed.isRunning) {
-        // Clean up expired data immediately
-        clearTimerStorage();
-        message.warning('计时状态已过期，请重新开始计时');
-      }
-    } catch (error) {
-      console.warn('Failed to restore timer state from localStorage:', error);
-      clearTimerStorage();
-    }
-    return false;
-  }, [startLocalTimer]);
-
-  // Helper to clear timer storage
-  const clearTimerStorage = useCallback(() => {
-    try {
-      localStorage.removeItem('timerState');
-      localStorage.removeItem('timerAutoSaveVersion');
-      localStorage.removeItem('lastTimerSave');
-    } catch (error) {
-      // Ignore cleanup errors
-    }
-  }, []);
-
-  // MEMORY OPTIMIZATION: Load current timer with proper error handling
-  const loadCurrentTimer = useCallback(async () => {
-    if (!isMountedRef.current) return;
-    
-    try {
-      setConnectionStatus('checking');
-      const response = await TimerService.getCurrentTimer();
-      
-      if (!isMountedRef.current) return; // Check again after async call
-      
-      updateTimerFromResponse(response);
-      setConnectionStatus('connected');
-      setLastUpdateTime(new Date());
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      
-      console.error('Failed to load current timer:', error);
-      setConnectionStatus('disconnected');
-      
-      // Try to restore from localStorage if API fails
-      const restored = restoreTimerFromLocalStorage();
-      if (!restored) {
-        message.error('无法连接到计时器服务，请检查网络连接');
-      }
-    }
-  }, [restoreTimerFromLocalStorage]);
 
   // Handle task selection from modal
   const handleTaskSelect = useCallback((taskId: number, task: Task | TaskOption) => {
@@ -190,107 +45,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
     setTaskModalVisible(false);
   }, []);
 
-  // MEMORY OPTIMIZATION: Update timer state with size limits and throttled saves
-  const updateTimerFromResponse = useCallback((response: TimerCurrentResponse) => {
-    if (!isMountedRef.current) return;
-    
-    const newState: TimerState = {
-      isRunning: response.is_running,
-      currentTask: response.task_id && response.task_title ? {
-        id: response.task_id,
-        title: response.task_title
-      } : undefined,
-      startTime: response.start_time ? new Date(response.start_time) : undefined,
-      elapsedSeconds: response.elapsed_seconds,
-      formattedTime: response.formatted_time
-    };
 
-    setTimerState(newState);
-    
-    // MEMORY OPTIMIZATION: Throttled auto-save with size limits
-    const saveToStorage = () => {
-      try {
-        const timerData = {
-          isRunning: newState.isRunning,
-          currentTask: newState.currentTask,
-          startTime: newState.startTime?.toISOString(),
-          lastSyncTime: new Date().toISOString(),
-          elapsedSeconds: newState.elapsedSeconds,
-          formattedTime: newState.formattedTime,
-          lastMilestone: lastMilestone
-        };
-        
-        // Limit localStorage data size
-        const dataString = JSON.stringify(timerData);
-        if (dataString.length < 5000) { // Reduced to 5KB limit
-          localStorage.setItem('timerState', dataString);
-          localStorage.setItem('timerAutoSaveVersion', '2.2');
-        } else {
-          console.warn('Timer data too large for localStorage, skipping save');
-        }
-      } catch (error) {
-        console.warn('Failed to save timer state to localStorage:', error);
-        // Clear potentially corrupted data
-        try {
-          localStorage.removeItem('timerState');
-          localStorage.removeItem('timerAutoSaveVersion');
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      }
-    };
-
-    // Throttle localStorage writes - only save every 5 seconds max
-    const now = Date.now();
-    const lastSave = parseInt(localStorage.getItem('lastTimerSave') || '0');
-    if (now - lastSave > 5000) {
-      saveToStorage();
-      localStorage.setItem('lastTimerSave', now.toString());
-    }
-    
-    // Notify parent component
-    if (onTimerUpdateRef.current) {
-      onTimerUpdateRef.current(newState.isRunning, newState.currentTask?.title);
-    }
-
-    // Start/stop local timer updates
-    if (newState.isRunning && newState.startTime) {
-      startLocalTimer(newState.startTime);
-    } else {
-      stopLocalTimer();
-    }
-  }, [startLocalTimer, stopLocalTimer]);
-
-  // MEMORY OPTIMIZATION: Throttled milestone checking
-  const checkTimerMilestones = useCallback((elapsedSeconds: number) => {
-    if (!notificationsEnabled || !timerState.currentTask || !isMountedRef.current) {
-      return;
-    }
-
-    const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-
-    // Milestone notifications every 15 minutes
-    if (elapsedMinutes > 0 && elapsedMinutes % 15 === 0 && elapsedMinutes !== lastMilestone) {
-      setLastMilestone(elapsedMinutes);
-      NotificationService.notifyMilestone(
-        timerState.currentTask.title,
-        TimerService.formatDuration(elapsedSeconds),
-        elapsedMinutes
-      );
-    }
-
-    // Long running timer warning after 2 hours
-    if (elapsedMinutes === 120 && lastMilestone !== 120) {
-      setLastMilestone(120);
-      NotificationService.notifyLongRunning(
-        timerState.currentTask.title,
-        TimerService.formatDuration(elapsedSeconds)
-      );
-    }
-  }, [notificationsEnabled, timerState.currentTask, lastMilestone]);
-
-  // Update the ref whenever the function changes
-  checkTimerMilestonesRef.current = checkTimerMilestones;
 
   // Handle notification settings toggle
   const handleNotificationToggle = useCallback((enabled: boolean) => {
@@ -315,160 +70,58 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
       return;
     }
 
-    setLoading(true);
-    try {
-      const response = await TimerService.startTimer(selectedTaskId);
-      
-      if (!isMountedRef.current) return;
-      
-      message.success(`开始计时: ${response.task_title}`);
-      
+    const success = await startTimer(selectedTaskId, selectedTaskTitle);
+    
+    if (success && isMountedRef.current) {
       // Send notification
       if (notificationsEnabled) {
-        NotificationService.notifyTimerStart(response.task_title);
+        NotificationService.notifyTimerStart(selectedTaskTitle);
       }
-      
-      // Update timer state
-      const currentTimer = await TimerService.getCurrentTimer();
-      
-      if (!isMountedRef.current) return;
-      
-      updateTimerFromResponse(currentTimer);
-      
-      // Reset milestone tracking
-      setLastMilestone(0);
       
       // Reset task selection
       setSelectedTaskId(null);
       setSelectedTaskTitle('');
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      
-      console.error('Failed to start timer:', error);
-      message.error('开始计时失败');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
     }
-  }, [selectedTaskId, notificationsEnabled, updateTimerFromResponse]);
+  }, [selectedTaskId, selectedTaskTitle, startTimer, notificationsEnabled]);
 
   // Handle stop timer
   const handleStopTimer = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await TimerService.stopTimer();
-      
-      if (!isMountedRef.current) return;
-      
-      message.success(`计时结束: ${response.task_title} (${response.formatted_time})`);
-      
-      // Send notification
-      if (notificationsEnabled) {
-        NotificationService.notifyTimerStop(response.task_title, response.formatted_time);
-      }
-      
-      // Update timer state
-      const currentTimer = await TimerService.getCurrentTimer();
-      
-      if (!isMountedRef.current) return;
-      
-      updateTimerFromResponse(currentTimer);
-      
-      // Reset milestone tracking
-      setLastMilestone(0);
-    } catch (error) {
-      if (!isMountedRef.current) return;
-      
-      console.error('Failed to stop timer:', error);
-      message.error('停止计时失败');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+    if (!timerState.isRunning) return;
+    
+    const success = await stopTimer();
+    
+    if (success && isMountedRef.current && notificationsEnabled) {
+      // Send notification - timer details should be in timerState
+      NotificationService.notifyTimerStop(
+        timerState.taskTitle || '未知任务', 
+        timerState.formattedTime
+      );
     }
-  }, [notificationsEnabled, updateTimerFromResponse]);
+  }, [stopTimer, notificationsEnabled, timerState]);
 
-  // MEMORY OPTIMIZATION: Initialize services with cleanup
+  // Initialize notification service
   useEffect(() => {
     const initializeServices = async () => {
       if (!isMountedRef.current) return;
       
       try {
-        // Start performance monitoring (with memory limits)
-        TimerPerformanceMonitor.startMonitoring();
-        
-        // Start memory monitoring
-        MemoryManager.startMonitoring();
-        
         await NotificationService.initialize();
-        
-        if (!isMountedRef.current) return;
-        
-        await loadCurrentTimer();
       } catch (error) {
-        console.error('Failed to initialize timer services:', error);
+        console.error('Failed to initialize notification service:', error);
       }
     };
     
     initializeServices();
 
-    // CRITICAL: Cleanup on unmount
+    // Cleanup on unmount
     return () => {
       isMountedRef.current = false;
-      stopLocalTimer();
-      stopRefreshTimer();
-      TimerPerformanceMonitor.stopMonitoring();
-      MemoryManager.stopMonitoring();
-      // Force cleanup to prevent memory leaks
-      TimerPerformanceMonitor.forceCleanup();
-      MemoryManager.performManualCleanup();
-      // Cleanup notification service
       NotificationService.cleanup();
     };
-  }, [loadCurrentTimer, stopLocalTimer, stopRefreshTimer]);
+  }, []);
 
-  // MEMORY OPTIMIZATION: Periodic refresh with proper cleanup
-  useEffect(() => {
-    if (timerState.isRunning) {
-      // Don't refresh while timer is running to avoid interruptions
-      stopRefreshTimer();
-      return;
-    }
 
-    // Refresh every 30 seconds when timer is not running
-    refreshTimerRef.current = setInterval(() => {
-      if (!isMountedRef.current) return;
-      loadCurrentTimer();
-    }, 30000);
-
-    return () => {
-      stopRefreshTimer();
-    };
-  }, [timerState.isRunning, loadCurrentTimer, stopRefreshTimer]);
-
-  // MEMORY OPTIMIZATION: Handle page visibility changes
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!isMountedRef.current) return;
-      
-      if (document.hidden) {
-        // Page is hidden, stop local updates to save resources
-        stopLocalTimer();
-      } else if (timerState.isRunning && timerState.startTime) {
-        // Page is visible again, resume local updates and sync with server
-        loadCurrentTimer();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [timerState.isRunning, timerState.startTime, loadCurrentTimer, stopLocalTimer]);
-
-  // MEMORY OPTIMIZATION: Keyboard shortcuts with proper cleanup
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
       if (!isMountedRef.current) return;
@@ -493,7 +146,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
       // Ctrl/Cmd + Shift + R: Refresh timer status
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'R') {
         event.preventDefault();
-        loadCurrentTimer();
+        refreshTimer();
       }
 
       // Ctrl/Cmd + Shift + N: Toggle notifications
@@ -518,7 +171,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
     return () => {
       document.removeEventListener('keydown', handleKeyPress);
     };
-  }, [timerState.isRunning, selectedTaskId, handleStopTimer, handleStartTimer, loadCurrentTimer, notificationsEnabled, handleNotificationToggle]);
+  }, [timerState.isRunning, selectedTaskId, handleStopTimer, handleStartTimer, refreshTimer, notificationsEnabled, handleNotificationToggle]);
 
   return (
     <Card
@@ -528,7 +181,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
           <span>任务计时器</span>
           <Tooltip 
             title={
-              connectionStatus === 'connected' ? `已连接 - 最后更新: ${lastUpdateTime.toLocaleTimeString()}` :
+              connectionStatus === 'connected' ? '已连接' :
               connectionStatus === 'disconnected' ? '连接失败 - 点击刷新重试' :
               '正在连接...'
             }
@@ -586,10 +239,10 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
     >
       {/* Timer Display */}
       <div style={{ marginBottom: '24px' }}>
-        {timerState.isRunning && timerState.currentTask ? (
+        {timerState.isRunning && timerState.taskTitle ? (
           <div>
             <Title level={4} style={{ marginBottom: '8px', color: '#1890ff' }}>
-              {timerState.currentTask.title}
+              {timerState.taskTitle}
             </Title>
             <Title level={1} style={{ 
               fontSize: '48px', 
@@ -628,7 +281,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
               type={selectedTaskId ? 'default' : 'dashed'}
               size="large"
               onClick={handleOpenTaskModal}
-              disabled={loading}
+              disabled={isLoading}
               style={{ width: '100%', marginBottom: '16px', minHeight: '48px' }}
             >
               {selectedTaskId ? (
@@ -653,7 +306,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
               size="large"
               icon={<PlayCircleOutlined />}
               onClick={handleStartTimer}
-              loading={loading}
+              loading={isLoading}
               disabled={!selectedTaskId}
               style={{ width: '200px' }}
             >
@@ -668,7 +321,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
             size="large"
             icon={<PauseCircleOutlined />}
             onClick={handleStopTimer}
-            loading={loading}
+            loading={isLoading}
             style={{ width: '200px' }}
           >
             停止计时
@@ -679,9 +332,9 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
         <Space>
           <Button
             type="default"
-            onClick={loadCurrentTimer}
+            onClick={refreshTimer}
             loading={connectionStatus === 'checking'}
-            disabled={loading}
+            disabled={isLoading}
             style={{
               borderColor: connectionStatus === 'disconnected' ? '#ff4d4f' : undefined,
               color: connectionStatus === 'disconnected' ? '#ff4d4f' : undefined
@@ -695,7 +348,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
               type="default"
               size="small"
               onClick={() => NotificationService.testNotification()}
-              disabled={loading}
+              disabled={isLoading}
               icon={<SoundOutlined />}
             >
               测试通知
@@ -709,7 +362,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
         visible={taskModalVisible}
         onCancel={handleCloseTaskModal}
         onSelect={handleTaskSelect}
-        loading={loading}
+        loading={isLoading}
       />
     </Card>
   );

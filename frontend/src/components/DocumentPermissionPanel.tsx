@@ -21,7 +21,15 @@ import {
   message,
   Popconfirm,
   DatePicker,
-  Alert
+  Alert,
+  Progress,
+  Statistic,
+  Row,
+  Col,
+  Dropdown,
+  MenuProps,
+  Timeline,
+  Transfer
 } from 'antd';
 import {
   UserOutlined,
@@ -38,7 +46,19 @@ import {
   CheckCircleOutlined,
   EyeOutlined,
   FormOutlined,
-  SettingOutlined
+  SettingOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  ExportOutlined,
+  HistoryOutlined,
+  SecurityScanOutlined,
+  KeyOutlined,
+  GlobalOutlined,
+  MoreOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  SafetyCertificateOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -127,8 +147,16 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [collaborators, setCollaborators] = useState<DocumentCollaborator[]>([]);
+  const [filteredCollaborators, setFilteredCollaborators] = useState<DocumentCollaborator[]>([]);
   const [shareLinks, setShareLinks] = useState<ShareLink[]>([]);
   const [comments, setComments] = useState<DocumentComment[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  
+  // 搜索和过滤状态
+  const [searchText, setSearchText] = useState('');
+  const [filterPermission, setFilterPermission] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   
   // 模态框状态
   const [collaboratorModalVisible, setCollaboratorModalVisible] = useState(false);
@@ -147,6 +175,8 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
       loadCollaborators();
       loadShareLinks();
       loadComments();
+      loadAvailableUsers();
+      loadAuditLogs();
     }
   }, [documentId]);
 
@@ -185,10 +215,98 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
         }
       ];
       setCollaborators(mockCollaborators);
+      setFilteredCollaborators(mockCollaborators);
     } catch (error) {
       message.error('加载协作者失败');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 应用搜索和过滤
+  useEffect(() => {
+    let filtered = [...collaborators];
+
+    // 搜索过滤
+    if (searchText) {
+      filtered = filtered.filter(collaborator => 
+        collaborator.user_name.toLowerCase().includes(searchText.toLowerCase()) ||
+        collaborator.user_email.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // 权限级别过滤
+    if (filterPermission !== 'all') {
+      filtered = filtered.filter(collaborator => collaborator.permission_level === filterPermission);
+    }
+
+    // 状态过滤
+    if (filterStatus !== 'all') {
+      const now = new Date();
+      if (filterStatus === 'active') {
+        filtered = filtered.filter(collaborator => 
+          !collaborator.expires_at || new Date(collaborator.expires_at) > now
+        );
+      } else if (filterStatus === 'expired') {
+        filtered = filtered.filter(collaborator => 
+          collaborator.expires_at && new Date(collaborator.expires_at) <= now
+        );
+      }
+    }
+
+    setFilteredCollaborators(filtered);
+  }, [collaborators, searchText, filterPermission, filterStatus]);
+
+  // 加载可用用户列表
+  const loadAvailableUsers = async () => {
+    try {
+      // TODO: 调用API获取可添加的用户列表
+      // const response = await userApi.getAvailableUsers();
+      // setAvailableUsers(response.data.users);
+      
+      // 临时模拟数据
+      const mockUsers = [
+        { id: 4, name: '王五', email: 'wangwu@example.com', avatar: '', department: '开发部' },
+        { id: 5, name: '赵六', email: 'zhaoliu@example.com', avatar: '', department: '产品部' },
+        { id: 6, name: '孙七', email: 'sunqi@example.com', avatar: '', department: '设计部' }
+      ];
+      setAvailableUsers(mockUsers);
+    } catch (error) {
+      console.error('加载用户列表失败');
+    }
+  };
+
+  // 加载审计日志
+  const loadAuditLogs = async () => {
+    try {
+      // TODO: 调用API获取权限变更审计日志
+      // const response = await documentPermissionApi.getAuditLogs(documentId);
+      // setAuditLogs(response.data.logs);
+      
+      // 临时模拟数据
+      const mockLogs = [
+        {
+          id: 1,
+          action: 'add_collaborator',
+          user_name: 'Admin',
+          target_user: '张三',
+          permission_level: 'edit',
+          created_at: '2024-01-01T10:00:00Z',
+          details: '添加协作者，权限级别：编辑'
+        },
+        {
+          id: 2,
+          action: 'update_permission',
+          user_name: 'Admin',
+          target_user: '李四',
+          permission_level: 'comment',
+          created_at: '2024-01-02T15:30:00Z',
+          details: '权限变更：编辑 → 评论'
+        }
+      ];
+      setAuditLogs(mockLogs);
+    } catch (error) {
+      console.error('加载审计日志失败');
     }
   };
 
@@ -329,6 +447,71 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
     } catch (error) {
       message.error('删除分享链接失败');
     }
+  };
+
+  // 批量操作
+  const handleBatchUpdatePermissions = async (collaboratorIds: number[], newPermission: string) => {
+    try {
+      // TODO: 调用批量更新API
+      // await documentPermissionApi.batchUpdatePermissions(collaboratorIds, newPermission);
+      message.success(`成功更新 ${collaboratorIds.length} 个协作者的权限`);
+      loadCollaborators();
+      onPermissionChange?.();
+    } catch (error) {
+      message.error('批量更新权限失败');
+    }
+  };
+
+  const handleBatchRemoveCollaborators = async (collaboratorIds: number[]) => {
+    try {
+      // TODO: 调用批量删除API
+      // await documentPermissionApi.batchRemoveCollaborators(collaboratorIds);
+      message.success(`成功移除 ${collaboratorIds.length} 个协作者`);
+      loadCollaborators();
+      onPermissionChange?.();
+    } catch (error) {
+      message.error('批量移除失败');
+    }
+  };
+
+  // 导出权限报告
+  const handleExportPermissions = async () => {
+    try {
+      // TODO: 调用导出API
+      // const blob = await documentPermissionApi.exportPermissions(documentId);
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `document_permissions_${documentId}.xlsx`;
+      // a.click();
+      message.success('权限报告导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    }
+  };
+
+  // 发送邀请邮件
+  const handleSendInvitation = async (collaboratorId: number) => {
+    try {
+      // TODO: 调用发送邀请API
+      // await documentPermissionApi.sendInvitation(collaboratorId);
+      message.success('邀请邮件发送成功');
+    } catch (error) {
+      message.error('发送邀请失败');
+    }
+  };
+
+  // 获取统计信息
+  const getPermissionStatistics = () => {
+    const stats = {
+      total: collaborators.length,
+      read: collaborators.filter(c => c.permission_level === 'read').length,
+      comment: collaborators.filter(c => c.permission_level === 'comment').length,
+      edit: collaborators.filter(c => c.permission_level === 'edit').length,
+      admin: collaborators.filter(c => c.permission_level === 'admin').length,
+      expired: collaborators.filter(c => c.expires_at && new Date(c.expires_at) <= new Date()).length
+    };
+    return stats;
   };
 
   // 处理评论操作
@@ -474,21 +657,149 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
             ),
             children: (
               <Card
-                title="文档协作者"
+                title={
+                  <Space>
+                    <UserOutlined />
+                    <span>文档协作者</span>
+                    <Badge count={collaborators.length} color="#108ee9" />
+                  </Space>
+                }
                 extra={
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      setEditingCollaborator(null);
-                      collaboratorForm.resetFields();
-                      setCollaboratorModalVisible(true);
-                    }}
-                  >
-                    添加协作者
-                  </Button>
+                  <Space>
+                    <Button
+                      icon={<ReloadOutlined />}
+                      onClick={loadCollaborators}
+                      loading={loading}
+                      size="small"
+                    >
+                      刷新
+                    </Button>
+                    <Dropdown
+                      menu={{
+                        items: [
+                          {
+                            key: 'export',
+                            label: '导出权限报告',
+                            icon: <ExportOutlined />,
+                            onClick: handleExportPermissions
+                          },
+                          {
+                            key: 'audit',
+                            label: '查看审计日志',
+                            icon: <HistoryOutlined />,
+                            onClick: () => {
+                              // TODO: 显示审计日志
+                              message.info('审计日志功能即将上线');
+                            }
+                          }
+                        ]
+                      }}
+                      trigger={['click']}
+                    >
+                      <Button size="small">
+                        更多操作
+                      </Button>
+                    </Dropdown>
+                    <Button
+                      type="primary"
+                      icon={<PlusOutlined />}
+                      onClick={() => {
+                        setEditingCollaborator(null);
+                        collaboratorForm.resetFields();
+                        setCollaboratorModalVisible(true);
+                      }}
+                    >
+                      添加协作者
+                    </Button>
+                  </Space>
                 }
               >
+                {/* 统计信息 */}
+                {collaborators.length > 0 && (
+                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                    <Col span={6}>
+                      <Statistic 
+                        title="总协作者" 
+                        value={getPermissionStatistics().total} 
+                        prefix={<UserOutlined />} 
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic 
+                        title="管理员" 
+                        value={getPermissionStatistics().admin} 
+                        prefix={<SettingOutlined style={{ color: '#f5222d' }} />} 
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic 
+                        title="编辑者" 
+                        value={getPermissionStatistics().edit} 
+                        prefix={<EditOutlined style={{ color: '#fa8c16' }} />} 
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Statistic 
+                        title="过期权限" 
+                        value={getPermissionStatistics().expired} 
+                        prefix={<ClockCircleOutlined style={{ color: '#999' }} />} 
+                      />
+                    </Col>
+                  </Row>
+                )}
+
+                {/* 搜索和过滤 */}
+                <div style={{ marginBottom: 16 }}>
+                  <Row gutter={16}>
+                    <Col span={8}>
+                      <Input
+                        placeholder="搜索协作者..."
+                        prefix={<SearchOutlined />}
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        allowClear
+                      />
+                    </Col>
+                    <Col span={6}>
+                      <Select
+                        placeholder="权限级别"
+                        value={filterPermission}
+                        onChange={setFilterPermission}
+                        style={{ width: '100%' }}
+                      >
+                        <Option value="all">全部权限</Option>
+                        {Object.entries(PERMISSION_LEVELS).map(([key, config]) => (
+                          <Option key={key} value={key}>
+                            <Space>
+                              <span style={{ color: `var(--ant-${config.color})` }}>
+                                {config.icon}
+                              </span>
+                              {config.label}
+                            </Space>
+                          </Option>
+                        ))}
+                      </Select>
+                    </Col>
+                    <Col span={6}>
+                      <Select
+                        placeholder="状态"
+                        value={filterStatus}
+                        onChange={setFilterStatus}
+                        style={{ width: '100%' }}
+                      >
+                        <Option value="all">全部状态</Option>
+                        <Option value="active">活跃</Option>
+                        <Option value="expired">已过期</Option>
+                      </Select>
+                    </Col>
+                    <Col span={4}>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        显示 {filteredCollaborators.length} / {collaborators.length} 条
+                      </Text>
+                    </Col>
+                  </Row>
+                </div>
+
                 <Alert
                   message="协作权限说明"
                   description="管理员可以修改文档权限和删除文档；编辑者可以修改文档内容；评论者可以添加评论；只读者只能查看文档。"
@@ -498,11 +809,16 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
                 />
                 <Table
                   columns={collaboratorColumns}
-                  dataSource={collaborators}
+                  dataSource={filteredCollaborators}
                   rowKey="id"
                   size="small"
                   loading={loading}
-                  pagination={false}
+                  pagination={{
+                    pageSize: 10,
+                    showSizeChanger: true,
+                    showQuickJumper: true,
+                    showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+                  }}
                   locale={{ emptyText: <Empty description="暂无协作者" /> }}
                 />
               </Card>

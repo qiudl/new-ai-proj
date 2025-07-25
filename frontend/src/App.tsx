@@ -5,6 +5,8 @@ import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
+import { TimerProvider } from './contexts/TimerContext';
+import FloatingTimer from './components/FloatingTimer';
 import './App.css';
 import './styles/task-hierarchy.css';
 
@@ -55,15 +57,16 @@ function App() {
   return (
     <ConfigProvider locale={zhCN}>
       <ErrorBoundary>
-        <Router 
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true
-          }}
-        >
-          <div className="App">
-            
-            <Suspense fallback={<PageLoading />}>
+        <TimerProvider>
+          <Router 
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
+            <div className="App">
+              
+              <Suspense fallback={<PageLoading />}>
           <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
@@ -347,8 +350,13 @@ function App() {
 
           </Routes>
           </Suspense>
+          
+          {/* Global Floating Timer - only shows when timer is running */}
+          <FloatingTimer />
+          
           </div>
         </Router>
+        </TimerProvider>
       </ErrorBoundary>
     </ConfigProvider>
   );

@@ -428,6 +428,9 @@ const DocumentManagerPage: React.FC = () => {
                     <ResponsiveDocumentManager
                       folderId={selectedFolderId || undefined}
                       showSearch={true}
+                      title="文档管理"
+                      showBreadcrumb={true}
+                      mobileOptimized={true}
                       onDocumentSelect={(doc) => {
                         console.log('Selected document:', doc);
                         setSelectedDocumentId(doc.id);
@@ -435,6 +438,8 @@ const DocumentManagerPage: React.FC = () => {
                       }}
                       onDocumentUpdate={() => {
                         console.log('Document updated, refresh if needed');
+                        // Refresh folder tree and document list
+                        loadFolderTree();
                       }}
                     />
                   ),

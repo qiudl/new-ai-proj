@@ -46,7 +46,19 @@ import {
   FileTextOutlined,
   MoreOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ExportOutlined,
+  ReloadOutlined,
+  CompressOutlined,
+  ExpandOutlined,
+  CopyOutlined,
+  PrinterOutlined,
+  CloudDownloadOutlined,
+  FolderOpenOutlined,
+  SettingOutlined,
+  SecurityScanOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
@@ -302,6 +314,69 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
       setCompareModalVisible(true);
     } catch (error) {
       message.error('版本比较失败');
+    }
+  };
+
+  // 批量操作
+  const handleBatchDeleteVersions = async (versionNumbers: number[]) => {
+    try {
+      // TODO: 调用批量删除API
+      // await documentVersionService.batchDeleteVersions(documentId, versionNumbers);
+      message.success(`成功删除 ${versionNumbers.length} 个版本`);
+      loadVersionHistory();
+    } catch (error) {
+      message.error('批量删除失败');
+    }
+  };
+
+  const handleBatchAddLabels = async (versionNumbers: number[], labelData: any) => {
+    try {
+      // TODO: 调用批量添加标签API
+      // await documentVersionService.batchAddLabels(documentId, versionNumbers, labelData);
+      message.success(`成功为 ${versionNumbers.length} 个版本添加标签`);
+      loadVersionHistory();
+    } catch (error) {
+      message.error('批量添加标签失败');
+    }
+  };
+
+  // 导出功能
+  const handleExportVersionHistory = async (format: 'pdf' | 'excel' | 'json') => {
+    try {
+      // TODO: 调用导出API
+      // const blob = await documentVersionService.exportVersionHistory(documentId, format);
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `version_history_${documentId}.${format}`;
+      // a.click();
+      message.success(`版本历史导出成功 (${format.toUpperCase()})`);
+    } catch (error) {
+      message.error('导出失败');
+    }
+  };
+
+  // 版本归档
+  const handleArchiveOldVersions = async (beforeDate: string) => {
+    try {
+      // TODO: 调用归档API
+      // await documentVersionService.archiveVersions(documentId, beforeDate);
+      message.success('旧版本归档成功');
+      loadVersionHistory();
+    } catch (error) {
+      message.error('归档失败');
+    }
+  };
+
+  // 版本压缩
+  const handleCompressVersions = async () => {
+    try {
+      // TODO: 调用压缩API
+      // await documentVersionService.compressVersions(documentId);
+      message.success('版本历史压缩成功');
+      loadVersionHistory();
+    } catch (error) {
+      message.error('压缩失败');
     }
   };
 

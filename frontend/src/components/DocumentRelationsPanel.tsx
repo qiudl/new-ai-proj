@@ -14,7 +14,16 @@ import {
   Divider,
   Typography,
   Collapse,
-  Empty
+  Empty,
+  Popconfirm,
+  Dropdown,
+  MenuProps,
+  Switch,
+  Badge,
+  Statistic,
+  Row,
+  Col,
+  Tabs
 } from 'antd';
 import {
   LinkOutlined,
@@ -117,6 +126,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [relations, setRelations] = useState<DocumentRelation[]>([]);
+  const [filteredRelations, setFilteredRelations] = useState<DocumentRelation[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingRelation, setEditingRelation] = useState<DocumentRelation | null>(null);
   const [entityOptions, setEntityOptions] = useState<Record<string, EntityOption[]>>({
@@ -124,6 +134,12 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
     project: [],
     task: []
   });
+  
+  // 过滤和搜索状态
+  const [searchText, setSearchText] = useState('');
+  const [filterEntityType, setFilterEntityType] = useState<string>('all');
+  const [filterRelationType, setFilterRelationType] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grouped' | 'table'>('grouped');
   
   const [form] = Form.useForm();
   const watchedEntityType = Form.useWatch('entity_type', form);
@@ -176,12 +192,39 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
         }
       ];
       setRelations(mockRelations);
+      setFilteredRelations(mockRelations);
     } catch (error) {
       message.error('加载关联关系失败');
     } finally {
       setLoading(false);
     }
   };
+
+  // 应用过滤和搜索
+  useEffect(() => {
+    let filtered = [...relations];
+
+    // 搜索过滤
+    if (searchText) {
+      filtered = filtered.filter(relation => 
+        relation.entity_name.toLowerCase().includes(searchText.toLowerCase()) ||
+        relation.description?.toLowerCase().includes(searchText.toLowerCase()) ||
+        getRelationTypeLabel(relation.entity_type, relation.relation_type).toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // 实体类型过滤
+    if (filterEntityType !== 'all') {
+      filtered = filtered.filter(relation => relation.entity_type === filterEntityType);
+    }
+
+    // 关系类型过滤
+    if (filterRelationType !== 'all') {
+      filtered = filtered.filter(relation => relation.relation_type === filterRelationType);
+    }
+
+    setFilteredRelations(filtered);
+  }, [relations, searchText, filterEntityType, filterRelationType]);
 
   // 加载实体选项
   const loadEntityOptions = async (entityType: string) => {
@@ -291,8 +334,48 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
     return type?.label || relationType;
   };
 
+  // 批量删除关联关系
+  const handleBatchDelete = async (relationIds: number[]) => {
+    try {
+      // TODO: 调用批量删除API
+      // await documentRelationApi.batchDelete(relationIds);
+      message.success(`成功删除 ${relationIds.length} 个关联关系`);
+      loadRelations();
+      onRelationChange?.();
+    } catch (error) {
+      message.error('批量删除失败');
+    }
+  };
+
+  // 导出关联关系
+  const handleExportRelations = async () => {
+    try {
+      // TODO: 调用导出API
+      // const blob = await documentRelationApi.export(documentId);
+      // const url = window.URL.createObjectURL(blob);
+      // const a = document.createElement('a');
+      // a.href = url;
+      // a.download = `document_relations_${documentId}.xlsx`;
+      // a.click();
+      message.success('关联关系导出成功');
+    } catch (error) {
+      message.error('导出失败');
+    }
+  };
+
+  // 获取统计信息
+  const getStatistics = () => {
+    const stats = {
+      total: relations.length,
+      customer: relations.filter(r => r.entity_type === 'customer').length,
+      project: relations.filter(r => r.entity_type === 'project').length,
+      task: relations.filter(r => r.entity_type === 'task').length
+    };
+    return stats;
+  };
+
   // 按实体类型分组关系
-  const groupedRelations = relations.reduce((groups, relation) => {
+  const groupedRelations = filteredRelations.reduce((groups, relation) => {
     const key = relation.entity_type;
     if (!groups[key]) {
       groups[key] = [];
@@ -301,28 +384,61 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
     return groups;
   }, {} as Record<string, DocumentRelation[]>);
 
+  // 获取所有可能的关系类型（用于过滤）
+  const getAllRelationTypes = () => {
+    const types = new Set<string>();
+    relations.forEach(relation => {
+      types.add(relation.relation_type);
+    });
+    return Array.from(types);
+  };
+
   // 表格列定义
-  const getColumns = (entityType: string): ColumnsType<DocumentRelation> => [
+  const getColumns = (entityType?: string): ColumnsType<DocumentRelation> => [
+    ...(entityType ? [] : [{
+      title: '实体类型',
+      key: 'entity_type',
+      width: 100,
+      render: (_: any, record: any) => (
+        <Tag color={ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].color}>
+          <Space size={4}>
+            {ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].icon}
+            {ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].label}
+          </Space>
+        </Tag>
+      )
+    }]),
     {
       title: '实体名称',
       key: 'entity_name',
-      render: (_, record) => (
-        <Space>
-          <span style={{ color: ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].color }}>
-            {ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].icon}
-          </span>
-          <strong>{record.entity_name}</strong>
-        </Space>
-      )
+      render: (_, record) => {
+        const config = ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG];
+        return (
+          <Space>
+            {entityType && (
+              <span style={{ color: config.color }}>
+                {config.icon}
+              </span>
+            )}
+            <strong>{record.entity_name}</strong>
+          </Space>
+        );
+      }
     },
     {
       title: '关系类型',
       key: 'relation_type',
-      render: (_, record) => (
-        <Tag color={ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].color}>
-          {getRelationTypeLabel(record.entity_type, record.relation_type)}
-        </Tag>
-      )
+      width: 120,
+      render: (_, record) => {
+        const config = entityType ? 
+          ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG] : 
+          ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG];
+        return (
+          <Tag color={config.color}>
+            {getRelationTypeLabel(record.entity_type, record.relation_type)}
+          </Tag>
+        );
+      }
     },
     {
       title: '描述',
@@ -340,38 +456,77 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 120,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => openModal(record)}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              danger
-              icon={<DeleteOutlined />}
-              onClick={() => {
-                Modal.confirm({
-                  title: '确认删除',
-                  content: '确定要删除这个关联关系吗？',
-                  okText: '删除',
-                  okType: 'danger',
-                  cancelText: '取消',
-                  onOk: () => handleDelete(record.id)
-                });
-              }}
-            />
-          </Tooltip>
-        </Space>
-      )
+      width: 150,
+      render: (_, record) => {
+        const moreActions: MenuProps['items'] = [
+          {
+            key: 'view',
+            label: '查看详情',
+            icon: <EyeOutlined />,
+            onClick: () => {
+              // TODO: 打开关联实体详情页面
+              message.info(`查看${ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].label}: ${record.entity_name}`);
+            }
+          },
+          {
+            key: 'copy',
+            label: '复制关联',
+            icon: <CopyOutlined />,
+            onClick: () => {
+              // TODO: 实现复制关联关系
+              message.info('复制关联关系功能即将上线');
+            }
+          },
+          {
+            key: 'share',
+            label: '分享关联',
+            icon: <ShareAltOutlined />,
+            onClick: () => {
+              // TODO: 实现分享功能
+              message.info('分享功能即将上线');
+            }
+          }
+        ];
+
+        return (
+          <Space size="small">
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => openModal(record)}
+              />
+            </Tooltip>
+            <Dropdown
+              menu={{ items: moreActions }}
+              trigger={['click']}
+              placement="bottomRight"
+            >
+              <Button
+                type="text"
+                icon={<EyeOutlined />}
+              />
+            </Dropdown>
+            <Popconfirm
+              title="确认删除"
+              description="确定要删除这个关联关系吗？"
+              onConfirm={() => handleDelete(record.id)}
+              okText="删除"
+              cancelText="取消"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          </Space>
+        );
+      }
     }
   ];
 
+  const statistics = getStatistics();
 
   return (
     <div>
@@ -380,33 +535,151 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
           <Space>
             <LinkOutlined />
             <span>文档关联关系</span>
-            <Text type="secondary">({relations.length})</Text>
+            <Badge count={relations.length} showZero color="#108ee9" />
           </Space>
         }
         extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => openModal()}
-          >
-            添加关联
-          </Button>
+          <Space>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={loadRelations}
+              loading={loading}
+              size="small"
+            >
+              刷新
+            </Button>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'export',
+                    label: '导出关联关系',
+                    icon: <ExportOutlined />,
+                    onClick: handleExportRelations
+                  }
+                ]
+              }}
+              trigger={['click']}
+            >
+              <Button size="small">
+                更多操作
+              </Button>
+            </Dropdown>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => openModal()}
+            >
+              添加关联
+            </Button>
+          </Space>
         }
         loading={loading}
       >
-        {relations.length === 0 ? (
+        {/* 统计信息 */}
+        {relations.length > 0 && (
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}>
+              <Statistic title="总关联数" value={statistics.total} prefix={<LinkOutlined />} />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="客户关联" 
+                value={statistics.customer} 
+                prefix={<UserOutlined style={{ color: '#52c41a' }} />} 
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="项目关联" 
+                value={statistics.project} 
+                prefix={<ProjectOutlined style={{ color: '#1890ff' }} />} 
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="任务关联" 
+                value={statistics.task} 
+                prefix={<CheckSquareOutlined style={{ color: '#fa8c16' }} />} 
+              />
+            </Col>
+          </Row>
+        )}
+        
+        {/* 搜索和过滤 */}
+        <div style={{ marginBottom: 16 }}>
+          <Row gutter={16}>
+            <Col span={8}>
+              <Input
+                placeholder="搜索关联关系..."
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                allowClear
+              />
+            </Col>
+            <Col span={5}>
+              <Select
+                placeholder="实体类型"
+                value={filterEntityType}
+                onChange={setFilterEntityType}
+                style={{ width: '100%' }}
+              >
+                <Option value="all">全部类型</Option>
+                {Object.entries(ENTITY_CONFIG).map(([key, config]) => (
+                  <Option key={key} value={key}>
+                    <Space>
+                      <span style={{ color: config.color }}>{config.icon}</span>
+                      {config.label}
+                    </Space>
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={5}>
+              <Select
+                placeholder="关系类型"
+                value={filterRelationType}
+                onChange={setFilterRelationType}
+                style={{ width: '100%' }}
+              >
+                <Option value="all">全部关系</Option>
+                {getAllRelationTypes().map(type => (
+                  <Option key={type} value={type}>
+                    {type}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col span={6}>
+              <Space>
+                <Text type="secondary">视图:</Text>
+                <Switch
+                  checked={viewMode === 'table'}
+                  onChange={(checked) => setViewMode(checked ? 'table' : 'grouped')}
+                  checkedChildren="表格"
+                  unCheckedChildren="分组"
+                />
+              </Space>
+            </Col>
+          </Row>
+        </div>
+        {filteredRelations.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_DEFAULT}
             description={
               <div>
-                <p>暂无关联关系</p>
+                <p>{relations.length === 0 ? '暂无关联关系' : '没有符合条件的关联关系'}</p>
                 <Text type="secondary">
-                  点击“添加关联”按钮为此文档建立与客户、项目或任务的关联关系
+                  {relations.length === 0 
+                    ? '点击"添加关联"按钮为此文档建立与客户、项目或任务的关联关系'
+                    : '请调整搜索条件或过滤器'
+                  }
                 </Text>
               </div>
             }
           />
-        ) : (
+        ) : viewMode === 'grouped' ? (
           <Collapse
             defaultActiveKey={Object.keys(groupedRelations)}
             ghost
@@ -420,9 +693,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
                       {ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].icon}
                     </span>
                     <strong>{ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].label}</strong>
-                    <Tag color={ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].color}>
-                      {entityRelations.length}
-                    </Tag>
+                    <Badge count={entityRelations.length} color={ENTITY_CONFIG[entityType as keyof typeof ENTITY_CONFIG].color} />
                   </Space>
                 }
               >
@@ -430,11 +701,25 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
                   dataSource={entityRelations}
                   columns={getColumns(entityType)}
                   rowKey="id"
-                      pagination={false}
+                  pagination={false}
+                  size="small"
                 />
               </Panel>
             ))}
           </Collapse>
+        ) : (
+          <Table
+            dataSource={filteredRelations}
+            columns={getColumns()}
+            rowKey="id"
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+            }}
+            size="small"
+          />
         )}
       </Card>
 
