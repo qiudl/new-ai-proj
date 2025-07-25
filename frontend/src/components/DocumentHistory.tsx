@@ -59,6 +59,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           title: document.title,
           content: document.content,
           created_at: document.updated_at,
+          created_by: document.created_by || 1,
           creator_name: document.creator_name || 'Unknown',
           change_summary: '更新文档内容，添加新的章节'
         },
@@ -69,6 +70,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           title: document.title,
           content: '# 旧版本内容\n\n这是第四个版本的内容...',
           created_at: '2024-01-19T10:30:00Z',
+          created_by: document.created_by || 1,
           creator_name: document.creator_name || 'Unknown',
           change_summary: '修复了一些格式问题'
         },
@@ -79,6 +81,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           title: document.title,
           content: '# 更旧版本内容\n\n这是第三个版本的内容...',
           created_at: '2024-01-18T15:45:00Z',
+          created_by: 2,
           creator_name: '李编辑',
           change_summary: '添加了图片和表格'
         },
@@ -89,6 +92,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           title: document.title,
           content: '# 初始版本\n\n这是第二个版本的内容...',
           created_at: '2024-01-17T09:20:00Z',
+          created_by: document.created_by || 1,
           creator_name: document.creator_name || 'Unknown',
           change_summary: '完善了文档结构'
         },
@@ -99,6 +103,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
           title: document.title,
           content: '# 初始版本\n\n这是最初创建的版本。',
           created_at: document.created_at,
+          created_by: document.created_by || 1,
           creator_name: document.creator_name || 'Unknown',
           change_summary: '创建文档'
         }
@@ -226,7 +231,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
             const isSelected = selectedVersion?.id === version.id;
             const isInCompare = compareVersions.some(v => v?.id === version.id);
             const diff = index < versions.length - 1 
-              ? calculateDiff(versions[index + 1].content, version.content)
+              ? calculateDiff(versions[index + 1].content || '', version.content || '')
               : { added: 0, removed: 0, changed: 0 };
 
             return (
@@ -279,7 +284,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
 
                       {/* 变更摘要 */}
                       <div style={{ marginBottom: '8px' }}>
-                        <Text>{version.change_summary}</Text>
+                        <Text>{version.change_summary || '无变更描述'}</Text>
                       </div>
 
                       {/* 变更统计 */}
@@ -312,9 +317,9 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
                               whiteSpace: 'pre-wrap'
                             }}
                           >
-                            {version.content.length > 500 
-                              ? version.content.substring(0, 500) + '...'
-                              : version.content
+                            {(version.content || '').length > 500 
+                              ? (version.content || '').substring(0, 500) + '...'
+                              : (version.content || '暂无内容')
                             }
                           </Paragraph>
                         </div>

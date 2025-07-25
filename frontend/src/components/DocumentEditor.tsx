@@ -23,8 +23,8 @@ import {
   HomeOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { documentService, Document, DocumentRequest } from '../services/documentService';
-import { DocumentType, DocumentStatus } from '../types/document';
+import { documentService } from '../services/documentService';
+import { Document, DocumentType, DocumentStatus, CreateDocumentRequest } from '../types/document';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -59,8 +59,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   // 状态管理
   const [documentData, setDocumentData] = useState<Document>({
     id: 0,
-    project_id: finalProjectId || null,
-    customer_id: null,
+    project_id: finalProjectId || undefined,
+    customer_id: undefined,
     owner_id: 1,
     title: '',
     content: '',
@@ -70,12 +70,11 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     shared_with: [],
     tags: [],
     version: 1,
+    is_template: false,
     created_by: 1,
     created_at: '',
     updated_at: '',
-    association_type: finalProjectId ? 'project' : 'personal',
     can_edit: true,
-    can_delete: true,
     can_share: true,
     ...initialData,
   });
@@ -112,17 +111,18 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
     setSaving(true);
     try {
-      const requestData: DocumentRequest = {
+      const requestData: CreateDocumentRequest = {
         title: documentData.title.trim(),
         content: documentData.content,
         type: documentData.type,
-        status: documentData.status,
-        project_id: documentData.project_id || undefined,
-        customer_id: documentData.customer_id || undefined,
-        visibility: documentData.visibility,
-        shared_with: documentData.shared_with,
-        tags: documentData.tags,
         description: documentData.description,
+        tags: documentData.tags,
+        visibility: documentData.visibility,
+        metadata: {
+          project_id: documentData.project_id,
+          customer_id: documentData.customer_id,
+          shared_with: documentData.shared_with,
+        }
       };
 
       const savedDocument = finalDocumentId 

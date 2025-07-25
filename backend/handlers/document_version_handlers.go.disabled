@@ -1,0 +1,593 @@
+package handlers
+
+import (
+	"ai-project-backend/database"
+	"ai-project-backend/models"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+)
+
+// DocumentVersionHandler handles document version management operations
+type DocumentVersionHandler struct {
+	db       database.DB
+	logger   *log.Logger
+	validate *validator.Validate
+}
+
+// NewDocumentVersionHandler creates a new document version handler
+func NewDocumentVersionHandler(db database.DB, logger *log.Logger, validate *validator.Validate) *DocumentVersionHandler {
+	return &DocumentVersionHandler{
+		db:       db,
+		logger:   logger,
+		validate: validate,
+	}
+}
+
+// CreateVersion creates a new document version
+// POST /api/v1/document-versions
+func (h *DocumentVersionHandler) CreateVersion(c *gin.Context) {
+	var req models.CreateDocumentVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Additional validation
+	if err := req.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Check if document exists
+	document, err := h.db.Documents().GetByID(req.DocumentID)
+	if err != nil {
+		h.logger.Printf("Error checking document existence: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document not found",
+		})
+		return
+	}
+
+	// Create version
+	version := &models.DocumentVersion{
+		DocumentID:     req.DocumentID,
+		VersionNumber:  document.Version + 1, // Increment version number
+		Title:          req.Title,
+		Content:        req.Content,
+		FileURL:        req.FileURL,
+		FileSize:       req.FileSize,
+		MimeType:       req.MimeType,
+		ChangeSummary:  req.ChangeSummary,
+		CreatedBy:      getUserID(c),
+		CreatedAt:      time.Now(),
+		IsMajorVersion: req.IsMajorVersion,
+		Tags:           models.TagsJSON(req.Tags),
+		Metadata:       req.Metadata,
+	}
+
+	// Create the version using database interface
+	createdVersion, err := h.db.DocumentVersions().Create(version)
+	if err != nil {
+		h.logger.Printf("Error creating document version: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create document version",
+		})
+		return
+	}
+
+	// Update document's current version
+	updateDoc := &models.Document{
+		ID:      document.ID,
+		Version: createdVersion.VersionNumber,
+	}
+	if err := h.db.Documents().Update(updateDoc); err != nil {
+		h.logger.Printf("Error updating document version: %v", err)
+		// Version created but document update failed - log and continue
+	}
+
+	c.JSON(http.StatusCreated, createdVersion)
+}
+
+// GetVersion gets a specific document version by ID
+// GET /api/v1/document-versions/:id
+func (h *DocumentVersionHandler) GetVersion(c *gin.Context) {
+	versionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid version ID",
+		})
+		return
+	}
+
+	version, err := h.db.DocumentVersions().GetByID(versionID)
+	if err != nil {
+		h.logger.Printf("Error getting document version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document version not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, version)
+}
+
+// GetVersionByNumber gets a document version by document ID and version number
+// GET /api/v1/documents/:document_id/versions/:version_number
+func (h *DocumentVersionHandler) GetVersionByNumber(c *gin.Context) {
+	documentID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid document ID",
+		})
+		return
+	}
+
+	versionNumber, err := strconv.Atoi(c.Param("version_number"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid version number",
+		})
+		return
+	}
+
+	version, err := h.db.DocumentVersions().GetByDocumentAndVersion(documentID, versionNumber)
+	if err != nil {
+		h.logger.Printf("Error getting document version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document version not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, version)
+}
+
+// GetVersionHistory gets paginated version history for a document
+// GET /api/v1/documents/:document_id/versions
+func (h *DocumentVersionHandler) GetVersionHistory(c *gin.Context) {
+	documentID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid document ID",
+		})
+		return
+	}
+
+	// Parse pagination parameters
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 20
+	}
+
+	versions, totalCount, err := h.db.DocumentVersions().GetByDocumentIDPaginated(documentID, page, pageSize)
+	if err != nil {
+		h.logger.Printf("Error getting document version history: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get version history",
+		})
+		return
+	}
+
+	response := &models.DocumentVersionResponse{
+		Versions:    versions,
+		TotalCount:  totalCount,
+		CurrentPage: page,
+		PageSize:    pageSize,
+		HasMore:     (page * pageSize) < totalCount,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetFullVersionHistory gets complete version history with stats and labels
+// GET /api/v1/documents/:document_id/version-history
+func (h *DocumentVersionHandler) GetFullVersionHistory(c *gin.Context) {
+	documentID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid document ID",
+		})
+		return
+	}
+
+	// Get document info
+	document, err := h.db.Documents().GetByID(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting document: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document not found",
+		})
+		return
+	}
+
+	// Get all versions
+	versions, err := h.db.DocumentVersions().GetByDocumentID(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting document versions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get version history",
+		})
+		return
+	}
+
+	// Get version stats
+	stats, err := h.db.DocumentVersions().GetStats(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting version stats: %v", err)
+		// Continue without stats
+		stats = &models.DocumentVersionStats{
+			DocumentID:    documentID,
+			DocumentTitle: document.Title,
+		}
+	}
+
+	// Get version labels
+	labels, err := h.db.DocumentVersions().GetAllLabels(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting version labels: %v", err)
+		labels = []*models.DocumentVersionLabel{}
+	}
+
+	// Get version branches
+	branches, err := h.db.DocumentVersions().GetBranches(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting version branches: %v", err)
+		branches = []*models.DocumentVersionBranch{}
+	}
+
+	response := &models.DocumentVersionHistoryResponse{
+		DocumentID:    documentID,
+		DocumentTitle: document.Title,
+		Versions:      versions,
+		Stats:         *stats,
+		Labels:        labels,
+		Branches:      branches,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// UpdateVersion updates a document version
+// PUT /api/v1/document-versions/:id
+func (h *DocumentVersionHandler) UpdateVersion(c *gin.Context) {
+	versionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid version ID",
+		})
+		return
+	}
+
+	var req models.UpdateDocumentVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Check if version exists
+	existingVersion, err := h.db.DocumentVersions().GetByID(versionID)
+	if err != nil {
+		h.logger.Printf("Error getting document version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document version not found",
+		})
+		return
+	}
+
+	// Update version
+	if req.Title != nil {
+		existingVersion.Title = *req.Title
+	}
+	if req.ChangeSummary != nil {
+		existingVersion.ChangeSummary = req.ChangeSummary
+	}
+	if req.Tags != nil {
+		existingVersion.Tags = models.TagsJSON(req.Tags)
+	}
+	if req.Metadata != nil {
+		existingVersion.Metadata = req.Metadata
+	}
+
+	updatedVersion, err := h.db.DocumentVersions().Update(existingVersion)
+	if err != nil {
+		h.logger.Printf("Error updating document version: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to update document version",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedVersion)
+}
+
+// RestoreVersion restores a document to a specific version
+// POST /api/v1/documents/:document_id/restore
+func (h *DocumentVersionHandler) RestoreVersion(c *gin.Context) {
+	documentID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid document ID",
+		})
+		return
+	}
+
+	var req models.RestoreDocumentVersionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Get the target version to restore
+	targetVersion, err := h.db.DocumentVersions().GetByDocumentAndVersion(documentID, req.TargetVersion)
+	if err != nil {
+		h.logger.Printf("Error getting target version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Target version not found",
+		})
+		return
+	}
+
+	// Get current document
+	document, err := h.db.Documents().GetByID(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting document: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document not found",
+		})
+		return
+	}
+
+	// Create a new version from the target version
+	changeSummary := fmt.Sprintf("恢复到版本 %s", targetVersion.GetVersionName())
+	if req.ChangeSummary != nil {
+		changeSummary = *req.ChangeSummary
+	}
+
+	newVersion := &models.DocumentVersion{
+		DocumentID:     documentID,
+		VersionNumber:  document.Version + 1,
+		Title:          targetVersion.Title,
+		Content:        targetVersion.Content,
+		FileURL:        targetVersion.FileURL,
+		FileSize:       targetVersion.FileSize,
+		MimeType:       targetVersion.MimeType,
+		ChangeSummary:  &changeSummary,
+		CreatedBy:      getUserID(c),
+		CreatedAt:      time.Now(),
+		IsMajorVersion: false, // Restoration is typically a minor version
+		Tags:           targetVersion.Tags,
+		Metadata:       targetVersion.Metadata,
+	}
+
+	// Create the restoration version
+	restoredVersion, err := h.db.DocumentVersions().Create(newVersion)
+	if err != nil {
+		h.logger.Printf("Error creating restoration version: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to restore document version",
+		})
+		return
+	}
+
+	// Update document's current version and content
+	document.Version = restoredVersion.VersionNumber
+	document.Content = targetVersion.Content
+	document.FileURL = targetVersion.FileURL
+	document.FileSize = targetVersion.FileSize
+	document.MimeType = targetVersion.MimeType
+
+	if err := h.db.Documents().Update(document); err != nil {
+		h.logger.Printf("Error updating document after restoration: %v", err)
+		// Version created but document update failed - log and continue
+	}
+
+	c.JSON(http.StatusCreated, restoredVersion)
+}
+
+// DeleteVersion deletes a document version
+// DELETE /api/v1/document-versions/:id
+func (h *DocumentVersionHandler) DeleteVersion(c *gin.Context) {
+	versionID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid version ID",
+		})
+		return
+	}
+
+	// Check if version exists
+	version, err := h.db.DocumentVersions().GetByID(versionID)
+	if err != nil {
+		h.logger.Printf("Error getting document version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Document version not found",
+		})
+		return
+	}
+
+	// Check if this is the current version
+	document, err := h.db.Documents().GetByID(version.DocumentID)
+	if err != nil {
+		h.logger.Printf("Error getting document: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to verify document",
+		})
+		return
+	}
+
+	if version.VersionNumber == document.Version {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Cannot delete the current version",
+		})
+		return
+	}
+
+	// Delete the version
+	if err := h.db.DocumentVersions().Delete(versionID); err != nil {
+		h.logger.Printf("Error deleting document version: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to delete document version",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Document version deleted successfully",
+	})
+}
+
+// CompareVersions compares two document versions
+// POST /api/v1/document-versions/compare
+func (h *DocumentVersionHandler) CompareVersions(c *gin.Context) {
+	var req models.CompareVersionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate request
+	if err := h.validate.Struct(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Additional validation
+	if err := req.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// Get both versions
+	fromVersion, err := h.db.DocumentVersions().GetByDocumentAndVersion(req.DocumentID, req.FromVersion)
+	if err != nil {
+		h.logger.Printf("Error getting from version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "From version not found",
+		})
+		return
+	}
+
+	toVersion, err := h.db.DocumentVersions().GetByDocumentAndVersion(req.DocumentID, req.ToVersion)
+	if err != nil {
+		h.logger.Printf("Error getting to version: %v", err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "To version not found",
+		})
+		return
+	}
+
+	// Create or get existing comparison
+	comparison, err := h.db.DocumentVersions().CompareVersions(req.DocumentID, req.FromVersion, req.ToVersion)
+	if err != nil {
+		h.logger.Printf("Error comparing versions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to compare versions",
+		})
+		return
+	}
+
+	// Build response
+	response := &models.VersionComparisonResponse{
+		DocumentID:      req.DocumentID,
+		FromVersion:     req.FromVersion,
+		ToVersion:       req.ToVersion,
+		DiffContent:     comparison.DiffContent,
+		AddedLines:      comparison.AddedLines,
+		RemovedLines:    comparison.RemovedLines,
+		ModifiedLines:   comparison.ModifiedLines,
+		SimilarityScore: comparison.SimilarityScore,
+		Summary:         fmt.Sprintf("版本 %d 到 %d 的比较：新增%d行，删除%d行，修改%d行", req.FromVersion, req.ToVersion, comparison.AddedLines, comparison.RemovedLines, comparison.ModifiedLines),
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// GetVersionStats gets statistics for document versions
+// GET /api/v1/documents/:document_id/version-stats
+func (h *DocumentVersionHandler) GetVersionStats(c *gin.Context) {
+	documentID, err := strconv.Atoi(c.Param("document_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid document ID",
+		})
+		return
+	}
+
+	stats, err := h.db.DocumentVersions().GetStats(documentID)
+	if err != nil {
+		h.logger.Printf("Error getting version stats: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to get version statistics",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// Helper function to get user ID from context
+func getUserID(c *gin.Context) int {
+	if userID, exists := c.Get("user_id"); exists {
+		if id, ok := userID.(int); ok {
+			return id
+		}
+	}
+	return 1 // Default admin user for development
+}

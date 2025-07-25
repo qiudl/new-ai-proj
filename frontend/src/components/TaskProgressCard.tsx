@@ -93,7 +93,6 @@ const TaskProgressCard: React.FC<TaskProgressCardProps> = ({ refreshTrigger }) =
             任务时间分布
           </Title>
           <List
-            size="small"
             dataSource={taskBreakdown.slice(0, 5)} // 显示前5个任务
             renderItem={(item: TaskTimeBreakdown, index) => {
               const percentage = totalWorkTime > 0 ? Math.round((item.total_seconds / totalWorkTime) * 100) : 0;
@@ -136,8 +135,7 @@ const TaskProgressCard: React.FC<TaskProgressCardProps> = ({ refreshTrigger }) =
                       showInfo={false}
                       strokeColor={getStatusColor(item.total_seconds)}
                       trailColor="#f5f5f5"
-                      size="small"
-                    />
+                              />
                   </div>
                 </List.Item>
               );

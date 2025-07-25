@@ -275,7 +275,7 @@ const DocumentExporter: React.FC<DocumentExporterProps> = ({
 
       switch (format) {
         case 'html':
-          content = generateHTML(document.content, exportOptions);
+          content = generateHTML(document.content || '', exportOptions);
           mimeType = 'text/html';
           fileExtension = '.html';
           break;
@@ -283,7 +283,7 @@ const DocumentExporter: React.FC<DocumentExporterProps> = ({
         case 'pdf':
           // 对于PDF导出，我们先生成HTML，然后使用浏览器的打印功能
           // 实际项目中可以使用专业的PDF生成库
-          const htmlForPdf = generateHTML(document.content, exportOptions);
+          const htmlForPdf = generateHTML(document.content || '', exportOptions);
           const printWindow = window.open('', '_blank');
           if (printWindow) {
             printWindow.document.write(htmlForPdf);

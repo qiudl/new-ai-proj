@@ -11,7 +11,6 @@ import './styles/task-hierarchy.css';
 // Lazy load pages for code splitting
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
-const OptimizedDashboardPage = React.lazy(() => import('./pages/OptimizedDashboardPageEnhanced'));
 const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
 const TasksPage = React.lazy(() => import('./pages/TasksPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
@@ -30,10 +29,10 @@ const PermissionManagementPage = React.lazy(() => import('./pages/PermissionMana
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
-const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageNew'));
+const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
 const DocumentListPage = React.lazy(() => import('./pages/DocumentListPage'));
+const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
-const FlexibleTableTestPage = React.lazy(() => import('./pages/FlexibleTableTestPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -75,7 +74,7 @@ function App() {
             <Route path="/" element={
               <PrivateRoute>
                 <Layout>
-                  <OptimizedDashboardPage />
+                  <DashboardPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -84,14 +83,6 @@ function App() {
               <PrivateRoute>
                 <Layout>
                   <DashboardPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/dashboard-optimized" element={
-              <PrivateRoute>
-                <Layout>
-                  <OptimizedDashboardPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -317,6 +308,14 @@ function App() {
                 </Layout>
               </PrivateRoute>
             } />
+            
+            <Route path="/document-manager" element={
+              <PrivateRoute>
+                <Layout>
+                  <DocumentManagerPage />
+                </Layout>
+              </PrivateRoute>
+            } />
 
             {/* Permission management routes */}
             <Route path="/permissions" element={
@@ -345,14 +344,6 @@ function App() {
               </PrivateRoute>
             } />
 
-            {/* FlexibleDataTable test page */}
-            <Route path="/test/flexible-table" element={
-              <PrivateRoute>
-                <Layout>
-                  <FlexibleTableTestPage />
-                </Layout>
-              </PrivateRoute>
-            } />
 
           </Routes>
           </Suspense>

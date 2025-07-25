@@ -46,8 +46,14 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
   mode = 'card',
 }) => {
   // 状态管理
+  const defaultAssociationType: DocumentAssociationType = {
+    key: 'personal',
+    label: '个人文档',
+    description: '个人私有文档，只有您自己可以访问和编辑'
+  };
+  
   const [associationType, setAssociationType] = useState<DocumentAssociationType>(
-    value?.type || 'personal'
+    value?.type || defaultAssociationType
   );
   const [selectedId, setSelectedId] = useState<number | undefined>(value?.id);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -107,9 +113,9 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
       const customerList = Array.isArray(customerResponse) ? customerResponse : customerResponse.data || [];
       const customerOptions: CustomerOption[] = customerList.map((company: any) => ({
         id: company.id,
+        name: company.company_name || company.name || 'Unknown Customer',
         company_name: company.company_name,
         industry: company.industry,
-        can_create_documents: true, // 假设所有客户都允许创建文档
       }));
       setCustomers(customerOptions);
     } catch (error) {
@@ -126,17 +132,23 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
     setSelectedId(undefined);
     
     const newAssociation: DocumentAssociation = {
+      id: 0,
+      document_id: 0,
+      entity_type: type.key as 'project' | 'customer' | 'task',
+      entity_id: 0,
+      entity_name: '',
+      association_type: type.key,
       type,
-      id: undefined,
-      name: undefined,
+      created_at: new Date().toISOString(),
+      created_by: 1
     };
     
     onChange?.(newAssociation);
 
     // 根据类型加载相应的选项
-    if (type === 'project' && projects.length === 0) {
+    if (type.key === 'project' && projects.length === 0) {
       loadProjects();
-    } else if (type === 'customer' && customers.length === 0) {
+    } else if (type.key === 'customer' && customers.length === 0) {
       loadCustomers();
     }
   };
@@ -147,18 +159,24 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
     
     let name: string | undefined;
     
-    if (associationType === 'project') {
+    if (associationType.key === 'project') {
       const project = projects.find(p => p.id === id);
       name = project?.name;
-    } else if (associationType === 'customer') {
+    } else if (associationType.key === 'customer') {
       const customer = customers.find(c => c.id === id);
       name = customer?.company_name;
     }
     
     const newAssociation: DocumentAssociation = {
+      id: 0,
+      document_id: 0,
+      entity_type: associationType.key as 'project' | 'customer' | 'task',
+      entity_id: id,
+      entity_name: name || '',
+      association_type: associationType.key,
       type: associationType,
-      id,
-      name,
+      created_at: new Date().toISOString(),
+      created_by: 1
     };
     
     onChange?.(newAssociation);
@@ -171,9 +189,9 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
       setSelectedId(value.id);
       
       // 预加载选项
-      if (value.type === 'project' && projects.length === 0) {
+      if (value.type.key === 'project' && projects.length === 0) {
         loadProjects();
-      } else if (value.type === 'customer' && customers.length === 0) {
+      } else if (value.type.key === 'customer' && customers.length === 0) {
         loadCustomers();
       }
     }
@@ -216,7 +234,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
 
   // 渲染关联对象选择
   const renderAssociationSelector = () => {
-    if (associationType === 'personal') {
+    if (associationType.key === 'personal') {
       return (
         <Alert
           message="个人文档"
@@ -228,7 +246,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
       );
     }
 
-    const isProject = associationType === 'project';
+    const isProject = associationType.key === 'project';
     const options = isProject ? projects : customers;
     const loading = isProject ? projectsLoading : customersLoading;
     const placeholder = isProject ? '请选择关联的项目' : '请选择关联的客户';
@@ -258,8 +276,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
               value: option.id,
               label: isProject 
                 ? (option as ProjectOption).name
-                : (option as CustomerOption).company_name,
-              disabled: !option.can_create_documents,
+                : (option as CustomerOption).name,
             }))}
           />
         </Spin>

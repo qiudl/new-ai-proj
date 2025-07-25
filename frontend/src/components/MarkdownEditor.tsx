@@ -206,7 +206,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {!readOnly && (
           <>
             <Button
-              size="small"
+              
               type={mode === 'edit' ? 'primary' : 'default'}
               icon={<EditOutlined />}
               onClick={() => setMode('edit')}
@@ -214,7 +214,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               编辑
             </Button>
             <Button
-              size="small"
+              
               type={mode === 'preview' ? 'primary' : 'default'}
               icon={<EyeOutlined />}
               onClick={() => setMode('preview')}
@@ -222,7 +222,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               预览
             </Button>
             <Button
-              size="small"
+              
               type={mode === 'split' ? 'primary' : 'default'}
               onClick={() => setMode('split')}
             >
@@ -232,7 +232,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         )}
         {readOnly && (
           <Button
-            size="small"
+            
             type="primary"
             icon={<EyeOutlined />}
           >
@@ -245,28 +245,28 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             <div className="toolbar-divider" />
             
             <Button
-              size="small"
+              
               onClick={() => insertMarkdown('**', '**')}
               title="粗体 (Ctrl+B)"
             >
               <strong>B</strong>
             </Button>
             <Button
-              size="small"
+              
               onClick={() => insertMarkdown('*', '*')}
               title="斜体 (Ctrl+I)"
             >
               <em>I</em>
             </Button>
             <Button
-              size="small"
+              
               onClick={() => insertMarkdown('[', '](url)')}
               title="链接 (Ctrl+K)"
             >
               🔗
             </Button>
             <Button
-              size="small"
+              
               icon={<PictureOutlined />}
               onClick={() => setImageUploadVisible(true)}
               title="上传图片"
@@ -274,7 +274,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               图片
             </Button>
             <Button
-              size="small"
+              
               icon={<FilePdfOutlined />}
               onClick={() => setPdfUploadVisible(true)}
               title="上传PDF"
@@ -282,7 +282,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               PDF
             </Button>
             <Button
-              size="small"
+              
               onClick={() => insertMarkdown('```\n', '\n```')}
               title="代码块"
             >
@@ -303,7 +303,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             </div>
             
             <Button
-              size="small"
+              
               type="primary"
               icon={<SaveOutlined />}
               onClick={handleManualSave}
@@ -315,7 +315,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         )}
         
         <Button
-          size="small"
+          
           icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
           onClick={() => setIsFullscreen(!isFullscreen)}
           title="全屏"
@@ -369,7 +369,9 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     <div className={`markdown-editor ${isFullscreen ? 'fullscreen' : ''}`}>
       {loading && (
         <div className="loading-overlay">
-          <Spin size="large" tip="加载中..." />
+          <Spin size="large">
+            <div style={{ padding: 50 }}>加载中...</div>
+          </Spin>
         </div>
       )}
       

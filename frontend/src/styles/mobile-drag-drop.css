@@ -1,0 +1,329 @@
+/* Mobile Drag and Drop Styles */
+
+/* Touch-friendly drag interactions */
+.mobile-drag-item {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.mobile-drag-item:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+.mobile-drag-item.dragging {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  opacity: 0.9;
+}
+
+.mobile-drag-item.selected {
+  background-color: #e6f7ff !important;
+  border-color: #1890ff !important;
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+}
+
+.mobile-drag-item.drop-target {
+  background-color: #f0f9ff !important;
+  border: 2px dashed #1890ff !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { 
+    transform: scale(1); 
+    border-color: #1890ff;
+  }
+  50% { 
+    transform: scale(1.02); 
+    border-color: #40a9ff;
+  }
+  100% { 
+    transform: scale(1); 
+    border-color: #1890ff;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .ant-layout-sider {
+    position: fixed !important;
+    height: 100vh !important;
+    z-index: 100 !important;
+  }
+  
+  .ant-layout-sider-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+  }
+  
+  .ant-card {
+    margin: 8px 0;
+    border-radius: 8px;
+  }
+  
+  .ant-list-item {
+    padding: 12px !important;
+    border-radius: 8px;
+    margin: 8px 0;
+  }
+  
+  .ant-list-item-meta-avatar {
+    margin-right: 12px !important;
+  }
+  
+  .ant-tabs {
+    margin: 0;
+  }
+  
+  .ant-tabs-tab {
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+  }
+  
+  .ant-tabs-content-holder {
+    padding: 8px 0;
+  }
+  
+  .ant-drawer-body {
+    padding: 16px !important;
+  }
+  
+  .ant-table {
+    font-size: 12px;
+  }
+  
+  .ant-table-thead > tr > th,
+  .ant-table-tbody > tr > td {
+    padding: 8px 4px !important;
+  }
+  
+  /* Hide less important columns on mobile */
+  .ant-table-column-hidden-mobile {
+    display: none !important;
+  }
+  
+  /* Floating action button adjustments */
+  .ant-float-btn-group {
+    right: 16px !important;
+    bottom: 80px !important; /* Avoid bottom navigation */
+  }
+  
+  /* Form improvements for mobile */
+  .ant-form-item {
+    margin-bottom: 16px;
+  }
+  
+  .ant-form-item-label {
+    padding-bottom: 4px;
+  }
+  
+  .ant-input,
+  .ant-select-selector,
+  .ant-picker {
+    height: 40px !important;
+    border-radius: 6px;
+  }
+  
+  .ant-btn {
+    height: 36px;
+    padding: 4px 12px;
+    border-radius: 6px;
+  }
+  
+  .ant-btn-lg {
+    height: 44px;
+    padding: 8px 16px;
+  }
+  
+  /* Modal adjustments */
+  .ant-modal {
+    margin: 0 !important;
+    max-width: calc(100vw - 16px) !important;
+    top: 16px !important;
+  }
+  
+  .ant-modal-content {
+    border-radius: 12px;
+  }
+  
+  /* Drawer adjustments */
+  .ant-drawer-content-wrapper {
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .ant-drawer-header {
+    padding: 16px 24px 12px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .ant-drawer-close {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+}
+
+/* Touch feedback */
+@media (hover: none) and (pointer: coarse) {
+  .mobile-drag-item:active,
+  .ant-btn:active,
+  .ant-list-item:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Haptic feedback class for JavaScript */
+.haptic-feedback {
+  animation: haptic-pulse 0.1s ease-out;
+}
+
+@keyframes haptic-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+/* Selection mode styles */
+.selection-mode {
+  background-color: #f0f9ff;
+  border: 1px solid #bae7ff;
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #fff;
+  border: 2px solid #d9d9d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.selection-checkbox.selected {
+  background-color: #52c41a;
+  border-color: #52c41a;
+  color: #fff;
+}
+
+/* Drag preview styles */
+.drag-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  transform-origin: center;
+  transition: transform 0.1s ease-out;
+}
+
+.drag-preview.dragging {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Drop zone styles */
+.drop-zone {
+  min-height: 100px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #bfbfbf;
+  background-color: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.drop-zone.active {
+  border-color: #1890ff;
+  background-color: #f0f9ff;
+  color: #1890ff;
+}
+
+.drop-zone-text {
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Loading states */
+.mobile-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #bfbfbf;
+}
+
+/* Empty states */
+.mobile-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #bfbfbf;
+}
+
+.mobile-empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.mobile-empty-text {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.mobile-empty-description {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-drag-item,
+  .drag-preview,
+  .drop-zone {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mobile-drag-item {
+    border-width: 2px;
+  }
+  
+  .mobile-drag-item.selected {
+    border-width: 3px;
+  }
+  
+  .drop-zone.active {
+    border-width: 3px;
+  }
+}
+
+/* Focus indicators for keyboard navigation */
+.mobile-drag-item:focus-visible {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
+
+/* Print styles (hide drag functionality) */
+@media print {
+  .mobile-drag-item,
+  .ant-float-btn-group,
+  .drag-preview,
+  .selection-checkbox {
+    display: none !important;
+  }
+}

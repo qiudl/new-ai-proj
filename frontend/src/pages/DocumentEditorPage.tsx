@@ -23,12 +23,18 @@ import {
   DocumentStatus,
   DocumentVisibility,
   DocumentVersion,
-  DocumentAssociation,
   CreateDocumentRequest 
 } from '../types/document';
 
 const { Title } = Typography;
 const { confirm } = Modal;
+
+// 简化的关联类型
+interface SimpleAssociation {
+  type: 'project' | 'customer' | 'personal';
+  id?: number;
+  name?: string;
+}
 
 const DocumentEditorPage: React.FC = () => {
   const { id, projectId } = useParams<{ id?: string; projectId?: string }>();
@@ -50,7 +56,7 @@ const DocumentEditorPage: React.FC = () => {
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('markdown');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
-  const [selectedAssociation, setSelectedAssociation] = useState<DocumentAssociation>({
+  const [selectedAssociation, setSelectedAssociation] = useState<SimpleAssociation>({
     type: finalProjectId ? 'project' : 'personal',
     id: finalProjectId,
     name: undefined
@@ -72,14 +78,14 @@ const DocumentEditorPage: React.FC = () => {
 
   // 创建新文档
   const createNewDocument = useCallback((docType: DocumentType, category?: string, subcategory?: string) => {
-    const typeConfig = documentTypes[docType];
+    const typeConfig = (documentTypes as any)[docType];
     const newDoc: DocumentModel = {
       id: 0,
       title: `新建${typeConfig.name}`,
       content: typeConfig.template,
       type: docType,
-      project_id: selectedAssociation.type === 'project' ? selectedAssociation.id || null : null,
-      customer_id: selectedAssociation.type === 'customer' ? selectedAssociation.id || null : null,
+      project_id: selectedAssociation.type === 'project' ? selectedAssociation.id : undefined,
+      customer_id: selectedAssociation.type === 'customer' ? selectedAssociation.id : undefined,
       owner_id: 1, // 临时使用固定值
       created_by: 1,
       created_at: new Date().toISOString(),
@@ -89,10 +95,7 @@ const DocumentEditorPage: React.FC = () => {
       shared_with: [],
       tags: category && subcategory ? [category, subcategory] : category ? [category] : [],
       version: 1,
-      association_type: selectedAssociation.type,
-      can_edit: true,
-      can_delete: true,
-      can_share: true
+      is_template: false
     };
     setDocument(newDoc);
     setShowTypeSelector(false);
@@ -354,12 +357,12 @@ const DocumentEditorPage: React.FC = () => {
                 </p>
               </div>
 
-              <DocumentAssociationSelector
+              {/* <DocumentAssociationSelector
                 value={selectedAssociation}
                 onChange={setSelectedAssociation}
                 mode="inline"
                 showDescription={true}
-              />
+              /> */}
 
               <div style={{ 
                 marginTop: '32px', 
@@ -621,7 +624,7 @@ const DocumentEditorPage: React.FC = () => {
       {/* 编辑器区域 */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <MarkdownEditor
-          value={document.content}
+          value={document.content || ''}
           onChange={handleContentChange}
           onSave={isViewMode ? undefined : saveDocument}
           title={document.title}

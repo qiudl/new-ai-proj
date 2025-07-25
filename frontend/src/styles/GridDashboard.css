@@ -1,0 +1,299 @@
+/* React Grid Layout CSS */
+.react-grid-layout {
+  position: relative;
+}
+
+.react-grid-item {
+  transition: all 200ms ease;
+  transition-property: left, top;
+  border-radius: 8px;
+}
+
+.react-grid-item.cssTransforms {
+  transition-property: transform;
+}
+
+.react-grid-item > .react-resizable-handle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  bottom: 0;
+  right: 0;
+  background: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNiIgaGVpZ2h0PSI2IiB2aWV3Qm94PSIwIDAgNiA2IiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgo8ZG90cyBmaWxsPSIjOTk5IiBjeD0iMSIgY3k9IjEiIHI9IjEiLz4KPGRvdHMgZmlsbD0iIzk5OSIgY3g9IjEiIGN5PSI1IiByPSIxIi8+CjxjaXJjbGUgZmlsbD0iIzk5OSIgY3g9IjUiIGN5PSIxIiByPSIxIi8+CjxjaXJjbGUgZmlsbD0iIzk5OSIgY3g9IjUiIGN5PSI1IiByPSIxIi8+Cjwvc3ZnPgo=");
+  background-position: bottom right;
+  background-repeat: no-repeat;
+  background-origin: content-box;
+  box-sizing: border-box;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+}
+
+.react-grid-item:hover > .react-resizable-handle {
+  opacity: 0.6;
+}
+
+.react-grid-item.react-grid-placeholder {
+  background: #1890ff;
+  opacity: 0.2;
+  transition-duration: 100ms;
+  z-index: 2;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -o-user-select: none;
+  user-select: none;
+  border-radius: 8px;
+}
+
+.react-grid-item.react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+  opacity: 0.8;
+}
+
+.react-grid-item.react-draggable-dragging .dashboard-card {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  transform: rotate(1deg);
+}
+
+/* Grid Item 内容样式 */
+.grid-item {
+  height: 100%;
+  overflow: hidden;
+}
+
+.grid-item .dashboard-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.grid-item .dashboard-card .ant-card-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.grid-item .dashboard-card .ant-card-head {
+  cursor: move;
+  user-select: none;
+  padding: 12px 16px;
+  min-height: 48px;
+}
+
+.grid-item .dashboard-card .ant-card-head:hover {
+  background-color: rgba(24, 144, 255, 0.02);
+}
+
+.grid-item .dashboard-card .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 拖拽提示 */
+.react-grid-item .ant-card-head::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  background: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNCIgY3k9IjQiIHI9IjEiIGZpbGw9IiNjY2MiLz4KPGNpcmNsZSBjeD0iOCIgY3k9IjQiIHI9IjEiIGZpbGw9IiNjY2MiLz4KPGNpcmNsZSBjeD0iMTIiIGN5PSI0IiByPSIxIiBmaWxsPSIjY2NjIi8+CjxjaXJjbGUgY3g9IjQiIGN5PSI4IiByPSIxIiBmaWxsPSIjY2NjIi8+CjxjaXJjbGUgY3g9IjgiIGN5PSI4IiByPSIxIiBmaWxsPSIjY2NjIi8+CjxjaXJjbGUgY3g9IjEyIiBjeT0iOCIgcj0iMSIgZmlsbD0iI2NjYyIvPgo8Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjEiIGZpbGw9IiNjY2MiLz4KPGNpcmNsZSBjeD0iOCIgY3k9IjEyIiByPSIxIiBmaWxsPSIjY2NjIi8+CjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEiIGZpbGw9IiNjY2MiLz4KPC9zdmc+");
+  background-size: contain;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.react-grid-item:hover .ant-card-head::after {
+  opacity: 0.4;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .react-grid-item {
+    margin-bottom: 16px;
+  }
+  
+  .react-grid-item > .react-resizable-handle {
+    display: none;
+  }
+  
+  .grid-item .dashboard-card .ant-card-head::after {
+    display: none;
+  }
+}
+
+/* 动画效果 */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grid-item .dashboard-card {
+  animation: slideInUp 0.4s ease-out;
+}
+
+/* 卡片内容样式 */
+.task-card {
+  padding: 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  background: #fafafa;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.task-card:hover {
+  border-color: #1890ff;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.task-title {
+  font-weight: 500;
+  color: #262626;
+}
+
+.upcoming-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-radius: 4px;
+  background: #fff2e8;
+  border-left: 3px solid #fa8c16;
+  margin-bottom: 8px;
+}
+
+.upcoming-item:first-child {
+  background: #fff1f0;
+  border-left-color: #ff4d4f;
+}
+
+.upcoming-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.activity-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+/* 统计卡片特殊样式 */
+.grid-item .ant-statistic {
+  margin-bottom: 8px;
+}
+
+.grid-item .ant-statistic-title {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.grid-item .ant-statistic-content {
+  font-size: 18px;
+}
+
+/* 进度条样式 */
+.grid-item .ant-progress-line {
+  margin: 4px 0;
+}
+
+.grid-item .ant-progress-text {
+  font-size: 11px;
+}
+
+/* 列表样式优化 */
+.grid-item .ant-list-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.grid-item .ant-list-item:last-child {
+  border-bottom: none;
+}
+
+.grid-item .ant-list-item-meta-title {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.grid-item .ant-list-item-meta-description {
+  font-size: 11px;
+}
+
+/* 标签样式 */
+.grid-item .ant-tag {
+  margin: 2px;
+  border-radius: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  height: auto;
+  line-height: 1.2;
+}
+
+/* 按钮样式 */
+.grid-item .ant-btn-block {
+  margin-bottom: 8px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: auto;
+  padding: 8px 12px;
+}
+
+.grid-item .ant-btn-block:last-child {
+  margin-bottom: 0;
+}
+
+/* 空状态样式 */
+.grid-item .ant-empty {
+  margin: 16px 0;
+}
+
+.grid-item .ant-empty-description {
+  color: #bfbfbf;
+  font-size: 12px;
+}
+
+/* 加载状态 */
+.grid-item .ant-spin-container {
+  height: 100%;
+}
+
+/* 工具栏样式 */
+.optimized-dashboard .page-container > div:first-child {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}

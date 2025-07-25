@@ -39,6 +39,9 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
   // MEMORY OPTIMIZATION: Store callbacks in refs to prevent recreating dependencies
   const onTimerUpdateRef = useRef(onTimerUpdate);
   onTimerUpdateRef.current = onTimerUpdate;
+  
+  // Store milestone check function in ref to avoid dependency issues
+  const checkTimerMilestonesRef = useRef<((elapsedSeconds: number) => void) | null>(null);
 
   // MEMORY OPTIMIZATION: Enhanced timer cleanup
   const stopLocalTimer = useCallback(() => {
@@ -75,7 +78,9 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
       }));
 
       // Check for milestones (throttled to prevent excessive notifications)
-      checkTimerMilestones(elapsed);
+      if (checkTimerMilestonesRef.current) {
+        checkTimerMilestonesRef.current(elapsed);
+      }
     }, 1000);
   }, [stopLocalTimer]);
 
@@ -254,7 +259,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
     } else {
       stopLocalTimer();
     }
-  }, [lastMilestone, startLocalTimer, stopLocalTimer]);
+  }, [startLocalTimer, stopLocalTimer]);
 
   // MEMORY OPTIMIZATION: Throttled milestone checking
   const checkTimerMilestones = useCallback((elapsedSeconds: number) => {
@@ -283,6 +288,9 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
       );
     }
   }, [notificationsEnabled, timerState.currentTask, lastMilestone]);
+
+  // Update the ref whenever the function changes
+  checkTimerMilestonesRef.current = checkTimerMilestones;
 
   // Handle notification settings toggle
   const handleNotificationToggle = useCallback((enabled: boolean) => {
@@ -573,7 +581,7 @@ const TimerCard: React.FC<TimerCardProps> = ({ onTimerUpdate }) => {
         </Space>
       }
       style={{ textAlign: 'center' }}
-      bodyStyle={{ textAlign: 'center', padding: '24px' }}
+      styles={{ body: { textAlign: 'center', padding: '24px' } }}
       className="timer-card"
     >
       {/* Timer Display */}

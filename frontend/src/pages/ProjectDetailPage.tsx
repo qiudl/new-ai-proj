@@ -48,7 +48,8 @@ import {
   BankOutlined,
   BuildOutlined,
   FundProjectionScreenOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  UserAddOutlined
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
@@ -56,7 +57,7 @@ import { Task } from '../types/task';
 import DocumentList from '../components/DocumentList';
 
 const { Title, Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
+// const { TabPane } = Tabs; // Deprecated, using items instead
 
 const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -67,6 +68,144 @@ const ProjectDetailPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userForm] = Form.useForm();
+
+  // Tabs configuration using items (modern approach)
+  const tabItems = [
+    {
+      key: 'overview',
+      label: '项目概览',
+      children: (
+        <Row gutter={[24, 24]}>
+          {/* 项目描述 */}
+          <Col xs={24} lg={16}>
+            <Card title="项目描述" extra={<FileTextOutlined />}>
+              <Paragraph style={{ fontSize: '14px', lineHeight: '1.8' }}>
+                {project?.description || '暂无项目描述'}
+              </Paragraph>
+              
+              <Divider />
+              
+              <Row gutter={[16, 16]}>
+                <Col span={12}>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">开始日期</Text>
+                    <Text strong>
+                      {project?.start_date ? new Date(project.start_date).toLocaleDateString() : '未设置'}
+                    </Text>
+                  </Space>
+                </Col>
+                <Col span={12}>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">结束日期</Text>
+                    <Text strong>
+                      {project?.end_date ? new Date(project.end_date).toLocaleDateString() : '未设置'}
+                    </Text>
+                  </Space>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+
+          {/* 项目统计 */}
+          <Col xs={24} lg={8}>
+            <Card title="项目统计" extra={<BarChartOutlined />}>
+              <Row gutter={[16, 16]}>
+                <Col span={12}>
+                  <Statistic 
+                    title="总任务数" 
+                    value={project?.task_count || 0}
+                    prefix={<CheckCircleOutlined />}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Statistic 
+                    title="已完成" 
+                    value={project?.completed_task_count || 0}
+                    prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                  />
+                </Col>
+                <Col span={24}>
+                  <div style={{ marginTop: 16 }}>
+                    <Text type="secondary">完成进度</Text>
+                    <Progress 
+                      percent={
+                        project?.task_count ? 
+                        Math.round((project.completed_task_count || 0) / project.task_count * 100) : 
+                        0
+                      }
+                      strokeColor="#52c41a"
+                      style={{ marginTop: 8 }}
+                    />
+                  </div>
+                </Col>
+              </Row>
+            </Card>
+          </Col>
+        </Row>
+      )
+    },
+    {
+      key: 'users',
+      label: '项目成员',
+      children: (
+        <Card 
+          title="成员管理" 
+          extra={
+            <Button 
+              type="primary" 
+              icon={<UserAddOutlined />}
+              onClick={() => setUserModalVisible(true)}
+            >
+              添加成员
+            </Button>
+          }
+        >
+          {/* 成员列表内容 */}
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+            成员管理功能开发中...
+          </div>
+        </Card>
+      )
+    },
+    {
+      key: 'tasks',
+      label: '项目任务',
+      children: (
+        <Card title="任务列表">
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+            任务管理功能开发中...
+          </div>
+        </Card>
+      )
+    },
+    {
+      key: 'documents',
+      label: (
+        <span>
+          <FileTextOutlined />
+          项目文档
+        </span>
+      ),
+      children: project ? (
+        <DocumentList 
+          projectId={project.id} 
+          projectName={project.name}
+          onCreateDocument={() => navigate(`/projects/${project.id}/documents/new`)}
+        />
+      ) : null
+    },
+    {
+      key: 'activities',
+      label: '项目动态',
+      children: (
+        <Card title="项目动态时间线">
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#999' }}>
+            项目动态功能开发中...
+          </div>
+        </Card>
+      )
+    }
+  ];
 
   useEffect(() => {
     if (projectId) {
@@ -319,7 +458,10 @@ const ProjectDetailPage: React.FC = () => {
         alignItems: 'center', 
         minHeight: '60vh' 
       }}>
-        <Spin size="large" tip="加载项目详情中..." />
+        <div style={{ textAlign: 'center', padding: '50px 0' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: 16 }}>加载项目详情中...</div>
+        </div>
       </div>
     );
   }
@@ -422,229 +564,7 @@ const ProjectDetailPage: React.FC = () => {
       </div>
 
       {/* 主要内容区域 */}
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <TabPane tab="项目概览" key="overview">
-          <Row gutter={[24, 24]}>
-            {/* 项目描述 */}
-            <Col xs={24} lg={16}>
-              <Card title="项目描述" extra={<FileTextOutlined />}>
-                <Paragraph style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                  {project.description || '暂无项目描述'}
-                </Paragraph>
-                
-                <Divider />
-                
-                <Row gutter={[16, 16]}>
-                  <Col span={12}>
-                    <Space direction="vertical" size="small">
-                      <Text type="secondary">开始日期</Text>
-                      <Text strong>
-                        {project.start_date ? new Date(project.start_date).toLocaleDateString() : '未设置'}
-                      </Text>
-                    </Space>
-                  </Col>
-                  <Col span={12}>
-                    <Space direction="vertical" size="small">
-                      <Text type="secondary">结束日期</Text>
-                      <Text strong>
-                        {project.end_date ? new Date(project.end_date).toLocaleDateString() : '未设置'}
-                      </Text>
-                    </Space>
-                  </Col>
-                </Row>
-
-                <div style={{ marginTop: '16px' }}>
-                  <Text type="secondary">项目进度</Text>
-                  <Progress 
-                    percent={project.progress || 0} 
-                    size="default"
-                    status={project.progress === 100 ? 'success' : 'active'}
-                    style={{ marginTop: '8px' }}
-                  />
-                </div>
-              </Card>
-            </Col>
-
-            {/* 快速统计 */}
-            <Col xs={24} lg={8}>
-              <Card title="项目统计" extra={<BarChartOutlined />}>
-                <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                  <div>
-                    <Text type="secondary">任务完成率</Text>
-                    <div style={{ marginTop: '8px' }}>
-                      <Progress 
-                        type="circle" 
-                        percent={project.completed_task_count && project.task_count ? 
-                          Math.round((project.completed_task_count / project.task_count) * 100) : 0
-                        }
-                        size={80}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Divider style={{ margin: '12px 0' }} />
-                  
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">创建时间</Text>
-                      <Text>{new Date(project.created_at).toLocaleDateString()}</Text>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text type="secondary">最后更新</Text>
-                      <Text>{new Date(project.updated_at).toLocaleDateString()}</Text>
-                    </div>
-                  </Space>
-                </Space>
-              </Card>
-            </Col>
-          </Row>
-        </TabPane>
-
-        <TabPane tab="项目成员" key="users">
-          <Card 
-            title="项目团队" 
-            extra={
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleAddUser}>
-                添加成员
-              </Button>
-            }
-          >
-            <Row gutter={[16, 16]}>
-              {(project.users || []).map((user) => (
-                <Col xs={24} sm={12} lg={8} key={user.id}>
-                  <Card size="small" hoverable>
-                    <div style={{ textAlign: 'center' }}>
-                      <Badge 
-                        dot={user.is_primary} 
-                        color="gold"
-                        offset={[-8, 8]}
-                      >
-                        <Avatar 
-                          size={64} 
-                          src={user.user_avatar}
-                          icon={<UserOutlined />}
-                          style={{ marginBottom: '12px' }}
-                        />
-                      </Badge>
-                      
-                      <div style={{ marginBottom: '8px' }}>
-                        <Space direction="vertical" size="small" align="center">
-                          <Text strong style={{ fontSize: '16px' }}>{user.user_name}</Text>
-                          <Space align="center">
-                            {getRoleIcon(user.role)}
-                            <Text type="secondary">{user.role_name}</Text>
-                          </Space>
-                        </Space>
-                      </div>
-
-                      <div style={{ marginBottom: '12px' }}>
-                        <Text type="secondary" style={{ fontSize: '12px' }}>
-                          {user.department}
-                        </Text>
-                      </div>
-
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        {user.user_email && (
-                          <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
-                            <MailOutlined style={{ marginRight: '4px', color: '#8c8c8c' }} />
-                            <Text type="secondary">{user.user_email}</Text>
-                          </div>
-                        )}
-                        {user.phone && (
-                          <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
-                            <PhoneOutlined style={{ marginRight: '4px', color: '#8c8c8c' }} />
-                            <Text type="secondary">{user.phone}</Text>
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
-                          <CalendarOutlined style={{ marginRight: '4px', color: '#8c8c8c' }} />
-                          <Text type="secondary">
-                            加入于 {new Date(user.joined_at).toLocaleDateString()}
-                          </Text>
-                        </div>
-                      </Space>
-                    </div>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </Card>
-        </TabPane>
-
-        <TabPane tab="项目任务" key="tasks">
-          <Card 
-            title="任务列表" 
-            extra={
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={() => navigate(`/projects/${project.id}/tasks/create`)}
-              >
-                创建任务
-              </Button>
-            }
-          >
-            <Table
-              dataSource={tasks}
-              columns={taskColumns}
-              rowKey="id"
-              pagination={{
-                pageSize: 10,
-                showTotal: (total) => `共 ${total} 个任务`,
-              }}
-              size="middle"
-            />
-          </Card>
-        </TabPane>
-
-        <TabPane tab={
-          <span>
-            <FileTextOutlined />
-            项目文档
-          </span>
-        } key="documents">
-          <DocumentList 
-            projectId={project.id} 
-            projectName={project.name}
-            onCreateDocument={() => navigate(`/projects/${project.id}/documents/new`)}
-          />
-        </TabPane>
-
-        <TabPane tab="项目动态" key="activities">
-          <Card title="项目动态时间线">
-            {(project.activities || []).length > 0 ? (
-              <Timeline>
-                {(project.activities || []).map((activity) => (
-                  <Timeline.Item
-                    key={activity.id}
-                    dot={getActivityIcon(activity.type)}
-                  >
-                    <div style={{ marginBottom: '8px' }}>
-                      <Text strong>{activity.title}</Text>
-                      <Text type="secondary" style={{ marginLeft: '12px', fontSize: '12px' }}>
-                        {new Date(activity.created_at).toLocaleString()}
-                      </Text>
-                    </div>
-                    {activity.description && (
-                      <div style={{ marginBottom: '4px' }}>
-                        <Text type="secondary">{activity.description}</Text>
-                      </div>
-                    )}
-                    <div>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        操作人：{activity.user_name}
-                      </Text>
-                    </div>
-                  </Timeline.Item>
-                ))}
-              </Timeline>
-            ) : (
-              <Empty description="暂无项目动态" />
-            )}
-          </Card>
-        </TabPane>
-      </Tabs>
-
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
       {/* 添加成员模态框 */}
       <Modal
         title="添加项目成员"

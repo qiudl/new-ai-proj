@@ -1,0 +1,576 @@
+package database
+
+import (
+	"ai-project-backend/models"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+)
+
+type PostgresDocumentVersionRepository struct {
+	db *sqlx.DB
+}
+
+func NewDocumentVersionRepository(db *sqlx.DB) DocumentVersionRepository {
+	return &PostgresDocumentVersionRepository{db: db}
+}
+
+// CreateVersion creates a new document version
+func (r *PostgresDocumentVersionRepository) CreateVersion(req *models.CreateDocumentVersionRequest, createdBy int) (*models.DocumentVersion, error) {
+	query := `
+		SELECT create_document_version($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`
+	
+	var versionID int
+	err := r.db.Get(&versionID, query,
+		req.DocumentID,
+		req.Title,
+		req.Content,
+		req.FileURL,
+		req.FileSize,
+		req.MimeType,
+		req.ChangeSummary,
+		createdBy,
+		req.IsMajorVersion,
+		req.Tags,
+		req.Metadata,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create document version: %w", err)
+	}
+
+	return r.GetVersionByID(versionID)
+}
+
+// GetVersionByID retrieves a document version by ID
+func (r *PostgresDocumentVersionRepository) GetVersionByID(versionID int) (*models.DocumentVersion, error) {
+	query := `
+		SELECT 
+			dv.*,
+			u.username as created_by_name,
+			u.email as created_by_email,
+			d.title as document_title
+		FROM document_versions dv
+		JOIN users u ON dv.created_by = u.id
+		JOIN documents d ON dv.document_id = d.id
+		WHERE dv.id = $1
+	`
+
+	var version models.DocumentVersion
+	err := r.db.Get(&version, query, versionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("document version not found")
+		}
+		return nil, fmt.Errorf("failed to get document version: %w", err)
+	}
+
+	return &version, nil
+}
+
+// GetVersionByNumber retrieves a document version by document ID and version number
+func (r *PostgresDocumentVersionRepository) GetVersionByNumber(documentID, versionNumber int) (*models.DocumentVersion, error) {
+	query := `
+		SELECT 
+			dv.*,
+			u.username as created_by_name,
+			u.email as created_by_email,
+			d.title as document_title
+		FROM document_versions dv
+		JOIN users u ON dv.created_by = u.id
+		JOIN documents d ON dv.document_id = d.id
+		WHERE dv.document_id = $1 AND dv.version_number = $2
+	`
+
+	var version models.DocumentVersion
+	err := r.db.Get(&version, query, documentID, versionNumber)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("document version not found")
+		}
+		return nil, fmt.Errorf("failed to get document version: %w", err)
+	}
+
+	return &version, nil
+}
+
+// GetVersionHistory retrieves the version history for a document
+func (r *PostgresDocumentVersionRepository) GetVersionHistory(documentID int, limit, offset int) ([]*models.DocumentVersion, int, error) {
+	countQuery := `SELECT COUNT(*) FROM document_versions WHERE document_id = $1`
+	var totalCount int
+	err := r.db.Get(&totalCount, countQuery, documentID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count versions: %w", err)
+	}
+
+	query := `
+		SELECT * FROM document_version_history
+		WHERE document_id = $1
+		ORDER BY version_number DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	var versions []*models.DocumentVersion
+	err = r.db.Select(&versions, query, documentID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get version history: %w", err)
+	}
+
+	return versions, totalCount, nil
+}
+
+// GetVersionStats retrieves statistics for a document's versions
+func (r *PostgresDocumentVersionRepository) GetVersionStats(documentID int) (*models.DocumentVersionStats, error) {
+	query := `
+		SELECT * FROM document_version_stats
+		WHERE document_id = $1
+	`
+
+	var stats models.DocumentVersionStats
+	err := r.db.Get(&stats, query, documentID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("document not found")
+		}
+		return nil, fmt.Errorf("failed to get version stats: %w", err)
+	}
+
+	return &stats, nil
+}
+
+// RestoreVersion restores a document to a specific version
+func (r *PostgresDocumentVersionRepository) RestoreVersion(documentID, targetVersion int, restoredBy int, changeSummary string) (*models.DocumentVersion, error) {
+	query := `SELECT restore_document_version($1, $2, $3, $4)`
+	
+	var versionID int
+	err := r.db.Get(&versionID, query, documentID, targetVersion, restoredBy, changeSummary)
+	if err != nil {
+		return nil, fmt.Errorf("failed to restore document version: %w", err)
+	}
+
+	return r.GetVersionByID(versionID)
+}
+
+// CompareVersions compares two document versions
+func (r *PostgresDocumentVersionRepository) CompareVersions(req *models.CompareVersionsRequest) (*models.DocumentVersionComparison, error) {
+	// First, check if comparison already exists
+	checkQuery := `
+		SELECT * FROM document_version_comparisons
+		WHERE document_id = $1 AND from_version = $2 AND to_version = $3
+	`
+
+	var comparison models.DocumentVersionComparison
+	err := r.db.Get(&comparison, checkQuery, req.DocumentID, req.FromVersion, req.ToVersion)
+	if err == nil {
+		return &comparison, nil
+	}
+
+	// If not found, create new comparison
+	if err == sql.ErrNoRows {
+		return r.createVersionComparison(req)
+	}
+
+	return nil, fmt.Errorf("failed to get version comparison: %w", err)
+}
+
+// createVersionComparison creates a new version comparison
+func (r *PostgresDocumentVersionRepository) createVersionComparison(req *models.CompareVersionsRequest) (*models.DocumentVersionComparison, error) {
+	// Get the two versions
+	fromVersion, err := r.GetVersionByNumber(req.DocumentID, req.FromVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get from version: %w", err)
+	}
+
+	toVersion, err := r.GetVersionByNumber(req.DocumentID, req.ToVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get to version: %w", err)
+	}
+
+	// Simple diff calculation (in a real implementation, you'd use a proper diff algorithm)
+	addedLines, removedLines, modifiedLines, similarity := r.calculateDiff(fromVersion.Content, toVersion.Content)
+
+	// Insert comparison
+	insertQuery := `
+		INSERT INTO document_version_comparisons 
+		(document_id, from_version, to_version, added_lines, removed_lines, modified_lines, similarity_score)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id
+	`
+
+	var comparisonID int
+	err = r.db.Get(&comparisonID, insertQuery,
+		req.DocumentID, req.FromVersion, req.ToVersion,
+		addedLines, removedLines, modifiedLines, similarity)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create version comparison: %w", err)
+	}
+
+	// Get the created comparison
+	getQuery := `
+		SELECT * FROM document_version_comparisons WHERE id = $1
+	`
+
+	var comparison models.DocumentVersionComparison
+	err = r.db.Get(&comparison, getQuery, comparisonID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get created comparison: %w", err)
+	}
+
+	return &comparison, nil
+}
+
+// calculateDiff calculates a simple diff between two content strings
+func (r *PostgresDocumentVersionRepository) calculateDiff(fromContent, toContent *string) (added, removed, modified int, similarity float64) {
+	if fromContent == nil && toContent == nil {
+		return 0, 0, 0, 1.0
+	}
+	if fromContent == nil {
+		lines := strings.Split(*toContent, "\n")
+		return len(lines), 0, 0, 0.0
+	}
+	if toContent == nil {
+		lines := strings.Split(*fromContent, "\n")
+		return 0, len(lines), 0, 0.0
+	}
+
+	fromLines := strings.Split(*fromContent, "\n")
+	toLines := strings.Split(*toContent, "\n")
+
+	// Simple line-based comparison
+	fromLineMap := make(map[string]bool)
+	for _, line := range fromLines {
+		fromLineMap[line] = true
+	}
+
+	toLineMap := make(map[string]bool)
+	for _, line := range toLines {
+		toLineMap[line] = true
+	}
+
+	// Count additions
+	for _, line := range toLines {
+		if !fromLineMap[line] {
+			added++
+		}
+	}
+
+	// Count removals
+	for _, line := range fromLines {
+		if !toLineMap[line] {
+			removed++
+		}
+	}
+
+	// Calculate similarity (Jaccard similarity)
+	intersection := 0
+	union := len(fromLineMap)
+
+	for line := range toLineMap {
+		if fromLineMap[line] {
+			intersection++
+		} else {
+			union++
+		}
+	}
+
+	if union == 0 {
+		similarity = 1.0
+	} else {
+		similarity = float64(intersection) / float64(union)
+	}
+
+	return added, removed, modified, similarity
+}
+
+// Version Labels
+
+// CreateVersionLabel creates a new version label
+func (r *PostgresDocumentVersionRepository) CreateVersionLabel(req *models.CreateVersionLabelRequest, createdBy int) (*models.DocumentVersionLabel, error) {
+	query := `
+		INSERT INTO document_version_labels 
+		(document_id, version_number, label, color, description, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`
+
+	var labelID int
+	err := r.db.Get(&labelID, query,
+		req.DocumentID, req.VersionNumber, req.Label, req.Color, req.Description, createdBy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create version label: %w", err)
+	}
+
+	return r.GetVersionLabelByID(labelID)
+}
+
+// GetVersionLabelByID retrieves a version label by ID
+func (r *PostgresDocumentVersionRepository) GetVersionLabelByID(labelID int) (*models.DocumentVersionLabel, error) {
+	query := `
+		SELECT 
+			dvl.*,
+			u.username as created_by_name
+		FROM document_version_labels dvl
+		JOIN users u ON dvl.created_by = u.id
+		WHERE dvl.id = $1
+	`
+
+	var label models.DocumentVersionLabel
+	err := r.db.Get(&label, query, labelID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("version label not found")
+		}
+		return nil, fmt.Errorf("failed to get version label: %w", err)
+	}
+
+	return &label, nil
+}
+
+// GetVersionLabels retrieves all labels for a document version
+func (r *PostgresDocumentVersionRepository) GetVersionLabels(documentID, versionNumber int) ([]*models.DocumentVersionLabel, error) {
+	query := `
+		SELECT 
+			dvl.*,
+			u.username as created_by_name
+		FROM document_version_labels dvl
+		JOIN users u ON dvl.created_by = u.id
+		WHERE dvl.document_id = $1 AND dvl.version_number = $2
+		ORDER BY dvl.created_at ASC
+	`
+
+	var labels []*models.DocumentVersionLabel
+	err := r.db.Select(&labels, query, documentID, versionNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version labels: %w", err)
+	}
+
+	return labels, nil
+}
+
+// DeleteVersionLabel deletes a version label
+func (r *PostgresDocumentVersionRepository) DeleteVersionLabel(labelID int) error {
+	query := `DELETE FROM document_version_labels WHERE id = $1`
+	
+	result, err := r.db.Exec(query, labelID)
+	if err != nil {
+		return fmt.Errorf("failed to delete version label: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("version label not found")
+	}
+
+	return nil
+}
+
+// Version Comments
+
+// CreateVersionComment creates a new version comment
+func (r *PostgresDocumentVersionRepository) CreateVersionComment(req *models.CreateVersionCommentRequest, userID int) (*models.DocumentVersionComment, error) {
+	query := `
+		INSERT INTO document_version_comments 
+		(document_id, version_number, user_id, content, line_number, parent_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id
+	`
+
+	var commentID int
+	err := r.db.Get(&commentID, query,
+		req.DocumentID, req.VersionNumber, userID, req.Content, req.LineNumber, req.ParentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create version comment: %w", err)
+	}
+
+	return r.GetVersionCommentByID(commentID)
+}
+
+// GetVersionCommentByID retrieves a version comment by ID
+func (r *PostgresDocumentVersionRepository) GetVersionCommentByID(commentID int) (*models.DocumentVersionComment, error) {
+	query := `
+		SELECT 
+			dvc.*,
+			u.username,
+			u.avatar as user_avatar
+		FROM document_version_comments dvc
+		JOIN users u ON dvc.user_id = u.id
+		WHERE dvc.id = $1
+	`
+
+	var comment models.DocumentVersionComment
+	err := r.db.Get(&comment, query, commentID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("version comment not found")
+		}
+		return nil, fmt.Errorf("failed to get version comment: %w", err)
+	}
+
+	return &comment, nil
+}
+
+// GetVersionComments retrieves all comments for a document version
+func (r *PostgresDocumentVersionRepository) GetVersionComments(documentID, versionNumber int) ([]*models.DocumentVersionComment, error) {
+	query := `
+		SELECT 
+			dvc.*,
+			u.username,
+			u.avatar as user_avatar
+		FROM document_version_comments dvc
+		JOIN users u ON dvc.user_id = u.id
+		WHERE dvc.document_id = $1 AND dvc.version_number = $2 AND dvc.parent_id IS NULL
+		ORDER BY dvc.created_at ASC
+	`
+
+	var comments []*models.DocumentVersionComment
+	err := r.db.Select(&comments, query, documentID, versionNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version comments: %w", err)
+	}
+
+	// Load replies for each comment
+	for _, comment := range comments {
+		replies, err := r.getCommentReplies(comment.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get comment replies: %w", err)
+		}
+		comment.Replies = replies
+	}
+
+	return comments, nil
+}
+
+// getCommentReplies retrieves replies for a comment
+func (r *PostgresDocumentVersionRepository) getCommentReplies(parentID int) ([]*models.DocumentVersionComment, error) {
+	query := `
+		SELECT 
+			dvc.*,
+			u.username,
+			u.avatar as user_avatar
+		FROM document_version_comments dvc
+		JOIN users u ON dvc.user_id = u.id
+		WHERE dvc.parent_id = $1
+		ORDER BY dvc.created_at ASC
+	`
+
+	var replies []*models.DocumentVersionComment
+	err := r.db.Select(&replies, query, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get comment replies: %w", err)
+	}
+
+	return replies, nil
+}
+
+// UpdateVersionComment updates a version comment
+func (r *PostgresDocumentVersionRepository) UpdateVersionComment(commentID int, content string) (*models.DocumentVersionComment, error) {
+	query := `
+		UPDATE document_version_comments 
+		SET content = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	_, err := r.db.Exec(query, content, commentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update version comment: %w", err)
+	}
+
+	return r.GetVersionCommentByID(commentID)
+}
+
+// DeleteVersionComment deletes a version comment
+func (r *PostgresDocumentVersionRepository) DeleteVersionComment(commentID int) error {
+	query := `DELETE FROM document_version_comments WHERE id = $1`
+	
+	result, err := r.db.Exec(query, commentID)
+	if err != nil {
+		return fmt.Errorf("failed to delete version comment: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("version comment not found")
+	}
+
+	return nil
+}
+
+// Version Branches
+
+// CreateVersionBranch creates a new version branch
+func (r *PostgresDocumentVersionRepository) CreateVersionBranch(req *models.CreateVersionBranchRequest, createdBy int) (*models.DocumentVersionBranch, error) {
+	query := `
+		INSERT INTO document_version_branches 
+		(document_id, branch_name, base_version, current_version, created_by, description)
+		VALUES ($1, $2, $3, $3, $4, $5)
+		RETURNING id
+	`
+
+	var branchID int
+	err := r.db.Get(&branchID, query,
+		req.DocumentID, req.BranchName, req.BaseVersion, createdBy, req.Description)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create version branch: %w", err)
+	}
+
+	return r.GetVersionBranchByID(branchID)
+}
+
+// GetVersionBranchByID retrieves a version branch by ID
+func (r *PostgresDocumentVersionRepository) GetVersionBranchByID(branchID int) (*models.DocumentVersionBranch, error) {
+	query := `
+		SELECT 
+			dvb.*,
+			u1.username as created_by_name,
+			u2.username as merged_by_name
+		FROM document_version_branches dvb
+		JOIN users u1 ON dvb.created_by = u1.id
+		LEFT JOIN users u2 ON dvb.merged_by = u2.id
+		WHERE dvb.id = $1
+	`
+
+	var branch models.DocumentVersionBranch
+	err := r.db.Get(&branch, query, branchID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("version branch not found")
+		}
+		return nil, fmt.Errorf("failed to get version branch: %w", err)
+	}
+
+	return &branch, nil
+}
+
+// GetDocumentBranches retrieves all branches for a document
+func (r *PostgresDocumentVersionRepository) GetDocumentBranches(documentID int) ([]*models.DocumentVersionBranch, error) {
+	query := `
+		SELECT 
+			dvb.*,
+			u1.username as created_by_name,
+			u2.username as merged_by_name
+		FROM document_version_branches dvb
+		JOIN users u1 ON dvb.created_by = u1.id
+		LEFT JOIN users u2 ON dvb.merged_by = u2.id
+		WHERE dvb.document_id = $1
+		ORDER BY dvb.created_at DESC
+	`
+
+	var branches []*models.DocumentVersionBranch
+	err := r.db.Select(&branches, query, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get document branches: %w", err)
+	}
+
+	return branches, nil
+}

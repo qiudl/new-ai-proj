@@ -1,428 +1,218 @@
 package models
 
 import (
-	"database/sql/driver"
-	"fmt"
 	"time"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 )
 
-// DocumentType represents the type of document
+// DocumentType 文档类型枚举
 type DocumentType string
 
 const (
 	DocumentTypeMarkdown DocumentType = "markdown"
-	DocumentTypeImage    DocumentType = "image"
+	DocumentTypeImage    DocumentType = "image" 
 	DocumentTypePDF      DocumentType = "pdf"
+	DocumentTypeDoc      DocumentType = "doc"
+	DocumentTypeXLSX     DocumentType = "xlsx"
+	DocumentTypePPTX     DocumentType = "pptx"
+	DocumentTypeTXT      DocumentType = "txt"
+	DocumentTypeHTML     DocumentType = "html"
 )
 
-// DocumentStatus represents the status of document
+// DocumentStatus 文档状态枚举
 type DocumentStatus string
 
 const (
 	DocumentStatusDraft     DocumentStatus = "draft"
 	DocumentStatusPublished DocumentStatus = "published"
 	DocumentStatusArchived  DocumentStatus = "archived"
+	DocumentStatusTemplate  DocumentStatus = "template"
 )
 
-// DocumentVisibility represents the visibility level of document
-type DocumentVisibility string
+// Visibility 可见性枚举
+type Visibility string
 
 const (
-	DocumentVisibilityPrivate DocumentVisibility = "private"
-	DocumentVisibilityTeam    DocumentVisibility = "team"
-	DocumentVisibilityPublic  DocumentVisibility = "public"
+	VisibilityPrivate Visibility = "private"
+	VisibilityTeam    Visibility = "team"
+	VisibilityPublic  Visibility = "public"
 )
 
-// DocumentAssociationType represents the type of document association
-type DocumentAssociationType string
+// DocumentMetadata JSONB metadata field
+type DocumentMetadata map[string]interface{}
 
-const (
-	DocumentAssociationProject  DocumentAssociationType = "project"
-	DocumentAssociationCustomer DocumentAssociationType = "customer"
-	DocumentAssociationPersonal DocumentAssociationType = "personal"
-)
-
-// IntArray handles PostgreSQL integer arrays
-type IntArray []int
-
-// Value implements the driver.Valuer interface for database storage
-func (ia IntArray) Value() (driver.Value, error) {
-	if ia == nil {
+// Value implements driver.Valuer interface
+func (dm DocumentMetadata) Value() (driver.Value, error) {
+	if dm == nil {
 		return nil, nil
 	}
-	if len(ia) == 0 {
-		return "{}", nil
-	}
-	return fmt.Sprintf("{%s}", intArrayToString(ia)), nil
+	return json.Marshal(dm)
 }
 
-// Scan implements the sql.Scanner interface for database retrieval
-func (ia *IntArray) Scan(value interface{}) error {
+// Scan implements sql.Scanner interface
+func (dm *DocumentMetadata) Scan(value interface{}) error {
 	if value == nil {
-		*ia = nil
+		*dm = make(DocumentMetadata)
 		return nil
 	}
 	
-	switch v := value.(type) {
-	case []byte:
-		return ia.parseArray(string(v))
-	case string:
-		return ia.parseArray(v)
-	default:
-		return fmt.Errorf("cannot scan %T into IntArray", value)
-	}
-}
-
-func (ia *IntArray) parseArray(s string) error {
-	// Simple PostgreSQL array parsing for integers
-	if s == "{}" || s == "" {
-		*ia = IntArray{}
-		return nil
-	}
-	// This is a simplified parser - in production you might want a more robust one
-	s = s[1 : len(s)-1] // Remove { and }
-	if s == "" {
-		*ia = IntArray{}
-		return nil
+	bytes, ok := value.([]byte)
+	if !ok {
+		return errors.New("type assertion to []byte failed")
 	}
 	
-	var result []int
-	// Split by comma and parse integers
-	// This is simplified - production code should handle edge cases
-	parts := splitByComma(s)
-	for _, part := range parts {
-		var num int
-		if _, err := fmt.Sscanf(part, "%d", &num); err != nil {
-			return err
-		}
-		result = append(result, num)
-	}
-	*ia = IntArray(result)
-	return nil
+	return json.Unmarshal(bytes, dm)
 }
 
-func intArrayToString(ia []int) string {
-	if len(ia) == 0 {
-		return ""
-	}
-	result := fmt.Sprintf("%d", ia[0])
-	for i := 1; i < len(ia); i++ {
-		result += fmt.Sprintf(",%d", ia[i])
-	}
-	return result
-}
-
-func splitByComma(s string) []string {
-	var result []string
-	current := ""
-	for _, r := range s {
-		if r == ',' {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(r)
-		}
-	}
-	if current != "" {
-		result = append(result, current)
-	}
-	return result
-}
-
-// StringArray is already defined in audit_log.go, reusing it here
-
-// Document represents a document in the system with new association system
+// Document 文档模型
 type Document struct {
-	ID          int                  `json:"id" db:"id"`
-	ProjectID   *int                 `json:"project_id" db:"project_id"`
-	CustomerID  *int                 `json:"customer_id" db:"customer_id"`
-	OwnerID     int                  `json:"owner_id" db:"owner_id" validate:"required"`
-	Title       string               `json:"title" db:"title" validate:"required,min=1,max=255"`
-	Content     string               `json:"content" db:"content"`
-	Type        DocumentType         `json:"type" db:"type" validate:"required"`
-	Status      DocumentStatus       `json:"status" db:"status" validate:"required"`
-	Category    *string              `json:"category" db:"category"`
-	Subcategory *string              `json:"subcategory" db:"subcategory"`
-	Visibility  DocumentVisibility   `json:"visibility" db:"visibility"`
-	SharedWith  IntArray             `json:"shared_with" db:"shared_with"`
-	FileURL     *string              `json:"file_url" db:"file_url"`
-	FileSize    *int64               `json:"file_size" db:"file_size"`
-	MimeType    *string              `json:"mime_type" db:"mime_type"`
-	Tags        StringArray          `json:"tags" db:"tags"`
-	Description *string              `json:"description" db:"description"`
-	Version     int                  `json:"version" db:"version"`
-	CreatedBy   int                  `json:"created_by" db:"created_by" validate:"required"`
-	CreatedAt   time.Time            `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time            `json:"updated_at" db:"updated_at"`
-	DeletedAt   *time.Time           `json:"deleted_at,omitempty" db:"deleted_at"`
+	ID          int              `json:"id" db:"id"`
+	ProjectID   *int             `json:"project_id" db:"project_id"`
+	FolderID    *int             `json:"folder_id" db:"folder_id"`
+	Title       string           `json:"title" db:"title" validate:"required,min=1,max=255"`
+	Content     *string          `json:"content" db:"content"`
+	Type        DocumentType     `json:"type" db:"type" validate:"required"`
+	Status      DocumentStatus   `json:"status" db:"status" validate:"required"`
+	FileURL     *string          `json:"file_url" db:"file_url"`
+	FileSize    *int64           `json:"file_size" db:"file_size"`
+	MimeType    *string          `json:"mime_type" db:"mime_type"`
+	Description *string          `json:"description" db:"description"`
+	Tags        []string         `json:"tags" db:"tags"`
+	Metadata    DocumentMetadata `json:"metadata" db:"metadata"`
+	OwnerID     int              `json:"owner_id" db:"owner_id" validate:"required"`
+	Visibility  Visibility       `json:"visibility" db:"visibility" validate:"required"`
+	Version     int              `json:"version" db:"version"`
+	ParentDocID *int             `json:"parent_document_id" db:"parent_document_id"`
+	IsTemplate  bool             `json:"is_template" db:"is_template"`
+	CreatedBy   int              `json:"created_by" db:"created_by" validate:"required"`
+	CreatedAt   time.Time        `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at" db:"updated_at"`
+	DeletedAt   *time.Time       `json:"deleted_at" db:"deleted_at"`
+	
+	// 关联字段
+	OwnerName   *string `json:"owner_name,omitempty" db:"owner_name"`
+	FolderName  *string `json:"folder_name,omitempty" db:"folder_name"`
+	Relations   []DocumentRelation `json:"relations,omitempty"`
 }
 
-// DocumentRequest represents a document creation request
-type DocumentRequest struct {
-	Title       string               `json:"title" validate:"required,min=1,max=255"`
-	Content     string               `json:"content"`
-	Type        DocumentType         `json:"type" validate:"required"`
-	Status      DocumentStatus       `json:"status"`
-	ProjectID   *int                 `json:"project_id"`
-	CustomerID  *int                 `json:"customer_id"`
-	Category    *string              `json:"category"`
-	Subcategory *string              `json:"subcategory"`
-	Visibility  DocumentVisibility   `json:"visibility"`
-	SharedWith  []int                `json:"shared_with"`
-	Tags        []string             `json:"tags"`
-	Description *string              `json:"description"`
+// CreateDocumentRequest 创建文档请求
+type CreateDocumentRequest struct {
+	FolderID    *int             `json:"folder_id"`
+	Title       string           `json:"title" validate:"required,min=1,max=255"`
+	Content     *string          `json:"content"`
+	Type        DocumentType     `json:"type" validate:"required"`
+	Status      DocumentStatus   `json:"status"`
+	FileURL     *string          `json:"file_url"`
+	FileSize    *int64           `json:"file_size"`
+	MimeType    *string          `json:"mime_type"`
+	Description *string          `json:"description"`
+	Tags        []string         `json:"tags"`
+	Metadata    DocumentMetadata `json:"metadata"`
+	Visibility  Visibility       `json:"visibility"`
+	IsTemplate  bool             `json:"is_template"`
 }
 
-// UpdateDocumentRequest represents a document update request (allows partial updates)
+// UpdateDocumentRequest 更新文档请求
 type UpdateDocumentRequest struct {
-	Title       *string               `json:"title,omitempty" validate:"omitempty,min=1,max=255"`
-	Content     *string               `json:"content,omitempty"`
-	Type        *DocumentType         `json:"type,omitempty" validate:"omitempty"`
-	Status      *DocumentStatus       `json:"status,omitempty" validate:"omitempty"`
-	ProjectID   *int                  `json:"project_id,omitempty"`
-	CustomerID  *int                  `json:"customer_id,omitempty"`
-	Category    *string               `json:"category,omitempty"`
-	Subcategory *string               `json:"subcategory,omitempty"`
-	Visibility  *DocumentVisibility   `json:"visibility,omitempty" validate:"omitempty"`
-	SharedWith  *[]int                `json:"shared_with,omitempty"`
-	Tags        *[]string             `json:"tags,omitempty"`
-	Description *string               `json:"description,omitempty"`
+	FolderID    *int             `json:"folder_id"`
+	Title       *string          `json:"title" validate:"omitempty,min=1,max=255"`
+	Content     *string          `json:"content"`
+	Status      *DocumentStatus  `json:"status"`
+	FileURL     *string          `json:"file_url"`
+	FileSize    *int64           `json:"file_size"`
+	MimeType    *string          `json:"mime_type"`
+	Description *string          `json:"description"`
+	Tags        *[]string        `json:"tags"`
+	Metadata    *DocumentMetadata `json:"metadata"`
+	Visibility  *Visibility      `json:"visibility"`
 }
 
-// DocumentResponse represents a document response with additional info
-type DocumentResponse struct {
-	ID               int                     `json:"id"`
-	ProjectID        *int                    `json:"project_id"`
-	CustomerID       *int                    `json:"customer_id"`
-	OwnerID          int                     `json:"owner_id"`
-	Title            string                  `json:"title"`
-	Content          string                  `json:"content"`
-	Type             DocumentType            `json:"type"`
-	Status           DocumentStatus          `json:"status"`
-	Category         *string                 `json:"category"`
-	Subcategory      *string                 `json:"subcategory"`
-	Visibility       DocumentVisibility      `json:"visibility"`
-	SharedWith       []int                   `json:"shared_with"`
-	FileURL          *string                 `json:"file_url"`
-	FileSize         *int64                  `json:"file_size"`
-	MimeType         *string                 `json:"mime_type"`
-	Tags             []string                `json:"tags"`
-	Description      *string                 `json:"description"`
-	Version          int                     `json:"version"`
-	CreatedBy        int                     `json:"created_by"`
-	CreatedAt        time.Time               `json:"created_at"`
-	UpdatedAt        time.Time               `json:"updated_at"`
-	// Extended fields with relation info
-	ProjectName      string                  `json:"project_name,omitempty"`
-	CustomerName     string                  `json:"customer_name,omitempty"`
-	OwnerName        string                  `json:"owner_name,omitempty"`
-	CreatorName      string                  `json:"creator_name,omitempty"`
-	AssociationType  DocumentAssociationType `json:"association_type"`
-	CanEdit          bool                    `json:"can_edit"`
-	CanDelete        bool                    `json:"can_delete"`
-	CanShare         bool                    `json:"can_share"`
+// MoveDocumentRequest 移动文档请求
+type MoveDocumentRequest struct {
+	FolderID *int `json:"folder_id"`
 }
 
-// DocumentListResponse represents a document in list view (without full content)
+// DocumentListResponse 文档列表响应
 type DocumentListResponse struct {
-	ID              int                     `json:"id"`
-	ProjectID       *int                    `json:"project_id"`
-	CustomerID      *int                    `json:"customer_id"`
-	OwnerID         int                     `json:"owner_id"`
-	Title           string                  `json:"title"`
-	Type            DocumentType            `json:"type"`
-	Status          DocumentStatus          `json:"status"`
-	Category        *string                 `json:"category"`
-	Subcategory     *string                 `json:"subcategory"`
-	Visibility      DocumentVisibility      `json:"visibility"`
-	Tags            []string                `json:"tags"`
-	Description     *string                 `json:"description"`
-	Version         int                     `json:"version"`
-	CreatedBy       int                     `json:"created_by"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
-	ContentSize     int                     `json:"content_size"`
-	// Extended fields
-	ProjectName     string                  `json:"project_name,omitempty"`
-	CustomerName    string                  `json:"customer_name,omitempty"`
-	OwnerName       string                  `json:"owner_name,omitempty"`
-	CreatorName     string                  `json:"creator_name,omitempty"`
-	AssociationType DocumentAssociationType `json:"association_type"`
-	CanEdit         bool                    `json:"can_edit"`
-	CanDelete       bool                    `json:"can_delete"`
-	CanShare        bool                    `json:"can_share"`
+	Documents []Document `json:"documents"`
+	Total     int        `json:"total"`
+	Page      int        `json:"page"`
+	PageSize  int        `json:"page_size"`
 }
 
-// DocumentFilter represents document filtering options
-type DocumentFilter struct {
-	ProjectID       *int                 `form:"project_id"`
-	CustomerID      *int                 `form:"customer_id"`
-	OwnerID         *int                 `form:"owner_id"`
-	Type            *DocumentType        `form:"type"`
-	Status          *DocumentStatus      `form:"status"`
-	Category        *string              `form:"category"`
-	Visibility      *DocumentVisibility  `form:"visibility"`
-	Search          string               `form:"search"`
-	Tags            []string             `form:"tags"`
-	SortBy          string               `form:"sort_by"`
-	Order           string               `form:"order"` 
-	Page            int                  `form:"page"`
-	Limit           int                  `form:"limit"`
-	IncludeDeleted  bool                 `form:"include_deleted"`
+// DocumentTreeResponse 文档树响应
+type DocumentTreeResponse struct {
+	Folders   []DocumentFolder `json:"folders"`
+	Documents []Document       `json:"documents"`
 }
 
-// DocumentStats represents document statistics
+// DocumentResponse 文档详情响应
+type DocumentResponse struct {
+	Document
+	FolderName    *string              `json:"folder_name,omitempty"`
+	OwnerName     *string              `json:"owner_name,omitempty"`
+	CreatorName   *string              `json:"creator_name,omitempty"`
+	Relations     []DocumentRelation   `json:"relations,omitempty"`
+	Collaborators []CollaboratorInfo   `json:"collaborators,omitempty"`
+	CanEdit       bool                 `json:"can_edit"`
+	CanDelete     bool                 `json:"can_delete"`
+	CanShare      bool                 `json:"can_share"`
+}
+
+// DocumentStats 文档统计
 type DocumentStats struct {
-	TotalDocuments    int                            `json:"total_documents"`
-	ProjectDocuments  int                            `json:"project_documents"`
-	CustomerDocuments int                            `json:"customer_documents"`
-	PersonalDocuments int                            `json:"personal_documents"`
-	ByType            map[DocumentType]int           `json:"by_type"`
-	ByStatus          map[DocumentStatus]int         `json:"by_status"`
-	ByVisibility      map[DocumentVisibility]int     `json:"by_visibility"`
-	RecentDocuments   int                            `json:"recent_documents"`
+	TotalDocuments     int                            `json:"total_documents"`
+	FolderDocuments    int                            `json:"folder_documents"`
+	UnorganizedDocs    int                            `json:"unorganized_documents"`
+	TemplateDocuments  int                            `json:"template_documents"`
+	ByType             map[DocumentType]int           `json:"by_type"`
+	ByStatus           map[DocumentStatus]int         `json:"by_status"`
+	ByVisibility       map[Visibility]int             `json:"by_visibility"`
+	RecentDocuments    int                            `json:"recent_documents"`
+	MyDocuments        int                            `json:"my_documents"`
+	SharedWithMe       int                            `json:"shared_with_me"`
+	FavoriteDocuments  int                            `json:"favorite_documents"`
 }
 
-// GetAssociationType returns the association type of the document
-func (d *Document) GetAssociationType() DocumentAssociationType {
-	if d.ProjectID != nil {
-		return DocumentAssociationProject
-	}
-	if d.CustomerID != nil {
-		return DocumentAssociationCustomer
-	}
-	return DocumentAssociationPersonal
+// DocumentSearchRequest 文档搜索请求
+type DocumentSearchRequest struct {
+	Query         string             `json:"query" form:"query"`
+	FolderID      *int               `json:"folder_id" form:"folder_id"`
+	Type          *DocumentType      `json:"type" form:"type"`
+	Status        *DocumentStatus    `json:"status" form:"status"`
+	Tags          []string           `json:"tags" form:"tags"`
+	OwnerID       *int               `json:"owner_id" form:"owner_id"`
+	CreatedAfter  *time.Time         `json:"created_after" form:"created_after"`
+	CreatedBefore *time.Time         `json:"created_before" form:"created_before"`
+	UpdatedAfter  *time.Time         `json:"updated_after" form:"updated_after"`
+	UpdatedBefore *time.Time         `json:"updated_before" form:"updated_before"`
+	SortBy        string             `json:"sort_by" form:"sort_by"` // title, created_at, updated_at, relevance
+	Order         string             `json:"order" form:"order"`     // asc, desc
+	Page          int                `json:"page" form:"page"`
+	Limit         int                `json:"limit" form:"limit"`
+	IncludeContent bool              `json:"include_content" form:"include_content"`
 }
 
-// GetAssociationType returns the association type of the document list response
-func (d *DocumentListResponse) GetAssociationType() DocumentAssociationType {
-	if d.ProjectID != nil {
-		return DocumentAssociationProject
-	}
-	if d.CustomerID != nil {
-		return DocumentAssociationCustomer
-	}
-	return DocumentAssociationPersonal
+// DocumentSearchResponse 文档搜索响应
+type DocumentSearchResponse struct {
+	Documents    []Document `json:"documents"`
+	TotalCount   int        `json:"total_count"`
+	Page         int        `json:"page"`
+	Limit        int        `json:"limit"`
+	HasNextPage  bool       `json:"has_next_page"`
+	HasPrevPage  bool       `json:"has_prev_page"`
 }
 
-// ToResponse converts Document to DocumentResponse
-func (d *Document) ToResponse() DocumentResponse {
-	return DocumentResponse{
-		ID:              d.ID,
-		ProjectID:       d.ProjectID,
-		CustomerID:      d.CustomerID,
-		OwnerID:         d.OwnerID,
-		Title:           d.Title,
-		Content:         d.Content,
-		Type:            d.Type,
-		Status:          d.Status,
-		Category:        d.Category,
-		Subcategory:     d.Subcategory,
-		Visibility:      d.Visibility,
-		SharedWith:      []int(d.SharedWith),
-		FileURL:         d.FileURL,
-		FileSize:        d.FileSize,
-		MimeType:        d.MimeType,
-		Tags:            []string(d.Tags),
-		Description:     d.Description,
-		Version:         d.Version,
-		CreatedBy:       d.CreatedBy,
-		CreatedAt:       d.CreatedAt,
-		UpdatedAt:       d.UpdatedAt,
-		AssociationType: d.GetAssociationType(),
-	}
-}
+// 验证方法
 
-// ToListResponse converts Document to DocumentListResponse
-func (d *Document) ToListResponse() DocumentListResponse {
-	return DocumentListResponse{
-		ID:              d.ID,
-		ProjectID:       d.ProjectID,
-		CustomerID:      d.CustomerID,
-		OwnerID:         d.OwnerID,
-		Title:           d.Title,
-		Type:            d.Type,
-		Status:          d.Status,
-		Category:        d.Category,
-		Subcategory:     d.Subcategory,
-		Visibility:      d.Visibility,
-		Tags:            []string(d.Tags),
-		Description:     d.Description,
-		Version:         d.Version,
-		CreatedBy:       d.CreatedBy,
-		CreatedAt:       d.CreatedAt,
-		UpdatedAt:       d.UpdatedAt,
-		ContentSize:     len(d.Content),
-		AssociationType: d.GetAssociationType(),
-	}
-}
-
-// ToResponseWithRelations converts Document to DocumentResponse with additional relation info
-func (d *Document) ToResponseWithRelations(projectName, customerName, ownerName, creatorName string, permissions map[string]bool) DocumentResponse {
-	response := d.ToResponse()
-	response.ProjectName = projectName
-	response.CustomerName = customerName
-	response.OwnerName = ownerName
-	response.CreatorName = creatorName
-	response.CanEdit = permissions["can_edit"]
-	response.CanDelete = permissions["can_delete"]
-	response.CanShare = permissions["can_share"]
-	return response
-}
-
-// ToListResponseWithRelations converts Document to DocumentListResponse with additional relation info
-func (d *Document) ToListResponseWithRelations(projectName, customerName, ownerName, creatorName string, permissions map[string]bool) DocumentListResponse {
-	response := d.ToListResponse()
-	response.ProjectName = projectName
-	response.CustomerName = customerName
-	response.OwnerName = ownerName
-	response.CreatorName = creatorName
-	response.CanEdit = permissions["can_edit"]
-	response.CanDelete = permissions["can_delete"]
-	response.CanShare = permissions["can_share"]
-	return response
-}
-
-// ValidateAssociation validates that only one association type is set
-func (dr *DocumentRequest) ValidateAssociation() error {
-	associations := 0
-	if dr.ProjectID != nil {
-		associations++
-	}
-	if dr.CustomerID != nil {
-		associations++
-	}
-	
-	if associations > 1 {
-		return fmt.Errorf("document can only be associated with one entity (project, customer, or personal)")
-	}
-	
-	return nil
-}
-
-// ValidateAssociation validates that only one association type is set for update requests
-func (dr *UpdateDocumentRequest) ValidateAssociation() error {
-	associations := 0
-	if dr.ProjectID != nil {
-		associations++
-	}
-	if dr.CustomerID != nil {
-		associations++
-	}
-	
-	if associations > 1 {
-		return fmt.Errorf("document can only be associated with one entity (project, customer, or personal)")
-	}
-	
-	return nil
-}
-
-// IsValidDocumentType checks if the document type is valid
+// IsValidDocumentType 检查文档类型是否有效
 func IsValidDocumentType(docType string) bool {
 	validTypes := []DocumentType{
-		DocumentTypeMarkdown,
-		DocumentTypeImage,
-		DocumentTypePDF,
+		DocumentTypeMarkdown, DocumentTypeImage, DocumentTypePDF,
+		DocumentTypeDoc, DocumentTypeXLSX, DocumentTypePPTX,
+		DocumentTypeTXT, DocumentTypeHTML,
 	}
 	
 	for _, validType := range validTypes {
@@ -433,12 +223,11 @@ func IsValidDocumentType(docType string) bool {
 	return false
 }
 
-// IsValidDocumentStatus checks if the document status is valid
+// IsValidDocumentStatus 检查文档状态是否有效
 func IsValidDocumentStatus(status string) bool {
 	validStatuses := []DocumentStatus{
-		DocumentStatusDraft,
-		DocumentStatusPublished,
-		DocumentStatusArchived,
+		DocumentStatusDraft, DocumentStatusPublished,
+		DocumentStatusArchived, DocumentStatusTemplate,
 	}
 	
 	for _, validStatus := range validStatuses {
@@ -449,18 +238,40 @@ func IsValidDocumentStatus(status string) bool {
 	return false
 }
 
-// IsValidDocumentVisibility checks if the document visibility is valid
-func IsValidDocumentVisibility(visibility string) bool {
-	validVisibilities := []DocumentVisibility{
-		DocumentVisibilityPrivate,
-		DocumentVisibilityTeam,
-		DocumentVisibilityPublic,
+// IsValidVisibility 检查可见性是否有效
+func IsValidVisibility(visibility string) bool {
+	validVisibilities := []Visibility{
+		VisibilityPrivate, VisibilityTeam, VisibilityPublic,
 	}
 	
 	for _, validVisibility := range validVisibilities {
-		if DocumentVisibility(visibility) == validVisibility {
+		if Visibility(visibility) == validVisibility {
 			return true
 		}
 	}
 	return false
+}
+
+// ToResponse 转换为响应格式
+func (d *Document) ToResponse() DocumentResponse {
+	return DocumentResponse{
+		Document:      *d,
+		Relations:     []DocumentRelation{},
+		Collaborators: []CollaboratorInfo{},
+	}
+}
+
+// DocumentFilter 文档过滤器
+type DocumentFilter struct {
+	ProjectID  *int    `json:"project_id,omitempty"`
+	Search     string  `json:"search,omitempty"`
+	Type       string  `json:"type,omitempty"`
+	Status     string  `json:"status,omitempty"`
+	Visibility string  `json:"visibility,omitempty"`
+	FolderID   *int    `json:"folder_id,omitempty"`
+	OwnerID    *int    `json:"owner_id,omitempty"`
+	SortBy     string  `json:"sort_by,omitempty"`
+	Order      string  `json:"order,omitempty"`
+	Page       int     `json:"page,omitempty"`
+	Limit      int     `json:"limit,omitempty"`
 }

@@ -24,6 +24,7 @@ import {
   RobotOutlined,
   SettingOutlined,
   FileTextOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -118,6 +119,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path === '/projects') return ['/projects'];
     if (path.includes('/companies')) return ['/companies'];
     if (path.includes('/documents')) return ['/documents'];
+    if (path.includes('/document-manager')) return ['/document-manager'];
     return [path];
   };
 
@@ -133,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/projects') || path.includes('/companies')) {
       return ['/project-customer-management'];
     }
-    if (path.includes('/documents')) {
+    if (path.includes('/documents') || path.includes('/document-manager')) {
       return ['/document-management'];
     }
     if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs')) {
@@ -206,6 +208,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       icon: <FileTextOutlined />,
       label: '文档管理',
       children: [
+        {
+          key: '/document-manager',
+          icon: <FolderOutlined />,
+          label: '文档管理器',
+        },
         {
           key: '/documents',
           icon: <FileTextOutlined />,

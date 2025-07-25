@@ -41,7 +41,7 @@ import {
 import { AIProvider, AI_PROVIDER_INFO, AI_PROVIDER_DEFAULTS } from '../types/ai';
 import aiConfigDatabaseService, { AIConfigRequest, AIConfigResponse, AITestRequest } from '../services/aiConfigDatabaseService';
 import AIConfigDatabaseService from '../services/aiConfigDatabaseService';
-import realAITestService, { RealAITestResponse } from '../services/realAITestService';
+// import realAITestService, { RealAITestResponse } from '../services/realAITestService';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -61,7 +61,7 @@ interface AIConfig {
 
 interface TestResult {
   testing: boolean;
-  result?: RealAITestResponse;
+  result?: any;
 }
 
 const AIConfigPage: React.FC = () => {
@@ -307,7 +307,8 @@ const AIConfigPage: React.FC = () => {
       };
       
       console.log(`开始真实测试${AI_PROVIDER_INFO[provider].name}连接...`);
-      const response = await realAITestService.testConnection(testRequest);
+      // const response = await realAITestService.testConnection(testRequest);
+      const response = { success: false, message: 'AI test service not available' };
       
       setTestResults(prev => ({
         ...prev,
@@ -319,10 +320,10 @@ const AIConfigPage: React.FC = () => {
 
       if (response.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
-        console.log(`测试对话结果:`, response.conversation);
+        console.log(`测试对话结果:`, (response as any).conversation);
       } else {
         message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${response.message}`);
-        console.error(`测试错误:`, response.error);
+        console.error(`测试错误:`, (response as any).error);
       }
     } catch (error) {
       console.error('测试连接失败:', error);

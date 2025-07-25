@@ -97,7 +97,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
         page: pagination.current,
         limit: pagination.pageSize,
         search: searchText || undefined,
-        type: filterType !== 'all' ? filterType : undefined,
+        type: filterType !== 'all' ? [filterType] : undefined,
         status: filterStatus !== 'all' ? filterStatus as any : undefined,
         sort_by: sortBy,
         order: sortOrder,

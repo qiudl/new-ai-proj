@@ -3,7 +3,18 @@ package database
 import (
 	"ai-project-backend/models"
 	"context"
+	"database/sql"
 )
+
+// DBExecutor defines the interface for database operations
+type DBExecutor interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+}
 
 // UserRepository defines the interface for user database operations
 type UserRepository interface {
@@ -218,6 +229,127 @@ type DocumentRepository interface {
 	GetGlobalDocumentCount(ctx context.Context) (int, error)
 }
 
+// DocumentFolderRepository defines the interface for document folder database operations
+type DocumentFolderRepository interface {
+	// Basic CRUD operations
+	Create(ctx context.Context, folder *models.CreateDocumentFolderRequest, userID int) (*models.DocumentFolder, error)
+	GetByID(ctx context.Context, id int) (*models.DocumentFolder, error)
+	Update(ctx context.Context, id int, req *models.UpdateDocumentFolderRequest, userID int) (*models.DocumentFolder, error)
+	Delete(ctx context.Context, id int, userID int) error
+	
+	// Listing and querying
+	List(ctx context.Context, req *models.ListFoldersRequest, userID int) (*models.ListFoldersResponse, error)
+	GetTree(ctx context.Context, userID int, visibility string) (*models.FolderTreeResponse, error)
+	GetByParent(ctx context.Context, parentID *int, userID int) ([]*models.DocumentFolder, error)
+	GetStats(ctx context.Context, folderID int) (*models.DocumentFolderStats, error)
+	
+	// Folder operations
+	Move(ctx context.Context, folderID int, req *models.MoveFolderRequest, userID int) error
+	GetChildren(ctx context.Context, folderID int, userID int) ([]*models.DocumentFolder, error)
+	GetPath(ctx context.Context, folderID int) (string, error)
+	
+	// Permission and ownership
+	CanAccess(ctx context.Context, folderID int, userID int, action string) (bool, error)
+	GetUserFolders(ctx context.Context, userID int, visibility string) ([]*models.DocumentFolder, error)
+	
+	// Document operations within folders
+	GetDocumentsByFolder(ctx context.Context, folderID *int, userID int, limit, offset int) ([]*models.Document, int, error)
+	MoveDocument(ctx context.Context, documentID int, targetFolderID *int, userID int) error
+	
+	// Statistics and analytics
+	GetFolderStats(ctx context.Context, userID int) (map[string]interface{}, error)
+	GetRecentlyUpdatedFolders(ctx context.Context, userID int, limit int) ([]*models.DocumentFolder, error)
+}
+
+// DocumentRelationRepository defines the interface for document relation database operations
+type DocumentRelationRepository interface {
+	// Create relations
+	CreateCustomerRelation(ctx context.Context, req *models.AddDocumentCustomerRelationRequest, userID int) (*models.DocumentCustomerRelation, error)
+	CreateProjectRelation(ctx context.Context, req *models.AddDocumentProjectRelationRequest, userID int) (*models.DocumentProjectRelation, error)
+	CreateTaskRelation(ctx context.Context, req *models.AddDocumentTaskRelationRequest, userID int) (*models.DocumentTaskRelation, error)
+	
+	// Get relations
+	GetDocumentRelations(ctx context.Context, documentID, userID int) (*models.DocumentRelationsResponse, error)
+	GetEntityRelations(ctx context.Context, entityType string, entityID int, req *models.ListDocumentRelationsRequest) (*models.EntityRelationsResponse, error)
+	
+	// Update relations
+	UpdateCustomerRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentCustomerRelation, error)
+	UpdateProjectRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentProjectRelation, error)
+	UpdateTaskRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentTaskRelation, error)
+	
+	// Delete relations
+	DeleteRelation(ctx context.Context, entityType string, id, userID int) error
+	
+	// Statistics
+	GetRelationStats(ctx context.Context, documentID *int, userID int) (*models.RelationStatsResponse, error)
+	
+	// Bulk operations
+	BulkCreateRelations(ctx context.Context, relations []models.AddDocumentRelationRequest, userID int) error
+}
+
+// DocumentPermissionRepository defines the interface for document permission database operations
+type DocumentPermissionRepository interface {
+	// Permission management
+	GrantPermission(ctx context.Context, req *models.GrantDocumentPermissionRequest, grantorID int) (*models.DocumentPermission, error)
+	GetDocumentPermissions(ctx context.Context, documentID int, userID int) (*models.DocumentPermissionResponse, error)
+	GetUserPermissions(ctx context.Context, userID int) (*models.DocumentPermissionResponse, error)
+	CheckUserPermission(ctx context.Context, documentID, userID int, permissionType string) (bool, error)
+	UpdatePermission(ctx context.Context, permissionID int, req *models.UpdateDocumentPermissionRequest, userID int) (*models.DocumentPermission, error)
+	RevokePermission(ctx context.Context, permissionID, userID int) error
+	
+	// Sharing management
+	CreateShare(ctx context.Context, req *models.CreateDocumentShareRequest, userID int) (*models.DocumentShare, error)
+	GetDocumentShares(ctx context.Context, documentID int) (*models.DocumentShareResponse, error)
+	GetShareByToken(ctx context.Context, token string) (*models.DocumentShare, error)
+	UpdateShare(ctx context.Context, shareID int, req *models.UpdateDocumentShareRequest, userID int) (*models.DocumentShare, error)
+	DeleteShare(ctx context.Context, shareID, userID int) error
+}
+
+// DocumentVersionRepository defines the interface for document version management
+type DocumentVersionRepository interface {
+	// Version CRUD operations
+	Create(version *models.DocumentVersion) (*models.DocumentVersion, error)
+	GetByID(versionID int) (*models.DocumentVersion, error)
+	GetByDocumentAndVersion(documentID, versionNumber int) (*models.DocumentVersion, error)
+	GetByDocumentID(documentID int) ([]*models.DocumentVersion, error)
+	GetByDocumentIDPaginated(documentID, page, pageSize int) ([]*models.DocumentVersion, int, error)
+	Update(version *models.DocumentVersion) (*models.DocumentVersion, error)
+	Delete(versionID int) error
+	
+	// Version statistics
+	GetStats(documentID int) (*models.DocumentVersionStats, error)
+	
+	// Version comparison
+	CompareVersions(documentID, fromVersion, toVersion int) (*models.DocumentVersionComparison, error)
+	
+	// Version labels
+	CreateLabel(label *models.DocumentVersionLabel) (*models.DocumentVersionLabel, error)
+	GetLabelByID(labelID int) (*models.DocumentVersionLabel, error)
+	GetVersionLabels(documentID, versionNumber int) ([]*models.DocumentVersionLabel, error)
+	GetAllLabels(documentID int) ([]*models.DocumentVersionLabel, error)
+	GetLabelsByColor(color string) ([]*models.DocumentVersionLabel, error)
+	SearchLabels(query string, page, pageSize int) ([]*models.DocumentVersionLabel, int, error)
+	UpdateLabel(label *models.DocumentVersionLabel) (*models.DocumentVersionLabel, error)
+	DeleteLabel(labelID int) error
+	
+	// Version comments
+	CreateComment(comment *models.DocumentVersionComment) (*models.DocumentVersionComment, error)
+	GetCommentByID(commentID int) (*models.DocumentVersionComment, error)
+	GetVersionComments(documentID, versionNumber int) ([]*models.DocumentVersionComment, error)
+	GetVersionCommentsWithReplies(documentID, versionNumber int) ([]*models.DocumentVersionComment, error)
+	GetDocumentComments(documentID, page, pageSize int) ([]*models.DocumentVersionComment, int, error)
+	GetCommentReplies(parentCommentID int) ([]*models.DocumentVersionComment, error)
+	UpdateComment(comment *models.DocumentVersionComment) (*models.DocumentVersionComment, error)
+	DeleteComment(commentID int) error
+	
+	// Version branches
+	CreateBranch(branch *models.DocumentVersionBranch) (*models.DocumentVersionBranch, error)
+	GetBranches(documentID int) ([]*models.DocumentVersionBranch, error)
+	GetBranchByID(branchID int) (*models.DocumentVersionBranch, error)
+	UpdateBranch(branch *models.DocumentVersionBranch) (*models.DocumentVersionBranch, error)
+	DeleteBranch(branchID int) error
+}
+
 // TimerRepository defines the interface for timer operations
 type TimerRepository interface {
 	// Time log operations
@@ -247,6 +379,10 @@ type DB interface {
 	System() SystemRepository
 	Audit() AuditRepository
 	Documents() DocumentRepository
+	DocumentFolders() DocumentFolderRepository
+	DocumentRelations() DocumentRelationRepository
+	DocumentPermissions() DocumentPermissionRepository
+	DocumentVersions() DocumentVersionRepository
 	Timer() TimerRepository
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
@@ -264,7 +400,27 @@ type Tx interface {
 	Permissions() PermissionRepository
 	Audit() AuditRepository
 	Documents() DocumentRepository
+	DocumentFolders() DocumentFolderRepository
+	DocumentRelations() DocumentRelationRepository
+	DocumentPermissions() DocumentPermissionRepository
+	DocumentVersions() DocumentVersionRepository
 	Timer() TimerRepository
 	Commit() error
 	Rollback() error
 }
+
+// Repository defines the main repository interface that combines all repositories
+// Note: Commented out due to method name conflicts between interfaces
+// type Repository interface {
+//	ProjectRepository
+//	TaskRepository
+//	UserRepository
+//	TimerRepository
+//	AuditRepository
+//	SystemRepository
+//	DocumentRepository
+//	DocumentFolderRepository
+//	CustomerRepository
+//	CompanyRepository
+//	PermissionRepository
+// }

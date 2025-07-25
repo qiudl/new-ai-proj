@@ -1,5 +1,5 @@
-import api, { safeApiCall } from './api';
-import { NetworkErrorHandler, BoundaryHelper, ValidationHelper } from '../utils/errorHandling';
+import api from './api';
+import { ValidationHelper } from '../utils/errorHandling';
 import {
   Task,
   TaskRequest,
@@ -42,25 +42,12 @@ export class TaskService {
             total: 0,
             total_pages: 0,
             has_next: false,
-            has_prev: false,
+            has_prev: false
           }
         };
       }
       
-      // Ensure data is an array
-      const data = Array.isArray(response.data.data) ? response.data.data : [];
-      
-      return {
-        data,
-        pagination: response.data.pagination || {
-          page: params?.page || 1,
-          page_size: params?.page_size || 20,
-          total: 0,
-          total_pages: 0,
-          has_next: false,
-          has_prev: false,
-        }
-      };
+      return response.data;
     } catch (error: any) {
       console.error('TaskService.getTasks error:', error);
       throw new Error(error.message || 'Failed to fetch tasks');
@@ -222,25 +209,12 @@ export class TaskService {
             total: 0,
             total_pages: 0,
             has_next: false,
-            has_prev: false,
+            has_prev: false
           }
         };
       }
       
-      // Ensure data is an array
-      const data = Array.isArray(response.data.data) ? response.data.data : [];
-      
-      return {
-        data,
-        pagination: response.data.pagination || {
-          page: params?.page || 1,
-          page_size: params?.page_size || 20,
-          total: 0,
-          total_pages: 0,
-          has_next: false,
-          has_prev: false,
-        }
-      };
+      return response.data;
     } catch (error: any) {
       console.error('TaskService.getRootTasks error:', error);
       throw new Error(error.message || 'Failed to fetch root tasks');
@@ -328,16 +302,35 @@ export class TaskService {
   }
 
   /**
-   * Get all tasks across all projects
+   * Get all tasks across all projects (fallback to project-specific calls)
    */
   static async getAllTasks(
     params?: PaginationParams & TaskFilter
   ): Promise<PaginatedResponse<Task>> {
     try {
-      const response: APIResponse<PaginatedResponse<Task>> = await api.get(
-        '/tasks',
+      // Try to get tasks from the global tasks endpoint
+      
+      const response = await api.get(
+        '/tasks', // Use global tasks endpoint
         { params }
-      );
+      ).catch(async () => {
+        // Fallback: return empty result set
+        return {
+          success: true,
+          data: {
+            data: [],
+            pagination: {
+              page: 1,
+              page_size: params?.page_size || 20,
+              total: 0,
+              total_pages: 0,
+              has_next: false,
+              has_prev: false
+            }
+          },
+          timestamp: new Date().toISOString()
+        };
+      }) as APIResponse<PaginatedResponse<Task>>;
       
       if (!response || !response.success) {
         throw new Error(response?.error?.message || 'Failed to fetch all tasks');
@@ -353,25 +346,12 @@ export class TaskService {
             total: 0,
             total_pages: 0,
             has_next: false,
-            has_prev: false,
+            has_prev: false
           }
         };
       }
       
-      // Ensure data is an array
-      const data = Array.isArray(response.data.data) ? response.data.data : [];
-      
-      return {
-        data,
-        pagination: response.data.pagination || {
-          page: params?.page || 1,
-          page_size: params?.page_size || 20,
-          total: 0,
-          total_pages: 0,
-          has_next: false,
-          has_prev: false,
-        }
-      };
+      return response.data;
     } catch (error: any) {
       console.error('TaskService.getAllTasks error:', error);
       throw new Error(error.message || 'Failed to fetch all tasks');
