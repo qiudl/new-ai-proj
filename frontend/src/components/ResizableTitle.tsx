@@ -20,7 +20,7 @@ const ResizableTitle: React.FC<ResizableTitleProps> = ({
     <Resizable
       width={width}
       height={0}
-      onResize={(e, { size }: { size: { width: number; height: number } }) => {
+      onResize={(e: any, { size }: { size: { width: number; height: number } }) => {
         // 限制宽度范围
         const newWidth = Math.max(minWidth, Math.min(maxWidth, size.width));
         onResize(newWidth);

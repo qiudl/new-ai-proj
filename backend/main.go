@@ -40,9 +40,9 @@ type Application struct {
 	companyHandler      *handlers.CompanyHandler
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
-	// 文档管理处理器 (简化版本)
-	simpleDocumentHandler       *handlers.SimpleDocumentHandler
-	simpleDocumentFolderHandler *handlers.SimpleDocumentFolderHandler
+	// 文档管理处理器 (混合版本，直接SQL)
+	hybridDocumentHandler       *handlers.HybridDocumentHandler
+	hybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
 	// documentRelationHandler *handlers.DocumentRelationHandler // 临时注释，避免编译错误
 	// documentVersionHandler *handlers.DocumentVersionHandler // 临时注释，避免编译错误
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
@@ -88,9 +88,9 @@ func NewApplication() (*Application, error) {
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
-	// 文档管理处理器 (简化版本)
-	simpleDocumentHandler := handlers.NewSimpleDocumentHandler()
-	simpleDocumentFolderHandler := handlers.NewSimpleDocumentFolderHandler()
+	// 文档管理处理器 (混合版本，直接SQL)
+	hybridDocumentHandler := handlers.NewHybridDocumentHandler(db)
+	hybridDocumentFolderHandler := handlers.NewHybridDocumentFolderHandler(db)
 	// documentRelationHandler := handlers.NewDocumentRelationHandler(db) // 临时注释，避免编译错误
 	// documentVersionHandler := handlers.NewDocumentVersionHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
@@ -107,9 +107,9 @@ func NewApplication() (*Application, error) {
 		companyHandler:      companyHandler,
 		permissionHandler:   permissionHandler,
 		userManagementHandler: userManagementHandler,
-		// 简化版文档管理处理器
-		simpleDocumentHandler:       simpleDocumentHandler,
-		simpleDocumentFolderHandler: simpleDocumentFolderHandler,
+		// 混合版文档管理处理器 (直接SQL)
+		hybridDocumentHandler:       hybridDocumentHandler,
+		hybridDocumentFolderHandler: hybridDocumentFolderHandler,
 		// documentRelationHandler: documentRelationHandler, // 临时注释，避免编译错误
 		// documentVersionHandler: documentVersionHandler, // 临时注释，避免编译错误
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
@@ -322,28 +322,28 @@ func (app *Application) setupRouter() *gin.Engine {
 				companies.POST("/:id/contacts", app.companyHandler.CreateCompanyContact)
 			}
 
-			// 简化版文档管理路由
-			authorized.GET("/documents", app.simpleDocumentHandler.GetDocuments)
-			authorized.POST("/documents", app.simpleDocumentHandler.CreateDocument)
+			// 数据库版文档管理路由
+			authorized.GET("/documents", app.hybridDocumentHandler.GetDocuments)
+			authorized.POST("/documents", app.hybridDocumentHandler.CreateDocument)
 			
 			// Document CRUD routes (direct access by document ID)
-			authorized.GET("/documents/:id", app.simpleDocumentHandler.GetDocument)
-			authorized.PUT("/documents/:id", app.simpleDocumentHandler.UpdateDocument)
-			authorized.DELETE("/documents/:id", app.simpleDocumentHandler.DeleteDocument)
-			authorized.POST("/documents/:id/copy", app.simpleDocumentHandler.CopyDocument)
-			authorized.POST("/documents/:id/toggle-template", app.simpleDocumentHandler.ToggleTemplate)
+			authorized.GET("/documents/:id", app.hybridDocumentHandler.GetDocument)
+			authorized.PUT("/documents/:id", app.hybridDocumentHandler.UpdateDocument)
+			authorized.DELETE("/documents/:id", app.hybridDocumentHandler.DeleteDocument)
+			authorized.POST("/documents/:id/copy", app.hybridDocumentHandler.CopyDocument)
+			authorized.POST("/documents/:id/toggle-template", app.hybridDocumentHandler.ToggleTemplate)
 
-			// 简化版文档文件夹路由
+			// 数据库版文档文件夹路由
 			documentFolders := authorized.Group("/document-folders")
 			{
-				documentFolders.POST("", app.simpleDocumentFolderHandler.CreateFolder)
-				documentFolders.GET("", app.simpleDocumentFolderHandler.ListFolders)
-				documentFolders.GET("/tree", app.simpleDocumentFolderHandler.GetFolderTree)
-				documentFolders.GET("/:id", app.simpleDocumentFolderHandler.GetFolder)
-				documentFolders.PUT("/:id", app.simpleDocumentFolderHandler.UpdateFolder)
-				documentFolders.DELETE("/:id", app.simpleDocumentFolderHandler.DeleteFolder)
-				documentFolders.POST("/:id/move", app.simpleDocumentFolderHandler.MoveFolder)
-				documentFolders.POST("/batch-update", app.simpleDocumentFolderHandler.BatchUpdateFolders)
+				documentFolders.POST("", app.hybridDocumentFolderHandler.CreateFolder)
+				documentFolders.GET("", app.hybridDocumentFolderHandler.ListFolders)
+				documentFolders.GET("/tree", app.hybridDocumentFolderHandler.GetFolderTree)
+				documentFolders.GET("/:id", app.hybridDocumentFolderHandler.GetFolder)
+				documentFolders.PUT("/:id", app.hybridDocumentFolderHandler.UpdateFolder)
+				documentFolders.DELETE("/:id", app.hybridDocumentFolderHandler.DeleteFolder)
+				documentFolders.POST("/:id/move", app.hybridDocumentFolderHandler.MoveFolder)
+				documentFolders.POST("/batch-update", app.hybridDocumentFolderHandler.BatchUpdateFolders)
 			}
 
 			// Document Relation routes
