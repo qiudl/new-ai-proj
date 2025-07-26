@@ -21,7 +21,6 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import type { DataNode, TreeProps } from 'antd/es/tree';
-import { documentService } from '../services/documentService';
 import { DocumentFolder, CreateFolderRequest, UpdateFolderRequest } from '../types/legacy';
 
 // Local interface for folders with extended properties

@@ -25,7 +25,8 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
-import { documentService, DocumentListItem } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
+import { DocumentListItem } from '../types/document';
 import { DocumentFilter } from '../types/document';
 
 const { Title, Text } = Typography;
@@ -61,6 +62,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const fetchDocuments = async () => {
     setLoading(true);
     try {
+      // 检查认证状态
+      const token = localStorage.getItem('token');
+      console.log('当前认证状态:', token ? '已登录' : '未登录');
+      console.log('获取文档列表 - 项目ID:', projectId);
+      console.log('搜索条件:', searchTerm);
+      console.log('排序:', sortBy, order);
+
       const filter: DocumentFilter = {
         page: page || 1,
         limit: pageSize || 20,
@@ -73,15 +81,28 @@ const DocumentList: React.FC<DocumentListProps> = ({
       }
 
       const data = projectId 
-        ? await documentService.getProjectDocuments(projectId, filter as any)
-        : await documentService.getAllDocuments(filter as any);
+        ? await unifiedDocumentService.getAllDocuments({ ...filter, project_id: projectId } as any)
+        : await unifiedDocumentService.getAllDocuments(filter as any);
+      
+      console.log('获取到的文档数据:', data);
       setDocuments(data.documents || []);
       setTotal(data.total || 0);
-    } catch (error) {
+      
+      if (!token) {
+        message.warning('当前使用本地数据，请登录以获取最新文档');
+      }
+    } catch (error: any) {
       console.error('Failed to fetch documents:', error);
-      message.error('获取文档列表失败');
+      const errorMessage = error.message || '获取文档列表失败';
+      message.error(errorMessage);
       setDocuments([]);
       setTotal(0);
+      
+      // 如果是认证错误，提示用户登录
+      if (errorMessage.includes('认证失败') || errorMessage.includes('登录')) {
+        // 可以在这里跳转到登录页面
+        // navigate('/login');
+      }
     } finally {
       setLoading(false);
     }
@@ -90,7 +111,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // 删除文档
   const handleDeleteDocument = async (documentId: number) => {
     try {
-      await documentService.deleteDocument(documentId);
+      await unifiedDocumentService.deleteDocument(documentId);
       message.success('文档删除成功');
       fetchDocuments(); // 重新加载列表
     } catch (error) {

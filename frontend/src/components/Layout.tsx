@@ -26,6 +26,7 @@ import {
   FileTextOutlined,
   FolderOutlined,
 } from '@ant-design/icons';
+import JWTDebugButton from './JWTDebugButton';
 
 const { Header, Sider, Content } = AntLayout;
 
@@ -306,6 +307,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {children}
         </Content>
       </AntLayout>
+      
+      {/* JWT调试按钮 - 仅在开发环境显示 */}
+      <JWTDebugButton />
     </AntLayout>
   );
 };

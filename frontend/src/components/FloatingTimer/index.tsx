@@ -29,11 +29,6 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  // 如果没有正在运行的定时器，不显示组件
-  if (!timerState.isRunning) {
-    return null;
-  }
-
   // 从localStorage恢复位置
   useEffect(() => {
     try {
@@ -138,6 +133,11 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     }
     return 'floating-timer--running';
   };
+
+  // 如果没有正在运行的定时器，不显示组件
+  if (!timerState.isRunning) {
+    return null;
+  }
 
   return (
     <div

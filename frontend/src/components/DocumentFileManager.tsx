@@ -78,7 +78,7 @@ import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
 import dayjs from 'dayjs';
 import { Document } from '../types/document';
-import { simpleDocumentService, SimpleDocument } from '../services/simpleDocumentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -431,7 +431,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         });
 
         // Here you could call an API to save the new order
-        // await documentService.updateDocumentOrder(folderId, newItems.map(item => item.id));
+        // await unifiedDocumentService.updateDocumentOrder(folderId, newItems.map(item => item.id));
         console.log('Document order updated:', newItems.map(item => ({ id: item.id, title: item.title })));
         
         return newItems;
@@ -529,37 +529,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     try {
       setLoading(true);
       
-      const documents = await simpleDocumentService.getDocuments(folderId);
-      
-      // 转换 SimpleDocument 到 Document 格式
-      const convertedDocuments: Document[] = documents.map(doc => ({
-        id: doc.id,
-        folder_id: doc.folder_id,
-        title: doc.title,
-        content: doc.content || '',
-        content_size: doc.content?.length || 0,
-        type: doc.type,
-        status: doc.status,
-        description: doc.description,
-        tags: doc.tags,
-        owner_id: doc.owner_id,
-        visibility: doc.visibility,
-        version: doc.version,
-        is_template: doc.is_template,
-        is_favorite: doc.is_favorite || false,
-        created_at: doc.created_at,
-        updated_at: doc.updated_at,
-        created_by: doc.created_by,
-        owner_name: doc.owner_name,
-        folder_name: doc.folder_name,
-        project_id: doc.project_id,
-        project_name: doc.project_name,
-        customer_id: doc.customer_id,
-        customer_name: doc.customer_name,
-        category: doc.category
-      }));
-      
-      setDocuments(convertedDocuments);
+      const documents = await unifiedDocumentService.getDocuments(folderId);
+      setDocuments(documents);
     } catch (error) {
       message.error('加载文档列表失败');
     } finally {
@@ -585,7 +556,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         category: values.category
       };
 
-      await simpleDocumentService.createDocument(request);
+      await unifiedDocumentService.createDocument(request);
       
       message.success('文档创建成功');
       setCreateModalVisible(false);
@@ -614,7 +585,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         is_template: values.is_template
       };
 
-      await simpleDocumentService.updateDocument(selectedDocument.id, request);
+      await unifiedDocumentService.updateDocument(selectedDocument.id, request);
       
       message.success('文档更新成功');
       setEditModalVisible(false);
@@ -632,7 +603,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
   const handleDeleteDocument = async (documentId: number) => {
     try {
-      await simpleDocumentService.deleteDocument(documentId);
+      await unifiedDocumentService.deleteDocument(documentId);
       
       // 清除选中状态
       setSelectedDocuments(prev => prev.filter(id => id !== documentId));
@@ -1193,9 +1164,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               size="small"
               icon={<EyeOutlined />}
               onClick={() => {
-                // 先显示预览模态框
-                setSelectedDocument(record);
-                setPreviewModalVisible(true);
+                // 导航到文档详情页面
+                window.open(`/documents/${record.id}`, '_blank');
               }}
             >
               查看
@@ -1206,7 +1176,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               icon={<EditOutlined />}
               onClick={() => {
                 // 导航到文档编辑页面
-                window.open(`/documents/edit/${record.id}`, '_blank');
+                window.open(`/documents/${record.id}/edit`, '_blank');
               }}
             >
               编辑
@@ -1473,21 +1443,13 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
                     document={doc}
                     viewMode="list"
                     onSelect={(document) => {
-                      setSelectedDocument(document);
-                      setPreviewModalVisible(true);
+                      // 导航到文档详情页面
+                      window.open(`/documents/${document.id}`, '_blank');
                       onDocumentSelect?.(document);
                     }}
                     onEdit={(document) => {
-                      setSelectedDocument(document);
-                      editForm.setFieldsValue({
-                        title: document.title,
-                        description: document.description,
-                        tags: document.tags,
-                        status: document.status,
-                        visibility: document.visibility,
-                        is_template: document.is_template
-                      });
-                      setEditModalVisible(true);
+                      // 导航到文档编辑页面
+                      window.open(`/documents/${document.id}/edit`, '_blank');
                     }}
                     onDelete={(document) => {
                       Modal.confirm({
@@ -1512,21 +1474,13 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
                     document={doc}
                     viewMode="grid"
                     onSelect={(document) => {
-                      setSelectedDocument(document);
-                      setPreviewModalVisible(true);
+                      // 导航到文档详情页面
+                      window.open(`/documents/${document.id}`, '_blank');
                       onDocumentSelect?.(document);
                     }}
                     onEdit={(document) => {
-                      setSelectedDocument(document);
-                      editForm.setFieldsValue({
-                        title: document.title,
-                        description: document.description,
-                        tags: document.tags,
-                        status: document.status,
-                        visibility: document.visibility,
-                        is_template: document.is_template
-                      });
-                      setEditModalVisible(true);
+                      // 导航到文档编辑页面
+                      window.open(`/documents/${document.id}/edit`, '_blank');
                     }}
                     onDelete={(document) => {
                       Modal.confirm({
@@ -1878,7 +1832,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
             icon={<EyeOutlined />}
             onClick={() => {
               if (selectedDocument) {
-                window.open(`/documents/view/${selectedDocument.id}`, '_blank');
+                window.open(`/documents/${selectedDocument.id}`, '_blank');
               }
             }}
           >

@@ -16,7 +16,7 @@ import DocumentTypeSelector, { documentTypes } from '../components/DocumentTypeS
 import DocumentAssociationSelector from '../components/DocumentAssociationSelector';
 import DocumentExporter from '../components/DocumentExporter';
 import DocumentHistory from '../components/DocumentHistory';
-import { documentService } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 import { 
   Document as DocumentModel, 
   DocumentType,
@@ -119,7 +119,7 @@ const DocumentEditorPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const doc = await documentService.getDocument(documentId);
+      const doc = await unifiedDocumentService.getDocument(documentId);
       setDocument(doc);
     } catch (error) {
       console.error('Failed to load document:', error);
@@ -152,12 +152,12 @@ const DocumentEditorPage: React.FC = () => {
           tags: document.tags || [],
           description: document.description
         };
-        savedDoc = await documentService.createDocument(createRequest);
+        savedDoc = await unifiedDocumentService.createDocument(createRequest);
         // 更新URL为编辑模式
         navigate(`/documents/${savedDoc.id}/edit`, { replace: true });
       } else {
         // 更新现有文档
-        savedDoc = await documentService.updateDocument(documentId!, {
+        savedDoc = await unifiedDocumentService.updateDocument(documentId!, {
           title: document.title,
           content: document.content,
           type: document.type,
@@ -195,7 +195,7 @@ const DocumentEditorPage: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await documentService.deleteDocument(documentId!);
+          await unifiedDocumentService.deleteDocument(documentId!);
           message.success('文档已删除');
           navigate(-1);
         } catch (error) {

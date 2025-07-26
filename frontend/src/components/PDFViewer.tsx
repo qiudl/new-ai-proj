@@ -9,7 +9,7 @@ import {
   UploadOutlined
 } from '@ant-design/icons';
 import { RcFile } from 'antd/es/upload';
-import { documentService } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 
 interface PDFViewerProps {
   onPDFInsert?: (pdfUrl: string, fileName: string) => void;
@@ -70,8 +70,10 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   const uploadToServer = async (file: File): Promise<string> => {
     try {
       // 使用真实的API上传PDF
-      const response = await documentService.uploadFile(file, 'pdf', { project_id: projectId });
-      return response.url;
+      // PDF upload functionality not yet implemented in unified service
+      // const response = await unifiedDocumentService.uploadFile(file, 'pdf', { project_id: projectId });
+      // Using fallback for now
+      throw new Error('PDF upload not implemented yet');
     } catch (error) {
       // 如果API失败，回退到本地预览URL（开发阶段）
       console.warn('API upload failed, using local URL:', error);

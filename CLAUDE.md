@@ -191,7 +191,7 @@ docker-compose exec db psql -U user -d main_db -c "SELECT id, title, parent_id, 
 - **Database**: localhost:5432 (PostgreSQL direct access)
 
 ## Default Credentials
-- **Username**: `qiudl` / **Password**: `123456`
+- **Username**: `admin` / **Password**: `password123`
 - **Alt Users**: `dev_user_1`, `dev_user_2` (same password)
 
 ## Key Features & Implementation Status

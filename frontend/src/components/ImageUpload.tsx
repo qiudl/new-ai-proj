@@ -9,7 +9,7 @@ import {
   PlusOutlined
 } from '@ant-design/icons';
 import { UploadFile, RcFile } from 'antd/es/upload';
-import { documentService } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 
 interface ImageUploadProps {
   onImageInsert?: (imageUrl: string, fileName: string) => void;
@@ -74,9 +74,9 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   const uploadToServer = async (file: File): Promise<string> => {
     try {
       // 使用真实的API上传图片
-      const response = await documentService.uploadImage({
-        file,
-        project_id: projectId
+      const response = await unifiedDocumentService.uploadImage({
+        file
+        // Note: project_id is not supported in current uploadImage API
       });
       return response.url;
     } catch (error) {

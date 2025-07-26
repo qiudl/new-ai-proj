@@ -31,7 +31,7 @@ import {
   DeleteOutlined
 } from '@ant-design/icons';
 import { Document } from '../types/document';
-import { simpleDocumentService, SimpleDocument } from '../services/simpleDocumentService';
+import unifiedDocumentService, { SimpleDocument } from '../services/unifiedDocumentService';
 import dayjs from 'dayjs';
 
 const { Text } = Typography;
@@ -80,7 +80,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
   const loadDocuments = async () => {
     try {
       setLoading(true);
-      const docs = await simpleDocumentService.getDocuments(folderId);
+      const docs = await unifiedDocumentService.getDocuments(folderId);
       setDocuments(docs);
     } catch (error: any) {
       console.error('加载文档失败:', error);
@@ -108,7 +108,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
         category: values.category
       };
 
-      await simpleDocumentService.createDocument(request);
+      await unifiedDocumentService.createDocument(request);
       
       message.success('文档创建成功');
       setCreateModalVisible(false);
@@ -126,7 +126,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
   // 处理删除文档
   const handleDeleteDocument = async (documentId: number) => {
     try {
-      await simpleDocumentService.deleteDocument(documentId);
+      await unifiedDocumentService.deleteDocument(documentId);
       message.success('文档删除成功');
       loadDocuments();
       onDocumentUpdate?.();
@@ -293,7 +293,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
                 </div>
                 <div>
                   <Space wrap size={4}>
-                    {document.tags.slice(0, 2).map(tag => (
+                    {document.tags.slice(0, 2).map((tag: string) => (
                       <Tag key={tag} style={{ fontSize: '11px' }}>#{tag}</Tag>
                     ))}
                     {document.tags.length > 2 && (

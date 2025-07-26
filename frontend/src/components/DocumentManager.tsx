@@ -36,10 +36,10 @@ import {
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
-import { documentService } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 import { documentTypes, documentCategories } from './DocumentTypeSelector';
 import { DocumentType, DocumentStats, DocumentListItem } from '../types/document';
-import { DocumentListParams } from '../services/documentService';
+import { DocumentFilter as DocumentListParams } from '../types/document';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -82,7 +82,32 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
   // 获取文档统计信息
   const loadStats = useCallback(async () => {
     try {
-      const statsData = await documentService.getDocumentStats({ project_id: projectId });
+      // Stats functionality not implemented in unified service yet
+      const statsData: DocumentStats = { 
+        total_documents: 0, 
+        documents_by_type: {
+          markdown: 0,
+          text: 0,
+          pdf: 0,
+          word: 0,
+          excel: 0,
+          image: 0
+        }, 
+        by_type: {
+          markdown: 0,
+          text: 0,
+          pdf: 0,
+          word: 0,
+          excel: 0,
+          image: 0
+        },
+        documents_by_status: {
+          draft: 0,
+          published: 0,
+          archived: 0
+        }, 
+        recent_documents: [] 
+      };
       setStats(statsData);
     } catch (error) {
       console.error('Failed to load stats:', error);
@@ -105,8 +130,8 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       };
 
       const response = projectId 
-        ? await documentService.getProjectDocuments(projectId, params)
-        : await documentService.getAllDocuments(params);
+        ? await unifiedDocumentService.getAllDocuments({ ...params, project_id: projectId })
+        : await unifiedDocumentService.getAllDocuments(params);
       
       setDocuments(response.documents);
       setPagination(prev => ({
@@ -219,7 +244,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       cancelText: '取消',
       onOk: async () => {
         try {
-          await documentService.deleteDocument(record.id);
+          await unifiedDocumentService.deleteDocument(record.id);
           message.success('文档已删除');
           loadDocuments();
           loadStats();
@@ -263,7 +288,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       onOk: async () => {
         try {
           await Promise.all(
-            selectedRowKeys.map(id => documentService.deleteDocument(Number(id)))
+            selectedRowKeys.map(id => unifiedDocumentService.deleteDocument(Number(id)))
           );
           message.success(`已删除 ${selectedRowKeys.length} 个文档`);
           setSelectedRowKeys([]);

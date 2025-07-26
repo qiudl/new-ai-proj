@@ -23,7 +23,7 @@ import {
   HomeOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { documentService } from '../services/documentService';
+import unifiedDocumentService from '../services/unifiedDocumentService';
 import { Document, DocumentType, DocumentStatus, CreateDocumentRequest } from '../types/document';
 
 const { Title, Text } = Typography;
@@ -89,7 +89,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
     setLoading(true);
     try {
-      const data = await documentService.getDocument(finalDocumentId);
+      const data = await unifiedDocumentService.getDocument(finalDocumentId);
       setDocumentData(data);
       setHasChanges(false);
     } catch (error) {
@@ -126,8 +126,8 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
       };
 
       const savedDocument = finalDocumentId 
-        ? await documentService.updateDocument(finalDocumentId, requestData)
-        : await documentService.createDocument(requestData);
+        ? await unifiedDocumentService.updateDocument(finalDocumentId, requestData)
+        : await unifiedDocumentService.createDocument(requestData);
 
       setDocumentData(savedDocument);
       setHasChanges(false);
@@ -155,7 +155,7 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
     if (!finalDocumentId) return;
 
     try {
-      await documentService.deleteDocument(finalDocumentId);
+      await unifiedDocumentService.deleteDocument(finalDocumentId);
       message.success('文档删除成功');
       
       if (onDelete) {
