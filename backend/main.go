@@ -322,11 +322,11 @@ func (app *Application) setupRouter() *gin.Engine {
 				companies.POST("/:id/contacts", app.companyHandler.CreateCompanyContact)
 			}
 
-			// 数据库版文档管理路由
-			authorized.GET("/documents", app.hybridDocumentHandler.GetDocuments)
-			authorized.POST("/documents", app.hybridDocumentHandler.CreateDocument)
+			// 数据库版文档管理路由 - 已删除，只保留文档管理器功能
 			
 			// Document CRUD routes (direct access by document ID)
+			authorized.GET("/documents", app.hybridDocumentHandler.GetDocuments)
+			authorized.POST("/documents", app.hybridDocumentHandler.CreateDocument)
 			authorized.GET("/documents/:id", app.hybridDocumentHandler.GetDocument)
 			authorized.PUT("/documents/:id", app.hybridDocumentHandler.UpdateDocument)
 			authorized.DELETE("/documents/:id", app.hybridDocumentHandler.DeleteDocument)

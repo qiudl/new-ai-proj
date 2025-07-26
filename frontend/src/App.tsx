@@ -32,7 +32,7 @@ const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage')
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
-const DocumentListPage = React.lazy(() => import('./pages/DocumentListPage'));
+
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
 
@@ -123,14 +123,7 @@ function App() {
               </PrivateRoute>
             } />
 
-            {/* Document management routes */}
-            <Route path="/projects/:projectId/documents" element={
-              <PrivateRoute>
-                <Layout>
-                  <DocumentListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+
 
             <Route path="/projects/:projectId/documents/new" element={
               <PrivateRoute>
@@ -303,14 +296,7 @@ function App() {
               </PrivateRoute>
             } />
 
-            {/* Global document management routes */}
-            <Route path="/documents" element={
-              <PrivateRoute>
-                <Layout>
-                  <DocumentListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+
             
             <Route path="/document-manager" element={
               <PrivateRoute>

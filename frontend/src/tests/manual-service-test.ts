@@ -208,7 +208,7 @@ class ServiceTester {
   // 运行所有测试
   async runAllTests(): Promise<void> {
     console.log('🚀 开始 UnifiedDocumentService 手动集成测试');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     this.results = [];
 
@@ -227,9 +227,9 @@ class ServiceTester {
 
   // 打印测试结果
   private printResults(): void {
-    console.log('\n' + '=' .repeat(50));
+    console.log('\n' + '='.repeat(50));
     console.log('📊 测试结果汇总');
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
 
     const passed = this.results.filter(r => r.status === 'pass').length;
     const failed = this.results.filter(r => r.status === 'fail').length;

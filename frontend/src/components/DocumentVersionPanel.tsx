@@ -84,7 +84,7 @@ import {
   VERSION_CHANGE_TYPES,
   VERSION_LABEL_COLORS
 } from '../types/version';
-import documentVersionService from '../services/documentVersionService';
+import { documentVersionService } from '../services/documentVersionService';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

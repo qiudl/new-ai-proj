@@ -179,7 +179,7 @@ function createTestDocument(folderId) {
 // 运行完整诊断
 async function runFullDiagnosis() {
   console.log('🏥 开始完整诊断...');
-  console.log('=' .repeat(60));
+  console.log('='.repeat(60));
   
   // 1. 测试后端API
   const apiWorking = await testBackendAPI();
@@ -195,7 +195,7 @@ async function runFullDiagnosis() {
   }
   
   // 4. 诊断结论
-  console.log('\n' + '=' .repeat(60));
+  console.log('\n' + '='.repeat(60));
   console.log('🎯 诊断结论:');
   
   if (apiWorking) {

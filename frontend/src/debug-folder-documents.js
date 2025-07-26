@@ -104,9 +104,9 @@ async function checkBackendAPI() {
 
 // 5. 运行完整诊断
 async function runDiagnosis() {
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   console.log('🏥 文件夹文档问题诊断');
-  console.log('=' .repeat(50));
+  console.log('='.repeat(50));
   
   // 检查本地文档
   console.log('\n1. 检查本地存储...');

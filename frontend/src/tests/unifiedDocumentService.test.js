@@ -10,6 +10,8 @@
 
 import unifiedDocumentService, { adaptSimpleToDocument, adaptDocumentToSimple } from '../services/unifiedDocumentService';
 
+import api from '../services/api';
+
 // Mock API module
 jest.mock('../services/api', () => ({
   get: jest.fn(),
@@ -17,8 +19,6 @@ jest.mock('../services/api', () => ({
   put: jest.fn(),
   delete: jest.fn(),
 }));
-
-import api from '../services/api';
 
 describe('UnifiedDocumentService 回归测试', () => {
   

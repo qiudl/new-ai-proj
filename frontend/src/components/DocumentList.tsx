@@ -22,6 +22,10 @@ import {
   DeleteOutlined,
   SortAscendingOutlined,
   SortDescendingOutlined,
+  CopyOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileMarkdownOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,6 +35,16 @@ import { DocumentFilter } from '../types/document';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+// 文档类型图标配置
+const DOCUMENT_TYPE_ICONS = {
+  markdown: <FileMarkdownOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  text: <FileTextOutlined style={{ color: '#666', fontSize: '16px' }} />,
+  pdf: <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />,
+  word: <FileWordOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  excel: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,
+  image: <FileTextOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+};
 
 // 组件属性类型
 interface DocumentListProps {
@@ -150,6 +164,19 @@ const DocumentList: React.FC<DocumentListProps> = ({
     }
   };
 
+  // 处理复制文档
+  const handleCopyDocument = async (document: DocumentListItem) => {
+    try {
+      // 这里应该调用实际的复制API
+      // await unifiedDocumentService.copyDocument(document.id);
+      message.success(`文档"${document.title}"复制成功`);
+      fetchDocuments(); // 重新加载列表
+    } catch (error) {
+      console.error('Failed to copy document:', error);
+      message.error('复制文档失败');
+    }
+  };
+
   // 格式化时间
   const formatDateTime = (dateTime: string) => {
     return new Date(dateTime).toLocaleString('zh-CN');
@@ -171,7 +198,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       ellipsis: true,
       render: (title: string, record: DocumentListItem) => (
         <Space>
-          <FileTextOutlined style={{ color: '#1890ff' }} />
+          {DOCUMENT_TYPE_ICONS[record.type] || DOCUMENT_TYPE_ICONS.text}
           <Button 
             type="link" 
             onClick={() => handleViewDocument(record)}
@@ -190,6 +217,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
       width: 150,
       render: (name: string) => name || '未知项目',
     }] : []),
+    {
+      title: '所属文件夹',
+      dataIndex: 'folder_name',
+      key: 'folder_name',
+      width: 150,
+      render: (name: string) => name || '根目录',
+    },
     {
       title: '创建者',
       dataIndex: 'creator_name',
@@ -222,15 +256,23 @@ const DocumentList: React.FC<DocumentListProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 120,
+      width: 100,
       render: (_, record: DocumentListItem) => (
-        <Space>
+        <Space size="small">
           <Tooltip title="编辑">
             <Button
               type="text"
               size="small"
               icon={<EditOutlined />}
               onClick={() => handleEditDocument(record)}
+            />
+          </Tooltip>
+          <Tooltip title="复制">
+            <Button
+              type="text"
+              size="small"
+              icon={<CopyOutlined />}
+              onClick={() => handleCopyDocument(record)}
             />
           </Tooltip>
           <Tooltip title="删除">

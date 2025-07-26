@@ -93,14 +93,14 @@ interface DocumentFileManagerProps {
   onDocumentUpdate?: () => void;
 }
 
-// 文档类型配置
+// 文档类型配置 - 更新为更精确的图标
 const DOCUMENT_TYPES = {
-  markdown: { label: 'Markdown', color: 'blue', icon: '📝' },
-  text: { label: 'Text', color: 'default', icon: '📄' },
-  pdf: { label: 'PDF', color: 'red', icon: '📋' },
-  word: { label: 'Word', color: 'blue', icon: '📘' },
-  excel: { label: 'Excel', color: 'green', icon: '📊' },
-  image: { label: 'Image', color: 'orange', icon: '🖼️' }
+  markdown: { label: 'Markdown', color: 'blue', icon: <FileMarkdownOutlined /> },
+  text: { label: 'Text', color: 'default', icon: <FileTextOutlined /> },
+  pdf: { label: 'PDF', color: 'red', icon: <FilePdfOutlined /> },
+  word: { label: 'Word', color: 'blue', icon: <FileWordOutlined /> },
+  excel: { label: 'Excel', color: 'green', icon: <FileOutlined /> },
+  image: { label: 'Image', color: 'orange', icon: <FileOutlined /> }
 };
 
 // 文档状态配置
@@ -170,21 +170,26 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
           hoverable
           style={{
             marginBottom: 16,
-            cursor: isDragging ? 'grabbing' : 'grab',
             border: isDragging ? '2px dashed #1890ff' : undefined,
           }}
           actions={[
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => onSelect(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(document);
+              }}
             >
               查看
             </Button>,
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => onEdit(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(document);
+              }}
             >
               编辑
             </Button>,
@@ -204,31 +209,51 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
               type="text"
               icon={<DeleteOutlined />}
               danger
-              onClick={() => onDelete(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(document);
+              }}
             >
               删除
             </Button>
           ]}
-          {...listeners}
         >
           <Card.Meta
             avatar={
-              <div style={{ fontSize: '24px' }}>
-                {DOCUMENT_TYPES[document.type]?.icon || '📄'}
+              <div style={{ fontSize: '24px', color: '#1890ff' }}>
+                {DOCUMENT_TYPES[document.type]?.icon || <FileOutlined />}
               </div>
             }
             title={
-              <Space>
-                <Text strong style={{ fontSize: '16px' }}>
-                  {document.title}
-                </Text>
-                {document.is_favorite && (
-                  <StarFilled style={{ color: '#faad14' }} />
-                )}
-                {document.is_template && (
-                  <Tag color="purple">模板</Tag>
-                )}
-              </Space>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space>
+                  <div 
+                    {...listeners}
+                    style={{
+                      cursor: isDragging ? 'grabbing' : 'grab',
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: '#f5f5f5',
+                      fontSize: '12px',
+                      color: '#666'
+                    }}
+                    title="拖拽排序"
+                  >
+                    ≡
+                  </div>
+                  <Text strong style={{ fontSize: '16px' }}>
+                    {document.title}
+                  </Text>
+                  {document.is_favorite && (
+                    <StarFilled style={{ color: '#faad14' }} />
+                  )}
+                  {document.is_template && (
+                    <Tag color="purple">模板</Tag>
+                  )}
+                </Space>
+              </div>
             }
             description={
               <div>
@@ -241,9 +266,6 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 )}
                 <div style={{ marginTop: 8 }}>
                   <Space wrap>
-                    <Tag color={DOCUMENT_TYPES[document.type]?.color}>
-                      {DOCUMENT_TYPES[document.type]?.label}
-                    </Tag>
                     <Badge 
                       status={DOCUMENT_STATUS[document.status]?.color as any} 
                       text={DOCUMENT_STATUS[document.status]?.label}
@@ -273,7 +295,6 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
       ref={setNodeRef}
       style={{
         ...style,
-        cursor: isDragging ? 'grabbing' : 'grab',
         backgroundColor: isDragging ? '#f0f2ff' : undefined,
         padding: '12px',
         marginBottom: '8px',
@@ -281,12 +302,30 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
         borderRadius: '6px',
       }}
       {...attributes}
-      {...listeners}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-          <div style={{ fontSize: '20px', marginRight: '12px' }}>
-            {DOCUMENT_TYPES[document.type]?.icon || '📄'}
+          <div 
+            {...listeners}
+            style={{
+              cursor: isDragging ? 'grabbing' : 'grab',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '24px',
+              height: '24px',
+              marginRight: '12px',
+              borderRadius: '4px',
+              backgroundColor: '#f5f5f5',
+              fontSize: '14px',
+              color: '#666'
+            }}
+            title="拖拽排序"
+          >
+            ≡
+          </div>
+          <div style={{ fontSize: '20px', marginRight: '12px', color: '#1890ff' }}>
+            {DOCUMENT_TYPES[document.type]?.icon || <FileOutlined />}
           </div>
           <div style={{ flex: 1 }}>
             <div>
@@ -309,9 +348,6 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             )}
             <div style={{ marginTop: '8px' }}>
               <Space wrap>
-                <Tag color={DOCUMENT_TYPES[document.type]?.color}>
-                  {DOCUMENT_TYPES[document.type]?.label}
-                </Tag>
                 <Badge 
                   status={DOCUMENT_STATUS[document.status]?.color as any} 
                   text={DOCUMENT_STATUS[document.status]?.label}
@@ -328,7 +364,10 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => onSelect(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(document);
+              }}
               size="small"
             >
               查看
@@ -336,7 +375,10 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => onEdit(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(document);
+              }}
               size="small"
             >
               编辑
@@ -367,7 +409,10 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
               type="text"
               icon={<DeleteOutlined />}
               danger
-              onClick={() => onDelete(document)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(document);
+              }}
               size="small"
             >
               删除

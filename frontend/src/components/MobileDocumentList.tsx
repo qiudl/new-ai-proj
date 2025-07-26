@@ -28,7 +28,12 @@ import {
   ClockCircleOutlined,
   PlusOutlined,
   DownloadOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  CopyOutlined,
+  FileTextOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileMarkdownOutlined
 } from '@ant-design/icons';
 import { Document } from '../types/document';
 import unifiedDocumentService, { SimpleDocument } from '../services/unifiedDocumentService';
@@ -43,6 +48,16 @@ interface MobileDocumentListProps {
   onDocumentSelect?: (document: Document) => void;
   onDocumentUpdate?: () => void;
 }
+
+// 文档类型图标配置
+const DOCUMENT_TYPE_ICONS = {
+  markdown: <FileMarkdownOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  text: <FileTextOutlined style={{ color: '#666', fontSize: '16px' }} />,
+  pdf: <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />,
+  word: <FileWordOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  excel: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,
+  image: <FileTextOutlined style={{ color: '#fa8c16', fontSize: '16px' }} />
+};
 
 // 文档类型配置
 const DOCUMENT_TYPES = {
@@ -137,7 +152,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
   };
 
   const getDocumentIcon = (type: string) => {
-    return DOCUMENT_TYPES[type as keyof typeof DOCUMENT_TYPES]?.icon || '📄';
+    return DOCUMENT_TYPE_ICONS[type as keyof typeof DOCUMENT_TYPE_ICONS] || DOCUMENT_TYPE_ICONS.text;
   };
 
   const renderDocumentActions = (document: SimpleDocument) => {
@@ -156,6 +171,15 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
         icon: <EditOutlined />,
         onClick: () => {
           window.open(`/documents/edit/${document.id}`, '_blank');
+        }
+      },
+      {
+        key: 'copy',
+        label: '复制',
+        icon: <CopyOutlined />,
+        onClick: () => {
+          // TODO: 实现复制功能
+          message.success(`文档"${document.title}"复制成功`);
         }
       },
       {
@@ -274,6 +298,11 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
                 )}
                 <div style={{ marginBottom: 4 }}>
                   <Space wrap size={4}>
+                    {document.folder_name && (
+                      <Tag color="orange" style={{ fontSize: '11px' }}>
+                        📁 {document.folder_name}
+                      </Tag>
+                    )}
                     {document.project_name && (
                       <Tag color="blue" style={{ fontSize: '11px' }}>
                         项目: {document.project_name}

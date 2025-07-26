@@ -28,6 +28,7 @@ export interface Document {
   id: number;
   folder_id?: number;
   title: string;
+  name?: string; // Alternative name field for compatibility
   content?: string;
   content_size?: number;
   type: DocumentType;
@@ -207,6 +208,7 @@ export interface DocumentListResponse {
 export interface DocumentListItem {
   id: number;
   title: string;
+  name?: string; // Alternative name field for compatibility
   type: DocumentType;
   status: DocumentStatus;
   owner_name: string;
