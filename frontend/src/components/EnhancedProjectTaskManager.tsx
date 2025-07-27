@@ -1008,6 +1008,92 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     });
   }, [projectId, loadData]);
 
+  // 批量操作处理函数
+  const handleBatchUpdateStatus = useCallback(async (status: string) => {
+    if (selectedRowKeys.length === 0) return;
+
+    Modal.confirm({
+      title: '批量更新状态',
+      content: `确定要将选中的 ${selectedRowKeys.length} 个任务状态更新为 "${status === 'todo' ? '待开始' : status === 'in_progress' ? '进行中' : status === 'completed' ? '已完成' : '已取消'}" 吗？`,
+      onOk: async () => {
+        try {
+          // 并行更新所有选中的任务
+          const updatePromises = selectedRowKeys.map(taskId => 
+            TaskService.updateTask(projectId, Number(taskId), { status: status as any })
+          );
+          
+          await Promise.all(updatePromises);
+          message.success(`成功更新了 ${selectedRowKeys.length} 个任务的状态`);
+          setSelectedRowKeys([]);
+          loadData();
+        } catch (error) {
+          message.error('批量更新状态失败');
+        }
+      }
+    });
+  }, [selectedRowKeys, projectId, loadData]);
+
+  const handleBatchUpdatePriority = useCallback(async (priority: string) => {
+    if (selectedRowKeys.length === 0) return;
+
+    Modal.confirm({
+      title: '批量设置优先级',
+      content: `确定要将选中的 ${selectedRowKeys.length} 个任务优先级设置为 "${priority === 'low' ? '低' : priority === 'medium' ? '中' : priority === 'high' ? '高' : '紧急'}" 吗？`,
+      onOk: async () => {
+        try {
+          // 并行更新所有选中的任务
+          const updatePromises = selectedRowKeys.map(taskId => {
+            const task = tasks.find(t => t.id === Number(taskId));
+            const customFields = { ...task?.custom_fields, priority };
+            return TaskService.updateTask(projectId, Number(taskId), { custom_fields: customFields });
+          });
+          
+          await Promise.all(updatePromises);
+          message.success(`成功设置了 ${selectedRowKeys.length} 个任务的优先级`);
+          setSelectedRowKeys([]);
+          loadData();
+        } catch (error) {
+          message.error('批量设置优先级失败');
+        }
+      }
+    });
+  }, [selectedRowKeys, projectId, tasks, loadData]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedRowKeys.length === 0) return;
+
+    Modal.confirm({
+      title: '批量删除任务',
+      content: `确定要删除选中的 ${selectedRowKeys.length} 个任务吗？此操作不可撤销。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          // 使用批量删除API如果可用，否则并行删除
+          const taskIds = selectedRowKeys.map(id => Number(id));
+          
+          try {
+            // 尝试使用批量删除API
+            await TaskService.bulkDeleteTasks(projectId, taskIds);
+          } catch (error) {
+            // 如果批量删除不可用，使用并行删除
+            const deletePromises = taskIds.map(taskId => 
+              TaskService.deleteTask(projectId, taskId)
+            );
+            await Promise.all(deletePromises);
+          }
+          
+          message.success(`成功删除了 ${selectedRowKeys.length} 个任务`);
+          setSelectedRowKeys([]);
+          loadData();
+        } catch (error) {
+          message.error('批量删除失败');
+        }
+      }
+    });
+  }, [selectedRowKeys, projectId, loadData]);
+
   // 行选择配置
   const rowSelection = {
     selectedRowKeys,

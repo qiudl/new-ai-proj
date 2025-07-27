@@ -74,9 +74,9 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
 
   // 🎯 快速开始计时
   const handleQuickStart = useCallback(() => {
-    // 跳转到任务页面开始选择任务
-    navigate('/tasks');
-    message.info('请在任务列表中选择要计时的任务');
+    // 跳转到任务文档页面开始选择任务
+    navigate('/task-documents');
+    message.info('请在任务文档中选择要计时的任务');
   }, [navigate]);
 
   // 🎯 如果没有计时器运行，显示快速开始界面

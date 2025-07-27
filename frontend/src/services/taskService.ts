@@ -119,12 +119,18 @@ export class TaskService {
       console.log('TaskService.updateTask - Request data:', {
         projectId,
         taskId,
-        task
+        task,
+        taskStringified: JSON.stringify(task, null, 2)
       });
+
+      // Basic data validation - let backend handle detailed validation
+      const sanitizedTask = {
+        ...task
+      };
 
       const response: APIResponse<Task> = await api.put(
         `/projects/${projectId}/tasks/${taskId}`,
-        task
+        sanitizedTask
       );
       
       if (!response.success) {

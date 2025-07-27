@@ -65,8 +65,39 @@ class TimerService {
 
   // Get timer statistics
   static async getTimerStats(): Promise<TimerStatsResponse> {
-    const response = await api.get('timer/stats');
-    return response as unknown as TimerStatsResponse;
+    try {
+      const response = await api.get('timer/stats');
+      
+      // Handle API response format: {success: true, data: {...}}
+      let data: any;
+      if (response && typeof response === 'object' && 'data' in response) {
+        data = response.data;
+      } else {
+        data = response;
+      }
+      
+      // Ensure the response has the correct structure with safe defaults
+      return {
+        today_total_seconds: data?.today_total_seconds || 0,
+        today_formatted_time: data?.today_formatted_time || '00:00:00',
+        completed_tasks_today: data?.completed_tasks_today || 0,
+        in_progress_tasks: data?.in_progress_tasks || 0,
+        recent_tasks: Array.isArray(data?.recent_tasks) ? data.recent_tasks : [],
+        task_time_breakdown: Array.isArray(data?.task_time_breakdown) ? data.task_time_breakdown : []
+      } as TimerStatsResponse;
+      
+    } catch (error) {
+      console.error('Failed to get timer stats:', error);
+      // Return safe defaults on error
+      return {
+        today_total_seconds: 0,
+        today_formatted_time: '00:00:00',
+        completed_tasks_today: 0,
+        in_progress_tasks: 0,
+        recent_tasks: [],
+        task_time_breakdown: []
+      } as TimerStatsResponse;
+    }
   }
 
   // Get available tasks for timer selection from all accessible projects

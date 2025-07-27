@@ -26,6 +26,7 @@ interface TreeNodeData {
   id: number;
   status?: string;
   parentId?: number;
+  projectId?: number; // Add project ID for tasks
 }
 
 interface TaskWithChildren extends Task {
@@ -92,7 +93,7 @@ const MVPMyTasksTree: React.FC = () => {
       const treeNodes: TreeNodeData[] = projectsWithTasks
         .filter(({ tasks }) => tasks.length > 0)
         .map(({ project, tasks }) => {
-          const buildTaskNodes = (tasks: TaskWithChildren[]): TreeNodeData[] => {
+          const buildTaskNodes = (tasks: TaskWithChildren[], projectId: number): TreeNodeData[] => {
             return tasks.map(task => ({
               key: `task-${task.id}`,
               title: (
@@ -158,12 +159,13 @@ const MVPMyTasksTree: React.FC = () => {
                 </div>
               ),
               icon: task.children && task.children.length > 0 ? <BranchesOutlined /> : <FileTextOutlined />,
-              children: task.children && task.children.length > 0 ? buildTaskNodes(task.children) : undefined,
+              children: task.children && task.children.length > 0 ? buildTaskNodes(task.children, projectId) : undefined,
               isLeaf: !task.children || task.children.length === 0,
               type: 'task' as const,
               id: task.id,
               status: task.status,
-              parentId: task.parent_id
+              parentId: task.parent_id,
+              projectId: projectId // Pass project ID to task nodes
             }));
           };
 
@@ -218,7 +220,7 @@ const MVPMyTasksTree: React.FC = () => {
               </div>
             ),
             icon: <ProjectOutlined />,
-            children: buildTaskNodes(tasks),
+            children: buildTaskNodes(tasks, project.id),
             isLeaf: false,
             type: 'project' as const,
             id: project.id
@@ -260,11 +262,10 @@ const MVPMyTasksTree: React.FC = () => {
     if (node.type === 'project') {
       navigate(`/projects/${node.id}`);
     } else if (node.type === 'task') {
-      navigate(`/projects/${info.node.parentId || projects.find(p => p.id)?.id}`, {
-        state: { highlightTaskId: node.id }
-      });
+      // Navigate to task detail page using correct route pattern
+      navigate(`/projects/${node.projectId}/tasks/${node.id}`);
     }
-  }, [navigate, projects]);
+  }, [navigate]);
 
   const handleExpand = useCallback((expandedKeys: React.Key[]) => {
     setExpandedKeys(expandedKeys.map(key => key.toString()));

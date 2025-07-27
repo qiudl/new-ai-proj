@@ -21,7 +21,7 @@ const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
-const TimeManagementHomePage = React.lazy(() => import('./pages/TimeManagementHomePage'));
+const TimeWeeklyReportPage = React.lazy(() => import('./pages/TimeWeeklyReportPage'));
 const TimeAnalysisPage = React.lazy(() => import('./pages/TimeAnalysisPage'));
 const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
@@ -39,6 +39,7 @@ const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
+const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -225,10 +226,10 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
             
-            <Route path="/time-management" element={
+            <Route path="/time-weekly-report" element={
               <PrivateRoute>
                 <Layout>
-                  <TimeManagementHomePage />
+                  <TimeWeeklyReportPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -296,6 +297,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <DocumentManagerPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/task-documents" element={
+              <PrivateRoute>
+                <Layout>
+                  <TaskDocumentListPage />
                 </Layout>
               </PrivateRoute>
             } />

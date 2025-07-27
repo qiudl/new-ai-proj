@@ -38,7 +38,6 @@ import { useNavigate } from 'react-router-dom';
 import { TimeManagementService, TodayTaskStats } from '../services/timeManagementService';
 import { Task } from '../types/task';
 import { useCache } from '../hooks/useCache';
-import HomeTimerCard from '../components/HomeTimerCard';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -97,6 +96,7 @@ const getEfficiencyLevel = (efficiency: number) => {
 const TimeManagementHomePage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   // 获取今日任务统计数据
   const {
@@ -108,9 +108,16 @@ const TimeManagementHomePage: React.FC = () => {
     'today-task-stats',
     async () => {
       setLoading(true);
+      setDebugInfo('开始加载数据...');
       try {
+        setDebugInfo('调用TimeManagementService.getTodayTaskStats()');
         const stats = await TimeManagementService.getTodayTaskStats();
+        setDebugInfo('数据加载成功: ' + JSON.stringify(stats, null, 2).substring(0, 200));
         return stats;
+      } catch (error) {
+        setDebugInfo('数据加载失败: ' + String(error));
+        console.error('getTodayTaskStats失败:', error);
+        throw error;
       } finally {
         setLoading(false);
       }
@@ -197,6 +204,17 @@ const TimeManagementHomePage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+      {/* 调试信息 */}
+      {debugInfo && (
+        <Alert
+          message="调试信息"
+          description={<pre style={{ fontSize: '12px', maxHeight: '200px', overflow: 'auto' }}>{debugInfo}</pre>}
+          type="info"
+          closable
+          style={{ marginBottom: '16px' }}
+        />
+      )}
+      
       {/* 页面标题 */}
       <Card style={{ marginBottom: '24px' }}>
         <Row justify="space-between" align="middle">
@@ -362,7 +380,11 @@ const TimeManagementHomePage: React.FC = () => {
       {/* 任务计时器卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} lg={8}>
-          <HomeTimerCard />
+          <Card title="任务计时器" size="small">
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <Text type="secondary">计时器功能暂时不可用</Text>
+            </div>
+          </Card>
         </Col>
         <Col xs={24} lg={16}>
           {/* 这里可以添加其他工作台工具 */}
@@ -385,9 +407,9 @@ const TimeManagementHomePage: React.FC = () => {
               <Button 
                 block 
                 icon={<CheckCircleOutlined />}
-                onClick={() => navigate('/tasks')}
+                onClick={() => navigate('/task-documents')}
               >
-                任务管理
+                任务文档
               </Button>
             </Space>
           </Card>

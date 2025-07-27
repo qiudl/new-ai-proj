@@ -60,6 +60,7 @@ const DocumentManagerPage: React.FC = () => {
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null);
   const [breadcrumbPath, setBreadcrumbPath] = useState<DocumentFolder[]>([]);
   const [siderCollapsed, setSiderCollapsed] = useState(isMobile);
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   
   // 模态框状态
   const [folderModalVisible, setFolderModalVisible] = useState(false);
@@ -75,6 +76,21 @@ const DocumentManagerPage: React.FC = () => {
     loadFolderTree();
   }, []);
 
+  // 递归收集所有文件夹的key用于展开
+  const getAllFolderKeys = (folders: DocumentFolder[]): string[] => {
+    const keys: string[] = [];
+    const collectKeys = (folders: DocumentFolder[]) => {
+      folders.forEach(folder => {
+        keys.push(folder.id.toString());
+        if (folder.children && folder.children.length > 0) {
+          collectKeys(folder.children);
+        }
+      });
+    };
+    collectKeys(folders);
+    return keys;
+  };
+
   // 加载文件夹树
   const loadFolderTree = async () => {
     try {
@@ -89,11 +105,16 @@ const DocumentManagerPage: React.FC = () => {
       }
       
       setFolders(foldersData);
+      
+      // 数据加载完成后，自动展开所有节点
+      const allKeys = getAllFolderKeys(foldersData);
+      setExpandedKeys(allKeys);
     } catch (error) {
       console.error('加载文件夹失败:', error);
       message.error('加载文件夹失败');
       // 确保在错误情况下也设置为空数组
       setFolders([]);
+      setExpandedKeys([]);
     } finally {
       setLoading(false);
     }
@@ -518,14 +539,14 @@ const DocumentManagerPage: React.FC = () => {
           backgroundColor: '#fafafa',
           position: isMobile ? 'fixed' : 'relative',
           zIndex: isMobile ? 100 : 'auto',
-          height: isMobile ? '100vh' : 'auto'
+          height: 'auto'
         }}
       >
         <div style={{ padding: '16px' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Row justify="space-between" align="middle">
               <Title level={4} style={{ margin: 0 }}>
-                {siderCollapsed ? '文档' : '文档管理'}
+                {siderCollapsed ? '笔记' : '工作笔记'}
               </Title>
               <Button
                 type="text"
@@ -555,11 +576,11 @@ const DocumentManagerPage: React.FC = () => {
                   className="folder-tree document-manager-tree"
                   showLine={{ showLeafIcon: false }}
                   showIcon={false}
-                  defaultExpandAll
+                  expandedKeys={expandedKeys}
+                  onExpand={(keys) => setExpandedKeys(keys as string[])}
                   draggable
                   blockNode
                   virtual={false}
-                  height={400}
                   treeData={convertFoldersToTreeData(folders)}
                   selectedKeys={selectedFolderId ? [selectedFolderId.toString()] : []}
                   onSelect={(keys) => {

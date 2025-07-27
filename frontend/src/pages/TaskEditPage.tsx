@@ -60,7 +60,7 @@ const TaskEditPage: React.FC = () => {
     
     if (isNaN(parsedProjectId) || isNaN(parsedTaskId)) {
       message.error('无效的任务ID或项目ID');
-      navigate('/tasks');
+      navigate('/task-documents');
       return;
     }
     
@@ -99,7 +99,7 @@ const TaskEditPage: React.FC = () => {
         }
       } else {
         message.error('获取任务详情失败');
-        navigate('/tasks');
+        navigate('/task-documents');
         return;
       }
       
@@ -137,13 +137,16 @@ const TaskEditPage: React.FC = () => {
         description: values.description || '',
         status: values.status,
         assignee_id: values.assignee_id || null,
-        due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') : null,
-        custom_fields: {
-          ...task.custom_fields,
-          priority: values.priority,
-          estimated_hours: values.estimated_hours || null,
-          tags: values.tags || []
-        }
+        due_date: values.due_date ? values.due_date.format('YYYY-MM-DDTHH:mm:ssZ') : null,
+        // 根据后端TaskRequest模型，这些字段应该在顶层而不是custom_fields中
+        // 只有当priority有有效值时才包含，避免空字符串导致验证失败
+        ...(values.priority && ['low', 'medium', 'high'].includes(values.priority) && { priority: values.priority }),
+        // 确保estimated_hours是数字类型，不是字符串
+        ...(values.estimated_hours !== null && values.estimated_hours !== undefined && !isNaN(Number(values.estimated_hours)) && { 
+          estimated_hours: Number(values.estimated_hours) 
+        }),
+        ...(values.tags && values.tags.length > 0 && { tags: values.tags }),
+        custom_fields: task.custom_fields || {}
       };
       
       await TaskService.updateTask(parseInt(projectId), task.id, updateData);
@@ -208,11 +211,11 @@ const TaskEditPage: React.FC = () => {
             {
               title: (
                 <span 
-                  onClick={() => navigate('/tasks')}
+                  onClick={() => navigate('/task-documents')}
                   style={{ color: '#1890ff', cursor: 'pointer' }}
                 >
                   <ArrowLeftOutlined style={{ marginRight: '4px' }} />
-                  任务列表
+                  任务文档
                 </span>
               )
             },

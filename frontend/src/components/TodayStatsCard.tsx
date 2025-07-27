@@ -32,7 +32,14 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = ({ refreshTrigger }) => {
   }, [refreshTrigger]);
 
   // 如果没有数据，显示默认值
-  const displayStats = stats || {
+  const displayStats = stats ? {
+    today_total_seconds: stats.today_total_seconds || 0,
+    today_formatted_time: stats.today_formatted_time || '00:00:00',
+    completed_tasks_today: stats.completed_tasks_today || 0,
+    in_progress_tasks: stats.in_progress_tasks || 0,
+    recent_tasks: Array.isArray(stats.recent_tasks) ? stats.recent_tasks : [],
+    task_time_breakdown: Array.isArray(stats.task_time_breakdown) ? stats.task_time_breakdown : []
+  } : {
     today_total_seconds: 0,
     today_formatted_time: '00:00:00',
     completed_tasks_today: 0,
@@ -91,7 +98,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = ({ refreshTrigger }) => {
       </Row>
 
       {/* 最近计时任务列表 */}
-      {displayStats.recent_tasks.length > 0 && (
+      {displayStats.recent_tasks && displayStats.recent_tasks.length > 0 && (
         <div style={{ marginTop: '16px' }}>
           <Text strong style={{ fontSize: '14px', color: '#8c8c8c' }}>
             最近计时任务:
@@ -110,11 +117,11 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = ({ refreshTrigger }) => {
               >
                 <div style={{ flex: 1 }}>
                   <Text ellipsis style={{ maxWidth: '200px' }}>
-                    {task.task_title}
+                    {task.task_title || '未知任务'}
                   </Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {task.project_name}
+                    {task.project_name || '未知项目'}
                   </Text>
                 </div>
                 <Text 
@@ -124,7 +131,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = ({ refreshTrigger }) => {
                     color: '#1890ff'
                   }}
                 >
-                  {task.formatted_time}
+                  {task.formatted_time || '00:00:00'}
                 </Text>
               </div>
             ))}
@@ -133,7 +140,7 @@ const TodayStatsCard: React.FC<TodayStatsCardProps> = ({ refreshTrigger }) => {
       )}
 
       {/* 空状态提示 */}
-      {displayStats.recent_tasks.length === 0 && (
+      {(!displayStats.recent_tasks || displayStats.recent_tasks.length === 0) && (
         <div style={{ 
           textAlign: 'center', 
           marginTop: '16px',

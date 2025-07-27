@@ -240,7 +240,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
         <Button 
           type="link" 
           size="small"
-          onClick={() => navigate('/tasks')}
+          onClick={() => navigate('/task-documents')}
         >
           查看全部
         </Button>
@@ -253,7 +253,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
           description="暂无最近任务"
           style={{ margin: '16px 0' }}
         >
-          <Button type="primary" onClick={() => navigate('/tasks')}>
+          <Button type="primary" onClick={() => navigate('/task-documents')}>
             去创建任务
           </Button>
         </Empty>

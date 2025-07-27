@@ -111,14 +111,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getSelectedKeys = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return ['/'];
-    if (path.includes('/time-management')) return ['/time-management'];
+    if (path.includes('/time-weekly-report')) return ['/time-weekly-report'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-list')) return ['/task-list'];
-    if (path === '/tasks') return ['/tasks'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
     if (path.includes('/companies')) return ['/companies'];
     if (path.includes('/document-manager')) return ['/document-manager'];
+    if (path.includes('/task-documents')) return ['/task-documents'];
     return [path];
   };
 
@@ -128,11 +128,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (collapsed) return [];
     
     const path = location.pathname;
-    if (path === '/' || path === '/dashboard' || path.includes('/time-management') || path.includes('/task-dashboard')) {
+    if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
     }
     if (path.includes('/projects') || path.includes('/companies')) {
       return ['/project-customer-management'];
+    }
+    if (path.includes('/document-manager') || path.includes('/task-documents')) {
+      return ['/document-management'];
     }
     if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs')) {
       return ['/system-management'];
@@ -141,6 +144,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const userMenuItems = [
+    {
+      key: 'profile',
+      label: '个人资料',
+      icon: <UserOutlined />,
+      onClick: () => navigate('/user-profile'),
+    },
+    {
+      type: 'divider' as const,
+    },
     {
       key: 'logout',
       label: '退出登录',
@@ -161,9 +173,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '工作概览',
         },
         {
-          key: '/time-management',
-          icon: <AppstoreOutlined />,
-          label: '时间管理',
+          key: '/time-weekly-report',
+          icon: <CalendarOutlined />,
+          label: '时间周报',
         },
         {
           key: '/task-dashboard',
@@ -195,9 +207,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       label: '批量导入',
     },
     {
-      key: '/document-manager',
-      icon: <FolderOutlined />,
-      label: '文档管理器',
+      key: '/document-management',
+      icon: <FileTextOutlined />,
+      label: '文档管理',
+      children: [
+        {
+          key: '/document-manager',
+          icon: <FolderOutlined />,
+          label: '工作笔记',
+        },
+        {
+          key: '/task-documents',
+          icon: <FileTextOutlined />,
+          label: '任务文档',
+        },
+      ],
     },
     {
       key: '/system-management',

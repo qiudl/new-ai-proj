@@ -51,7 +51,7 @@
 
 /* 文件夹树样式 */
 .folder-tree {
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
 }
@@ -75,6 +75,75 @@
   flex: 1;
   padding: 8px;
   overflow-y: auto;
+}
+
+/* 工作笔记专用树样式 - 完全移除高度限制 */
+.document-manager-tree {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  width: 100% !important;
+}
+
+.document-manager-tree .ant-tree-list {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+  width: 100% !important;
+}
+
+.document-manager-tree .ant-tree-list-holder {
+  overflow: visible !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+
+.document-manager-tree .ant-tree-list-holder-inner {
+  overflow: visible !important;
+  width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+}
+
+/* 强制覆盖所有可能的高度限制 */
+.document-manager-tree,
+.document-manager-tree *,
+.document-manager-tree .ant-tree,
+.document-manager-tree .ant-tree-list,
+.document-manager-tree .ant-tree-list-holder,
+.document-manager-tree .ant-tree-list-holder-inner {
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* 特别针对虚拟滚动的覆盖 */
+.document-manager-tree .rc-virtual-list,
+.document-manager-tree .rc-virtual-list-holder,
+.document-manager-tree .rc-virtual-list-holder-inner {
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* 确保tree容器不产生滚动条 */
+.document-manager .ant-layout-sider-children {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 优化tree节点样式，防止内容溢出 */
+.document-manager-tree .ant-tree-node-content-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* 优化的文件夹节点样式 */

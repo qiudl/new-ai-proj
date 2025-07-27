@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import { 
   Card, 
   Button, 
@@ -16,9 +16,12 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   WarningOutlined,
-  PauseCircleOutlined
+  PauseCircleOutlined,
+  LinkOutlined
 } from '@ant-design/icons';
 import { useTimer } from '../contexts/TimerContext';
+import { useNavigate } from 'react-router-dom';
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 
@@ -26,6 +29,7 @@ interface MVPTaskDetailTimerProps {
   taskId: number;
   taskTitle: string;
   taskStatus: string;
+  projectId?: number; // Add optional projectId for navigation
   style?: React.CSSProperties;
   className?: string;
 }
@@ -38,12 +42,78 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
   className = ''
 }) => {
   const { timerState, isLoading, startTimer, stopTimer } = useTimer();
+  const navigate = useNavigate();
+  
+  // 本地计时状态 - 用于实时更新
+  const [localElapsedSeconds, setLocalElapsedSeconds] = useState(0);
+  const [localFormattedTime, setLocalFormattedTime] = useState('00:00:00');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 🎯 检查是否是当前任务正在计时
   const isCurrentTaskTiming = timerState.isRunning && timerState.taskId === taskId;
   
   // 🎯 检查是否有其他任务正在计时
   const isOtherTaskTiming = timerState.isRunning && timerState.taskId !== taskId;
+
+  // 🎯 时间格式化函数
+  const formatElapsedTime = useCallback((seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }, []);
+
+  // 🎯 启动本地计时器进行实时更新
+  const startLocalTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    if (isCurrentTaskTiming && timerState.startTime && !timerState.isPaused) {
+      intervalRef.current = setInterval(() => {
+        const now = Date.now();
+        const elapsed = Math.floor((now - timerState.startTime!.getTime()) / 1000);
+        setLocalElapsedSeconds(elapsed);
+        setLocalFormattedTime(formatElapsedTime(elapsed));
+      }, 1000);
+    }
+  }, [isCurrentTaskTiming, timerState.startTime, timerState.isPaused, formatElapsedTime]);
+
+  // 🎯 停止本地计时器
+  const stopLocalTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // 🎯 监听计时器状态变化，启动或停止本地计时器
+  useEffect(() => {
+    if (isCurrentTaskTiming && !timerState.isPaused) {
+      startLocalTimer();
+    } else {
+      stopLocalTimer();
+    }
+
+    // 组件卸载时清理
+    return () => {
+      stopLocalTimer();
+    };
+  }, [isCurrentTaskTiming, timerState.isPaused, startLocalTimer, stopLocalTimer]);
+
+  // 🎯 初始化本地时间状态
+  useEffect(() => {
+    if (isCurrentTaskTiming && timerState.startTime) {
+      const now = Date.now();
+      const elapsed = Math.floor((now - timerState.startTime.getTime()) / 1000);
+      setLocalElapsedSeconds(elapsed);
+      setLocalFormattedTime(formatElapsedTime(elapsed));
+    } else if (!isCurrentTaskTiming) {
+      setLocalElapsedSeconds(0);
+      setLocalFormattedTime('00:00:00');
+    }
+  }, [isCurrentTaskTiming, timerState.startTime, formatElapsedTime]);
+
 
   // 🎯 简化的开始计时
   const handleStartTimer = useCallback(async () => {
@@ -61,14 +131,25 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
         cancelText: '取消',
         onOk: async () => {
           try {
-            // 先停止当前计时
-            await stopTimer();
+            // 先停止当前计时，等待完成
+            const stopSuccess = await stopTimer();
+            if (!stopSuccess) {
+              message.error('停止当前计时失败');
+              return;
+            }
+            
+            // 等待一小段时间确保状态同步
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             // 再开始新的计时
-            const success = await startTimer(taskId, taskTitle);
-            if (success) {
-              message.success(`开始为任务"${taskTitle}"计时`);
+            const startSuccess = await startTimer(taskId, taskTitle);
+            if (startSuccess) {
+              message.success(`已切换到任务"${taskTitle}"计时`);
+            } else {
+              message.error('开始新计时失败');
             }
           } catch (error) {
+            console.error('计时切换失败:', error);
             message.error('计时切换失败');
           }
         }
@@ -78,8 +159,11 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
         const success = await startTimer(taskId, taskTitle);
         if (success) {
           message.success(`开始为任务"${taskTitle}"计时`);
+        } else {
+          message.error('启动计时失败');
         }
       } catch (error) {
+        console.error('开始计时失败:', error);
         message.error('开始计时失败');
       }
     }
@@ -104,6 +188,30 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
       }
     });
   }, [stopTimer, taskTitle]);
+
+  // 🎯 快捷键支持
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 只在当前任务详情页且没有其他输入框聚焦时响应快捷键
+      if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
+      if (e.target && (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+      
+      // Ctrl/Cmd + Space: 开始/停止计时
+      if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
+        e.preventDefault();
+        if (isCurrentTaskTiming) {
+          handleStopTimer();
+        } else {
+          handleStartTimer();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isCurrentTaskTiming, handleStartTimer, handleStopTimer]);
 
   // 🎯 获取计时状态显示
   const getTimerStatus = () => {
@@ -201,23 +309,51 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
         {/* 🎯 当前计时显示 */}
         {isCurrentTaskTiming && (
           <div style={{ 
-            textAlign: 'center', 
             padding: '16px',
             backgroundColor: '#f6ffed',
             borderRadius: '6px',
             border: '1px solid #b7eb8f'
           }}>
-            <Statistic
-              title="当前计时"
-              value={timerState.formattedTime}
-              valueStyle={{ 
-                color: '#52c41a', 
-                fontSize: '24px',
-                fontFamily: 'monospace',
-                fontWeight: 'bold'
-              }}
-              prefix={<ClockCircleOutlined />}
-            />
+            {/* 实时计时显示 */}
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              <Statistic
+                title="当前计时"
+                value={localFormattedTime}
+                valueStyle={{ 
+                  color: '#52c41a', 
+                  fontSize: '28px',
+                  fontFamily: 'monospace',
+                  fontWeight: 'bold'
+                }}
+                prefix={<ClockCircleOutlined />}
+              />
+            </div>
+            
+            {/* 开始时间显示 */}
+            {timerState.startTime && (
+              <div style={{ 
+                textAlign: 'center',
+                padding: '8px 12px',
+                background: 'rgba(255,255,255,0.8)',
+                borderRadius: '4px',
+                border: '1px solid #d9f7be'
+              }}>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    开始时间
+                  </Text>
+                  <Text strong style={{ fontSize: '14px', color: '#389e0d' }}>
+                    {dayjs(timerState.startTime).format('YYYY年MM月DD日 HH:mm:ss')}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: '11px' }}>
+                    已计时 {Math.floor(localElapsedSeconds / 60)} 分钟 {localElapsedSeconds % 60} 秒
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: '10px', color: '#8c8c8c' }}>
+                    ⌨️ Ctrl/Cmd + 空格停止
+                  </Text>
+                </Space>
+              </div>
+            )}
           </div>
         )}
 
@@ -227,15 +363,40 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
             message="其他任务正在计时"
             description={
               <div>
-                <Text>当前正在为以下任务计时：</Text>
-                <br />
-                <Text strong style={{ color: '#1890ff' }}>
-                  {timerState.taskTitle}
-                </Text>
-                <br />
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  计时时长：{timerState.formattedTime}
-                </Text>
+                <div style={{ marginBottom: '8px' }}>
+                  <Text>当前正在为以下任务计时：</Text>
+                </div>
+                <Button 
+                  type="link" 
+                  style={{ 
+                    padding: 0, 
+                    height: 'auto', 
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    marginBottom: '8px'
+                  }}
+                  onClick={() => {
+                    // Navigation disabled - project ID not available in timer state
+                    message.info('计时任务导航功能暂不可用');
+                  }}
+                >
+                  <Text strong style={{ color: '#1890ff' }}>
+                    {timerState.taskTitle}
+                  </Text>
+                </Button>
+                <div>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    计时时长：{timerState.formattedTime}
+                  </Text>
+                  {timerState.startTime && (
+                    <>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '11px' }}>
+                        开始时间：{dayjs(timerState.startTime).format('MM月DD日 HH:mm:ss')}
+                      </Text>
+                    </>
+                  )}
+                </div>
               </div>
             }
             type="warning"
@@ -270,6 +431,10 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
           }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               💡 点击"开始计时"为此任务记录工作时间
+            </Text>
+            <br />
+            <Text type="secondary" style={{ fontSize: '11px', color: '#8c8c8c' }}>
+              ⌨️ 快捷键：Ctrl/Cmd + 空格 开始/停止计时
             </Text>
           </div>
         )}

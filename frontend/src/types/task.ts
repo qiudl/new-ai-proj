@@ -36,6 +36,13 @@ export interface TaskRequest {
   custom_fields?: Record<string, any>;
   parent_id?: number;
   sort_order?: number;
+  // Add missing fields to match backend model
+  priority?: 'low' | 'medium' | 'high';
+  estimated_hours?: number;
+  actual_hours?: number;
+  progress?: number;
+  tags?: string[];
+  metadata?: Record<string, any>;
 }
 
 export interface TaskFilter {

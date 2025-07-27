@@ -162,38 +162,72 @@ export const SimplifiedTimerProvider: React.FC<SimplifiedTimerProviderProps> = (
     }
   }, [isLoading, timerState.isRunning, timerState.formattedTime, timerState.taskTitle, stopLocalTimer]);
 
-  // 🎯 简化的暂停/恢复 - 仅本地状态切换
+  // 🎯 暂停定时器 - 调用后端API
   const pauseTimer = useCallback(async (): Promise<boolean> => {
-    if (!timerState.isRunning || timerState.isPaused) return false;
+    if (isLoading || !timerState.isRunning || timerState.isPaused) return false;
     
-    stopLocalTimer();
-    setTimerState(prev => ({
-      ...prev,
-      isPaused: true
-    }));
-    message.success('计时已暂停');
-    return true;
-  }, [timerState.isRunning, timerState.isPaused, stopLocalTimer]);
+    setIsLoading(true);
+    try {
+      await TimerService.pauseTimer();
+      
+      if (!isMountedRef.current) return false;
+      
+      stopLocalTimer();
+      setTimerState(prev => ({
+        ...prev,
+        isPaused: true
+      }));
+      message.success('计时已暂停');
+      return true;
+    } catch (error) {
+      if (!isMountedRef.current) return false;
+      
+      console.error('Failed to pause timer:', error);
+      message.error('暂停定时器失败');
+      return false;
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [isLoading, timerState.isRunning, timerState.isPaused, stopLocalTimer]);
 
   const resumeTimer = useCallback(async (): Promise<boolean> => {
-    if (!timerState.isRunning || !timerState.isPaused) return false;
+    if (isLoading || !timerState.isRunning || !timerState.isPaused) return false;
     
-    // 重新计算开始时间，保持已经计时的时间
-    const newStartTime = new Date(Date.now() - (timerState.elapsedSeconds * 1000));
-    
-    setTimerState(prev => ({
-      ...prev,
-      isPaused: false,
-      startTime: newStartTime
-    }));
-    
-    // 延迟启动本地计时器，确保状态已更新
-    setTimeout(() => {
-      startLocalTimer();
-    }, 50);
-    message.success('计时已恢复');
-    return true;
-  }, [timerState.isRunning, timerState.isPaused, timerState.elapsedSeconds, startLocalTimer]);
+    setIsLoading(true);
+    try {
+      await TimerService.resumeTimer();
+      
+      if (!isMountedRef.current) return false;
+      
+      // 重新计算开始时间，保持已经计时的时间
+      const newStartTime = new Date(Date.now() - (timerState.elapsedSeconds * 1000));
+      
+      setTimerState(prev => ({
+        ...prev,
+        isPaused: false,
+        startTime: newStartTime
+      }));
+      
+      // 延迟启动本地计时器，确保状态已更新
+      setTimeout(() => {
+        startLocalTimer();
+      }, 50);
+      message.success('计时已恢复');
+      return true;
+    } catch (error) {
+      if (!isMountedRef.current) return false;
+      
+      console.error('Failed to resume timer:', error);
+      message.error('恢复定时器失败');
+      return false;
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [isLoading, timerState.isRunning, timerState.isPaused, timerState.elapsedSeconds, startLocalTimer]);
 
   // 🎯 调试信息
   const getDebugInfo = useCallback(() => {
@@ -205,6 +239,44 @@ export const SimplifiedTimerProvider: React.FC<SimplifiedTimerProviderProps> = (
       timestamp: new Date().toISOString()
     };
   }, [timerState, isLoading]);
+
+  // 🎯 初始化时同步后端状态
+  useEffect(() => {
+    const syncInitialState = async () => {
+      try {
+        const currentTimer = await TimerService.getCurrentTimer();
+        
+        if (!isMountedRef.current) return;
+        
+        if (currentTimer.is_running) {
+          const startTime = new Date(currentTimer.start_time!);
+          const elapsedSeconds = Math.floor((Date.now() - startTime.getTime()) / 1000);
+          
+          const newState: TimerState = {
+            isRunning: true,
+            isPaused: currentTimer.is_paused || false,
+            taskId: currentTimer.task_id,
+            taskTitle: currentTimer.task_title,
+            startTime: startTime,
+            elapsedSeconds: elapsedSeconds,
+            formattedTime: formatTime(elapsedSeconds)
+          };
+          
+          setTimerState(newState);
+          
+          // 如果未暂停，启动本地计时器
+          if (!currentTimer.is_paused) {
+            startLocalTimer();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync initial timer state:', error);
+        // 不显示错误消息，静默处理
+      }
+    };
+    
+    syncInitialState();
+  }, [formatTime, startLocalTimer]);
 
   // 🎯 简化的清理逻辑 - 防止内存泄漏
   useEffect(() => {

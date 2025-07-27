@@ -249,7 +249,7 @@ const ProjectDetailPage: React.FC = () => {
           </Col>
 
           {/* 企业信息 */}
-          {project?.company_id && project?.company_name ? (
+          {project?.company_id ? (
             <Col xs={24}>
               <Card 
                 title={
@@ -288,7 +288,9 @@ const ProjectDetailPage: React.FC = () => {
                             style={{ backgroundColor: '#52c41a' }} 
                           />
                           <div>
-                            <Text strong style={{ color: '#389e0d', fontSize: '16px' }}>{project.company_name}</Text>
+                            <Text strong style={{ color: '#389e0d', fontSize: '16px' }}>
+                              {companyInfo?.companyName || '加载中...'}
+                            </Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
                           </div>
@@ -674,7 +676,7 @@ const ProjectDetailPage: React.FC = () => {
                   {project.name}
                 </Title>
                 {/* 企业信息展示 */}
-                {project.company_id && project.company_name && (
+                {project.company_id && (
                   <Card 
                     size="small" 
                     style={{ 
@@ -710,7 +712,7 @@ const ProjectDetailPage: React.FC = () => {
                             icon={<LinkOutlined style={{ fontSize: '12px' }} />}
                             onClick={() => navigate(`/companies/${project.company_id}`)}
                           >
-                            {project.company_name}
+                            {companyInfo?.companyName || '加载中...'}
                           </Button>
                         </Space>
                         <div>

@@ -42,6 +42,7 @@ services:
     volumes:
       - ./backend:/app:delegated
       - go_mod_cache:/go/pkg/mod
+      - ./docs:/docs:rw
     working_dir: /app
     command: sh -c "go mod download && go run main.go"
     ports:

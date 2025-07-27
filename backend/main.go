@@ -48,6 +48,7 @@ type Application struct {
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
 	// documentVersionCommentHandler *handlers.DocumentVersionCommentHandler // 临时注释，避免编译错误
 	timerHandler        *handlers.TimerHandler
+	taskDocumentHandler *handlers.TaskDocumentHandler
 }
 
 // NewApplication creates a new application instance
@@ -96,6 +97,10 @@ func NewApplication() (*Application, error) {
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionCommentHandler := handlers.NewDocumentVersionCommentHandler(db, logger, validate) // 临时注释，避免编译错误
 	timerHandler := handlers.NewTimerHandler(db)
+	
+	// 任务文档处理器
+	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
+	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
 
 	return &Application{
 		config:              cfg,
@@ -115,6 +120,7 @@ func NewApplication() (*Application, error) {
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
 		// documentVersionCommentHandler: documentVersionCommentHandler, // 临时注释，避免编译错误
 		timerHandler:        timerHandler,
+		taskDocumentHandler: taskDocumentHandler,
 	}, nil
 }
 
@@ -210,6 +216,11 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
+				
+				// Task document routes
+				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
+				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
+				projects.HEAD("/:id/tasks/:taskId/document", app.taskDocumentHandler.CheckTaskDocument)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -531,6 +542,11 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
+				
+				// Task document routes
+				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
+				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
+				projects.HEAD("/:id/tasks/:taskId/document", app.taskDocumentHandler.CheckTaskDocument)
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -1543,7 +1559,8 @@ func (app *Application) updateTaskHandler(c *gin.Context) {
 
 	var req models.TaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		app.logger.Printf("Error binding JSON for task update: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, fmt.Sprintf("Invalid request body: %v", err), nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
