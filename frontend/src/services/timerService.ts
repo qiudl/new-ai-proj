@@ -47,28 +47,40 @@ class TimerService {
     return response as unknown as TimerStatsResponse;
   }
 
-  // Get available tasks for timer selection
+  // Get available tasks for timer selection from all accessible projects
   static async getAvailableTasks(): Promise<TaskOption[]> {
     try {
-      // Get all tasks with todo or in_progress status
-      const response = await api.get('tasks?status=todo,in_progress&limit=100');
-      console.log('TimerService.getAvailableTasks response:', response);
+      // Note: Since we removed global task endpoint, we get tasks from user's accessible projects
+      // This approach maintains functionality while keeping tasks project-scoped
       
-      // Extract tasks from the response structure
-      let tasks: any[] = [];
-      if (response?.data?.data && Array.isArray(response.data.data)) {
-        tasks = response.data.data;
-      } else if (response?.data && Array.isArray(response.data)) {
-        tasks = response.data;
-      } else if (Array.isArray(response)) {
-        tasks = response;
-      } else {
-        console.warn('Unexpected response format:', response);
+      // First, get user's projects
+      const projectsResponse = await api.get('projects?limit=100');
+      
+      if (!projectsResponse?.data || !Array.isArray(projectsResponse.data)) {
+        console.warn('No projects found for user');
         return [];
       }
       
+      const projects = projectsResponse.data;
+      
+      // Get tasks from all user projects
+      const allTasks: any[] = [];
+      
+      for (const project of projects) {
+        try {
+          const tasksResponse = await api.get(`projects/${project.id}/tasks?status=todo,in_progress&limit=50`);
+          
+          if (tasksResponse?.data?.data && Array.isArray(tasksResponse.data.data)) {
+            allTasks.push(...tasksResponse.data.data);
+          }
+        } catch (error) {
+          console.warn(`Failed to get tasks from project ${project.id}:`, error);
+          // Continue with other projects
+        }
+      }
+      
       // Transform the response to TaskOption format
-      return tasks.map((task: any) => ({
+      return allTasks.map((task: any) => ({
         id: task.id,
         title: task.title,
         project_name: task.project_name || 'Unknown Project',

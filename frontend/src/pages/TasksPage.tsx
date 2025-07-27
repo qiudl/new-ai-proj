@@ -24,6 +24,12 @@ import '../styles/resizable-columns.css';
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+
+  // 强制要求项目ID - 任务页面只支持项目内任务
+  if (!projectId) {
+    navigate('/projects');
+    return null;
+  }
   
   // Global timer context
   const { timerState } = useTimer();
@@ -60,8 +66,8 @@ const TasksPage: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
   const projectIdNum = parseInt(projectId || '0');
   
-  // 如果URL中有projectId，使用URL中的项目ID，否则使用选择的项目ID  
-  const effectiveProjectId = projectIdNum || selectedProjectId;
+  // 使用URL中的项目ID（必需）
+  const effectiveProjectId = projectIdNum;
   
   // 列自定义配置状态 - 使用useMemo创建默认配置
   const defaultColumnConfigs = useMemo((): ColumnConfig[] => [
@@ -183,27 +189,8 @@ const TasksPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | undefined>();
   const [currentProject, setCurrentProject] = useState<Project | undefined>();
   
-  // 全局任务提示显示状态
-  const [showGlobalTaskTip, setShowGlobalTaskTip] = useState(() => {
-    const saved = localStorage.getItem('show-global-task-tip');
-    return saved !== 'false'; // 默认显示，除非用户手动关闭过
-  });
   
   
-  // 全局统计状态
-  const [globalStats, setGlobalStats] = useState<{
-    totalTasks: number;
-    todoTasks: number;
-    inProgressTasks: number;
-    completedTasks: number;
-    projectCount: number;
-  }>({
-    totalTasks: 0,
-    todoTasks: 0,
-    inProgressTasks: 0,
-    completedTasks: 0,
-    projectCount: 0
-  });
 
   // Load project information when projectId is provided in URL
   useEffect(() => {
@@ -298,13 +285,9 @@ const TasksPage: React.FC = () => {
           sort_order: 'desc', // 默认按最后更新时间倒序
         });
       } else {
-        // Load all tasks across projects
-        response = await TaskService.getAllTasks({
-          page,
-          page_size: pageSize,
-          sort_by: 'updated_at',
-          sort_order: 'desc', // 默认按最后更新时间倒序
-        });
+        // 没有项目ID，无法加载任务
+        console.error('项目ID是必需的');
+        return;
       }
       
       // Comprehensive validation of response structure
@@ -411,71 +394,7 @@ const TasksPage: React.FC = () => {
   }, [effectiveProjectId]);
 
   // 获取全局统计数据
-  const loadGlobalStats = useCallback(async () => {
-    if (effectiveProjectId) return; // 只在全局模式下获取统计
-    
-    try {
-      // 分批获取全局任务数据用于统计
-      let allTasks: any[] = [];
-      let page = 1;
-      const pageSize = 100;
-      let hasMore = true;
-      
-      while (hasMore) {
-        const response: any = await TaskService.getAllTasks({
-          page,
-          page_size: pageSize
-        });
-        
-        if (response && response.data && Array.isArray(response.data)) {
-          allTasks = allTasks.concat(response.data);
-          
-          // 检查是否还有更多数据
-          hasMore = response.pagination && response.pagination.has_next;
-          page++;
-        } else {
-          hasMore = false;
-        }
-      }
-      
-      if (allTasks.length > 0) {
-        
-        // Filter out invalid tasks
-        const validTasks = allTasks.filter((task: any) => 
-          task && 
-          typeof task === 'object' && 
-          typeof task.id === 'number' && 
-          typeof task.status === 'string' &&
-          typeof task.project_id === 'number'
-        );
-        
-        // 额外的安全检查
-        if (!Array.isArray(validTasks)) {
-          console.warn('Valid tasks is not an array after filtering');
-          return;
-        }
-        
-        const stats = {
-          totalTasks: validTasks.length,
-          todoTasks: validTasks.filter((task: any) => task.status === 'todo').length,
-          inProgressTasks: validTasks.filter((task: any) => task.status === 'in_progress').length,
-          completedTasks: validTasks.filter((task: any) => task.status === 'completed').length,
-          projectCount: new Set(validTasks.map((task: any) => task.project_id)).size
-        };
-        setGlobalStats(stats);
-      }
-    } catch (error) {
-      console.error('Error loading global stats:', error);
-      // Don't show error message for stats loading failure
-    }
-  }, [effectiveProjectId]);
 
-  // 在全局模式下加载统计数据
-  useEffect(() => {
-    if (!effectiveProjectId) {
-      loadGlobalStats();
-    }
-  }, [effectiveProjectId, loadGlobalStats]);
 
   // Load tasks on component mount and load current timer
   useEffect(() => {
@@ -1104,11 +1023,6 @@ const TasksPage: React.FC = () => {
     });
   }, [effectiveProjectId]);
 
-  // 关闭全局任务提示
-  const handleCloseGlobalTaskTip = useCallback(() => {
-    setShowGlobalTaskTip(false);
-    localStorage.setItem('show-global-task-tip', 'false');
-  }, []);
 
   // 创建可调整大小的标题
   const createResizableTitle = useCallback((config: ColumnConfig, title: React.ReactNode) => {
@@ -2381,55 +2295,6 @@ const TasksPage: React.FC = () => {
                 </p>
               </div>
               
-              {/* 统计信息 */}
-              {!effectiveProjectId && globalStats.totalTasks > 0 && (
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#f0f9ff',
-                    border: '1px solid #91d5ff',
-                    borderRadius: '16px',
-                    fontSize: '13px',
-                    color: '#1890ff',
-                    fontWeight: 500
-                  }}>
-                    📊 {globalStats.projectCount} 个项目
-                  </div>
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#f6ffed',
-                    border: '1px solid #b7eb8f',
-                    borderRadius: '16px',
-                    fontSize: '13px',
-                    color: '#52c41a',
-                    fontWeight: 500
-                  }}>
-                    ✅ {globalStats.completedTasks} 已完成
-                  </div>
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#fff7e6',
-                    border: '1px solid #ffd591',
-                    borderRadius: '16px',
-                    fontSize: '13px',
-                    color: '#fa8c16',
-                    fontWeight: 500
-                  }}>
-                    ⏳ {globalStats.inProgressTasks} 进行中
-                  </div>
-                  <div style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #d9d9d9',
-                    borderRadius: '16px',
-                    fontSize: '13px',
-                    color: '#8c8c8c',
-                    fontWeight: 500
-                  }}>
-                    📝 {globalStats.todoTasks} 待开始
-                  </div>
-                </div>
-              )}
               
               {/* 单项目任务数量徽章 */}
               {effectiveProjectId && tasks.length > 0 && (

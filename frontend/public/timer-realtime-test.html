@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>计时器实时更新测试</title>
+    <style>
+        body { font-family: Arial; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .test-card { 
+            background: white; 
+            margin: 15px 0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .timer-display { 
+            font-size: 24px; 
+            font-family: monospace; 
+            text-align: center; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            margin: 15px 0;
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .running { background: #d4edda; color: #155724; }
+        .stopped { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { 
+            margin: 5px; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+        }
+        button:hover { background: #0056b3; }
+        .log { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px; 
+            font-family: monospace; 
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⏱️ 计时器实时更新测试</h1>
+        
+        <div class="test-card">
+            <h3>当前状态监控</h3>
+            <div id="currentStatus" class="status info">检查中...</div>
+            <div id="timerDisplay" class="timer-display">00:00:00</div>
+            
+            <button onclick="startMonitoring()">▶️ 开始监控</button>
+            <button onclick="stopMonitoring()">⏸️ 停止监控</button>
+            <button onclick="clearLog()">🧹 清空日志</button>
+        </div>
+
+        <div class="test-card">
+            <h3>实时更新日志</h3>
+            <div id="updateLog" class="log">等待开始监控...</div>
+        </div>
+
+        <div class="test-card">
+            <h3>测试说明</h3>
+            <ol>
+                <li>确保在任务页面启动了一个定时器</li>
+                <li>点击"开始监控"观察是否每秒更新</li>
+                <li>切换到工作台页面，观察TimerCard是否实时更新</li>
+                <li>如果没有实时更新，说明本地计时器有问题</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        let monitoringInterval = null;
+        let lastTime = '';
+        let updateCount = 0;
+
+        function log(message) {
+            const logDiv = document.getElementById('updateLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function checkTimerState() {
+            const saved = localStorage.getItem('globalTimerState');
+            const statusDiv = document.getElementById('currentStatus');
+            const displayDiv = document.getElementById('timerDisplay');
+
+            if (!saved) {
+                statusDiv.className = 'status stopped';
+                statusDiv.textContent = '❌ 无定时器状态';
+                displayDiv.textContent = '00:00:00';
+                return null;
+            }
+
+            try {
+                const state = JSON.parse(saved);
+                
+                if (state.isRunning) {
+                    statusDiv.className = 'status running';
+                    statusDiv.textContent = `✅ 运行中 - ${state.taskTitle}`;
+                    displayDiv.textContent = state.formattedTime || '00:00:00';
+                    
+                    // 检查时间是否更新
+                    if (state.formattedTime !== lastTime) {
+                        if (lastTime !== '') {
+                            updateCount++;
+                            log(`✅ 时间更新: ${lastTime} → ${state.formattedTime} (第${updateCount}次更新)`);
+                        }
+                        lastTime = state.formattedTime;
+                    } else if (lastTime !== '') {
+                        log(`⚠️ 时间未更新: ${state.formattedTime}`);
+                    }
+                } else {
+                    statusDiv.className = 'status stopped';
+                    statusDiv.textContent = '⏸️ 已停止';
+                    displayDiv.textContent = '00:00:00';
+                    lastTime = '';
+                }
+                
+                return state;
+            } catch (error) {
+                statusDiv.className = 'status stopped';
+                statusDiv.textContent = '❌ 状态解析错误';
+                displayDiv.textContent = '00:00:00';
+                log(`❌ 解析错误: ${error.message}`);
+                return null;
+            }
+        }
+
+        function startMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+            }
+
+            log('🚀 开始监控定时器状态...');
+            updateCount = 0;
+            lastTime = '';
+
+            // 立即检查一次
+            checkTimerState();
+
+            // 每秒检查一次
+            monitoringInterval = setInterval(() => {
+                checkTimerState();
+            }, 1000);
+
+            log('ℹ️ 监控已启动，每秒检查一次');
+        }
+
+        function stopMonitoring() {
+            if (monitoringInterval) {
+                clearInterval(monitoringInterval);
+                monitoringInterval = null;
+                log('⏹️ 监控已停止');
+                log(`📊 总计检测到 ${updateCount} 次时间更新`);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('updateLog').innerHTML = '';
+            updateCount = 0;
+            lastTime = '';
+        }
+
+        // 页面加载时自动开始监控
+        window.onload = function() {
+            log('📱 页面加载完成，开始初始检查...');
+            checkTimerState();
+            
+            // 提示用户
+            setTimeout(() => {
+                log('💡 提示: 点击"开始监控"来测试实时更新功能');
+            }, 1000);
+        };
+
+        // 页面卸载时清理
+        window.onbeforeunload = function() {
+            stopMonitoring();
+        };
+    </script>
+</body>
+</html>

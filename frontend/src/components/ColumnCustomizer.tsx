@@ -200,112 +200,210 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
         <Divider />
 
         {/* 列配置列表 */}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="columns">
-            {(provided: DroppableProvided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                {localColumns.map((column, index) => (
-                  <Draggable
-                    key={column.key}
-                    draggableId={column.key}
-                    index={index}
-                    isDragDisabled={column.required}
-                  >
-                    {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        style={{
-                          ...provided.draggableProps.style,
-                          marginBottom: '8px'
-                        }}
-                      >
+        {DragDropContext && Droppable && Draggable ? (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="columns">
+              {(provided: DroppableProvided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef}>
+                  {localColumns.map((column, index) => (
+                    <Draggable
+                      key={column.key}
+                      draggableId={column.key}
+                      index={index}
+                      isDragDisabled={column.required}
+                    >
+                      {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                         <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            padding: '12px',
-                            background: snapshot.isDragging ? '#f0f9ff' : '#fafafa',
-                            border: `1px solid ${snapshot.isDragging ? '#91d5ff' : '#e8e8e8'}`,
-                            borderRadius: '6px',
-                            transition: 'all 0.2s',
-                            cursor: column.required ? 'default' : 'grab'
+                            ...provided.draggableProps.style,
+                            marginBottom: '8px'
                           }}
                         >
-                          {/* 拖拽手柄 */}
                           <div
-                            {...provided.dragHandleProps}
                             style={{
-                              marginRight: '12px',
-                              color: column.required ? '#d9d9d9' : '#8c8c8c',
-                              cursor: column.required ? 'not-allowed' : 'grab'
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '12px',
+                              background: snapshot.isDragging ? '#f0f9ff' : '#fafafa',
+                              border: `1px solid ${snapshot.isDragging ? '#91d5ff' : '#e8e8e8'}`,
+                              borderRadius: '6px',
+                              transition: 'all 0.2s',
+                              cursor: column.required ? 'default' : 'grab'
                             }}
                           >
-                            <DragOutlined />
-                          </div>
+                            {/* 拖拽手柄 */}
+                            <div
+                              {...provided.dragHandleProps}
+                              style={{
+                                marginRight: '12px',
+                                color: column.required ? '#d9d9d9' : '#8c8c8c',
+                                cursor: column.required ? 'not-allowed' : 'grab'
+                              }}
+                            >
+                              <DragOutlined />
+                            </div>
 
-                          {/* 列信息 */}
-                          <div style={{ flex: 1 }}>
-                            <div style={{ 
-                              fontWeight: 500, 
-                              color: '#262626',
-                              marginBottom: column.description ? '2px' : 0
-                            }}>
-                              {column.title}
-                              {column.required && (
-                                <span style={{ 
-                                  color: '#ff4d4f', 
-                                  marginLeft: '4px',
-                                  fontSize: '12px'
+                            {/* 列信息 */}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ 
+                                fontWeight: 500, 
+                                color: '#262626',
+                                marginBottom: column.description ? '2px' : 0
+                              }}>
+                                {column.title}
+                                {column.required && (
+                                  <span style={{ 
+                                    color: '#ff4d4f', 
+                                    marginLeft: '4px',
+                                    fontSize: '12px'
+                                  }}>
+                                    *必需
+                                  </span>
+                                )}
+                              </div>
+                              {column.description && (
+                                <div style={{ 
+                                  fontSize: '12px', 
+                                  color: '#8c8c8c',
+                                  lineHeight: '1.4'
                                 }}>
-                                  *必需
-                                </span>
+                                  {column.description}
+                                </div>
                               )}
                             </div>
-                            {column.description && (
-                              <div style={{ 
-                                fontSize: '12px', 
-                                color: '#8c8c8c',
-                                lineHeight: '1.4'
-                              }}>
-                                {column.description}
-                              </div>
-                            )}
-                          </div>
 
-                          {/* 可见性切换 */}
-                          <div style={{ marginLeft: '12px' }}>
-                            {column.required ? (
-                              <Tooltip title="必需列，不可隐藏">
-                                <EyeOutlined style={{ color: '#52c41a' }} />
-                              </Tooltip>
-                            ) : (
-                              <Button
-                                type="text"
-                                size="small"
-                                icon={column.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-                                onClick={() => handleColumnToggle(column.key, !column.visible)}
-                                style={{
-                                  color: column.visible ? '#52c41a' : '#d9d9d9',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  width: '24px',
-                                  height: '24px'
-                                }}
-                              />
-                            )}
+                            {/* 可见性切换 */}
+                            <div style={{ marginLeft: '12px' }}>
+                              {column.required ? (
+                                <Tooltip title="必需列，不可隐藏">
+                                  <EyeOutlined style={{ color: '#52c41a' }} />
+                                </Tooltip>
+                              ) : (
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  icon={column.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                                  onClick={() => handleColumnToggle(column.key, !column.visible)}
+                                  style={{
+                                    color: column.visible ? '#52c41a' : '#d9d9d9',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '24px',
+                                    height: '24px'
+                                  }}
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        ) : (
+          /* 无拖拽功能的后备UI */
+          <div>
+            <div style={{ 
+              marginBottom: '12px', 
+              padding: '8px 12px', 
+              backgroundColor: '#fff7e6', 
+              border: '1px solid #ffd591', 
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#d46b08'
+            }}>
+              拖拽功能不可用，使用简化列表模式
+            </div>
+            <List
+              dataSource={localColumns}
+              renderItem={(column, index) => (
+                <List.Item
+                  key={column.key}
+                  style={{
+                    padding: '12px',
+                    background: '#fafafa',
+                    border: '1px solid #e8e8e8',
+                    borderRadius: '6px',
+                    marginBottom: '8px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    {/* 序号指示器 */}
+                    <div style={{
+                      marginRight: '12px',
+                      color: '#8c8c8c',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      minWidth: '20px'
+                    }}>
+                      {index + 1}
+                    </div>
+
+                    {/* 列信息 */}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ 
+                        fontWeight: 500, 
+                        color: '#262626',
+                        marginBottom: column.description ? '2px' : 0
+                      }}>
+                        {column.title}
+                        {column.required && (
+                          <span style={{ 
+                            color: '#ff4d4f', 
+                            marginLeft: '4px',
+                            fontSize: '12px'
+                          }}>
+                            *必需
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+                      {column.description && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#8c8c8c',
+                          lineHeight: '1.4'
+                        }}>
+                          {column.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 可见性切换 */}
+                    <div style={{ marginLeft: '12px' }}>
+                      {column.required ? (
+                        <Tooltip title="必需列，不可隐藏">
+                          <EyeOutlined style={{ color: '#52c41a' }} />
+                        </Tooltip>
+                      ) : (
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={column.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                          onClick={() => handleColumnToggle(column.key, !column.visible)}
+                          style={{
+                            color: column.visible ? '#52c41a' : '#d9d9d9',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '24px',
+                            height: '24px'
+                          }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
 
         <Divider />
 

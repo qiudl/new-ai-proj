@@ -31,9 +31,15 @@ RUN npm install --only=production && \
 # ======================================
 FROM base AS development
 
-# Install development dependencies
-RUN npm ci && \
-    npm cache clean --force
+# Install development dependencies with CSS validation
+RUN npm ci --include=optional && \
+    npm cache clean --force && \
+    # Verify CSS files are present and create symlinks if needed
+    ls -la node_modules/react-grid-layout/css/ && \
+    ls -la node_modules/react-resizable/css/ && \
+    # Ensure proper permissions for CSS files
+    chmod -R 755 node_modules/react-grid-layout/css/ && \
+    chmod -R 755 node_modules/react-resizable/css/
 
 # Install global development tools
 RUN npm install -g \
@@ -42,11 +48,13 @@ RUN npm install -g \
     eslint \
     prettier
 
-# Copy source code
+# Copy source code and entrypoint script
 COPY . .
+COPY docker-entrypoint.sh /usr/local/bin/
 
-# Change ownership
-RUN chown -R nodeuser:nodegroup /app
+# Make entrypoint executable and change ownership
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    chown -R nodeuser:nodegroup /app
 
 # Switch to non-root user
 USER nodeuser
@@ -66,6 +74,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000 || exit 1
 
 # Development command with hot reload
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["npm", "start"]
 
 # ======================================
@@ -73,9 +82,12 @@ CMD ["npm", "start"]
 # ======================================
 FROM base AS builder
 
-# Install all dependencies for building
-RUN npm ci && \
-    npm cache clean --force
+# Install dependencies with explicit CSS handling
+RUN npm ci --include=optional && \
+    npm cache clean --force && \
+    # Ensure CSS files from react-grid-layout are accessible
+    ls -la node_modules/react-grid-layout/css/ && \
+    ls -la node_modules/react-resizable/css/
 
 # Copy source code
 COPY . .

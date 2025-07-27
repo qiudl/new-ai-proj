@@ -1,29 +1,69 @@
 {
   "compilerOptions": {
-    "target": "es2015",
-    "downlevelIteration": true,
+    /* 基础配置 */
+    "target": "es2020",
     "lib": [
       "dom",
-      "dom.iterable",
-      "es6",
-      "es2015",
-      "es2017"
+      "dom.iterable", 
+      "es2020",
+      "es2021",
+      "es2022"
     ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
     "module": "esnext",
     "moduleResolution": "node",
+    
+    /* 严格类型检查 */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false,
+    
+    /* 模块解析 */
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    
+    /* 代码生成 */
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+    "preserveConstEnums": true,
+    "removeComments": false,
+    
+    /* 高级特性 */
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": false,
+    "verbatimModuleSyntax": false,
+    
+    /* TypeScript 5.x 新特性 */
+    "exactOptionalPropertyTypes": false,
+    "noPropertyAccessFromIndexSignature": false,
+    
+    /* 性能优化 */
+    "incremental": true,
+    "composite": false
   },
   "include": [
-    "src"
+    "src/**/*",
+    "src/**/*.ts",
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
   ]
 }

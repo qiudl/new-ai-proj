@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* 生产环境配置 - 更宽松的检查 */
+    "noImplicitReturns": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "exactOptionalPropertyTypes": false,
+    "noPropertyAccessFromIndexSignature": false,
+    
+    /* 优化配置 */
+    "removeComments": true,
+    "sourceMap": false,
+    "declaration": false,
+    "declarationMap": false
+  }
+}

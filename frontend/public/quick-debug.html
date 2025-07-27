@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>快速调试定时器状态</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .status { font-weight: bold; color: #007bff; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        button { margin: 5px; padding: 8px 15px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 定时器状态快速调试</h1>
+    
+    <div class="section">
+        <h3>当前状态检查</h3>
+        <button onclick="checkAll()">🔄 检查所有状态</button>
+        <div id="results"></div>
+    </div>
+
+    <div class="section">
+        <h3>常见问题修复</h3>
+        <button onclick="fixLocalTimer()">🔧 修复本地计时器</button>
+        <button onclick="forceRefresh()">🔄 强制刷新Context</button>
+        <button onclick="resetFloatingTimer()">📌 重置浮窗位置</button>
+    </div>
+
+    <script>
+        function checkAll() {
+            const results = document.getElementById('results');
+            let output = '<h4>检查结果:</h4>';
+            
+            // 1. localStorage状态
+            const saved = localStorage.getItem('globalTimerState');
+            if (saved) {
+                const state = JSON.parse(saved);
+                output += `<div class="success">✅ localStorage状态: ${state.isRunning ? '运行中' : '已停止'}</div>`;
+                output += `<div>任务: ${state.taskTitle || '无'}</div>`;
+                output += `<div>时间: ${state.formattedTime || '00:00:00'}</div>`;
+            } else {
+                output += `<div class="error">❌ localStorage无状态数据</div>`;
+            }
+            
+            // 2. DOM元素检查
+            const timerCard = document.querySelector('.timer-card');
+            const floatingTimer = document.querySelector('.floating-timer');
+            
+            output += `<div class="${timerCard ? 'success' : 'error'}">
+                ${timerCard ? '✅' : '❌'} TimerCard元素: ${timerCard ? '存在' : '不存在'}
+            </div>`;
+            
+            output += `<div class="${floatingTimer ? 'success' : 'error'}">
+                ${floatingTimer ? '✅' : '❌'} FloatingTimer元素: ${floatingTimer ? '存在' : '不存在'}
+            </div>`;
+            
+            // 3. 检查显示内容
+            if (timerCard) {
+                const timeDisplay = timerCard.querySelector('[style*="monospace"]');
+                const taskTitle = timerCard.querySelector('[style*="color: #1890ff"]');
+                
+                if (timeDisplay) {
+                    output += `<div>TimerCard时间显示: ${timeDisplay.textContent}</div>`;
+                }
+                if (taskTitle) {
+                    output += `<div>TimerCard任务标题: ${taskTitle.textContent}</div>`;
+                }
+            }
+            
+            if (floatingTimer) {
+                const floatingTime = floatingTimer.querySelector('[style*="monospace"]');
+                const floatingTask = floatingTimer.querySelector('[title*="点击查看详情"]');
+                
+                if (floatingTime) {
+                    output += `<div>FloatingTimer时间: ${floatingTime.textContent}</div>`;
+                }
+                if (floatingTask) {
+                    output += `<div>FloatingTimer任务: ${floatingTask.textContent}</div>`;
+                }
+            }
+            
+            // 4. 浮窗隐藏状态检查
+            const floatingHidden = localStorage.getItem('floatingTimerHidden');
+            if (floatingHidden) {
+                const isHidden = JSON.parse(floatingHidden);
+                output += `<div class="${isHidden ? 'error' : 'success'}">
+                    浮窗隐藏状态: ${isHidden ? '已隐藏' : '显示中'}
+                </div>`;
+            }
+            
+            results.innerHTML = output;
+        }
+        
+        function fixLocalTimer() {
+            const saved = localStorage.getItem('globalTimerState');
+            if (saved) {
+                const state = JSON.parse(saved);
+                if (state.isRunning && state.startTime) {
+                    // 重新计算经过时间
+                    const startTime = new Date(state.startTime);
+                    const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+                    const hours = Math.floor(elapsed / 3600);
+                    const minutes = Math.floor((elapsed % 3600) / 60);
+                    const seconds = elapsed % 60;
+                    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    
+                    state.elapsedSeconds = elapsed;
+                    state.formattedTime = formattedTime;
+                    state.lastSync = new Date().toISOString();
+                    
+                    localStorage.setItem('globalTimerState', JSON.stringify(state));
+                    alert('✅ 本地计时器时间已修复！请刷新页面。');
+                } else {
+                    alert('❌ 当前没有运行中的定时器');
+                }
+            } else {
+                alert('❌ 没有找到定时器状态');
+            }
+        }
+        
+        function forceRefresh() {
+            // 触发存储事件，强制React Context刷新
+            const saved = localStorage.getItem('globalTimerState');
+            if (saved) {
+                window.dispatchEvent(new StorageEvent('storage', {
+                    key: 'globalTimerState',
+                    newValue: saved,
+                    storageArea: localStorage
+                }));
+                alert('✅ 已发送强制刷新事件！');
+            } else {
+                alert('❌ 没有状态数据可刷新');
+            }
+        }
+        
+        function resetFloatingTimer() {
+            localStorage.removeItem('floatingTimerHidden');
+            localStorage.removeItem('floatingTimerPosition');
+            localStorage.removeItem('floatingTimerMinimized');
+            alert('✅ 浮窗状态已重置！请刷新页面。');
+        }
+        
+        // 页面加载时自动检查
+        window.onload = checkAll;
+    </script>
+</body>
+</html>

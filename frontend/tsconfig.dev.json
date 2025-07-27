@@ -1,0 +1,33 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* 开发环境特定配置 */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    
+    /* 更严格的检查（开发时启用） */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+    
+    /* 调试和性能 */
+    "listFiles": false,
+    "listEmittedFiles": false,
+    "traceResolution": false,
+    "diagnostics": false,
+    "extendedDiagnostics": false
+  },
+  "include": [
+    "src/**/*",
+    "src/**/*.ts", 
+    "src/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "dist"
+  ]
+}

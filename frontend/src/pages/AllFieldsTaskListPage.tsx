@@ -49,7 +49,7 @@ import {
   SyncOutlined,
   NotificationOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 // Note: Drag and drop functionality temporarily disabled due to missing dependencies
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
@@ -181,6 +181,15 @@ const DEFAULT_CUSTOM_FIELDS: CustomFieldConfig[] = [
 
 const AllFieldsTaskListPage: React.FC = () => {
   const navigate = useNavigate();
+  const { projectId } = useParams<{ projectId: string }>();
+  
+  // 强制要求项目ID - 全字段页面只支持项目内任务
+  if (!projectId) {
+    navigate('/projects');
+    return null;
+  }
+
+  const projectIdNum = parseInt(projectId, 10);
   
   // 数据状态
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -840,7 +849,7 @@ const AllFieldsTaskListPage: React.FC = () => {
       setLoading(true);
       
       const [tasksResponse, projectsResponse] = await Promise.allSettled([
-        TaskService.getAllTasks({
+        TaskService.getTasks(projectIdNum, {
           page: pagination.current,
           page_size: pagination.pageSize,
           search: filters.search || undefined,
@@ -849,7 +858,7 @@ const AllFieldsTaskListPage: React.FC = () => {
           due_after: filters.due_date_range?.[0]?.format('YYYY-MM-DD'),
           due_before: filters.due_date_range?.[1]?.format('YYYY-MM-DD'),
         }),
-        projectService.getProjects({ page: 1, pageSize: 100 })
+        projectService.getProject(projectIdNum)
       ]);
 
       if (tasksResponse.status === 'fulfilled') {
@@ -862,7 +871,7 @@ const AllFieldsTaskListPage: React.FC = () => {
         
         // 应用高级筛选器
         if (advancedFilters.length > 0) {
-          taskData = taskData.filter(task => matchesAdvancedFilters(task));
+          taskData = taskData.filter((task: Task) => matchesAdvancedFilters(task));
         }
         
         setTasks(taskData);
@@ -873,7 +882,9 @@ const AllFieldsTaskListPage: React.FC = () => {
       }
 
       if (projectsResponse.status === 'fulfilled') {
-        setProjects(projectsResponse.value.data || []);
+        // 设置当前项目信息
+        const currentProject = projectsResponse.value;
+        setProjects(currentProject ? [currentProject] : []);
       }
     } catch (error) {
       message.error('加载数据失败');
@@ -881,7 +892,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.current, pagination.pageSize, advancedFilters]);
+  }, [filters, pagination.current, pagination.pageSize, advancedFilters, projectIdNum]);
 
   // 批量删除
   const handleBatchDelete = async () => {
@@ -1468,7 +1479,7 @@ const AllFieldsTaskListPage: React.FC = () => {
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <Title level={2} style={{ margin: 0 }}>
-            全字段任务列表
+            {projects[0]?.name || `项目${projectIdNum}`} - 全字段任务列表
           </Title>
           <Space>
             <Button 

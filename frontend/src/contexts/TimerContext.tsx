@@ -45,13 +45,29 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       if (saved) {
         const parsedState = JSON.parse(saved);
         console.log('TimerContext: 从localStorage恢复状态:', parsedState);
+        
+        // 如果定时器正在运行，重新计算经过时间
+        let elapsedSeconds = parsedState.elapsedSeconds || 0;
+        let formattedTime = parsedState.formattedTime || '00:00:00';
+        
+        if (parsedState.isRunning && parsedState.startTime) {
+          const startTime = new Date(parsedState.startTime);
+          const currentElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+          elapsedSeconds = currentElapsed;
+          
+          const hours = Math.floor(currentElapsed / 3600);
+          const minutes = Math.floor((currentElapsed % 3600) / 60);
+          const seconds = currentElapsed % 60;
+          formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
         return {
           isRunning: parsedState.isRunning || false,
           taskId: parsedState.taskId,
           taskTitle: parsedState.taskTitle,
           startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
-          elapsedSeconds: parsedState.elapsedSeconds || 0,
-          formattedTime: parsedState.formattedTime || '00:00:00'
+          elapsedSeconds,
+          formattedTime
         };
       }
     } catch (error) {
@@ -245,14 +261,16 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [isLoading, timerState.isRunning, refreshTimer]);
 
-  // 初始化和定期刷新
+  // 初始化（只运行一次）
   useEffect(() => {
     // 初始加载
     refreshTimer();
     
-    // 定期刷新 (每30秒)
+    // 定期刷新 (每30秒) - 只在没有运行定时器时刷新
     refreshIntervalRef.current = setInterval(() => {
-      if (!timerState.isRunning) {
+      // 从localStorage检查最新状态，而不是依赖state
+      const saved = localStorage.getItem('globalTimerState');
+      if (!saved || !JSON.parse(saved).isRunning) {
         refreshTimer();
       }
     }, 30000);
@@ -262,7 +280,18 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [refreshTimer, timerState.isRunning]);
+  }, [refreshTimer]);
+
+  // 单独处理本地计时器的启动和停止
+  useEffect(() => {
+    if (timerState.isRunning && timerState.startTime) {
+      console.log('TimerContext: 启动本地计时器');
+      startLocalTimer(timerState.startTime);
+    } else {
+      console.log('TimerContext: 停止本地计时器');
+      stopLocalTimer();
+    }
+  }, [timerState.isRunning, timerState.startTime, startLocalTimer, stopLocalTimer]);
 
   // 页面可见性变化处理
   useEffect(() => {

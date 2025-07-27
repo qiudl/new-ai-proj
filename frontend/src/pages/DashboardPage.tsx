@@ -12,9 +12,8 @@ import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings
 import '../styles/OptimizedDashboard.css';
 import '../styles/grid-layout.css';
 
-// Import grid layout CSS directly
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+// Import grid layout CSS locally to avoid Docker path issues
+import '../styles/grid-layout-combined.css';
 
 const { Title, Text } = Typography;
 

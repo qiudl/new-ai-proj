@@ -8,7 +8,6 @@ import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import FloatingTimer from './components/FloatingTimer';
 import UnifiedDebugPanel from './components/UnifiedDebugPanel';
-import FloatingTimerForced from './components/FloatingTimerForced';
 import './App.css';
 import './styles/task-hierarchy.css';
 
@@ -167,36 +166,12 @@ function App() {
               </PrivateRoute>
             } />
             
-            {/* 任务列表页面 - 统一使用TasksPage */}
-            <Route path="/task-list" element={
-              <PrivateRoute>
-                <Layout>
-                  <TasksPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+            {/* 项目任务列表 - 只支持项目内任务 */}
             
-            <Route path="/tasks" element={
-              <PrivateRoute>
-                <Layout>
-                  <TasksPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/tasks/all-fields" element={
+            <Route path="/projects/:projectId/tasks/all-fields" element={
               <PrivateRoute>
                 <Layout>
                   <AllFieldsTaskListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            {/* 项目任务列表 - 统一使用TasksPage */}
-            <Route path="/projects/:projectId/task-list" element={
-              <PrivateRoute>
-                <Layout>
-                  <TasksPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -345,8 +320,6 @@ function App() {
           {/* Unified Debug Panel - includes timer and JWT debug */}
           <UnifiedDebugPanel />
           
-          {/* Forced Timer - always shows for testing */}
-          <FloatingTimerForced />
           
           </div>
         </Router>

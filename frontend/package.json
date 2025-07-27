@@ -45,7 +45,7 @@
     "react-syntax-highlighter": "^15.6.1",
     "recharts": "^3.1.0",
     "remark-gfm": "^4.0.1",
-    "typescript": "^4.9.5",
+    "typescript": "^5.3.3",
     "web-vitals": "^2.1.4",
     "xlsx": "^0.18.5"
   },
@@ -60,7 +60,12 @@
     "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",
     "format": "prettier --write src/**/*.{js,jsx,ts,tsx,json,css,md}",
     "type-check": "tsc --noEmit",
-    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js"
+    "type-check:watch": "tsc --noEmit --watch",
+    "type-check:dev": "tsc --project tsconfig.dev.json --noEmit",
+    "type-check:strict": "tsc --noEmit --strict --noUnusedLocals --noUnusedParameters",
+    "analyze": "npm run build && npx webpack-bundle-analyzer build/static/js/*.js",
+    "ts:version": "npx tsc --version",
+    "ts:info": "npx tsc --showConfig"
   },
   "eslintConfig": {
     "extends": [
@@ -89,5 +94,8 @@
     "eslint-plugin-prettier": "^4.2.1",
     "prettier": "^2.8.8",
     "webpack-bundle-analyzer": "^4.10.2"
+  },
+  "overrides": {
+    "typescript": "^5.3.3"
   }
 }

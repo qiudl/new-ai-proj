@@ -110,6 +110,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   // 获取当前选中的菜单项
   const getSelectedKeys = () => {
     const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return ['/'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
@@ -126,14 +127,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (collapsed) return [];
     
     const path = location.pathname;
-    if (path.includes('/task-dashboard') || path.includes('/task-list') || path === '/tasks' || path.includes('/bulk-import')) {
-      return ['/task-management'];
+    if (path === '/' || path === '/dashboard' || path.includes('/task-dashboard')) {
+      return ['/workspace-management'];
     }
     if (path.includes('/projects') || path.includes('/companies')) {
       return ['/project-customer-management'];
-    }
-    if (path.includes('/document-manager')) {
-      return ['/document-management'];
     }
     if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs')) {
       return ['/system-management'];
@@ -152,9 +150,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const sidebarItems = [
     {
-      key: '/',
+      key: '/workspace-management',
       icon: <DashboardOutlined />,
       label: '工作台',
+      children: [
+        {
+          key: '/',
+          icon: <DashboardOutlined />,
+          label: '时间管理',
+        },
+        {
+          key: '/task-dashboard',
+          icon: <CalendarOutlined />,
+          label: '任务周报',
+        },
+      ],
     },
     {
       key: '/project-customer-management',
@@ -174,43 +184,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       ],
     },
     {
-      key: '/task-management',
-      icon: <AppstoreOutlined />,
-      label: '任务管理',
-      children: [
-        {
-          key: '/task-dashboard',
-          icon: <CalendarOutlined />,
-          label: '任务仪表盘',
-        },
-        {
-          key: '/tasks',
-          icon: <UnorderedListOutlined />,
-          label: '任务列表',
-        },
-        {
-          key: '/tasks/all-fields',
-          icon: <DatabaseOutlined />,
-          label: '全字段列表',
-        },
-        {
-          key: '/bulk-import',
-          icon: <ImportOutlined />,
-          label: '批量导入',
-        },
-      ],
+      key: '/bulk-import',
+      icon: <ImportOutlined />,
+      label: '批量导入',
     },
     {
-      key: '/document-management',
-      icon: <FileTextOutlined />,
-      label: '文档管理',
-      children: [
-        {
-          key: '/document-manager',
-          icon: <FolderOutlined />,
-          label: '文档管理器',
-        },
-      ],
+      key: '/document-manager',
+      icon: <FolderOutlined />,
+      label: '文档管理器',
     },
     {
       key: '/system-management',
