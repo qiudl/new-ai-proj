@@ -102,9 +102,23 @@ const TaskModal: React.FC<TaskModalProps> = ({
         throw new Error('无效的项目ID，无法创建任务');
       }
       
-      // 如果是子任务，确保父任务ID有效
-      const parentId = values.parent_id || parentTask?.id;
-      if (parentId && (!parentTask || !parentTask.project_id)) {
+      // 确定父任务ID - 编辑模式使用表单值，创建模式使用parentTask
+      let parentId: number | undefined;
+      if (task) {
+        // 编辑模式：只使用表单的parent_id值
+        parentId = values.parent_id;
+      } else {
+        // 创建模式：使用表单值或parentTask
+        parentId = values.parent_id || parentTask?.id;
+      }
+      
+      // 防止自引用：任务不能将自己设置为父任务
+      if (parentId && task && parentId === task.id) {
+        throw new Error('任务不能将自己设置为父任务');
+      }
+      
+      // 如果是子任务，确保父任务ID有效（仅在创建模式下验证parentTask）
+      if (parentId && !task && (!parentTask || !parentTask.project_id)) {
         throw new Error('父任务信息无效，无法创建子任务');
       }
       
@@ -115,7 +129,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         status: values.status,
         assignee_id: values.assignee_id || undefined,
         due_date: values.due_date ? values.due_date.format('YYYY-MM-DD') + 'T00:00:00Z' : undefined,
-        parent_id: parentId || undefined,
+        parent_id: parentId,
         custom_fields: {
           priority: values.priority,
           tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],

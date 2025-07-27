@@ -24,12 +24,6 @@ import '../styles/resizable-columns.css';
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-
-  // 强制要求项目ID - 任务页面只支持项目内任务
-  if (!projectId) {
-    navigate('/projects');
-    return null;
-  }
   
   // Global timer context
   const { timerState } = useTimer();
@@ -2198,6 +2192,12 @@ const TasksPage: React.FC = () => {
       setSelectedTaskIds([]);
     };
   }, []);
+
+  // 强制要求项目ID - 任务页面只支持项目内任务
+  if (!projectId) {
+    navigate('/projects');
+    return null;
+  }
 
   return (
     <div className="page-container">

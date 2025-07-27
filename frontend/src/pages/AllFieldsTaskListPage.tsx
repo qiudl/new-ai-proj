@@ -183,14 +183,6 @@ const AllFieldsTaskListPage: React.FC = () => {
   const navigate = useNavigate();
   const { projectId } = useParams<{ projectId: string }>();
   
-  // 强制要求项目ID - 全字段页面只支持项目内任务
-  if (!projectId) {
-    navigate('/projects');
-    return null;
-  }
-
-  const projectIdNum = parseInt(projectId, 10);
-  
   // 数据状态
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -892,7 +884,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, pagination.current, pagination.pageSize, advancedFilters, projectIdNum]);
+  }, [filters, pagination.current, pagination.pageSize, advancedFilters, projectId]);
 
   // 批量删除
   const handleBatchDelete = async () => {
@@ -1464,6 +1456,14 @@ const AllFieldsTaskListPage: React.FC = () => {
       console.warn('Failed to load WebSocket settings:', error);
     }
   }, []);
+
+  // 强制要求项目ID - 全字段页面只支持项目内任务
+  if (!projectId) {
+    navigate('/projects');
+    return null;
+  }
+
+  const projectIdNum = parseInt(projectId, 10);
 
   // 行选择配置
   const rowSelection = {

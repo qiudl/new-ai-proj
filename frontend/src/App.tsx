@@ -21,6 +21,8 @@ const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
+const TimeManagementHomePage = React.lazy(() => import('./pages/TimeManagementHomePage'));
+const TimeAnalysisPage = React.lazy(() => import('./pages/TimeAnalysisPage'));
 const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
@@ -211,6 +213,22 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <TaskDashboardPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/time-analysis" element={
+              <PrivateRoute>
+                <Layout>
+                  <TimeAnalysisPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/time-management" element={
+              <PrivateRoute>
+                <Layout>
+                  <TimeManagementHomePage />
                 </Layout>
               </PrivateRoute>
             } />

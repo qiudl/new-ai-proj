@@ -1,0 +1,133 @@
+/* 增强型项目任务管理器样式 */
+
+.enhanced-project-task-manager {
+  /* 任务层级样式 */
+  .task-level-0 {
+    background-color: #fafafa;
+    font-weight: 600;
+  }
+  
+  .task-level-1 {
+    background-color: #f5f5f5;
+  }
+  
+  .task-level-2 {
+    background-color: #f0f0f0;
+  }
+  
+  .task-level-3 {
+    background-color: #ebebeb;
+  }
+  
+  .task-child {
+    border-left: 2px solid #e6f7ff;
+  }
+  
+  .task-has-children {
+    font-weight: 500;
+  }
+  
+  /* 表格行悬停效果 */
+  .ant-table-tbody > tr.task-child:hover {
+    background-color: #e6f7ff !important;
+  }
+  
+  .ant-table-tbody > tr.task-level-0:hover {
+    background-color: #f0f9ff !important;
+  }
+  
+  /* 操作列固定样式 */
+  .ant-table-thead th[data-column-key="actions"] {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 2 !important;
+    background: white !important;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1) !important;
+  }
+  
+  .ant-table-tbody td[data-column-key="actions"] {
+    position: sticky !important;
+    right: 0 !important;
+    z-index: 1 !important;
+    background: inherit !important;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.1) !important;
+  }
+  
+  /* 计时器相关样式 */
+  .timer-active-row {
+    background-color: #f6ffed !important;
+    border-left: 3px solid #52c41a !important;
+  }
+  
+  .timer-paused-row {
+    background-color: #fff7e6 !important;
+    border-left: 3px solid #fa8c16 !important;
+  }
+  
+  /* 统计卡片样式 */
+  .stats-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .stats-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+}
+
+/* 任务优先级样式 */
+.task-priority-urgent {
+  border-left: 4px solid #ff4d4f !important;
+}
+
+.task-priority-high {
+  border-left: 4px solid #fa8c16 !important;
+}
+
+.task-priority-medium {
+  border-left: 4px solid #1890ff !important;
+}
+
+.task-priority-low {
+  border-left: 4px solid #52c41a !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-project-task-manager {
+    .ant-table-scroll {
+      overflow-x: auto;
+    }
+    
+    .ant-statistic {
+      text-align: center;
+    }
+    
+    .ant-col {
+      margin-bottom: 16px;
+    }
+  }
+}
+
+/* 动画效果 */
+.task-expand-animation {
+  transition: all 0.3s ease;
+}
+
+.timer-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}

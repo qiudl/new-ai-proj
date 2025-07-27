@@ -47,7 +47,8 @@ import { projectService } from '../services/projectService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
 import TaskTimeline from '../components/TaskTimeline';
-import TaskDetailTimer from '../components/TaskDetailTimer';
+// 🔽 UPDATED: 使用全局计时器
+import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -474,10 +475,11 @@ const TaskDetailPageNew: React.FC = () => {
           lineHeight: '22px'
         }}
         items={[
+          // 返回按钮和项目任务根节点
           {
             title: (
               <span 
-                onClick={() => navigate('/tasks')}
+                onClick={() => navigate(`/projects/${projectId}`)}
                 style={{ 
                   color: '#1890ff',
                   cursor: 'pointer',
@@ -490,14 +492,36 @@ const TaskDetailPageNew: React.FC = () => {
                 }}
               >
                 <ArrowLeftOutlined style={{ fontSize: '12px' }} />
-                任务列表
+                项目任务
               </span>
             )
           },
+          // 如果有父任务，显示父任务链接
+          ...(task.parent_id && parentTask ? [{
+            title: (
+              <span 
+                onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.parent_id}`)}
+                style={{ 
+                  color: '#1890ff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  lineHeight: '22px'
+                }}
+              >
+                {parentTask.title}
+              </span>
+            )
+          }] : []),
+          // 当前任务名称
           {
             title: (
-              <span style={{ fontSize: '14px', lineHeight: '22px' }}>
-                任务详情
+              <span style={{ 
+                fontSize: '14px', 
+                lineHeight: '22px',
+                color: '#8c8c8c',
+                fontWeight: 500
+              }}>
+                {task.title}
               </span>
             )
           }
@@ -906,7 +930,7 @@ const TaskDetailPageNew: React.FC = () => {
         {/* 右侧信息面板 */}
         <Col xs={24} lg={8}>
           {/* 任务计时器 */}
-          <TaskDetailTimer
+          <MVPTaskDetailTimer
             taskId={task.id}
             taskTitle={task.title}
             taskStatus={task.status}
@@ -1360,7 +1384,7 @@ const TaskDetailPageNew: React.FC = () => {
           }}
         />
       )}
-    </div>
+      </div>
   );
 };
 

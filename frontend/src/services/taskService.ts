@@ -114,16 +114,36 @@ export class TaskService {
     taskId: number,
     task: Partial<TaskRequest>
   ): Promise<Task> {
-    const response: APIResponse<Task> = await api.put(
-      `/projects/${projectId}/tasks/${taskId}`,
-      task
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to update task');
+    try {
+      // Log the request data for debugging
+      console.log('TaskService.updateTask - Request data:', {
+        projectId,
+        taskId,
+        task
+      });
+
+      const response: APIResponse<Task> = await api.put(
+        `/projects/${projectId}/tasks/${taskId}`,
+        task
+      );
+      
+      if (!response.success) {
+        console.error('TaskService.updateTask - API returned error:', response.error);
+        throw new Error(response.error?.message || 'Failed to update task');
+      }
+      
+      return response.data!;
+    } catch (error: any) {
+      console.error('TaskService.updateTask - Error details:', {
+        error: error.message,
+        status: error.status,
+        data: error.data,
+        projectId,
+        taskId,
+        requestData: task
+      });
+      throw error;
     }
-    
-    return response.data!;
   }
 
   /**

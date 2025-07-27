@@ -111,6 +111,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getSelectedKeys = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return ['/'];
+    if (path.includes('/time-management')) return ['/time-management'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-list')) return ['/task-list'];
     if (path === '/tasks') return ['/tasks'];
@@ -127,7 +128,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (collapsed) return [];
     
     const path = location.pathname;
-    if (path === '/' || path === '/dashboard' || path.includes('/task-dashboard')) {
+    if (path === '/' || path === '/dashboard' || path.includes('/time-management') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
     }
     if (path.includes('/projects') || path.includes('/companies')) {
@@ -157,6 +158,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {
           key: '/',
           icon: <DashboardOutlined />,
+          label: '工作概览',
+        },
+        {
+          key: '/time-management',
+          icon: <AppstoreOutlined />,
           label: '时间管理',
         },
         {

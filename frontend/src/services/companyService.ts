@@ -73,7 +73,59 @@ class CompanyService {
   // Get company by ID
   async getCompany(id: number): Promise<Company> {
     const response = await api.get(`${API_BASE_URL}/${id}`);
-    return response.data;
+    const data = response.data;
+    
+    // Convert snake_case from backend to camelCase for frontend
+    const company: Company = {
+      id: data.id,
+      companyName: data.company_name || data.companyName,
+      companyCode: data.company_code || data.companyCode,
+      industry: data.industry,
+      companyType: data.company_type || data.companyType,
+      companyTypeText: this.getCompanyTypeText(data.company_type || data.companyType),
+      businessLicense: data.business_license || data.businessLicense,
+      taxNumber: data.tax_number || data.taxNumber,
+      legalRepresentative: data.legal_representative || data.legalRepresentative,
+      
+      // Contact information
+      address: data.address,
+      city: data.city,
+      province: data.province,
+      postalCode: data.postal_code || data.postalCode,
+      website: data.website,
+      mainPhone: data.main_phone || data.mainPhone,
+      mainEmail: data.main_email || data.mainEmail,
+      
+      // Business information
+      status: data.status,
+      statusText: this.getStatusText(data.status),
+      priority: data.priority,
+      priorityText: this.getPriorityText(data.priority),
+      annualContractValue: data.annual_contract_value || data.annualContractValue,
+      totalContractValue: data.total_contract_value || data.totalContractValue,
+      startDate: data.start_date || data.startDate,
+      
+      // Company scale
+      employeeCount: data.employee_count || data.employeeCount,
+      companySize: data.company_size || data.companySize,
+      companySizeText: this.getCompanySizeText(data.company_size || data.companySize),
+      
+      // Metadata
+      createdBy: data.created_by || data.createdBy,
+      createdByName: data.created_by_name || data.createdByName,
+      updatedBy: data.updated_by || data.updatedBy,
+      updatedByName: data.updated_by_name || data.updatedByName,
+      createdAt: data.created_at || data.createdAt,
+      updatedAt: data.updated_at || data.updatedAt,
+      
+      // Related data
+      userCount: data.user_count || data.userCount,
+      projectCount: data.project_count || data.projectCount,
+      contractCount: data.contract_count || data.contractCount,
+      lastContactDate: data.last_contact_date || data.lastContactDate,
+    };
+    
+    return company;
   }
 
   // Update company
@@ -389,6 +441,47 @@ class CompanyService {
     
     const response = await api.get(`${API_BASE_URL}/users/batch?${params.toString()}`);
     return response.data;
+  }
+
+  // Helper methods for text conversion
+  private getCompanyTypeText(type: string): string {
+    const typeMap: Record<string, string> = {
+      'limited_company': '有限责任公司',
+      'joint_stock': '股份有限公司',
+      'individual': '个体工商户',
+      'partnership': '合伙企业'
+    };
+    return typeMap[type] || '未知';
+  }
+
+  private getStatusText(status: string): string {
+    const statusMap: Record<string, string> = {
+      'active': '活跃',
+      'inactive': '非活跃',
+      'potential': '潜在客户',
+      'suspended': '暂停合作'
+    };
+    return statusMap[status] || '未知';
+  }
+
+  private getPriorityText(priority: string): string {
+    const priorityMap: Record<string, string> = {
+      'high': '高',
+      'medium': '中',
+      'low': '低'
+    };
+    return priorityMap[priority] || '中';
+  }
+
+  private getCompanySizeText(size: string): string {
+    const sizeMap: Record<string, string> = {
+      'startup': '初创公司',
+      'small': '小型企业',
+      'medium': '中型企业',
+      'large': '大型企业',
+      'enterprise': '集团企业'
+    };
+    return sizeMap[size] || '未知';
   }
 }
 

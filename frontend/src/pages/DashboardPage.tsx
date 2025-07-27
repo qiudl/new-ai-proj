@@ -1,16 +1,19 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Typography, Button } from 'antd';
+import { Typography, Button, message, Tooltip } from 'antd';
 // 🔽 COMMENTED OUT: 拖拽相关导入 - 简化第1步
 // import { Typography, Button, Switch } from 'antd';
 // import { UndoOutlined, DragOutlined, InteractionOutlined, QuestionCircleOutlined } from '@ant-design/icons';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+import { QuestionCircleOutlined, BugOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+// 🔽 UPDATED: 使用MVP版定时器
+import { SimplifiedTimerProvider } from '../contexts/SimplifiedTimerContext';
 import { useTimer } from '../contexts/TimerContext';
-import SimplifiedTimerCard from '../components/SimplifiedTimerCard';
-import MyTasksTree from '../components/MyTasksTree';
+import MVPTimerCard from '../components/MVPTimerCard';
+import MVPMyTasksTree from '../components/MVPMyTasksTree';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';
 import TaskProgressCard from '../components/TaskProgressCard';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
+import TimerDebugModal from '../components/TimerDebugModal';
 // 🔽 COMMENTED OUT: 拖拽相关导入 - 简化第1步
 // import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings';
 import TimeManagementGuide from '../components/TimeManagementGuide';
@@ -76,8 +79,7 @@ const cols = { lg: 12, md: 10, sm: 6, xs: 4 };
 */
 
 const DashboardPage: React.FC = () => {
-  // Global timer context
-  const { timerState } = useTimer();
+  // 🔽 REMOVED: 不再需要复杂的timer context
   
   // 🔽 COMMENTED OUT: 动态网格布局加载状态 - 简化第1步
   // Dynamic grid layout loading state
@@ -117,8 +119,52 @@ const DashboardPage: React.FC = () => {
   // const [isDragMode, setIsDragMode] = useState(false);
   
   const [showGuide, setShowGuide] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   
-  // 计时器状态管理
+  // 浮动定时器显示状态
+  const [floatingTimerVisible, setFloatingTimerVisible] = useState(true);
+  
+  // 获取定时器状态
+  const { timerState } = useTimer();
+
+  // 从localStorage恢复浮动定时器可见性状态
+  useEffect(() => {
+    try {
+      const savedHidden = localStorage.getItem('floatingTimerHidden');
+      if (savedHidden) {
+        setFloatingTimerVisible(!JSON.parse(savedHidden));
+      }
+    } catch (error) {
+      console.warn('Failed to restore floating timer visibility:', error);
+    }
+  }, []);
+
+  // 切换浮动定时器显示/隐藏
+  const toggleFloatingTimer = useCallback(() => {
+    const newHidden = floatingTimerVisible;
+    setFloatingTimerVisible(!newHidden);
+    
+    try {
+      localStorage.setItem('floatingTimerHidden', JSON.stringify(newHidden));
+      
+      // 触发storage事件通知浮动定时器组件
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'floatingTimerHidden',
+        newValue: JSON.stringify(newHidden),
+        oldValue: JSON.stringify(!newHidden)
+      }));
+      
+      if (newHidden) {
+        message.info('浮动定时器已隐藏');
+      } else {
+        message.success('浮动定时器已显示');
+      }
+    } catch (error) {
+      console.error('Failed to save floating timer visibility:', error);
+    }
+  }, [floatingTimerVisible]);
+  
+  // 🔽 SIMPLIFIED: 简化的状态管理
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // 🔽 COMMENTED OUT: 组件配置状态 - 简化第1步
@@ -222,11 +268,9 @@ const DashboardPage: React.FC = () => {
   }, [componentConfigs]);
   */
 
-  // Handle timer updates from global context - MEMORY OPTIMIZED
-  const handleTimerUpdate = useCallback((isRunning: boolean, taskTitle?: string) => {
+  // 🔽 SIMPLIFIED: 简化的刷新逻辑
+  const handleRefresh = useCallback(() => {
     if (!isMountedRef.current) return;
-    
-    // 触发统计卡片刷新
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
@@ -339,13 +383,7 @@ const DashboardPage: React.FC = () => {
   }, [componentConfigs]);
   */
 
-  // Handle timer state changes from global context
-  useEffect(() => {
-    if (!isMountedRef.current) return;
-    
-    // 触发统计卡片刷新当定时器状态改变时
-    setRefreshTrigger(prev => prev + 1);
-  }, [timerState.isRunning]);
+  // 🔽 REMOVED: 不再需要复杂的定时器状态监听
 
   // CRITICAL: Cleanup on unmount
   useEffect(() => {
@@ -429,7 +467,8 @@ const DashboardPage: React.FC = () => {
   // Render dashboard items (simplified layout) - 已移除，直接在JSX中定义布局
 
   return (
-    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <SimplifiedTimerProvider>
+      <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -444,6 +483,47 @@ const DashboardPage: React.FC = () => {
               title="查看使用指南"
               style={{ color: '#8c8c8c' }}
             />
+            <Button
+              type="text"
+              icon={<BugOutlined />}
+              onClick={() => setShowDebug(true)}
+              title="定时器调试"
+              style={{ color: '#8c8c8c' }}
+            />
+            <Tooltip 
+              title={
+                !timerState.isRunning 
+                  ? '当前没有运行中的定时器' 
+                  : floatingTimerVisible 
+                    ? '隐藏浮动定时器' 
+                    : '显示浮动定时器'
+              }
+            >
+              <Button
+                type="text"
+                icon={
+                  timerState.isRunning ? (
+                    floatingTimerVisible ? <EyeOutlined /> : <EyeInvisibleOutlined />
+                  ) : (
+                    <ClockCircleOutlined />
+                  )
+                }
+                onClick={toggleFloatingTimer}
+                disabled={!timerState.isRunning}
+                title={
+                  !timerState.isRunning 
+                    ? '当前没有运行中的定时器' 
+                    : floatingTimerVisible 
+                      ? '隐藏浮动定时器' 
+                      : '显示浮动定时器'
+                }
+                style={{ 
+                  color: timerState.isRunning 
+                    ? (floatingTimerVisible ? '#52c41a' : '#8c8c8c') 
+                    : '#d9d9d9' 
+                }}
+              />
+            </Tooltip>
           </div>
           <Text type="secondary">
             管理您的项目、任务和工作时间
@@ -499,7 +579,7 @@ const DashboardPage: React.FC = () => {
             overflow: 'hidden'
           }}>
             <TimerErrorBoundary>
-              <SimplifiedTimerCard />
+              <MVPTimerCard />
             </TimerErrorBoundary>
           </div>
           
@@ -555,7 +635,7 @@ const DashboardPage: React.FC = () => {
             width: '100%', // 确保与父容器宽度一致
             minHeight: '400px' // 设置最小高度，确保有足够显示空间
           }}>
-            <MyTasksTree />
+            <MVPMyTasksTree />
           </div>
         </div>
       </div>
@@ -567,7 +647,14 @@ const DashboardPage: React.FC = () => {
         visible={showGuide}
         onClose={() => setShowGuide(false)}
       />
-    </div>
+      
+      {/* 🔽 NEW: 定时器调试模态框 */}
+      <TimerDebugModal
+        visible={showDebug}
+        onClose={() => setShowDebug(false)}
+      />
+      </div>
+    </SimplifiedTimerProvider>
   );
 };
 

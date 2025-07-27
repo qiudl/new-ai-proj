@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"ai-project-backend/database"
 	"net/http"
 	"time"
@@ -243,16 +244,19 @@ func (h *TimerHandler) stopCurrentTimer(ctx context.Context, user *models.User) 
 		return err
 	}
 
-	// Update task total time
+	// Update task total time (skip if task has been deleted)
 	task, err := h.db.Tasks().GetByID(ctx, *user.CurrentTimingTaskID)
 	if err != nil {
-		return err
-	}
-
-	task.TotalTimeSeconds += durationSeconds
-	_, err = h.db.Tasks().Update(ctx, task)
-	if err != nil {
-		return err
+		// If task not found (e.g., deleted), just log the error and continue
+		// The time log entry has already been created, which is the important part
+		fmt.Printf("Warning: Could not update total time for task %d: %v\n", *user.CurrentTimingTaskID, err)
+	} else {
+		// Task exists, update its total time
+		task.TotalTimeSeconds += durationSeconds
+		_, err = h.db.Tasks().Update(ctx, task)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

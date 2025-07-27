@@ -40,10 +40,10 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
 import { projectService } from '../services/projectService';
-import { customerService } from '../services/customerService';
+import companyService from '../services/companyService';
 import { Task } from '../types/task';
 import { Project } from '../types/project';
-import { Customer } from '../services/customerService';
+import { Company } from '../types/company';
 import { useCache } from '../hooks/useCache';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
@@ -173,11 +173,11 @@ const TaskDashboardPage: React.FC = () => {
     loading: customersLoading,
     error: customersError,
     refresh: refreshCustomers
-  } = useCache<Customer[]>(
+  } = useCache<Company[]>(
     'task-dashboard-customers',
     async () => {
       try {
-        const response = await customerService.getCustomers({ page: 1, pageSize: 100 });
+        const response = await companyService.getCompanies({ page: 1, pageSize: 100 });
         return response.data || [];
       } catch (error) {
         console.error('获取客户列表失败:', error);
@@ -388,7 +388,7 @@ const TaskDashboardPage: React.FC = () => {
     // 首先尝试从主客户ID获取客户名称
     if (project.company_id) {
       const customer = customers.find(c => c.id === project.company_id);
-      if (customer) return customer.name;
+      if (customer) return customer.companyName;
     }
     
     // 如果有company_name字段，直接使用
@@ -536,7 +536,7 @@ const TaskDashboardPage: React.FC = () => {
                 {customers?.map(customer => (
                   <Option key={customer.id} value={customer.id}>
                     <TeamOutlined style={{ marginRight: '4px' }} />
-                    {customer.name}
+                    {customer.companyName}
                   </Option>
                 ))}
               </Select>

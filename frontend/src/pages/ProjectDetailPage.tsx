@@ -57,8 +57,10 @@ import { projectService } from '../services/projectService';
 import companyService from '../services/companyService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
 import { useTimer } from '../contexts/TimerContext';
+import { SimplifiedTimerProvider } from '../contexts/SimplifiedTimerContext';
 import DocumentList from '../components/DocumentList';
 import ProjectTaskList from '../components/ProjectTaskList';
+import EnhancedProjectTaskManager from '../components/EnhancedProjectTaskManager';
 import '../styles/timer-components.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -71,7 +73,7 @@ const ProjectDetailPage: React.FC = () => {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [companyInfo, setCompanyInfo] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('tasks');
+  const [activeTab, setActiveTab] = useState('tasks-enhanced');
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userForm] = Form.useForm();
 
@@ -119,15 +121,20 @@ const ProjectDetailPage: React.FC = () => {
   // Tabs configuration using items (modern approach)
   const tabItems = [
     {
-      key: 'tasks',
+      key: 'tasks-enhanced',
       label: (
         <span>
           <CheckCircleOutlined />
-          项目任务
+          任务管理
         </span>
       ),
       children: project ? (
-        <ProjectTaskList projectId={project.id} />
+        <SimplifiedTimerProvider>
+          <EnhancedProjectTaskManager 
+            projectId={project.id} 
+            projectName={project.name}
+          />
+        </SimplifiedTimerProvider>
       ) : null
     },
     {
@@ -294,25 +301,25 @@ const ProjectDetailPage: React.FC = () => {
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>行业</Text>
                                 <br />
-                                <Text style={{ fontSize: '13px' }}>{companyInfo.industry || '未知'}</Text>
+                                <Text style={{ fontSize: '13px' }}>{companyInfo.industry || '未设置'}</Text>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业类型</Text>
                                 <br />
-                                <Text style={{ fontSize: '13px' }}>{companyInfo.companyTypeText || '未知'}</Text>
+                                <Text style={{ fontSize: '13px' }}>{companyInfo.companyTypeText || '未设置'}</Text>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业状态</Text>
                                 <br />
                                 <Tag color={companyInfo.status === 'active' ? 'green' : 'orange'}>
-                                  {companyInfo.statusText || '未知'}
+                                  {companyInfo.statusText || '未设置'}
                                 </Tag>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>优先级</Text>
                                 <br />
                                 <Tag color={companyInfo.priority === 'high' ? 'red' : companyInfo.priority === 'medium' ? 'orange' : 'green'}>
-                                  {companyInfo.priorityText || '未知'}
+                                  {companyInfo.priorityText || '未设置'}
                                 </Tag>
                               </Col>
                             </Row>
@@ -373,7 +380,11 @@ const ProjectDetailPage: React.FC = () => {
                           </Row>
                         </Space>
                       ) : (
-                        <Text type="secondary" style={{ fontSize: '14px' }}>正在加载企业联系方式...</Text>
+                        <div style={{ textAlign: 'center', padding: '20px' }}>
+                          <Text type="secondary" style={{ fontSize: '14px' }}>
+                            {loading ? '正在加载企业联系方式...' : '暂无企业联系方式信息'}
+                          </Text>
+                        </div>
                       )}
                     </Card>
                   </Col>
@@ -516,6 +527,7 @@ const ProjectDetailPage: React.FC = () => {
           setCompanyInfo(company);
         } catch (error) {
           console.error('获取企业信息失败:', error);
+          message.warning('获取企业信息失败，部分信息可能无法显示');
           // 企业信息获取失败不影响主流程
         }
       }
