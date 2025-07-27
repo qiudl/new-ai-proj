@@ -3,7 +3,7 @@
  * 支持简洁和高级两种模式
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Table,
   Button,
@@ -16,7 +16,10 @@ import {
   Checkbox,
   Popconfirm,
   Dropdown,
-  message
+  message,
+  Spin,
+  Alert,
+  Empty
 } from 'antd';
 import {
   FileTextOutlined,
@@ -37,7 +40,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { MenuProps } from 'antd';
-import dayjs from 'dayjs';
+import dayjs from '../utils/dayjs';
 import { Document, DocumentListItem } from '../types/document';
 
 const { Text } = Typography;
@@ -45,7 +48,10 @@ const { Text } = Typography;
 // 文档类型图标配置
 const DOCUMENT_TYPE_ICONS = {
   markdown: <FileMarkdownOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  html: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,
   text: <FileTextOutlined style={{ color: '#666', fontSize: '16px' }} />,
+  json: <FileTextOutlined style={{ color: '#722ed1', fontSize: '16px' }} />,
+  code: <FileTextOutlined style={{ color: '#13c2c2', fontSize: '16px' }} />,
   pdf: <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />,
   word: <FileWordOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
   excel: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,
@@ -78,11 +84,16 @@ interface DocumentTableViewProps {
   page: number;
   pageSize: number;
   total: number;
+  loading?: boolean;
+  error?: string | null;
   onDocumentSelect: (document: Document | DocumentListItem) => void;
   onDocumentEdit: (document: Document | DocumentListItem) => void;
-  onDocumentDelete: (documentId: number) => void;
+  onDocumentDelete: (documentId: number) => Promise<void>;
+  onDocumentCopy?: (documentId: number) => Promise<void>;
+  onToggleTemplate?: (documentId: number) => Promise<void>;
   onToggleSelection: (documentId: number) => void;
   onPageChange: (page: number, pageSize?: number) => void;
+  onRetry?: () => void;
   
   // 高级功能
   enableVersionControl?: boolean;
@@ -100,12 +111,18 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   page,
   pageSize,
   total,
+  loading = false,
+  error = null,
   onDocumentSelect,
   onDocumentEdit,
   onDocumentDelete,
+  onDocumentCopy,
+  onToggleTemplate,
   onToggleSelection,
-  onPageChange
+  onPageChange,
+  onRetry
 }) => {
+  const [operationLoading, setOperationLoading] = useState<Record<string, boolean>>({});
   
   // 格式化时间
   const formatDateTime = (dateTime: string) => {
@@ -120,36 +137,107 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     return `${(size / 1000000).toFixed(1)} M字符`;
   };
 
-  // 处理文档操作
-  const handleCopyDocument = (document: Document | DocumentListItem) => {
-    // 复制文档逻辑
-    message.success(`文档"${document.title}"复制成功`);
+  // 设置操作加载状态
+  const setOperationLoadingState = (key: string, loading: boolean) => {
+    setOperationLoading(prev => ({ ...prev, [key]: loading }));
   };
 
-  const handleCreateTemplate = (document: Document | DocumentListItem) => {
+  // 处理文档操作
+  const handleCopyDocument = async (document: Document | DocumentListItem) => {
+    if (!onDocumentCopy) {
+      message.error('复制功能不可用');
+      return;
+    }
+
+    const loadingKey = `copy-${document.id}`;
+    setOperationLoadingState(loadingKey, true);
+    
+    try {
+      await onDocumentCopy(document.id);
+      message.success(`文档"${document.title}"复制成功`);
+    } catch (error: any) {
+      console.error('复制文档失败:', error);
+      message.error(`复制文档失败: ${error.message || '未知错误'}`);
+    } finally {
+      setOperationLoadingState(loadingKey, false);
+    }
+  };
+
+  const handleCreateTemplate = async (document: Document | DocumentListItem) => {
+    if (!onToggleTemplate) {
+      message.error('模板功能不可用');
+      return;
+    }
+
     const doc = document as Document;
     const newStatus = doc.is_template ? '取消' : '设为';
-    message.success(`${newStatus}模板"${document.title}"成功`);
+    const loadingKey = `template-${document.id}`;
+    setOperationLoadingState(loadingKey, true);
+    
+    try {
+      await onToggleTemplate(document.id);
+      message.success(`${newStatus}模板"${document.title}"成功`);
+    } catch (error: any) {
+      console.error('切换模板状态失败:', error);
+      message.error(`${newStatus}模板失败: ${error.message || '未知错误'}`);
+    } finally {
+      setOperationLoadingState(loadingKey, false);
+    }
   };
 
-  const handleExportDocument = (document: Document | DocumentListItem, format: string) => {
-    message.success(`文档"${document.title}"导出为${format}成功`);
+  const handleExportDocument = async (document: Document | DocumentListItem, format: string) => {
+    const loadingKey = `export-${document.id}-${format}`;
+    setOperationLoadingState(loadingKey, true);
+    
+    try {
+      // 模拟导出延迟
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      message.success(`文档"${document.title}"导出为${format}成功`);
+    } catch (error: any) {
+      console.error('导出文档失败:', error);
+      message.error(`导出文档失败: ${error.message || '未知错误'}`);
+    } finally {
+      setOperationLoadingState(loadingKey, false);
+    }
   };
 
-  const handleDownloadDocument = (document: Document | DocumentListItem) => {
-    const doc = document as Document;
-    if (doc.file_url) {
-      window.open(doc.file_url, '_blank');
-    } else {
-      // 生成并下载文本文档
-      const content = doc.content || '';
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = window.document.createElement('a');
-      a.href = url;
-      a.download = `${document.title}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
+  const handleDownloadDocument = async (document: Document | DocumentListItem) => {
+    const loadingKey = `download-${document.id}`;
+    setOperationLoadingState(loadingKey, true);
+    
+    try {
+      const doc = document as Document;
+      if (doc.file_url) {
+        // 检查文件URL是否有效
+        const response = await fetch(doc.file_url, { method: 'HEAD' });
+        if (!response.ok) {
+          throw new Error('文件不存在或无法访问');
+        }
+        window.open(doc.file_url, '_blank');
+      } else {
+        // 生成并下载文本文档
+        const content = doc.content || '';
+        if (!content.trim()) {
+          message.warning('文档内容为空，无法下载');
+          return;
+        }
+        
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = window.document.createElement('a');
+        a.href = url;
+        a.download = `${document.title}.txt`;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+      message.success(`文档"${document.title}"下载成功`);
+    } catch (error: any) {
+      console.error('下载文档失败:', error);
+      message.error(`下载文档失败: ${error.message || '未知错误'}`);
+    } finally {
+      setOperationLoadingState(loadingKey, false);
     }
   };
 
@@ -261,22 +349,36 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
               type="text"
               size="small"
               icon={<CopyOutlined />}
+              loading={operationLoading[`copy-${record.id}`]}
               onClick={() => handleCopyDocument(record)}
             />
           </Tooltip>
           <Tooltip title="删除">
             <Popconfirm
               title="确认删除"
-              description={`确定要删除文档"${record.title}"吗？`}
-              onConfirm={() => onDocumentDelete(record.id)}
+              description={`确定要删除文档"${record.title}"吗？此操作不可恢复。`}
+              onConfirm={async () => {
+                const loadingKey = `delete-${record.id}`;
+                setOperationLoadingState(loadingKey, true);
+                try {
+                  await onDocumentDelete(record.id);
+                } catch (error: any) {
+                  console.error('删除文档失败:', error);
+                  message.error(`删除文档失败: ${error.message || '未知错误'}`);
+                } finally {
+                  setOperationLoadingState(loadingKey, false);
+                }
+              }}
               okText="删除"
               cancelText="取消"
+              okButtonProps={{ danger: true }}
             >
               <Button
                 type="text"
                 size="small"
                 danger
                 icon={<DeleteOutlined />}
+                loading={operationLoading[`delete-${record.id}`]}
               />
             </Popconfirm>
           </Tooltip>
@@ -451,7 +553,8 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
           {
             key: 'template',
             label: record.is_template ? '取消模板' : '创建模板',
-            icon: <BookOutlined />,
+            icon: operationLoading[`template-${record.id}`] ? <Spin size="small" /> : <BookOutlined />,
+            disabled: operationLoading[`template-${record.id}`],
             onClick: () => handleCreateTemplate(record)
           },
           {
@@ -465,19 +568,22 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
               {
                 key: 'export-pdf',
                 label: '导出为 PDF',
-                icon: <FilePdfOutlined />,
+                icon: operationLoading[`export-${record.id}-PDF`] ? <Spin size="small" /> : <FilePdfOutlined />,
+                disabled: operationLoading[`export-${record.id}-PDF`],
                 onClick: () => handleExportDocument(record, 'PDF')
               },
               {
                 key: 'export-word',
                 label: '导出为 Word',
-                icon: <FileWordOutlined />,
+                icon: operationLoading[`export-${record.id}-Word`] ? <Spin size="small" /> : <FileWordOutlined />,
+                disabled: operationLoading[`export-${record.id}-Word`],
                 onClick: () => handleExportDocument(record, 'Word')
               },
               {
                 key: 'export-markdown',
                 label: '导出为 Markdown',
-                icon: <FileMarkdownOutlined />,
+                icon: operationLoading[`export-${record.id}-Markdown`] ? <Spin size="small" /> : <FileMarkdownOutlined />,
+                disabled: operationLoading[`export-${record.id}-Markdown`],
                 onClick: () => handleExportDocument(record, 'Markdown')
               }
             ]
@@ -513,6 +619,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
                 type="text"
                 size="small"
                 icon={<CopyOutlined />}
+                loading={operationLoading[`copy-${record.id}`]}
                 onClick={() => handleCopyDocument(record)}
               />
             </Tooltip>
@@ -521,6 +628,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
                 type="text"
                 size="small"
                 icon={<DownloadOutlined />}
+                loading={operationLoading[`download-${record.id}`]}
                 onClick={() => handleDownloadDocument(record)}
               />
             </Tooltip>
@@ -540,16 +648,29 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
             <Tooltip title="删除">
               <Popconfirm
                 title="确认删除"
-                description={`确定要删除文档"${record.title}"吗？`}
-                onConfirm={() => onDocumentDelete(record.id)}
+                description={`确定要删除文档"${record.title}"吗？此操作不可恢复。`}
+                onConfirm={async () => {
+                  const loadingKey = `delete-${record.id}`;
+                  setOperationLoadingState(loadingKey, true);
+                  try {
+                    await onDocumentDelete(record.id);
+                  } catch (error: any) {
+                    console.error('删除文档失败:', error);
+                    message.error(`删除文档失败: ${error.message || '未知错误'}`);
+                  } finally {
+                    setOperationLoadingState(loadingKey, false);
+                  }
+                }}
                 okText="删除"
                 cancelText="取消"
+                okButtonProps={{ danger: true }}
               >
                 <Button
                   type="text"
                   size="small"
                   danger
                   icon={<DeleteOutlined />}
+                  loading={operationLoading[`delete-${record.id}`]}
                 />
               </Popconfirm>
             </Tooltip>
@@ -563,24 +684,65 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     ? getSimpleColumns() as ColumnsType<Document>
     : getAdvancedColumns();
 
+  // 错误状态处理
+  if (error) {
+    return (
+      <Alert
+        message="加载文档失败"
+        description={error}
+        type="error"
+        showIcon
+        action={
+          onRetry && (
+            <Button size="small" danger onClick={onRetry}>
+              重试
+            </Button>
+          )
+        }
+        style={{ marginBottom: 16 }}
+      />
+    );
+  }
+
+  // 空状态处理
+  if (!loading && documents.length === 0) {
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="暂无文档"
+        style={{ margin: '40px 0' }}
+      >
+        {onRetry && (
+          <Button type="primary" onClick={onRetry}>
+            刷新列表
+          </Button>
+        )}
+      </Empty>
+    );
+  }
+
   return (
-    <Table
-      columns={columns as any}
-      dataSource={documents as any}
-      rowKey="id"
-      pagination={{
-        current: page,
-        pageSize: pageSize,
-        total: total,
-        showSizeChanger: true,
-        showQuickJumper: true,
-        showTotal: (total, range) => 
-          `第 ${range[0]}-${range[1]} 项，共 ${total} 个文档`,
-        onChange: onPageChange,
-      }}
-      scroll={{ x: mode === 'advanced' ? 1200 : 800 }}
-      size={mode === 'simple' ? 'middle' : 'small'}
-    />
+    <Spin spinning={loading} tip="加载文档列表...">
+      <Table
+        columns={columns as any}
+        dataSource={documents as any}
+        rowKey="id"
+        pagination={{
+          current: page,
+          pageSize: pageSize,
+          total: total,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total, range) => 
+            `第 ${range[0]}-${range[1]} 项，共 ${total} 个文档`,
+          onChange: onPageChange,
+          disabled: loading
+        }}
+        scroll={{ x: mode === 'advanced' ? 1200 : 800 }}
+        size={mode === 'simple' ? 'middle' : 'small'}
+        loading={false} // 使用外层 Spin 组件控制加载状态
+      />
+    </Spin>
   );
 };
 

@@ -61,7 +61,7 @@ import {
   SafetyCertificateOutlined
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
+import dayjs from '../utils/dayjs';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;

@@ -39,7 +39,6 @@ import {
   message,
   Popconfirm,
   Progress,
-  List,
   Switch,
   Radio,
   Spin,
@@ -56,12 +55,8 @@ import {
   DownloadOutlined,
   ShareAltOutlined,
   UploadOutlined,
-  SearchOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
-  FilterOutlined,
-  SortAscendingOutlined,
-  StarOutlined,
   StarFilled,
   CopyOutlined,
   ClockCircleOutlined,
@@ -76,7 +71,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
-import dayjs from 'dayjs';
+import dayjs from '../utils/dayjs';
 import { Document } from '../types/document';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 
@@ -96,7 +91,10 @@ interface DocumentFileManagerProps {
 // 文档类型配置 - 更新为更精确的图标
 const DOCUMENT_TYPES = {
   markdown: { label: 'Markdown', color: 'blue', icon: <FileMarkdownOutlined /> },
+  html: { label: 'HTML', color: 'green', icon: <FileOutlined /> },
   text: { label: 'Text', color: 'default', icon: <FileTextOutlined /> },
+  json: { label: 'JSON', color: 'purple', icon: <FileTextOutlined /> },
+  code: { label: 'Code', color: 'cyan', icon: <FileTextOutlined /> },
   pdf: { label: 'PDF', color: 'red', icon: <FilePdfOutlined /> },
   word: { label: 'Word', color: 'blue', icon: <FileWordOutlined /> },
   excel: { label: 'Excel', color: 'green', icon: <FileOutlined /> },
@@ -149,12 +147,15 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
   };
 
   const DOCUMENT_TYPES = {
-    markdown: { label: 'Markdown', color: 'blue', icon: '📝' },
-    text: { label: 'Text', color: 'default', icon: '📄' },
-    pdf: { label: 'PDF', color: 'red', icon: '📋' },
-    word: { label: 'Word', color: 'blue', icon: '📘' },
-    excel: { label: 'Excel', color: 'green', icon: '📊' },
-    image: { label: 'Image', color: 'orange', icon: '🖼️' }
+    markdown: { label: 'Markdown', color: 'blue', icon: <FileMarkdownOutlined /> },
+    html: { label: 'HTML', color: 'green', icon: <FileOutlined /> },
+    text: { label: 'Text', color: 'default', icon: <FileTextOutlined /> },
+    json: { label: 'JSON', color: 'purple', icon: <FileTextOutlined /> },
+    code: { label: 'Code', color: 'cyan', icon: <FileTextOutlined /> },
+    pdf: { label: 'PDF', color: 'red', icon: <FilePdfOutlined /> },
+    word: { label: 'Word', color: 'blue', icon: <FileWordOutlined /> },
+    excel: { label: 'Excel', color: 'green', icon: <FileOutlined /> },
+    image: { label: 'Image', color: 'orange', icon: <FileOutlined /> }
   };
 
   const DOCUMENT_STATUS = {
@@ -180,9 +181,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onSelect(document);
               }}
-            >
-              查看
-            </Button>,
+            />,
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -190,9 +189,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onEdit(document);
               }}
-            >
-              编辑
-            </Button>,
+            />,
             <Button
               type="text"
               icon={<CopyOutlined />}
@@ -202,9 +199,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 const event = new CustomEvent('copyDocument', { detail: document });
                 window.dispatchEvent(event);
               }}
-            >
-              复制
-            </Button>,
+            />,
             <Button
               type="text"
               icon={<DeleteOutlined />}
@@ -213,9 +208,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onDelete(document);
               }}
-            >
-              删除
-            </Button>
+            />
           ]}
         >
           <Card.Meta
@@ -369,9 +362,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 onSelect(document);
               }}
               size="small"
-            >
-              查看
-            </Button>
+            />
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -380,9 +371,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 onEdit(document);
               }}
               size="small"
-            >
-              编辑
-            </Button>
+            />
             <Button
               type="text"
               icon={<CopyOutlined />}
@@ -393,9 +382,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 window.dispatchEvent(event);
               }}
               size="small"
-            >
-              复制
-            </Button>
+            />
             <Button
               type="text"
               icon={<MoreOutlined />}
@@ -414,9 +401,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 onDelete(document);
               }}
               size="small"
-            >
-              删除
-            </Button>
+            />
           </Space>
         </div>
       </div>
@@ -485,7 +470,6 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
   
   // 过滤和排序状态
-  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'updated_at' | 'created_at' | 'title'>('updated_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -513,9 +497,19 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       }
     };
 
+    // 监听文件夹导航事件（可选：如果需要在当前组件内响应）
+    const handleFolderNavigateEvent = (event: any) => {
+      const { folderId, folderName } = event.detail;
+      console.log('文件夹导航事件:', { folderId, folderName });
+      // 这里可以添加额外的处理逻辑，比如更新面包屑等
+    };
+
     window.addEventListener('copyDocument', handleCopyDocumentEvent);
+    window.addEventListener('folderNavigate', handleFolderNavigateEvent);
+    
     return () => {
       window.removeEventListener('copyDocument', handleCopyDocumentEvent);
+      window.removeEventListener('folderNavigate', handleFolderNavigateEvent);
     };
   }, []);
 
@@ -530,11 +524,6 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
         doc.description?.toLowerCase().includes(searchText.toLowerCase()) ||
         doc.tags.some(tag => tag.toLowerCase().includes(searchText.toLowerCase()))
       );
-    }
-
-    // 状态过滤
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(doc => doc.status === filterStatus);
     }
 
     // 类型过滤
@@ -568,7 +557,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     });
 
     setFilteredDocuments(filtered);
-  }, [documents, searchText, filterStatus, filterType, sortBy, sortOrder]);
+  }, [documents, searchText, filterType, sortBy, sortOrder]);
 
   const loadDocuments = async () => {
     try {
@@ -986,15 +975,27 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     listType: 'text'
   };
 
+  // 处理文件夹点击事件
+  const handleFolderClick = (folderId: number | null | undefined, folderName: string) => {
+    // 触发文件夹切换事件，通知父组件或左侧菜单
+    const event = new CustomEvent('folderNavigate', { 
+      detail: { folderId: folderId || null, folderName } 
+    });
+    window.dispatchEvent(event);
+    message.info(`切换到文件夹: ${folderName || '根目录'}`);
+  };
+
   // 表格列定义
   const columns: ColumnsType<Document> = [
     {
       title: '文档',
       key: 'document',
+      width: 400,
+      fixed: 'left',
       render: (_, record) => (
         <Space>
-          <span style={{ fontSize: '18px' }}>
-            {DOCUMENT_TYPES[record.type]?.icon || '📄'}
+          <span style={{ fontSize: '18px', color: '#1890ff' }}>
+            {DOCUMENT_TYPES[record.type]?.icon || <FileOutlined />}
           </span>
           <div>
             <Space>
@@ -1027,33 +1028,29 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       )
     },
     {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 80,
-      render: (type: string) => {
-        const config = DOCUMENT_TYPES[type as keyof typeof DOCUMENT_TYPES];
-        return (
-          <Tag color={config?.color || 'default'}>
-            {config?.label || type}
-          </Tag>
-        );
-      }
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status: string) => {
-        const config = DOCUMENT_STATUS[status as keyof typeof DOCUMENT_STATUS];
-        return (
-          <Badge 
-            status={config?.color as any} 
-            text={config?.label || status}
-          />
-        );
-      }
+      title: '所属文件夹',
+      dataIndex: 'folder_name',
+      key: 'folder_name',
+      width: 120,
+      render: (folderName, record) => (
+        folderName ? (
+          <Space 
+            style={{ cursor: 'pointer' }}
+            onClick={() => handleFolderClick(record.folder_id, folderName)}
+          >
+            <FolderOutlined style={{ color: '#faad14' }} />
+            <Text style={{ color: '#1890ff' }}>{folderName}</Text>
+          </Space>
+        ) : (
+          <Space 
+            style={{ cursor: 'pointer' }}
+            onClick={() => handleFolderClick(null, '根目录')}
+          >
+            <FolderOutlined style={{ color: '#d9d9d9' }} />
+            <Text type="secondary" style={{ color: '#1890ff' }}>根目录</Text>
+          </Space>
+        )
+      )
     },
     {
       title: '标签',
@@ -1098,29 +1095,6 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       )
     },
     {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-      render: (category) => {
-        const categoryMap = {
-          contract: { label: '合同', color: 'red' },
-          requirement: { label: '需求', color: 'blue' },
-          design: { label: '设计', color: 'purple' },
-          technical: { label: '技术', color: 'orange' },
-          report: { label: '报告', color: 'cyan' },
-          other: { label: '其他', color: 'gray' }
-        };
-        
-        if (category && categoryMap[category as keyof typeof categoryMap]) {
-          const config = categoryMap[category as keyof typeof categoryMap];
-          return <Tag color={config.color}>{config.label}</Tag>;
-        }
-        
-        return <Text type="secondary">-</Text>;
-      }
-    },
-    {
       title: '所有者',
       dataIndex: 'owner_name',
       key: 'owner_name',
@@ -1133,7 +1107,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       )
     },
     {
-      title: '更新时间',
+      title: '最后更新',
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 120,
@@ -1148,7 +1122,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 200,
+      width: 120,
+      fixed: 'right',
       render: (_, record) => {
         const moreActions: MenuProps['items'] = [
           {
@@ -1204,48 +1179,48 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
         return (
           <Space size="small">
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => {
-                // 导航到文档详情页面
-                window.open(`/documents/${record.id}`, '_blank');
-              }}
-            >
-              查看
-            </Button>
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                // 导航到文档编辑页面
-                window.open(`/documents/${record.id}/edit`, '_blank');
-              }}
-            >
-              编辑
-            </Button>
-            <Button
-              type="text"
-              size="small"
-              icon={<DownloadOutlined />}
-              onClick={() => handleDownloadDocument(record)}
-            >
-              下载
-            </Button>
+            <Tooltip title="查看">
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => {
+                  // 导航到文档详情页面
+                  window.open(`/documents/${record.id}`, '_blank');
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => {
+                  // 导航到文档编辑页面
+                  window.open(`/documents/${record.id}/edit`, '_blank');
+                }}
+              />
+            </Tooltip>
+            <Tooltip title="下载">
+              <Button
+                type="text"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => handleDownloadDocument(record)}
+              />
+            </Tooltip>
             <Dropdown
               menu={{ items: moreActions }}
               trigger={['click']}
               placement="bottomRight"
             >
-              <Button
-                type="text"
-                size="small"
-                icon={<MoreOutlined />}
-              >
-                更多
-              </Button>
+              <Tooltip title="更多">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<MoreOutlined />}
+                />
+              </Tooltip>
             </Dropdown>
             <Popconfirm
               title="确认删除"
@@ -1254,14 +1229,14 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               okText="删除"
               cancelText="取消"
             >
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-              >
-                删除
-              </Button>
+              <Tooltip title="删除">
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                />
+              </Tooltip>
             </Popconfirm>
           </Space>
         );
@@ -1405,18 +1380,6 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
             
             {/* 过滤器 */}
             <Select
-              value={filterStatus}
-              onChange={setFilterStatus}
-              style={{ width: 100 }}
-              size="small"
-            >
-              <Option value="all">全部状态</Option>
-              {Object.entries(DOCUMENT_STATUS).map(([key, config]) => (
-                <Option key={key} value={key}>{config.label}</Option>
-              ))}
-            </Select>
-            
-            <Select
               value={filterType}
               onChange={setFilterType}
               style={{ width: 100 }}
@@ -1481,31 +1444,19 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
             ) : filteredDocuments.length === 0 ? (
               <Empty description="暂无文档" />
             ) : viewMode === 'list' ? (
-              <div style={{ minHeight: '200px' }}>
-                {filteredDocuments.map(doc => (
-                  <SortableDocument
-                    key={doc.id}
-                    document={doc}
-                    viewMode="list"
-                    onSelect={(document) => {
-                      // 导航到文档详情页面
-                      window.open(`/documents/${document.id}`, '_blank');
-                      onDocumentSelect?.(document);
-                    }}
-                    onEdit={(document) => {
-                      // 导航到文档编辑页面
-                      window.open(`/documents/${document.id}/edit`, '_blank');
-                    }}
-                    onDelete={(document) => {
-                      Modal.confirm({
-                        title: '确认删除',
-                        content: `确定要删除文档"${document.title}"吗？此操作不可恢复。`,
-                        onOk: () => handleDeleteDocument(document.id),
-                      });
-                    }}
-                  />
-                ))}
-              </div>
+              <Table
+                columns={columns}
+                dataSource={filteredDocuments}
+                rowKey="id"
+                pagination={{
+                  pageSize: 20,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} 共 ${total} 条`
+                }}
+                scroll={{ x: 1100, y: 600 }}
+                size="middle"
+              />
             ) : (
               <div style={{ 
                 display: 'grid', 

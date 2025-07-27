@@ -25,6 +25,7 @@ import {
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 import { Document, DocumentType, DocumentStatus, CreateDocumentRequest } from '../types/document';
+import DocumentBreadcrumb from './DocumentBreadcrumb';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -247,54 +248,13 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
   return (
     <div style={{ padding: '0 24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb 
-        style={{ marginBottom: 16 }}
-        items={[
-          {
-            title: (
-              <Link to="/">
-                <HomeOutlined />
-                <span>首页</span>
-              </Link>
-            )
-          },
-          {
-            title: (
-              <Link to="/projects">
-                项目管理
-              </Link>
-            )
-          },
-          ...(documentData.project_name ? [{
-            title: (
-              <Link to={`/projects/${documentData.project_id}`}>
-                {documentData.project_name}
-              </Link>
-            )
-          }] : documentData.customer_name ? [{
-            title: (
-              <Link to={`/customers/${documentData.customer_id}`}>
-                {documentData.customer_name}
-              </Link>
-            )
-          }] : []),
-          {
-            title: (
-              <Link to={
-                documentData.project_id 
-                  ? `/projects/${documentData.project_id}/documents`
-                  : documentData.customer_id 
-                    ? `/customers/${documentData.customer_id}/documents`
-                    : '/documents'
-              }>
-                <FileTextOutlined /> 文档管理
-              </Link>
-            )
-          },
-          {
-            title: finalDocumentId ? documentData.title || '文档详情' : '新建文档'
-          }
-        ]}
+      <DocumentBreadcrumb
+        document={finalDocumentId ? documentData : undefined}
+        mode={finalDocumentId ? (isEditing ? 'edit' : 'view') : 'new'}
+        projectId={documentData.project_id}
+        customerId={documentData.customer_id}
+        projectName={documentData.project_name}
+        customerName={documentData.customer_name}
       />
 
       <Card>

@@ -7,6 +7,8 @@ import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import FloatingTimer from './components/FloatingTimer';
+import UnifiedDebugPanel from './components/UnifiedDebugPanel';
+import FloatingTimerForced from './components/FloatingTimerForced';
 import './App.css';
 import './styles/task-hierarchy.css';
 
@@ -339,6 +341,12 @@ function App() {
           
           {/* Global Floating Timer - only shows when timer is running */}
           <FloatingTimer />
+          
+          {/* Unified Debug Panel - includes timer and JWT debug */}
+          <UnifiedDebugPanel />
+          
+          {/* Forced Timer - always shows for testing */}
+          <FloatingTimerForced />
           
           </div>
         </Router>

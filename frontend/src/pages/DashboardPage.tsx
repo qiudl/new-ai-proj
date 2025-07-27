@@ -1,11 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Typography, Button, Switch } from 'antd';
 import { UndoOutlined, DragOutlined, InteractionOutlined } from '@ant-design/icons';
-import { Responsive, WidthProvider } from 'react-grid-layout';
 import { useTimer } from '../contexts/TimerContext';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
-
 import TimerCard from '../components/TimerCard';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';
@@ -16,8 +12,15 @@ import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings
 import '../styles/OptimizedDashboard.css';
 import '../styles/grid-layout.css';
 
+// Import grid layout CSS directly
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+
 const { Title, Text } = Typography;
-const ResponsiveGridLayout = WidthProvider(Responsive);
+
+// Dynamic import state for react-grid-layout
+let ResponsiveGridLayout: any = null;
+let gridLayoutLoaded = false;
 
 // Grid layout configuration with auto-expanding height
 const defaultLayouts = {
@@ -65,6 +68,30 @@ const DashboardPage: React.FC = () => {
   // Global timer context
   const { timerState } = useTimer();
   
+  // Dynamic grid layout loading state
+  const [gridLayoutLoading, setGridLayoutLoading] = useState(!gridLayoutLoaded);
+  
+  // Load react-grid-layout dynamically
+  useEffect(() => {
+    const loadGridLayout = async () => {
+      if (!gridLayoutLoaded) {
+        try {
+          const { Responsive, WidthProvider } = await import('react-grid-layout');
+          ResponsiveGridLayout = WidthProvider(Responsive);
+          gridLayoutLoaded = true;
+          setGridLayoutLoading(false);
+        } catch (error) {
+          console.warn('Failed to load react-grid-layout, using fallback layout:', error);
+          setGridLayoutLoading(false);
+        }
+      } else {
+        setGridLayoutLoading(false);
+      }
+    };
+    
+    loadGridLayout();
+  }, []);
+  
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const isMountedRef = useRef(true);
   
@@ -82,6 +109,8 @@ const DashboardPage: React.FC = () => {
       autoHeight: true,
       minWidth: 5,
       minHeight: 4,
+      maxWidth: 12,
+      maxHeight: 20,
       resizable: true,
       draggable: true
     },
@@ -92,6 +121,8 @@ const DashboardPage: React.FC = () => {
       autoHeight: true,
       minWidth: 4,
       minHeight: 4,
+      maxWidth: 8,
+      maxHeight: 20,
       resizable: true,
       draggable: true
     },
@@ -102,6 +133,8 @@ const DashboardPage: React.FC = () => {
       autoHeight: false,
       minWidth: 3,
       minHeight: 2,
+      maxWidth: 6,
+      maxHeight: 4,
       resizable: true,
       draggable: true
     },
@@ -112,6 +145,8 @@ const DashboardPage: React.FC = () => {
       autoHeight: false,
       minWidth: 3,
       minHeight: 2,
+      maxWidth: 6,
+      maxHeight: 4,
       resizable: true,
       draggable: true
     },
@@ -122,6 +157,8 @@ const DashboardPage: React.FC = () => {
       autoHeight: false,
       minWidth: 3,
       minHeight: 2,
+      maxWidth: 6,
+      maxHeight: 4,
       resizable: true,
       draggable: true
     }
@@ -150,8 +187,8 @@ const DashboardPage: React.FC = () => {
               h: config.autoHeight ? item.h : config.height,
               minW: config.minWidth,
               minH: config.minHeight,
-              maxW: config.maxWidth,
-              maxH: config.autoHeight ? Infinity : config.maxHeight,
+              maxW: config.maxWidth || Infinity,
+              maxH: config.autoHeight ? Infinity : (config.maxHeight || Infinity),
               isResizable: config.resizable,
               isDraggable: config.draggable
             };
@@ -326,6 +363,108 @@ const DashboardPage: React.FC = () => {
     }
   }, []);
 
+  // Render dashboard items (for both grid and fallback layouts)
+  const renderDashboardItems = () => {
+    return [
+      /* Timer Card */
+      <div key="timer" style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
+        <div 
+          className="grid-item-drag-handle" 
+          title="拖拽移动"
+          style={{ display: isDragMode ? 'block' : 'none' }}
+        ></div>
+        <GridItemSettings
+          componentId="timer"
+          config={componentConfigs.timer}
+          onConfigChange={handleComponentConfigChange}
+          gridCols={(cols as any)[currentBreakpoint]}
+          componentName="定时器"
+        />
+        <TimerErrorBoundary>
+          <TimerCard />
+        </TimerErrorBoundary>
+      </div>,
+
+      /* Today Stats Card */
+      <div key="today-stats" style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
+        <div 
+          className="grid-item-drag-handle" 
+          title="拖拽移动"
+          style={{ display: isDragMode ? 'block' : 'none' }}
+        ></div>
+        <GridItemSettings
+          componentId="today-stats"
+          config={componentConfigs['today-stats']}
+          onConfigChange={handleComponentConfigChange}
+          gridCols={(cols as any)[currentBreakpoint]}
+          componentName="今日统计"
+        />
+        <TimerErrorBoundary>
+          <TodayStatsCard refreshTrigger={refreshTrigger} />
+        </TimerErrorBoundary>
+      </div>,
+
+      /* Timer Stats Card */
+      <div key="timer-stats" style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
+        <div 
+          className="grid-item-drag-handle" 
+          title="拖拽移动"
+          style={{ display: isDragMode ? 'block' : 'none' }}
+        ></div>
+        <GridItemSettings
+          componentId="timer-stats"
+          config={componentConfigs['timer-stats']}
+          onConfigChange={handleComponentConfigChange}
+          gridCols={(cols as any)[currentBreakpoint]}
+          componentName="定时器统计"
+        />
+        <TimerErrorBoundary>
+          <TimerStatsCard refreshTrigger={refreshTrigger} />
+        </TimerErrorBoundary>
+      </div>,
+
+      /* Task Progress Card */
+      <div key="task-progress" style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
+        <div 
+          className="grid-item-drag-handle" 
+          title="拖拽移动"
+          style={{ display: isDragMode ? 'block' : 'none' }}
+        ></div>
+        <GridItemSettings
+          componentId="task-progress"
+          config={componentConfigs['task-progress']}
+          onConfigChange={handleComponentConfigChange}
+          gridCols={(cols as any)[currentBreakpoint]}
+          componentName="任务进度"
+        />
+        <TimerErrorBoundary>
+          <TaskProgressCard refreshTrigger={refreshTrigger} />
+        </TimerErrorBoundary>
+      </div>,
+
+      /* Recent Tasks List */
+      <div key="recent-tasks" style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
+        <div 
+          className="grid-item-drag-handle" 
+          title="拖拽移动"
+          style={{ display: isDragMode ? 'block' : 'none' }}
+        ></div>
+        <GridItemSettings
+          componentId="recent-tasks"
+          config={componentConfigs['recent-tasks']}
+          onConfigChange={handleComponentConfigChange}
+          gridCols={(cols as any)[currentBreakpoint]}
+          componentName="最近任务"
+        />
+        <RecentTasksList 
+          limit={8}
+          showTimer={true}
+          title="最近任务"
+        />
+      </div>
+    ];
+  };
+
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 页面标题 */}
@@ -364,119 +503,39 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* React Grid Layout */}
-      <ResponsiveGridLayout
-        className="dashboard-grid-layout"
-        layouts={layouts}
-        breakpoints={breakpoints}
-        cols={cols}
-        rowHeight={60}
-        margin={[16, 16]}
-        containerPadding={[0, 0]}
-        isDraggable={isDragMode}
-        isResizable={isDragMode}
-        onLayoutChange={handleLayoutChange}
-        onBreakpointChange={handleBreakpointChange}
-        draggableHandle={isDragMode ? ".grid-item-drag-handle" : ""}
-        useCSSTransforms={true}
-      >
-          {/* Timer Card */}
-          <div key="timer" style={{ background: 'transparent', position: 'relative' }}>
-            <div 
-              className="grid-item-drag-handle" 
-              title="拖拽移动"
-              style={{ display: isDragMode ? 'block' : 'none' }}
-            ></div>
-            <GridItemSettings
-              componentId="timer"
-              config={componentConfigs.timer}
-              onConfigChange={handleComponentConfigChange}
-              gridCols={(cols as any)[currentBreakpoint]}
-              componentName="定时器"
-            />
-            <TimerErrorBoundary>
-              <TimerCard />
-            </TimerErrorBoundary>
-          </div>
-
-          {/* Today Stats Card */}
-          <div key="today-stats" style={{ background: 'transparent', position: 'relative' }}>
-            <div 
-              className="grid-item-drag-handle" 
-              title="拖拽移动"
-              style={{ display: isDragMode ? 'block' : 'none' }}
-            ></div>
-            <GridItemSettings
-              componentId="today-stats"
-              config={componentConfigs['today-stats']}
-              onConfigChange={handleComponentConfigChange}
-              gridCols={(cols as any)[currentBreakpoint]}
-              componentName="今日统计"
-            />
-            <TimerErrorBoundary>
-              <TodayStatsCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
-          </div>
-
-          {/* Timer Stats Card */}
-          <div key="timer-stats" style={{ background: 'transparent', position: 'relative' }}>
-            <div 
-              className="grid-item-drag-handle" 
-              title="拖拽移动"
-              style={{ display: isDragMode ? 'block' : 'none' }}
-            ></div>
-            <GridItemSettings
-              componentId="timer-stats"
-              config={componentConfigs['timer-stats']}
-              onConfigChange={handleComponentConfigChange}
-              gridCols={(cols as any)[currentBreakpoint]}
-              componentName="定时器统计"
-            />
-            <TimerErrorBoundary>
-              <TimerStatsCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
-          </div>
-
-          {/* Task Progress Card */}
-          <div key="task-progress" style={{ background: 'transparent', position: 'relative' }}>
-            <div 
-              className="grid-item-drag-handle" 
-              title="拖拽移动"
-              style={{ display: isDragMode ? 'block' : 'none' }}
-            ></div>
-            <GridItemSettings
-              componentId="task-progress"
-              config={componentConfigs['task-progress']}
-              onConfigChange={handleComponentConfigChange}
-              gridCols={(cols as any)[currentBreakpoint]}
-              componentName="任务进度"
-            />
-            <TimerErrorBoundary>
-              <TaskProgressCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
-          </div>
-
-          {/* Recent Tasks List */}
-          <div key="recent-tasks" style={{ background: 'transparent', position: 'relative' }}>
-            <div 
-              className="grid-item-drag-handle" 
-              title="拖拽移动"
-              style={{ display: isDragMode ? 'block' : 'none' }}
-            ></div>
-            <GridItemSettings
-              componentId="recent-tasks"
-              config={componentConfigs['recent-tasks']}
-              onConfigChange={handleComponentConfigChange}
-              gridCols={(cols as any)[currentBreakpoint]}
-              componentName="最近任务"
-            />
-            <RecentTasksList 
-              limit={8}
-              showTimer={true}
-              title="最近任务"
-            />
-          </div>
-      </ResponsiveGridLayout>
+      {/* React Grid Layout or Fallback */}
+      {gridLayoutLoading ? (
+        <div style={{ textAlign: 'center', padding: '50px' }}>
+          <Text>Loading dashboard layout...</Text>
+        </div>
+      ) : ResponsiveGridLayout ? (
+        <ResponsiveGridLayout
+          className="dashboard-grid-layout"
+          layouts={layouts}
+          breakpoints={breakpoints}
+          cols={cols}
+          rowHeight={60}
+          margin={[16, 16]}
+          containerPadding={[0, 0]}
+          isDraggable={isDragMode}
+          isResizable={isDragMode}
+          onLayoutChange={handleLayoutChange}
+          onBreakpointChange={handleBreakpointChange}
+          draggableHandle={isDragMode ? ".grid-item-drag-handle" : ""}
+          useCSSTransforms={true}
+        >
+          {renderDashboardItems()}
+        </ResponsiveGridLayout>
+      ) : (
+        <div className="dashboard-fallback-layout" style={{ 
+          display: 'grid', 
+          gap: '16px', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gridAutoRows: 'minmax(200px, auto)'
+        }}>
+          {renderDashboardItems()}
+        </div>
+      )}
     </div>
   );
 };

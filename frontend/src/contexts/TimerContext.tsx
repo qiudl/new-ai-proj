@@ -38,11 +38,30 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   children, 
   onTimerUpdate 
 }) => {
-  // 状态管理
-  const [timerState, setTimerState] = useState<TimerState>({
-    isRunning: false,
-    elapsedSeconds: 0,
-    formattedTime: '00:00:00'
+  // 状态管理 - 从localStorage初始化
+  const [timerState, setTimerState] = useState<TimerState>(() => {
+    try {
+      const saved = localStorage.getItem('globalTimerState');
+      if (saved) {
+        const parsedState = JSON.parse(saved);
+        console.log('TimerContext: 从localStorage恢复状态:', parsedState);
+        return {
+          isRunning: parsedState.isRunning || false,
+          taskId: parsedState.taskId,
+          taskTitle: parsedState.taskTitle,
+          startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
+          elapsedSeconds: parsedState.elapsedSeconds || 0,
+          formattedTime: parsedState.formattedTime || '00:00:00'
+        };
+      }
+    } catch (error) {
+      console.warn('TimerContext: 无法从localStorage恢复状态:', error);
+    }
+    return {
+      isRunning: false,
+      elapsedSeconds: 0,
+      formattedTime: '00:00:00'
+    };
   });
   
   const [isLoading, setIsLoading] = useState(false);

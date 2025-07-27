@@ -1,0 +1,75 @@
+/* 任务详情页定时器组件样式 */
+
+.task-detail-timer .ant-card-head {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
+  border-bottom: 1px solid #e8f5e8;
+}
+
+.task-detail-timer .ant-card-head-title {
+  font-weight: 600;
+}
+
+.task-detail-timer .timer-running {
+  background: linear-gradient(135deg, #f6ffed 0%, #e6fffb 100%);
+  border: 2px solid #52c41a;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.15);
+}
+
+.task-detail-timer .timer-warning {
+  background: linear-gradient(135deg, #fffbe6 0%, #fff7e6 100%);
+  border: 2px solid #faad14;
+  box-shadow: 0 4px 12px rgba(250, 173, 20, 0.15);
+}
+
+.task-detail-timer .timer-stats {
+  transition: all 0.3s ease;
+}
+
+.task-detail-timer .timer-stats:hover {
+  background: #f8f9fa;
+  border-color: #d6d6d6;
+}
+
+.task-detail-timer .ant-statistic-content {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.task-detail-timer .ant-btn-lg {
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.task-detail-timer .ant-btn-lg:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .task-detail-timer .ant-statistic-content-value {
+    font-size: 18px !important;
+  }
+  
+  .task-detail-timer .ant-btn-lg {
+    height: 36px;
+    font-size: 14px;
+  }
+}
+
+/* 动画效果 */
+.task-detail-timer .timer-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(82, 196, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0);
+  }
+}

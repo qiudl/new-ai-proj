@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Card, Space, Typography, Tooltip, message } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { 
   ClockCircleOutlined, 
   PauseCircleOutlined, 
@@ -7,9 +8,12 @@ import {
   DragOutlined,
   MinusOutlined,
   ExpandOutlined,
-  CompressOutlined
+  CompressOutlined,
+  EyeOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { useTimer } from '../../contexts/TimerContext';
+import api from '../../services/api';
 import './FloatingTimer.css';
 
 const { Text } = Typography;
@@ -19,21 +23,32 @@ interface FloatingTimerProps {
   className?: string;
 }
 
+interface TaskDetailInfo {
+  id: number;
+  project_id: number;
+  title: string;
+}
+
 const FloatingTimer: React.FC<FloatingTimerProps> = ({ 
   defaultPosition = { x: 20, y: 80 },
   className = ''
 }) => {
   const { timerState, isLoading, stopTimer } = useTimer();
+  const navigate = useNavigate();
   const [position, setPosition] = useState(defaultPosition);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [taskDetailInfo, setTaskDetailInfo] = useState<TaskDetailInfo | null>(null);
+  const [loadingTaskInfo, setLoadingTaskInfo] = useState(false);
+  const [isHidden, setIsHidden] = useState(false);
 
   // 从localStorage恢复位置
   useEffect(() => {
     try {
       const savedPosition = localStorage.getItem('floatingTimerPosition');
       const savedMinimized = localStorage.getItem('floatingTimerMinimized');
+      const savedHidden = localStorage.getItem('floatingTimerHidden');
       
       if (savedPosition) {
         setPosition(JSON.parse(savedPosition));
@@ -42,10 +57,102 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       if (savedMinimized) {
         setIsMinimized(JSON.parse(savedMinimized));
       }
+      
+      if (savedHidden) {
+        setIsHidden(JSON.parse(savedHidden));
+      }
     } catch (error) {
       console.warn('Failed to restore floating timer settings:', error);
     }
   }, []);
+
+  // 获取任务详细信息（包括project_id）- 使用真实API
+  const fetchTaskInfo = useCallback(async (taskId: number) => {
+    if (loadingTaskInfo) return;
+    
+    setLoadingTaskInfo(true);
+    try {
+      console.log('Fetching task info for taskId:', taskId);
+      
+      // 使用正确的API路径获取任务信息
+      const response = await api.get(`tasks?limit=1000`);
+      const tasks = response?.data?.data || response?.data || [];
+      console.log('Tasks API response:', { total: tasks.length, tasks: tasks.slice(0, 3) });
+      
+      const task = tasks.find((t: any) => t.id === taskId);
+      
+      if (task && task.project_id) {
+        console.log('Found task info:', task);
+        setTaskDetailInfo({
+          id: task.id,
+          project_id: task.project_id,
+          title: task.title
+        });
+      } else {
+        console.warn('Task not found in tasks list. TaskId:', taskId, 'Available task IDs:', tasks.map((t: any) => t.id));
+        
+        // 如果没有找到任务，尝试从TimerService的方法获取
+        try {
+          const availableTasks = await api.get('tasks?status=todo,in_progress&limit=200');
+          const timerTasks = availableTasks?.data?.data || availableTasks?.data || [];
+          const timerTask = timerTasks.find((t: any) => t.id === taskId);
+          
+          if (timerTask && timerTask.project_id) {
+            console.log('Found task in timer tasks:', timerTask);
+            setTaskDetailInfo({
+              id: timerTask.id,
+              project_id: timerTask.project_id,
+              title: timerTask.title
+            });
+          } else {
+            console.warn('Task not found in any source. TaskId:', taskId);
+            // 设置一个基本的任务信息，避免UI错误
+            setTaskDetailInfo({
+              id: taskId,
+              project_id: 0, // 默认项目ID
+              title: timerState.taskTitle || '未知任务'
+            });
+          }
+        } catch (fallbackError) {
+          console.error('Fallback task fetch failed:', fallbackError);
+          // 设置基本任务信息
+          setTaskDetailInfo({
+            id: taskId,
+            project_id: 0,
+            title: timerState.taskTitle || '未知任务'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch task info:', error);
+      // 设置基本任务信息，确保UI不会崩溃
+      setTaskDetailInfo({
+        id: taskId,
+        project_id: 0,
+        title: timerState.taskTitle || '未知任务'
+      });
+    } finally {
+      setLoadingTaskInfo(false);
+    }
+  }, [loadingTaskInfo, timerState.taskTitle]);
+
+  // 当任务ID变化时获取任务信息
+  useEffect(() => {
+    if (timerState.isRunning && timerState.taskId && !taskDetailInfo) {
+      fetchTaskInfo(timerState.taskId);
+    } else if (!timerState.isRunning) {
+      setTaskDetailInfo(null);
+      // 重置隐藏状态，下次开始定时器时自动显示
+      if (isHidden) {
+        setIsHidden(false);
+        try {
+          localStorage.setItem('floatingTimerHidden', JSON.stringify(false));
+        } catch (error) {
+          console.warn('Failed to save floating timer hidden state:', error);
+        }
+      }
+    }
+  }, [timerState.isRunning, timerState.taskId, taskDetailInfo, fetchTaskInfo, isHidden]);
 
   // 保存位置到localStorage
   const savePosition = useCallback((newPosition: { x: number; y: number }) => {
@@ -62,6 +169,15 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       localStorage.setItem('floatingTimerMinimized', JSON.stringify(minimized));
     } catch (error) {
       console.warn('Failed to save floating timer minimized state:', error);
+    }
+  }, []);
+
+  // 保存隐藏状态
+  const saveHiddenState = useCallback((hidden: boolean) => {
+    try {
+      localStorage.setItem('floatingTimerHidden', JSON.stringify(hidden));
+    } catch (error) {
+      console.warn('Failed to save floating timer hidden state:', error);
     }
   }, []);
 
@@ -118,6 +234,13 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     saveMinimizedState(newMinimized);
   }, [isMinimized, saveMinimizedState]);
 
+  // 关闭浮窗
+  const handleCloseTimer = useCallback(() => {
+    setIsHidden(true);
+    saveHiddenState(true);
+    message.info('浮窗已隐藏，定时器仍在后台运行');
+  }, [saveHiddenState]);
+
   // 停止定时器
   const handleStopTimer = useCallback(async () => {
     const success = await stopTimer();
@@ -125,6 +248,27 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       message.success('定时器已停止');
     }
   }, [stopTimer]);
+
+  // 跳转到任务详情页
+  const handleViewTaskDetail = useCallback(() => {
+    if (!timerState.taskId) {
+      message.warning('无法获取任务信息');
+      return;
+    }
+
+    if (taskDetailInfo && taskDetailInfo.project_id && taskDetailInfo.project_id > 0) {
+      // 有project_id，使用项目任务页面路由
+      console.log('Navigating to project task detail:', taskDetailInfo);
+      navigate(`/projects/${taskDetailInfo.project_id}`, { 
+        state: { highlightTaskId: timerState.taskId }
+      });
+    } else {
+      // 没有project_id或project_id为0，跳转到全局任务页面
+      console.log('Navigating to global tasks page with highlight:', timerState.taskId);
+      message.info('正在跳转到任务管理页面...');
+      navigate(`/tasks?highlight=${timerState.taskId}`);
+    }
+  }, [timerState.taskId, taskDetailInfo, navigate]);
 
   // 获取运行状态类名
   const getStatusClass = () => {
@@ -137,6 +281,40 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
   // 如果没有正在运行的定时器，不显示组件
   if (!timerState.isRunning) {
     return null;
+  }
+
+  // 如果已隐藏，显示小的重新显示按钮
+  if (isHidden) {
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 20,
+          right: 20,
+          zIndex: 9999
+        }}
+      >
+        <Tooltip title="显示定时器浮窗">
+          <Button
+            type="primary"
+            size="small"
+            icon={<ClockCircleOutlined />}
+            onClick={() => {
+              setIsHidden(false);
+              saveHiddenState(false);
+            }}
+            style={{
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          />
+        </Tooltip>
+      </div>
+    );
   }
 
   return (
@@ -184,6 +362,15 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
               <Text strong style={{ fontFamily: 'monospace', fontSize: '14px' }}>
                 {timerState.formattedTime}
               </Text>
+              <Tooltip title="查看任务详情">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={handleViewTaskDetail}
+                  style={{ color: '#1890ff' }}
+                />
+              </Tooltip>
               <Tooltip title="展开">
                 <Button
                   type="text"
@@ -192,8 +379,21 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                   onClick={toggleMinimized}
                 />
               </Tooltip>
+              <Tooltip title="关闭浮窗">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<CloseOutlined />}
+                  onClick={handleCloseTimer}
+                  style={{ color: '#ff4d4f' }}
+                />
+              </Tooltip>
             </Space>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '2px' }}>
+            <div 
+              style={{ fontSize: '12px', color: '#666', marginTop: '2px', cursor: 'pointer' }}
+              onClick={handleViewTaskDetail}
+              title="点击查看任务详情"
+            >
               {timerState.taskTitle && timerState.taskTitle.length > 20 
                 ? timerState.taskTitle.substring(0, 20) + '...' 
                 : timerState.taskTitle}
@@ -218,6 +418,15 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                       onClick={toggleMinimized}
                     />
                   </Tooltip>
+                  <Tooltip title="关闭浮窗">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      onClick={handleCloseTimer}
+                      style={{ color: '#ff4d4f' }}
+                    />
+                  </Tooltip>
                 </Space>
               </Space>
             </div>
@@ -233,12 +442,23 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    maxWidth: '200px'
+                    maxWidth: '200px',
+                    cursor: 'pointer',
+                    color: '#1890ff'
                   }}
-                  title={timerState.taskTitle}
+                  title={`${timerState.taskTitle} - 点击查看详情`}
+                  onClick={handleViewTaskDetail}
                 >
                   {timerState.taskTitle || '未知任务'}
                 </Text>
+                {taskDetailInfo && (
+                  <Text 
+                    type="secondary" 
+                    style={{ fontSize: '11px', display: 'block' }}
+                  >
+                    项目ID: {taskDetailInfo.project_id}
+                  </Text>
+                )}
               </div>
 
               {/* 时间显示 */}
@@ -257,6 +477,17 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
 
               {/* 控制按钮 */}
               <Space size="small" style={{ width: '100%', justifyContent: 'center' }}>
+                <Tooltip title="查看任务详情">
+                  <Button
+                    type="default"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={handleViewTaskDetail}
+                    loading={loadingTaskInfo}
+                  >
+                    详情
+                  </Button>
+                </Tooltip>
                 <Tooltip title="停止计时">
                   <Button
                     type="primary"

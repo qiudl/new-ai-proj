@@ -1,7 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { Drawer, Checkbox, Button, Space, Typography, Divider, List, Tooltip, Switch } from 'antd';
 import { SettingOutlined, DragOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+
+// Dynamic import for react-beautiful-dnd
+let DragDropContext: any = null;
+let Droppable: any = null;
+let Draggable: any = null;
+try {
+  const dnd = require('react-beautiful-dnd');
+  DragDropContext = dnd.DragDropContext;
+  Droppable = dnd.Droppable;
+  Draggable = dnd.Draggable;
+} catch (error) {
+  console.warn('react-beautiful-dnd not available, drag and drop will be disabled');
+}
+
+// Define types locally to avoid import errors
+interface DropResult {
+  destination?: {
+    index: number;
+    droppableId: string;
+  } | null;
+  source: {
+    index: number;
+    droppableId: string;
+  };
+}
+
+interface DroppableProvided {
+  innerRef: React.Ref<any>;
+  droppableProps: any;
+  placeholder?: React.ReactElement;
+}
+
+interface DraggableProvided {
+  innerRef: React.Ref<any>;
+  draggableProps: any;
+  dragHandleProps: any;
+}
+
+interface DraggableStateSnapshot {
+  isDragging: boolean;
+}
 
 const { Title, Text } = Typography;
 
@@ -162,7 +202,7 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
         {/* 列配置列表 */}
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="columns">
-            {(provided) => (
+            {(provided: DroppableProvided) => (
               <div {...provided.droppableProps} ref={provided.innerRef}>
                 {localColumns.map((column, index) => (
                   <Draggable
@@ -171,7 +211,7 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
                     index={index}
                     isDragDisabled={column.required}
                   >
-                    {(provided, snapshot) => (
+                    {(provided: DraggableProvided, snapshot: DraggableStateSnapshot) => (
                       <div
                         ref={provided.innerRef}
                         {...provided.draggableProps}

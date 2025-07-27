@@ -35,7 +35,7 @@ import {
   FolderOutlined,
   HighlightOutlined
 } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import dayjs from '../utils/dayjs';
 // 简单的debounce实现，避免lodash依赖
 const debounce = <T extends (...args: any[]) => any>(
   func: T,
@@ -103,7 +103,10 @@ interface DocumentSearchProps {
 // 文档类型配置
 const DOCUMENT_TYPES = {
   markdown: { label: 'Markdown', color: 'blue', icon: '📝' },
+  html: { label: 'HTML', color: 'green', icon: '🌐' },
   text: { label: 'Text', color: 'default', icon: '📄' },
+  json: { label: 'JSON', color: 'purple', icon: '⚙️' },
+  code: { label: 'Code', color: 'cyan', icon: '💻' },
   pdf: { label: 'PDF', color: 'red', icon: '📋' },
   word: { label: 'Word', color: 'blue', icon: '📘' },
   excel: { label: 'Excel', color: 'green', icon: '📊' },

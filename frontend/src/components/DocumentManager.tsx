@@ -87,7 +87,10 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
         total_documents: 0, 
         documents_by_type: {
           markdown: 0,
+          html: 0,
           text: 0,
+          json: 0,
+          code: 0,
           pdf: 0,
           word: 0,
           excel: 0,
@@ -95,7 +98,10 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
         }, 
         by_type: {
           markdown: 0,
+          html: 0,
           text: 0,
+          json: 0,
+          code: 0,
           pdf: 0,
           word: 0,
           excel: 0,

@@ -4,7 +4,7 @@
  * 提供简洁和高级两种模式
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Card,
   Button,
@@ -167,7 +167,7 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
   });
 
   // 搜索处理（智能搜索或普通搜索）
-  const handleSearchChange = (value: string) => {
+  const handleSearchChange = useCallback((value: string) => {
     if (intelligentSearchEnabled && advancedMode) {
       // 使用智能搜索
       const searchResults = searchDocuments(documents as Document[], value, {
@@ -190,18 +190,18 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
       // 使用普通搜索
       debouncedSearch(value);
     }
-  };
+  }, [intelligentSearchEnabled, advancedMode, documents, updateState, debouncedSearch]);
 
-  const handleFilterChange = (key: string, value: any) => {
+  const handleFilterChange = useCallback((key: string, value: any) => {
     updateState({ [key]: value });
-  };
+  }, [updateState]);
 
-  const handleSortChange = (field: string, order: string) => {
+  const handleSortChange = useCallback((field: string, order: string) => {
     updateState({ 
       sortBy: field as any, 
       sortOrder: order as any 
     });
-  };
+  }, [updateState]);
 
   // 文档操作处理
   const handleCreateDocument = () => {
@@ -409,8 +409,8 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
     );
   };
 
-  // 渲染文档列表
-  const renderDocumentList = () => {
+  // 渲染文档列表 - 使用memoization优化性能
+  const renderDocumentList = useMemo(() => {
     if (loading) {
       return (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -501,7 +501,27 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
         onExportToGoogleDocs={handleExportToGoogleDocs}
       />
     );
-  };
+  }, [
+    loading, 
+    documents, 
+    viewMode, 
+    enableVirtualization, 
+    advancedMode, 
+    handleCreateDocument,
+    handleDocumentSelect,
+    handleEditDocument,
+    handleDeleteDocument,
+    toggleDocumentSelection,
+    selectedDocuments,
+    isSelectMode,
+    projectId,
+    pagination,
+    total,
+    enableVersionControl,
+    enableGoogleDocsIntegration,
+    handleVersionControl,
+    handleExportToGoogleDocs
+  ]);
 
   return (
     <div>
@@ -597,7 +617,7 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
         )}
 
         {/* 文档列表 */}
-        {renderDocumentList()}
+        {renderDocumentList}
       </Card>
 
       {/* 模态框 */}

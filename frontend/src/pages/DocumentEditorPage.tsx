@@ -9,13 +9,21 @@ import {
   HomeOutlined,
   FileTextOutlined,
   EditOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  SplitCellsOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import MarkdownEditor from '../components/MarkdownEditor';
 import DocumentTypeSelector, { documentTypes } from '../components/DocumentTypeSelector';
 import DocumentAssociationSelector from '../components/DocumentAssociationSelector';
 import DocumentExporter from '../components/DocumentExporter';
 import DocumentHistory from '../components/DocumentHistory';
+import DocumentPropertyEditor from '../components/DocumentPropertyEditor';
+import DocumentBreadcrumb from '../components/DocumentBreadcrumb';
+import DocumentCollaborationPanel from '../components/DocumentCollaborationPanel';
+import DocumentPreview from '../components/DocumentPreview';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 import { 
   Document as DocumentModel, 
@@ -42,7 +50,13 @@ const DocumentEditorPage: React.FC = () => {
   const location = useLocation();
   
   // 判断是编辑模式、查看模式还是新建模式
-  const documentId = id && !isNaN(parseInt(id)) ? parseInt(id) : undefined;
+  // 检查ID是否为有效的数据库ID（正数且小于integer最大值2147483647）
+  const isValidDatabaseId = (idStr: string) => {
+    const num = parseInt(idStr);
+    return !isNaN(num) && num > 0 && num <= 2147483647;
+  };
+  
+  const documentId = id && isValidDatabaseId(id) ? parseInt(id) : undefined;
   const finalProjectId = projectId && !isNaN(parseInt(projectId)) ? parseInt(projectId) : undefined;
   const isNewDocument = !documentId && location.pathname.includes('/new');
   const isEditMode = documentId && location.pathname.includes('/edit');
@@ -63,6 +77,10 @@ const DocumentEditorPage: React.FC = () => {
   });
   const [exporterVisible, setExporterVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
+  const [propertyEditorVisible, setPropertyEditorVisible] = useState(false);
+  const [collaborationVisible, setCollaborationVisible] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [splitView, setSplitView] = useState(false);
   const [creationStep, setCreationStep] = useState<'association' | 'type' | 'editor'>('association');
 
   // 调试用日志
@@ -110,6 +128,34 @@ const DocumentEditorPage: React.FC = () => {
       return;
     }
 
+    // 检查是否是无效的ID（可能是时间戳或负数本地ID）
+    if (id && !documentId) {
+      console.warn('Detected invalid ID, trying local storage:', id);
+      const possibleId = parseInt(id);
+      if (!isNaN(possibleId)) {
+        try {
+          // 尝试从本地存储获取
+          const localDocuments = JSON.parse(localStorage.getItem('mock_documents') || '[]');
+          const localDoc = localDocuments.find((d: any) => d.id === possibleId);
+          if (localDoc) {
+            setDocument(localDoc);
+            if (possibleId < 0) {
+              message.warning('显示本地文档（未同步到服务器）');
+            } else {
+              message.warning('从本地存储加载文档（此文档可能已过期）');
+            }
+            return;
+          }
+        } catch (error) {
+          console.error('Failed to load from local storage:', error);
+        }
+      }
+      
+      message.error('无效的文档ID，该文档可能已被删除');
+      navigate('/document-manager');
+      return;
+    }
+
     if (!documentId) {
       // 无效的文档ID，返回错误
       message.error('无效的文档ID');
@@ -153,8 +199,16 @@ const DocumentEditorPage: React.FC = () => {
           description: document.description
         };
         savedDoc = await unifiedDocumentService.createDocument(createRequest);
-        // 更新URL为编辑模式
-        navigate(`/documents/${savedDoc.id}/edit`, { replace: true });
+        
+        // 检查返回的ID是否为有效的数据库ID（正数）
+        if (savedDoc.id > 0 && savedDoc.id <= 2147483647) {
+          // 有效的数据库ID，更新URL为编辑模式
+          navigate(`/documents/${savedDoc.id}/edit`, { replace: true });
+        } else {
+          // 无效ID（负数或超大数，表示本地存储），显示警告并导航到文档管理页面
+          message.warning('文档已保存到本地，但未同步到服务器。请检查网络连接。');
+          navigate('/document-manager', { replace: true });
+        }
       } else {
         // 更新现有文档
         savedDoc = await unifiedDocumentService.updateDocument(documentId!, {
@@ -319,28 +373,10 @@ const DocumentEditorPage: React.FC = () => {
               >
                 返回
               </Button>
-              <Breadcrumb
-                items={[
-                  {
-                    title: (
-                      <Link to="/">
-                        <HomeOutlined />
-                        <span>首页</span>
-                      </Link>
-                    )
-                  },
-                  {
-                    title: (
-                      <Link to="/documents">
-                        <FileTextOutlined />
-                        <span>文档管理</span>
-                      </Link>
-                    )
-                  },
-                  {
-                    title: '新建文档 - 关联设置'
-                  }
-                ]}
+              <DocumentBreadcrumb
+                mode="new"
+                projectId={finalProjectId}
+                customItems={[{ title: '关联设置' }]}
               />
             </div>
           </div>
@@ -422,28 +458,10 @@ const DocumentEditorPage: React.FC = () => {
               >
                 返回
               </Button>
-              <Breadcrumb
-                items={[
-                  {
-                    title: (
-                      <Link to="/">
-                        <HomeOutlined />
-                        <span>首页</span>
-                      </Link>
-                    )
-                  },
-                  {
-                    title: (
-                      <Link to="/documents">
-                        <FileTextOutlined />
-                        <span>文档管理</span>
-                      </Link>
-                    )
-                  },
-                  {
-                    title: '新建文档 - 选择类型'
-                  }
-                ]}
+              <DocumentBreadcrumb
+                mode="new"
+                projectId={finalProjectId}
+                customItems={[{ title: '选择类型' }]}
               />
             </div>
           </div>
@@ -547,28 +565,10 @@ const DocumentEditorPage: React.FC = () => {
             >
               返回
             </Button>
-            <Breadcrumb
-              items={[
-                {
-                  title: (
-                    <Link to="/">
-                      <HomeOutlined />
-                      <span>首页</span>
-                    </Link>
-                  )
-                },
-                {
-                  title: (
-                    <Link to="/documents">
-                      <FileTextOutlined />
-                      <span>文档管理</span>
-                    </Link>
-                  )
-                },
-                {
-                  title: isNewDocument ? '新建文档' : isViewMode ? `查看文档 - ${document.title}` : `编辑文档 - ${document.title}`
-                }
-              ]}
+            <DocumentBreadcrumb
+              document={document}
+              mode={isNewDocument ? 'new' : isViewMode ? 'view' : 'edit'}
+              projectId={finalProjectId}
             />
           </div>
 
@@ -587,6 +587,31 @@ const DocumentEditorPage: React.FC = () => {
                   onClick={() => setExporterVisible(true)}
                 >
                   导出
+                </Button>
+                <Button 
+                  icon={<SettingOutlined />}
+                  onClick={() => setPropertyEditorVisible(true)}
+                >
+                  属性
+                </Button>
+                <Button 
+                  icon={<TeamOutlined />}
+                  onClick={() => setCollaborationVisible(true)}
+                >
+                  协作
+                </Button>
+                <Button 
+                  icon={<EyeOutlined />}
+                  onClick={() => setPreviewVisible(true)}
+                >
+                  预览
+                </Button>
+                <Button 
+                  icon={<SplitCellsOutlined />}
+                  onClick={() => setSplitView(!splitView)}
+                  type={splitView ? 'primary' : 'default'}
+                >
+                  分屏
                 </Button>
                 {!isViewMode && (
                   <Button 
@@ -622,21 +647,50 @@ const DocumentEditorPage: React.FC = () => {
       </div>
 
       {/* 编辑器区域 */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
-        <MarkdownEditor
-          value={document.content || ''}
-          onChange={handleContentChange}
-          onSave={isViewMode ? undefined : saveDocument}
-          title={document.title}
-          onTitleChange={isViewMode ? undefined : handleTitleChange}
-          height={window.innerHeight - 120} // 减去头部高度
-          loading={saving}
-          autoSave={!isViewMode}
-          autoSaveDelay={3000}
-          placeholder="开始编写您的Markdown文档..."
-          projectId={document.project_id || undefined}
-          readOnly={!!isViewMode}
-        />
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+        {/* 编辑器面板 */}
+        <div style={{ 
+          flex: splitView ? 1 : '1 1 100%', 
+          overflow: 'hidden',
+          borderRight: splitView ? '1px solid #f0f0f0' : 'none'
+        }}>
+          <MarkdownEditor
+            value={document.content || ''}
+            onChange={handleContentChange}
+            onSave={isViewMode ? undefined : saveDocument}
+            title={document.title}
+            onTitleChange={isViewMode ? undefined : handleTitleChange}
+            height={window.innerHeight - 120} // 减去头部高度
+            loading={saving}
+            autoSave={!isViewMode}
+            autoSaveDelay={3000}
+            placeholder="开始编写您的Markdown文档..."
+            projectId={document.project_id || undefined}
+            readOnly={!!isViewMode}
+          />
+        </div>
+        
+        {/* 分屏预览面板 */}
+        {splitView && (
+          <div style={{ 
+            flex: 1, 
+            overflow: 'hidden',
+            background: '#fafafa',
+            padding: '16px'
+          }}>
+            <DocumentPreview
+              document={document}
+              height={window.innerHeight - 152} // 减去头部高度和padding
+              showTitle={false}
+              showMetadata={false}
+              showControls={true}
+              onPreviewError={(error) => {
+                console.error('Preview error:', error);
+                message.error('预览加载失败');
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 文档导出器 */}
@@ -656,6 +710,81 @@ const DocumentEditorPage: React.FC = () => {
           onClose={() => setHistoryVisible(false)}
           onRestore={handleVersionRestore}
         />
+      )}
+
+      {/* 文档属性编辑器 */}
+      {document && !isNewDocument && (
+        <DocumentPropertyEditor
+          document={document}
+          visible={propertyEditorVisible}
+          onSave={(updatedDocument) => {
+            setDocument(updatedDocument);
+            setPropertyEditorVisible(false);
+          }}
+          onCancel={() => setPropertyEditorVisible(false)}
+        />
+      )}
+
+      {/* 文档协作面板 */}
+      {document && !isNewDocument && (
+        <DocumentCollaborationPanel
+          document={document}
+          visible={collaborationVisible}
+          onClose={() => setCollaborationVisible(false)}
+          currentUserId="1" // 临时使用固定值，实际应从用户上下文获取
+          currentUserName="当前用户" // 临时使用固定值，实际应从用户上下文获取
+          enableRealTimeSync={true}
+          enableCursorSharing={true}
+          enableLiveEdit={false}
+        />
+      )}
+
+      {/* 文档预览模态框 */}
+      {document && previewVisible && (
+        <Modal
+          title={
+            <Space>
+              <EyeOutlined />
+              <span>文档预览</span>
+              <Typography.Text type="secondary">
+                {document.title}
+              </Typography.Text>
+            </Space>
+          }
+          open={previewVisible}
+          onCancel={() => setPreviewVisible(false)}
+          width="90%"
+          style={{ top: 20 }}
+          footer={[
+            <Button key="close" onClick={() => setPreviewVisible(false)}>
+              关闭
+            </Button>,
+            <Button 
+              key="split" 
+              icon={<SplitCellsOutlined />}
+              onClick={() => {
+                setSplitView(true);
+                setPreviewVisible(false);
+              }}
+            >
+              切换到分屏模式
+            </Button>
+          ]}
+        >
+          <div style={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
+            <DocumentPreview
+              document={document}
+              height="calc(100vh - 250px)"
+              showTitle={true}
+              showMetadata={true}
+              showControls={true}
+              onPreviewError={(error) => {
+                console.error('Preview error:', error);
+                message.error('预览加载失败');
+              }}
+            />
+          </div>
+        </Modal>
       )}
     </div>
   );

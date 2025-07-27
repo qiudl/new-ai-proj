@@ -47,6 +47,7 @@ import { projectService } from '../services/projectService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
 import TaskTimeline from '../components/TaskTimeline';
+import TaskDetailTimer from '../components/TaskDetailTimer';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -904,6 +905,14 @@ const TaskDetailPageNew: React.FC = () => {
 
         {/* 右侧信息面板 */}
         <Col xs={24} lg={8}>
+          {/* 任务计时器 */}
+          <TaskDetailTimer
+            taskId={task.id}
+            taskTitle={task.title}
+            taskStatus={task.status}
+            style={{ marginBottom: '16px' }}
+          />
+          
           {/* 基本信息 */}
           <Card title="基本信息" style={{ marginBottom: '16px' }}>
             <Descriptions column={1} size="small">

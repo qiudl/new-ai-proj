@@ -202,9 +202,14 @@ export class UnifiedDocumentService {
     } catch (error: any) {
       console.error('Error creating document:', error);
       // 使用模拟数据降级处理
-      console.warn('Document API endpoints not implemented, using mock data:', error);
+      console.warn('Document API failed, using local storage fallback:', error);
+      
+      // 生成一个负数ID以明确标识这是本地模拟数据
+      const localDocuments = await this.getDocuments();
+      const nextLocalId = Math.min(...localDocuments.map((d: Document) => d.id).filter((id: number) => id < 0), 0) - 1;
+      
       const mockDocument: Document = {
-        id: Date.now(),
+        id: nextLocalId, // 使用负数ID，避免与数据库ID冲突
         folder_id: request.folder_id,
         title: request.title,
         content: request.content || '',
@@ -313,7 +318,7 @@ export class UnifiedDocumentService {
       
       // 适配API响应格式：API返回 {success: true, data: [...], message: "..."}
       // 但组件期望 Document[] 数组
-      if (response.success && response.data) {
+      if (response.success && Array.isArray(response.data)) {
         const documents: Document[] = response.data.map((doc: any) => adaptSimpleToDocument({
           id: doc.id,
           folder_id: doc.folder_id,
@@ -342,6 +347,9 @@ export class UnifiedDocumentService {
         
         console.log('getDocuments - 适配后文档数组:', documents);
         return documents;
+      } else if (response.success && response.data === null) {
+        console.log('getDocuments - 数据库中暂无文档');
+        return [];
       } else {
         console.warn('getDocuments - API响应格式不正确:', response);
         return [];

@@ -332,6 +332,11 @@ func (app *Application) setupRouter() *gin.Engine {
 			authorized.DELETE("/documents/:id", app.hybridDocumentHandler.DeleteDocument)
 			authorized.POST("/documents/:id/copy", app.hybridDocumentHandler.CopyDocument)
 			authorized.POST("/documents/:id/toggle-template", app.hybridDocumentHandler.ToggleTemplate)
+			
+			// Document metadata APIs for frontend dropdowns
+			authorized.GET("/document-metadata/projects", app.getDocumentProjectsHandler)
+			authorized.GET("/document-metadata/customers", app.getDocumentCustomersHandler)
+			authorized.GET("/document-metadata/categories", app.getDocumentCategoriesHandler)
 
 			// 数据库版文档文件夹路由
 			documentFolders := authorized.Group("/document-folders")
@@ -3158,6 +3163,185 @@ func (app *Application) createProjectUserAssignment(ctx context.Context, project
 	db := app.db.GetDB().(*sql.DB)
 	_, err := db.ExecContext(ctx, query, projectID, userID, role, isPrimary)
 	return err
+}
+
+// getDocumentProjectsHandler 获取文档可关联的项目列表
+func (app *Application) getDocumentProjectsHandler(c *gin.Context) {
+	sqlDB := app.db.GetDB().(*sql.DB)
+	
+	query := `
+		SELECT id, name, description, status 
+		FROM projects 
+		WHERE deleted_at IS NULL 
+		ORDER BY name ASC
+	`
+	
+	rows, err := sqlDB.Query(query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to query projects",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+	
+	var projects []map[string]interface{}
+	
+	for rows.Next() {
+		var id int
+		var name, description, status sql.NullString
+		
+		err := rows.Scan(&id, &name, &description, &status)
+		if err != nil {
+			continue
+		}
+		
+		project := map[string]interface{}{
+			"id":   id,
+			"name": name.String,
+		}
+		
+		if description.Valid {
+			project["description"] = description.String
+		}
+		if status.Valid {
+			project["status"] = status.String
+		}
+		
+		projects = append(projects, project)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Projects retrieved successfully",
+		"data":    projects,
+	})
+}
+
+// getDocumentCustomersHandler 获取文档可关联的客户列表
+func (app *Application) getDocumentCustomersHandler(c *gin.Context) {
+	sqlDB := app.db.GetDB().(*sql.DB)
+	
+	query := `
+		SELECT id, name, company_name, type, industry, description 
+		FROM customers 
+		WHERE deleted_at IS NULL 
+		ORDER BY name ASC
+	`
+	
+	rows, err := sqlDB.Query(query)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to query customers",
+			"error":   err.Error(),
+		})
+		return
+	}
+	defer rows.Close()
+	
+	var customers []map[string]interface{}
+	
+	for rows.Next() {
+		var id int
+		var name, companyName, customerType, industry, description sql.NullString
+		
+		err := rows.Scan(&id, &name, &companyName, &customerType, &industry, &description)
+		if err != nil {
+			continue
+		}
+		
+		customer := map[string]interface{}{
+			"id":   id,
+			"name": name.String,
+		}
+		
+		if companyName.Valid {
+			customer["company_name"] = companyName.String
+		}
+		if customerType.Valid {
+			customer["type"] = customerType.String
+		}
+		if industry.Valid {
+			customer["industry"] = industry.String
+		}
+		if description.Valid {
+			customer["description"] = description.String
+		}
+		
+		customers = append(customers, customer)
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Customers retrieved successfully",
+		"data":    customers,
+	})
+}
+
+// getDocumentCategoriesHandler 获取文档分类列表
+func (app *Application) getDocumentCategoriesHandler(c *gin.Context) {
+	// 预定义的文档分类
+	categories := []map[string]interface{}{
+		{
+			"label": "产品文档",
+			"value": "product",
+			"children": []map[string]string{
+				{"label": "需求文档", "value": "product/requirement"},
+				{"label": "PRD", "value": "product/prd"},
+				{"label": "原型设计", "value": "product/prototype"},
+				{"label": "用户故事", "value": "product/user-story"},
+			},
+		},
+		{
+			"label": "技术文档",
+			"value": "technical",
+			"children": []map[string]string{
+				{"label": "API文档", "value": "technical/api"},
+				{"label": "架构设计", "value": "technical/architecture"},
+				{"label": "开发指南", "value": "technical/dev-guide"},
+				{"label": "部署文档", "value": "technical/deployment"},
+			},
+		},
+		{
+			"label": "业务文档",
+			"value": "business",
+			"children": []map[string]string{
+				{"label": "商业计划", "value": "business/plan"},
+				{"label": "市场分析", "value": "business/market"},
+				{"label": "财务报告", "value": "business/finance"},
+				{"label": "合同协议", "value": "business/contract"},
+			},
+		},
+		{
+			"label": "会议文档",
+			"value": "meeting",
+			"children": []map[string]string{
+				{"label": "会议纪要", "value": "meeting/minutes"},
+				{"label": "决策记录", "value": "meeting/decision"},
+				{"label": "行动计划", "value": "meeting/action"},
+				{"label": "状态更新", "value": "meeting/status"},
+			},
+		},
+		{
+			"label": "培训文档",
+			"value": "training",
+			"children": []map[string]string{
+				{"label": "用户手册", "value": "training/manual"},
+				{"label": "操作指南", "value": "training/guide"},
+				{"label": "培训材料", "value": "training/material"},
+				{"label": "FAQ", "value": "training/faq"},
+			},
+		},
+	}
+	
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Categories retrieved successfully",
+		"data":    categories,
+	})
 }
 
 func main() {

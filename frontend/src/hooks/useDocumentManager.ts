@@ -105,11 +105,14 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
   // 加载文档数据
   const loadDocuments = useCallback(async (useCache = true) => {
     try {
+      // 避免重复请求
+      if (state.loading) return;
+
       setState(prev => ({ ...prev, loading: true, error: null }));
 
-      // Cache disabled - removed cache check
-
       const params = getQueryParams();
+      
+      // 性能优化：使用更高效的API调用模式
       const result = mode === 'advanced'
         ? await unifiedDocumentService.getDocuments(folderId)
         : await unifiedDocumentService.getAllDocuments(params as DocumentFilter);
@@ -120,12 +123,10 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
 
       setState(prev => ({
         ...prev,
-        documents,
+        documents: documents,
         total,
         loading: false
       }));
-
-      // Cache disabled - removed cache update
 
     } catch (error: any) {
       const errorMessage = error.message || '加载文档失败';
@@ -140,11 +141,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
     mode,
     folderId,
     getQueryParams,
-    // cachedData, // Cache disabled
-    enableCache,
-    // setCachedData, // Cache disabled
-    state.page,
-    state.searchText
+    state.loading // 添加loading依赖避免重复请求
   ]);
 
   // 防抖搜索

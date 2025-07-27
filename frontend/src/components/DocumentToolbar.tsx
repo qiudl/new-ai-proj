@@ -3,7 +3,7 @@
  * 包含搜索、过滤、排序、视图切换和批量操作功能
  */
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Space,
   Input,
@@ -13,7 +13,16 @@ import {
   Divider,
   Badge,
   Dropdown,
-  Tooltip
+  Tooltip,
+  AutoComplete,
+  Drawer,
+  Form,
+  DatePicker,
+  Slider,
+  Tag,
+  Popover,
+  Switch,
+  Modal
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,12 +38,21 @@ import {
   FileTextOutlined,
   ExportOutlined,
   SortAscendingOutlined,
-  SortDescendingOutlined
+  SortDescendingOutlined,
+  FilterOutlined,
+  SaveOutlined,
+  HistoryOutlined,
+  BulbOutlined,
+  ThunderboltOutlined,
+  StarOutlined,
+  CloseOutlined,
+  CheckOutlined
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 
 const { Search } = Input;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 // 文档类型配置
 const DOCUMENT_TYPES = {
@@ -53,6 +71,27 @@ const DOCUMENT_STATUS = {
   archived: { label: '已归档', color: 'warning' }
 };
 
+// 高级搜索配置
+interface AdvancedSearchConfig {
+  fuzzySearch: boolean;
+  semanticSearch: boolean;
+  includeContent: boolean;
+  dateRange?: [string, string];
+  sizeRange?: [number, number];
+  tags: string[];
+  authors: string[];
+  projects: string[];
+}
+
+// 保存的搜索过滤器
+interface SavedFilter {
+  id: string;
+  name: string;
+  config: AdvancedSearchConfig;
+  query: string;
+  createdAt: string;
+}
+
 interface DocumentToolbarProps {
   mode: 'simple' | 'advanced';
   
@@ -60,12 +99,16 @@ interface DocumentToolbarProps {
   searchText: string;
   onSearchChange: (value: string) => void;
   showSearch: boolean;
+  searchSuggestions?: string[];
+  onGetSearchSuggestions?: (query: string) => Promise<string[]>;
   
   // 过滤相关
   filterStatus: string;
   onFilterStatusChange: (value: string) => void;
   filterType: string;
   onFilterTypeChange: (value: string) => void;
+  advancedFilters?: AdvancedSearchConfig;
+  onAdvancedFiltersChange?: (config: AdvancedSearchConfig) => void;
   
   // 排序相关
   sortBy: 'updated_at' | 'created_at' | 'title';
@@ -96,6 +139,13 @@ interface DocumentToolbarProps {
   // 功能开关
   allowUpload: boolean;
   allowBatch: boolean;
+  enableIntelligentSearch?: boolean;
+  
+  // 保存的搜索过滤器
+  savedFilters?: SavedFilter[];
+  onSaveFilter?: (filter: SavedFilter) => void;
+  onLoadFilter?: (filter: SavedFilter) => void;
+  onDeleteFilter?: (filterId: string) => void;
   
   // Google Docs 集成
   enableGoogleDocsIntegration?: boolean;
@@ -107,10 +157,14 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
   searchText,
   onSearchChange,
   showSearch,
+  searchSuggestions = [],
+  onGetSearchSuggestions,
   filterStatus,
   onFilterStatusChange,
   filterType,
   onFilterTypeChange,
+  advancedFilters,
+  onAdvancedFiltersChange,
   sortBy,
   onSortByChange,
   sortOrder,
@@ -128,8 +182,73 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
   onCreateDocument,
   onUpload,
   allowUpload,
-  allowBatch
+  allowBatch,
+  enableIntelligentSearch = false,
+  savedFilters = [],
+  onSaveFilter,
+  onLoadFilter,
+  onDeleteFilter
 }) => {
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
+  const [autoCompleteOptions, setAutoCompleteOptions] = useState<string[]>([]);
+  const [currentSuggestions, setCurrentSuggestions] = useState<string[]>(searchSuggestions);
+  const [filterDrawerVisible, setFilterDrawerVisible] = useState(false);
+  const [saveFilterModalVisible, setSaveFilterModalVisible] = useState(false);
+  const [form] = Form.useForm();
+
+  // 获取搜索建议
+  const handleSearchSuggestions = useCallback(async (query: string) => {
+    if (onGetSearchSuggestions && query.trim()) {
+      try {
+        const suggestions = await onGetSearchSuggestions(query);
+        setAutoCompleteOptions(suggestions);
+      } catch (error) {
+        console.error('获取搜索建议失败:', error);
+      }
+    }
+  }, [onGetSearchSuggestions]);
+
+  // 更新搜索建议
+  useEffect(() => {
+    setCurrentSuggestions(searchSuggestions);
+  }, [searchSuggestions]);
+
+  // 高级搜索配置处理
+  const handleAdvancedFilterSubmit = useCallback((values: any) => {
+    if (onAdvancedFiltersChange) {
+      onAdvancedFiltersChange(values);
+    }
+    setFilterDrawerVisible(false);
+  }, [onAdvancedFiltersChange]);
+
+  // 保存搜索过滤器
+  const handleSaveFilter = useCallback((filterName: string) => {
+    if (onSaveFilter && advancedFilters) {
+      const newFilter: SavedFilter = {
+        id: Date.now().toString(),
+        name: filterName,
+        config: advancedFilters,
+        query: searchText,
+        createdAt: new Date().toISOString()
+      };
+      onSaveFilter(newFilter);
+      setSaveFilterModalVisible(false);
+    }
+  }, [onSaveFilter, advancedFilters, searchText]);
+
+  // 加载搜索过滤器
+  const handleLoadFilter = useCallback((filter: SavedFilter) => {
+    if (onLoadFilter) {
+      onLoadFilter(filter);
+    }
+  }, [onLoadFilter]);
+
+  // 智能搜索选项
+  const intelligentSearchOptions = [
+    { label: '模糊匹配', value: 'fuzzy' },
+    { label: '语义搜索', value: 'semantic' },
+    { label: '包含内容', value: 'content' }
+  ];
 
   // 批量操作菜单
   const batchMenuItems: MenuProps['items'] = [
@@ -257,16 +376,123 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
       
       {/* 右侧搜索和过滤 */}
       <Space wrap>
-        {/* 搜索 */}
+        {/* 增强搜索 */}
         {showSearch && (
-          <Search
-            placeholder="搜索文档..."
-            allowClear
-            style={{ width: mode === 'simple' ? 200 : 250 }}
-            value={searchText}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onSearch={onSearchChange}
-          />
+          <Space.Compact>
+            {enableIntelligentSearch ? (
+              <AutoComplete
+                style={{ width: mode === 'simple' ? 200 : 250 }}
+                value={searchText}
+                options={autoCompleteOptions.map(option => ({ value: option }))}
+                onSearch={handleSearchSuggestions}
+                onSelect={onSearchChange}
+                onChange={onSearchChange}
+                placeholder="智能搜索文档..."
+                allowClear
+              >
+                <Input
+                  prefix={<SearchOutlined />}
+                  suffix={
+                    <Popover
+                      content={
+                        <div style={{ width: 200 }}>
+                          <div style={{ marginBottom: 8, fontWeight: 'bold' }}>搜索选项:</div>
+                          {intelligentSearchOptions.map(option => (
+                            <div key={option.value}>
+                              <Switch
+                                size="small"
+                                checked={advancedFilters?.[option.value as keyof AdvancedSearchConfig] as boolean}
+                                onChange={(checked) => {
+                                  if (onAdvancedFiltersChange && advancedFilters) {
+                                    onAdvancedFiltersChange({
+                                      ...advancedFilters,
+                                      [option.value]: checked
+                                    });
+                                  }
+                                }}
+                              />
+                              <span style={{ marginLeft: 8 }}>{option.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      }
+                      trigger="click"
+                      title="智能搜索配置"
+                    >
+                      <Button 
+                        type="text" 
+                        size="small" 
+                        icon={<BulbOutlined />}
+                        style={{ color: '#1890ff' }}
+                      />
+                    </Popover>
+                  }
+                />
+              </AutoComplete>
+            ) : (
+              <Search
+                placeholder="搜索文档..."
+                allowClear
+                style={{ width: mode === 'simple' ? 200 : 250 }}
+                value={searchText}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onSearch={onSearchChange}
+              />
+            )}
+            
+            {mode === 'advanced' && (
+              <>
+                <Tooltip title="高级过滤">
+                  <Button
+                    icon={<FilterOutlined />}
+                    onClick={() => setFilterDrawerVisible(true)}
+                    type={advancedFilters && Object.values(advancedFilters).some(v => 
+                      Array.isArray(v) ? v.length > 0 : v
+                    ) ? 'primary' : 'default'}
+                  />
+                </Tooltip>
+                
+                {savedFilters.length > 0 && (
+                  <Dropdown
+                    menu={{
+                      items: [
+                        ...savedFilters.map(filter => ({
+                          key: filter.id,
+                          label: (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', width: 200 }}>
+                              <span>{filter.name}</span>
+                              <Button
+                                type="text"
+                                size="small"
+                                icon={<CloseOutlined />}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteFilter?.(filter.id);
+                                }}
+                              />
+                            </div>
+                          ),
+                          onClick: () => handleLoadFilter(filter)
+                        })),
+                        { type: 'divider' },
+                        {
+                          key: 'save-current',
+                          label: '保存当前搜索',
+                          icon: <SaveOutlined />,
+                          onClick: () => setSaveFilterModalVisible(true)
+                        }
+                      ]
+                    }}
+                    trigger={['click']}
+                  >
+                    <Tooltip title="保存的搜索">
+                      <Button icon={<HistoryOutlined />} />
+                    </Tooltip>
+                  </Dropdown>
+                )}
+              </>
+            )}
+          </Space.Compact>
         )}
         
         {/* 高级模式的过滤器 */}
@@ -345,6 +571,133 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
           </Radio.Group>
         )}
       </Space>
+
+      {/* 高级过滤抽屉 */}
+      <Drawer
+        title="高级过滤设置"
+        placement="right"
+        width={400}
+        open={filterDrawerVisible}
+        onClose={() => setFilterDrawerVisible(false)}
+        footer={
+          <div style={{ textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setFilterDrawerVisible(false)}>
+                取消
+              </Button>
+              <Button type="primary" onClick={() => form.submit()}>
+                应用过滤
+              </Button>
+            </Space>
+          </div>
+        }
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={advancedFilters}
+          onFinish={handleAdvancedFilterSubmit}
+        >
+          <Form.Item name="fuzzySearch" label="模糊搜索" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          
+          <Form.Item name="semanticSearch" label="语义搜索" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          
+          <Form.Item name="includeContent" label="搜索内容" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          
+          <Form.Item name="dateRange" label="创建时间范围">
+            <RangePicker style={{ width: '100%' }} />
+          </Form.Item>
+          
+          <Form.Item name="sizeRange" label="文件大小范围 (KB)">
+            <Slider
+              range
+              min={0}
+              max={10000}
+              marks={{
+                0: '0',
+                1000: '1MB',
+                5000: '5MB',
+                10000: '10MB+'
+              }}
+            />
+          </Form.Item>
+          
+          <Form.Item name="tags" label="标签">
+            <Select
+              mode="tags"
+              style={{ width: '100%' }}
+              placeholder="输入或选择标签"
+              tokenSeparators={[',']}
+            >
+              <Option value="重要">重要</Option>
+              <Option value="紧急">紧急</Option>
+              <Option value="会议纪要">会议纪要</Option>
+              <Option value="技术文档">技术文档</Option>
+              <Option value="产品规格">产品规格</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item name="authors" label="作者">
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              placeholder="选择作者"
+            >
+              <Option value="张三">张三</Option>
+              <Option value="李四">李四</Option>
+              <Option value="王五">王五</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item name="projects" label="项目">
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              placeholder="选择项目"
+            >
+              <Option value="企业管理系统">企业管理系统</Option>
+              <Option value="移动应用开发">移动应用开发</Option>
+              <Option value="数据分析平台">数据分析平台</Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Drawer>
+
+      {/* 保存过滤器模态框 */}
+      <Modal
+        title="保存搜索过滤器"
+        open={saveFilterModalVisible}
+        onCancel={() => setSaveFilterModalVisible(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setSaveFilterModalVisible(false)}>
+            取消
+          </Button>,
+          <Button 
+            key="save" 
+            type="primary" 
+            onClick={() => {
+              const filterName = (document.getElementById('filter-name-input') as HTMLInputElement)?.value;
+              if (filterName?.trim()) {
+                handleSaveFilter(filterName.trim());
+              }
+            }}
+          >
+            保存
+          </Button>
+        ]}
+      >
+        <Input 
+          id="filter-name-input"
+          placeholder="输入过滤器名称" 
+          prefix={<SaveOutlined />}
+        />
+      </Modal>
     </div>
   );
 };

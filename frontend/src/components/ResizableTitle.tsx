@@ -1,5 +1,13 @@
 import React from 'react';
-import { Resizable } from 'react-resizable';
+
+// Dynamic import for react-resizable
+let Resizable: any = null;
+try {
+  const resizable = require('react-resizable');
+  Resizable = resizable.Resizable;
+} catch (error) {
+  console.warn('react-resizable not available, resizing will be disabled');
+}
 
 interface ResizableTitleProps {
   onResize: (width: number) => void;
@@ -16,6 +24,15 @@ const ResizableTitle: React.FC<ResizableTitleProps> = ({
   minWidth = 80,
   maxWidth = 800,
 }) => {
+  // If Resizable is not available, render a simple div
+  if (!Resizable) {
+    return (
+      <div style={{ width, position: 'relative' }}>
+        {children}
+      </div>
+    );
+  }
+
   return (
     <Resizable
       width={width}

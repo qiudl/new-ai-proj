@@ -53,11 +53,9 @@ import {
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
-import { Task } from '../types/task';
-import { TaskService } from '../services/taskService';
-import TimerStartButton from '../components/TimerStartButton';
 import { useTimer } from '../contexts/TimerContext';
 import DocumentList from '../components/DocumentList';
+import ProjectTaskList from '../components/ProjectTaskList';
 import '../styles/timer-components.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -68,103 +66,26 @@ const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { timerState } = useTimer();
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('tasks');
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userForm] = Form.useForm();
 
-  // Load project tasks
-  const loadTasks = async () => {
-    if (!projectId) return;
-    
-    try {
-      const response = await TaskService.getTasks(parseInt(projectId), {
-        page: 1,
-        page_size: 50, // Load first 50 tasks for project detail view
-      });
-      
-      if (response?.data && Array.isArray(response.data)) {
-        setTasks(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-      message.error('加载任务列表失败');
-    }
-  };
-
-  const taskColumns: ColumnsType<Task> = [
-    {
-      title: '任务名称',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: Task) => (
-        <Button 
-          type="link" 
-          onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
-          style={{ padding: 0, fontSize: '14px' }}
-        >
-          {text}
-        </Button>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={getTaskStatusColor(status)}>
-          {getTaskStatusText(status)}
-        </Tag>
-      ),
-    },
-    {
-      title: '负责人',
-      dataIndex: 'assignee_name',
-      key: 'assignee_name',
-      width: 120,
-    },
-    {
-      title: '截止日期',
-      dataIndex: 'due_date',
-      key: 'due_date',
-      width: 120,
-      render: (date: string) => date ? new Date(date).toLocaleDateString() : '-',
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      render: (_: any, record: Task) => {
-        const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
-        
-        return (
-          <Space size="small">
-            {canStartTimer && (
-              <TimerStartButton
-                task={record}
-                size="small"
-                type="text"
-                className="project-detail-timer-button"
-              />
-            )}
-            <Button
-              type="text"
-              size="small"
-              onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
-              title="查看详情"
-            >
-              查看
-            </Button>
-          </Space>
-        );
-      },
-    },
-  ];
 
   // Tabs configuration using items (modern approach)
   const tabItems = [
+    {
+      key: 'tasks',
+      label: (
+        <span>
+          <CheckCircleOutlined />
+          项目任务
+        </span>
+      ),
+      children: project ? (
+        <ProjectTaskList projectId={project.id} />
+      ) : null
+    },
     {
       key: 'overview',
       label: '项目概览',
@@ -262,48 +183,6 @@ const ProjectDetailPage: React.FC = () => {
       )
     },
     {
-      key: 'tasks',
-      label: '项目任务',
-      children: (
-        <Card title="任务列表" extra={
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={() => navigate(`/projects/${projectId}/tasks`)}
-          >
-            管理任务
-          </Button>
-        }>
-          <Table
-            dataSource={tasks}
-            columns={taskColumns}
-            rowKey="id"
-            pagination={tasks.length > 10 ? {
-              pageSize: 10,
-              showSizeChanger: false,
-              showQuickJumper: false,
-              showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            } : false}
-            rowClassName={(record: Task) => {
-              // 高亮当前计时的任务行
-              if (timerState.isRunning && timerState.taskId === record.id) {
-                return 'timer-active-row';
-              }
-              return '';
-            }}
-            locale={{
-              emptyText: (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="暂无任务"
-                />
-              )
-            }}
-          />
-        </Card>
-      )
-    },
-    {
       key: 'documents',
       label: (
         <span>
@@ -335,7 +214,6 @@ const ProjectDetailPage: React.FC = () => {
   useEffect(() => {
     if (projectId) {
       loadProjectDetail();
-      loadTasks();
     }
   }, [projectId]);
 

@@ -1,4 +1,13 @@
 // Document Version Management Types
+import React from 'react';
+import {
+  PlusCircleOutlined,
+  RocketOutlined,
+  BugOutlined,
+  UndoOutlined,
+  BranchesOutlined,
+  QuestionOutlined
+} from '@ant-design/icons';
 
 export interface DocumentVersion {
   id: number;
@@ -216,32 +225,32 @@ export const VERSION_CHANGE_TYPES = {
   created: {
     label: '创建',
     color: 'green',
-    icon: '🆕'
+    icon: React.createElement(PlusCircleOutlined)
   },
   major: {
     label: '主要版本',
     color: 'red',
-    icon: '🚀'
+    icon: React.createElement(RocketOutlined)
   },
   minor: {
     label: '次要版本',
     color: 'blue',
-    icon: '✨'
+    icon: React.createElement(BugOutlined)
   },
   restored: {
     label: '恢复版本',
     color: 'orange',
-    icon: '↩️'
+    icon: React.createElement(UndoOutlined)
   },
   merged: {
     label: '合并版本',
     color: 'purple',
-    icon: '🔀'
+    icon: React.createElement(BranchesOutlined)
   },
   unknown: {
     label: '未知',
     color: 'default',
-    icon: '❓'
+    icon: React.createElement(QuestionOutlined)
   }
 } as const;
 

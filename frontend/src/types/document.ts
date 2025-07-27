@@ -20,7 +20,7 @@ export interface DocumentFolder {
   owner_name?: string;
 }
 
-export type DocumentType = 'markdown' | 'text' | 'pdf' | 'word' | 'excel' | 'image';
+export type DocumentType = 'markdown' | 'html' | 'text' | 'json' | 'code' | 'pdf' | 'word' | 'excel' | 'image';
 export type DocumentStatus = 'draft' | 'published' | 'archived';
 export type DocumentVisibility = 'private' | 'team' | 'public';
 
@@ -35,6 +35,7 @@ export interface Document {
   status: DocumentStatus;
   file_url?: string;
   file_size?: number;
+  file_extension?: string; // Added file extension property
   mime_type?: string;
   description?: string;
   tags: string[];
@@ -195,6 +196,10 @@ export interface UpdateDocumentRequest {
   project_id?: number;
   customer_id?: number;
   shared_with?: string[];
+  is_template?: boolean;
+  category?: string;
+  due_date?: string;
+  priority?: string;
 }
 
 export interface DocumentListResponse {

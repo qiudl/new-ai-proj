@@ -37,7 +37,7 @@ import {
 } from '@ant-design/icons';
 import { Document } from '../types/document';
 import unifiedDocumentService, { SimpleDocument } from '../services/unifiedDocumentService';
-import dayjs from 'dayjs';
+import dayjs from '../utils/dayjs';
 
 const { Text } = Typography;
 
@@ -52,7 +52,10 @@ interface MobileDocumentListProps {
 // 文档类型图标配置
 const DOCUMENT_TYPE_ICONS = {
   markdown: <FileMarkdownOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
+  html: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,
   text: <FileTextOutlined style={{ color: '#666', fontSize: '16px' }} />,
+  json: <FileTextOutlined style={{ color: '#722ed1', fontSize: '16px' }} />,
+  code: <FileTextOutlined style={{ color: '#13c2c2', fontSize: '16px' }} />,
   pdf: <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />,
   word: <FileWordOutlined style={{ color: '#1890ff', fontSize: '16px' }} />,
   excel: <FileTextOutlined style={{ color: '#52c41a', fontSize: '16px' }} />,

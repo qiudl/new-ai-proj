@@ -4,6 +4,10 @@ export interface Task {
   title: string;
   description: string;
   status: TaskStatus;
+  priority?: 'high' | 'medium' | 'low';
+  progress?: number;
+  estimated_hours?: number;
+  actual_hours?: number;
   assignee_id?: number;
   assignee_name?: string;
   due_date?: string;

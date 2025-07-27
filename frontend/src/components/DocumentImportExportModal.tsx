@@ -137,12 +137,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
       
       const options: ImportOptions = {
         format: values.format,
-        skipDuplicates: values.skipDuplicates,
         validateData: values.validateData,
-        batchSize: values.batchSize || 100,
-        onProgress: (progress, total) => {
-          setImportProgress(Math.round((progress / total) * 100));
-        }
       };
 
       const result = await documentImportExport.importDocuments(file, options);

@@ -1,10 +1,4 @@
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/zh-cn';
-
-// 配置dayjs
-dayjs.extend(relativeTime);
-dayjs.locale('zh-cn');
+import dayjs from './dayjs';
 
 // 兼容原有函数
 export function formatDate(dateString: string | Date, format: string = 'YYYY-MM-DD HH:mm'): string {

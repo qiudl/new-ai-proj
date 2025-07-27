@@ -54,7 +54,10 @@ const { Text } = Typography;
 // 文档类型图标配置
 const DOCUMENT_TYPE_ICONS = {
   markdown: <FileMarkdownOutlined style={{ color: '#1890ff', fontSize: '24px' }} />,
+  html: <FileTextOutlined style={{ color: '#52c41a', fontSize: '24px' }} />,
   text: <FileTextOutlined style={{ color: '#666', fontSize: '24px' }} />,
+  json: <FileTextOutlined style={{ color: '#722ed1', fontSize: '24px' }} />,
+  code: <FileTextOutlined style={{ color: '#13c2c2', fontSize: '24px' }} />,
   pdf: <FilePdfOutlined style={{ color: '#ff4d4f', fontSize: '24px' }} />,
   word: <FileWordOutlined style={{ color: '#1890ff', fontSize: '24px' }} />,
   excel: <FileTextOutlined style={{ color: '#52c41a', fontSize: '24px' }} />,
@@ -64,7 +67,10 @@ const DOCUMENT_TYPE_ICONS = {
 // 文档类型配置
 const DOCUMENT_TYPES = {
   markdown: { label: 'Markdown', color: 'blue', icon: '📝' },
+  html: { label: 'HTML', color: 'green', icon: '🌐' },
   text: { label: 'Text', color: 'default', icon: '📄' },
+  json: { label: 'JSON', color: 'purple', icon: '⚙️' },
+  code: { label: 'Code', color: 'cyan', icon: '💻' },
   pdf: { label: 'PDF', color: 'red', icon: '📋' },
   word: { label: 'Word', color: 'blue', icon: '📘' },
   excel: { label: 'Excel', color: 'green', icon: '📊' },
