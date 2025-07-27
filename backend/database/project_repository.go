@@ -23,13 +23,13 @@ func (r *PostgresProjectRepository) getExecer() execer {
 // Create creates a new project
 func (r *PostgresProjectRepository) Create(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `
-		INSERT INTO projects (name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO projects (project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		project.Name, project.Description, project.OwnerID, project.CompanyID,
+		project.ProjectNumber, project.Name, project.Description, project.OwnerID, project.CompanyID,
 		project.Status, project.Priority, project.Progress, project.StartDate, project.EndDate, project.Budget)
 
 	err := row.Scan(&project.ID, &project.CreatedAt, &project.UpdatedAt)
@@ -43,7 +43,7 @@ func (r *PostgresProjectRepository) Create(ctx context.Context, project *models.
 // GetByID gets a project by ID (only non-deleted)
 func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*models.Project, error) {
 	query := `
-		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
+		SELECT id, project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -52,7 +52,7 @@ func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*model
 	project := &models.Project{}
 
 	err := row.Scan(
-		&project.ID, &project.Name, &project.Description, &project.OwnerID,
+		&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
 		&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
 		&project.StartDate, &project.EndDate, &project.Budget,
 		&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
@@ -99,7 +99,7 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 		project := &models.Project{}
 
 		err := rows.Scan(
-			&project.ID, &project.Name, &project.Description, &project.OwnerID,
+			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
 			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
 			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
@@ -122,14 +122,14 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `
 		UPDATE projects 
-		SET name = $2, description = $3, company_id = $4, status = $5, priority = $6, 
-		    progress = $7, start_date = $8, end_date = $9, budget = $10, updated_at = CURRENT_TIMESTAMP
+		SET project_number = $2, name = $3, description = $4, company_id = $5, status = $6, priority = $7, 
+		    progress = $8, start_date = $9, end_date = $10, budget = $11, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		project.ID, project.Name, project.Description, project.CompanyID,
+		project.ID, project.ProjectNumber, project.Name, project.Description, project.CompanyID,
 		project.Status, project.Priority, project.Progress, project.StartDate, 
 		project.EndDate, project.Budget)
 
@@ -177,7 +177,7 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
+		SELECT id, project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects 
 		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -194,7 +194,7 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 		project := &models.Project{}
 
 		err := rows.Scan(
-			&project.ID, &project.Name, &project.Description, &project.OwnerID,
+			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
 			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
 			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
@@ -228,7 +228,7 @@ func (r *PostgresProjectRepository) ListWithCompanyInfo(ctx context.Context, lim
 	// Get projects with company information using LEFT JOIN
 	query := `
 		SELECT 
-			p.id, p.name, p.description, p.owner_id, p.company_id, 
+			p.id, p.project_number, p.name, p.description, p.owner_id, p.company_id, 
 			p.status, p.priority, p.progress, p.start_date, p.end_date, 
 			p.budget, p.created_at, p.updated_at, p.deleted_at,
 			c.company_name
@@ -249,7 +249,7 @@ func (r *PostgresProjectRepository) ListWithCompanyInfo(ctx context.Context, lim
 		projectWithCompany := &models.ProjectWithCompany{}
 
 		err := rows.Scan(
-			&projectWithCompany.ID, &projectWithCompany.Name, &projectWithCompany.Description, 
+			&projectWithCompany.ID, &projectWithCompany.ProjectNumber, &projectWithCompany.Name, &projectWithCompany.Description, 
 			&projectWithCompany.OwnerID, &projectWithCompany.CompanyID, &projectWithCompany.Status, 
 			&projectWithCompany.Priority, &projectWithCompany.Progress, &projectWithCompany.StartDate, 
 			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt, 

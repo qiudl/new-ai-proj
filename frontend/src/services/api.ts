@@ -1,8 +1,16 @@
 import axios from 'axios';
 import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorHandling';
 
-// API Base Configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+// API Base Configuration  
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+
+// 全局导航函数
+let navigateFunction: ((path: string) => void) | null = null;
+
+// 提供设置导航函数的方法
+export const setNavigateFunction = (navigate: (path: string) => void) => {
+  navigateFunction = navigate;
+};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -61,13 +69,25 @@ api.interceptors.response.use(
           ErrorType.AUTHENTICATION,
           401
         );
-        // Clear auth data and redirect to login
+        // 清除认证数据
         localStorage.removeItem('token');
-        setTimeout(() => {
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
-          }
-        }, 1000);
+        console.log('401错误：Token无效，清除并准备跳转到登录页');
+        
+        // 使用React Router导航，避免强制页面跳转
+        if (navigateFunction) {
+          setTimeout(() => {
+            console.log('使用React Router导航到登录页');
+            navigateFunction!('/login');
+          }, 100);
+        } else {
+          // 备用方案：延迟执行页面跳转
+          setTimeout(() => {
+            if (window.location.pathname !== '/login') {
+              console.log('备用方案：使用window.location跳转到登录页');
+              window.location.href = '/login';
+            }
+          }, 1000);
+        }
         break;
       case 403:
         appError = new AppError(

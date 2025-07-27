@@ -79,7 +79,13 @@ export interface Company {
   address?: string;
   mainPhone?: string;
   mainEmail?: string;
+  website?: string; // 添加网站字段
   status?: 'active' | 'inactive' | 'potential' | 'suspended';
+  priority?: 'high' | 'medium' | 'low'; // 添加优先级字段
+  // 添加文本转换字段
+  companyTypeText?: string;
+  statusText?: string;
+  priorityText?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -100,7 +100,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   
   // UI状态
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('hierarchy');
   
   // 分页状态
   const [pagination, setPagination] = useState({
@@ -156,7 +156,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
     
     // 先将所有任务放入map中
     tasks.forEach(task => {
-      taskMap.set(task.id, { ...task, children: [], level: 0, hasChildren: false, isExpanded: expandedTaskIds.has(task.id) });
+      taskMap.set(task.id, { ...task, children: [], level: 0, hasChildren: false, isExpanded: false });
     });
     
     // 构建层级关系
@@ -169,6 +169,19 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
         taskWithLevel.level = (parent.level || 0) + 1;
       } else {
         rootTasks.push(taskWithLevel);
+      }
+    });
+    
+    // 设置展开状态：如果expandedTaskIds为空，默认展开所有有子任务的节点
+    taskMap.forEach((task, taskId) => {
+      if (task.hasChildren) {
+        if (expandedTaskIds.size === 0) {
+          // 初始状态：默认展开所有父任务
+          task.isExpanded = true;
+        } else {
+          // 用户已经有操作：根据expandedTaskIds决定
+          task.isExpanded = expandedTaskIds.has(taskId);
+        }
       }
     });
     
@@ -197,11 +210,25 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   const toggleTaskExpansion = (taskId: number) => {
     setExpandedTaskIds(prev => {
       const newSet = new Set(prev);
+      
+      // 如果这是首次操作（expandedTaskIds为空），先初始化所有父任务为展开状态
+      if (prev.size === 0) {
+        // 找到所有有子任务的父任务ID，并将它们设为展开状态
+        tasks.forEach(task => {
+          const hasChildren = tasks.some(t => t.parent_id === task.id);
+          if (hasChildren) {
+            newSet.add(task.id);
+          }
+        });
+      }
+      
+      // 然后处理当前点击的任务
       if (newSet.has(taskId)) {
         newSet.delete(taskId);
       } else {
         newSet.add(taskId);
       }
+      
       return newSet;
     });
   };

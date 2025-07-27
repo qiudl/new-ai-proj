@@ -48,11 +48,14 @@ import {
   BankOutlined,
   BuildOutlined,
   FundProjectionScreenOutlined,
+  LinkOutlined,
+  HomeOutlined,
   BarChartOutlined,
   UserAddOutlined
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
-import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
+import companyService from '../services/companyService';
+import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
 import { useTimer } from '../contexts/TimerContext';
 import DocumentList from '../components/DocumentList';
 import ProjectTaskList from '../components/ProjectTaskList';
@@ -66,11 +69,52 @@ const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { timerState } = useTimer();
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [companyInfo, setCompanyInfo] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks');
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [userForm] = Form.useForm();
 
+  // Helper functions for status, priority, etc.
+  const getStatusColor = (status?: string): string => {
+    const colorMap: Record<string, string> = {
+      'planning': 'blue',
+      'active': 'green',
+      'on_hold': 'orange',
+      'completed': 'purple',
+      'cancelled': 'red'
+    };
+    return colorMap[status || 'active'] || 'green';
+  };
+
+  const getStatusText = (status?: string): string => {
+    const textMap: Record<string, string> = {
+      'planning': '规划中',
+      'active': '进行中',
+      'on_hold': '暂停',
+      'completed': '已完成',
+      'cancelled': '已取消'
+    };
+    return textMap[status || 'active'] || '进行中';
+  };
+
+  const getPriorityColor = (priority?: string): string => {
+    const colorMap: Record<string, string> = {
+      'high': 'red',
+      'medium': 'orange',
+      'low': 'green'
+    };
+    return colorMap[priority || 'medium'] || 'orange';
+  };
+
+  const getPriorityText = (priority?: string): string => {
+    const textMap: Record<string, string> = {
+      'high': '高',
+      'medium': '中',
+      'low': '低'
+    };
+    return textMap[priority || 'medium'] || '中';
+  };
 
   // Tabs configuration using items (modern approach)
   const tabItems = [
@@ -91,30 +135,61 @@ const ProjectDetailPage: React.FC = () => {
       label: '项目概览',
       children: (
         <Row gutter={[24, 24]}>
-          {/* 项目描述 */}
+          {/* 项目基础信息 */}
           <Col xs={24} lg={16}>
-            <Card title="项目描述" extra={<FileTextOutlined />}>
-              <Paragraph style={{ fontSize: '14px', lineHeight: '1.8' }}>
-                {project?.description || '暂无项目描述'}
-              </Paragraph>
-              
-              <Divider />
-              
-              <Row gutter={[16, 16]}>
+            <Card title="项目基础信息" extra={<FundProjectionScreenOutlined />}>
+              {/* 项目编号与状态 */}
+              <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
                 <Col span={12}>
                   <Space direction="vertical" size="small">
-                    <Text type="secondary">开始日期</Text>
-                    <Text strong>
-                      {project?.start_date ? new Date(project.start_date).toLocaleDateString() : '未设置'}
+                    <Text type="secondary"><NumberOutlined /> 项目编号</Text>
+                    <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
+                      {project?.project_number || '未设置'}
                     </Text>
                   </Space>
                 </Col>
                 <Col span={12}>
                   <Space direction="vertical" size="small">
-                    <Text type="secondary">结束日期</Text>
+                    <Text type="secondary">项目状态</Text>
+                    <Tag color={getStatusColor(project?.status)} style={{ fontSize: '14px', padding: '4px 12px' }}>
+                      {getStatusText(project?.status)}
+                    </Tag>
+                  </Space>
+                </Col>
+              </Row>
+              
+              {/* 项目描述 */}
+              <div style={{ marginBottom: '16px' }}>
+                <Text type="secondary" style={{ marginBottom: '8px', display: 'block' }}>项目描述</Text>
+                <Paragraph style={{ fontSize: '14px', lineHeight: '1.8', backgroundColor: '#fafafa', padding: '12px', borderRadius: '6px' }}>
+                  {project?.description || '暂无项目描述'}
+                </Paragraph>
+              </div>
+              
+              {/* 项目时间线 */}
+              <Row gutter={[16, 16]}>
+                <Col span={8}>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary"><CalendarOutlined /> 开始日期</Text>
+                    <Text strong>
+                      {project?.start_date ? new Date(project.start_date).toLocaleDateString() : '未设置'}
+                    </Text>
+                  </Space>
+                </Col>
+                <Col span={8}>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary"><CalendarOutlined /> 结束日期</Text>
                     <Text strong>
                       {project?.end_date ? new Date(project.end_date).toLocaleDateString() : '未设置'}
                     </Text>
+                  </Space>
+                </Col>
+                <Col span={8}>
+                  <Space direction="vertical" size="small">
+                    <Text type="secondary">优先级</Text>
+                    <Tag color={getPriorityColor(project?.priority)}>
+                      {getPriorityText(project?.priority)}
+                    </Tag>
                   </Space>
                 </Col>
               </Row>
@@ -153,9 +228,218 @@ const ProjectDetailPage: React.FC = () => {
                     />
                   </div>
                 </Col>
+                <Col span={24}>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Statistic 
+                    title="团队成员" 
+                    value={project?.users?.length || 0}
+                    prefix={<TeamOutlined />}
+                    valueStyle={{ fontSize: '18px' }}
+                  />
+                </Col>
               </Row>
             </Card>
           </Col>
+
+          {/* 企业信息 */}
+          {project?.company_id && project?.company_name ? (
+            <Col xs={24}>
+              <Card 
+                title={
+                  <Space>
+                    <BankOutlined style={{ color: '#52c41a' }} />
+                    <span>关联企业信息</span>
+                  </Space>
+                }
+                extra={
+                  <Space>
+                    <Button 
+                      type="link" 
+                      icon={<LinkOutlined />}
+                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                    >
+                      查看企业详情
+                    </Button>
+                    <Button 
+                      type="link" 
+                      icon={<EditOutlined />}
+                      onClick={() => navigate(`/companies/${project.company_id}/edit`)}
+                    >
+                      编辑企业信息
+                    </Button>
+                  </Space>
+                }
+              >
+                <Row gutter={[24, 16]}>
+                  <Col xs={24} lg={12}>
+                    <Card size="small" style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                        <Space align="center">
+                          <Avatar 
+                            size="large" 
+                            icon={<BankOutlined />} 
+                            style={{ backgroundColor: '#52c41a' }} 
+                          />
+                          <div>
+                            <Text strong style={{ color: '#389e0d', fontSize: '16px' }}>{project.company_name}</Text>
+                            <br />
+                            <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
+                          </div>
+                        </Space>
+                        
+                        {companyInfo && (
+                          <>
+                            <Divider style={{ margin: '8px 0' }} />
+                            <Row gutter={[8, 8]}>
+                              <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>行业</Text>
+                                <br />
+                                <Text style={{ fontSize: '13px' }}>{companyInfo.industry || '未知'}</Text>
+                              </Col>
+                              <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>企业类型</Text>
+                                <br />
+                                <Text style={{ fontSize: '13px' }}>{companyInfo.companyTypeText || '未知'}</Text>
+                              </Col>
+                              <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>企业状态</Text>
+                                <br />
+                                <Tag color={companyInfo.status === 'active' ? 'green' : 'orange'}>
+                                  {companyInfo.statusText || '未知'}
+                                </Tag>
+                              </Col>
+                              <Col span={12}>
+                                <Text type="secondary" style={{ fontSize: '12px' }}>优先级</Text>
+                                <br />
+                                <Tag color={companyInfo.priority === 'high' ? 'red' : companyInfo.priority === 'medium' ? 'orange' : 'green'}>
+                                  {companyInfo.priorityText || '未知'}
+                                </Tag>
+                              </Col>
+                            </Row>
+                          </>
+                        )}
+                      </Space>
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Card size="small" title="联系方式" extra={<PhoneOutlined />}>
+                      {companyInfo ? (
+                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                          <Row gutter={[16, 8]}>
+                            <Col span={24}>
+                              <Space>
+                                <MailOutlined style={{ color: '#1890ff' }} />
+                                <Text strong>邮箱：</Text>
+                                <Text copyable={{ text: companyInfo.mainEmail }}>
+                                  {companyInfo.mainEmail || '未设置'}
+                                </Text>
+                              </Space>
+                            </Col>
+                            <Col span={24}>
+                              <Space>
+                                <PhoneOutlined style={{ color: '#52c41a' }} />
+                                <Text strong>电话：</Text>
+                                <Text copyable={{ text: companyInfo.mainPhone }}>
+                                  {companyInfo.mainPhone || '未设置'}
+                                </Text>
+                              </Space>
+                            </Col>
+                            <Col span={24}>
+                              <Space>
+                                <HomeOutlined style={{ color: '#fa8c16' }} />
+                                <Text strong>地址：</Text>
+                                <Text style={{ wordBreak: 'break-all' }}>
+                                  {companyInfo.address || '未设置'}
+                                </Text>
+                              </Space>
+                            </Col>
+                            {companyInfo.website && (
+                              <Col span={24}>
+                                <Space>
+                                  <LinkOutlined style={{ color: '#722ed1' }} />
+                                  <Text strong>网站：</Text>
+                                  <Button 
+                                    type="link" 
+                                    size="small" 
+                                    href={companyInfo.website} 
+                                    target="_blank"
+                                    style={{ padding: 0, height: 'auto' }}
+                                  >
+                                    {companyInfo.website}
+                                  </Button>
+                                </Space>
+                              </Col>
+                            )}
+                          </Row>
+                        </Space>
+                      ) : (
+                        <Text type="secondary" style={{ fontSize: '14px' }}>正在加载企业联系方式...</Text>
+                      )}
+                    </Card>
+                  </Col>
+                </Row>
+                
+                <Divider />
+                
+                <div style={{ textAlign: 'center' }}>
+                  <Space size="large">
+                    <Button 
+                      type="primary" 
+                      icon={<LinkOutlined />}
+                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                    >
+                      查看完整企业资料
+                    </Button>
+                    <Button 
+                      icon={<UserOutlined />}
+                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                    >
+                      企业联系人管理
+                    </Button>
+                    <Button 
+                      icon={<PhoneOutlined />}
+                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                    >
+                      沟通记录
+                    </Button>
+                  </Space>
+                </div>
+              </Card>
+            </Col>
+          ) : (
+            <Col xs={24}>
+              <Card title={<Space><BankOutlined style={{ color: '#faad14' }} /><span>企业信息</span></Space>}>
+                <Empty 
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <div style={{ textAlign: 'center' }}>
+                      <Text style={{ fontSize: '16px', color: '#8c8c8c' }}>该项目暂未关联企业信息</Text>
+                      <br />
+                      <Text type="secondary" style={{ fontSize: '14px', marginTop: '8px' }}>
+                        关联企业客户后，可以查看企业详细信息、联系方式等
+                      </Text>
+                    </div>
+                  }
+                >
+                  <Space>
+                    <Button 
+                      type="primary" 
+                      icon={<EditOutlined />}
+                      onClick={() => navigate(`/projects/${project?.id}/edit`)}
+                    >
+                      编辑项目信息
+                    </Button>
+                    <Button 
+                      icon={<BankOutlined />}
+                      onClick={() => navigate('/companies')}
+                    >
+                      查看企业列表
+                    </Button>
+                  </Space>
+                </Empty>
+              </Card>
+            </Col>
+          )}
         </Row>
       )
     },
@@ -223,8 +507,18 @@ const ProjectDetailPage: React.FC = () => {
       
       // 获取项目详情（现在使用组合API调用）
       const projectDetail = await projectService.getProjectDetail(Number(projectId));
-
       setProject(projectDetail);
+      
+      // 如果项目有关联企业，获取完整的企业信息
+      if (projectDetail.company_id) {
+        try {
+          const company = await companyService.getCompany(projectDetail.company_id);
+          setCompanyInfo(company);
+        } catch (error) {
+          console.error('获取企业信息失败:', error);
+          // 企业信息获取失败不影响主流程
+        }
+      }
     } catch (error) {
       console.error('获取项目详情失败:', error);
       message.error('获取项目详情失败，请稍后重试');
@@ -257,46 +551,6 @@ const ProjectDetailPage: React.FC = () => {
       status_changed: <ClockCircleOutlined style={{ color: '#1890ff' }} />
     };
     return iconMap[type as keyof typeof iconMap] || <ClockCircleOutlined />;
-  };
-
-  const getStatusColor = (status?: string): string => {
-    const colorMap: Record<string, string> = {
-      'planning': 'blue',
-      'active': 'green',
-      'on_hold': 'orange',
-      'completed': 'purple',
-      'cancelled': 'red'
-    };
-    return colorMap[status || 'active'] || 'green';
-  };
-
-  const getStatusText = (status?: string): string => {
-    const textMap: Record<string, string> = {
-      'planning': '规划中',
-      'active': '进行中',
-      'on_hold': '暂停',
-      'completed': '已完成',
-      'cancelled': '已取消'
-    };
-    return textMap[status || 'active'] || '进行中';
-  };
-
-  const getPriorityColor = (priority?: string): string => {
-    const colorMap: Record<string, string> = {
-      'high': 'red',
-      'medium': 'orange',
-      'low': 'green'
-    };
-    return colorMap[priority || 'medium'] || 'orange';
-  };
-
-  const getPriorityText = (priority?: string): string => {
-    const textMap: Record<string, string> = {
-      'high': '高',
-      'medium': '中',
-      'low': '低'
-    };
-    return textMap[priority || 'medium'] || '中';
   };
 
   const getTaskStatusColor = (status: string): string => {
@@ -395,7 +649,7 @@ const ProjectDetailPage: React.FC = () => {
                 <Space align="center">
                   <NumberOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
                   <Text strong style={{ color: '#1890ff', fontSize: '16px' }}>
-                    {project.project_number}
+                    {project.project_number || '未设置编号'}
                   </Text>
                   <Tag color={getStatusColor(project.status)}>
                     {getStatusText(project.status)}
@@ -407,10 +661,56 @@ const ProjectDetailPage: React.FC = () => {
                 <Title level={2} style={{ margin: 0 }}>
                   {project.name}
                 </Title>
-                <Space align="center">
-                  <BankOutlined style={{ color: '#52c41a' }} />
-                  <Text type="secondary">{project.company_name}</Text>
-                </Space>
+                {/* 企业信息展示 */}
+                {project.company_id && project.company_name && (
+                  <Card 
+                    size="small" 
+                    style={{ 
+                      background: 'linear-gradient(135deg, #f6f9fc 0%, #e9f7ef 100%)',
+                      border: '1px solid #d9f7be',
+                      borderRadius: '8px',
+                      maxWidth: '400px'
+                    }}
+                  >
+                    <Space align="center" size="middle">
+                      <Avatar 
+                        size="small" 
+                        style={{ 
+                          backgroundColor: '#52c41a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        icon={<BankOutlined />}
+                      />
+                      <div>
+                        <Space align="center" size="small">
+                          <Text strong style={{ color: '#389e0d' }}>所属企业：</Text>
+                          <Button
+                            type="link"
+                            size="small"
+                            style={{ 
+                              padding: 0, 
+                              height: 'auto',
+                              color: '#1890ff',
+                              fontWeight: 500
+                            }}
+                            icon={<LinkOutlined style={{ fontSize: '12px' }} />}
+                            onClick={() => navigate(`/companies/${project.company_id}`)}
+                          >
+                            {project.company_name}
+                          </Button>
+                        </Space>
+                        <div>
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            <HomeOutlined style={{ marginRight: '4px' }} />
+                            点击查看企业详情
+                          </Text>
+                        </div>
+                      </div>
+                    </Space>
+                  </Card>
+                )}
               </Space>
             </Col>
             <Col>
@@ -422,14 +722,13 @@ const ProjectDetailPage: React.FC = () => {
                 >
                   编辑项目
                 </Button>
-                <Space>
-                  <Statistic 
-                    title="项目进度" 
-                    value={project.progress || 0} 
-                    suffix="%" 
-                    valueStyle={{ fontSize: '16px' }}
-                  />
-                </Space>
+                <div style={{ textAlign: 'right' }}>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>创建时间</Text>
+                  <br />
+                  <Text style={{ fontSize: '14px' }}>
+                    {project.created_at ? new Date(project.created_at).toLocaleDateString() : '未知'}
+                  </Text>
+                </div>
               </Space>
             </Col>
           </Row>
@@ -456,6 +755,15 @@ const ProjectDetailPage: React.FC = () => {
                 title="团队成员"
                 value={project.users?.length || 0}
                 prefix={<TeamOutlined />}
+              />
+            </Col>
+            <Col xs={24} sm={12} md={6}>
+              <Statistic
+                title="项目进度"
+                value={project.progress || 0}
+                suffix="%"
+                prefix={<BarChartOutlined />}
+                valueStyle={{ color: project.progress && project.progress > 75 ? '#52c41a' : project.progress && project.progress > 50 ? '#fa8c16' : '#1890ff' }}
               />
             </Col>
           </Row>

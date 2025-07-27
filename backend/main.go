@@ -748,16 +748,17 @@ func (app *Application) createProjectHandler(c *gin.Context) {
 
 	// Create project model (for now, use owner_id = 1 as default)
 	project := &models.Project{
-		Name:        req.Name,
-		Description: req.Description,
-		OwnerID:     1, // TODO: Get from authenticated user context
-		CompanyID:   req.CompanyID,
-		Status:      status,
-		Priority:    priority,
-		Progress:    req.Progress,
-		StartDate:   startDate,
-		EndDate:     endDate,
-		Budget:      req.Budget,
+		ProjectNumber: req.ProjectNumber,
+		Name:          req.Name,
+		Description:   req.Description,
+		OwnerID:       1, // TODO: Get from authenticated user context
+		CompanyID:     req.CompanyID,
+		Status:        status,
+		Priority:      priority,
+		Progress:      req.Progress,
+		StartDate:     startDate,
+		EndDate:       endDate,
+		Budget:        req.Budget,
 	}
 
 	// Create project in database
@@ -890,6 +891,9 @@ func (app *Application) updateProjectHandler(c *gin.Context) {
 	}
 
 	// Update project fields
+	if req.ProjectNumber != nil {
+		existingProject.ProjectNumber = req.ProjectNumber
+	}
 	if req.Name != "" {
 		existingProject.Name = req.Name
 	}

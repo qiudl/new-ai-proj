@@ -102,11 +102,14 @@ class CompanyService {
       company_size: companyData.companySize,
     };
 
-    // Remove undefined values
+    // Remove undefined, null, and empty string values
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+      Object.entries(backendData).filter(([_, value]) => 
+        value !== undefined && value !== null && value !== ''
+      )
     );
 
+    console.log('更新企业数据:', cleanedData);
     const response = await api.put(`${API_BASE_URL}/${id}`, cleanedData);
     return response.data;
   }

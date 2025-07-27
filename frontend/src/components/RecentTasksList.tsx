@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, List, Tag, Button, Empty, Typography, Space, Avatar, Tooltip } from 'antd';
 import { EyeOutlined, PlayCircleOutlined, PauseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +29,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
   const [timerLoading, setTimerLoading] = useState<Set<number>>(new Set());
 
   // 加载最近任务
-  const loadRecentTasks = async () => {
+  const loadRecentTasks = useCallback(async () => {
     setLoading(true);
     try {
       // 获取用户的项目列表，然后从各项目获取最近任务
@@ -45,10 +45,18 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
       }
       
       const projectsData = await projectsResponse.json();
-      const projects = projectsData?.data || [];
+      const projects = Array.isArray(projectsData?.data) ? projectsData.data : [];
       
       // 从所有项目获取最近任务
       const allTasks: any[] = [];
+      
+      // 确保 projects 是数组且有内容
+      if (projects.length === 0) {
+        console.warn('No projects found or projects data is not an array');
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
       
       for (const project of projects.slice(0, 10)) { // 限制最多10个项目避免过多请求
         try {
@@ -59,7 +67,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
             sort_order: 'desc'
           });
           
-          if (response?.data) {
+          if (response?.data && Array.isArray(response.data)) {
             allTasks.push(...response.data);
           }
         } catch (error) {
@@ -109,10 +117,10 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [limit]); // 添加limit作为依赖
 
   // 加载当前计时器状态
-  const loadCurrentTimer = async () => {
+  const loadCurrentTimer = useCallback(async () => {
     if (!showTimer) return;
     
     try {
@@ -127,7 +135,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
     } catch (error) {
       console.error('Failed to load current timer:', error);
     }
-  };
+  }, [showTimer, onTimerUpdate]); // 添加依赖
 
   // 处理开始计时
   const handleStartTimer = async (task: Task) => {
@@ -208,7 +216,7 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
   useEffect(() => {
     loadRecentTasks();
     loadCurrentTimer();
-  }, []);
+  }, [loadRecentTasks, loadCurrentTimer]);
 
   return (
     <Card

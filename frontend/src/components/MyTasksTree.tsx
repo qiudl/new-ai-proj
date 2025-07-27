@@ -98,18 +98,33 @@ const MyTasksTree: React.FC = () => {
             return tasks.map(task => ({
               key: `task-${task.id}`,
               title: (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  minWidth: 0 // 允许内容收缩
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    flex: 1,
+                    minWidth: 0 // 允许内容收缩
+                  }}>
                     <span style={{ 
                       marginRight: '8px',
-                      color: task.status === 'in_progress' ? '#1890ff' : '#8c8c8c'
+                      color: task.status === 'in_progress' ? '#1890ff' : '#8c8c8c',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1
                     }}>
                       {task.title}
                     </span>
                     <Badge 
                       status={task.status === 'in_progress' ? 'processing' : 'default'} 
                       text={task.status === 'in_progress' ? '进行中' : '待开始'}
-                      style={{ fontSize: '11px' }}
+                      style={{ fontSize: '11px', flexShrink: 0 }}
                     />
                   </div>
                   {task.status === 'in_progress' && timerState.taskId !== task.id && (
@@ -121,11 +136,16 @@ const MyTasksTree: React.FC = () => {
                         e.stopPropagation();
                         handleStartTimer(task);
                       }}
-                      style={{ marginLeft: '8px' }}
+                      style={{ marginLeft: '8px', flexShrink: 0 }}
                     />
                   )}
                   {timerState.taskId === task.id && timerState.isRunning && (
-                    <span style={{ color: '#52c41a', fontSize: '12px', marginLeft: '8px' }}>
+                    <span style={{ 
+                      color: '#52c41a', 
+                      fontSize: '12px', 
+                      marginLeft: '8px',
+                      flexShrink: 0
+                    }}>
                       <ClockCircleOutlined /> 计时中
                     </span>
                   )}
@@ -144,9 +164,27 @@ const MyTasksTree: React.FC = () => {
           return {
             key: `project-${project.id}`,
             title: (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 500, color: '#262626' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                width: '100%',
+                minWidth: 0
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  <span style={{ 
+                    fontWeight: 500, 
+                    color: '#262626',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1
+                  }}>
                     {project.name}
                   </span>
                   <Badge 
@@ -155,7 +193,8 @@ const MyTasksTree: React.FC = () => {
                     style={{ 
                       backgroundColor: '#f0f0f0', 
                       color: '#666',
-                      marginLeft: '8px'
+                      marginLeft: '8px',
+                      flexShrink: 0
                     }}
                   />
                 </div>
@@ -166,7 +205,7 @@ const MyTasksTree: React.FC = () => {
                     e.stopPropagation();
                     navigate(`/projects/${project.id}`);
                   }}
-                  style={{ marginLeft: '8px' }}
+                  style={{ marginLeft: '8px', flexShrink: 0 }}
                 >
                   进入项目
                 </Button>
@@ -251,7 +290,10 @@ const MyTasksTree: React.FC = () => {
             <span>我的任务</span>
           </Space>
         }
-        style={{ height: '100%' }}
+        style={{ 
+          height: '100%',
+          width: '100%' // 确保加载状态下也与父容器宽度一致
+        }}
       >
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
           <Spin size="large" />
@@ -265,6 +307,7 @@ const MyTasksTree: React.FC = () => {
 
   return (
     <Card
+      className="my-tasks-tree-card" // 添加CSS类名
       title={
         <Space>
           <BranchesOutlined />
@@ -282,12 +325,16 @@ const MyTasksTree: React.FC = () => {
           刷新
         </Button>
       }
-      style={{ height: '100%' }}
+      style={{ 
+        height: '100%',
+        width: '100%' // 确保Card与父容器宽度一致
+      }}
       styles={{ 
         body: { 
           padding: '16px',
           height: 'calc(100% - 57px)',
-          overflow: 'auto'
+          overflow: 'auto',
+          width: '100%' // 确保Card body与父容器宽度一致
         } 
       }}
     >
@@ -312,9 +359,9 @@ const MyTasksTree: React.FC = () => {
           onExpand={handleExpand}
           onSelect={handleSelect}
           style={{
-            background: 'transparent'
+            background: 'transparent',
+            width: '100%' // 确保与父容器宽度一致
           }}
-          height={300}
           virtual={false}
         />
       )}

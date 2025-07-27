@@ -96,12 +96,13 @@ class ProjectService {
       end_date: project.end_date,
     };
 
-    // Remove undefined and empty values
+    // Remove undefined and null values, but allow empty strings for project_number
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => {
+      Object.entries(backendData).filter(([key, value]) => {
         if (value === undefined || value === null) return false;
         if (Array.isArray(value) && value.length === 0) return false;
-        if (typeof value === 'string' && value === '') return false;
+        // Allow empty string for project_number to enable clearing
+        if (typeof value === 'string' && value === '' && key !== 'project_number') return false;
         return true;
       })
     );
@@ -130,12 +131,13 @@ class ProjectService {
       end_date: project.end_date,
     };
 
-    // Remove undefined and empty values
+    // Remove undefined and null values, but allow empty strings for project_number
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => {
+      Object.entries(backendData).filter(([key, value]) => {
         if (value === undefined || value === null) return false;
         if (Array.isArray(value) && value.length === 0) return false;
-        if (typeof value === 'string' && value === '') return false;
+        // Allow empty string for project_number to enable clearing
+        if (typeof value === 'string' && value === '' && key !== 'project_number') return false;
         return true;
       })
     );

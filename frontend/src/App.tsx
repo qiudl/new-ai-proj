@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { Suspense, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import FloatingTimer from './components/FloatingTimer';
 import UnifiedDebugPanel from './components/UnifiedDebugPanel';
+import { setNavigateFunction } from './services/api';
 import './App.css';
 import './styles/task-hierarchy.css';
 
@@ -53,22 +54,20 @@ const PageLoading = () => (
   </div>
 );
 
-function App() {
+// 内部App组件用于访问useNavigate
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // 设置全局导航函数
+  useEffect(() => {
+    setNavigateFunction(navigate);
+    console.log('设置全局导航函数成功');
+  }, [navigate]);
 
   return (
-    <ConfigProvider locale={zhCN}>
-      <ErrorBoundary>
-        <TimerProvider>
-          <Router 
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <div className="App">
-              
-              <Suspense fallback={<PageLoading />}>
-          <Routes>
+    <div className="App">
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
 
@@ -309,20 +308,31 @@ function App() {
                 </Layout>
               </PrivateRoute>
             } />
-
-
           </Routes>
-          </Suspense>
-          
-          {/* Global Floating Timer - only shows when timer is running */}
-          <FloatingTimer />
-          
-          {/* Unified Debug Panel - includes timer and JWT debug */}
-          <UnifiedDebugPanel />
-          
-          
-          </div>
-        </Router>
+        </Suspense>
+        
+        {/* Global Floating Timer - only shows when timer is running */}
+        <FloatingTimer />
+        
+        {/* Unified Debug Panel - includes timer and JWT debug */}
+        <UnifiedDebugPanel />
+      </div>
+    );
+};
+
+function App() {
+  return (
+    <ConfigProvider locale={zhCN}>
+      <ErrorBoundary>
+        <TimerProvider>
+          <Router 
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
+            <AppContent />
+          </Router>
         </TimerProvider>
       </ErrorBoundary>
     </ConfigProvider>

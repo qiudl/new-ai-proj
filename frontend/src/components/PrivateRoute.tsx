@@ -5,10 +5,32 @@ interface PrivateRouteProps {
   children: React.ReactNode;
 }
 
+const isTokenValid = (token: string): boolean => {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    
+    const payload = JSON.parse(atob(parts[1]));
+    const now = Date.now() / 1000;
+    
+    // 检查是否过期
+    if (payload.exp && payload.exp < now) {
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   const token = localStorage.getItem('token');
   
-  if (!token) {
+  if (!token || !isTokenValid(token)) {
+    // 清除无效token
+    localStorage.removeItem('token');
+    console.log('Token无效或已过期，重定向到登录页');
     return <Navigate to="/login" replace />;
   }
   

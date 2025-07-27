@@ -88,10 +88,10 @@ const CompanyEditPage: React.FC = () => {
       setSubmitting(true);
       const values = await form.validateFields();
       
-      // 处理日期格式
+      // 处理日期格式 - 后端期望 RFC3339 格式
       const companyData: Partial<CompanyRequest> = {
         ...values,
-        startDate: values.startDate ? dayjs(values.startDate).format('YYYY-MM-DD') : undefined,
+        startDate: values.startDate ? dayjs(values.startDate).toISOString() : undefined,
       };
 
       // 调用更新API

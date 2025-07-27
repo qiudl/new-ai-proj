@@ -1,85 +1,91 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Typography, Button, Switch } from 'antd';
-import { UndoOutlined, DragOutlined, InteractionOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { Typography, Button } from 'antd';
+// 🔽 COMMENTED OUT: 拖拽相关导入 - 简化第1步
+// import { Typography, Button, Switch } from 'antd';
+// import { UndoOutlined, DragOutlined, InteractionOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 import { useTimer } from '../contexts/TimerContext';
 import SimplifiedTimerCard from '../components/SimplifiedTimerCard';
 import MyTasksTree from '../components/MyTasksTree';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';
 import TaskProgressCard from '../components/TaskProgressCard';
-import RecentTasksList from '../components/RecentTasksList';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
-import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings';
+// 🔽 COMMENTED OUT: 拖拽相关导入 - 简化第1步
+// import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings';
 import TimeManagementGuide from '../components/TimeManagementGuide';
-import DragModeGuide from '../components/DragModeGuide';
 import '../styles/OptimizedDashboard.css';
-import '../styles/grid-layout.css';
+// 🔽 COMMENTED OUT: 拖拽布局相关CSS - 简化第1步
+// import '../styles/grid-layout.css';
+import '../styles/TimeManagementLayout.css';
 
+// 🔽 COMMENTED OUT: react-grid-layout CSS - 简化第1步
 // Import grid layout CSS locally to avoid Docker path issues
-import '../styles/grid-layout-combined.css';
+// import '../styles/grid-layout-combined.css';
 
 const { Title, Text } = Typography;
 
+// 🔽 COMMENTED OUT: react-grid-layout动态加载 - 简化第1步
 // Dynamic import state for react-grid-layout
-let ResponsiveGridLayout: any = null;
-let gridLayoutLoaded = false;
+// let ResponsiveGridLayout: any = null;
+// let gridLayoutLoaded = false;
 
-// Grid layout configuration with auto-expanding height - Timer-focused layout
+// 🔽 COMMENTED OUT: 网格布局配置 - 简化第1步  
+// Grid layout configuration - Time management focused layout
+/*
 const defaultLayouts = {
   lg: [
-    // First row: Timer (6/12) + My Tasks Tree (6/12) - balanced layout
-    { i: 'timer', x: 0, y: 0, w: 6, h: 8, minW: 5, minH: 6, maxH: 24 },
-    { i: 'my-tasks', x: 6, y: 0, w: 6, h: 8, minW: 4, minH: 6, maxH: 24 },
-    // Second row: Recent Tasks takes full width
-    { i: 'recent-tasks', x: 0, y: 8, w: 12, h: 4, minW: 6, minH: 3, maxH: 12 },
-    // Third row: Statistics cards  
-    { i: 'today-stats', x: 0, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
-    { i: 'timer-stats', x: 4, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
-    { i: 'task-progress', x: 8, y: 12, w: 4, h: 2, minW: 3, minH: 2 }
+    // First row: 3 components each taking 1/3 of space (4/12 each)
+    { i: 'timer', x: 0, y: 0, w: 4, h: 8, minW: 3, minH: 6, maxH: 24 },
+    { i: 'my-tasks', x: 4, y: 0, w: 4, h: 8, minW: 3, minH: 6, maxH: 24 },
+    { i: 'today-stats', x: 8, y: 0, w: 4, h: 8, minW: 3, minH: 6, maxH: 24 },
+    // Second row: Task stats (2/3) and Task progress (1/3)
+    { i: 'timer-stats', x: 0, y: 8, w: 8, h: 6, minW: 6, minH: 4, maxH: 16 },
+    { i: 'task-progress', x: 8, y: 8, w: 4, h: 6, minW: 3, minH: 4, maxH: 16 }
   ],
   md: [
-    // First row: Timer (5/10) + My Tasks (5/10)
-    { i: 'timer', x: 0, y: 0, w: 5, h: 7, minW: 4, minH: 5, maxH: 20 },
-    { i: 'my-tasks', x: 5, y: 0, w: 5, h: 7, minW: 3, minH: 5, maxH: 20 },
-    // Second row: Recent Tasks full width
-    { i: 'recent-tasks', x: 0, y: 7, w: 10, h: 3, minW: 6, minH: 3, maxH: 12 },
-    // Third row: Statistics cards
-    { i: 'today-stats', x: 0, y: 10, w: 3, h: 2, minW: 2, minH: 2 },
-    { i: 'timer-stats', x: 3, y: 10, w: 3, h: 2, minW: 2, minH: 2 },
-    { i: 'task-progress', x: 6, y: 10, w: 4, h: 2, minW: 3, minH: 2 }
+    // First row: 3 components with adjusted sizes for medium screens (3.33/10 each)
+    { i: 'timer', x: 0, y: 0, w: 3, h: 7, minW: 2, minH: 5, maxH: 20 },
+    { i: 'my-tasks', x: 3, y: 0, w: 3, h: 7, minW: 2, minH: 5, maxH: 20 },
+    { i: 'today-stats', x: 6, y: 0, w: 4, h: 7, minW: 3, minH: 5, maxH: 20 },
+    // Second row: Task stats (2/3) and Task progress (1/3)  
+    { i: 'timer-stats', x: 0, y: 7, w: 7, h: 5, minW: 5, minH: 3, maxH: 12 },
+    { i: 'task-progress', x: 7, y: 7, w: 3, h: 5, minW: 2, minH: 3, maxH: 12 }
   ],
   sm: [
-    // Small screens: Stack vertically - Timer first for prominence
-    { i: 'timer', x: 0, y: 0, w: 6, h: 6, minW: 4, minH: 5, maxH: 16 },
-    { i: 'my-tasks', x: 0, y: 6, w: 6, h: 5, minW: 4, minH: 4, maxH: 16 },
-    { i: 'recent-tasks', x: 0, y: 11, w: 6, h: 4, minW: 4, minH: 3, maxH: 12 },
-    // Statistics stack vertically below
-    { i: 'today-stats', x: 0, y: 15, w: 2, h: 2, minW: 2, minH: 2 },
-    { i: 'timer-stats', x: 2, y: 15, w: 2, h: 2, minW: 2, minH: 2 },
-    { i: 'task-progress', x: 4, y: 15, w: 2, h: 2, minW: 2, minH: 2 }
+    // Small screens: Stack vertically but maintain first row layout
+    { i: 'timer', x: 0, y: 0, w: 2, h: 6, minW: 2, minH: 5, maxH: 16 },
+    { i: 'my-tasks', x: 2, y: 0, w: 2, h: 6, minW: 2, minH: 5, maxH: 16 },
+    { i: 'today-stats', x: 4, y: 0, w: 2, h: 6, minW: 2, minH: 5, maxH: 16 },
+    // Second row stacked
+    { i: 'timer-stats', x: 0, y: 6, w: 4, h: 4, minW: 3, minH: 3, maxH: 12 },
+    { i: 'task-progress', x: 4, y: 6, w: 2, h: 4, minW: 2, minH: 3, maxH: 12 }
   ],
   xs: [
-    // Extra small screens: Timer gets priority, then tasks tree, stack everything vertically
+    // Extra small screens: Full vertical stack
     { i: 'timer', x: 0, y: 0, w: 4, h: 6, minW: 4, minH: 5, maxH: 14 },
     { i: 'my-tasks', x: 0, y: 6, w: 4, h: 5, minW: 4, minH: 4, maxH: 12 },
-    { i: 'recent-tasks', x: 0, y: 11, w: 4, h: 4, minW: 4, minH: 3, maxH: 10 },
-    { i: 'today-stats', x: 0, y: 15, w: 4, h: 2, minW: 4, minH: 2 },
-    { i: 'timer-stats', x: 0, y: 17, w: 4, h: 2, minW: 4, minH: 2 },
-    { i: 'task-progress', x: 0, y: 19, w: 4, h: 2, minW: 4, minH: 2 }
+    { i: 'today-stats', x: 0, y: 11, w: 4, h: 4, minW: 4, minH: 3, maxH: 10 },
+    { i: 'timer-stats', x: 0, y: 15, w: 4, h: 5, minW: 4, minH: 4, maxH: 12 },
+    { i: 'task-progress', x: 0, y: 20, w: 4, h: 4, minW: 4, minH: 3, maxH: 10 }
   ]
 };
 
 const breakpoints = { lg: 1200, md: 996, sm: 768, xs: 480 };
 const cols = { lg: 12, md: 10, sm: 6, xs: 4 };
+*/
 
 const DashboardPage: React.FC = () => {
   // Global timer context
   const { timerState } = useTimer();
   
+  // 🔽 COMMENTED OUT: 动态网格布局加载状态 - 简化第1步
   // Dynamic grid layout loading state
-  const [gridLayoutLoading, setGridLayoutLoading] = useState(!gridLayoutLoaded);
+  // const [gridLayoutLoading, setGridLayoutLoading] = useState(!gridLayoutLoaded);
   
+  // 🔽 COMMENTED OUT: react-grid-layout动态加载 - 简化第1步
   // Load react-grid-layout dynamically
+  /*
   useEffect(() => {
     const loadGridLayout = async () => {
       if (!gridLayoutLoaded) {
@@ -99,25 +105,32 @@ const DashboardPage: React.FC = () => {
     
     loadGridLayout();
   }, []);
+  */
   
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const isMountedRef = useRef(true);
   
+  // 🔽 COMMENTED OUT: 网格布局状态 - 简化第1步
   // Grid layout state
-  const [layouts, setLayouts] = useState(defaultLayouts);
-  const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
-  const [isDragMode, setIsDragMode] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
-  const [showDragGuide, setShowDragGuide] = useState(false);
+  // const [layouts, setLayouts] = useState(defaultLayouts);
+  // const [currentBreakpoint, setCurrentBreakpoint] = useState('lg');
+  // const [isDragMode, setIsDragMode] = useState(false);
   
+  const [showGuide, setShowGuide] = useState(false);
+  
+  // 计时器状态管理
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // 🔽 COMMENTED OUT: 组件配置状态 - 简化第1步
   // Component configuration state
+  /*
   const [componentConfigs, setComponentConfigs] = useState<Record<string, GridItemConfig>>({
     timer: {
-      width: 6,
+      width: 4,
       height: 8,
       autoWidth: false,
       autoHeight: true,
-      minWidth: 5,
+      minWidth: 3,
       minHeight: 6,
       maxWidth: 12,
       maxHeight: 24,
@@ -125,69 +138,54 @@ const DashboardPage: React.FC = () => {
       draggable: true
     },
     'my-tasks': {
-      width: 6,
+      width: 4,
       height: 8,
       autoWidth: false,
       autoHeight: true,
-      minWidth: 4,
+      minWidth: 3,
       minHeight: 6,
       maxWidth: 12,
       maxHeight: 24,
       resizable: true,
       draggable: true
     },
-    'recent-tasks': {
-      width: 12,
-      height: 4,
-      autoWidth: false,
-      autoHeight: true,
-      minWidth: 6,
-      minHeight: 3,
-      maxWidth: 12,
-      maxHeight: 12,
-      resizable: true,
-      draggable: true
-    },
     'today-stats': {
       width: 4,
-      height: 2,
+      height: 8,
       autoWidth: false,
-      autoHeight: false,
+      autoHeight: true,
       minWidth: 3,
-      minHeight: 2,
-      maxWidth: 6,
-      maxHeight: 4,
+      minHeight: 6,
+      maxWidth: 12,
+      maxHeight: 24,
       resizable: true,
       draggable: true
     },
     'timer-stats': {
-      width: 4,
-      height: 2,
+      width: 8,
+      height: 6,
       autoWidth: false,
-      autoHeight: false,
-      minWidth: 3,
-      minHeight: 2,
-      maxWidth: 6,
-      maxHeight: 4,
+      autoHeight: true,
+      minWidth: 6,
+      minHeight: 4,
+      maxWidth: 12,
+      maxHeight: 16,
       resizable: true,
       draggable: true
     },
     'task-progress': {
       width: 4,
-      height: 2,
+      height: 6,
       autoWidth: false,
-      autoHeight: false,
+      autoHeight: true,
       minWidth: 3,
-      minHeight: 2,
+      minHeight: 4,
       maxWidth: 6,
-      maxHeight: 4,
+      maxHeight: 16,
       resizable: true,
       draggable: true
     }
   });
-  
-  // 计时器状态管理
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // 处理组件配置更新
   const handleComponentConfigChange = useCallback((componentId: string, newConfig: Partial<GridItemConfig>) => {
@@ -222,6 +220,7 @@ const DashboardPage: React.FC = () => {
       return updatedLayouts;
     });
   }, [componentConfigs]);
+  */
 
   // Handle timer updates from global context - MEMORY OPTIMIZED
   const handleTimerUpdate = useCallback((isRunning: boolean, taskTitle?: string) => {
@@ -231,17 +230,12 @@ const DashboardPage: React.FC = () => {
     setRefreshTrigger(prev => prev + 1);
   }, []);
 
+  // 🔽 COMMENTED OUT: 拖拽相关处理函数 - 简化第1步
   // Handle drag mode toggle
+  /*
   const toggleDragMode = useCallback(() => {
     setIsDragMode(prev => {
       const newValue = !prev;
-      
-      // 第一次启用拖拽模式时显示指导
-      if (newValue && !localStorage.getItem('dragGuideShown')) {
-        setShowDragGuide(true);
-        localStorage.setItem('dragGuideShown', 'true');
-      }
-      
       try {
         localStorage.setItem('dashboardDragMode', JSON.stringify(newValue));
       } catch (error) {
@@ -250,7 +244,10 @@ const DashboardPage: React.FC = () => {
       return newValue;
     });
   }, []);
+  */
 
+  // 🔽 COMMENTED OUT: Layout and breakpoint handlers - 简化第1步
+  /*
   // Handle layout change
   const handleLayoutChange = useCallback((layout: any[], layouts: any) => {
     if (!isDragMode) return; // Only save when in drag mode
@@ -268,22 +265,53 @@ const DashboardPage: React.FC = () => {
   const handleBreakpointChange = useCallback((breakpoint: string) => {
     setCurrentBreakpoint(breakpoint);
   }, []);
+  */
 
+  // 🔽 COMMENTED OUT: Load saved layouts and configs from localStorage - 简化第1步
   // Load saved layouts and configs from localStorage
+  /*
   useEffect(() => {
     try {
       const savedLayouts = localStorage.getItem('dashboardLayouts');
       const savedConfigs = localStorage.getItem('dashboardComponentConfigs');
       const savedDragMode = localStorage.getItem('dashboardDragMode');
       
+      // 检查并清理旧的布局数据
       if (savedLayouts) {
         const parsedLayouts = JSON.parse(savedLayouts);
-        setLayouts(parsedLayouts);
+        
+        // 验证布局数据的有效性
+        const expectedKeys = ['timer', 'my-tasks', 'today-stats', 'timer-stats', 'task-progress'];
+        const hasValidLayout = parsedLayouts.lg && 
+          Array.isArray(parsedLayouts.lg) && 
+          parsedLayouts.lg.length === 5 &&
+          parsedLayouts.lg.every((item: any) => expectedKeys.includes(item.i));
+        
+        if (hasValidLayout) {
+          setLayouts(parsedLayouts);
+        } else {
+          // 清理无效的布局数据
+          console.warn('检测到无效的布局数据，使用默认布局');
+          localStorage.removeItem('dashboardLayouts');
+          localStorage.removeItem('dashboardComponentConfigs');
+        }
       }
       
       if (savedConfigs) {
         const parsedConfigs = JSON.parse(savedConfigs);
-        setComponentConfigs(prev => ({ ...prev, ...parsedConfigs }));
+        // 只保留有效的组件配置
+        const validConfigs: Record<string, GridItemConfig> = {};
+        const expectedKeys = ['timer', 'my-tasks', 'today-stats', 'timer-stats', 'task-progress'];
+        
+        expectedKeys.forEach(key => {
+          if (parsedConfigs[key]) {
+            validConfigs[key] = parsedConfigs[key];
+          }
+        });
+        
+        if (Object.keys(validConfigs).length === 5) {
+          setComponentConfigs(prev => ({ ...prev, ...validConfigs }));
+        }
       }
 
       if (savedDragMode) {
@@ -291,10 +319,17 @@ const DashboardPage: React.FC = () => {
       }
     } catch (error) {
       console.warn('Failed to load dashboard configs from localStorage:', error);
+      // 清理损坏的数据
+      localStorage.removeItem('dashboardLayouts');
+      localStorage.removeItem('dashboardComponentConfigs');
+      localStorage.removeItem('dashboardDragMode');
     }
   }, []);
+  */
 
+  // 🔽 COMMENTED OUT: Save component configs useEffect - 简化第1步
   // Save component configs to localStorage when they change
+  /*
   useEffect(() => {
     try {
       localStorage.setItem('dashboardComponentConfigs', JSON.stringify(componentConfigs));
@@ -302,6 +337,7 @@ const DashboardPage: React.FC = () => {
       console.warn('Failed to save component configs to localStorage:', error);
     }
   }, [componentConfigs]);
+  */
 
   // Handle timer state changes from global context
   useEffect(() => {
@@ -318,69 +354,61 @@ const DashboardPage: React.FC = () => {
     };
   }, []);
 
+  // 🔽 COMMENTED OUT: Reset layout function - 简化第1步
   // Reset layout to default
+  /*
   const resetLayout = useCallback(() => {
     setLayouts(defaultLayouts);
     
     // Reset component configurations to default
     const defaultConfigs = {
       timer: {
-        width: 6,
+        width: 4,
         height: 8,
         autoWidth: false,
         autoHeight: true,
-        minWidth: 5,
+        minWidth: 3,
         minHeight: 6,
         resizable: true,
         draggable: true
       },
       'my-tasks': {
-        width: 6,
+        width: 4,
         height: 8,
         autoWidth: false,
         autoHeight: true,
-        minWidth: 4,
+        minWidth: 3,
         minHeight: 6,
-        resizable: true,
-        draggable: true
-      },
-      'recent-tasks': {
-        width: 12,
-        height: 4,
-        autoWidth: false,
-        autoHeight: true,
-        minWidth: 6,
-        minHeight: 3,
         resizable: true,
         draggable: true
       },
       'today-stats': {
         width: 4,
-        height: 2,
+        height: 8,
         autoWidth: false,
-        autoHeight: false,
+        autoHeight: true,
         minWidth: 3,
-        minHeight: 2,
+        minHeight: 6,
         resizable: true,
         draggable: true
       },
       'timer-stats': {
-        width: 4,
-        height: 2,
+        width: 8,
+        height: 6,
         autoWidth: false,
-        autoHeight: false,
-        minWidth: 3,
-        minHeight: 2,
+        autoHeight: true,
+        minWidth: 6,
+        minHeight: 4,
         resizable: true,
         draggable: true
       },
       'task-progress': {
         width: 4,
-        height: 2,
+        height: 6,
         autoWidth: false,
-        autoHeight: false,
+        autoHeight: true,
         minWidth: 3,
-        minHeight: 2,
+        minHeight: 4,
         resizable: true,
         draggable: true
       }
@@ -395,62 +423,10 @@ const DashboardPage: React.FC = () => {
       console.warn('Failed to clear dashboard configs from localStorage:', error);
     }
   }, []);
+  */
 
-  // Render dashboard items (for both grid and fallback layouts)
-  const renderDashboardItems = () => {
-    const items = [
-      {
-        key: 'timer',
-        component: <TimerErrorBoundary><SimplifiedTimerCard /></TimerErrorBoundary>,
-        name: '定时器'
-      },
-      {
-        key: 'my-tasks',
-        component: <MyTasksTree />,
-        name: '我的任务'
-      },
-      {
-        key: 'recent-tasks',
-        component: <RecentTasksList limit={8} showTimer={true} title="最近任务" />,
-        name: '最近任务'
-      },
-      {
-        key: 'today-stats',
-        component: <TimerErrorBoundary><TodayStatsCard refreshTrigger={refreshTrigger} /></TimerErrorBoundary>,
-        name: '今日统计'
-      },
-      {
-        key: 'timer-stats',
-        component: <TimerErrorBoundary><TimerStatsCard refreshTrigger={refreshTrigger} /></TimerErrorBoundary>,
-        name: '定时器统计'
-      },
-      {
-        key: 'task-progress',
-        component: <TimerErrorBoundary><TaskProgressCard refreshTrigger={refreshTrigger} /></TimerErrorBoundary>,
-        name: '任务进度'
-      }
-    ];
-
-    return items.map(item => (
-      <div key={item.key} style={{ background: 'transparent', position: 'relative', marginBottom: '16px' }}>
-        {/* 改进的控制栏 */}
-        <div className={`grid-item-controls ${isDragMode ? 'drag-mode-active' : ''}`}>
-          <div className="grid-item-drag-handle" title="拖拽移动组件">
-            <DragOutlined />
-          </div>
-          <GridItemSettings
-            componentId={item.key}
-            config={componentConfigs[item.key]}
-            onConfigChange={handleComponentConfigChange}
-            gridCols={(cols as any)[currentBreakpoint]}
-            componentName={item.name}
-            isDragMode={isDragMode}
-          />
-        </div>
-        {item.component}
-      </div>
-    ));
-  };
+  // 🔽 REMOVED: renderDashboardItems函数已移除，使用固定3列布局 - 简化第2步
+  // Render dashboard items (simplified layout) - 已移除，直接在JSX中定义布局
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -470,9 +446,11 @@ const DashboardPage: React.FC = () => {
             />
           </div>
           <Text type="secondary">
-            管理您的项目、任务和工作时间 · {isDragMode ? '拖拽模式已启用' : '正常交互模式'}
+            管理您的项目、任务和工作时间
           </Text>
         </div>
+        {/* 🔽 COMMENTED OUT: 拖拽模式控制 - 简化第1步 */}
+        {/*
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <InteractionOutlined style={{ color: isDragMode ? '#999' : '#1890ff' }} />
@@ -497,47 +475,92 @@ const DashboardPage: React.FC = () => {
             重置布局
           </Button>
         </div>
+        */}
       </div>
 
-      {/* React Grid Layout or Fallback */}
-      {gridLayoutLoading ? (
-        <div style={{ textAlign: 'center', padding: '50px' }}>
-          <Text>Loading dashboard layout...</Text>
-        </div>
-      ) : ResponsiveGridLayout ? (
-        <ResponsiveGridLayout
-          className={`dashboard-grid-layout ${isDragMode ? 'drag-mode' : ''}`}
-          layouts={layouts}
-          breakpoints={breakpoints}
-          cols={cols}
-          rowHeight={60}
-          margin={[16, 16]}
-          containerPadding={[0, 0]}
-          isDraggable={isDragMode}
-          isResizable={isDragMode}
-          onLayoutChange={handleLayoutChange}
-          onBreakpointChange={handleBreakpointChange}
-          draggableHandle=".grid-item-drag-handle"
-          useCSSTransforms={true}
-        >
-          {renderDashboardItems()}
-        </ResponsiveGridLayout>
-      ) : (
-        <div className="dashboard-fallback-layout" style={{ 
+      {/* 🔽 NEW: 3列固定布局设计 */}
+      <div className="dashboard-3-column-layout" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(3, 1fr)', // 3列等宽
+        gap: '16px',
+        height: 'calc(100vh - 140px)', // 减去头部高度
+        minHeight: '600px' // 最小高度保证内容可见
+      }}>
+        {/* 第1列 */}
+        <div className="column-1" style={{ 
           display: 'grid', 
-          gap: '16px', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gridAutoRows: 'minmax(200px, auto)'
+          gridTemplateRows: 'auto 1fr', // 第1行固定高度，第2行填充剩余
+          gap: '16px'
         }}>
-          {renderDashboardItems()}
+          {/* 第1行：任务计时 */}
+          <div className="timer-card" style={{ 
+            background: 'transparent',
+            height: '300px', // 限制高度
+            overflow: 'hidden'
+          }}>
+            <TimerErrorBoundary>
+              <SimplifiedTimerCard />
+            </TimerErrorBoundary>
+          </div>
+          
+          {/* 第2行：时间段任务统计 */}
+          <div className="timer-stats-card" style={{ 
+            background: 'transparent',
+            minHeight: '200px'
+          }}>
+            <TimerErrorBoundary>
+              <TimerStatsCard refreshTrigger={refreshTrigger} />
+            </TimerErrorBoundary>
+          </div>
         </div>
-      )}
 
-      {/* 拖拽模式指导 */}
-      <DragModeGuide 
-        isDragMode={isDragMode && showDragGuide}
-        onDismiss={() => setShowDragGuide(false)}
-      />
+        {/* 第2列 */}
+        <div className="column-2" style={{ 
+          display: 'grid', 
+          gridTemplateRows: 'auto 1fr', // 第1行固定高度，第2行填充剩余
+          gap: '16px'
+        }}>
+          {/* 第1行：今日工作统计 */}
+          <div className="today-stats-card" style={{ 
+            background: 'transparent',
+            height: '300px', // 与任务计时同高
+            overflow: 'hidden'
+          }}>
+            <TimerErrorBoundary>
+              <TodayStatsCard refreshTrigger={refreshTrigger} />
+            </TimerErrorBoundary>
+          </div>
+          
+          {/* 第2行：任务进度分析 */}
+          <div className="task-progress-card" style={{ 
+            background: 'transparent',
+            minHeight: '200px'
+          }}>
+            <TimerErrorBoundary>
+              <TaskProgressCard refreshTrigger={refreshTrigger} />
+            </TimerErrorBoundary>
+          </div>
+        </div>
+
+        {/* 第3列：我的任务 */}
+        <div className="column-3" style={{ 
+          background: 'transparent',
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%' // 确保与父容器宽度一致
+        }}>
+          <div className="my-tasks-card" style={{ 
+            background: 'transparent',
+            flex: 1, // 占用剩余空间，高度自适应
+            width: '100%', // 确保与父容器宽度一致
+            minHeight: '400px' // 设置最小高度，确保有足够显示空间
+          }}>
+            <MyTasksTree />
+          </div>
+        </div>
+      </div>
+      
+      {/* 🔽 REMOVED: 原拖拽网格布局代码已移除 - 简化第1步完成 */}
 
       {/* 使用指南模态框 */}
       <TimeManagementGuide

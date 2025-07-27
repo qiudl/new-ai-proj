@@ -129,19 +129,20 @@ type ProjectWithCompany struct {
 // ToResponse converts Project to ProjectResponse
 func (p *Project) ToResponse() ProjectResponse {
 	return ProjectResponse{
-		ID:          p.ID,
-		Name:        p.Name,
-		Description: p.Description,
-		OwnerID:     p.OwnerID,
-		CompanyID:   p.CompanyID,
-		Status:      p.Status,
-		Priority:    p.Priority,
-		Progress:    p.Progress,
-		StartDate:   p.StartDate,
-		EndDate:     p.EndDate,
-		Budget:      p.Budget,
-		CreatedAt:   p.CreatedAt,
-		UpdatedAt:   p.UpdatedAt,
+		ID:            p.ID,
+		ProjectNumber: p.ProjectNumber,
+		Name:          p.Name,
+		Description:   p.Description,
+		OwnerID:       p.OwnerID,
+		CompanyID:     p.CompanyID,
+		Status:        p.Status,
+		Priority:      p.Priority,
+		Progress:      p.Progress,
+		StartDate:     p.StartDate,
+		EndDate:       p.EndDate,
+		Budget:        p.Budget,
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
 	}
 }
 
