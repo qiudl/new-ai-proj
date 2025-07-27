@@ -32,17 +32,47 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
   const loadRecentTasks = async () => {
     setLoading(true);
     try {
-      // 获取最近更新的任务（跨项目）
-      const response = await TaskService.getAllTasks({
-        page: 1,
-        page_size: limit * 2, // 获取更多数据以便筛选
-        sort_by: 'updated_at',
-        sort_order: 'desc'
+      // 获取用户的项目列表，然后从各项目获取最近任务
+      const projectsResponse = await fetch('/api/v1/projects?limit=100', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       });
+      
+      if (!projectsResponse.ok) {
+        throw new Error('Failed to fetch projects');
+      }
+      
+      const projectsData = await projectsResponse.json();
+      const projects = projectsData?.data || [];
+      
+      // 从所有项目获取最近任务
+      const allTasks: any[] = [];
+      
+      for (const project of projects.slice(0, 10)) { // 限制最多10个项目避免过多请求
+        try {
+          const response = await TaskService.getTasks(project.id, {
+            page: 1,
+            page_size: 10,
+            sort_by: 'updated_at',
+            sort_order: 'desc'
+          });
+          
+          if (response?.data) {
+            allTasks.push(...response.data);
+          }
+        } catch (error) {
+          console.warn(`Failed to get tasks from project ${project.id}:`, error);
+        }
+      }
+      
+      // 按更新时间排序
+      allTasks.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
-      if (response && response.data && Array.isArray(response.data)) {
+      if (allTasks.length > 0) {
         // 筛选出非完成状态的任务，优先显示进行中和待办任务
-        const validTasks = response.data.filter((task: any) => 
+        const validTasks = allTasks.filter((task: any) => 
           task && 
           typeof task === 'object' && 
           typeof task.id === 'number' &&

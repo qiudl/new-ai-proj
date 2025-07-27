@@ -203,7 +203,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 		return
 	}
 
-	var req models.CompanyRequest
+	var req models.CompanyUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Printf("Error binding JSON request: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, fmt.Sprintf("Invalid request body: %v", err), nil)
@@ -226,10 +226,10 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	}
 
 	// Check if company name is being changed and if the new name already exists
-	if req.CompanyName != existingCompany.CompanyName {
+	if req.CompanyName != nil && *req.CompanyName != existingCompany.CompanyName {
 		// Check if the new company name already exists
 		companies, _, err := h.db.Companies().List(c.Request.Context(), 1000, 0, map[string]interface{}{
-			"company_name": req.CompanyName,
+			"company_name": *req.CompanyName,
 		})
 		if err != nil {
 			h.logger.Printf("Error checking company name uniqueness: %v", err)
@@ -247,53 +247,53 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	}
 
 	// Update company fields only if provided in request
-	if req.CompanyName != "" {
-		existingCompany.CompanyName = req.CompanyName
+	if req.CompanyName != nil {
+		existingCompany.CompanyName = *req.CompanyName
 	}
-	if req.CompanyCode != nil && *req.CompanyCode != "" {
+	if req.CompanyCode != nil {
 		existingCompany.CompanyCode = req.CompanyCode
 	}
-	if req.Industry != nil && *req.Industry != "" {
+	if req.Industry != nil {
 		existingCompany.Industry = req.Industry
 	}
-	if req.CompanyType != "" {
-		existingCompany.CompanyType = req.CompanyType
+	if req.CompanyType != nil {
+		existingCompany.CompanyType = *req.CompanyType
 	}
-	if req.BusinessLicense != nil && *req.BusinessLicense != "" {
+	if req.BusinessLicense != nil {
 		existingCompany.BusinessLicense = req.BusinessLicense
 	}
-	if req.TaxNumber != nil && *req.TaxNumber != "" {
+	if req.TaxNumber != nil {
 		existingCompany.TaxNumber = req.TaxNumber
 	}
-	if req.LegalRepresentative != nil && *req.LegalRepresentative != "" {
+	if req.LegalRepresentative != nil {
 		existingCompany.LegalRepresentative = req.LegalRepresentative
 	}
-	if req.Address != nil && *req.Address != "" {
+	if req.Address != nil {
 		existingCompany.Address = req.Address
 	}
-	if req.City != nil && *req.City != "" {
+	if req.City != nil {
 		existingCompany.City = req.City
 	}
-	if req.Province != nil && *req.Province != "" {
+	if req.Province != nil {
 		existingCompany.Province = req.Province
 	}
-	if req.PostalCode != nil && *req.PostalCode != "" {
+	if req.PostalCode != nil {
 		existingCompany.PostalCode = req.PostalCode
 	}
-	if req.Website != nil && *req.Website != "" {
+	if req.Website != nil {
 		existingCompany.Website = req.Website
 	}
-	if req.MainPhone != nil && *req.MainPhone != "" {
+	if req.MainPhone != nil {
 		existingCompany.MainPhone = req.MainPhone
 	}
-	if req.MainEmail != nil && *req.MainEmail != "" {
+	if req.MainEmail != nil {
 		existingCompany.MainEmail = req.MainEmail
 	}
-	if req.Status != "" {
-		existingCompany.Status = req.Status
+	if req.Status != nil {
+		existingCompany.Status = *req.Status
 	}
-	if req.Priority != "" {
-		existingCompany.Priority = req.Priority
+	if req.Priority != nil {
+		existingCompany.Priority = *req.Priority
 	}
 	if req.AnnualContractValue != nil {
 		existingCompany.AnnualContractValue = req.AnnualContractValue
@@ -304,7 +304,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 	if req.EmployeeCount != nil {
 		existingCompany.EmployeeCount = req.EmployeeCount
 	}
-	if req.CompanySize != nil && *req.CompanySize != "" {
+	if req.CompanySize != nil {
 		existingCompany.CompanySize = req.CompanySize
 	}
 

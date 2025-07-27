@@ -308,13 +308,6 @@ const CompanyDetailPage: React.FC = () => {
       ),
     },
     {
-      title: '预算',
-      dataIndex: 'budget',
-      key: 'budget',
-      width: 120,
-      render: (budget: number) => budget ? formatCurrency(budget) : '-',
-    },
-    {
       title: '项目时间',
       key: 'dateRange',
       width: 200,

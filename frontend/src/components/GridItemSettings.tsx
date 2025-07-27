@@ -41,6 +41,7 @@ interface GridItemSettingsProps {
   onConfigChange: (componentId: string, newConfig: Partial<GridItemConfig>) => void;
   gridCols: number;
   componentName?: string;
+  isDragMode?: boolean;
 }
 
 const GridItemSettings: React.FC<GridItemSettingsProps> = ({
@@ -48,7 +49,8 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
   config,
   onConfigChange,
   gridCols,
-  componentName = '组件'
+  componentName = '组件',
+  isDragMode = false
 }) => {
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm();
@@ -248,7 +250,7 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
       trigger="click"
       open={open}
       onOpenChange={setOpen}
-      placement="bottomRight"
+      placement="bottomLeft" // 改为左侧避免与拖拽手柄重叠
       overlayStyle={{ zIndex: 1050 }}
     >
       <Tooltip title={`配置${componentName}`}>
@@ -257,22 +259,37 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
           size="small"
           icon={<SettingOutlined />}
           style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 1000,
-            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            width: 28,
+            height: 28,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             border: '1px solid #d9d9d9',
-            borderRadius: 4,
+            borderRadius: 6,
             fontSize: 12,
-            opacity: 0.7,
-            transition: 'opacity 0.2s ease'
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            transition: 'all 0.2s ease',
+            // 拖拽模式下改变样式
+            ...(isDragMode && {
+              backgroundColor: 'rgba(82, 196, 26, 0.1)',
+              borderColor: '#52c41a',
+              color: '#52c41a'
+            })
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '1';
+            const target = e.currentTarget;
+            target.style.backgroundColor = isDragMode 
+              ? 'rgba(82, 196, 26, 0.2)' 
+              : 'rgba(24, 144, 255, 0.1)';
+            target.style.borderColor = isDragMode ? '#52c41a' : '#40a9ff';
+            target.style.transform = 'scale(1.05)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '0.7';
+            const target = e.currentTarget;
+            target.style.backgroundColor = isDragMode 
+              ? 'rgba(82, 196, 26, 0.1)' 
+              : 'rgba(255, 255, 255, 0.95)';
+            target.style.borderColor = isDragMode ? '#52c41a' : '#d9d9d9';
+            target.style.color = isDragMode ? '#52c41a' : '';
+            target.style.transform = 'scale(1)';
           }}
         />
       </Tooltip>

@@ -263,11 +263,34 @@ export class UnifiedDocumentService {
   }
 
   /**
-   * 更新文档
+   * 更新文档 - 修复版
    */
   async updateDocument(id: number, request: UpdateDocumentRequest): Promise<Document> {
     try {
-      const response = await apiCall.put<Document>(`/documents/${id}`, request);
+      // 过滤掉 undefined 和空值，只发送有值的字段
+      const cleanRequest: Record<string, any> = {};
+      
+      // 包含所有支持的字段
+      const supportedFields = [
+        'title', 'content', 'description', 'status', 'visibility', 
+        'folder_id', 'type', 'project_id', 'customer_id', 'shared_with',
+        'is_template', 'tags', 'metadata', 'category', 'due_date', 'priority'
+      ];
+      
+      supportedFields.forEach(field => {
+        const value = (request as any)[field];
+        if (value !== undefined && value !== null) {
+          // 对于字符串字段，允许空字符串（可能有意要清空内容）
+          if (typeof value === 'string' || Array.isArray(value) || typeof value === 'boolean' || typeof value === 'number') {
+            cleanRequest[field] = value;
+          }
+        }
+      });
+      
+      console.log('updateDocument - 原始请求:', request);
+      console.log('updateDocument - 清理后的请求:', cleanRequest);
+      
+      const response = await apiCall.put<Document>(`/documents/${id}`, cleanRequest);
       return response;
     } catch (error: any) {
       console.error('Error updating document:', error);

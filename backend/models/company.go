@@ -70,6 +70,33 @@ type CompanyRequest struct {
 	CompanySize          *string    `json:"company_size" validate:"omitempty,oneof=startup small medium large enterprise"`
 }
 
+// CompanyUpdateRequest represents a request to update a company (all fields optional)
+type CompanyUpdateRequest struct {
+	CompanyName          *string    `json:"company_name" validate:"omitempty,min=1,max=255"`
+	CompanyCode          *string    `json:"company_code"`
+	Industry             *string    `json:"industry"`
+	CompanyType          *string    `json:"company_type" validate:"omitempty,oneof=limited_company joint_stock individual partnership"`
+	BusinessLicense      *string    `json:"business_license"`
+	TaxNumber            *string    `json:"tax_number"`
+	LegalRepresentative  *string    `json:"legal_representative"`
+	
+	Address              *string    `json:"address"`
+	City                 *string    `json:"city"`
+	Province             *string    `json:"province"`
+	PostalCode           *string    `json:"postal_code"`
+	Website              *string    `json:"website" validate:"omitempty,url"`
+	MainPhone            *string    `json:"main_phone"`
+	MainEmail            *string    `json:"main_email" validate:"omitempty,email"`
+	
+	Status               *string    `json:"status" validate:"omitempty,oneof=active inactive potential suspended"`
+	Priority             *string    `json:"priority" validate:"omitempty,oneof=high medium low"`
+	AnnualContractValue  *float64   `json:"annual_contract_value" validate:"omitempty,min=0"`
+	StartDate            *time.Time `json:"start_date"`
+	
+	EmployeeCount        *int       `json:"employee_count" validate:"omitempty,min=0"`
+	CompanySize          *string    `json:"company_size" validate:"omitempty,oneof=startup small medium large enterprise"`
+}
+
 // CompanyResponse represents the response format for a company
 type CompanyResponse struct {
 	ID                   int        `json:"id"`

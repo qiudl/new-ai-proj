@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { message } from 'antd';
 import TimerService from '../services/timerService';
 import { TimerCurrentResponse } from '../types/timer';
 
 interface TimerState {
   isRunning: boolean;
+  isPaused?: boolean;
   taskId?: number;
   taskTitle?: string;
   startTime?: Date;
@@ -21,6 +22,8 @@ interface TimerContextType {
   // 操作方法
   startTimer: (taskId: number, taskTitle: string) => Promise<boolean>;
   stopTimer: () => Promise<boolean>;
+  pauseTimer: () => Promise<boolean>;
+  resumeTimer: () => Promise<boolean>;
   refreshTimer: () => Promise<void>;
   
   // 事件回调
@@ -44,7 +47,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       const saved = localStorage.getItem('globalTimerState');
       if (saved) {
         const parsedState = JSON.parse(saved);
-        console.log('TimerContext: 从localStorage恢复状态:', parsedState);
+        // 从localStorage恢复状态
         
         // 如果定时器正在运行，重新计算经过时间
         let elapsedSeconds = parsedState.elapsedSeconds || 0;
@@ -63,6 +66,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         
         return {
           isRunning: parsedState.isRunning || false,
+          isPaused: parsedState.isPaused || false,
           taskId: parsedState.taskId,
           taskTitle: parsedState.taskTitle,
           startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
@@ -75,6 +79,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
     return {
       isRunning: false,
+      isPaused: false,
       elapsedSeconds: 0,
       formattedTime: '00:00:00'
     };
@@ -124,6 +129,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
     const newState: TimerState = {
       isRunning: response.is_running,
+      isPaused: response.is_paused || false,
       taskId: response.task_id,
       taskTitle: response.task_title,
       startTime: response.start_time ? new Date(response.start_time) : undefined,
@@ -139,7 +145,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
 
     // 管理本地计时器
-    if (newState.isRunning && newState.startTime) {
+    if (newState.isRunning && newState.startTime && !newState.isPaused) {
       startLocalTimer(newState.startTime);
     } else {
       stopLocalTimer();
@@ -261,6 +267,64 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [isLoading, timerState.isRunning, refreshTimer]);
 
+  // 暂停定时器
+  const pauseTimer = useCallback(async (): Promise<boolean> => {
+    if (isLoading || !timerState.isRunning || timerState.isPaused) return false;
+    
+    setIsLoading(true);
+    try {
+      const response = await TimerService.pauseTimer();
+      
+      if (!isMountedRef.current) return false;
+      
+      message.success(`计时已暂停: ${response.task_title}`);
+      
+      // 立即刷新状态
+      await refreshTimer();
+      
+      return true;
+    } catch (error) {
+      if (!isMountedRef.current) return false;
+      
+      console.error('Failed to pause timer:', error);
+      message.error('暂停定时器失败');
+      return false;
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
+
+  // 恢复定时器
+  const resumeTimer = useCallback(async (): Promise<boolean> => {
+    if (isLoading || !timerState.isRunning || !timerState.isPaused) return false;
+    
+    setIsLoading(true);
+    try {
+      const response = await TimerService.resumeTimer();
+      
+      if (!isMountedRef.current) return false;
+      
+      message.success(`计时已恢复: ${response.task_title}`);
+      
+      // 立即刷新状态
+      await refreshTimer();
+      
+      return true;
+    } catch (error) {
+      if (!isMountedRef.current) return false;
+      
+      console.error('Failed to resume timer:', error);
+      message.error('恢复定时器失败');
+      return false;
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
+
   // 初始化（只运行一次）
   useEffect(() => {
     // 初始加载
@@ -284,14 +348,14 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
 
   // 单独处理本地计时器的启动和停止
   useEffect(() => {
-    if (timerState.isRunning && timerState.startTime) {
-      console.log('TimerContext: 启动本地计时器');
+    if (timerState.isRunning && timerState.startTime && !timerState.isPaused) {
+      // 启动本地计时器
       startLocalTimer(timerState.startTime);
     } else {
-      console.log('TimerContext: 停止本地计时器');
+      // 停止本地计时器
       stopLocalTimer();
     }
-  }, [timerState.isRunning, timerState.startTime, startLocalTimer, stopLocalTimer]);
+  }, [timerState.isRunning, timerState.startTime, timerState.isPaused, startLocalTimer, stopLocalTimer]);
 
   // 页面可见性变化处理
   useEffect(() => {
@@ -314,6 +378,69 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     };
   }, [timerState.isRunning, timerState.startTime, refreshTimer, stopLocalTimer]);
 
+  // 跨页面/标签页同步 - 监听localStorage变化
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (!isMountedRef.current) return;
+      
+      // 只处理我们关心的timer状态变化
+      if (event.key === 'globalTimerState' && event.newValue !== event.oldValue) {
+        try {
+          if (event.newValue) {
+            const newState = JSON.parse(event.newValue);
+            // 检测到其他页面的计时器状态变化
+            
+            // 更新本地状态以同步其他页面的更改
+            setTimerState({
+              isRunning: newState.isRunning || false,
+              isPaused: newState.isPaused || false,
+              taskId: newState.taskId,
+              taskTitle: newState.taskTitle,
+              startTime: newState.startTime ? new Date(newState.startTime) : undefined,
+              elapsedSeconds: newState.elapsedSeconds || 0,
+              formattedTime: newState.formattedTime || '00:00:00'
+            });
+
+            // 通知回调
+            if (onTimerUpdateRef.current) {
+              onTimerUpdateRef.current(newState.isRunning, newState.taskTitle);
+            }
+
+            // 管理本地计时器
+            if (newState.isRunning && newState.startTime && !newState.isPaused) {
+              startLocalTimer(new Date(newState.startTime));
+            } else {
+              stopLocalTimer();
+            }
+          } else {
+            // localStorage被清除，重置状态
+            // 计时器状态已在其他页面清除
+            setTimerState({
+              isRunning: false,
+              isPaused: false,
+              elapsedSeconds: 0,
+              formattedTime: '00:00:00'
+            });
+            stopLocalTimer();
+            
+            if (onTimerUpdateRef.current) {
+              onTimerUpdateRef.current(false);
+            }
+          }
+        } catch (error) {
+          console.warn('TimerContext: 处理跨页面同步失败:', error);
+        }
+      }
+    };
+
+    // 添加storage事件监听器
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [startLocalTimer, stopLocalTimer]);
+
   // 组件卸载清理
   useEffect(() => {
     return () => {
@@ -325,15 +452,27 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     };
   }, [stopLocalTimer]);
 
-  const value: TimerContextType = {
+  const value: TimerContextType = useMemo(() => ({
     timerState,
     isLoading,
     connectionStatus,
     startTimer,
     stopTimer,
+    pauseTimer,
+    resumeTimer,
     refreshTimer,
     onTimerUpdate
-  };
+  }), [
+    timerState,
+    isLoading,
+    connectionStatus,
+    startTimer,
+    stopTimer,
+    pauseTimer,
+    resumeTimer,
+    refreshTimer,
+    onTimerUpdate
+  ]);
 
   return (
     <TimerContext.Provider value={value}>

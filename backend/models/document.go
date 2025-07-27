@@ -114,11 +114,12 @@ type CreateDocumentRequest struct {
 	IsTemplate  bool             `json:"is_template"`
 }
 
-// UpdateDocumentRequest 更新文档请求
+// UpdateDocumentRequest 更新文档请求 - 增强版
 type UpdateDocumentRequest struct {
 	FolderID    *int             `json:"folder_id"`
 	Title       *string          `json:"title" validate:"omitempty,min=1,max=255"`
 	Content     *string          `json:"content"`
+	Type        *DocumentType    `json:"type"`
 	Status      *DocumentStatus  `json:"status"`
 	FileURL     *string          `json:"file_url"`
 	FileSize    *int64           `json:"file_size"`
@@ -127,6 +128,13 @@ type UpdateDocumentRequest struct {
 	Tags        *[]string        `json:"tags"`
 	Metadata    *DocumentMetadata `json:"metadata"`
 	Visibility  *Visibility      `json:"visibility"`
+	ProjectID   *int             `json:"project_id"`
+	CustomerID  *int             `json:"customer_id"`
+	SharedWith  *[]string        `json:"shared_with"`
+	IsTemplate  *bool            `json:"is_template"`
+	Category    *string          `json:"category"`
+	DueDate     *string          `json:"due_date"`
+	Priority    *string          `json:"priority"`
 }
 
 // MoveDocumentRequest 移动文档请求

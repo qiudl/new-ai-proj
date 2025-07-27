@@ -355,7 +355,7 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 	})
 }
 
-// UpdateDocument 更新文档
+// UpdateDocument 更新文档 - 修复版
 func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
@@ -384,7 +384,7 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 	args := []interface{}{}
 	argIndex := 1
 	
-	if req.Title != nil {
+	if req.Title != nil && *req.Title != "" {
 		setParts = append(setParts, "title = $" + strconv.Itoa(argIndex))
 		args = append(args, *req.Title)
 		argIndex++
@@ -399,6 +399,11 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		args = append(args, *req.Description)
 		argIndex++
 	}
+	if req.Type != nil {
+		setParts = append(setParts, "type = $" + strconv.Itoa(argIndex))
+		args = append(args, *req.Type)
+		argIndex++
+	}
 	if req.Status != nil {
 		setParts = append(setParts, "status = $" + strconv.Itoa(argIndex))
 		args = append(args, *req.Status)
@@ -409,20 +414,34 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		args = append(args, *req.Visibility)
 		argIndex++
 	}
-	// is_template field not available in UpdateDocumentRequest
-	
-	if len(setParts) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "No fields to update",
-		})
-		return
+	if req.FolderID != nil {
+		setParts = append(setParts, "folder_id = $" + strconv.Itoa(argIndex))
+		args = append(args, req.FolderID)
+		argIndex++
+	}
+	if req.ProjectID != nil {
+		setParts = append(setParts, "project_id = $" + strconv.Itoa(argIndex))
+		args = append(args, req.ProjectID)
+		argIndex++
+	}
+	if req.IsTemplate != nil {
+		setParts = append(setParts, "is_template = $" + strconv.Itoa(argIndex))
+		args = append(args, *req.IsTemplate)
+		argIndex++
 	}
 	
-	// 添加updated_at
-	setParts = append(setParts, "updated_at = $" + strconv.Itoa(argIndex))
-	args = append(args, time.Now())
-	argIndex++
+	// 如果没有字段需要更新，但这是一个有效的更新请求，只更新时间戳
+	if len(setParts) == 0 {
+		// 允许空更新（比如只是触发时间戳更新）
+		setParts = append(setParts, "updated_at = $" + strconv.Itoa(argIndex))
+		args = append(args, time.Now())
+		argIndex++
+	} else {
+		// 添加updated_at
+		setParts = append(setParts, "updated_at = $" + strconv.Itoa(argIndex))
+		args = append(args, time.Now())
+		argIndex++
+	}
 	
 	// 添加WHERE条件
 	args = append(args, id)
@@ -448,9 +467,63 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		return
 	}
 
+	// 返回更新后的文档
+	var updatedDoc map[string]interface{}
+	getQuery := `
+		SELECT d.id, d.folder_id, d.title, d.content, d.type, d.status, d.description, 
+			   COALESCE(d.tags, '{}') as tags, d.owner_id, d.visibility, d.version, 
+			   d.is_template, d.created_at, d.updated_at, d.created_by,
+			   u.username as owner_name, df.name as folder_name,
+			   d.project_id
+		FROM documents d
+		LEFT JOIN users u ON d.owner_id = u.id
+		LEFT JOIN document_folders df ON d.folder_id = df.id
+		WHERE d.id = $1
+	`
+	
+	var doc models.Document
+	var ownerName, folderName sql.NullString
+	var tags string
+	
+	err = sqlDB.QueryRow(getQuery, id).Scan(
+		&doc.ID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+		&doc.Description, &tags, &doc.OwnerID, &doc.Visibility, &doc.Version,
+		&doc.IsTemplate, &doc.CreatedAt, &doc.UpdatedAt, &doc.CreatedBy,
+		&ownerName, &folderName, &doc.ProjectID,
+	)
+	
+	if err == nil {
+		updatedDoc = map[string]interface{}{
+			"id":          doc.ID,
+			"folder_id":   doc.FolderID,
+			"title":       doc.Title,
+			"content":     doc.Content,
+			"type":        doc.Type,
+			"status":      doc.Status,
+			"description": doc.Description,
+			"tags":        []string{},
+			"owner_id":    doc.OwnerID,
+			"visibility":  doc.Visibility,
+			"version":     doc.Version,
+			"is_template": doc.IsTemplate,
+			"created_at":  doc.CreatedAt,
+			"updated_at":  doc.UpdatedAt,
+			"created_by":  doc.CreatedBy,
+			"project_id":  doc.ProjectID,
+		}
+		
+		if ownerName.Valid {
+			updatedDoc["owner_name"] = ownerName.String
+		}
+		if folderName.Valid {
+			updatedDoc["folder_name"] = folderName.String
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Document updated successfully",
+		"data":    updatedDoc,
 	})
 }
 

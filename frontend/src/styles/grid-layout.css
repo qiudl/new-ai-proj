@@ -128,46 +128,116 @@
   opacity: 0.8;
 }
 
-/* Custom drag handle styling */
-.grid-item-drag-handle {
+/* Improved control bar styling */
+.grid-item-controls {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 24px;
-  height: 24px;
-  cursor: move;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  background: rgba(0, 0, 0, 0.04);
-  border-radius: 4px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10;
+  gap: 4px;
+  z-index: 1001;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.react-grid-item:hover .grid-item-drag-handle {
+/* Show control bar in drag mode */
+.grid-item-controls.drag-mode-active {
   opacity: 1;
 }
 
-.grid-item-drag-handle::before {
-  content: '⋮⋮';
+/* Show control bar on hover */
+.react-grid-item:hover .grid-item-controls {
+  opacity: 1;
+}
+
+/* Improved drag handle styling */
+.grid-item-drag-handle {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: move;
   font-size: 12px;
   color: #666;
-  letter-spacing: -2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.grid-item-drag-handle:hover {
+  background: rgba(24, 144, 255, 0.1);
+  border-color: #40a9ff;
+  color: #40a9ff;
+  transform: scale(1.05);
+}
+
+/* Drag mode indicator */
+.drag-mode-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 2000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.drag-mode-indicator.active {
+  opacity: 1;
+}
+
+/* Component highlight effects in drag mode */
+.dashboard-grid-layout.drag-mode .react-grid-item {
+  border: 2px dashed transparent;
+  transition: border-color 0.2s ease;
+}
+
+.dashboard-grid-layout.drag-mode .react-grid-item:hover {
+  border-color: #40a9ff;
+  background: rgba(24, 144, 255, 0.02);
 }
 
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
+  .grid-item-controls {
+    opacity: 1; /* Always visible on mobile */
+    top: 4px;
+    right: 4px;
+  }
+
+  .grid-item-drag-handle {
+    width: 32px;
+    height: 32px;
+    touch-action: none; /* Prevent scroll interference */
+  }
+
   .react-grid-item > .react-resizable-handle {
     width: 30px;
     height: 30px;
   }
   
-  .grid-item-drag-handle {
-    width: 32px;
-    height: 32px;
-    opacity: 1; /* Always visible on mobile */
+  /* Mobile drag hint */
+  .dashboard-grid-layout.drag-mode::before {
+    content: "长按拖拽 • 双击调整大小";
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 1000;
   }
 }
 

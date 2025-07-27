@@ -27,6 +27,7 @@ import { Company, CompanyRequest } from '../types/company';
 import companyService from '../services/companyService';
 import CompanyForm from '../components/CompanyForm';
 import dayjs from 'dayjs';
+import { AppError, ErrorType } from '../utils/errorHandling';
 
 const { Title } = Typography;
 
@@ -58,7 +59,17 @@ const CompanyEditPage: React.FC = () => {
         setCompany(companyData);
       } catch (error) {
         console.error('加载企业信息失败:', error);
-        if (error instanceof Error) {
+        
+        // Check if it's an authentication error
+        if (error instanceof AppError && error.type === ErrorType.AUTHENTICATION) {
+          // Authentication error - let the API interceptor handle the redirect
+          // Don't navigate here to avoid conflict
+          return;
+        }
+        
+        if (error instanceof AppError) {
+          message.error(`加载失败: ${error.message}`);
+        } else if (error instanceof Error) {
           message.error(`加载失败: ${error.message}`);
         } else {
           message.error('加载企业信息失败');

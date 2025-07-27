@@ -17,6 +17,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import { Project } from '../types/project';
+import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
 
 const { Title } = Typography;
 
@@ -73,6 +74,8 @@ const ProjectsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // Removed modal-related state since we're using dedicated edit page
   const [viewMode, setViewMode] = useState<ViewMode>('list'); // 默认为列表视图
+  const [sortConfig, setSortConfig] = useState<{ field: string; direction: 'asc' | 'desc' } | null>(null);
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([]);
 
   const loadProjects = async () => {
     try {
@@ -145,131 +148,322 @@ const ProjectsPage: React.FC = () => {
 
   // Modal handlers removed - using dedicated edit page now
 
-  // 表格列配置
-  const columns: ColumnsType<Project> = [
+  // 默认列配置
+  const defaultColumns: ColumnConfig[] = [
     {
-      title: '项目编号',
-      dataIndex: 'project_number',
       key: 'project_number',
-      width: 100,
-      render: (text: string, record: Project) => (
-        <Space align="center">
-          <NumberOutlined style={{ color: '#1890ff' }} />
-          <span style={{ fontWeight: 500, color: '#1890ff' }}>
-            {record.project_number || generateProjectNumber(record.id)}
-          </span>
-        </Space>
-      ),
+      title: '项目编号',
+      visible: true,
+      required: true,
+      description: '系统生成的唯一项目编号',
+      width: 100
     },
     {
-      title: '项目名称',
-      dataIndex: 'name',
       key: 'name',
-      render: (text: string, record: Project) => (
-        <Button 
-          type="link" 
-          onClick={() => navigate(`/projects/${record.id}`)}
-          style={{ padding: 0, fontSize: '14px', fontWeight: 500 }}
-        >
-          {text}
-        </Button>
-      ),
+      title: '项目名称',
+      visible: true,
+      required: true,
+      description: '项目的名称标题',
+      width: 200
     },
     {
-      title: '所属客户',
-      dataIndex: 'company_name',
       key: 'company_name',
-      width: 150,
-      render: (text: string, record: Project) => (
-        <Space align="center">
-          <BankOutlined style={{ color: '#52c41a' }} />
-          <span style={{ color: record.company_name && record.company_name !== '未分配客户' ? '#000' : '#8c8c8c' }}>
-            {text || '未分配客户'}
-          </span>
-        </Space>
-      ),
+      title: '所属客户',
+      visible: true,
+      description: '项目所属的客户公司',
+      width: 150
     },
     {
-      title: '状态',
       key: 'status',
-      width: 100,
-      render: (_, record: Project) => (
-        <Tag color={getStatusColor(record.status)}>
-          {getStatusText(record.status)}
-        </Tag>
-      ),
+      title: '状态',
+      visible: true,
+      description: '项目当前状态',
+      width: 100
     },
     {
-      title: '优先级',
       key: 'priority',
-      width: 80,
-      render: (_, record: Project) => (
-        <Tag color={getPriorityColor(record.priority)}>
-          {getPriorityText(record.priority)}
-        </Tag>
-      ),
+      title: '优先级',
+      visible: true,
+      description: '项目优先级等级',
+      width: 80
     },
     {
-      title: '进度',
       key: 'progress',
-      width: 120,
-      render: (_, record: Project) => (
-        <Progress 
-          percent={record.progress || 0} 
-          size="small"
-          status={record.progress === 100 ? 'success' : 'active'}
-          showInfo={true}
-        />
-      ),
-      responsive: ['md' as const],
+      title: '进度',
+      visible: true,
+      description: '项目完成进度百分比',
+      width: 120
     },
     {
-      title: '创建时间',
-      dataIndex: 'created_at',
+      key: 'description',
+      title: '项目描述',
+      visible: false,
+      description: '项目的详细描述信息',
+      width: 200
+    },
+    {
       key: 'created_at',
-      width: 120,
-      render: (date: string) => new Date(date).toLocaleDateString(),
-      responsive: ['xl' as const],
+      title: '创建时间',
+      visible: true,
+      description: '项目创建日期',
+      width: 120
     },
     {
-      title: '操作',
-      key: 'actions',
-      width: 120,
-      fixed: 'right',
-      render: (_: any, record: Project) => (
-        <Space size="middle">
-          <Tooltip title="查看">
-            <Button
-              type="text"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => navigate(`/projects/${record.id}`)}
-              style={{ color: '#1890ff' }}
-            />
-          </Tooltip>
-          <Tooltip title="编辑">
-            <Button 
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEditProject(record)}
-              style={{ color: '#52c41a' }}
-            />
-          </Tooltip>
-          <Tooltip title="删除">
-            <Button 
-              type="text"
-              size="small"
-              icon={<DeleteOutlined />}
-              onClick={() => handleDeleteProject(record)}
-              style={{ color: '#ff4d4f' }}
-              danger
-            />
-          </Tooltip>
-        </Space>
-      ),
+      key: 'updated_at',
+      title: '更新时间',
+      visible: false,
+      description: '项目最后更新日期',
+      width: 120
     },
+    {
+      key: 'actions',
+      title: '操作',
+      visible: true,
+      required: true,
+      description: '查看、编辑、删除操作',
+      width: 120
+    }
   ];
+
+  // 初始化列配置
+  useEffect(() => {
+    setColumnConfig(defaultColumns);
+  }, []);
+
+  // 处理列配置变更
+  const handleColumnConfigChange = (newColumns: ColumnConfig[]) => {
+    setColumnConfig(newColumns);
+  };
+
+  // 获取排序后的项目数据
+  const getSortedProjects = () => {
+    if (!sortConfig) return projects;
+    
+    return [...projects].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      // 根据不同字段处理排序值
+      switch (sortConfig.field) {
+        case 'project_number':
+          aValue = a.project_number || generateProjectNumber(a.id);
+          bValue = b.project_number || generateProjectNumber(b.id);
+          break;
+        case 'name':
+          aValue = a.name || '';
+          bValue = b.name || '';
+          break;
+        case 'company_name':
+          aValue = a.company_name || '未分配客户';
+          bValue = b.company_name || '未分配客户';
+          break;
+        case 'status':
+          aValue = a.status || 'active';
+          bValue = b.status || 'active';
+          break;
+        case 'priority':
+          // 优先级排序：high > medium > low
+          const priorityMap = { high: 3, medium: 2, low: 1 };
+          aValue = priorityMap[a.priority as keyof typeof priorityMap] || 0;
+          bValue = priorityMap[b.priority as keyof typeof priorityMap] || 0;
+          break;
+        case 'progress':
+          aValue = a.progress || 0;
+          bValue = b.progress || 0;
+          break;
+        case 'created_at':
+        case 'updated_at':
+          aValue = new Date((a as any)[sortConfig.field]).getTime();
+          bValue = new Date((b as any)[sortConfig.field]).getTime();
+          break;
+        default:
+          aValue = (a as any)[sortConfig.field];
+          bValue = (b as any)[sortConfig.field];
+      }
+      
+      let comparison = 0;
+      
+      // 处理字符串和数字的比较
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        comparison = aValue.localeCompare(bValue, 'zh-CN');
+      } else {
+        if (aValue < bValue) {
+          comparison = -1;
+        } else if (aValue > bValue) {
+          comparison = 1;
+        }
+      }
+      
+      return sortConfig.direction === 'desc' ? comparison * -1 : comparison;
+    });
+  };
+
+  // 处理排序
+  const handleSort = (field: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    
+    if (sortConfig && sortConfig.field === field && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    
+    setSortConfig({ field, direction });
+  };
+
+  // 表格列配置
+  const columns: ColumnsType<Project> = columnConfig
+    .filter(col => col.visible)
+    .map(col => {
+      const baseColumn = {
+        key: col.key,
+        title: col.title,
+        width: col.width,
+        sorter: col.key !== 'actions', // 除了操作列，所有列都支持排序
+        sortOrder: sortConfig?.field === col.key ? sortConfig.direction + 'end' as any : null,
+        onHeaderCell: () => ({
+          onClick: () => col.key !== 'actions' && handleSort(col.key)
+        })
+      };
+
+      switch (col.key) {
+        case 'project_number':
+          return {
+            ...baseColumn,
+            dataIndex: 'project_number',
+            render: (text: string, record: Project) => (
+              <Space align="center">
+                <NumberOutlined style={{ color: '#1890ff' }} />
+                <span style={{ fontWeight: 500, color: '#1890ff' }}>
+                  {record.project_number || generateProjectNumber(record.id)}
+                </span>
+              </Space>
+            ),
+          };
+        case 'name':
+          return {
+            ...baseColumn,
+            dataIndex: 'name',
+            render: (text: string, record: Project) => (
+              <Button 
+                type="link" 
+                onClick={() => navigate(`/projects/${record.id}`)}
+                style={{ padding: 0, fontSize: '14px', fontWeight: 500 }}
+              >
+                {text}
+              </Button>
+            ),
+          };
+        case 'company_name':
+          return {
+            ...baseColumn,
+            dataIndex: 'company_name',
+            render: (text: string, record: Project) => (
+              <Space align="center">
+                <BankOutlined style={{ color: '#52c41a' }} />
+                <span style={{ color: record.company_name && record.company_name !== '未分配客户' ? '#000' : '#8c8c8c' }}>
+                  {text || '未分配客户'}
+                </span>
+              </Space>
+            ),
+          };
+        case 'status':
+          return {
+            ...baseColumn,
+            render: (_, record: Project) => (
+              <Tag color={getStatusColor(record.status)}>
+                {getStatusText(record.status)}
+              </Tag>
+            ),
+          };
+        case 'priority':
+          return {
+            ...baseColumn,
+            render: (_, record: Project) => (
+              <Tag color={getPriorityColor(record.priority)}>
+                {getPriorityText(record.priority)}
+              </Tag>
+            ),
+          };
+        case 'progress':
+          return {
+            ...baseColumn,
+            render: (_, record: Project) => (
+              <Progress 
+                percent={record.progress || 0} 
+                size="small"
+                status={record.progress === 100 ? 'success' : 'active'}
+                showInfo={true}
+              />
+            ),
+            responsive: ['md' as const],
+          };
+        case 'description':
+          return {
+            ...baseColumn,
+            dataIndex: 'description',
+            render: (text: string) => (
+              <Tooltip title={text}>
+                <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                  {text || '暂无描述'}
+                </span>
+              </Tooltip>
+            ),
+          };
+        case 'created_at':
+          return {
+            ...baseColumn,
+            dataIndex: 'created_at',
+            render: (date: string) => new Date(date).toLocaleDateString(),
+            responsive: ['xl' as const],
+          };
+        case 'updated_at':
+          return {
+            ...baseColumn,
+            dataIndex: 'updated_at',
+            render: (date: string) => new Date(date).toLocaleDateString(),
+            responsive: ['xl' as const],
+          };
+        case 'actions':
+          return {
+            ...baseColumn,
+            fixed: 'right',
+            render: (_: any, record: Project) => (
+              <Space size="middle">
+                <Tooltip title="查看">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<EyeOutlined />}
+                    onClick={() => navigate(`/projects/${record.id}`)}
+                    style={{ color: '#1890ff' }}
+                  />
+                </Tooltip>
+                <Tooltip title="编辑">
+                  <Button 
+                    type="text"
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditProject(record)}
+                    style={{ color: '#52c41a' }}
+                  />
+                </Tooltip>
+                <Tooltip title="删除">
+                  <Button 
+                    type="text"
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDeleteProject(record)}
+                    style={{ color: '#ff4d4f' }}
+                    danger
+                  />
+                </Tooltip>
+              </Space>
+            ),
+          };
+        default:
+          return baseColumn;
+      }
+    }) as ColumnsType<Project>;
+
 
   // 渲染卡片视图
   const renderCardView = () => (
@@ -378,7 +572,7 @@ const ProjectsPage: React.FC = () => {
   // 渲染列表视图
   const renderListView = () => (
     <Table
-      dataSource={Array.isArray(projects) ? projects : []}
+      dataSource={Array.isArray(projects) ? getSortedProjects() : []}
       columns={columns}
       rowKey="id"
       pagination={{
@@ -405,7 +599,7 @@ const ProjectsPage: React.FC = () => {
           </Button>
         </div>
         
-        {/* 视图切换控件 */}
+        {/* 视图切换控件和列设置 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ color: '#8c8c8c' }}>视图模式:</span>
@@ -422,10 +616,24 @@ const ProjectsPage: React.FC = () => {
                 <AppstoreOutlined /> 卡片
               </Radio.Button>
             </Radio.Group>
+            
+            {/* 列自定义功能，仅在列表视图时显示 */}
+            {viewMode === 'list' && (
+              <ColumnCustomizer
+                columns={columnConfig}
+                onChange={handleColumnConfigChange}
+                storageKey="project-list-columns"
+              />
+            )}
           </div>
           
           <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
             共 {projects.length} 个项目
+            {sortConfig && (
+              <span style={{ marginLeft: '8px' }}>
+                (按{columnConfig.find(col => col.key === sortConfig.field)?.title}{sortConfig.direction === 'asc' ? '升序' : '降序'})
+              </span>
+            )}
           </div>
         </div>
       </div>

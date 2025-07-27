@@ -83,6 +83,7 @@ class ProjectService {
   async createProject(project: ProjectRequest): Promise<Project> {
     // Convert camelCase to snake_case for backend
     const backendData = {
+      project_number: project.project_number?.trim(),
       name: project.name?.trim(),
       description: project.description?.trim(),
       company_id: project.company_id,
@@ -93,7 +94,6 @@ class ProjectService {
       progress: project.progress,
       start_date: project.start_date,
       end_date: project.end_date,
-      budget: project.budget,
     };
 
     // Remove undefined and empty values
@@ -117,6 +117,7 @@ class ProjectService {
   async updateProject(id: number, project: ProjectRequest): Promise<Project> {
     // Convert camelCase to snake_case for backend
     const backendData = {
+      project_number: project.project_number?.trim(),
       name: project.name?.trim(),
       description: project.description?.trim(),
       company_id: project.company_id,
@@ -127,7 +128,6 @@ class ProjectService {
       progress: project.progress,
       start_date: project.start_date,
       end_date: project.end_date,
-      budget: project.budget,
     };
 
     // Remove undefined and empty values

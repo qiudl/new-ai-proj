@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Card, 
   Row, 
@@ -10,14 +10,15 @@ import {
   Spin,
   Select,
   Input,
-  Tooltip,
   Progress,
   Empty,
   Badge,
   Statistic,
   List,
   Avatar,
-  Divider
+  Tooltip,
+  Radio,
+  message
 } from 'antd';
 import { 
   ClockCircleOutlined,
@@ -25,18 +26,25 @@ import {
   ReloadOutlined,
   EditOutlined,
   EyeOutlined,
-  PlusOutlined,
-  TrophyOutlined,
-  RocketOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  ProjectOutlined,
   LeftOutlined,
   RightOutlined,
-  UserOutlined
+  TeamOutlined,
+  BarChartOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
+import { projectService } from '../services/projectService';
+import { customerService } from '../services/customerService';
 import { Task } from '../types/task';
+import { Project } from '../types/project';
+import { Customer } from '../services/customerService';
 import { useCache } from '../hooks/useCache';
-import { formatTimeAgo } from '../utils/formatters';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -54,11 +62,59 @@ const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
+// 转换英文星期为中文
+const getDayName = (englishDay: string): string => {
+  const dayMap: Record<string, string> = {
+    'Sunday': '周日',
+    'Monday': '周一',
+    'Tuesday': '周二',
+    'Wednesday': '周三',
+    'Thursday': '周四',
+    'Friday': '周五',
+    'Saturday': '周六'
+  };
+  return dayMap[englishDay] || englishDay;
+};
+
+// 获取优先级颜色
+const getPriorityColor = (priority: string) => {
+  switch (priority) {
+    case 'urgent': return '#ff4d4f';
+    case 'high': return '#fa8c16';
+    case 'medium': return '#1890ff';
+    case 'low': return '#52c41a';
+    default: return '#8c8c8c';
+  }
+};
+
+// 获取状态颜色
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed': return '#52c41a';
+    case 'in_progress': return '#1890ff';
+    case 'todo': return '#8c8c8c';
+    case 'cancelled': return '#ff4d4f';
+    default: return '#8c8c8c';
+  }
+};
+
+// 获取状态文本
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'completed': return '已完成';
+    case 'in_progress': return '进行中';
+    case 'todo': return '待办';
+    case 'cancelled': return '已取消';
+    default: return status;
+  }
+};
+
 interface WeeklyStats {
   totalTasks: number;
   completedTasks: number;
   inProgressTasks: number;
   todoTasks: number;
+  overdueTasks: number;
   completionRate: number;
   weekRange: string;
 }
@@ -73,11 +129,13 @@ interface DayTasks {
 
 const TaskDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [selectedWeek, setSelectedWeek] = useState<Dayjs>(dayjs());
   const [searchText, setSearchText] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedProject, setSelectedProject] = useState<number | undefined>(undefined);
+  const [selectedCustomer, setSelectedCustomer] = useState<number | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [loading, setLoading] = useState(false);
 
   // 计算当前周的开始和结束日期
   const weekStart = useMemo(() => {
@@ -88,35 +146,84 @@ const TaskDashboardPage: React.FC = () => {
     return selectedWeek.endOf('week');
   }, [selectedWeek]);
 
-  // 获取本周任务数据
+  // 获取项目列表
   const {
-    data: weeklyTasks,
-    loading: weeklyTasksLoading,
-    refresh: refreshWeeklyTasks
-  } = useCache<Task[]>(
-    `weekly-tasks-${weekStart.format('YYYY-MM-DD')}`,
+    data: projects,
+    loading: projectsLoading,
+    error: projectsError,
+    refresh: refreshProjects
+  } = useCache<Project[]>(
+    'task-dashboard-projects',
     async () => {
-      const allTasks = await DashboardService.getAllTasks();
-      return allTasks.filter((task: Task) => {
-        if (!task.due_date && !task.created_at) return false;
-        
-        const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
-        return taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
-      });
+      try {
+        const response = await projectService.getProjects({ page: 1, pageSize: 100 });
+        return response.data || [];
+      } catch (error) {
+        console.error('获取项目列表失败:', error);
+        message.error('获取项目列表失败');
+        return [];
+      }
     },
-    { ttl: 2 * 60 * 1000 }
+    { ttl: 5 * 60 * 1000 } // 5分钟缓存
   );
 
-  // 获取所有任务用于统计
+  // 获取客户列表
+  const {
+    data: customers,
+    loading: customersLoading,
+    error: customersError,
+    refresh: refreshCustomers
+  } = useCache<Customer[]>(
+    'task-dashboard-customers',
+    async () => {
+      try {
+        const response = await customerService.getCustomers({ page: 1, pageSize: 100 });
+        return response.data || [];
+      } catch (error) {
+        console.error('获取客户列表失败:', error);
+        message.error('获取客户列表失败');
+        return [];
+      }
+    },
+    { ttl: 5 * 60 * 1000 } // 5分钟缓存
+  );
+
+  // 获取所有任务数据
   const {
     data: allTasks,
-    loading: allTasksLoading,
-    refresh: refreshAllTasks
+    loading: tasksLoading,
+    error: tasksError,
+    refresh: refreshTasks
   } = useCache<Task[]>(
-    'all-tasks',
-    () => DashboardService.getAllTasks(),
-    { ttl: 5 * 60 * 1000 }
+    'task-dashboard-all-tasks',
+    async () => {
+      try {
+        setLoading(true);
+        const tasks = await DashboardService.getAllTasks();
+        console.log('获取到的所有任务:', tasks);
+        return tasks || [];
+      } catch (error) {
+        console.error('获取任务数据失败:', error);
+        message.error('获取任务数据失败');
+        return [];
+      } finally {
+        setLoading(false);
+      }
+    },
+    { ttl: 2 * 60 * 1000 } // 2分钟缓存
   );
+
+  // 筛选本周任务
+  const weeklyTasks = useMemo(() => {
+    if (!allTasks) return [];
+
+    return allTasks.filter((task: Task) => {
+      if (!task.due_date && !task.created_at) return false;
+      
+      const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
+      return taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
+    });
+  }, [allTasks, weekStart, weekEnd]);
 
   // 计算每日任务分布
   const dailyTasks: DayTasks[] = useMemo(() => {
@@ -134,7 +241,7 @@ const TaskDashboardPage: React.FC = () => {
 
       days.push({
         date: currentDay.format('YYYY-MM-DD'),
-        dayName: currentDay.format('dddd'),
+        dayName: getDayName(currentDay.format('dddd')),
         tasks: dayTasks,
         isToday: currentDay.isSame(today, 'day'),
         isPast: currentDay.isBefore(today, 'day')
@@ -152,6 +259,7 @@ const TaskDashboardPage: React.FC = () => {
         completedTasks: 0,
         inProgressTasks: 0,
         todoTasks: 0,
+        overdueTasks: 0,
         completionRate: 0,
         weekRange: `${weekStart.format('MM/DD')} - ${weekEnd.format('MM/DD')}`
       };
@@ -161,6 +269,14 @@ const TaskDashboardPage: React.FC = () => {
     const completedTasks = weeklyTasks.filter(task => task.status === 'completed').length;
     const inProgressTasks = weeklyTasks.filter(task => task.status === 'in_progress').length;
     const todoTasks = weeklyTasks.filter(task => task.status === 'todo').length;
+    
+    // 计算逾期任务
+    const today = dayjs();
+    const overdueTasks = weeklyTasks.filter(task => {
+      if (!task.due_date || task.status === 'completed') return false;
+      return dayjs(task.due_date).isBefore(today, 'day');
+    }).length;
+
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     return {
@@ -168,6 +284,7 @@ const TaskDashboardPage: React.FC = () => {
       completedTasks,
       inProgressTasks,
       todoTasks,
+      overdueTasks,
       completionRate,
       weekRange: `${weekStart.format('MM/DD')} - ${weekEnd.format('MM/DD')}`
     };
@@ -178,53 +295,114 @@ const TaskDashboardPage: React.FC = () => {
     if (!weeklyTasks) return [];
 
     return weeklyTasks.filter(task => {
+      // 文本搜索
       const matchesSearch = !searchText || 
         task.title.toLowerCase().includes(searchText.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchText.toLowerCase());
       
+      // 状态筛选
       const matchesStatus = selectedStatus === 'all' || task.status === selectedStatus;
+      
+      // 项目筛选
+      const matchesProject = !selectedProject || task.project_id === selectedProject;
+      
+      // 客户筛选（通过项目关联）
+      let matchesCustomer = true;
+      if (selectedCustomer && projects) {
+        const project = projects.find(p => p.id === task.project_id);
+        if (project) {
+          // 检查项目的主客户ID是否匹配
+          matchesCustomer = project.company_id === selectedCustomer;
+          
+          // 如果有多客户关联，也检查这些客户
+          if (!matchesCustomer && project.companies && project.companies.length > 0) {
+            matchesCustomer = project.companies.some(
+              company => company.company_id === selectedCustomer
+            );
+          }
+        } else {
+          // 如果找不到项目，则不匹配
+          matchesCustomer = false;
+        }
+      }
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesProject && matchesCustomer;
     });
-  }, [weeklyTasks, searchText, selectedStatus]);
+  }, [weeklyTasks, searchText, selectedStatus, selectedProject, selectedCustomer, projects]);
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return '#ff4d4f';
-      case 'high': return '#fa8c16';
-      case 'medium': return '#1890ff';
-      case 'low': return '#52c41a';
-      default: return '#8c8c8c';
+  // 根据筛选重新计算每日任务
+  const filteredDailyTasks: DayTasks[] = useMemo(() => {
+    if (!filteredTasks) return [];
+
+    const days = [];
+    const today = dayjs();
+    
+    for (let i = 0; i < 7; i++) {
+      const currentDay = weekStart.add(i, 'day');
+      const dayTasks = filteredTasks.filter((task: Task) => {
+        const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
+        return taskDate.isSame(currentDay, 'day');
+      });
+
+      days.push({
+        date: currentDay.format('YYYY-MM-DD'),
+        dayName: getDayName(currentDay.format('dddd')),
+        tasks: dayTasks,
+        isToday: currentDay.isSame(today, 'day'),
+        isPast: currentDay.isBefore(today, 'day')
+      });
     }
-  };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#52c41a';
-      case 'in_progress': return '#1890ff';
-      case 'todo': return '#8c8c8c';
-      case 'cancelled': return '#ff4d4f';
-      default: return '#8c8c8c';
-    }
-  };
+    return days;
+  }, [filteredTasks, weekStart]);
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed': return '已完成';
-      case 'in_progress': return '进行中';
-      case 'todo': return '待办';
-      case 'cancelled': return '已取消';
-      default: return status;
-    }
-  };
-
+  // 刷新所有数据
   const refreshAllData = async () => {
-    await Promise.all([refreshWeeklyTasks(), refreshAllTasks()]);
+    try {
+      setLoading(true);
+      await Promise.all([
+        refreshTasks(),
+        refreshProjects(),
+        refreshCustomers()
+      ]);
+      message.success('数据刷新成功');
+    } catch (error) {
+      console.error('刷新数据失败:', error);
+      message.error('刷新数据失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const isLoading = weeklyTasksLoading || allTasksLoading;
+  // 获取任务的项目名称
+  const getTaskProjectName = (projectId: number): string => {
+    const project = projects?.find(p => p.id === projectId);
+    return project?.name || `项目${projectId}`;
+  };
 
-  if (isLoading && !weeklyTasks) {
+  // 获取任务的客户名称
+  const getTaskCustomerName = (projectId: number): string => {
+    const project = projects?.find(p => p.id === projectId);
+    if (!project || !customers) return '';
+    
+    // 首先尝试从主客户ID获取客户名称
+    if (project.company_id) {
+      const customer = customers.find(c => c.id === project.company_id);
+      if (customer) return customer.name;
+    }
+    
+    // 如果有company_name字段，直接使用
+    if (project.company_name) {
+      return project.company_name;
+    }
+    
+    return '';
+  };
+
+  const isDataLoading = tasksLoading || projectsLoading || customersLoading || loading;
+
+  // 如果数据仍在加载且没有缓存数据
+  if (isDataLoading && !allTasks) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -232,7 +410,7 @@ const TaskDashboardPage: React.FC = () => {
         alignItems: 'center', 
         minHeight: '400px' 
       }}>
-        <Spin size="large" tip="加载本周任务数据...">
+        <Spin size="large" tip="加载任务数据...">
           <div style={{ height: '200px', width: '100%' }} />
         </Spin>
       </div>
@@ -240,233 +418,228 @@ const TaskDashboardPage: React.FC = () => {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 周选择器和标题 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col span={24}>
-          <Card style={{ background: 'linear-gradient(90deg, #e6f3ff 0%, #f0f9ff 100%)' }}>
-            <Row justify="space-between" align="middle">
-              <Col>
-                <Space size="large">
-                  <div>
-                    <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-                      <RocketOutlined /> 本周开发冲刺
-                    </Title>
-                    <Space>
-                      <Text type="secondary" style={{ fontSize: '16px' }}>
-                        {selectedWeek.format('YYYY年M月')} • {weeklyStats.weekRange}
-                      </Text>
-                      <Badge 
-                        count={`第${selectedWeek.week()}周`} 
-                        style={{ backgroundColor: '#1890ff' }}
-                      />
-                      {selectedWeek.isSame(dayjs(), 'week') && (
-                        <Badge count="当前" color="#52c41a" />
-                      )}
-                    </Space>
-                  </div>
-                  <Divider type="vertical" style={{ height: '50px' }} />
-                  <Space direction="vertical" size={0}>
-                    <Space>
-                      <Button 
-                        icon={<LeftOutlined />} 
-                        onClick={() => setSelectedWeek(selectedWeek.subtract(1, 'week'))}
-                        type="text"
-                      >
-                        上周
-                      </Button>
-                      <Button 
-                        type="primary" 
-                        onClick={() => setSelectedWeek(dayjs())}
-                        style={{ minWidth: '80px' }}
-                      >
-                        回到本周
-                      </Button>
-                      <Button 
-                        icon={<RightOutlined />} 
-                        onClick={() => setSelectedWeek(selectedWeek.add(1, 'week'))}
-                        type="text"
-                      >
-                        下周
-                      </Button>
-                    </Space>
-                    <Text type="secondary" style={{ fontSize: '12px', textAlign: 'center' }}>
-                      快速周期切换
-                    </Text>
-                  </Space>
-                </Space>
-              </Col>
-              <Col>
-                <Space direction="vertical" align="end">
-                  <Space>
-                    <Select
-                      value={viewMode}
-                      onChange={setViewMode}
-                      style={{ width: 120 }}
-                    >
-                      <Option value="calendar">📅 日历视图</Option>
-                      <Option value="list">📋 列表视图</Option>
-                    </Select>
-                    <Button 
-                      icon={<ReloadOutlined />} 
-                      onClick={refreshAllData}
-                      loading={isLoading}
-                    >
-                      刷新
-                    </Button>
-                    <Button 
-                      type="primary" 
-                      icon={<PlusOutlined />}
-                      onClick={() => navigate('/tasks/new')}
-                      size="large"
-                    >
-                      新建任务
-                    </Button>
-                  </Space>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    最后更新: {dayjs().format('HH:mm')}
+      <Card style={{ marginBottom: '24px' }}>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Space size="large">
+              <div>
+                <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+                  <BarChartOutlined /> 任务周报
+                </Title>
+                <Space>
+                  <Text type="secondary" style={{ fontSize: '16px' }}>
+                    {selectedWeek.format('YYYY年M月')} • {weeklyStats.weekRange}
                   </Text>
+                  <Badge 
+                    count={`第${selectedWeek.week()}周`} 
+                    style={{ backgroundColor: '#1890ff' }}
+                  />
+                  {selectedWeek.isSame(dayjs(), 'week') && (
+                    <Badge count="本周" color="#52c41a" />
+                  )}
                 </Space>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-      </Row>
+              </div>
+              <Space>
+                <Button 
+                  icon={<LeftOutlined />} 
+                  onClick={() => setSelectedWeek(selectedWeek.subtract(1, 'week'))}
+                  type="text"
+                >
+                  上周
+                </Button>
+                <Button 
+                  type="primary" 
+                  onClick={() => setSelectedWeek(dayjs())}
+                  style={{ minWidth: '80px' }}
+                >
+                  回到本周
+                </Button>
+                <Button 
+                  icon={<RightOutlined />} 
+                  onClick={() => setSelectedWeek(selectedWeek.add(1, 'week'))}
+                  type="text"
+                >
+                  下周
+                </Button>
+              </Space>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Radio.Group 
+                value={viewMode} 
+                onChange={(e) => setViewMode(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+              >
+                <Radio.Button value="calendar">
+                  <AppstoreOutlined /> 日历视图
+                </Radio.Button>
+                <Radio.Button value="list">
+                  <UnorderedListOutlined /> 列表视图
+                </Radio.Button>
+              </Radio.Group>
+              <Button 
+                icon={<ReloadOutlined />} 
+                onClick={refreshAllData}
+                loading={isDataLoading}
+              >
+                刷新
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* 筛选控制区域 */}
+      <Card style={{ marginBottom: '24px' }}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={5}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text type="secondary">项目筛选</Text>
+              <Select
+                value={selectedProject}
+                onChange={setSelectedProject}
+                style={{ width: '100%' }}
+                placeholder="选择项目"
+                allowClear
+                loading={projectsLoading}
+                showSearch
+                optionFilterProp="children"
+                notFoundContent={projectsError ? '加载失败' : '暂无项目'}
+              >
+                {projects?.map(project => (
+                  <Option key={project.id} value={project.id}>
+                    <ProjectOutlined style={{ marginRight: '4px' }} />
+                    {project.name}
+                  </Option>
+                ))}
+              </Select>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={5}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text type="secondary">客户筛选</Text>
+              <Select
+                value={selectedCustomer}
+                onChange={setSelectedCustomer}
+                style={{ width: '100%' }}
+                placeholder="选择客户"
+                allowClear
+                loading={customersLoading}
+                showSearch
+                optionFilterProp="children"
+                notFoundContent={customersError ? '加载失败' : '暂无客户'}
+              >
+                {customers?.map(customer => (
+                  <Option key={customer.id} value={customer.id}>
+                    <TeamOutlined style={{ marginRight: '4px' }} />
+                    {customer.name}
+                  </Option>
+                ))}
+              </Select>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={5}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text type="secondary">状态筛选</Text>
+              <Select
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                style={{ width: '100%' }}
+                placeholder="选择状态"
+              >
+                <Option value="all">全部状态</Option>
+                <Option value="todo">待办</Option>
+                <Option value="in_progress">进行中</Option>
+                <Option value="completed">已完成</Option>
+                <Option value="cancelled">已取消</Option>
+              </Select>
+            </Space>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text type="secondary">搜索任务</Text>
+              <Search
+                placeholder="搜索任务..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                style={{ width: '100%' }}
+                allowClear
+              />
+            </Space>
+          </Col>
+          <Col xs={24} sm={24} md={3}>
+            <Space direction="vertical" size={4} style={{ width: '100%' }}>
+              <Text type="secondary">统计</Text>
+              <div style={{ padding: '6px 0' }}>
+                <Badge count={filteredTasks.length} color="#1890ff" style={{ marginRight: '8px' }} />
+                <Text>筛选结果</Text>
+              </div>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
 
       {/* 本周统计概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={6}>
-          <Card 
-            hoverable
-            style={{ 
-              borderLeft: '4px solid #1890ff',
-              background: 'linear-gradient(135deg, #f8faff 0%, #e6f3ff 100%)'
-            }}
-          >
+          <Card>
             <Statistic
-              title="📊 本周任务总数"
+              title="本周任务总数"
               value={weeklyStats.totalTasks}
-              prefix={<RocketOutlined style={{ color: '#1890ff' }} />}
+              prefix={<BarChartOutlined style={{ color: '#1890ff' }} />}
+              valueStyle={{ color: '#1890ff' }}
               suffix="个"
-              valueStyle={{ color: '#1890ff', fontSize: '28px', fontWeight: 'bold' }}
             />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {selectedWeek.isSame(dayjs(), 'week') ? '本周工作量' : '该周工作量'}
-            </Text>
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card 
-            hoverable
-            style={{ 
-              borderLeft: '4px solid #52c41a',
-              background: 'linear-gradient(135deg, #f6ffed 0%, #e6fffb 100%)'
-            }}
-          >
+          <Card>
             <Statistic
-              title="✅ 已完成"
+              title="已完成"
               value={weeklyStats.completedTasks}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a' }}
               suffix="个"
-              valueStyle={{ color: '#52c41a', fontSize: '28px', fontWeight: 'bold' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                完成效率
-              </Text>
-              {weeklyStats.totalTasks > 0 && (
-                <Badge 
-                  count={`${Math.round((weeklyStats.completedTasks / weeklyStats.totalTasks) * 100)}%`}
-                  style={{ backgroundColor: '#52c41a' }}
-                />
-              )}
-            </div>
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card 
-            hoverable
-            style={{ 
-              borderLeft: '4px solid #fa8c16',
-              background: 'linear-gradient(135deg, #fff7e6 0%, #fff1b8 100%)'
-            }}
-          >
+          <Card>
             <Statistic
-              title="🔄 进行中"
+              title="进行中"
               value={weeklyStats.inProgressTasks}
               prefix={<ClockCircleOutlined style={{ color: '#fa8c16' }} />}
+              valueStyle={{ color: '#fa8c16' }}
               suffix="个"
-              valueStyle={{ color: '#fa8c16', fontSize: '28px', fontWeight: 'bold' }}
             />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {weeklyStats.inProgressTasks > 0 ? '需要关注推进' : '暂无进行中任务'}
-            </Text>
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card 
-            hoverable
-            style={{ 
-              borderLeft: '4px solid #722ed1',
-              background: 'linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%)'
-            }}
-          >
-            <Statistic
-              title="🏆 完成率"
-              value={weeklyStats.completionRate}
-              prefix={<TrophyOutlined style={{ color: '#722ed1' }} />}
-              suffix="%"
-              valueStyle={{ color: '#722ed1', fontSize: '28px', fontWeight: 'bold' }}
-            />
+          <Card>
+            <div style={{ marginBottom: '8px' }}>
+              <Text type="secondary">完成率</Text>
+            </div>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#722ed1', marginBottom: '8px' }}>
+              {weeklyStats.completionRate}%
+            </div>
             <Progress 
               percent={weeklyStats.completionRate} 
               size="small" 
               showInfo={false}
-              strokeColor={{
-                '0%': '#ff4d4f',
-                '30%': '#fa8c16',
-                '70%': '#1890ff',
-                '100%': '#52c41a',
-              }}
-              style={{ marginTop: 8 }}
+              strokeColor="#722ed1"
             />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {weeklyStats.completionRate >= 80 ? '🎉 表现优秀' : 
-               weeklyStats.completionRate >= 60 ? '👍 进展良好' :
-               weeklyStats.completionRate >= 30 ? '⚡ 需要加速' : '🔥 冲刺阶段'}
-            </Text>
+            {weeklyStats.overdueTasks > 0 && (
+              <div style={{ marginTop: '4px' }}>
+                <Text type="danger" style={{ fontSize: '12px' }}>
+                  <ExclamationCircleOutlined /> {weeklyStats.overdueTasks} 个逾期
+                </Text>
+              </div>
+            )}
           </Card>
-        </Col>
-      </Row>
-
-      {/* 搜索和筛选 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
-        <Col xs={24} sm={12} md={8}>
-          <Search
-            placeholder="搜索本周任务..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-          />
-        </Col>
-        <Col xs={24} sm={12} md={8}>
-          <Select
-            value={selectedStatus}
-            onChange={setSelectedStatus}
-            style={{ width: '100%' }}
-            placeholder="筛选状态"
-          >
-            <Option value="all">全部状态</Option>
-            <Option value="todo">待办</Option>
-            <Option value="in_progress">进行中</Option>
-            <Option value="completed">已完成</Option>
-            <Option value="cancelled">已取消</Option>
-          </Select>
-        </Col>
-        <Col xs={24} sm={24} md={8}>
-          <Badge count={filteredTasks.length} color="#1890ff">
-            <Text>共 {weeklyTasks?.length || 0} 个本周任务</Text>
-          </Badge>
         </Col>
       </Row>
 
@@ -474,7 +647,7 @@ const TaskDashboardPage: React.FC = () => {
       {viewMode === 'calendar' ? (
         /* 日历视图 */
         <Row gutter={[12, 12]}>
-          {dailyTasks.map((day, index) => {
+          {filteredDailyTasks.map((day, index) => {
             const completedCount = day.tasks.filter(t => t.status === 'completed').length;
             const totalCount = day.tasks.length;
             const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
@@ -527,7 +700,7 @@ const TaskDashboardPage: React.FC = () => {
                   }}
                   styles={{ body: { padding: '12px 8px' } }}
                 >
-                  <div style={{ minHeight: '220px' }}>
+                  <div style={{ minHeight: '200px' }}>
                     {/* 进度条 */}
                     {totalCount > 0 && (
                       <Progress 
@@ -551,92 +724,88 @@ const TaskDashboardPage: React.FC = () => {
                       />
                     ) : (
                       <Space direction="vertical" size="small" style={{ width: '100%' }}>
-                        {day.tasks.map((task: Task) => (
-                          <Card
-                            key={task.id}
-                            size="small"
-                            hoverable
-                            style={{
-                              cursor: 'pointer',
-                              borderLeft: `4px solid ${getStatusColor(task.status)}`,
-                              transition: 'all 0.3s ease',
-                              transform: 'translateY(0)',
-                            }}
-                            onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
-                            styles={{ body: { padding: '10px' } }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            <div>
-                              <Text 
-                                ellipsis={{ tooltip: task.title }} 
-                                style={{ 
-                                  fontSize: '13px',
-                                  fontWeight: 500,
-                                  display: 'block',
-                                  marginBottom: '6px',
-                                  textDecoration: task.status === 'completed' ? 'line-through' : 'none',
-                                  opacity: task.status === 'completed' ? 0.7 : 1
-                                }}
-                              >
-                                {task.status === 'completed' && '✅ '}
-                                {task.status === 'in_progress' && '🔄 '}
-                                {task.status === 'todo' && '📝 '}
-                                {task.title}
-                              </Text>
-                              
-                              <div style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center',
-                                marginBottom: '4px'
-                              }}>
-                                <Tag 
-                                  color={getStatusColor(task.status)} 
-                                  style={{ fontSize: '10px', margin: 0, padding: '2px 6px' }}
+                        {day.tasks.map((task: Task) => {
+                          const projectName = getTaskProjectName(task.project_id);
+                          const isOverdue = task.due_date && 
+                            task.status !== 'completed' && 
+                            dayjs(task.due_date).isBefore(dayjs(), 'day');
+                          
+                          return (
+                            <Card
+                              key={task.id}
+                              size="small"
+                              hoverable
+                              style={{
+                                cursor: 'pointer',
+                                borderLeft: `4px solid ${getStatusColor(task.status)}`,
+                                transition: 'all 0.3s ease',
+                                backgroundColor: isOverdue ? '#fff2f0' : undefined
+                              }}
+                              onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
+                              styles={{ body: { padding: '8px' } }}
+                            >
+                              <div>
+                                <Text 
+                                  ellipsis={{ tooltip: task.title }} 
+                                  style={{ 
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    display: 'block',
+                                    marginBottom: '4px',
+                                    textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+                                    opacity: task.status === 'completed' ? 0.7 : 1,
+                                    color: isOverdue ? '#ff4d4f' : undefined
+                                  }}
                                 >
-                                  {getStatusText(task.status)}
-                                </Tag>
-                                {task.custom_fields?.priority && (
+                                  {isOverdue && '⚠️ '}
+                                  {task.title}
+                                </Text>
+                                
+                                <div style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  marginBottom: '4px'
+                                }}>
                                   <Tag 
-                                    color={getPriorityColor(task.custom_fields.priority)} 
-                                    style={{ fontSize: '10px', margin: 0, padding: '2px 6px' }}
+                                    color={getStatusColor(task.status)} 
+                                    style={{ fontSize: '10px', margin: 0, padding: '1px 4px' }}
                                   >
-                                    {task.custom_fields.priority === 'high' ? '🔥' : 
-                                     task.custom_fields.priority === 'medium' ? '⚡' : '📋'}
+                                    {getStatusText(task.status)}
                                   </Tag>
-                                )}
-                              </div>
-                              
-                              {/* 进度条 */}
-                              {task.custom_fields?.progress !== undefined && (
-                                <Progress 
-                                  percent={task.custom_fields.progress} 
-                                  size="small" 
-                                  showInfo={false}
-                                  strokeColor={task.status === 'completed' ? '#52c41a' : '#1890ff'}
-                                  style={{ marginTop: '4px' }}
-                                />
-                              )}
-                              
-                              {/* 负责人 */}
-                              {task.assignee_name && (
+                                  {task.custom_fields?.priority && (
+                                    <Tag 
+                                      color={getPriorityColor(task.custom_fields.priority)} 
+                                      style={{ fontSize: '10px', margin: 0, padding: '1px 4px' }}
+                                    >
+                                      {task.custom_fields.priority === 'high' ? 'H' : 
+                                       task.custom_fields.priority === 'medium' ? 'M' : 'L'}
+                                    </Tag>
+                                  )}
+                                </div>
+                                
+                                {/* 项目信息 */}
                                 <Text 
                                   type="secondary" 
-                                  style={{ fontSize: '10px', display: 'block', marginTop: '4px' }}
+                                  style={{ fontSize: '10px', display: 'block', marginBottom: '2px' }}
+                                  ellipsis={{ tooltip: projectName }}
                                 >
-                                  👤 {task.assignee_name}
+                                  📁 {projectName}
                                 </Text>
-                              )}
-                            </div>
-                          </Card>
-                        ))}
+                                
+                                {/* 负责人 */}
+                                {task.assignee_name && (
+                                  <Text 
+                                    type="secondary" 
+                                    style={{ fontSize: '10px', display: 'block' }}
+                                  >
+                                    👤 {task.assignee_name}
+                                  </Text>
+                                )}
+                              </div>
+                            </Card>
+                          );
+                        })}
                       </Space>
                     )}
                   </div>
@@ -647,13 +816,13 @@ const TaskDashboardPage: React.FC = () => {
         </Row>
       ) : (
         /* 列表视图 */
-        <Card>
+        <Card title="任务列表">
           <List
             itemLayout="horizontal"
             dataSource={filteredTasks}
-            loading={isLoading}
+            loading={isDataLoading}
             pagination={{
-              pageSize: 10,
+              pageSize: 20,
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total, range) => 
@@ -665,96 +834,112 @@ const TaskDashboardPage: React.FC = () => {
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                   description={
                     <Space direction="vertical">
-                      <Text>暂无本周任务</Text>
-                      <Button 
-                        type="primary" 
-                        icon={<PlusOutlined />}
-                        onClick={() => navigate('/tasks/new')}
-                      >
-                        创建本周任务
-                      </Button>
+                      <Text>暂无符合条件的任务</Text>
+                      {tasksError && (
+                        <Text type="danger">
+                          <ExclamationCircleOutlined /> 数据加载失败
+                        </Text>
+                      )}
                     </Space>
                   }
                 />
               )
             }}
-            renderItem={(task: Task) => (
-              <List.Item
-                actions={[
-                  <Tooltip title="查看详情" key="view">
-                    <Button 
-                      type="text" 
-                      icon={<EyeOutlined />} 
-                      onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
-                    />
-                  </Tooltip>,
-                  <Tooltip title="编辑任务" key="edit">
-                    <Button 
-                      type="text" 
-                      icon={<EditOutlined />} 
-                      onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}/edit`)}
-                    />
-                  </Tooltip>
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={
-                    <Avatar 
-                      style={{ 
-                        backgroundColor: getStatusColor(task.status),
-                        borderRadius: '4px'
-                      }}
-                      shape="square"
-                      size="small"
-                      icon={
-                        task.status === 'completed' ? <CheckCircleOutlined /> : 
-                        task.status === 'in_progress' ? <ClockCircleOutlined /> : 
-                        <UserOutlined />
-                      }
-                    />
-                  }
-                  title={
-                    <Space>
-                      <Text strong>{task.title}</Text>
-                      <Tag color={getStatusColor(task.status)}>
-                        {getStatusText(task.status)}
-                      </Tag>
-                      {task.custom_fields?.priority && (
-                        <Tag color={getPriorityColor(task.custom_fields.priority)}>
-                          {task.custom_fields.priority.toUpperCase()}
-                        </Tag>
-                      )}
-                    </Space>
-                  }
-                  description={
-                    <Space direction="vertical" size={0}>
-                      {task.description && (
-                        <Text type="secondary" ellipsis>
-                          {task.description}
+            renderItem={(task: Task) => {
+              const projectName = getTaskProjectName(task.project_id);
+              const customerName = getTaskCustomerName(task.project_id);
+              const isOverdue = task.due_date && 
+                task.status !== 'completed' && 
+                dayjs(task.due_date).isBefore(dayjs(), 'day');
+              
+              return (
+                <List.Item
+                  style={{ backgroundColor: isOverdue ? '#fff2f0' : undefined }}
+                  actions={[
+                    <Tooltip title="查看详情" key="view">
+                      <Button 
+                        type="text" 
+                        icon={<EyeOutlined />} 
+                        onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
+                      />
+                    </Tooltip>,
+                    <Tooltip title="编辑任务" key="edit">
+                      <Button 
+                        type="text" 
+                        icon={<EditOutlined />} 
+                        onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}/edit`)}
+                      />
+                    </Tooltip>
+                  ]}
+                >
+                  <List.Item.Meta
+                    avatar={
+                      <Avatar 
+                        style={{ 
+                          backgroundColor: getStatusColor(task.status),
+                          color: '#fff'
+                        }}
+                        icon={
+                          task.status === 'completed' ? <CheckCircleOutlined /> : 
+                          task.status === 'in_progress' ? <ClockCircleOutlined /> : 
+                          <UserOutlined />
+                        }
+                      />
+                    }
+                    title={
+                      <Space wrap>
+                        <Text strong style={{ color: isOverdue ? '#ff4d4f' : undefined }}>
+                          {isOverdue && '⚠️ '}
+                          {task.title}
                         </Text>
-                      )}
-                      <Space size="large">
-                        {task.due_date && (
-                          <Text type="secondary">
-                            📅 到期: {dayjs(task.due_date).format('MM/DD dddd')}
-                          </Text>
+                        <Tag color={getStatusColor(task.status)}>
+                          {getStatusText(task.status)}
+                        </Tag>
+                        {task.custom_fields?.priority && (
+                          <Tag color={getPriorityColor(task.custom_fields.priority)}>
+                            {task.custom_fields.priority.toUpperCase()}
+                          </Tag>
                         )}
-                        {task.assignee_name && (
-                          <Text type="secondary">
-                            👤 负责人: {task.assignee_name}
-                          </Text>
-                        )}
-                        {task.custom_fields?.progress && (
-                          <Text type="secondary">
-                            📊 进度: {task.custom_fields.progress}%
-                          </Text>
+                        {isOverdue && (
+                          <Tag color="red">逾期</Tag>
                         )}
                       </Space>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
+                    }
+                    description={
+                      <Space direction="vertical" size={4}>
+                        {task.description && (
+                          <Text type="secondary" ellipsis>
+                            {task.description}
+                          </Text>
+                        )}
+                        <Space wrap>
+                          <Text type="secondary">
+                            <ProjectOutlined /> {projectName}
+                          </Text>
+                          {customerName && (
+                            <Text type="secondary">
+                              <TeamOutlined /> {customerName}
+                            </Text>
+                          )}
+                          {task.due_date && (
+                            <Text 
+                              type={isOverdue ? 'danger' : 'secondary'}
+                            >
+                              <CalendarOutlined /> 到期: {dayjs(task.due_date).format('MM-DD')}
+                            </Text>
+                          )}
+                          {task.assignee_name && (
+                            <Text type="secondary">
+                              <UserOutlined /> {task.assignee_name}
+                            </Text>
+                          )}
+                        </Space>
+                      </Space>
+                    }
+                  />
+                </List.Item>
+              );
+            }}
           />
         </Card>
       )}

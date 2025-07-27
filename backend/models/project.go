@@ -6,40 +6,43 @@ import (
 
 // Project represents a project in the system
 type Project struct {
-	ID          int        `json:"id" db:"id"`
-	Name        string     `json:"name" db:"name" validate:"required,min=1,max=100"`
-	Description string     `json:"description" db:"description"`
-	OwnerID     int        `json:"owner_id" db:"owner_id"`
-	CompanyID   *int       `json:"company_id,omitempty" db:"company_id"` // 主客户ID
-	Status      string     `json:"status" db:"status" validate:"oneof=planning active on_hold completed cancelled"`
-	Priority    string     `json:"priority" db:"priority" validate:"oneof=high medium low"`
-	Progress    int        `json:"progress" db:"progress" validate:"min=0,max=100"`
-	StartDate   *time.Time `json:"start_date,omitempty" db:"start_date"`
-	EndDate     *time.Time `json:"end_date,omitempty" db:"end_date"`
-	Budget      *float64   `json:"budget,omitempty" db:"budget"`
-	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	ID            int        `json:"id" db:"id"`
+	ProjectNumber *string    `json:"project_number,omitempty" db:"project_number"`
+	Name          string     `json:"name" db:"name" validate:"required,min=1,max=100"`
+	Description   string     `json:"description" db:"description"`
+	OwnerID       int        `json:"owner_id" db:"owner_id"`
+	CompanyID     *int       `json:"company_id,omitempty" db:"company_id"` // 主客户ID
+	Status        string     `json:"status" db:"status" validate:"oneof=planning active on_hold completed cancelled"`
+	Priority      string     `json:"priority" db:"priority" validate:"oneof=high medium low"`
+	Progress      int        `json:"progress" db:"progress" validate:"min=0,max=100"`
+	StartDate     *time.Time `json:"start_date,omitempty" db:"start_date"`
+	EndDate       *time.Time `json:"end_date,omitempty" db:"end_date"`
+	Budget        *float64   `json:"budget,omitempty" db:"budget"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // ProjectRequest represents a project creation/update request
 type ProjectRequest struct {
-	Name        string   `json:"name" validate:"required,min=1,max=100"`
-	Description string   `json:"description"`
-	CompanyID   *int     `json:"company_id,omitempty"`       // 主客户ID
-	CompanyIDs  []int    `json:"company_ids,omitempty"`      // 多客户ID列表
-	UserIDs     []int    `json:"user_ids,omitempty"`         // 项目用户ID列表
-	Status      string   `json:"status" validate:"omitempty,oneof=planning active on_hold completed cancelled"`
-	Priority    string   `json:"priority" validate:"omitempty,oneof=high medium low"`
-	Progress    int      `json:"progress" validate:"min=0,max=100"`
-	StartDate   *string  `json:"start_date,omitempty"`       // 使用字符串接收，后续转换为time.Time
-	EndDate     *string  `json:"end_date,omitempty"`         // 使用字符串接收，后续转换为time.Time
-	Budget      *float64 `json:"budget,omitempty"`
+	ProjectNumber *string  `json:"project_number,omitempty"`
+	Name          string   `json:"name" validate:"required,min=1,max=100"`
+	Description   string   `json:"description"`
+	CompanyID     *int     `json:"company_id,omitempty"`       // 主客户ID
+	CompanyIDs    []int    `json:"company_ids,omitempty"`      // 多客户ID列表
+	UserIDs       []int    `json:"user_ids,omitempty"`         // 项目用户ID列表
+	Status        string   `json:"status" validate:"omitempty,oneof=planning active on_hold completed cancelled"`
+	Priority      string   `json:"priority" validate:"omitempty,oneof=high medium low"`
+	Progress      int      `json:"progress" validate:"min=0,max=100"`
+	StartDate     *string  `json:"start_date,omitempty"`       // 使用字符串接收，后续转换为time.Time
+	EndDate       *string  `json:"end_date,omitempty"`         // 使用字符串接收，后续转换为time.Time
+	Budget        *float64 `json:"budget,omitempty"`
 }
 
 // ProjectResponse represents a project response with additional info
 type ProjectResponse struct {
 	ID            int        `json:"id"`
+	ProjectNumber *string    `json:"project_number,omitempty"`
 	Name          string     `json:"name"`
 	Description   string     `json:"description"`
 	OwnerID       int        `json:"owner_id"`

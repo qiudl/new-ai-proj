@@ -3,6 +3,8 @@ import {
   TimerStartRequest,
   TimerStartResponse,
   TimerStopResponse,
+  TimerPauseResponse,
+  TimerResumeResponse,
   TimerCurrentResponse,
   TimerStatsResponse,
   TaskOption
@@ -28,6 +30,26 @@ class TimerService {
       return response.data as TimerStopResponse;
     }
     return response as unknown as TimerStopResponse;
+  }
+
+  // Pause current timer
+  static async pauseTimer(): Promise<TimerPauseResponse> {
+    const response = await api.post('timer/pause');
+    // Handle API response format: {success: true, data: {...}}
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response.data as TimerPauseResponse;
+    }
+    return response as unknown as TimerPauseResponse;
+  }
+
+  // Resume current timer
+  static async resumeTimer(): Promise<TimerResumeResponse> {
+    const response = await api.post('timer/resume');
+    // Handle API response format: {success: true, data: {...}}
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response.data as TimerResumeResponse;
+    }
+    return response as unknown as TimerResumeResponse;
   }
 
   // Get current timer status

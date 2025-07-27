@@ -2503,36 +2503,6 @@ const TasksPage: React.FC = () => {
             minHeight: '500px'
           }}
         >
-          {showGlobalTaskTip && (
-            <div style={{ 
-              marginBottom: '16px', 
-              padding: '12px 16px',
-              backgroundColor: '#f0f9ff',
-              borderRadius: '6px',
-              border: '1px solid #bae7ff',
-              position: 'relative'
-            }}>
-              <strong style={{ color: '#1890ff' }}>全局任务视图</strong>
-              <span style={{ marginLeft: '8px', color: '#666' }}>
-                显示所有项目的任务，支持筛选、搜索和跨项目管理
-              </span>
-              <Button
-                type="text"
-                size="small"
-                icon={<CloseOutlined />}
-                onClick={handleCloseGlobalTaskTip}
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#999',
-                  fontSize: '12px'
-                }}
-                title="关闭提示"
-              />
-            </div>
-          )}
           
           {/* 全局任务表格 */}
           <Table

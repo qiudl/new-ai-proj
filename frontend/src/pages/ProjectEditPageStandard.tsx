@@ -137,12 +137,12 @@ const ProjectEditPageNew: React.FC = () => {
       
       // 设置表单值
       form.setFieldsValue({
+        project_number: projectData.project_number || `P${(100 + projectData.id).toString()}`,
         name: projectData.name,
         description: projectData.description,
         status: projectData.status || 'planning',
         priority: projectData.priority || 'medium',
         progress: projectData.progress || 0,
-        budget: projectData.budget,
         date_range: projectData.start_date && projectData.end_date ? [
           dayjs(projectData.start_date),
           dayjs(projectData.end_date)
@@ -448,6 +448,7 @@ const ProjectEditPageNew: React.FC = () => {
       }).filter(id => !isNaN(id));
 
       const projectData: ProjectRequest = {
+        project_number: values.project_number?.trim() || undefined,
         name: values.name?.trim() || '',
         description: values.description?.trim() || '',
         company_id: selectedCompanies.length > 0 ? selectedCompanies[0] : undefined,
@@ -456,7 +457,6 @@ const ProjectEditPageNew: React.FC = () => {
         status: values.status || 'planning',
         priority: values.priority || 'medium',
         progress: values.progress || 0,
-        budget: values.budget || undefined,
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD') || undefined,
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD') || undefined
       };
@@ -639,19 +639,41 @@ const ProjectEditPageNew: React.FC = () => {
           <Col xs={24} lg={12}>
             {/* 基本信息 */}
             <Card title="基本信息" extra={<InfoCircleOutlined />} style={{ marginBottom: 24 }}>
-              <Form.Item
-                label="项目名称"
-                name="name"
-                rules={[
-                  { required: true, message: '请输入项目名称' },
-                  { min: 2, max: 100, message: '项目名称长度应在2-100个字符之间' }
-                ]}
-              >
-                <Input 
-                  placeholder="请输入项目名称"
-                  prefix={<FileTextOutlined />}
-                />
-              </Form.Item>
+              <Row gutter={16}>
+                <Col span={8}>
+                  <Form.Item
+                    label="项目编号"
+                    name="project_number"
+                    rules={[
+                      { required: true, message: '请输入项目编号' },
+                      { pattern: /^[A-Za-z0-9-_]+$/, message: '项目编号只能包含字母、数字、短横线和下划线' },
+                      { min: 2, max: 20, message: '项目编号长度应在2-20个字符之间' }
+                    ]}
+                    tooltip="唯一的项目标识符，支持字母、数字、短横线和下划线"
+                  >
+                    <Input 
+                      placeholder="如：P101, PRJ-001"
+                      prefix={<NumberOutlined />}
+                      maxLength={20}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={16}>
+                  <Form.Item
+                    label="项目名称"
+                    name="name"
+                    rules={[
+                      { required: true, message: '请输入项目名称' },
+                      { min: 2, max: 100, message: '项目名称长度应在2-100个字符之间' }
+                    ]}
+                  >
+                    <Input 
+                      placeholder="请输入项目名称"
+                      prefix={<FileTextOutlined />}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
 
               <Form.Item
                 label="项目描述"
@@ -732,21 +754,6 @@ const ProjectEditPageNew: React.FC = () => {
                 </Col>
               </Row>
 
-              <Form.Item
-                label="项目预算"
-                name="budget"
-                rules={[
-                  { type: 'number', min: 0, message: '预算应大于0' }
-                ]}
-              >
-                <InputNumber
-                  style={{ width: '100%' }}
-                  placeholder="请输入项目预算（可选）"
-                  min={0}
-                  precision={2}
-                  addonBefore="¥"
-                />
-              </Form.Item>
 
               <Form.Item
                 label="项目周期"

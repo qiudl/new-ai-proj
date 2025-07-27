@@ -21,8 +21,25 @@ export interface TimerStopResponse {
   message: string;
 }
 
+export interface TimerPauseResponse {
+  task_id: number;
+  task_title: string;
+  elapsed_seconds: number;
+  formatted_time: string;
+  status: string;
+  message: string;
+}
+
+export interface TimerResumeResponse {
+  task_id: number;
+  task_title: string;
+  status: string;
+  message: string;
+}
+
 export interface TimerCurrentResponse {
   is_running: boolean;
+  is_paused?: boolean;
   task_id?: number;
   task_title?: string;
   start_time?: string;
@@ -71,6 +88,7 @@ export interface TaskTimeLog {
 // Timer state management
 export interface TimerState {
   isRunning: boolean;
+  isPaused?: boolean;
   taskId?: number;
   taskTitle?: string;
   startTime?: Date;

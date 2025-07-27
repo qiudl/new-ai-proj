@@ -11,13 +11,13 @@ export interface Project {
   priority?: 'high' | 'medium' | 'low';
   start_date?: string;
   end_date?: string;
-  budget?: number;
   progress?: number; // 项目进度百分比
   created_at: string;
   updated_at: string;
 }
 
 export interface ProjectRequest {
+  project_number?: string; // 项目编号
   name: string;
   description?: string;
   company_id?: number; // 主客户ID（保持向后兼容）
@@ -27,7 +27,6 @@ export interface ProjectRequest {
   priority?: 'high' | 'medium' | 'low';
   start_date?: string;
   end_date?: string;
-  budget?: number;
   progress?: number; // 项目进度百分比
 }
 
