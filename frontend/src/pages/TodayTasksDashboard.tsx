@@ -276,7 +276,6 @@ const TodayTasksDashboard: React.FC = () => {
       <Col xs={24} lg={12}>
         <Card title="今日活动" extra={<CalendarOutlined />}>
           <Timeline
-            size="small"
             style={{ maxHeight: 300, overflow: 'auto' }}
             items={generateActivity().slice(0, 10).map(activity => ({
               children: (

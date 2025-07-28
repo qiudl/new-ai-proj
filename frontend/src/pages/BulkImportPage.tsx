@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Card, message, Steps, Alert } from 'antd';
-import { ImportOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Button, Input, Card, message, Steps, Alert, Tabs, Radio } from 'antd';
+import { ImportOutlined, CheckCircleOutlined, RobotOutlined } from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectSelector from '../components/ProjectSelector';
 import TaskSelector from '../components/TaskSelector';
+import AIAssistedBulkImport from '../components/AIAssistedBulkImport';
 import { Project } from '../types/project';
 import { Task } from '../types/task';
 import { TaskOption } from '../types/timer';
 import { TaskService } from '../services/taskService';
+import { GeneratedSubTask } from '../types/aiTaskGenerator';
 
 const { TextArea } = Input;
 
@@ -25,6 +27,9 @@ const BulkImportPage: React.FC = () => {
   const [jsonData, setJsonData] = useState('');
   const [parsedTasks, setParsedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  // AI-assisted import mode
+  const [importMode, setImportMode] = useState<'manual' | 'ai'>('ai');
+  const [aiGeneratedTasks, setAiGeneratedTasks] = useState<GeneratedSubTask[]>([]);
   
   // 处理从URL参数预设父任务
   useEffect(() => {
@@ -76,6 +81,54 @@ const BulkImportPage: React.FC = () => {
     setCurrentStep(0);
     setJsonData('');
     setParsedTasks([]);
+    setAiGeneratedTasks([]);
+  };
+
+  // AI-assisted handlers
+  const handleAITasksGenerated = (tasks: GeneratedSubTask[]) => {
+    setAiGeneratedTasks(tasks);
+    message.success(`AI已生成 ${tasks.length} 个任务`);
+  };
+
+  const handleAIImport = async (tasks: GeneratedSubTask[], parentTaskId?: number) => {
+    if (!selectedProjectId) {
+      message.error('请先选择一个项目');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const taskPromises = tasks.map(async (task) => {
+        const taskData = {
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          estimated_hours: task.estimatedHours,
+          parent_id: parentTaskId || selectedParentTaskId,
+          custom_fields: {
+            ...task.custom_fields,
+            ai_generated: true,
+            generation_timestamp: new Date().toISOString()
+          }
+        };
+        
+        return await TaskService.createTask(selectedProjectId, taskData);
+      });
+
+      await Promise.all(taskPromises);
+      message.success(`成功导入 ${tasks.length} 个AI生成的任务`);
+      
+      // Navigate to project tasks page
+      if (selectedProjectId) {
+        navigate(`/projects/${selectedProjectId}/tasks`);
+      }
+    } catch (error: any) {
+      console.error('AI导入失败:', error);
+      message.error(error.message || 'AI任务导入失败');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const steps = [
@@ -363,7 +416,56 @@ const BulkImportPage: React.FC = () => {
         </Card>
       )}
 
-      <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
+      {/* 导入模式选择 */}
+      {selectedProjectId && (
+        <Card style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ fontWeight: 500, marginRight: '12px' }}>导入模式:</label>
+            <Radio.Group 
+              value={importMode} 
+              onChange={(e) => setImportMode(e.target.value)}
+              size="large"
+            >
+              <Radio.Button value="ai">
+                <RobotOutlined /> AI智能生成
+              </Radio.Button>
+              <Radio.Button value="manual">
+                <ImportOutlined /> 手动JSON导入
+              </Radio.Button>
+            </Radio.Group>
+          </div>
+          
+          {importMode === 'ai' ? (
+            <Alert
+              message="AI智能生成模式"
+              description="输入关键词和需求描述，AI将自动为您生成相关的任务列表，支持多种AI提供商。"
+              type="info"
+              showIcon
+            />
+          ) : (
+            <Alert
+              message="手动JSON导入模式"
+              description="将从Claude或其他来源获得的JSON格式任务数据直接粘贴导入。"
+              type="info"
+              showIcon
+            />
+          )}
+        </Card>
+      )}
+
+      {/* AI智能生成模式 */}
+      {selectedProjectId && importMode === 'ai' && (
+        <AIAssistedBulkImport
+          projectId={selectedProjectId}
+          onTasksGenerated={handleAITasksGenerated}
+          onImport={handleAIImport}
+        />
+      )}
+
+      {/* 手动JSON导入模式 */}
+      {importMode === 'manual' && (
+        <>
+          <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
       {selectedProjectId && currentStep === 0 && (
         <div className="import-container">
@@ -565,6 +667,8 @@ const BulkImportPage: React.FC = () => {
             </div>
           </Card>
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -292,7 +292,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
                   else if (label === '今日更新') color = 'purple';
                   
                   return (
-                    <Tag key={label} color={color} size="small">
+                    <Tag key={label} color={color}>
                       {label}
                     </Tag>
                   );
@@ -301,7 +301,6 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
                 {task.custom_fields?.priority && (
                   <Tag 
                     color={getPriorityColor(task.custom_fields.priority)}
-                    size="small"
                   >
                     {task.custom_fields.priority === 'high' ? '高优先级' : 
                      task.custom_fields.priority === 'medium' ? '中优先级' : '低优先级'}

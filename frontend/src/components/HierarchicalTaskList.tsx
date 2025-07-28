@@ -8,7 +8,8 @@ import {
   CaretDownOutlined,
   CaretRightOutlined,
   BranchesOutlined,
-  LoadingOutlined
+  LoadingOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { Task } from '../types/task';
 import { TaskService } from '../services/taskService';
@@ -18,6 +19,7 @@ interface HierarchicalTaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onCreateSubTask: (parentTask: Task) => void;
+  onArchiveTask?: (task: Task) => void;
   loading?: boolean;
 }
 
@@ -32,6 +34,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
   onEditTask,
   onDeleteTask,
   onCreateSubTask,
+  onArchiveTask,
   loading = false,
 }) => {
   const [tasks, setTasks] = useState<ExpandedTaskItem[]>([]);
@@ -430,8 +433,14 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
                     icon: <EditOutlined />,
                     onClick: () => onEditTask(record),
                   },
+                  ...(onArchiveTask ? [{
+                    key: 'archive',
+                    label: '归档任务',
+                    icon: <InboxOutlined />,
+                    onClick: () => onArchiveTask(record),
+                  }] : []),
                   {
-                    type: 'divider',
+                    type: 'divider' as const,
                   },
                   {
                     key: 'delete',

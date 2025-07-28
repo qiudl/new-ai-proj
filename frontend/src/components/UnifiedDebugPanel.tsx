@@ -470,7 +470,7 @@ LocalStorage: ${timerDebugInfo.hasLocalStorage ? '正常' : '异常'}
             </Button>
           }
         >
-          <Timeline size="small">
+          <Timeline>
             {timerHistory.slice(-5).reverse().map((history, index) => (
               <Timeline.Item
                 key={index}

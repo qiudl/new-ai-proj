@@ -512,7 +512,14 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             <Button
               type="text"
               icon={<InboxOutlined />}
-              onClick={() => navigate('/archived-tasks')}
+              onClick={() => {
+                // 导航到第一个项目的归档任务页面，如果没有项目则提示
+                if (projects.length > 0) {
+                  navigate(`/projects/${projects[0].id}/archived-tasks`);
+                } else {
+                  message.info('暂无项目，请先创建项目');
+                }
+              }}
               title="查看归档任务"
             >
               归档管理

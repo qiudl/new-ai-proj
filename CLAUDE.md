@@ -222,6 +222,32 @@ docker-compose exec db psql -U user -d main_db -c "SELECT id, title, parent_id, 
 - **Status**: todo, in_progress, completed, cancelled
 - **Audit Trail**: Full change tracking with task_updates table
 
+### Task Archive System
+- **Single Task Archive**: Archive individual tasks with optional reason
+- **Bulk Archive**: Archive multiple tasks simultaneously 
+- **Unarchive**: Restore archived tasks to active state
+- **Archive Management**: Dedicated page for viewing and managing archived tasks
+- **API Endpoints**:
+  - `POST /api/v1/projects/:id/tasks/:taskId/archive` - Archive single task
+  - `POST /api/v1/projects/:id/tasks/:taskId/unarchive` - Unarchive task
+  - `POST /api/v1/projects/:id/tasks/archive/bulk` - Bulk archive tasks
+  - `GET /api/v1/projects/:id/tasks/archived` - Get archived tasks (paginated)
+  - `GET /api/v1/projects/:id/archive/stats` - Archive statistics
+- **Database Features**:
+  - Stored procedures: `archive_task()`, `unarchive_task()`, `archive_tasks_batch()`
+  - Views: `archived_tasks`, `archive_statistics`
+  - Optimized indexes: `idx_tasks_archived_at`, `idx_tasks_active`
+- **Frontend Components**:
+  - `TaskArchiveModal`: Archive confirmation dialog with reason input
+  - `ArchivedTasksPage`: Full archive management interface
+  - Archive buttons integrated into task lists and detail pages
+- **Features**:
+  - Archive with reason tracking
+  - User attribution (who archived when)
+  - Pagination and search in archive view
+  - Statistics dashboard
+  - Permission-controlled access
+
 ## Testing & Validation
 
 ### Environment Testing
@@ -260,6 +286,10 @@ cd frontend && node validate-data.js         # Validate data consistency
 
 # Sample data verification (15 tasks across 3 projects)
 ./scripts/db-manager.sh stats
+
+# Archive functionality testing
+# Test archive API endpoints and database functions
+docker-compose exec db psql -U user -d main_db -c "SELECT * FROM archive_statistics;"
 ```
 
 ## Development Workflow

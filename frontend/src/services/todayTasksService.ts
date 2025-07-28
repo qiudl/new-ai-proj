@@ -182,8 +182,7 @@ class TodayTasksService {
 
       // 5. 任务已逾期但未完成
       if (taskDueDate && taskDueDate < todayStr && 
-          task.status !== 'completed' && 
-          task.status !== 'cancelled') {
+          task.status !== 'completed') {
         isToday = true;
         grouping.overdue.push(task);
       }
@@ -234,7 +233,7 @@ class TodayTasksService {
     const taskDueDate = task.due_date?.split('T')[0];
 
     // 检查各种条件
-    return (
+    return Boolean(
       // 正在进行中的任务
       task.status === 'in_progress' ||
       
@@ -249,8 +248,7 @@ class TodayTasksService {
       
       // 已逾期但未完成的任务
       (taskDueDate && taskDueDate < todayStr && 
-       task.status !== 'completed' && 
-       task.status !== 'cancelled')
+       task.status !== 'completed')
     );
   }
 
@@ -289,8 +287,7 @@ class TodayTasksService {
     }
 
     if (taskDueDate && taskDueDate < todayStr && 
-        task.status !== 'completed' && 
-        task.status !== 'cancelled') {
+        task.status !== 'completed') {
       labels.push('已逾期');
     }
 

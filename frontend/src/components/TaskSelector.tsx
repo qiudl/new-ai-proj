@@ -1,16 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Select, Spin, Tag, Typography } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Select, Spin, Tag, Typography, Tree, Card, Space, Button, Input, Tooltip, Empty } from 'antd';
+import { 
+  ProjectOutlined, 
+  FileTextOutlined, 
+  BranchesOutlined, 
+  ReloadOutlined,
+  FolderOpenOutlined,
+  CaretDownOutlined,
+  CaretRightOutlined
+} from '@ant-design/icons';
 import { Task } from '../types/task';
+import { Project } from '../types/project';
 import { TaskService } from '../services/taskService';
 import TimerService from '../services/timerService';
 import { TaskOption } from '../types/timer';
+import { projectService } from '../services/projectService';
 
 const { Option } = Select;
 const { Text } = Typography;
+const { Search } = Input;
 
 interface TaskSelectorProps {
   projectId?: number;
-  value?: number;
+  value?: number | Task | null;
   onChange?: (taskId: number | undefined, task?: Task | TaskOption) => void;
   placeholder?: string;
   style?: React.CSSProperties;
@@ -20,6 +32,33 @@ interface TaskSelectorProps {
   // Timer mode props
   timerMode?: boolean; // 是否为计时器模式
   showProjectNames?: boolean; // 是否显示项目名称
+  // AI Assistant mode props
+  aiMode?: boolean; // AI辅助模式，支持层级选择和父任务选择
+  mode?: 'select' | 'tree'; // 显示模式：下拉选择或树形选择
+  treeHeight?: number;
+  // 过滤选项
+  filterOptions?: {
+    excludeCompleted?: boolean; // 排除已完成任务
+    excludeParentTasks?: boolean; // 排除已有子任务的父任务
+    onlyLeafTasks?: boolean; // 只显示叶子任务
+    statusFilter?: string[]; // 状态过滤
+  };
+}
+
+interface TaskTreeNode {
+  key: string;
+  title: React.ReactNode;
+  icon?: React.ReactNode;
+  children?: TaskTreeNode[];
+  isLeaf?: boolean;
+  task: Task;
+  project?: Project;
+  level: number;
+}
+
+interface TaskWithChildren extends Task {
+  children?: TaskWithChildren[];
+  level?: number;
 }
 
 const TaskSelector: React.FC<TaskSelectorProps> = ({
@@ -32,16 +71,113 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   disabled = false,
   filterTaskIds = [],
   timerMode = false,
-  showProjectNames = false
+  showProjectNames = false,
+  aiMode = false,
+  mode = 'select',
+  treeHeight = 300,
+  filterOptions = {}
 }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [timerTasks, setTimerTasks] = useState<TaskOption[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // AI模式新增状态
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [allTasks, setAllTasks] = useState<TaskWithChildren[]>([]);
+  const [filteredTasks, setFilteredTasks] = useState<TaskWithChildren[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(projectId);
+
+  // AI模式：获取项目和任务数据
+  const fetchAIData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 获取项目列表
+      const projectsResponse = await projectService.getProjects();
+      const projectsList = projectsResponse?.data || [];
+      setProjects(projectsList);
+
+      // 确定要获取任务的项目
+      const targetProjects = selectedProjectId 
+        ? projectsList.filter(p => p.id === selectedProjectId)
+        : projectsList;
+
+      if (targetProjects.length === 0) {
+        setAllTasks([]);
+        setFilteredTasks([]);
+        return;
+      }
+
+      // 获取所有项目的任务
+      const projectsWithTasks = await Promise.all(
+        targetProjects.map(async (project) => {
+          try {
+            const tasksResponse = await projectService.getProjectTasks(project.id, {
+              page: 1,
+              pageSize: 100
+            });
+            const tasks = tasksResponse.data || [];
+            
+            // 构建层级任务结构
+            const taskMap = new Map<number, TaskWithChildren>();
+            const rootTasks: TaskWithChildren[] = [];
+            
+            tasks.forEach(task => {
+              taskMap.set(task.id, { ...task, children: [], level: 0 });
+            });
+            
+            tasks.forEach(task => {
+              const taskWithChildren = taskMap.get(task.id)!;
+              if (task.parent_id && taskMap.has(task.parent_id)) {
+                const parent = taskMap.get(task.parent_id)!;
+                parent.children = parent.children || [];
+                taskWithChildren.level = (parent.level || 0) + 1;
+                parent.children.push(taskWithChildren);
+              } else {
+                rootTasks.push(taskWithChildren);
+              }
+            });
+            
+            return { project, tasks: rootTasks };
+          } catch (error) {
+            console.warn(`获取项目${project.id}的任务失败:`, error);
+            return { project, tasks: [] };
+          }
+        })
+      );
+
+      // 合并所有任务，添加项目信息
+      const combinedTasks: TaskWithChildren[] = [];
+      projectsWithTasks.forEach(({ project, tasks }) => {
+        tasks.forEach(task => {
+          // 递归添加项目信息
+          const addProjectInfo = (t: TaskWithChildren) => {
+            (t as any).project = project;
+            if (t.children) {
+              t.children.forEach(addProjectInfo);
+            }
+          };
+          addProjectInfo(task);
+          combinedTasks.push(task);
+        });
+      });
+
+      setAllTasks(combinedTasks);
+    } catch (error) {
+      console.error('获取任务数据失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedProjectId]);
 
   const loadTasks = async () => {
     setLoading(true);
     try {
-      if (timerMode) {
+      if (aiMode) {
+        // AI模式：使用新的数据获取方法
+        return await fetchAIData();
+      } else if (timerMode) {
         // 计时器模式：加载所有可计时的任务
         const availableTasks = await TimerService.getAvailableTasks();
         setTimerTasks(availableTasks.filter(task => !filterTaskIds.includes(task.id)));
@@ -78,10 +214,102 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
 
   useEffect(() => {
     loadTasks();
-  }, [projectId, filterTaskIds, timerMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [projectId, filterTaskIds, timerMode, aiMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // AI模式：应用过滤条件
+  const applyFilters = useCallback((tasks: TaskWithChildren[]): TaskWithChildren[] => {
+    const {
+      excludeCompleted = false,
+      excludeParentTasks = false,
+      onlyLeafTasks = false,
+      statusFilter
+    } = filterOptions;
+
+    const filterTask = (task: TaskWithChildren): TaskWithChildren | null => {
+      // 状态过滤
+      if (statusFilter && statusFilter.length > 0 && !statusFilter.includes(task.status)) {
+        return null;
+      }
+
+      // 排除已完成任务
+      if (excludeCompleted && task.status === 'completed') {
+        return null;
+      }
+
+      // 过滤子任务
+      let filteredChildren: TaskWithChildren[] = [];
+      if (task.children) {
+        filteredChildren = task.children
+          .map(filterTask)
+          .filter(Boolean) as TaskWithChildren[];
+      }
+
+      // 排除有子任务的父任务
+      if (excludeParentTasks && task.children && task.children.length > 0) {
+        return filteredChildren.length > 0 ? { ...task, children: filteredChildren } : null;
+      }
+
+      // 只显示叶子任务
+      if (onlyLeafTasks && filteredChildren.length > 0) {
+        return filteredChildren.length > 0 ? { ...task, children: filteredChildren } : null;
+      }
+
+      return { ...task, children: filteredChildren };
+    };
+
+    return tasks.map(filterTask).filter(Boolean) as TaskWithChildren[];
+  }, [filterOptions]);
+
+  // AI模式：搜索过滤
+  const searchFilter = useCallback((tasks: TaskWithChildren[], searchText: string): TaskWithChildren[] => {
+    if (!searchText.trim()) return tasks;
+
+    const filterBySearch = (task: TaskWithChildren): TaskWithChildren | null => {
+      const matchesSearch = task.title.toLowerCase().includes(searchText.toLowerCase()) ||
+                          task.description?.toLowerCase().includes(searchText.toLowerCase());
+
+      let filteredChildren: TaskWithChildren[] = [];
+      if (task.children) {
+        filteredChildren = task.children
+          .map(filterBySearch)
+          .filter(Boolean) as TaskWithChildren[];
+      }
+
+      if (matchesSearch || filteredChildren.length > 0) {
+        return { ...task, children: filteredChildren };
+      }
+
+      return null;
+    };
+
+    return tasks.map(filterBySearch).filter(Boolean) as TaskWithChildren[];
+  }, []);
+
+  // AI模式：应用过滤和搜索
+  useEffect(() => {
+    if (aiMode) {
+      let filtered = applyFilters(allTasks);
+      filtered = searchFilter(filtered, searchText);
+      setFilteredTasks(filtered);
+    }
+  }, [aiMode, allTasks, applyFilters, searchFilter, searchText]);
 
   const handleChange = (selectedTaskId: number | undefined) => {
-    if (timerMode) {
+    if (aiMode) {
+      // AI模式：从层级任务中查找
+      const findTask = (tasks: TaskWithChildren[]): Task | undefined => {
+        for (const task of tasks) {
+          if (task.id === selectedTaskId) return task;
+          if (task.children) {
+            const found = findTask(task.children);
+            if (found) return found;
+          }
+        }
+        return undefined;
+      };
+      const selectedTask = findTask(filteredTasks);
+      onChange?.(selectedTaskId, selectedTask);
+    } else if (timerMode) {
       const selectedTask = timerTasks.find(task => task.id === selectedTaskId);
       onChange?.(selectedTaskId, selectedTask);
     } else {
@@ -144,21 +372,187 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
     );
   };
 
-  const currentTasks = timerMode ? timerTasks : tasks;
-  const canSearch = timerMode || !!projectId;
+  // AI模式的额外功能
+  const buildTreeNodes = useCallback((tasks: TaskWithChildren[]): TaskTreeNode[] => {
+    return tasks.map(task => {
+      const project = (task as any).project as Project;
+      const hasChildren = task.children && task.children.length > 0;
+      
+      return {
+        key: `task-${task.id}`,
+        title: (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <Text 
+                strong={task.level === 0}
+                style={{ 
+                  fontSize: task.level === 0 ? '13px' : '12px',
+                  color: task.status === 'completed' ? '#8c8c8c' : '#262626'
+                }}
+              >
+                {task.title}
+              </Text>
+              {project && showProjectNames && (
+                <div style={{ marginTop: 2 }}>
+                  <Text type="secondary" style={{ fontSize: '11px' }}>
+                    <ProjectOutlined style={{ marginRight: 2 }} />
+                    {project.name}
+                  </Text>
+                </div>
+              )}
+            </div>
+            <Space size={4}>
+              <Tag 
+                color={task.status === 'completed' ? 'green' : 
+                       task.status === 'in_progress' ? 'blue' : 'default'}
+              >
+                {task.status === 'todo' ? '待开始' :
+                 task.status === 'in_progress' ? '进行中' :
+                 task.status === 'completed' ? '已完成' : '已取消'}
+              </Tag>
+              {task.custom_fields?.priority && (
+                <Tag 
+                  color={task.custom_fields.priority === 'high' ? 'red' :
+                         task.custom_fields.priority === 'medium' ? 'orange' : 'green'}
+                >
+                  {task.custom_fields.priority === 'high' ? '高' :
+                   task.custom_fields.priority === 'medium' ? '中' : '低'}
+                </Tag>
+              )}
+            </Space>
+          </div>
+        ),
+        icon: hasChildren ? <BranchesOutlined /> : <FileTextOutlined />,
+        children: hasChildren ? buildTreeNodes(task.children!) : undefined,
+        isLeaf: !hasChildren,
+        task,
+        project,
+        level: task.level || 0
+      };
+    });
+  }, [showProjectNames]);
+
+  const flattenTasks = useCallback((tasks: TaskWithChildren[]): TaskWithChildren[] => {
+    const result: TaskWithChildren[] = [];
+    
+    const flatten = (taskList: TaskWithChildren[]) => {
+      taskList.forEach(task => {
+        result.push(task);
+        if (task.children && task.children.length > 0) {
+          flatten(task.children);
+        }
+      });
+    };
+    
+    flatten(tasks);
+    return result;
+  }, []);
+
+  const getTaskDisplayTitle = useCallback((task: TaskWithChildren): string => {
+    const project = (task as any).project as Project;
+    const level = task.level || 0;
+    const prefix = '  '.repeat(level);
+    const projectPrefix = project && showProjectNames ? `[${project.name}] ` : '';
+    return `${prefix}${projectPrefix}${task.title}`;
+  }, [showProjectNames]);
+
+  // AI模式的树形渲染
+  if (aiMode && mode === 'tree') {
+    const treeData = buildTreeNodes(filteredTasks);
+    
+    return (
+      <Card size="small" style={style}>
+        <div style={{ marginBottom: 12 }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Search
+              placeholder="搜索任务..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <Space>
+              <Tooltip title="刷新">
+                <Button size="small" onClick={loadTasks} loading={loading}>
+                  <ReloadOutlined />
+                </Button>
+              </Tooltip>
+            </Space>
+          </Space>
+        </div>
+
+        <div style={{ height: treeHeight, overflow: 'auto', border: '1px solid #f0f0f0', borderRadius: 4 }}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 40 }}>
+              <Spin />
+            </div>
+          ) : treeData.length === 0 ? (
+            <Empty 
+              description="暂无匹配的任务" 
+              style={{ marginTop: 40 }}
+            />
+          ) : (
+            <Tree
+              showIcon
+              blockNode
+              treeData={treeData}
+              expandedKeys={expandedKeys}
+              selectedKeys={typeof value === 'object' && value ? [`task-${value.id}`] : []}
+              onExpand={(keys) => setExpandedKeys(keys.map(k => k.toString()))}
+              onSelect={(keys, info) => {
+                if (keys.length > 0 && info.node) {
+                  handleChange(info.node.task.id);
+                } else {
+                  handleChange(undefined);
+                }
+              }}
+              switcherIcon={({ expanded }) => 
+                expanded ? <CaretDownOutlined /> : <CaretRightOutlined />
+              }
+            />
+          )}
+        </div>
+
+        {typeof value === 'object' && value && (
+          <div style={{ marginTop: 8, padding: 8, background: '#f6ffed', border: '1px solid #d9f7be', borderRadius: 4 }}>
+            <Text strong>已选择:</Text>
+            <div style={{ marginTop: 4 }}>
+              <Text>{value.title}</Text>
+              {(value as any).project && showProjectNames && (
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  ({((value as any).project as Project).name})
+                </Text>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+    );
+  }
+
+  const currentTasks = aiMode ? flattenTasks(filteredTasks) : (timerMode ? timerTasks : tasks);
+  const canSearch = timerMode || !!projectId || aiMode;
+  const currentValue = typeof value === 'object' && value ? value.id : value;
 
   return (
     <Select
-      value={value}
+      value={currentValue}
       onChange={handleChange}
       placeholder={placeholder}
       style={style}
       allowClear={allowClear}
-      disabled={disabled || (!canSearch && !timerMode)}
+      disabled={disabled || (!canSearch && !timerMode && !aiMode)}
       loading={loading}
       showSearch
       filterOption={(input, option) => {
-        if (timerMode) {
+        if (aiMode) {
+          const task = currentTasks.find(t => t.id === option?.value);
+          const searchText = input.toLowerCase();
+          return (
+            task?.title?.toLowerCase().includes(searchText) ||
+            (task && 'description' in task && task?.description?.toLowerCase().includes(searchText))
+          ) || false;
+        } else if (timerMode) {
           const task = timerTasks.find(t => t.id === option?.value);
           const searchText = input.toLowerCase();
           return (
@@ -172,11 +566,36 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       }}
       notFoundContent={
         loading ? <Spin size="small" /> : 
-        (!projectId && !timerMode) ? "请先选择项目" : 
+        (!projectId && !timerMode && !aiMode) ? "请先选择项目" : 
         "暂无任务"
       }
     >
-      {timerMode ? timerTasks.map(renderTimerTaskOption) : tasks.map(renderTaskOption)}
+      {aiMode ? 
+        (currentTasks as TaskWithChildren[]).map(task => (
+          <Option key={task.id} value={task.id}>
+            <div>
+              <Text>{getTaskDisplayTitle(task)}</Text>
+              <div style={{ marginTop: 2 }}>
+                <Space size={4}>
+                  <Tag color={task.status === 'completed' ? 'green' : 'default'}>
+                    {task.status === 'todo' ? '待开始' : 
+                     task.status === 'in_progress' ? '进行中' : 
+                     task.status === 'completed' ? '已完成' : '已取消'}
+                  </Tag>
+                  {task.custom_fields?.priority && (
+                    <Tag 
+                      color={task.custom_fields.priority === 'high' ? 'red' : 'orange'}
+                    >
+                      {task.custom_fields.priority === 'high' ? '高优先级' : '中优先级'}
+                    </Tag>
+                  )}
+                </Space>
+              </div>
+            </div>
+          </Option>
+        )) :
+        timerMode ? timerTasks.map(renderTimerTaskOption) : tasks.map(renderTaskOption)
+      }
     </Select>
   );
 };

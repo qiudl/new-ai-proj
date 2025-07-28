@@ -45,7 +45,8 @@ import {
   FolderOutlined,
   UploadOutlined,
   EyeOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -53,6 +54,7 @@ import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
+import TaskArchiveModal from '../components/TaskArchiveModal';
 import TaskTimeline from '../components/TaskTimeline';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
@@ -94,6 +96,7 @@ const TaskDetailPageNew: React.FC = () => {
   const [taskModalVisible, setTaskModalVisible] = useState(false);
   const [taskModalMode, setTaskModalMode] = useState<'edit' | 'createSubtask'>('edit');
   const [modalLoading, setModalLoading] = useState(false);
+  const [archiveModalVisible, setArchiveModalVisible] = useState(false);
   const [timelineActiveTab, setTimelineActiveTab] = useState('timeline'); // 'timeline', 'history'
   
   // 附加数据状态
@@ -472,6 +475,19 @@ const TaskDetailPageNew: React.FC = () => {
     
     // 跳转到批量导入页面，带上父任务参数
     navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task.id}`);
+  };
+
+  // 归档任务处理函数
+  const handleArchiveTask = () => {
+    setArchiveModalVisible(true);
+  };
+
+  // 归档成功处理
+  const handleArchiveSuccess = () => {
+    setArchiveModalVisible(false);
+    message.success('任务已归档');
+    // 返回到任务列表
+    navigate(`/projects/${projectId}/tasks`);
   };
 
   // 统一的任务模态框提交处理
@@ -1221,6 +1237,14 @@ const TaskDetailPageNew: React.FC = () => {
               >
                 批量导入任务
               </Button>
+              <Button 
+                block 
+                icon={<InboxOutlined />}
+                onClick={handleArchiveTask}
+                style={{ marginTop: '8px' }}
+              >
+                归档任务
+              </Button>
             </Space>
           </Card>
 
@@ -1525,6 +1549,18 @@ const TaskDetailPageNew: React.FC = () => {
               navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.id}`);
             }
           }}
+        />
+      )}
+      
+      {/* Archive Modal */}
+      {task && projectId && (
+        <TaskArchiveModal
+          visible={archiveModalVisible}
+          onCancel={() => setArchiveModalVisible(false)}
+          onSuccess={handleArchiveSuccess}
+          projectId={parseInt(projectId)}
+          tasks={[task]}
+          mode="single"
         />
       )}
       </div>

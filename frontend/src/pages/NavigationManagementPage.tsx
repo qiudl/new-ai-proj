@@ -144,10 +144,10 @@ const NavigationManagementPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
             <span>{item.label}</span>
-            <Tag size="small" color={item.is_enabled ? 'green' : 'red'}>
+            <Tag color={item.is_enabled ? 'green' : 'red'}>
               {item.is_enabled ? '启用' : '禁用'}
             </Tag>
-            {!item.is_visible && <Tag size="small" color="orange">隐藏</Tag>}
+            {!item.is_visible && <Tag color="orange">隐藏</Tag>}
           </Space>
           <Space size="small">
             <Button
@@ -161,11 +161,10 @@ const NavigationManagementPage: React.FC = () => {
             />
             <Popconfirm
               title="确认删除此菜单项？"
-              onConfirm={(e) => {
+              onConfirm={(e?: React.MouseEvent<HTMLElement>) => {
                 e?.stopPropagation();
                 handleDeleteMenuItem(item.id);
               }}
-              onClick={(e) => e?.stopPropagation()}
             >
               <Button
                 type="text"
@@ -190,7 +189,7 @@ const NavigationManagementPage: React.FC = () => {
       render: (text, record) => (
         <Space>
           <span>{text}</span>
-          {record.icon && <Tag size="small">{record.icon}</Tag>}
+          {record.icon && <Tag>{record.icon}</Tag>}
         </Space>
       ),
     },
@@ -360,12 +359,11 @@ const NavigationManagementPage: React.FC = () => {
   };
 
   const handleCopyMenuItem = (item: MenuItem) => {
-    const copiedItem = {
+    const { id, ...copiedItem } = {
       ...item,
       label: `${item.label} (副本)`,
       key: `${item.key}_copy_${Date.now()}`,
     };
-    delete copiedItem.id;
     setEditingMenuItem(copiedItem as MenuItem);
     setMenuItemModalVisible(true);
   };
@@ -650,7 +648,7 @@ const NavigationManagementPage: React.FC = () => {
               }}
               rowSelection={{
                 selectedRowKeys: selectedMenuItems,
-                onChange: setSelectedMenuItems,
+                onChange: (selectedRowKeys) => setSelectedMenuItems(selectedRowKeys as string[]),
               }}
               scroll={{ x: 1200 }}
             />
@@ -698,7 +696,7 @@ const NavigationManagementPage: React.FC = () => {
               }}
               rowSelection={{
                 selectedRowKeys: selectedRoutes,
-                onChange: setSelectedRoutes,
+                onChange: (selectedRowKeys) => setSelectedRoutes(selectedRowKeys as string[]),
               }}
             />
           </TabPane>

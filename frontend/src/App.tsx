@@ -48,6 +48,7 @@ const NavigationManagementPage = React.lazy(() => import('./pages/NavigationMana
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
+const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -214,6 +215,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <TaskDetailPageNew />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/projects/:projectId/archived-tasks" element={
+              <PrivateRoute>
+                <Layout>
+                  <ArchivedTasksPage />
                 </Layout>
               </PrivateRoute>
             } />

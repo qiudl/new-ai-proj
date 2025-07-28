@@ -43,6 +43,7 @@ const ArchivedTasksPage: React.FC = () => {
   
   const [tasks, setTasks] = useState<ArchivedTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [unarchivingTasks, setUnarchivingTasks] = useState<Set<number>>(new Set());
   const [statistics, setStatistics] = useState<ArchiveStatistics | null>(null);
   const [pagination, setPagination] = useState({
     current: 1,
@@ -55,7 +56,7 @@ const ArchivedTasksPage: React.FC = () => {
     search: '',
     status: '',
     archivedBy: '',
-    dateRange: null as [dayjs.Dayjs, dayjs.Dayjs] | null
+    dateRange: null as any
   });
 
   // 获取归档任务
@@ -95,12 +96,19 @@ const ArchivedTasksPage: React.FC = () => {
     if (!projectId) return;
     
     try {
+      setUnarchivingTasks(prev => new Set([...prev, taskId]));
       await unarchiveTask(parseInt(projectId), taskId);
       message.success(`任务 "${taskTitle}" 已恢复到活跃状态`);
       fetchArchivedTasks(pagination.current, pagination.pageSize);
       fetchStatistics();
     } catch (error: any) {
       message.error(error.message || '取消归档失败');
+    } finally {
+      setUnarchivingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
     }
   };
 
@@ -219,6 +227,7 @@ const ArchivedTasksPage: React.FC = () => {
               type="link" 
               size="small" 
               icon={<UndoOutlined />}
+              loading={unarchivingTasks.has(record.id)}
               style={{ padding: 0 }}
             >
               恢复

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
 import TaskModal from '../components/TaskModal';
+import TaskArchiveModal from '../components/TaskArchiveModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
 import ProjectSelector from '../components/ProjectSelector';
 import TimerStartButton from '../components/TimerStartButton';
@@ -55,6 +56,10 @@ const TasksPage: React.FC = () => {
   // 批量选择相关状态
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+  
+  // Archive modal state
+  const [archiveModalVisible, setArchiveModalVisible] = useState(false);
+  const [tasksToArchive, setTasksToArchive] = useState<Task[]>([]);
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -538,6 +543,33 @@ const TasksPage: React.FC = () => {
         }
       },
     });
+  };
+
+  // Handle archive single task
+  const handleArchiveTask = (task: Task) => {
+    setTasksToArchive([task]);
+    setArchiveModalVisible(true);
+  };
+
+  // Handle bulk archive
+  const handleBulkArchive = () => {
+    if (selectedTaskIds.length === 0) {
+      message.warning('请先选择要归档的任务');
+      return;
+    }
+    
+    const selectedTasks = tasks.filter(task => selectedTaskIds.includes(task.id));
+    setTasksToArchive(selectedTasks);
+    setArchiveModalVisible(true);
+  };
+
+  // Handle archive success
+  const handleArchiveSuccess = () => {
+    setArchiveModalVisible(false);
+    setTasksToArchive([]);
+    setSelectedTaskIds([]);
+    loadTasks(pagination.current, pagination.pageSize);
+    message.success('任务归档成功');
   };
 
   // Handle edit task
@@ -1565,6 +1597,12 @@ const TasksPage: React.FC = () => {
                           onClick: () => handleEditTask(record),
                         },
                         {
+                          key: 'archive',
+                          label: '归档',
+                          icon: <InboxOutlined />,
+                          onClick: () => handleArchiveTask(record),
+                        },
+                        {
                           key: 'delete',
                           label: '删除',
                           icon: <DeleteOutlined />,
@@ -2157,6 +2195,12 @@ const TasksPage: React.FC = () => {
                     onClick: () => handleEditTask(record),
                   },
                   {
+                    key: 'archive',
+                    label: '归档',
+                    icon: <InboxOutlined />,
+                    onClick: () => handleArchiveTask(record),
+                  },
+                  {
                     key: 'delete',
                     label: '删除',
                     icon: <DeleteOutlined />,
@@ -2372,16 +2416,26 @@ const TasksPage: React.FC = () => {
               </Button>
               
               {selectedTaskIds.length > 0 && (
-                <Button
-                  type="default"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={handleBulkDelete}
-                  loading={bulkDeleteLoading}
-                  style={{ height: '40px' }}
-                >
-                  批量删除 ({selectedTaskIds.length})
-                </Button>
+                <>
+                  <Button
+                    type="default"
+                    icon={<InboxOutlined />}
+                    onClick={handleBulkArchive}
+                    style={{ height: '40px' }}
+                  >
+                    批量归档 ({selectedTaskIds.length})
+                  </Button>
+                  <Button
+                    type="default"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={handleBulkDelete}
+                    loading={bulkDeleteLoading}
+                    style={{ height: '40px' }}
+                  >
+                    批量删除 ({selectedTaskIds.length})
+                  </Button>
+                </>
               )}
               
               <Button
@@ -2437,6 +2491,7 @@ const TasksPage: React.FC = () => {
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
                 onCreateSubTask={handleCreateSubTask}
+                onArchiveTask={handleArchiveTask}
                 loading={loading}
               />
             </div>
@@ -2574,6 +2629,16 @@ const TasksPage: React.FC = () => {
           />
         ) : null;
       })()}
+      
+      {/* Archive Modal */}
+      <TaskArchiveModal
+        visible={archiveModalVisible}
+        onCancel={() => setArchiveModalVisible(false)}
+        onSuccess={handleArchiveSuccess}
+        projectId={effectiveProjectId}
+        tasks={tasksToArchive}
+        mode={tasksToArchive.length === 1 ? 'single' : 'bulk'}
+      />
     </div>
   );
 };
