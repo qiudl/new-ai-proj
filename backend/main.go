@@ -189,6 +189,9 @@ func (app *Application) setupRouter() *gin.Engine {
 			authorized.GET("/tasks", app.getAllTasksHandler)
 			authorized.GET("/tasks/today", app.getTodayTasksHandler)
 			authorized.GET("/tasks/today/stats", app.getTodayTasksStatsHandler)
+			authorized.POST("/tasks/today/bulk", app.bulkOperationTodayTasksHandler)
+			authorized.POST("/tasks/:id/complete", app.markTodayTaskCompletedHandler)
+			authorized.POST("/tasks/:id/postpone", app.postponeTodayTaskHandler)
 			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
@@ -3688,6 +3691,195 @@ func convertTasksToResponses(tasks []*models.Task) []models.TaskResponse {
 		responses[i] = task.ToResponse()
 	}
 	return responses
+}
+
+// markTodayTaskCompletedHandler marks a specific task as completed
+func (app *Application) markTodayTaskCompletedHandler(c *gin.Context) {
+	taskIDStr := c.Param("id")
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get the task first to ensure it exists
+	task, err := app.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		app.logger.Printf("Error getting task %d: %v", taskID, err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Task not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Update task status to completed
+	task.Status = "completed"
+	task.UpdatedAt = time.Now()
+
+	_, err = app.db.Tasks().Update(c.Request.Context(), task)
+	if err != nil {
+		app.logger.Printf("Error updating task %d: %v", taskID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update task", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(task.ToResponse(), "Task marked as completed")
+	c.JSON(http.StatusOK, response)
+}
+
+// postponeTodayTaskHandler postpones a task to a new due date
+func (app *Application) postponeTodayTaskHandler(c *gin.Context) {
+	taskIDStr := c.Param("id")
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var requestBody struct {
+		NewDueDate      string `json:"new_due_date" binding:"required"`
+		PostponeReason  string `json:"postpone_reason"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Parse the new due date
+	newDueDate, err := time.Parse("2006-01-02", requestBody.NewDueDate)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid date format. Use YYYY-MM-DD", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get the task first to ensure it exists
+	task, err := app.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		app.logger.Printf("Error getting task %d: %v", taskID, err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Task not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Update task due date and add postpone reason to custom fields
+	task.DueDate = &newDueDate
+	task.UpdatedAt = time.Now()
+
+	if task.CustomFields == nil {
+		task.CustomFields = make(map[string]interface{})
+	}
+	if requestBody.PostponeReason != "" {
+		task.CustomFields["postpone_reason"] = requestBody.PostponeReason
+		task.CustomFields["postponed_at"] = time.Now().Format("2006-01-02 15:04:05")
+	}
+
+	_, err = app.db.Tasks().Update(c.Request.Context(), task)
+	if err != nil {
+		app.logger.Printf("Error updating task %d: %v", taskID, err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update task", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(task.ToResponse(), "Task postponed successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// bulkOperationTodayTasksHandler performs bulk operations on today's tasks
+func (app *Application) bulkOperationTodayTasksHandler(c *gin.Context) {
+	var requestBody struct {
+		TaskIDs   []int                  `json:"task_ids" binding:"required"`
+		Operation string                 `json:"operation" binding:"required"`
+		Data      map[string]interface{} `json:"data"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if len(requestBody.TaskIDs) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "No task IDs provided", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	updatedTasks := []models.TaskResponse{}
+	failedTasks := []int{}
+
+	for _, taskID := range requestBody.TaskIDs {
+		task, err := app.db.Tasks().GetByID(c.Request.Context(), taskID)
+		if err != nil {
+			app.logger.Printf("Error getting task %d: %v", taskID, err)
+			failedTasks = append(failedTasks, taskID)
+			continue
+		}
+
+		// Apply the operation
+		switch requestBody.Operation {
+		case "complete":
+			task.Status = "completed"
+		case "priority":
+			if priority, exists := requestBody.Data["priority"]; exists {
+				if task.CustomFields == nil {
+					task.CustomFields = make(map[string]interface{})
+				}
+				task.CustomFields["priority"] = priority
+			}
+		case "status":
+			if status, exists := requestBody.Data["status"]; exists {
+				if statusStr, ok := status.(string); ok {
+					task.Status = statusStr
+				}
+			}
+		case "assignee":
+			if assigneeID, exists := requestBody.Data["assignee_id"]; exists {
+				if assigneeIDFloat, ok := assigneeID.(float64); ok {
+					assigneeIDInt := int(assigneeIDFloat)
+					task.AssigneeID = &assigneeIDInt
+				}
+			}
+		case "postpone":
+			if newDueDate, exists := requestBody.Data["new_due_date"]; exists {
+				if dueDateStr, ok := newDueDate.(string); ok {
+					if parsedDate, err := time.Parse("2006-01-02", dueDateStr); err == nil {
+						task.DueDate = &parsedDate
+					}
+				}
+			}
+		default:
+			failedTasks = append(failedTasks, taskID)
+			continue
+		}
+
+		task.UpdatedAt = time.Now()
+		
+		_, err = app.db.Tasks().Update(c.Request.Context(), task)
+		if err != nil {
+			app.logger.Printf("Error updating task %d: %v", taskID, err)
+			failedTasks = append(failedTasks, taskID)
+			continue
+		}
+
+		updatedTasks = append(updatedTasks, task.ToResponse())
+	}
+
+	responseData := map[string]interface{}{
+		"updated_tasks": updatedTasks,
+		"updated_count": len(updatedTasks),
+		"failed_tasks":  failedTasks,
+		"failed_count":  len(failedTasks),
+	}
+
+	message := fmt.Sprintf("Bulk operation completed. Updated: %d, Failed: %d", len(updatedTasks), len(failedTasks))
+	response := models.NewSuccessResponse(responseData, message)
+	c.JSON(http.StatusOK, response)
 }
 
 func main() {

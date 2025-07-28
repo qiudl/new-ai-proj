@@ -361,7 +361,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
       setLoading(true);
       
       const projectsResponse = await projectService.getProjects();
-      const projectsList = projectsResponse.data || [];
+      const projectsList = projectsResponse?.data || [];
       setProjects(projectsList);
 
       const projectsWithTasks = await Promise.all(
