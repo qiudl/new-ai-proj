@@ -58,33 +58,178 @@
   padding: 6px 8px;
   border-radius: 4px;
   transition: all 0.2s ease;
+  position: relative;
 }
 
 .enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="task"] .ant-tree-node-content-wrapper:hover {
   background-color: rgba(24, 144, 255, 0.08);
   transform: translateX(2px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* 层级缩进线 */
+/* 层级深度视觉区分 - 使用动态添加的类名 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-0 .ant-tree-node-content-wrapper {
+  border-left: 4px solid transparent;
+  background: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 第1层级 - 项目级别或根任务 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 {
+  background: rgba(24, 144, 255, 0.08) !important;
+  margin-left: 8px !important;
+  border-radius: 6px !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 .ant-tree-node-content-wrapper {
+  border-left: 6px solid #1890ff !important;
+  background: linear-gradient(to right, rgba(24, 144, 255, 0.15), rgba(24, 144, 255, 0.05)) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(24, 144, 255, 0.2) !important;
+}
+
+/* 第2层级 - 子任务 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 {
+  background: rgba(82, 196, 26, 0.08) !important;
+  margin-left: 16px !important;
+  border-radius: 6px !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 .ant-tree-node-content-wrapper {
+  border-left: 6px solid #52c41a !important;
+  background: linear-gradient(to right, rgba(82, 196, 26, 0.15), rgba(82, 196, 26, 0.05)) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(82, 196, 26, 0.2) !important;
+}
+
+/* 第3层级 - 深层子任务 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 {
+  background: rgba(250, 140, 22, 0.08) !important;
+  margin-left: 24px !important;
+  border-radius: 6px !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 .ant-tree-node-content-wrapper {
+  border-left: 6px solid #fa8c16 !important;
+  background: linear-gradient(to right, rgba(250, 140, 22, 0.15), rgba(250, 140, 22, 0.05)) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(250, 140, 22, 0.2) !important;
+}
+
+/* 第4层级及以上 - 最深层级 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-4,
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-5,
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-6 {
+  background: rgba(255, 85, 115, 0.08) !important;
+  margin-left: 32px !important;
+  border-radius: 6px !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-4 .ant-tree-node-content-wrapper,
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-5 .ant-tree-node-content-wrapper,
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-6 .ant-tree-node-content-wrapper {
+  border-left: 6px solid #ff5573 !important;
+  background: linear-gradient(to right, rgba(255, 85, 115, 0.15), rgba(255, 85, 115, 0.05)) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(255, 85, 115, 0.2) !important;
+}
+
+/* 树节点包装器样式 */
+.tree-node-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+/* 项目节点特殊样式 - 覆盖其他层级样式 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project {
+  background: rgba(114, 46, 209, 0.12) !important;
+  margin: 8px 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid rgba(114, 46, 209, 0.3) !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project .ant-tree-node-content-wrapper {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  border-left: 8px solid #722ed1 !important;
+  background: linear-gradient(135deg, rgba(114, 46, 209, 0.18), rgba(114, 46, 209, 0.08)) !important;
+  box-shadow: 0 3px 6px rgba(114, 46, 209, 0.25) !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  transform: none !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project .ant-tree-node-content-wrapper:hover {
+  background: linear-gradient(135deg, rgba(114, 46, 209, 0.25), rgba(114, 46, 209, 0.12)) !important;
+  box-shadow: 0 4px 8px rgba(114, 46, 209, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* 层级指示器 - 在左边框基础上增强 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 .ant-tree-node-content-wrapper:hover {
+  border-left-width: 4px !important;
+  transform: translateX(3px);
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 .ant-tree-node-content-wrapper:hover {
+  border-left-width: 4px !important;
+  transform: translateX(3px);
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 .ant-tree-node-content-wrapper:hover {
+  border-left-width: 4px !important;
+  transform: translateX(3px);
+}
+
+/* 层级缩进线 - 增强效果 */
 .enhanced-hierarchical-task-tree .ant-tree-indent-unit {
   position: relative;
+  width: 16px !important;
 }
 
 .enhanced-hierarchical-task-tree .ant-tree-indent-unit::before {
   content: '';
   position: absolute;
-  left: 9px;
+  left: 8px;
   top: 0;
   bottom: 0;
   width: 1px;
-  background: linear-gradient(to bottom, #e8e8e8 0%, #e8e8e8 80%, transparent 100%);
+  background: linear-gradient(to bottom, #d9d9d9 0%, #d9d9d9 70%, transparent 100%);
+  opacity: 0.6;
 }
 
-/* 展开/折叠图标 */
+/* 层级连接线 - 水平线 */
+.enhanced-hierarchical-task-tree .ant-tree-indent-unit::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 12px;
+  width: 8px;
+  height: 1px;
+  background: #d9d9d9;
+  opacity: 0.6;
+}
+
+/* 最后一个子节点的垂直线处理 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode-leaf-last .ant-tree-indent-unit::before {
+  background: linear-gradient(to bottom, #d9d9d9 0%, #d9d9d9 50%, transparent 50%);
+}
+
+/* 展开/折叠图标 - 增强效果 */
 .enhanced-hierarchical-task-tree .ant-tree-switcher {
   display: flex !important;
   align-items: center;
   justify-content: center;
+  width: 16px !important;
+  height: 24px !important;
+  margin-right: 4px !important;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher:hover {
+  background-color: rgba(24, 144, 255, 0.1);
+  transform: scale(1.05);
 }
 
 .enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon {
@@ -95,7 +240,33 @@
 
 .enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon:hover {
   color: #1890ff;
-  transform: scale(1.1);
+}
+
+/* 展开状态的动画效果 */
+.enhanced-hierarchical-task-tree .ant-tree-switcher-open .ant-tree-switcher-icon {
+  transform: rotate(90deg);
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher-close .ant-tree-switcher-icon {
+  transform: rotate(0deg);
+}
+
+/* 叶子节点的switcher样式 */
+.enhanced-hierarchical-task-tree .ant-tree-switcher-noop {
+  width: 16px !important;
+  height: 24px !important;
+  position: relative;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher-noop::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 12px;
+  width: 8px;
+  height: 1px;
+  background: #d9d9d9;
+  opacity: 0.6;
 }
 
 /* 任务状态标签动画 */
@@ -227,17 +398,38 @@
 
 /* 紧凑模式下的层级缩进 */
 .enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit {
-  width: 12px !important;
+  width: 16px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit::before {
+  left: 8px;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit::after {
+  left: 8px;
+  top: 12px;
+  width: 8px;
 }
 
 .enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher {
   width: 16px !important;
-  height: 20px !important;
-  line-height: 20px !important;
+  height: 24px !important;
+  line-height: 24px !important;
 }
 
 .enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-icon {
   font-size: 10px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-noop {
+  width: 16px !important;
+  height: 24px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-noop::before {
+  left: 8px;
+  top: 12px;
+  width: 8px;
 }
 
 /* 任务一行显示样式 */

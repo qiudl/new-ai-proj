@@ -118,10 +118,11 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		return nil, 0, fmt.Errorf("failed to get task count: %w", err)
 	}
 
-	// Get tasks with pagination (matching actual table structure)
+	// Get tasks with pagination (including all required fields)
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
-		       t.custom_fields, t.created_at, t.created_at as updated_at, t.deleted_at,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count
 		FROM tasks t
 		LEFT JOIN (
@@ -146,11 +147,13 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		var customFieldsJSON []byte
 		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
+		var parentID sql.NullInt64
 		var childrenCount int
-
+		
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt, &childrenCount,
 		)
 		if err != nil {
@@ -163,6 +166,10 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		}
 		if dueDate.Valid {
 			task.DueDate = &dueDate.Time
+		}
+		if parentID.Valid {
+			intVal := int(parentID.Int64)
+			task.ParentID = &intVal
 		}
 
 		if len(customFieldsJSON) > 0 {
