@@ -147,161 +147,107 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
     return due.getTime() < now.getTime();
   };
 
-  // 构建增强的任务节点
+  // 构建紧凑的任务节点 - 一行显示
   const buildEnhancedTaskNode = (task: TaskWithChildren, projectId: number, level: number = 0): TreeNodeData => {
     const taskProgress = calculateTaskProgress(task);
     const isDueSoon = isTaskDueSoon(task.due_date);
     const isOverdue = isTaskOverdue(task.due_date);
     const isCurrentTimer = timerState.taskId === task.id;
     
-    // 层级缩进样式
-    const levelIndent = level * 16;
-    
     return {
       key: `task-${task.id}`,
       title: (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          width: '100%',
-          minWidth: 0,
-          paddingLeft: `${levelIndent}px`
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+        <div className="task-compact-row">
+          {/* 任务标题 - 主要内容 */}
+          <span style={{ 
+            color: task.status === 'completed' ? '#8c8c8c' : '#262626',
+            fontWeight: level === 0 ? 500 : 400,
+            textDecoration: task.status === 'completed' ? 'line-through' : 'none',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             flex: 1,
-            minWidth: 0
+            fontSize: level === 0 ? '13px' : '12px',
+            marginRight: '6px'
           }}>
-            {/* 任务标题和状态 */}
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              flex: 1,
-              minWidth: 0
-            }}>
-              <span style={{ 
-                marginRight: '8px',
-                color: task.status === 'completed' ? '#8c8c8c' : '#262626',
-                fontWeight: level === 0 ? 500 : 400,
-                textDecoration: task.status === 'completed' ? 'line-through' : 'none',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1,
-                fontSize: level === 0 ? '14px' : '13px'
-              }}>
-                {task.title}
-              </span>
-              
-              {/* 状态标签 */}
-              <Tag 
-                color={getStatusColor(task.status)} 
-                
-                style={{ 
-                  margin: '0 4px',
-                  fontSize: '11px',
-                  lineHeight: '18px'
-                }}
-              >
-                {getStatusText(task.status)}
-              </Tag>
-              
-              {/* 优先级标签 */}
-              {task.custom_fields?.priority && (
-                <Tag 
-                  color={getPriorityColor(task.custom_fields.priority)} 
-                  
-                  style={{ 
-                    margin: '0 4px',
-                    fontSize: '11px',
-                    lineHeight: '18px'
-                  }}
-                >
-                  {getPriorityText(task.custom_fields.priority)}
-                </Tag>
-              )}
-              
-              {/* 到期提醒 */}
-              {isOverdue && (
-                <Tooltip title="任务已过期">
-                  <ExclamationCircleOutlined style={{ color: '#ff4d4f', marginLeft: '4px' }} />
-                </Tooltip>
-              )}
-              {isDueSoon && !isOverdue && (
-                <Tooltip title="任务即将到期">
-                  <ExclamationCircleOutlined style={{ color: '#fa8c16', marginLeft: '4px' }} />
-                </Tooltip>
-              )}
-            </div>
-            
-            {/* 子任务进度 */}
-            {task.children && task.children.length > 0 && (
-              <div style={{ marginLeft: '8px', minWidth: '60px' }}>
-                <Progress 
-                  percent={taskProgress} 
-                   
-                  showInfo={false}
-                  strokeColor={taskProgress === 100 ? '#52c41a' : '#1890ff'}
-                />
-                <Text style={{ fontSize: '11px', color: '#8c8c8c' }}>
-                  {task.children.filter(c => c.status === 'completed').length}/{task.children.length}
-                </Text>
-              </div>
-            )}
-          </div>
+            {task.title}
+          </span>
           
-          {/* 操作按钮区域 */}
-          <div style={{ display: 'flex', alignItems: 'center', marginLeft: '8px' }}>
-            {/* 计时器控制 */}
+          {/* 紧凑状态指示器 */}
+          <div className="task-status-indicators">
+            {/* 子任务计数 */}
+            {task.children && task.children.length > 0 && (
+              <span className="subtask-counter">
+                {task.children.filter(c => c.status === 'completed').length}/{task.children.length}
+              </span>
+            )}
+            
+            {/* 状态点 */}
+            <div 
+              className="status-dot"
+              style={{ backgroundColor: getStatusColor(task.status) }}
+            />
+            
+            {/* 优先级指示 */}
+            {task.custom_fields?.priority && task.custom_fields.priority !== 'medium' && (
+              <div 
+                className="priority-dot"
+                style={{ backgroundColor: getPriorityColor(task.custom_fields.priority) }}
+              />
+            )}
+            
+            {/* 到期提醒 */}
+            {(isOverdue || isDueSoon) && (
+              <ExclamationCircleOutlined 
+                style={{ 
+                  color: isOverdue ? '#ff4d4f' : '#fa8c16',
+                  fontSize: '10px'
+                }} 
+              />
+            )}
+            
+            {/* 计时器状态 */}
             {task.status === 'in_progress' && (
               <>
                 {isCurrentTimer && timerState.isRunning ? (
                   <Tooltip title="暂停计时">
-                    <Button
-                      type="text"
-                      
-                      icon={<PauseCircleOutlined />}
+                    <PauseCircleOutlined
+                      style={{ 
+                        color: '#fa8c16',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         pauseTimer();
-                      }}
-                      style={{ 
-                        color: '#fa8c16',
-                        borderColor: '#fa8c16'
                       }}
                     />
                   </Tooltip>
                 ) : isCurrentTimer && timerState.isPaused ? (
                   <Tooltip title="继续计时">
-                    <Button
-                      type="text"
-                      
-                      icon={<PlayCircleOutlined />}
+                    <PlayCircleOutlined
+                      style={{ 
+                        color: '#52c41a',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         resumeTimer();
-                      }}
-                      style={{ 
-                        color: '#52c41a',
-                        borderColor: '#52c41a'
                       }}
                     />
                   </Tooltip>
                 ) : !timerState.isRunning ? (
                   <Tooltip title="开始计时">
-                    <Button
-                      type="text"
-                      
-                      icon={<PlayCircleOutlined />}
+                    <PlayCircleOutlined
+                      style={{ 
+                        color: '#52c41a',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartTimer(task);
-                      }}
-                      style={{ 
-                        color: '#52c41a',
-                        borderColor: '#52c41a'
                       }}
                     />
                   </Tooltip>
@@ -309,31 +255,9 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
               </>
             )}
             
-            {/* 当前计时状态指示 */}
+            {/* 当前计时状态点 */}
             {isCurrentTimer && timerState.isRunning && (
-              <span style={{ 
-                color: '#52c41a', 
-                fontSize: '11px', 
-                marginLeft: '4px',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <ClockCircleOutlined style={{ marginRight: '2px' }} />
-                计时中
-              </span>
-            )}
-            
-            {isCurrentTimer && timerState.isPaused && (
-              <span style={{ 
-                color: '#fa8c16', 
-                fontSize: '11px', 
-                marginLeft: '4px',
-                display: 'flex',
-                alignItems: 'center'
-              }}>
-                <PauseCircleOutlined style={{ marginRight: '2px' }} />
-                已暂停
-              </span>
+              <div className="timer-active-dot status-dot" style={{ backgroundColor: '#52c41a' }} />
             )}
           </div>
         </div>
@@ -426,61 +350,44 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
           return {
             key: `project-${project.id}`,
             title: showProjectInfo ? (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                width: '100%',
-                minWidth: 0,
-                padding: '4px 0'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
+              <div className="task-compact-row">
+                <span style={{ 
+                  fontWeight: 600, 
+                  color: '#262626',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
                   flex: 1,
-                  minWidth: 0
+                  fontSize: '14px'
                 }}>
-                  <span style={{ 
-                    fontWeight: 600, 
-                    color: '#262626',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    flex: 1,
-                    fontSize: '15px'
-                  }}>
-                    {project.name}
+                  {project.name}
+                </span>
+                
+                <div className="task-status-indicators">
+                  <span className="subtask-counter">
+                    {completedTasks}/{totalTasks}
                   </span>
-                  <div style={{ marginLeft: '8px', display: 'flex', alignItems: 'center' }}>
-                    <Progress 
-                      percent={projectProgress} 
-                       
-                      showInfo={false}
-                      strokeColor={projectProgress === 100 ? '#52c41a' : '#1890ff'}
-                      style={{ width: '60px', marginRight: '8px' }}
-                    />
-                    <Badge 
-                      count={`${completedTasks}/${totalTasks}`} 
-                      showZero={true}
-                      style={{ 
-                        backgroundColor: '#f0f0f0', 
-                        color: '#666',
-                        fontSize: '11px'
-                      }}
-                    />
-                  </div>
+                  <div 
+                    className="status-dot"
+                    style={{ backgroundColor: projectProgress === 100 ? '#52c41a' : '#1890ff' }}
+                  />
+                  <Button
+                    type="text"
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/projects/${project.id}`);
+                    }}
+                    style={{ 
+                      fontSize: '11px',
+                      height: '18px',
+                      padding: '0 4px',
+                      color: '#1890ff'
+                    }}
+                  >
+                    进入
+                  </Button>
                 </div>
-                <Button
-                  type="text"
-                  
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/projects/${project.id}`);
-                  }}
-                  style={{ marginLeft: '8px', flexShrink: 0 }}
-                >
-                  进入项目
-                </Button>
               </div>
             ) : (
               <span style={{ fontWeight: 600, color: '#262626' }}>{project.name}</span>
@@ -496,10 +403,9 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
 
       setTreeData(treeNodes);
       
-      // 默认展开第一个项目
-      if (treeNodes.length > 0) {
-        setExpandedKeys([treeNodes[0].key]);
-      }
+      // 默认只展开项目节点，子任务收起
+      const projectKeys = treeNodes.map(node => node.key);
+      setExpandedKeys(projectKeys);
       
     } catch (error) {
       console.error('Failed to fetch projects and tasks:', error);
@@ -634,6 +540,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             width: '100%'
           }}
           virtual={false}
+          blockNode={true}
         />
       )}
       </Card>

@@ -21,6 +21,7 @@ import '../styles/OptimizedDashboard.css';
 // 🔽 COMMENTED OUT: 拖拽布局相关CSS - 简化第1步
 // import '../styles/grid-layout.css';
 import '../styles/TimeManagementLayout.css';
+import '../styles/Dashboard2ColumnLayout.css';
 
 // 🔽 COMMENTED OUT: react-grid-layout CSS - 简化第1步
 // Import grid layout CSS locally to avoid Docker path issues
@@ -557,88 +558,102 @@ const DashboardPage: React.FC = () => {
         */}
       </div>
 
-      {/* 🔽 NEW: 3列固定布局设计 */}
-      <div className="dashboard-3-column-layout" style={{ 
+      {/* 🔽 NEW: 3等分列宽布局设计 */}
+      <div className="dashboard-3-equal-column-layout" style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(3, 1fr)', // 3列等宽
+        gridTemplateColumns: '2fr 1fr', // 左侧2列宽度 + 右侧1列宽度
         gap: '16px',
-        height: 'calc(100vh - 140px)', // 减去头部高度
-        minHeight: '600px' // 最小高度保证内容可见
+        minHeight: '600px', // 最小高度保证内容可见
+        height: 'calc(100vh - 140px)' // 减去头部高度
       }}>
-        {/* 第1列 */}
-        <div className="column-1" style={{ 
-          display: 'grid', 
-          gridTemplateRows: 'auto 1fr', // 第1行固定高度，第2行填充剩余
+        {/* 左侧区域：2列宽度的内容区 */}
+        <div className="left-content-area" style={{
+          display: 'grid',
+          gridTemplateRows: 'auto auto auto', // 3行布局
           gap: '16px'
         }}>
-          {/* 第1行：任务计时 */}
-          <div className="timer-card" style={{ 
-            background: 'transparent',
-            height: '300px', // 限制高度
-            overflow: 'hidden'
+          {/* 第一行 - 任务计时 + 任务进度分析（占2列） */}
+          <div className="row-1" style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr', // 平均分为2列
+            gap: '16px',
+            height: '300px'
           }}>
-            <TimerErrorBoundary>
-              <MVPTimerCard />
-            </TimerErrorBoundary>
+            <div className="timer-card" style={{ 
+              background: 'transparent',
+              overflow: 'hidden'
+            }}>
+              <TimerErrorBoundary>
+                <MVPTimerCard />
+              </TimerErrorBoundary>
+            </div>
+            
+            <div className="task-progress-card" style={{ 
+              background: 'transparent',
+              overflow: 'hidden'
+            }}>
+              <TimerErrorBoundary>
+                <TaskProgressCard refreshTrigger={refreshTrigger} />
+              </TimerErrorBoundary>
+            </div>
           </div>
-          
-          {/* 第2行：时间段任务统计 */}
-          <div className="timer-stats-card" style={{ 
-            background: 'transparent',
-            minHeight: '200px'
+
+          {/* 第二行 - 今日工作统计（占2列） */}
+          <div className="row-2" style={{
+            height: '280px'
           }}>
-            <TimerErrorBoundary>
-              <TimerStatsCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
+            <div className="today-stats-card" style={{ 
+              background: 'transparent',
+              height: '100%',
+              overflow: 'hidden'
+            }}>
+              <TimerErrorBoundary>
+                <TodayStatsCard refreshTrigger={refreshTrigger} />
+              </TimerErrorBoundary>
+            </div>
+          </div>
+
+          {/* 第三行 - 时间段任务统计（占2列） */}
+          <div className="row-3" style={{
+            minHeight: '320px'
+          }}>
+            <div className="timer-stats-card" style={{ 
+              background: 'transparent',
+              height: '100%'
+            }}>
+              <div style={{ 
+                marginBottom: '16px',
+                borderBottom: '1px solid #e8e8e8',
+                paddingBottom: '8px'
+              }}>
+                <Title level={4} style={{ margin: 0, color: '#262626' }}>
+                  时间段任务统计
+                </Title>
+              </div>
+              <TimerErrorBoundary>
+                <TimerStatsCard refreshTrigger={refreshTrigger} />
+              </TimerErrorBoundary>
+            </div>
           </div>
         </div>
 
-        {/* 第2列 */}
-        <div className="column-2" style={{ 
-          display: 'grid', 
-          gridTemplateRows: 'auto 1fr', // 第1行固定高度，第2行填充剩余
-          gap: '16px'
-        }}>
-          {/* 第1行：今日工作统计 */}
-          <div className="today-stats-card" style={{ 
-            background: 'transparent',
-            height: '300px', // 与任务计时同高
-            overflow: 'hidden'
-          }}>
-            <TimerErrorBoundary>
-              <TodayStatsCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
-          </div>
-          
-          {/* 第2行：任务进度分析 */}
-          <div className="task-progress-card" style={{ 
-            background: 'transparent',
-            minHeight: '200px'
-          }}>
-            <TimerErrorBoundary>
-              <TaskProgressCard refreshTrigger={refreshTrigger} />
-            </TimerErrorBoundary>
-          </div>
-        </div>
-
-        {/* 第3列：我的任务 - 增强版层级任务树 */}
-        <div className="column-3" style={{ 
+        {/* 右侧区域：我的任务（固定1列宽度） */}
+        <div className="right-tasks-area" style={{
           background: 'transparent',
           display: 'flex',
-          flexDirection: 'column',
-          width: '100%' // 确保与父容器宽度一致
+          flexDirection: 'column'
         }}>
           <div className="my-tasks-card" style={{ 
             background: 'transparent',
-            flex: 1, // 占用剩余空间，高度自适应
-            width: '100%', // 确保与父容器宽度一致
-            minHeight: '400px' // 设置最小高度，确保有足够显示空间
+            flex: 1, // 占用全部可用高度
+            overflow: 'hidden',
+            minHeight: '600px' // 确保有足够的显示空间
           }}>
             <TimerErrorBoundary>
               <EnhancedHierarchicalTaskTree 
                 height="100%" 
                 showProjectInfo={true}
-                compactMode={false}
+                compactMode={true}
               />
             </TimerErrorBoundary>
           </div>

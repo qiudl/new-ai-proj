@@ -143,23 +143,34 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     }
   }, [loadingTaskInfo, timerState.taskTitle]);
 
-  // 当任务ID变化时获取任务信息
+  // 💡 修复：优化任务信息获取，避免无限循环
   useEffect(() => {
-    if (timerState.isRunning && timerState.taskId && !taskDetailInfo) {
-      fetchTaskInfo(timerState.taskId);
-    } else if (!timerState.isRunning) {
+    let mounted = true;
+    
+    if (timerState.isRunning && timerState.taskId) {
+      // 只有当任务ID变化时才重新获取信息
+      if (!taskDetailInfo || taskDetailInfo.id !== timerState.taskId) {
+        fetchTaskInfo(timerState.taskId).catch(error => {
+          if (mounted) {
+            console.error('获取任务信息失败:', error);
+          }
+        });
+      }
+    } else if (!timerState.isRunning && taskDetailInfo) {
+      // 定时器停止时清理任务信息
       setTaskDetailInfo(null);
+      
       // 重置隐藏状态，下次开始定时器时自动显示
       if (isHidden) {
         setIsHidden(false);
-        try {
-          localStorage.setItem('floatingTimerHidden', JSON.stringify(false));
-        } catch (error) {
-          console.warn('Failed to save floating timer hidden state:', error);
-        }
+        saveHiddenState(false);
       }
     }
-  }, [timerState.isRunning, timerState.taskId, taskDetailInfo, fetchTaskInfo, isHidden]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [timerState.isRunning, timerState.taskId]); // 🔧 移除fetchTaskInfo和taskDetailInfo依赖
 
   // 保存位置到localStorage
   const savePosition = useCallback((newPosition: { x: number; y: number }) => {

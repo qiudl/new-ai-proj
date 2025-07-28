@@ -1,209 +1,307 @@
 /* 增强层级任务树样式 */
 
-.enhanced-hierarchical-task-tree {
-  .ant-tree {
-    background: transparent !important;
-  }
-
-  /* 树节点样式 */
-  .ant-tree-treenode {
-    padding: 2px 0;
-    
-    &:hover {
-      background-color: rgba(24, 144, 255, 0.05) !important;
-      border-radius: 4px;
-    }
-    
-    &.ant-tree-treenode-selected {
-      background-color: rgba(24, 144, 255, 0.1) !important;
-      border-radius: 4px;
-    }
-  }
-
-  /* 项目节点特殊样式 */
-  .ant-tree-treenode[data-type="project"] {
-    margin-bottom: 8px;
-    padding: 4px 0;
-    border-bottom: 1px solid #f0f0f0;
-    
-    .ant-tree-node-content-wrapper {
-      padding: 8px 4px;
-      border-radius: 6px;
-      background: linear-gradient(135deg, #f6f9fc 0%, #e9f7ef 100%);
-      border: 1px solid #d9f7be;
-      
-      &:hover {
-        background: linear-gradient(135deg, #e6f7ff 0%, #d9f7be 100%);
-        border-color: #91d5ff;
-      }
-    }
-  }
-
-  /* 任务节点样式 */
-  .ant-tree-treenode[data-type="task"] {
-    .ant-tree-node-content-wrapper {
-      padding: 6px 8px;
-      border-radius: 4px;
-      transition: all 0.2s ease;
-      
-      &:hover {
-        background-color: rgba(24, 144, 255, 0.08);
-        transform: translateX(2px);
-      }
-    }
-  }
-
-  /* 层级缩进线 */
-  .ant-tree-indent-unit {
-    position: relative;
-    
-    &::before {
-      content: '';
-      position: absolute;
-      left: 9px;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: linear-gradient(to bottom, #e8e8e8 0%, #e8e8e8 80%, transparent 100%);
-    }
-  }
-
-  /* 展开/折叠图标 */
-  .ant-tree-switcher {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    
-    .ant-tree-switcher-icon {
-      font-size: 12px;
-      color: #8c8c8c;
-      transition: all 0.2s ease;
-      
-      &:hover {
-        color: #1890ff;
-        transform: scale(1.1);
-      }
-    }
-  }
-
-  /* 任务状态标签动画 */
-  .ant-tag {
-    transition: all 0.2s ease;
-    
-    &:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-  }
-
-  /* 进度条样式 */
-  .ant-progress {
-    .ant-progress-bg {
-      transition: all 0.3s ease;
-    }
-  }
-
-  /* 按钮动画效果 */
-  .ant-btn {
-    transition: all 0.2s ease;
-    
-    &:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-    
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  /* 计时器状态指示器 */
-  .timer-status-indicator {
-    display: flex;
-    align-items: center;
-    padding: 2px 6px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 500;
-    
-    &.running {
-      background: linear-gradient(135deg, #52c41a20, #52c41a10);
-      color: #52c41a;
-      border: 1px solid #52c41a40;
-    }
-    
-    &.paused {
-      background: linear-gradient(135deg, #fa8c1620, #fa8c1610);
-      color: #fa8c16;
-      border: 1px solid #fa8c1640;
-    }
-  }
-
-  /* 到期提醒样式 */
-  .due-warning {
-    &.overdue {
-      color: #ff4d4f !important;
-      animation: pulse 2s infinite;
-    }
-    
-    &.due-soon {
-      color: #fa8c16 !important;
-      animation: blink 1.5s infinite;
-    }
-  }
-
-  /* 动画定义 */
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-  }
-
-  @keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0.3; }
-  }
-
-  /* 响应式设计 */
-  @media (max-width: 768px) {
-    .ant-tree-node-content-wrapper {
-      padding: 4px 6px !important;
-    }
-    
-    .ant-tag {
-      font-size: 10px !important;
-      padding: 0 4px !important;
-      line-height: 16px !important;
-    }
-    
-    .ant-btn {
-      padding: 0 4px !important;
-      font-size: 12px !important;
-    }
-  }
+.enhanced-hierarchical-task-tree .ant-tree {
+  background: transparent !important;
 }
 
-/* 紧凑模式样式 */
-.enhanced-hierarchical-task-tree.compact-mode {
-  .ant-tree-treenode {
-    padding: 1px 0;
-  }
-  
-  .ant-tree-node-content-wrapper {
+/* 防止图标和文字换行 */
+.enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-title {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+/* 树节点样式 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode {
+  padding: 2px 0;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode:hover {
+  background-color: rgba(24, 144, 255, 0.05) !important;
+  border-radius: 4px;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode.ant-tree-treenode-selected {
+  background-color: rgba(24, 144, 255, 0.1) !important;
+  border-radius: 4px;
+}
+
+/* 项目节点特殊样式 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] {
+  margin-bottom: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] .ant-tree-node-content-wrapper {
+  padding: 8px 4px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f6f9fc 0%, #e9f7ef 100%);
+  border: 1px solid #d9f7be;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] .ant-tree-node-content-wrapper:hover {
+  background: linear-gradient(135deg, #e6f7ff 0%, #d9f7be 100%);
+  border-color: #91d5ff;
+}
+
+/* 任务节点样式 */
+.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="task"] .ant-tree-node-content-wrapper {
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="task"] .ant-tree-node-content-wrapper:hover {
+  background-color: rgba(24, 144, 255, 0.08);
+  transform: translateX(2px);
+}
+
+/* 层级缩进线 */
+.enhanced-hierarchical-task-tree .ant-tree-indent-unit {
+  position: relative;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-indent-unit::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, #e8e8e8 0%, #e8e8e8 80%, transparent 100%);
+}
+
+/* 展开/折叠图标 */
+.enhanced-hierarchical-task-tree .ant-tree-switcher {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon {
+  font-size: 12px;
+  color: #8c8c8c;
+  transition: all 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon:hover {
+  color: #1890ff;
+  transform: scale(1.1);
+}
+
+/* 任务状态标签动画 */
+.enhanced-hierarchical-task-tree .ant-tag {
+  transition: all 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 进度条样式 */
+.enhanced-hierarchical-task-tree .ant-progress .ant-progress-bg {
+  transition: all 0.3s ease;
+}
+
+/* 按钮动画效果 */
+.enhanced-hierarchical-task-tree .ant-btn {
+  transition: all 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-hierarchical-task-tree .ant-btn:active {
+  transform: translateY(0);
+}
+
+/* 计时器状态指示器 */
+.enhanced-hierarchical-task-tree .timer-status-indicator {
+  display: flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.enhanced-hierarchical-task-tree .timer-status-indicator.running {
+  background: linear-gradient(135deg, #52c41a20, #52c41a10);
+  color: #52c41a;
+  border: 1px solid #52c41a40;
+}
+
+.enhanced-hierarchical-task-tree .timer-status-indicator.paused {
+  background: linear-gradient(135deg, #fa8c1620, #fa8c1610);
+  color: #fa8c16;
+  border: 1px solid #fa8c1640;
+}
+
+/* 到期提醒样式 */
+.enhanced-hierarchical-task-tree .due-warning.overdue {
+  color: #ff4d4f !important;
+  animation: pulse 2s infinite;
+}
+
+.enhanced-hierarchical-task-tree .due-warning.due-soon {
+  color: #fa8c16 !important;
+  animation: blink 1.5s infinite;
+}
+
+/* 动画定义 */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0.3; }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper {
     padding: 4px 6px !important;
   }
   
-  .ant-tag {
+  .enhanced-hierarchical-task-tree .ant-tag {
     font-size: 10px !important;
     padding: 0 4px !important;
     line-height: 16px !important;
   }
   
-  .ant-progress {
-    .ant-progress-line {
-      height: 4px !important;
-    }
+  .enhanced-hierarchical-task-tree .ant-btn {
+    padding: 0 4px !important;
+    font-size: 12px !important;
   }
+}
+
+/* 紧凑模式样式 */
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-treenode {
+  padding: 1px 0 !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-node-content-wrapper {
+  padding: 2px 4px !important;
+  height: 24px !important;
+  line-height: 20px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-title {
+  font-size: 12px !important;
+  line-height: 20px !important;
+  height: 20px !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-iconEle {
+  width: 16px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  margin-right: 4px !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* 紧凑模式下的层级缩进 */
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-indent-unit {
+  width: 12px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher {
+  width: 16px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+}
+
+.enhanced-hierarchical-task-tree.compact-mode .ant-tree-switcher-icon {
+  font-size: 10px !important;
+}
+
+/* 任务一行显示样式 */
+.task-compact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 20px;
+  font-size: 12px;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* 状态指示器样式 */
+.task-status-indicators {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.priority-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.subtask-counter {
+  font-size: 10px;
+  color: #8c8c8c;
+  background: #f5f5f5;
+  padding: 1px 4px;
+  border-radius: 2px;
+  line-height: 1;
+}
+
+/* 计时状态动画 */
+@keyframes timer-pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.timer-active-dot {
+  animation: timer-pulse 1.5s infinite;
 }
 
 /* 加载状态样式 */
@@ -213,24 +311,20 @@
   align-items: center;
   justify-content: center;
   height: 200px;
-  
-  .ant-spin-dot {
-    font-size: 24px;
-  }
-  
-  .loading-text {
-    margin-top: 16px;
-    color: #8c8c8c;
-    font-size: 14px;
-  }
+}
+
+.hierarchical-task-loading .ant-spin-dot {
+  font-size: 24px;
+}
+
+.hierarchical-task-loading .loading-text {
+  margin-top: 16px;
+  color: #8c8c8c;
+  font-size: 14px;
 }
 
 /* 空状态样式 */
-.hierarchical-task-empty {
-  .ant-empty {
-    .ant-empty-description {
-      color: #8c8c8c;
-      font-size: 14px;
-    }
-  }
+.hierarchical-task-empty .ant-empty .ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
 }

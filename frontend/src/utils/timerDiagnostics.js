@@ -416,4 +416,10 @@ class TimerDiagnostics {
 }
 
 // 在全局暴露诊断工具
-window.timerDiag = new TimerDiagnostics();
+if (typeof window !== 'undefined') {
+  window.timerDiag = new TimerDiagnostics();
+  console.log('🔧 定时器诊断工具已加载到 window.timerDiag');
+} else {
+  // Node.js环境
+  module.exports = TimerDiagnostics;
+}

@@ -11,5 +11,18 @@
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
+    
+    <!-- 开发环境调试工具 -->
+    <script>
+      // 只在开发环境加载调试工具
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const script = document.createElement('script');
+        script.src = '/debug-timer.js';
+        script.onload = function() {
+          console.log('🔧 定时器调试工具已加载');
+        };
+        document.head.appendChild(script);
+      }
+    </script>
   </body>
 </html>

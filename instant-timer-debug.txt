@@ -1,17 +1,16 @@
 /**
- * 浏览器端定时器调试工具
- * 直接在浏览器控制台中可用
+ * 复制以下代码到浏览器控制台中运行
+ * 立即可用的定时器调试工具
  */
 
-class BrowserTimerDebugger {
+// 创建立即可用的调试工具
+(function() {
+  
+class InstantTimerDebugger {
   constructor() {
     this.API_BASE = '/api/v1';
-    this.log('🔧 浏览器定时器调试工具已加载');
-    this.log('使用方法:');
-    this.log('- window.timerDebug.runDiagnostics() // 运行完整诊断');
-    this.log('- window.timerDebug.checkTimer() // 检查定时器状态');
-    this.log('- window.timerDebug.checkComponents() // 检查组件状态');
-    this.log('- window.timerDebug.fixIssues() // 尝试修复常见问题');
+    this.log('🔧 立即调试工具已加载', 'success');
+    this.log('现在可以使用 window.timerDebug 进行调试');
   }
 
   log(message, type = 'info') {
@@ -153,7 +152,7 @@ class BrowserTimerDebugger {
     this.log('重新获取定时器状态...');
     await this.checkTimer();
 
-    // 3. 触发React重新渲染（如果可能）
+    // 3. 触发React重新渲染
     this.log('尝试触发组件重新渲染...');
     window.dispatchEvent(new Event('storage'));
     this.log('✅ 已触发storage事件', 'success');
@@ -214,7 +213,7 @@ class BrowserTimerDebugger {
 }
 
 // 在全局暴露调试工具
-window.timerDebug = new BrowserTimerDebugger();
+window.timerDebug = new InstantTimerDebugger();
+window.timerDiag = window.timerDebug; // 兼容旧调用
 
-// 兼容旧的调用方式
-window.timerDiag = window.timerDebug;
+})();

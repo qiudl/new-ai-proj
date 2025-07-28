@@ -12,6 +12,13 @@ import { setNavigateFunction } from './services/api';
 import './App.css';
 import './styles/task-hierarchy.css';
 
+// 💡 在开发环境中加载调试工具
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/timerDiagnostics.js').catch(error => {
+    console.warn('Failed to load timer diagnostics:', error);
+  });
+}
+
 // Lazy load pages for code splitting
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));

@@ -50,42 +50,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   mode = 'full', // 🎯 默认为完整模式
   onTimerUpdate 
 }) => {
-  // 状态管理 - 从localStorage初始化
+  // 状态管理 - 修复组件挂载问题
   const [timerState, setTimerState] = useState<TimerState>(() => {
-    try {
-      const saved = localStorage.getItem('globalTimerState');
-      if (saved) {
-        const parsedState = JSON.parse(saved);
-        // 从localStorage恢复状态
-        
-        // 如果定时器正在运行，重新计算经过时间
-        let elapsedSeconds = parsedState.elapsedSeconds || 0;
-        let formattedTime = parsedState.formattedTime || '00:00:00';
-        
-        if (parsedState.isRunning && parsedState.startTime) {
-          const startTime = new Date(parsedState.startTime);
-          const currentElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
-          elapsedSeconds = currentElapsed;
-          
-          const hours = Math.floor(currentElapsed / 3600);
-          const minutes = Math.floor((currentElapsed % 3600) / 60);
-          const seconds = currentElapsed % 60;
-          formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
-        
-        return {
-          isRunning: parsedState.isRunning || false,
-          isPaused: parsedState.isPaused || false,
-          taskId: parsedState.taskId,
-          taskTitle: parsedState.taskTitle,
-          startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
-          elapsedSeconds,
-          formattedTime
-        };
-      }
-    } catch (error) {
-      console.warn('TimerContext: 无法从localStorage恢复状态:', error);
-    }
+    // 初始化时使用默认状态，避免复杂计算
     return {
       isRunning: false,
       isPaused: false,
@@ -93,6 +60,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       formattedTime: '00:00:00'
     };
   });
+  
+  // 单独的初始化效果，避免挂载时阻塞
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
@@ -406,26 +376,97 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
 
-  // 初始化（只运行一次）
+  // 💡 修复：分离初始化和状态恢复
   useEffect(() => {
-    // 初始加载
-    refreshTimer();
+    let mounted = true;
+    
+    const initializeTimerState = async () => {
+      try {
+        // 首先尝试从localStorage恢复状态
+        const saved = localStorage.getItem('globalTimerState');
+        if (saved && mounted) {
+          try {
+            const parsedState = JSON.parse(saved);
+            const lastSync = new Date(parsedState.lastSync || Date.now());
+            const timeSinceSync = (Date.now() - lastSync.getTime()) / 1000;
+            
+            // 如果同步时间在5分钟内，认为状态有效
+            if (timeSinceSync < 300) {
+              let elapsedSeconds = parsedState.elapsedSeconds || 0;
+              let formattedTime = parsedState.formattedTime || '00:00:00';
+              
+              // 重新计算运行时间
+              if (parsedState.isRunning && parsedState.startTime) {
+                const startTime = new Date(parsedState.startTime);
+                const currentElapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+                elapsedSeconds = currentElapsed;
+                formattedTime = TimerService.formatDuration(currentElapsed);
+              }
+              
+              const restoredState = {
+                isRunning: parsedState.isRunning || false,
+                isPaused: parsedState.isPaused || false,
+                taskId: parsedState.taskId,
+                taskTitle: parsedState.taskTitle,
+                startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
+                elapsedSeconds,
+                formattedTime
+              };
+              
+              setTimerState(restoredState);
+              
+              // 如果定时器在运行，启动本地计时器
+              if (restoredState.isRunning && restoredState.startTime && !restoredState.isPaused) {
+                startLocalTimer(restoredState.startTime);
+              }
+            }
+          } catch (error) {
+            console.warn('恢复定时器状态失败:', error);
+          }
+        }
+        
+        // 然后从服务器获取最新状态
+        if (mounted) {
+          await refreshTimer();
+        }
+        
+        if (mounted) {
+          setIsInitialized(true);
+        }
+        
+      } catch (error) {
+        console.error('初始化定时器失败:', error);
+        if (mounted) {
+          setIsInitialized(true);
+        }
+      }
+    };
+    
+    initializeTimerState();
     
     // 定期刷新 (每30秒) - 只在没有运行定时器时刷新
     refreshIntervalRef.current = setInterval(() => {
+      if (!mounted) return;
+      
       // 从localStorage检查最新状态，而不是依赖state
-      const saved = localStorage.getItem('globalTimerState');
-      if (!saved || !JSON.parse(saved).isRunning) {
+      try {
+        const saved = localStorage.getItem('globalTimerState');
+        if (!saved || !JSON.parse(saved).isRunning) {
+          refreshTimer();
+        }
+      } catch (error) {
+        // 忽略JSON解析错误，继续刷新
         refreshTimer();
       }
     }, 30000);
 
     return () => {
+      mounted = false;
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [refreshTimer]);
+  }, []);
 
   // 单独处理本地计时器的启动和停止
   useEffect(() => {
