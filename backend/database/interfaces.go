@@ -29,6 +29,12 @@ type UserRepository interface {
 	// User profile management
 	UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
+	
+	// Enterprise user management
+	ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error)
+	GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error)
+	GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error)
+	GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error)
 }
 
 // ProjectRepository defines the interface for project database operations

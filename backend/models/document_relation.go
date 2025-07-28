@@ -131,6 +131,10 @@ const (
 	PermissionAdmin   PermissionLevel = "admin"
 )
 
+// 类型别名以兼容现有代码
+type FolderPermissionLevel = PermissionLevel
+type DocumentPermissionLevel = PermissionLevel
+
 // DocumentCollaborator 文档协作者
 type DocumentCollaborator struct {
 	ID              int             `json:"id" db:"id"`

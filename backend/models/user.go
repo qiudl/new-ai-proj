@@ -48,6 +48,14 @@ type User struct {
 	Status              string       `json:"status" db:"status" validate:"required,oneof=active inactive suspended"`
 	Profile             UserProfile  `json:"profile" db:"profile"`
 	LastLoginAt         *time.Time   `json:"last_login_at,omitempty" db:"last_login_at"`
+	// Enterprise user fields
+	ContactPersonName   *string      `json:"contact_person_name,omitempty" db:"contact_person_name"`
+	ContactPhone        *string      `json:"contact_phone,omitempty" db:"contact_phone"`
+	DepartmentTitle     *string      `json:"department_title,omitempty" db:"department_title"`
+	IsPrimaryContact    bool         `json:"is_primary_contact" db:"is_primary_contact"`
+	AccountExpiresAt    *time.Time   `json:"account_expires_at,omitempty" db:"account_expires_at"`
+	LastProjectAccess   *time.Time   `json:"last_project_access,omitempty" db:"last_project_access"`
+	Notes               *string      `json:"notes,omitempty" db:"notes"`
 	// Timer fields
 	CurrentTimingTaskID *int         `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
 	TimingStartTime     *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
@@ -90,18 +98,26 @@ type UserListParams struct {
 
 // UserResponse represents a user response (without sensitive data)
 type UserResponse struct {
-	ID            int          `json:"id"`
-	Username      string       `json:"username"`
-	Email         string       `json:"email"`
-	UserType      string       `json:"user_type"`
-	CompanyID     *int         `json:"company_id,omitempty"`
-	CompanyUserID *int         `json:"company_user_id,omitempty"`
-	Role          string       `json:"role"`
-	Status        string       `json:"status"`
-	Profile       UserProfile  `json:"profile"`
-	LastLoginAt   *time.Time   `json:"last_login_at,omitempty"`
-	CreatedAt     time.Time    `json:"created_at"`
-	UpdatedAt     time.Time    `json:"updated_at"`
+	ID                int          `json:"id"`
+	Username          string       `json:"username"`
+	Email             string       `json:"email"`
+	UserType          string       `json:"user_type"`
+	CompanyID         *int         `json:"company_id,omitempty"`
+	CompanyUserID     *int         `json:"company_user_id,omitempty"`
+	Role              string       `json:"role"`
+	Status            string       `json:"status"`
+	Profile           UserProfile  `json:"profile"`
+	LastLoginAt       *time.Time   `json:"last_login_at,omitempty"`
+	// Enterprise user fields
+	ContactPersonName *string      `json:"contact_person_name,omitempty"`
+	ContactPhone      *string      `json:"contact_phone,omitempty"`
+	DepartmentTitle   *string      `json:"department_title,omitempty"`
+	IsPrimaryContact  bool         `json:"is_primary_contact"`
+	AccountExpiresAt  *time.Time   `json:"account_expires_at,omitempty"`
+	LastProjectAccess *time.Time   `json:"last_project_access,omitempty"`
+	Notes             *string      `json:"notes,omitempty"`
+	CreatedAt         time.Time    `json:"created_at"`
+	UpdatedAt         time.Time    `json:"updated_at"`
 }
 
 // UserListResponse represents a paginated list of users
@@ -139,18 +155,25 @@ type BatchUserRequest struct {
 // ToResponse converts User to UserResponse
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
-		ID:            u.ID,
-		Username:      u.Username,
-		Email:         u.Email,
-		UserType:      u.UserType,
-		CompanyID:     u.CompanyID,
-		CompanyUserID: u.CompanyUserID,
-		Role:          u.Role,
-		Status:        u.Status,
-		Profile:       u.Profile,
-		LastLoginAt:   u.LastLoginAt,
-		CreatedAt:     u.CreatedAt,
-		UpdatedAt:     u.UpdatedAt,
+		ID:                u.ID,
+		Username:          u.Username,
+		Email:             u.Email,
+		UserType:          u.UserType,
+		CompanyID:         u.CompanyID,
+		CompanyUserID:     u.CompanyUserID,
+		Role:              u.Role,
+		Status:            u.Status,
+		Profile:           u.Profile,
+		LastLoginAt:       u.LastLoginAt,
+		ContactPersonName: u.ContactPersonName,
+		ContactPhone:      u.ContactPhone,
+		DepartmentTitle:   u.DepartmentTitle,
+		IsPrimaryContact:  u.IsPrimaryContact,
+		AccountExpiresAt:  u.AccountExpiresAt,
+		LastProjectAccess: u.LastProjectAccess,
+		Notes:             u.Notes,
+		CreatedAt:         u.CreatedAt,
+		UpdatedAt:         u.UpdatedAt,
 	}
 }
 

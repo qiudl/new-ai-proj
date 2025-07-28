@@ -1,7 +1,7 @@
 import React, { Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
-import zhCN from 'antd/locale/zh_CN';
+import zhCN from 'antd/lib/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
@@ -40,6 +40,7 @@ const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
 const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
+const CompanyUserManagementPage = React.lazy(() => import('./pages/CompanyUserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
@@ -349,6 +350,13 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <UserManagementPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            <Route path="/company-user-management" element={
+              <PrivateRoute>
+                <Layout>
+                  <CompanyUserManagementPage />
                 </Layout>
               </PrivateRoute>
             } />

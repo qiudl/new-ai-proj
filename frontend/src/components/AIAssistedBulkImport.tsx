@@ -490,7 +490,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
                         type="text"
                         icon={<ExclamationCircleOutlined />}
                         loading={isTesting}
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           testProviderConnection(provider);
                         }}
@@ -569,7 +569,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               <div style={{ marginTop: 8 }}>
                 <TextArea
                   value={keywords}
-                  onChange={e => setKeywords(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setKeywords(e.target.value)}
                   placeholder="描述您希望生成的子任务内容，例如：
 • 前端界面开发、API接口设计、数据库建模
 • 用户注册登录、权限管理、数据验证

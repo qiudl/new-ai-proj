@@ -202,7 +202,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       }
     })();
 
-    const errors = [];
+    const errors: string[] = [];
     
     // 检查常见问题
     if (timerState.isRunning && !timerState.startTime) {

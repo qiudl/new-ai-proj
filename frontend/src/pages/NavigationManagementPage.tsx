@@ -181,7 +181,7 @@ const NavigationManagementPage: React.FC = () => {
   };
 
   // 菜单项表格列定义
-  const menuItemColumns: ColumnsType<MenuItem> = [
+  const menuItemColumns: any[] = [
     {
       title: '菜单标签',
       dataIndex: 'label',
@@ -278,7 +278,7 @@ const NavigationManagementPage: React.FC = () => {
   ];
 
   // 路由配置表格列定义
-  const routeColumns: ColumnsType<RouteConfig> = [
+  const routeColumns: any[] = [
     {
       title: '路径',
       dataIndex: 'path',

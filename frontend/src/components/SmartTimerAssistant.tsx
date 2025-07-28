@@ -266,7 +266,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
       return;
     }
 
-    const reminders = [];
+    const reminders: string[] = [];
     
     if (settings.blinkReminder) {
       reminders.push('记得眨眼和远眺，保护视力');

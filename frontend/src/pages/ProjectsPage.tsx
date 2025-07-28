@@ -310,7 +310,7 @@ const ProjectsPage: React.FC = () => {
   };
 
   // 表格列配置
-  const columns: ColumnsType<Project> = columnConfig
+  const columns: any[] = columnConfig
     .filter(col => col.visible)
     .map(col => {
       const baseColumn = {
@@ -462,7 +462,7 @@ const ProjectsPage: React.FC = () => {
         default:
           return baseColumn;
       }
-    }) as ColumnsType<Project>;
+    }) as any[];
 
 
   // 渲染卡片视图

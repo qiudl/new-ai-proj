@@ -195,7 +195,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
   };
 
   // 表格列定义
-  const columns: ColumnsType<Document> = [
+  const columns: any[] = [
     {
       title: '文档名称',
       dataIndex: 'title',
@@ -339,7 +339,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
       key: 'actions',
       width: 60,
       fixed: 'right',
-      render: (_, record: Document) => (
+      render: (_: any, record: Document) => (
         <Dropdown
           menu={{
             items: getActionMenuItems(record),

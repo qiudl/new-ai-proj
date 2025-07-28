@@ -408,7 +408,7 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   // 表格列定义
-  const columns: ColumnType<User>[] = useMemo(() => [
+  const columns: any[] = useMemo(() => [
     {
       title: '用户信息',
       key: 'user_info',
@@ -784,7 +784,7 @@ const UserManagementPage: React.FC = () => {
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
-            getCheckboxProps: (record) => ({
+            getCheckboxProps: (record: any) => ({
               disabled: record.role === 'admin' && record.id === 1, // 防止删除超级管理员
             }),
           }}

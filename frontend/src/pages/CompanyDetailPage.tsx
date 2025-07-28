@@ -223,7 +223,7 @@ const CompanyDetailPage: React.FC = () => {
   };
 
   // 项目表格列配置
-  const projectColumns: ColumnsType<Project> = [
+  const projectColumns: any[] = [
     {
       title: '项目名称',
       dataIndex: 'name',
@@ -356,7 +356,7 @@ const CompanyDetailPage: React.FC = () => {
   ];
 
   // 企业用户表格列配置
-  const userColumns: ColumnsType<CompanyUser> = [
+  const userColumns: any[] = [
     {
       title: '姓名',
       dataIndex: 'name',
@@ -452,7 +452,7 @@ const CompanyDetailPage: React.FC = () => {
   ];
 
   // 联系记录表格列配置
-  const contactColumns: ColumnsType<CompanyContact> = [
+  const contactColumns: any[] = [
     {
       title: '联系方式',
       dataIndex: 'contactType',

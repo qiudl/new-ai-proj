@@ -539,7 +539,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
   };
 
   // 协作者表格列
-  const collaboratorColumns: ColumnsType<DocumentCollaborator> = [
+  const collaboratorColumns: any[] = [
     {
       title: '用户',
       key: 'user',

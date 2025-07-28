@@ -229,7 +229,7 @@ const TaskDashboardPage: React.FC = () => {
   const dailyTasks: DayTasks[] = useMemo(() => {
     if (!weeklyTasks) return [];
 
-    const days = [];
+    const days: DayTasks[] = [];
     const today = dayjs();
     
     for (let i = 0; i < 7; i++) {
@@ -334,7 +334,7 @@ const TaskDashboardPage: React.FC = () => {
   const filteredDailyTasks: DayTasks[] = useMemo(() => {
     if (!filteredTasks) return [];
 
-    const days = [];
+    const days: DayTasks[] = [];
     const today = dayjs();
     
     for (let i = 0; i < 7; i++) {

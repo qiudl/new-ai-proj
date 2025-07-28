@@ -441,7 +441,7 @@ export class TimeManagementService {
     
     // 计算本周平均完成率
     const weekStart = today.startOf('week');
-    const weekDays = [];
+    const weekDays: number[] = [];
     
     for (let i = 0; i < 7; i++) {
       const day = weekStart.add(i, 'day');
@@ -583,7 +583,7 @@ export class TimeManagementService {
       });
       
       // 每日效率趋势(最近7天)
-      const dailyEfficiency = [];
+      const dailyEfficiency: Array<{date: string, efficiency: number}> = [];
       const today = dayjs();
       
       for (let i = 6; i >= 0; i--) {

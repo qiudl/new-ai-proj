@@ -48,7 +48,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
 
   // Generate daily statistics for the chart
   const generateDailyStats = (statsData: TimerStatsResponse) => {
-    const days = [];
+    const days: DailyStats[] = [];
     const [startDate, endDate] = dateRange;
     
     for (let i = 0; i <= endDate.diff(startDate, 'day'); i++) {

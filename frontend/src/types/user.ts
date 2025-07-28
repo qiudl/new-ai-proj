@@ -24,6 +24,14 @@ export interface User {
   created_at: string;
   updated_at: string;
   last_login_at?: string;
+  // Enterprise user fields
+  contact_person_name?: string;
+  contact_phone?: string;
+  department_title?: string;
+  is_primary_contact?: boolean;
+  account_expires_at?: string;
+  last_project_access?: string;
+  notes?: string;
 }
 
 export interface UserCreateRequest {
@@ -172,3 +180,83 @@ export const validateUserRole = (userType: UserType, role: UserRole): boolean =>
   const validRoles = getValidRolesForUserType(userType);
   return validRoles.includes(role);
 };
+
+// Enterprise User Management Types
+export interface CompanyUserCreateRequest {
+  company_id: number;
+  username: string;
+  email: string;
+  contact_person_name: string;
+  contact_phone: string;
+  department_title: string;
+  is_primary_contact: boolean;
+  account_expires_at?: string;
+  notes?: string;
+}
+
+export interface CompanyUserUpdateRequest {
+  contact_person_name?: string;
+  contact_phone?: string;
+  department_title?: string;
+  is_primary_contact?: boolean;
+  account_expires_at?: string;
+  status?: 'active' | 'inactive';
+  notes?: string;
+}
+
+export interface CompanyUserStatusUpdateRequest {
+  status: 'active' | 'inactive';
+}
+
+export interface CompanyUserListParams {
+  page?: number;
+  page_size?: number;
+  company_id?: number;
+  status?: 'active' | 'inactive';
+  search?: string;
+}
+
+export interface EnterpriseUserResponse {
+  id: number;
+  username: string;
+  email: string;
+  contact_person_name: string;
+  contact_phone: string;
+  department_title: string;
+  is_primary_contact: boolean;
+  status: string;
+  company_id: number;
+  company_name: string;
+  last_login_at?: string;
+  account_expires_at?: string;
+  last_project_access?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompanyUserListResponse {
+  data: EnterpriseUserResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CompanyUserStats {
+  total: number;
+  by_status: Record<string, number>;
+  by_company: Record<string, number>;
+  primary_contacts: number;
+  expiring_accounts: number;
+  recent_registrations: number;
+}
+
+export interface BatchCompanyUserRequest {
+  user_ids: number[];
+  action: 'activate' | 'deactivate' | 'extend_expiry';
+}
+
+export interface CompanyUserCreateResponse {
+  user: User;
+  password: string;
+}

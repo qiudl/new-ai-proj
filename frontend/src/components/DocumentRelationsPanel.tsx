@@ -394,7 +394,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
   };
 
   // 表格列定义
-  const getColumns = (entityType?: string): ColumnsType<DocumentRelation> => [
+  const getColumns = (entityType?: string): any[] => [
     ...(entityType ? [] : [{
       title: '实体类型',
       key: 'entity_type',

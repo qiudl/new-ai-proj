@@ -986,16 +986,16 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
 
   // 表格列定义
-  const columns: ColumnsType<Document> = [
+  const columns: any[] = [
     {
       title: '文档',
       key: 'document',
       width: 400,
       fixed: 'left',
-      render: (_, record) => (
+      render: (_: any, record: any) => (
         <Space>
           <span style={{ fontSize: '18px', color: '#1890ff' }}>
-            {DOCUMENT_TYPES[record.type]?.icon || <FileOutlined />}
+            {(DOCUMENT_TYPES as any)[record.type]?.icon || <FileOutlined />}
           </span>
           <div>
             <Space>
@@ -1032,7 +1032,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'folder_name',
       key: 'folder_name',
       width: 120,
-      render: (folderName, record) => (
+      render: (folderName: any, record: any) => (
         folderName ? (
           <Space 
             style={{ cursor: 'pointer' }}
@@ -1057,9 +1057,9 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'tags',
       key: 'tags',
       width: 150,
-      render: (tags: string[]) => (
+      render: (tags: any) => (
         <Space wrap>
-          {tags.slice(0, 2).map(tag => (
+          {tags.slice(0, 2).map((tag: any) => (
             <Tag key={tag}>{tag}</Tag>
           ))}
           {tags.length > 2 && (
@@ -1073,7 +1073,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'project_name',
       key: 'project_name',
       width: 120,
-      render: (projectName) => (
+      render: (projectName: any) => (
         projectName ? (
           <Tag color="blue">{projectName}</Tag>
         ) : (
@@ -1086,7 +1086,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'customer_name',
       key: 'customer_name', 
       width: 120,
-      render: (customerName) => (
+      render: (customerName: any) => (
         customerName ? (
           <Tag color="green">{customerName}</Tag>
         ) : (
@@ -1099,7 +1099,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'owner_name',
       key: 'owner_name',
       width: 100,
-      render: (name) => (
+      render: (name: any) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />} />
           <Text>{name}</Text>
@@ -1111,7 +1111,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 120,
-      render: (date) => (
+      render: (date: any) => (
         <Tooltip title={dayjs(date).format('YYYY-MM-DD HH:mm:ss')}>
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {dayjs(date).fromNow()}
@@ -1124,7 +1124,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       key: 'actions',
       width: 120,
       fixed: 'right',
-      render: (_, record) => {
+      render: (_: any, record: any) => {
         const moreActions: MenuProps['items'] = [
           {
             key: 'copy',

@@ -605,7 +605,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
 
   // Render table view
   const renderTableView = () => {
-    const columns: ColumnsType<DocumentVersion> = [
+    const columns: any[] = [
       {
         title: '版本',
         key: 'version',

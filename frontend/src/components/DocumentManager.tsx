@@ -309,7 +309,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
   };
 
   // 表格列定义
-  const columns: ColumnsType<DocumentListItem> = [
+  const columns: any[] = [
     {
       title: '文档',
       dataIndex: 'title',
@@ -384,7 +384,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       title: '操作',
       key: 'actions',
       width: 150,
-      render: (_, record: DocumentListItem) => (
+      render: (_: any, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="查看">
             <Button 

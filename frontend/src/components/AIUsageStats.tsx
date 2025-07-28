@@ -29,7 +29,8 @@ import {
   PieChartOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+// Using any for table columns to avoid type conflicts
+// import type { ColumnsType } from 'antd/lib/table';
 import { AIProvider, AI_PROVIDER_INFO } from '../types/ai';
 import { TaskGenerationHistory } from '../types/aiTaskGenerator';
 import aiTaskGeneratorService from '../services/aiTaskGeneratorService';
@@ -345,7 +346,7 @@ const AIUsageStats: React.FC<AIUsageStatsProps> = ({
   };
 
   // 提供商表格列定义
-  const providerColumns: ColumnsType<ProviderUsageStats> = [
+  const providerColumns: any[] = [
     {
       title: 'AI提供商',
       dataIndex: 'provider',
@@ -408,7 +409,7 @@ const AIUsageStats: React.FC<AIUsageStatsProps> = ({
   ];
 
   // 关键词表格列定义
-  const keywordColumns: ColumnsType<KeywordStats> = [
+  const keywordColumns: any[] = [
     {
       title: '关键词',
       dataIndex: 'keyword',

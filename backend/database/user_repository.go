@@ -289,3 +289,245 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 
 	return nil
 }
+
+// ListCompanyUsersWithPagination lists company users with pagination and filtering
+func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error) {
+	// Build WHERE clause based on filters
+	whereConditions := []string{"u.user_type = 'company'"}
+	args := []interface{}{}
+	argIndex := 1
+
+	if params.CompanyID != nil {
+		whereConditions = append(whereConditions, fmt.Sprintf("u.company_id = $%d", argIndex))
+		args = append(args, *params.CompanyID)
+		argIndex++
+	}
+
+	if params.Status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("u.status = $%d", argIndex))
+		args = append(args, params.Status)
+		argIndex++
+	}
+
+	if params.Search != "" {
+		searchCondition := fmt.Sprintf("(u.username ILIKE $%d OR u.email ILIKE $%d OR u.contact_person_name ILIKE $%d)", argIndex, argIndex+1, argIndex+2)
+		whereConditions = append(whereConditions, searchCondition)
+		searchPattern := "%" + params.Search + "%"
+		args = append(args, searchPattern, searchPattern, searchPattern)
+		argIndex += 3
+	}
+
+	whereClause := "WHERE " + fmt.Sprintf("%s", whereConditions[0])
+	for i := 1; i < len(whereConditions); i++ {
+		whereClause += " AND " + whereConditions[i]
+	}
+
+	// Get total count
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM users u 
+		LEFT JOIN companies c ON u.company_id = c.id 
+		%s`, whereClause)
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery, args...)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get company user count: %w", err)
+	}
+
+	// Get users with pagination
+	offset := (params.Page - 1) * params.PageSize
+	query := fmt.Sprintf(`
+		SELECT u.id, u.username, u.email, u.contact_person_name, u.contact_phone, 
+		       u.department_title, u.is_primary_contact, u.status, u.company_id, 
+		       c.company_name, u.last_login_at, u.account_expires_at, 
+		       u.last_project_access, u.notes, u.created_at, u.updated_at
+		FROM users u 
+		LEFT JOIN companies c ON u.company_id = c.id 
+		%s
+		ORDER BY u.created_at DESC
+		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, params.PageSize, offset)
+
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list company users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.EnterpriseUserResponse
+	for rows.Next() {
+		user := &models.EnterpriseUserResponse{}
+
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.ContactPersonName,
+			&user.ContactPhone, &user.DepartmentTitle, &user.IsPrimaryContact,
+			&user.Status, &user.CompanyID, &user.CompanyName, &user.LastLoginAt,
+			&user.AccountExpiresAt, &user.LastProjectAccess, &user.Notes,
+			&user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan company user: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return users, total, nil
+}
+
+// GetPrimaryContactByCompanyID gets the primary contact for a company
+func (r *PostgresUserRepository) GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error) {
+	query := `
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, contact_person_name, contact_phone,
+		       department_title, is_primary_contact, account_expires_at, last_project_access,
+		       notes, current_timing_task_id, timing_start_time, created_at, updated_at
+		FROM users 
+		WHERE company_id = $1 AND user_type = 'company' AND is_primary_contact = true
+		LIMIT 1`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, companyID)
+
+	user := &models.User{}
+	err := row.Scan(
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
+		&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
+		&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
+		&user.CreatedAt, &user.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // No primary contact found (this is not an error)
+		}
+		return nil, fmt.Errorf("failed to get primary contact: %w", err)
+	}
+
+	return user, nil
+}
+
+// GetCompanyUserStatistics returns statistics about company users
+func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error) {
+	exec := r.getExecer()
+
+	// Get total count and count by status
+	statusQuery := `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+			COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive,
+			COUNT(CASE WHEN is_primary_contact = true THEN 1 END) as primary_contacts,
+			COUNT(CASE WHEN account_expires_at IS NOT NULL AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '30 days' AND account_expires_at > CURRENT_TIMESTAMP THEN 1 END) as expiring_accounts,
+			COUNT(CASE WHEN created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days' THEN 1 END) as recent_registrations
+		FROM users 
+		WHERE user_type = 'company'`
+
+	row := exec.QueryRowContext(ctx, statusQuery)
+
+	var total, active, inactive, primaryContacts, expiringAccounts, recentRegistrations int
+	err := row.Scan(&total, &active, &inactive, &primaryContacts, &expiringAccounts, &recentRegistrations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get company user statistics: %w", err)
+	}
+
+	// Get count by company
+	companyQuery := `
+		SELECT c.company_name, COUNT(u.id) as user_count
+		FROM users u
+		LEFT JOIN companies c ON u.company_id = c.id
+		WHERE u.user_type = 'company'
+		GROUP BY c.id, c.company_name
+		ORDER BY user_count DESC`
+
+	rows, err := exec.QueryContext(ctx, companyQuery)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get company user stats by company: %w", err)
+	}
+	defer rows.Close()
+
+	byCompany := make(map[string]int)
+	for rows.Next() {
+		var companyName string
+		var count int
+		if err := rows.Scan(&companyName, &count); err != nil {
+			return nil, fmt.Errorf("failed to scan company stats: %w", err)
+		}
+		byCompany[companyName] = count
+	}
+
+	byStatus := map[string]int{
+		"active":   active,
+		"inactive": inactive,
+	}
+
+	stats := &models.CompanyUserStats{
+		Total:               total,
+		ByStatus:            byStatus,
+		ByCompany:           byCompany,
+		PrimaryContacts:     primaryContacts,
+		ExpiringAccounts:    expiringAccounts,
+		RecentRegistrations: recentRegistrations,
+	}
+
+	return stats, nil
+}
+
+// GetExpiringAccounts gets company users whose accounts are expiring soon
+func (r *PostgresUserRepository) GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error) {
+	query := `
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at, contact_person_name, contact_phone,
+		       department_title, is_primary_contact, account_expires_at, last_project_access,
+		       notes, current_timing_task_id, timing_start_time, created_at, updated_at
+		FROM users 
+		WHERE user_type = 'company' 
+		  AND account_expires_at IS NOT NULL 
+		  AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '%d days'
+		  AND account_expires_at > CURRENT_TIMESTAMP
+		ORDER BY account_expires_at ASC`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, fmt.Sprintf(query, days))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get expiring accounts: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		user := &models.User{}
+
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+			&user.UserType, &user.CompanyID, &user.CompanyUserID,
+			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+			&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
+			&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
+			&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
+			&user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan expiring user: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return users, nil
+}

@@ -170,7 +170,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   // 自定义footer，编辑模式下添加"编辑详情"按钮
   const renderFooter = () => {
-    const buttons = [];
+    const buttons: React.ReactNode[] = [];
     
     // 取消按钮
     buttons.push(

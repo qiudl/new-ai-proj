@@ -42,6 +42,7 @@ type Application struct {
 	companyHandler      *handlers.CompanyHandler
 	permissionHandler   *handlers.PermissionHandler
 	userManagementHandler *handlers.UserManagementHandler
+	companyUserHandler  *handlers.CompanyUserHandler
 	// 文档管理处理器 (混合版本，直接SQL)
 	hybridDocumentHandler       *handlers.HybridDocumentHandler
 	hybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
@@ -97,6 +98,15 @@ func NewApplication() (*Application, error) {
 	permissionHandler := handlers.NewPermissionHandler(db.Permissions())
 	userManagementRepo := database.NewUserManagementRepository(db.GetDB())
 	userManagementHandler := handlers.NewUserManagementHandler(userManagementRepo)
+	
+	// Company user handler
+	serviceManager := services.NewServiceManager(db)
+	companyUserHandler := handlers.NewCompanyUserHandler(
+		db.Users(), 
+		db.Companies(), 
+		serviceManager.AsyncLogger(), 
+		validate,
+	)
 	// 文档管理处理器 (混合版本，直接SQL)
 	hybridDocumentHandler := handlers.NewHybridDocumentHandler(db)
 	hybridDocumentFolderHandler := handlers.NewHybridDocumentFolderHandler(db)
@@ -113,9 +123,8 @@ func NewApplication() (*Application, error) {
 	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
 	
-	// 创建文档服务 (暂时注释以避免编译错误)
-	// documentService := services.NewDocumentService(db.GetDB())
-	taskDocumentService := services.NewTaskDocumentService(db.GetDB(), nil) // 传递nil作为临时解决方案
+	// 创建文档服务和任务文档服务
+	taskDocumentService := services.NewTaskDocumentService(db.GetDB(), nil) // 使用nil DocumentService进行MVP演示
 	
 	// 创建统一文档处理器
 	unifiedTaskDocumentHandler := handlers.NewUnifiedTaskDocumentHandler(taskDocumentService)
@@ -150,6 +159,7 @@ func NewApplication() (*Application, error) {
 		companyHandler:      companyHandler,
 		permissionHandler:   permissionHandler,
 		userManagementHandler: userManagementHandler,
+		companyUserHandler:  companyUserHandler,
 		// 混合版文档管理处理器 (直接SQL)
 		hybridDocumentHandler:       hybridDocumentHandler,
 		hybridDocumentFolderHandler: hybridDocumentFolderHandler,
@@ -570,6 +580,20 @@ func (app *Application) setupRouter() *gin.Engine {
 					adminUsers.DELETE("/:id", app.userManagementHandler.DeleteUser)
 					adminUsers.POST("/:id/reset-password", app.userManagementHandler.ResetUserPassword)
 					adminUsers.PUT("/:id/status", app.userManagementHandler.UpdateUserStatus)
+				}
+
+				// Company user management (admin only)
+				companyUsers := admin.Group("/company-users")
+				companyUsers.Use(middleware.RoleBasedAccessMiddleware("admin"))
+				{
+					companyUsers.GET("", app.companyUserHandler.GetCompanyUserList)
+					companyUsers.POST("", app.companyUserHandler.CreateCompanyUser)
+					companyUsers.GET("/stats", app.companyUserHandler.GetCompanyUserStats)
+					companyUsers.POST("/batch", app.companyUserHandler.BatchUpdateCompanyUsers)
+					companyUsers.GET("/:id", app.companyUserHandler.GetCompanyUser)
+					companyUsers.PUT("/:id", app.companyUserHandler.UpdateCompanyUser)
+					companyUsers.PUT("/:id/status", app.companyUserHandler.UpdateCompanyUserStatus)
+					companyUsers.DELETE("/:id", app.companyUserHandler.DeleteCompanyUser)
 				}
 			}
 		}

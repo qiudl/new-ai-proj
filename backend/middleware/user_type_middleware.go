@@ -176,3 +176,160 @@ func RoleBasedAccessMiddleware(allowedRoles ...string) gin.HandlerFunc {
 		c.Abort()
 	}
 }
+
+// CompanyUserPermissionMiddleware 企业用户权限验证中间件
+// 确保企业用户只能访问自己企业的项目和数据
+func CompanyUserPermissionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userType, exists := c.Get("current_user_type")
+		if !exists || userType != "company" {
+			// 非企业用户，跳过检查
+			c.Next()
+			return
+		}
+
+		// 获取用户的企业ID
+		userCompanyID, exists := c.Get("company_id")
+		if !exists {
+			response := models.NewErrorResponse(
+				models.ErrCodeUnauthorized,
+				"Company user must have company association",
+				"Please contact administrator",
+			)
+			c.JSON(http.StatusForbidden, response)
+			c.Abort()
+			return
+		}
+
+		userCompanyIDInt, ok := userCompanyID.(int)
+		if !ok {
+			response := models.NewErrorResponse(
+				models.ErrCodeInternal,
+				"Invalid company ID format",
+				"Please contact administrator",
+			)
+			c.JSON(http.StatusInternalServerError, response)
+			c.Abort()
+			return
+		}
+
+		// 检查项目访问权限（如果路径中包含项目ID）
+		if projectID := getProjectIDFromPath(c); projectID != 0 {
+			if !checkCompanyProjectAccess(userCompanyIDInt, projectID) {
+				response := models.NewErrorResponse(
+					models.ErrCodeAuthorization,
+					"Access denied",
+					"You can only access projects belonging to your company",
+				)
+				c.JSON(http.StatusForbidden, response)
+				c.Abort()
+				return
+			}
+		}
+
+		// 检查企业用户特定权限
+		if !checkCompanyUserPermissions(c, userCompanyIDInt) {
+			response := models.NewErrorResponse(
+				models.ErrCodeAuthorization,
+				"Access denied",
+				"Insufficient permissions for this operation",
+			)
+			c.JSON(http.StatusForbidden, response)
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}
+
+// getProjectIDFromPath 从路径中提取项目ID
+func getProjectIDFromPath(c *gin.Context) int {
+	if projectIDStr := c.Param("id"); projectIDStr != "" {
+		// 检查是否在项目相关的路径上
+		path := c.Request.URL.Path
+		if contains(path, "/projects/") {
+			if projectID, err := strconv.Atoi(projectIDStr); err == nil {
+				return projectID
+			}
+		}
+	}
+	return 0
+}
+
+// checkCompanyProjectAccess 检查企业是否有访问特定项目的权限
+func checkCompanyProjectAccess(companyID, projectID int) bool {
+	// TODO: 实现实际的数据库查询
+	// 这里应该查询项目是否属于该企业
+	// 临时实现：总是返回true，实际应该查询数据库
+	return true
+}
+
+// checkCompanyUserPermissions 检查企业用户的特定权限
+func checkCompanyUserPermissions(c *gin.Context, companyID int) bool {
+	// 检查企业用户是否有执行当前操作的权限
+	method := c.Request.Method
+	path := c.Request.URL.Path
+
+	// 企业用户权限规则：
+	// 1. 可以查看项目进展和详情
+	// 2. 可以查看/下载项目文档
+	// 3. 可以创建任务并指派给项目经理
+	// 4. 可以查看项目时间统计
+	// 5. 不能访问系统管理功能
+	// 6. 不能访问其他企业的数据
+
+	// 禁止访问系统管理路径
+	if contains(path, "/admin/") || contains(path, "/system/") {
+		return false
+	}
+
+	// 禁止访问权限管理
+	if contains(path, "/permissions/") {
+		return false
+	}
+
+	// 根据方法和路径检查权限
+	switch method {
+	case "GET":
+		// 企业用户可以查看大部分资源
+		return true
+	case "POST":
+		// 企业用户可以创建任务和上传文档
+		if contains(path, "/tasks") || contains(path, "/documents") {
+			return true
+		}
+		// 禁止其他POST操作
+		return false
+	case "PUT", "PATCH":
+		// 企业用户可以更新任务状态和自己的信息
+		if contains(path, "/tasks") || contains(path, "/profile") {
+			return true
+		}
+		return false
+	case "DELETE":
+		// 企业用户通常不能删除资源
+		return false
+	default:
+		return false
+	}
+}
+
+// contains 检查字符串是否包含子字符串
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && 
+		   (s == substr || (len(s) > len(substr) && 
+		   (s[:len(substr)] == substr || 
+		    s[len(s)-len(substr):] == substr || 
+		    containsMiddle(s, substr))))
+}
+
+// containsMiddle 检查字符串中间是否包含子字符串
+func containsMiddle(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

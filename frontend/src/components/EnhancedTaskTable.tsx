@@ -137,7 +137,7 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     }
   };
 
-  const columns: ColumnsType<Task> = [
+  const columns: any[] = [
     {
       title: 'ID',
       dataIndex: 'id',

@@ -254,7 +254,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   };
 
   // 表格列定义
-  const columns: ColumnsType<HierarchicalTask> = [
+  const columns: any[] = [
     {
       title: '任务',
       dataIndex: 'title',

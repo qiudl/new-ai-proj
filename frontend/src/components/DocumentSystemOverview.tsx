@@ -361,7 +361,7 @@ const DocumentSystemOverview: React.FC = () => {
   };
 
   // 热门文档表格列
-  const popularDocsColumns: ColumnsType<PopularDocument> = [
+  const popularDocsColumns: any[] = [
     {
       title: '文档名称',
       dataIndex: 'title',

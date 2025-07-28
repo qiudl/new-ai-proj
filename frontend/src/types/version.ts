@@ -327,7 +327,7 @@ export function calculateVersionDiff(comparison: DocumentVersionComparison): str
     return '无变更';
   }
   
-  const parts = [];
+  const parts: string[] = [];
   if (comparison.added_lines > 0) {
     parts.push(`+${comparison.added_lines} 行`);
   }

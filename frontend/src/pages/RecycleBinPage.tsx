@@ -143,7 +143,7 @@ const RecycleBinPage: React.FC = () => {
   };
 
   // Project columns
-  const projectColumns: ColumnsType<RecycledProject> = [
+  const projectColumns: any[] = [
     {
       title: '项目名称',
       dataIndex: 'name',
@@ -215,7 +215,7 @@ const RecycleBinPage: React.FC = () => {
   ];
 
   // Task columns
-  const taskColumns: ColumnsType<RecycledTask> = [
+  const taskColumns: any[] = [
     {
       title: '任务标题',
       dataIndex: 'title',

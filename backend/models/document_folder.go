@@ -21,9 +21,15 @@ type DocumentFolder struct {
 	DeletedAt      *time.Time `json:"deleted_at" db:"deleted_at"`
 	
 	// 关联字段
-	OwnerName     *string           `json:"owner_name,omitempty" db:"owner_name"`
-	Children      []DocumentFolder  `json:"children,omitempty"`
-	DocumentCount int               `json:"document_count,omitempty" db:"document_count"`
+	OwnerName       *string           `json:"owner_name,omitempty" db:"owner_name"`
+	CreatorName     *string           `json:"creator_name,omitempty" db:"creator_name"`
+	ParentName      *string           `json:"parent_name,omitempty" db:"parent_name"`
+	Children        []DocumentFolder  `json:"children,omitempty"`
+	DocumentCount   int               `json:"document_count,omitempty" db:"document_count"`
+	ChildrenCount   int               `json:"children_count,omitempty" db:"children_count"`
+	DocumentsCount  int               `json:"documents_count,omitempty" db:"documents_count"`
+	CanEdit         bool              `json:"can_edit,omitempty"`
+	CanDelete       bool              `json:"can_delete,omitempty"`
 }
 
 // CreateFolderRequest 创建文件夹请求
@@ -110,6 +116,18 @@ type FolderTreeResponse struct {
 type DocumentFolderTree struct {
 	DocumentFolder
 	Children []DocumentFolderTree `json:"children,omitempty"`
+}
+
+// 基于DocumentFolder结构创建的树节点类型，包含所有必需字段
+type FolderTreeNode struct {
+	ID             int                `json:"id"`
+	Name           string             `json:"name"`
+	ParentFolderID *int               `json:"parent_folder_id"`
+	Color          *string            `json:"color"`
+	Icon           *string            `json:"icon"`
+	DocumentsCount int                `json:"documents_count"`
+	CanEdit        bool               `json:"can_edit"`
+	Children       []FolderTreeNode   `json:"children,omitempty"`
 }
 
 // DocumentFolderStats 文档文件夹统计

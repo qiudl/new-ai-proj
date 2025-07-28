@@ -312,7 +312,7 @@ const CompanyListPage: React.FC = () => {
   };
 
   // 表格列配置
-  const columns: ColumnsType<Company> = columnConfig
+  const columns: any[] = columnConfig
     .filter(col => col.visible)
     .map(col => {
       const baseColumn = {
@@ -501,7 +501,7 @@ const CompanyListPage: React.FC = () => {
         default:
           return baseColumn;
       }
-    }) as ColumnsType<Company>;
+    }) as any[];
 
 
   // 渲染卡片视图

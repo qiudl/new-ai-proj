@@ -114,6 +114,9 @@ type CreateDocumentRequest struct {
 	IsTemplate  bool             `json:"is_template"`
 }
 
+// 类型别名以兼容现有代码
+type DocumentRequest = CreateDocumentRequest
+
 // UpdateDocumentRequest 更新文档请求 - 增强版
 type UpdateDocumentRequest struct {
 	FolderID    *int             `json:"folder_id"`

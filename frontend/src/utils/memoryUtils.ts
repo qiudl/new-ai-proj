@@ -72,7 +72,7 @@ export function cleanupLocalStorage(maxAgeDays: number = 7): number {
   const now = Date.now();
   const maxAge = maxAgeDays * 24 * 60 * 60 * 1000;
   
-  const keysToRemove = [];
+  const keysToRemove: string[] = [];
   
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);

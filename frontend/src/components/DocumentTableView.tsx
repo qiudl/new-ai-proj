@@ -242,7 +242,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   };
 
   // 简洁模式的列配置
-  const getSimpleColumns = (): ColumnsType<DocumentListItem> => [
+  const getSimpleColumns = (): any[] => [
     ...(isSelectMode ? [{
       title: (
         <Checkbox
@@ -334,7 +334,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       title: '操作',
       key: 'actions',
       width: 100,
-      render: (_, record: DocumentListItem) => (
+      render: (_: any, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="编辑">
             <Button
@@ -388,7 +388,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   ];
 
   // 高级模式的列配置
-  const getAdvancedColumns = (): ColumnsType<Document> => [
+  const getAdvancedColumns = (): any[] => [
     ...(isSelectMode ? [{
       title: (
         <Checkbox
@@ -418,7 +418,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     {
       title: '文档',
       key: 'document',
-      render: (_, record: Document) => (
+      render: (_: any, record: Document) => (
         <Space>
           {DOCUMENT_TYPE_ICONS[record.type] || DOCUMENT_TYPE_ICONS.text}
           <div>
@@ -548,7 +548,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       title: '操作',
       key: 'actions',
       width: 140,
-      render: (_, record: Document) => {
+      render: (_: any, record: Document) => {
         const moreActions: MenuProps['items'] = [
           {
             key: 'template',
@@ -681,7 +681,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   ];
 
   const columns = mode === 'simple' 
-    ? getSimpleColumns() as ColumnsType<Document>
+    ? getSimpleColumns() as any[]
     : getAdvancedColumns();
 
   // 错误状态处理

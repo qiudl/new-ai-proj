@@ -31,7 +31,8 @@ import {
   SaveOutlined,
   BookOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+// Using any for table columns to avoid type conflicts
+// import type { ColumnsType } from 'antd/lib/table';
 import { TaskGenerationHistory, GeneratedSubTask } from '../types/aiTaskGenerator';
 import { AIProvider, AI_PROVIDER_INFO } from '../types/ai';
 import GeneratedTasksList from './GeneratedTasksList';
@@ -371,7 +372,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
   };
 
   // 历史记录表格列定义
-  const historyColumns: ColumnsType<TaskGenerationHistory> = [
+  const historyColumns: any[] = [
     {
       title: '时间',
       dataIndex: 'timestamp',
@@ -385,7 +386,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
           </Text>
         </div>
       ),
-      sorter: (a, b) => a.timestamp.getTime() - b.timestamp.getTime(),
+      sorter: (a: TaskGenerationHistory, b: TaskGenerationHistory) => a.timestamp.getTime() - b.timestamp.getTime(),
       defaultSortOrder: 'descend'
     },
     {
@@ -432,13 +433,13 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
         { text: 'Claude', value: 'claude' },
         { text: 'OpenAI', value: 'openai' }
       ],
-      onFilter: (value, record) => record.usedProvider === value
+      onFilter: (value: string | number | boolean, record: TaskGenerationHistory) => record.usedProvider === value
     },
     {
       title: '生成结果',
       key: 'result',
       width: 150,
-      render: (_, record) => (
+      render: (_: any, record: TaskGenerationHistory) => (
         <Space direction="vertical" size={0}>
           <div>
             <Text strong>{record.generatedCount}</Text>
@@ -457,7 +458,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
       title: '成本',
       key: 'cost',
       width: 100,
-      render: (_, record) => (
+      render: (_: any, record: TaskGenerationHistory) => (
         <Space direction="vertical" size={0}>
           <div>
             <Text strong>¥{record.cost.toFixed(4)}</Text>
@@ -484,13 +485,13 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
         { text: '成功', value: true },
         { text: '失败', value: false }
       ],
-      onFilter: (value, record) => record.success === value
+      onFilter: (value: string | number | boolean, record: TaskGenerationHistory) => record.success === value
     },
     {
       title: '操作',
       key: 'actions',
       width: 180,
-      render: (_, record) => (
+      render: (_: any, record: TaskGenerationHistory) => (
         <Space size="small">
           <Tooltip title="查看详情">
             <Button
@@ -541,12 +542,12 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
   ];
 
   // 模板表格列定义
-  const templateColumns: ColumnsType<GenerationTemplate> = [
+  const templateColumns: any[] = [
     {
       title: '模板名称',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record) => (
+      render: (name: string, record: GenerationTemplate) => (
         <div>
           <Text strong>{name}</Text>
           {record.description && (
@@ -597,7 +598,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
       title: '操作',
       key: 'actions',
       width: 120,
-      render: (_, record) => (
+      render: (_: any, record: GenerationTemplate) => (
         <Space size="small">
           <Tooltip title="使用模板">
             <Button
@@ -746,7 +747,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
                   <Search
                     placeholder="搜索关键词或任务名称"
                     value={filters.keyword}
-                    onChange={e => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
                     onSearch={() => applyFilters()}
                     allowClear
                   />
@@ -755,7 +756,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
                   <Select
                     placeholder="AI提供商"
                     value={filters.provider}
-                    onChange={value => setFilters(prev => ({ ...prev, provider: value }))}
+                    onChange={(value: AIProvider) => setFilters(prev => ({ ...prev, provider: value }))}
                     allowClear
                     style={{ width: '100%' }}
                   >
@@ -768,7 +769,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
                   <Select
                     placeholder="生成状态"
                     value={filters.success}
-                    onChange={value => setFilters(prev => ({ ...prev, success: value }))}
+                    onChange={(value: boolean) => setFilters(prev => ({ ...prev, success: value }))}
                     allowClear
                     style={{ width: '100%' }}
                   >
@@ -783,7 +784,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
                       filters.dateRange[0] as any,
                       filters.dateRange[1] as any
                     ] : null}
-                    onChange={(dates) => {
+                    onChange={(dates: any) => {
                       if (dates && dates[0] && dates[1]) {
                         setFilters(prev => ({ 
                           ...prev, 
@@ -823,7 +824,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条记录`
+                showTotal: (total: number, range: [number, number]) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条记录`
               }}
               scroll={{ x: 1200 }}
             />
@@ -843,7 +844,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,
-                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条模板`
+                showTotal: (total: number, range: [number, number]) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条模板`
               }}
             />
           )
@@ -992,7 +993,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
             <Text strong>模板名称：</Text>
             <Input
               value={templateName}
-              onChange={e => setTemplateName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemplateName(e.target.value)}
               placeholder="请输入模板名称"
               style={{ marginTop: 4 }}
             />
@@ -1002,7 +1003,7 @@ const AIGenerationHistory: React.FC<AIGenerationHistoryProps> = ({
             <Text strong>模板描述：</Text>
             <Input.TextArea
               value={templateDescription}
-              onChange={e => setTemplateDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTemplateDescription(e.target.value)}
               placeholder="请输入模板描述（可选）"
               rows={3}
               style={{ marginTop: 4 }}

@@ -193,7 +193,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   // 表格列定义
-  const columns: ColumnsType<DocumentListItem> = [
+  const columns: any[] = [
     {
       title: '文档标题',
       dataIndex: 'title',
@@ -260,7 +260,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       title: '操作',
       key: 'actions',
       width: 100,
-      render: (_, record: DocumentListItem) => (
+      render: (_: any, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="编辑">
             <Button
