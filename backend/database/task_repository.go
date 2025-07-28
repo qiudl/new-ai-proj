@@ -108,8 +108,8 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 
 // GetByProjectID gets tasks by project ID with pagination (only non-deleted)
 func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error) {
-	// Get total count
-	countQuery := `SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL`
+	// Get total count (exclude archived tasks)
+	countQuery := `SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL AND archived_at IS NULL`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery, projectID)
 
@@ -131,7 +131,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
 			GROUP BY parent_id
 		) c ON t.id = c.parent_id
-		WHERE t.project_id = $1 AND t.deleted_at IS NULL
+		WHERE t.project_id = $1 AND t.deleted_at IS NULL AND t.archived_at IS NULL
 		ORDER BY t.created_at DESC
 		LIMIT $2 OFFSET $3`
 

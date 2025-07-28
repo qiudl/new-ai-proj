@@ -1,4 +1,4 @@
-/* 增强层级任务树样式 */
+/* 简洁层级任务树样式 */
 
 .enhanced-hierarchical-task-tree .ant-tree {
   background: transparent !important;
@@ -9,6 +9,13 @@
   display: flex !important;
   align-items: center !important;
   overflow: hidden !important;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.enhanced-hierarchical-task-tree .ant-tree-node-content-wrapper:hover {
+  background-color: #f5f5f5;
 }
 
 .enhanced-hierarchical-task-tree .ant-tree-title {
@@ -24,115 +31,6 @@
   padding: 2px 0;
 }
 
-.enhanced-hierarchical-task-tree .ant-tree-treenode:hover {
-  background-color: rgba(24, 144, 255, 0.05) !important;
-  border-radius: 4px;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.ant-tree-treenode-selected {
-  background-color: rgba(24, 144, 255, 0.1) !important;
-  border-radius: 4px;
-}
-
-/* 项目节点特殊样式 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] {
-  margin-bottom: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] .ant-tree-node-content-wrapper {
-  padding: 8px 4px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #f6f9fc 0%, #e9f7ef 100%);
-  border: 1px solid #d9f7be;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="project"] .ant-tree-node-content-wrapper:hover {
-  background: linear-gradient(135deg, #e6f7ff 0%, #d9f7be 100%);
-  border-color: #91d5ff;
-}
-
-/* 任务节点样式 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="task"] .ant-tree-node-content-wrapper {
-  padding: 6px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-  position: relative;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode[data-type="task"] .ant-tree-node-content-wrapper:hover {
-  background-color: rgba(24, 144, 255, 0.08);
-  transform: translateX(2px);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* 层级深度视觉区分 - 使用动态添加的类名 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-0 .ant-tree-node-content-wrapper {
-  border-left: 4px solid transparent;
-  background: rgba(255, 255, 255, 0.8) !important;
-}
-
-/* 第1层级 - 项目级别或根任务 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 {
-  background: rgba(24, 144, 255, 0.08) !important;
-  margin-left: 8px !important;
-  border-radius: 6px !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 .ant-tree-node-content-wrapper {
-  border-left: 6px solid #1890ff !important;
-  background: linear-gradient(to right, rgba(24, 144, 255, 0.15), rgba(24, 144, 255, 0.05)) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 1px 3px rgba(24, 144, 255, 0.2) !important;
-}
-
-/* 第2层级 - 子任务 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 {
-  background: rgba(82, 196, 26, 0.08) !important;
-  margin-left: 16px !important;
-  border-radius: 6px !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 .ant-tree-node-content-wrapper {
-  border-left: 6px solid #52c41a !important;
-  background: linear-gradient(to right, rgba(82, 196, 26, 0.15), rgba(82, 196, 26, 0.05)) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 1px 3px rgba(82, 196, 26, 0.2) !important;
-}
-
-/* 第3层级 - 深层子任务 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 {
-  background: rgba(250, 140, 22, 0.08) !important;
-  margin-left: 24px !important;
-  border-radius: 6px !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 .ant-tree-node-content-wrapper {
-  border-left: 6px solid #fa8c16 !important;
-  background: linear-gradient(to right, rgba(250, 140, 22, 0.15), rgba(250, 140, 22, 0.05)) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 1px 3px rgba(250, 140, 22, 0.2) !important;
-}
-
-/* 第4层级及以上 - 最深层级 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-4,
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-5,
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-6 {
-  background: rgba(255, 85, 115, 0.08) !important;
-  margin-left: 32px !important;
-  border-radius: 6px !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-4 .ant-tree-node-content-wrapper,
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-5 .ant-tree-node-content-wrapper,
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-6 .ant-tree-node-content-wrapper {
-  border-left: 6px solid #ff5573 !important;
-  background: linear-gradient(to right, rgba(255, 85, 115, 0.15), rgba(255, 85, 115, 0.05)) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 1px 3px rgba(255, 85, 115, 0.2) !important;
-}
-
 /* 树节点包装器样式 */
 .tree-node-wrapper {
   width: 100%;
@@ -140,82 +38,7 @@
   align-items: center;
 }
 
-/* 项目节点特殊样式 - 覆盖其他层级样式 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project {
-  background: rgba(114, 46, 209, 0.12) !important;
-  margin: 8px 0 !important;
-  border-radius: 8px !important;
-  border: 1px solid rgba(114, 46, 209, 0.3) !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project .ant-tree-node-content-wrapper {
-  font-weight: 600 !important;
-  font-size: 14px !important;
-  border-left: 8px solid #722ed1 !important;
-  background: linear-gradient(135deg, rgba(114, 46, 209, 0.18), rgba(114, 46, 209, 0.08)) !important;
-  box-shadow: 0 3px 6px rgba(114, 46, 209, 0.25) !important;
-  border-radius: 6px !important;
-  padding: 8px 12px !important;
-  transform: none !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-type-project .ant-tree-node-content-wrapper:hover {
-  background: linear-gradient(135deg, rgba(114, 46, 209, 0.25), rgba(114, 46, 209, 0.12)) !important;
-  box-shadow: 0 4px 8px rgba(114, 46, 209, 0.3) !important;
-  transform: translateY(-1px) !important;
-}
-
-/* 层级指示器 - 在左边框基础上增强 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-1 .ant-tree-node-content-wrapper:hover {
-  border-left-width: 4px !important;
-  transform: translateX(3px);
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-2 .ant-tree-node-content-wrapper:hover {
-  border-left-width: 4px !important;
-  transform: translateX(3px);
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-treenode.tree-level-3 .ant-tree-node-content-wrapper:hover {
-  border-left-width: 4px !important;
-  transform: translateX(3px);
-}
-
-/* 层级缩进线 - 增强效果 */
-.enhanced-hierarchical-task-tree .ant-tree-indent-unit {
-  position: relative;
-  width: 16px !important;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-indent-unit::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: linear-gradient(to bottom, #d9d9d9 0%, #d9d9d9 70%, transparent 100%);
-  opacity: 0.6;
-}
-
-/* 层级连接线 - 水平线 */
-.enhanced-hierarchical-task-tree .ant-tree-indent-unit::after {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 12px;
-  width: 8px;
-  height: 1px;
-  background: #d9d9d9;
-  opacity: 0.6;
-}
-
-/* 最后一个子节点的垂直线处理 */
-.enhanced-hierarchical-task-tree .ant-tree-treenode-leaf-last .ant-tree-indent-unit::before {
-  background: linear-gradient(to bottom, #d9d9d9 0%, #d9d9d9 50%, transparent 50%);
-}
-
-/* 展开/折叠图标 - 增强效果 */
+/* 展开/折叠图标 */
 .enhanced-hierarchical-task-tree .ant-tree-switcher {
   display: flex !important;
   align-items: center;
@@ -223,79 +46,16 @@
   width: 16px !important;
   height: 24px !important;
   margin-right: 4px !important;
-  border-radius: 3px;
-  transition: all 0.2s ease;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-switcher:hover {
-  background-color: rgba(24, 144, 255, 0.1);
-  transform: scale(1.05);
 }
 
 .enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon {
   font-size: 12px;
   color: #8c8c8c;
-  transition: all 0.2s ease;
 }
 
-.enhanced-hierarchical-task-tree .ant-tree-switcher .ant-tree-switcher-icon:hover {
-  color: #1890ff;
-}
-
-/* 展开状态的动画效果 */
-.enhanced-hierarchical-task-tree .ant-tree-switcher-open .ant-tree-switcher-icon {
-  transform: rotate(90deg);
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-switcher-close .ant-tree-switcher-icon {
-  transform: rotate(0deg);
-}
-
-/* 叶子节点的switcher样式 */
 .enhanced-hierarchical-task-tree .ant-tree-switcher-noop {
   width: 16px !important;
   height: 24px !important;
-  position: relative;
-}
-
-.enhanced-hierarchical-task-tree .ant-tree-switcher-noop::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 12px;
-  width: 8px;
-  height: 1px;
-  background: #d9d9d9;
-  opacity: 0.6;
-}
-
-/* 任务状态标签动画 */
-.enhanced-hierarchical-task-tree .ant-tag {
-  transition: all 0.2s ease;
-}
-
-.enhanced-hierarchical-task-tree .ant-tag:hover {
-  transform: scale(1.05);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* 进度条样式 */
-.enhanced-hierarchical-task-tree .ant-progress .ant-progress-bg {
-  transition: all 0.3s ease;
-}
-
-/* 按钮动画效果 */
-.enhanced-hierarchical-task-tree .ant-btn {
-  transition: all 0.2s ease;
-}
-
-.enhanced-hierarchical-task-tree .ant-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.enhanced-hierarchical-task-tree .ant-btn:active {
-  transform: translateY(0);
 }
 
 /* 计时器状态指示器 */
@@ -306,41 +66,6 @@
   border-radius: 12px;
   font-size: 11px;
   font-weight: 500;
-}
-
-.enhanced-hierarchical-task-tree .timer-status-indicator.running {
-  background: linear-gradient(135deg, #52c41a20, #52c41a10);
-  color: #52c41a;
-  border: 1px solid #52c41a40;
-}
-
-.enhanced-hierarchical-task-tree .timer-status-indicator.paused {
-  background: linear-gradient(135deg, #fa8c1620, #fa8c1610);
-  color: #fa8c16;
-  border: 1px solid #fa8c1640;
-}
-
-/* 到期提醒样式 */
-.enhanced-hierarchical-task-tree .due-warning.overdue {
-  color: #ff4d4f !important;
-  animation: pulse 2s infinite;
-}
-
-.enhanced-hierarchical-task-tree .due-warning.due-soon {
-  color: #fa8c16 !important;
-  animation: blink 1.5s infinite;
-}
-
-/* 动画定义 */
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
-}
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0.3; }
 }
 
 /* 响应式设计 */
@@ -476,25 +201,6 @@
   line-height: 1;
 }
 
-/* 计时状态动画 */
-@keyframes timer-pulse {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.2);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-.timer-active-dot {
-  animation: timer-pulse 1.5s infinite;
-}
 
 /* 加载状态样式 */
 .hierarchical-task-loading {

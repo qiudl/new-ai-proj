@@ -34,6 +34,8 @@ interface TaskWithChildren extends Task {
 }
 
 const MVPMyTasksTree: React.FC = () => {
+  console.log('🔧 MVPMyTasksTree 组件开始加载');
+  
   const [loading, setLoading] = useState(true);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -43,6 +45,8 @@ const MVPMyTasksTree: React.FC = () => {
   
   // 🎯 使用统一的定时器
   const { timerState, startTimer } = useTimer();
+  
+  console.log('🔧 定时器状态:', timerState);
 
   // 🎯 简化的数据获取
   const fetchProjectsAndTasks = useCallback(async () => {
@@ -127,12 +131,23 @@ const MVPMyTasksTree: React.FC = () => {
                     />
                   </div>
                   {/* 🎯 简化的计时按钮 - 只有进行中的任务且不是当前计时任务才显示 */}
-                  {task.status === 'in_progress' && timerState.taskId !== task.id && !timerState.isRunning && (
+                  {(() => {
+                    const shouldShow = task.status === 'in_progress' && timerState.taskId !== task.id && !timerState.isRunning;
+                    console.log(`🔧 任务 ${task.title} 按钮显示条件:`, {
+                      status: task.status,
+                      isInProgress: task.status === 'in_progress',
+                      notCurrentTask: timerState.taskId !== task.id,
+                      timerNotRunning: !timerState.isRunning,
+                      shouldShow
+                    });
+                    return shouldShow;
+                  })() && (
                     <Button
                       type="text"
                       size="small"
                       icon={<PlayCircleOutlined />}
                       onClick={(e) => {
+                        console.log('🔧 按钮被点击了!', task.title);
                         e.stopPropagation();
                         handleStartTimer(task);
                       }}
@@ -243,6 +258,8 @@ const MVPMyTasksTree: React.FC = () => {
 
   // 🎯 简化的启动计时器
   const handleStartTimer = useCallback(async (task: Task) => {
+    console.log('🎯 检测到任务计时器启动', { taskId: task.id, taskTitle: task.title });
+    
     try {
       const success = await startTimer(task.id, task.title);
       if (success) {

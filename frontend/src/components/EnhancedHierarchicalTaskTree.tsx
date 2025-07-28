@@ -24,7 +24,8 @@ import {
   CaretDownOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  PauseCircleOutlined
+  PauseCircleOutlined,
+  InboxOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../contexts/TimerContext';
@@ -68,6 +69,8 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   showProjectInfo = true,
   compactMode = false
 }) => {
+  console.log('🔧 EnhancedHierarchicalTaskTree 组件开始加载');
+  
   const [loading, setLoading] = useState(true);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -76,6 +79,8 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   const navigate = useNavigate();
   
   const { timerState, startTimer, pauseTimer, resumeTimer } = useTimer();
+  
+  console.log('🔧 定时器状态:', timerState);
 
   // 获取任务状态颜色
   const getStatusColor = (status: string): string => {
@@ -207,7 +212,19 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             )}
             
             {/* 计时器状态 */}
-            {task.status === 'in_progress' && (
+            {(() => {
+              const isInProgress = task.status === 'in_progress';
+              const shouldShowTimerControls = isInProgress;
+              console.log(`🔧 任务 ${task.title} 计时器显示条件:`, {
+                status: task.status,
+                isInProgress,
+                isCurrentTimer,
+                timerIsRunning: timerState.isRunning,
+                timerIsPaused: timerState.isPaused,
+                shouldShowTimerControls
+              });
+              return shouldShowTimerControls;
+            })() && (
               <>
                 {isCurrentTimer && timerState.isRunning ? (
                   <Tooltip title="暂停计时">
@@ -218,6 +235,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
+                        console.log('🔧 暂停按钮被点击了!', task.title);
                         e.stopPropagation();
                         pauseTimer();
                       }}
@@ -232,6 +250,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
+                        console.log('🔧 继续按钮被点击了!', task.title);
                         e.stopPropagation();
                         resumeTimer();
                       }}
@@ -246,6 +265,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
+                        console.log('🔧 开始计时按钮被点击了!', task.title);
                         e.stopPropagation();
                         handleStartTimer(task);
                       }}
@@ -275,10 +295,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
       priority: task.custom_fields?.priority,
       dueDate: task.due_date,
       progress: taskProgress,
-      level: level,
-      className: `task-level-${level}`,
-      'data-level': level,
-      'data-type': 'task'
+      level: level
     };
   };
 
@@ -304,58 +321,20 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             const taskMap = new Map<number, TaskWithChildren>();
             const rootTasks: TaskWithChildren[] = [];
             
-            console.log(`🔍 项目 ${project.name} - 发现 ${tasks.length} 个任务`);
-            
-            // 检查任务数据中的parent_id字段
-            const hasParentChild = tasks.some(task => task.parent_id !== null && task.parent_id !== undefined);
-            if (hasParentChild) {
-              const parentChildPairs = tasks.filter(task => task.parent_id).map(task => ({
-                子任务: task.title,
-                子任务ID: task.id,
-                父任务ID: task.parent_id,
-                父任务: tasks.find(p => p.id === task.parent_id)?.title || '未找到父任务'
-              }));
-              console.log(`📈 ${project.name} 发现层级任务:`, parentChildPairs);
-              
-              // 调试：输出完整的任务数据
-              console.log(`🔍 ${project.name} 任务详情:`, tasks.map(t => ({
-                id: t.id,
-                title: t.title,
-                parent_id: t.parent_id
-              })));
-              
-            } else if (tasks.length > 0) {
-              console.log(`📝 ${project.name} 所有任务都是根级任务`);
-            }
-            
             tasks.forEach(task => {
               taskMap.set(task.id, { ...task, children: [], level: 0 });
             });
             
             tasks.forEach(task => {
               const taskWithChildren = taskMap.get(task.id)!;
-              console.log(`🔧 处理任务: ${task.title} (ID: ${task.id}, Parent: ${task.parent_id})`);
-              
               if (task.parent_id && taskMap.has(task.parent_id)) {
                 const parent = taskMap.get(task.parent_id)!;
                 parent.children = parent.children || [];
                 taskWithChildren.level = (parent.level || 0) + 1;
                 parent.children.push(taskWithChildren);
-                console.log(`  ↳ 添加为子任务，父任务: ${parent.title}, 层级: ${taskWithChildren.level}`);
               } else {
                 rootTasks.push(taskWithChildren);
-                console.log(`  ↳ 添加为根任务 (parent_id: ${task.parent_id}, 存在于map: ${task.parent_id ? taskMap.has(task.parent_id) : 'N/A'})`);
               }
-            });
-            
-            console.log(`📊 ${project.name} 最终结果:`, {
-              根任务数量: rootTasks.length,
-              根任务: rootTasks.map(t => ({
-                title: t.title,
-                id: t.id,
-                children_count: t.children?.length || 0,
-                children: t.children?.map(c => c.title)
-              }))
             });
             
             return { project, tasks: rootTasks };
@@ -438,14 +417,10 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             isLeaf: false,
             type: 'project' as const,
             id: project.id,
-            level: 0,
-            className: 'project-node',
-            'data-level': 0,
-            'data-type': 'project'
+            level: 0
           };
         });
 
-      console.log('🎯 任务树构建完成 - 包含', treeNodes.length, '个项目');
 
       setTreeData(treeNodes);
       
@@ -478,6 +453,8 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
 
   // 启动计时器
   const handleStartTimer = useCallback(async (task: Task) => {
+    console.log('🎯 检测到任务计时器启动', { taskId: task.id, taskTitle: task.title });
+    
     try {
       const success = await startTimer(task.id, task.title);
       if (success) {
@@ -516,78 +493,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
     fetchProjectsAndTasks();
   }, [fetchProjectsAndTasks, refreshKey]);
 
-  // 💡 修复：将memoizedTreeData定义移到使用之前
   const memoizedTreeData = useMemo(() => treeData, [treeData]);
-
-  // 添加层级样式的useEffect - 使用DOM元素顺序匹配
-  useEffect(() => {
-    if (memoizedTreeData.length === 0) return;
-
-    const addLevelStyles = () => {
-      console.log('开始添加层级样式...', '树数据数量:', memoizedTreeData.length);
-      
-      // 获取所有树节点
-      const allTreeNodes = document.querySelectorAll('.enhanced-hierarchical-task-tree .ant-tree-treenode');
-      console.log('找到的树节点数量:', allTreeNodes.length);
-      
-      if (allTreeNodes.length === 0) {
-        console.warn('没有找到树节点，可能DOM还未渲染');
-        return;
-      }
-
-      // 扁平化树数据，保持DOM中的显示顺序
-      const flattenTreeData = (nodes: TreeNodeData[], result: TreeNodeData[] = []): TreeNodeData[] => {
-        nodes.forEach(node => {
-          result.push(node);
-          if (node.children && node.children.length > 0) {
-            // 只有当节点展开时才包含子节点
-            if (expandedKeys.includes(node.key)) {
-              flattenTreeData(node.children, result);
-            }
-          }
-        });
-        return result;
-      };
-
-      const flatNodes = flattenTreeData(memoizedTreeData);
-      console.log('扁平化后的节点数量:', flatNodes.length, '展开的keys:', expandedKeys);
-
-      // 按顺序匹配DOM节点和数据节点
-      flatNodes.forEach((node, index) => {
-        if (index < allTreeNodes.length) {
-          const domNode = allTreeNodes[index];
-          const level = node.level;
-          const nodeType = node.type;
-          
-          console.log(`✅ 为第${index + 1}个DOM节点添加样式:`, {
-            key: node.key,
-            level,
-            type: nodeType,
-            title: node.title && typeof node.title === 'object' ? 'React元素' : node.title
-          });
-          
-          // 清除之前的层级类
-          domNode.classList.remove(
-            'tree-level-0', 'tree-level-1', 'tree-level-2', 'tree-level-3',
-            'tree-type-project', 'tree-type-task'
-          );
-          
-          // 添加新的层级类
-          domNode.classList.add(`tree-level-${level}`, `tree-type-${nodeType}`);
-          domNode.setAttribute('data-level', level.toString());
-          domNode.setAttribute('data-type', nodeType);
-          domNode.setAttribute('data-node-key', node.key);
-        }
-      });
-
-      console.log(`层级样式添加完成，处理了 ${Math.min(flatNodes.length, allTreeNodes.length)} 个节点`);
-    };
-
-    // 延迟执行以确保DOM已渲染
-    const timer = setTimeout(addLevelStyles, 300);
-    
-    return () => clearTimeout(timer);
-  }, [memoizedTreeData, expandedKeys]); // 当树数据或展开状态变化时重新添加样式
 
   if (loading) {
     return (
@@ -623,14 +529,23 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
           </Space>
         }
         extra={
-          <Button
-            type="text"
-            icon={<ReloadOutlined />}
-            onClick={handleRefresh}
-            
-          >
-            刷新
-          </Button>
+          <Space>
+            <Button
+              type="text"
+              icon={<InboxOutlined />}
+              onClick={() => navigate('/archived-tasks')}
+              title="查看归档任务"
+            >
+              归档管理
+            </Button>
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+            >
+              刷新
+            </Button>
+          </Space>
         }
         style={{ height, width: '100%' }}
         styles={{ 

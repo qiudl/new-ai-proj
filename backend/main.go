@@ -49,6 +49,7 @@ type Application struct {
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
 	// documentVersionCommentHandler *handlers.DocumentVersionCommentHandler // 临时注释，避免编译错误
 	timerHandler        *handlers.TimerHandler
+	archiveHandler      *handlers.ArchiveHandler
 	taskDocumentHandler *handlers.TaskDocumentHandler
 }
 
@@ -99,6 +100,9 @@ func NewApplication() (*Application, error) {
 	// documentVersionCommentHandler := handlers.NewDocumentVersionCommentHandler(db, logger, validate) // 临时注释，避免编译错误
 	timerHandler := handlers.NewTimerHandler(db)
 	
+	// 归档处理器
+	archiveHandler := handlers.NewArchiveHandler(db)
+	
 	// 任务文档处理器
 	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
@@ -121,6 +125,7 @@ func NewApplication() (*Application, error) {
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
 		// documentVersionCommentHandler: documentVersionCommentHandler, // 临时注释，避免编译错误
 		timerHandler:        timerHandler,
+		archiveHandler:      archiveHandler,
 		taskDocumentHandler: taskDocumentHandler,
 	}, nil
 }
@@ -222,6 +227,13 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
+				
+				// Archive routes
+				projects.GET("/:id/tasks/archived", app.archiveHandler.GetArchivedTasks)
+				projects.POST("/:id/tasks/archive/bulk", app.archiveHandler.BulkArchiveTasks)
+				projects.POST("/:id/tasks/:taskId/archive", app.archiveHandler.ArchiveTask)
+				projects.POST("/:id/tasks/:taskId/unarchive", app.archiveHandler.UnarchiveTask)
+				projects.GET("/:id/archive/stats", app.archiveHandler.GetArchiveStatistics)
 				
 				// Task document routes
 				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)

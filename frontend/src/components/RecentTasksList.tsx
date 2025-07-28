@@ -139,6 +139,8 @@ const RecentTasksList: React.FC<RecentTasksListProps> = ({
 
   // 处理开始计时
   const handleStartTimer = async (task: Task) => {
+    console.log('🎯 检测到任务计时器启动', { taskId: task.id, taskTitle: task.title });
+    
     if (currentTimerTask) {
       return;
     }
