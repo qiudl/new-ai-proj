@@ -4,6 +4,37 @@ import { SaveOutlined, EditOutlined, EyeOutlined, ExclamationCircleOutlined, Rel
 import ReactMarkdown from 'react-markdown';
 import api from '../services/api';
 
+// 类型定义
+interface TaskDocumentResponse {
+  content: string;
+}
+
+interface AdvancedTaskDocumentResponse {
+  id: number;
+  task_id: number;
+  project_id: number;
+  document_id: number;
+  title: string;
+  content: string;
+  type: string;
+  status: string;
+  version: number;
+  metadata: Record<string, any>;
+  owner_id: number;
+  created_by: number;
+  created_at: string;
+  updated_at: string;
+  task_title: string;
+  project_name: string;
+  owner_name: string;
+  creator_name: string;
+  document_exists: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  relations: any[];
+  last_modified?: string;
+}
+
 const { TextArea } = Input;
 
 interface TaskDocumentEditorProps {
@@ -12,10 +43,7 @@ interface TaskDocumentEditorProps {
   onSave?: (content: string) => void;
   style?: React.CSSProperties;
   className?: string;
-}
-
-interface DocumentResponse {
-  content: string;
+  useAdvancedAPI?: boolean; // 是否使用增强版API
 }
 
 interface DocumentRequest {
@@ -27,7 +55,8 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   projectId,
   onSave,
   style = {},
-  className = ''
+  className = '',
+  useAdvancedAPI = false
 }) => {
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
@@ -38,22 +67,41 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   const [autoSaving, setAutoSaving] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [documentInfo, setDocumentInfo] = useState<AdvancedTaskDocumentResponse | null>(null);
+  const [canEdit, setCanEdit] = useState(true);
 
   // 加载文档内容
   const loadDocument = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
-      if (response && response.data) {
-        setContent(response.data.content || '');
-        setOriginalContent(response.data.content || '');
-        setHasChanges(false);
+      let response;
+      
+      if (useAdvancedAPI) {
+        // 使用增强版API
+        response = await api.get(`/projects/${projectId}/tasks/${taskId}/document/advanced`);
+        if (response && response.data) {
+          const docData = response.data as AdvancedTaskDocumentResponse;
+          setDocumentInfo(docData);
+          setContent(docData.content || '');
+          setOriginalContent(docData.content || '');
+          setCanEdit(docData.can_edit);
+          setHasChanges(false);
+        }
       } else {
-        // 如果没有文档，创建空内容
-        setContent('');
-        setOriginalContent('');
-        setHasChanges(false);
+        // 使用兼容版API
+        response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
+        if (response && response.data) {
+          const docData = response.data as TaskDocumentResponse;
+          setContent(docData.content || '');
+          setOriginalContent(docData.content || '');
+          setHasChanges(false);
+        } else {
+          // 如果没有文档，创建空内容
+          setContent('');
+          setOriginalContent('');
+          setHasChanges(false);
+        }
       }
     } catch (error: any) {
       console.error('加载文档失败:', error);
@@ -79,10 +127,15 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [taskId, projectId]);
+  }, [taskId, projectId, useAdvancedAPI]);
 
   // 保存文档内容
   const saveDocument = useCallback(async (isAutoSave = false) => {
+    if (!canEdit) {
+      message.warning('您没有编辑权限');
+      return;
+    }
+
     if (isAutoSave) {
       setAutoSaving(true);
     } else {
@@ -90,8 +143,23 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     }
 
     try {
-      const requestData: DocumentRequest = { content };
-      const response = await api.put(`/projects/${projectId}/tasks/${taskId}/document`, requestData);
+      let response;
+      
+      if (useAdvancedAPI) {
+        // 使用增强版API
+        const requestData = { content };
+        response = await api.patch(`/projects/${projectId}/tasks/${taskId}/document/advanced`, requestData);
+        
+        if (response && response.data) {
+          const docData = response.data as AdvancedTaskDocumentResponse;
+          setDocumentInfo(docData);
+          setCanEdit(docData.can_edit);
+        }
+      } else {
+        // 使用兼容版API
+        const requestData: DocumentRequest = { content };
+        response = await api.put(`/projects/${projectId}/tasks/${taskId}/document`, requestData);
+      }
       
       if (response) {
         setOriginalContent(content);
@@ -113,6 +181,12 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         if (!isAutoSave) {
           message.error('未授权访问，请重新登录');
         }
+      } else if (error.status === 403) {
+        setError('权限不足，无法保存');
+        setCanEdit(false);
+        if (!isAutoSave) {
+          message.error('权限不足，无法保存文档');
+        }
       } else if (error.status === 413) {
         setError('文档内容过大');
         if (!isAutoSave) {
@@ -131,7 +205,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         setSaving(false);
       }
     }
-  }, [content, taskId, projectId, onSave]);
+  }, [content, taskId, projectId, onSave, canEdit, useAdvancedAPI]);
 
   // 检查内容是否有变化
   useEffect(() => {
@@ -263,7 +337,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSave}
             loading={saving}
-            disabled={!hasChanges || saving}
+            disabled={!hasChanges || saving || !canEdit}
           >
             {saving ? '保存中...' : '保存'}
           </Button>
@@ -280,6 +354,16 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           {lastSavedTime && !hasChanges && !autoSaving && (
             <span style={{ color: '#52c41a', fontSize: '11px' }}>
               ✓ 已保存 {lastSavedTime.toLocaleTimeString()}
+            </span>
+          )}
+          {!canEdit && (
+            <span style={{ color: '#ff4d4f', fontSize: '12px' }}>
+              🔒 只读模式 - 您没有编辑权限
+            </span>
+          )}
+          {documentInfo && useAdvancedAPI && (
+            <span style={{ color: '#8c8c8c', fontSize: '11px' }}>
+              📄 版本 {documentInfo.version} | 状态: {documentInfo.status}
             </span>
           )}
           <span style={{ color: '#8c8c8c', fontSize: '11px', marginLeft: '12px' }}>
@@ -333,7 +417,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
               fontSize: '14px',
               lineHeight: '1.6'
             }}
-            disabled={saving}
+            disabled={saving || !canEdit}
           />
         )}
       </div>

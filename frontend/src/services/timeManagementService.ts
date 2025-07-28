@@ -11,6 +11,39 @@ dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isBetween);
 
+// 环境配置
+const isDevelopment = process.env.NODE_ENV === 'development';
+const MOCK_API_BASE_URL = 'http://localhost:8888/api';
+
+// 创建专门用于统计的API实例
+const createStatsApi = () => {
+  if (isDevelopment) {
+    // 开发环境使用模拟服务器
+    const mockApi = {
+      get: async (url: string) => {
+        const fullUrl = `${MOCK_API_BASE_URL}${url}`;
+        console.log('调用模拟统计API:', fullUrl);
+        try {
+          const response = await fetch(fullUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return { data: await response.json() };
+        } catch (error) {
+          console.error('模拟API调用失败:', error);
+          throw error;
+        }
+      }
+    };
+    return mockApi;
+  } else {
+    // 生产环境使用正常API
+    return api;
+  }
+};
+
+const statsApi = createStatsApi();
+
 /**
  * 今日任务统计数据接口
  */
@@ -65,6 +98,99 @@ export class TimeManagementService {
    */
   static async getTodayTaskStats(): Promise<TodayTaskStats> {
     try {
+      console.log('开始获取今日任务统计数据...');
+      console.log('环境:', isDevelopment ? '开发环境(使用模拟API)' : '生产环境');
+      
+      // 优先尝试调用后端统计API
+      const response = await statsApi.get('/statistics/today-stats');
+      
+      if (response.data) {
+        console.log('✅ 统计API调用成功，返回数据:', response.data);
+        
+        // 转换API数据为前端格式
+        const apiData = response.data;
+        const todayStats: TodayTaskStats = {
+          totalTasks: apiData.totalTasks || 0,
+          completedTasks: apiData.completedTasks || 0,
+          inProgressTasks: apiData.inProgressTasks || 0,
+          todoTasks: apiData.todoTasks || 0,
+          overdueTasks: apiData.overdueTasks || 0,
+          completionRate: Math.round(apiData.completionRate || 0),
+          onTimeCompletionRate: Math.round(apiData.onTimeCompletionRate || 0),
+          totalPlannedTime: apiData.totalPlannedTime || 0,
+          totalActualTime: apiData.totalActualTime || 0,
+          totalRemainingTime: apiData.totalRemainingTime || 0,
+          timeEfficiency: Math.round(apiData.timeEfficiency || 0),
+          priorityDistribution: apiData.priorityDistribution || {
+            urgent: 0,
+            high: 0,
+            medium: 0,
+            low: 0,
+            unset: 0
+          },
+          estimatedWorkload: Math.round((apiData.estimatedWorkload || 0) * 10) / 10,
+          avgTaskDuration: Math.round(apiData.avgTaskDuration || 0),
+          yesterdayCompletion: apiData.yesterdayCompletion || 0,
+          weeklyTrend: Math.round(apiData.weeklyTrend || 0),
+          todayTasks: [], // 从特殊任务中提取
+          urgentTasks: this.convertToTasks(apiData.urgentTasks || []),
+          upcomingDeadlines: this.convertToTasks(apiData.upcomingDeadlines || [])
+        };
+        
+        // 合并所有任务到 todayTasks
+        todayStats.todayTasks = [...todayStats.urgentTasks, ...todayStats.upcomingDeadlines];
+        
+        console.log('✅ 数据转换完成:', {
+          totalTasks: todayStats.totalTasks,
+          completedTasks: todayStats.completedTasks,
+          completionRate: todayStats.completionRate,
+          urgentTasksCount: todayStats.urgentTasks.length,
+          upcomingDeadlinesCount: todayStats.upcomingDeadlines.length
+        });
+        
+        return todayStats;
+      }
+      
+      // 如果API返回空数据，降级到前端计算
+      console.warn('⚠️ 统计API返回空数据，降级到前端计算');
+      return this.getFallbackStats();
+      
+    } catch (error) {
+      console.error('❌ 统计API调用失败，降级到前端计算:', error);
+      return this.getFallbackStats();
+    }
+  }
+
+  /**
+   * 转换API任务数据为前端Task格式
+   */
+  private static convertToTasks(apiTasks: any[]): Task[] {
+    return apiTasks.map(apiTask => ({
+      id: apiTask.id,
+      title: apiTask.title,
+      description: '',
+      status: apiTask.status as TaskStatus,
+      project_id: apiTask.project_id,
+      assignee_id: apiTask.assignee_id,
+      assignee_name: apiTask.assignee_name,
+      parent_id: apiTask.parent_id || undefined,
+      task_level: apiTask.task_level || 0,
+      sort_order: apiTask.sort_order || 0,
+      due_date: apiTask.due_date,
+      created_at: apiTask.created_at,
+      updated_at: apiTask.updated_at,
+      custom_fields: apiTask.custom_fields || {},
+      project_name: apiTask.project_name
+    }));
+  }
+
+  /**
+   * 降级方案：使用前端计算统计数据
+   */
+  private static async getFallbackStats(): Promise<TodayTaskStats> {
+    try {
+      console.log('使用前端降级方案计算统计数据');
+      
       // 获取所有任务数据
       const allTasks = await this.getAllTasks();
       
@@ -95,7 +221,7 @@ export class TimeManagementService {
         todayTasks
       };
     } catch (error) {
-      console.error('获取今日任务统计失败:', error);
+      console.error('前端降级方案也失败了:', error);
       return this.getEmptyStats();
     }
   }

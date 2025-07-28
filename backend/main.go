@@ -6,6 +6,7 @@ import (
 	"ai-project-backend/handlers"
 	"ai-project-backend/middleware"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	"context"
 	"database/sql"
@@ -48,9 +49,14 @@ type Application struct {
 	// documentVersionHandler *handlers.DocumentVersionHandler // 临时注释，避免编译错误
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
 	// documentVersionCommentHandler *handlers.DocumentVersionCommentHandler // 临时注释，避免编译错误
-	timerHandler        *handlers.TimerHandler
-	archiveHandler      *handlers.ArchiveHandler
-	taskDocumentHandler *handlers.TaskDocumentHandler
+	timerHandler               *handlers.TimerHandler
+	archiveHandler             *handlers.ArchiveHandler
+	taskDocumentHandler        *handlers.TaskDocumentHandler
+	unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
+	upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
+	smartTemplateHandler       *handlers.SmartTemplateHandler
+	collaborationHandler       *handlers.DocumentCollaborationHandler
+	statisticsHandler          *handlers.StatisticsHandlers
 }
 
 // NewApplication creates a new application instance
@@ -106,6 +112,33 @@ func NewApplication() (*Application, error) {
 	// 任务文档处理器
 	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
+	
+	// 创建文档服务 (暂时注释以避免编译错误)
+	// documentService := services.NewDocumentService(db.GetDB())
+	taskDocumentService := services.NewTaskDocumentService(db.GetDB(), nil) // 传递nil作为临时解决方案
+	
+	// 创建统一文档处理器
+	unifiedTaskDocumentHandler := handlers.NewUnifiedTaskDocumentHandler(taskDocumentService)
+	
+	// 创建升级版处理器（向后兼容）
+	upgradedTaskDocumentHandler := handlers.NewUpgradedTaskDocumentHandler(
+		docsBasePath,
+		taskDocumentService,
+		unifiedTaskDocumentHandler,
+		true,  // useUnifiedSystem - 是否默认使用统一系统
+		true,  // enableAutoMigration - 是否启用自动迁移
+	)
+	
+	// 创建智能模板服务和处理器
+	smartTemplateService := services.NewSmartTemplateService(db.GetDB())
+	smartTemplateHandler := handlers.NewSmartTemplateHandler(smartTemplateService)
+	
+	// 创建协作服务和处理器
+	collaborationService := services.NewDocumentCollaborationService(db.GetDB())
+	collaborationHandler := handlers.NewDocumentCollaborationHandler(collaborationService)
+	
+	// 统计处理器
+	statisticsHandler := handlers.NewStatisticsHandlers(db.GetDB())
 
 	return &Application{
 		config:              cfg,
@@ -124,9 +157,14 @@ func NewApplication() (*Application, error) {
 		// documentVersionHandler: documentVersionHandler, // 临时注释，避免编译错误
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
 		// documentVersionCommentHandler: documentVersionCommentHandler, // 临时注释，避免编译错误
-		timerHandler:        timerHandler,
-		archiveHandler:      archiveHandler,
-		taskDocumentHandler: taskDocumentHandler,
+		timerHandler:                timerHandler,
+		archiveHandler:              archiveHandler,
+		taskDocumentHandler:         taskDocumentHandler,
+		unifiedTaskDocumentHandler:  unifiedTaskDocumentHandler,
+		upgradedTaskDocumentHandler: upgradedTaskDocumentHandler,
+		smartTemplateHandler:        smartTemplateHandler,
+		collaborationHandler:        collaborationHandler,
+		statisticsHandler:           statisticsHandler,
 	}, nil
 }
 
@@ -198,6 +236,9 @@ func (app *Application) setupRouter() *gin.Engine {
 			authorized.POST("/tasks/:id/complete", app.markTodayTaskCompletedHandler)
 			authorized.POST("/tasks/:id/postpone", app.postponeTodayTaskHandler)
 			
+			// Statistics routes
+			authorized.GET("/statistics/today-stats", app.statisticsHandler.HandleTodayStats)
+			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
 			{
@@ -235,10 +276,33 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.POST("/:id/tasks/:taskId/unarchive", app.archiveHandler.UnarchiveTask)
 				projects.GET("/:id/archive/stats", app.archiveHandler.GetArchiveStatistics)
 				
-				// Task document routes
-				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
-				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
-				projects.HEAD("/:id/tasks/:taskId/document", app.taskDocumentHandler.CheckTaskDocument)
+				// Task document routes (升级版，向后兼容)
+				projects.GET("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.GetTaskDocument)
+				projects.PUT("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.SaveTaskDocument)
+				projects.HEAD("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.CheckTaskDocument)
+				
+				// 新的增强API路由
+				projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
+				projects.PATCH("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.UpdateTaskDocumentAdvanced)
+				projects.DELETE("/:id/tasks/:taskId/document", app.unifiedTaskDocumentHandler.DeleteTaskDocument)
+				
+				// 智能模板系统
+				projects.GET("/:id/tasks/:taskId/templates/recommendations", app.smartTemplateHandler.GetRecommendedTemplates)
+				
+				// 文档协作功能
+				documents := projects.Group("/:id/documents")
+				{
+					documents.POST("/:docId/comments", app.collaborationHandler.AddComment)
+					documents.GET("/:docId/comments", app.collaborationHandler.GetComments)
+					documents.POST("/:docId/collaborators", app.collaborationHandler.AddCollaborator)
+					documents.GET("/:docId/collaborators", app.collaborationHandler.GetCollaborators)
+					documents.PUT("/:docId/collaborators/:userId", app.collaborationHandler.UpdateCollaborator)
+					documents.DELETE("/:docId/collaborators/:userId", app.collaborationHandler.RemoveCollaborator)
+					documents.GET("/:docId/history", app.collaborationHandler.GetChangeHistory)
+					documents.POST("/:docId/collaboration/start", app.collaborationHandler.StartCollaborationSession)
+					documents.GET("/:docId/collaboration/active", app.collaborationHandler.GetActiveCollaborators)
+					documents.GET("/:docId/collaboration/stats", app.collaborationHandler.GetCollaborationStats)
+				}
 				
 				// Project timeline
 				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
@@ -508,6 +572,44 @@ func (app *Application) setupRouter() *gin.Engine {
 					adminUsers.PUT("/:id/status", app.userManagementHandler.UpdateUserStatus)
 				}
 			}
+		}
+		
+		// 全局模板管理路由
+		templates := authorized.Group("/templates")
+		{
+			templates.GET("", app.smartTemplateHandler.GetTemplates)
+			templates.POST("", app.smartTemplateHandler.CreateTemplate)
+			templates.GET("/stats", app.smartTemplateHandler.GetTemplateStats)
+			templates.GET("/:id", app.smartTemplateHandler.GetTemplateByID)
+			templates.POST("/:id/generate", app.smartTemplateHandler.GenerateFromTemplate)
+		}
+		
+		// 全局文档协作路由
+		collaboration := authorized.Group("/collaboration")
+		{
+			collaboration.GET("/dashboard", app.collaborationHandler.GetUserCollaborationDashboard)
+		}
+		
+		// 评论管理路由
+		comments := authorized.Group("/comments")
+		{
+			comments.PUT("/:id", app.collaborationHandler.UpdateComment)
+			comments.DELETE("/:id", app.collaborationHandler.DeleteComment)
+			comments.PATCH("/:id/resolve", app.collaborationHandler.ResolveComment)
+		}
+		
+		// 任务文档管理路由
+		taskDocuments := authorized.Group("/task-documents")
+		{
+			taskDocuments.GET("", app.unifiedTaskDocumentHandler.GetTaskDocumentList)
+			taskDocuments.GET("/stats", app.unifiedTaskDocumentHandler.GetTaskDocumentStats)
+		}
+		
+		// 迁移管理路由（系统管理员专用）
+		migration := system.Group("/task-documents/migration")
+		{
+			migration.GET("/status", app.upgradedTaskDocumentHandler.GetMigrationStatus)
+			migration.POST("/switch", app.upgradedTaskDocumentHandler.SwitchToUnifiedSystem)
 		}
 	}
 

@@ -69,6 +69,10 @@ type CreateDocumentFolderRequest struct {
 	SortOrder      int        `json:"sort_order"`
 }
 
+// 类型别名以兼容现有代码
+type DocumentFolderRequest = CreateDocumentFolderRequest
+type DocumentFolderResponse = DocumentFolder
+
 // UpdateDocumentFolderRequest 更新文档文件夹请求
 type UpdateDocumentFolderRequest struct {
 	Name           *string     `json:"name,omitempty" validate:"omitempty,min=1,max=255"`

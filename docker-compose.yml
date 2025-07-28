@@ -73,9 +73,10 @@ services:
       - WDS_SOCKET_HOST=localhost
       - WDS_SOCKET_PORT=80
       - WDS_SOCKET_PATH=/ws
+      - GENERATE_SOURCEMAP=false
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend:/app:cached
+      - frontend_node_modules:/app/node_modules
     stdin_open: true
     tty: true
     healthcheck:
@@ -107,4 +108,5 @@ services:
 volumes:
   postgres_data:
   go_mod_cache:
+  frontend_node_modules:
 

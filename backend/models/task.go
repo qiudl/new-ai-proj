@@ -200,3 +200,111 @@ func (t *Task) ToResponseWithRelations(projectName, assigneeName, parentTitle st
 	response.HasChildren = childrenCount > 0
 	return response
 }
+
+// TaskDocument 任务文档统一模型
+type TaskDocument struct {
+	ID           int                  `json:"id" db:"id"`
+	TaskID       int                  `json:"task_id" db:"task_id"`
+	ProjectID    int                  `json:"project_id" db:"project_id"`
+	DocumentID   int                  `json:"document_id" db:"document_id"`
+	Title        string               `json:"title" db:"title"`
+	Content      *string              `json:"content" db:"content"`
+	Type         string               `json:"type" db:"type"`
+	Status       string               `json:"status" db:"status"`
+	Version      int                  `json:"version" db:"version"`
+	Metadata     CustomFields         `json:"metadata" db:"metadata"`
+	OwnerID      int                  `json:"owner_id" db:"owner_id"`
+	CreatedBy    int                  `json:"created_by" db:"created_by"`
+	CreatedAt    time.Time            `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time            `json:"updated_at" db:"updated_at"`
+	
+	// 关联字段
+	TaskTitle    string               `json:"task_title,omitempty" db:"task_title"`
+	ProjectName  string               `json:"project_name,omitempty" db:"project_name"`
+	OwnerName    *string              `json:"owner_name,omitempty" db:"owner_name"`
+	CreatorName  *string              `json:"creator_name,omitempty" db:"creator_name"`
+	DocumentExists bool               `json:"document_exists,omitempty"`
+}
+
+// CreateTaskDocumentRequest 创建任务文档请求
+type CreateTaskDocumentRequest struct {
+	Content     *string              `json:"content"`
+	Title       *string              `json:"title"`
+	Metadata    CustomFields         `json:"metadata"`
+	IsTemplate  bool                 `json:"is_template"`
+}
+
+// UpdateTaskDocumentRequest 更新任务文档请求
+type UpdateTaskDocumentRequest struct {
+	Content     *string              `json:"content"`
+	Title       *string              `json:"title"`
+	Status      *string              `json:"status"`
+	Metadata    *CustomFields        `json:"metadata"`
+}
+
+// TaskDocumentResponse 任务文档响应
+type TaskDocumentResponse struct {
+	TaskDocument
+	CanEdit      bool                 `json:"can_edit"`
+	CanDelete    bool                 `json:"can_delete"`
+	Relations    []DocumentRelation   `json:"relations,omitempty"`
+	LastModified *time.Time           `json:"last_modified,omitempty"`
+}
+
+// TaskDocumentListItem 任务文档列表项
+type TaskDocumentListItem struct {
+	TaskID       int       `json:"task_id"`
+	ProjectID    int       `json:"project_id"`
+	TaskTitle    string    `json:"task_title"`
+	ProjectName  string    `json:"project_name"`
+	TaskStatus   string    `json:"task_status"`
+	DocumentID   *int      `json:"document_id"`
+	DocumentExists bool    `json:"document_exists"`
+	LastModified *time.Time `json:"last_modified"`
+	ContentSize  *int64    `json:"content_size"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// TaskDocumentStats 任务文档统计
+type TaskDocumentStats struct {
+	TotalTasks      int `json:"total_tasks"`
+	WithDocument    int `json:"with_document"`
+	WithoutDocument int `json:"without_document"`
+	RecentlyUpdated int `json:"recently_updated"`
+}
+
+// GetTaskDocumentDefaultTemplate 获取任务文档默认模板
+func GetTaskDocumentDefaultTemplate(taskTitle string, taskStatus string) string {
+	return fmt.Sprintf(`# %s 文档
+
+## 任务概述
+<!-- 在这里描述任务的基本信息和目标 -->
+
+## 需求分析
+<!-- 详细描述任务的需求和要求 -->
+
+## 技术方案
+<!-- 描述实现的技术方案和架构设计 -->
+
+## 实施计划
+- [ ] 需求分析
+- [ ] 方案设计
+- [ ] 开发实现
+- [ ] 测试验收
+- [ ] 部署上线
+
+## 进度记录
+| 日期 | 进度 | 备注 |
+|------|------|------|
+| %s | 创建文档 | 任务状态：%s |
+
+## 相关资源
+<!-- 链接到相关的文档、代码、设计稿等 -->
+
+## 问题记录
+<!-- 记录开发过程中遇到的问题和解决方案 -->
+
+## 备注
+<!-- 其他需要说明的信息 -->
+`, taskTitle, time.Now().Format("2006-01-02"), taskStatus)
+}

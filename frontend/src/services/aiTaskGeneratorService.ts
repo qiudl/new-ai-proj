@@ -7,7 +7,8 @@ import {
   TaskQualityAssessment,
   AIServiceStatus,
   AITaskGenerationErrorCode,
-  AI_TASK_GENERATION_CONSTANTS
+  AI_TASK_GENERATION_CONSTANTS,
+  TaskGenerationHistory
 } from '../types/aiTaskGenerator';
 import aiConfigDatabaseService from './aiConfigDatabaseService';
 import { DeepSeekProvider } from './aiProviders/deepseekProvider';
@@ -181,13 +182,17 @@ class AITaskGeneratorService {
       );
       
       if (!validation.valid) {
-        return {
+        const response: AITaskGenerationResponse = {
           success: false,
           error: {
             code: AITaskGenerationErrorCode.INVALID_REQUEST,
             message: `请求验证失败: ${validation.issues.join(', ')}`
           }
         };
+
+        // 保存失败的历史记录
+        this.saveGenerationHistory(request, response, Date.now() - startTime);
+        return response;
       }
 
       // 检查缓存
@@ -224,39 +229,51 @@ class AITaskGeneratorService {
       const aiResponse = await instance.chat(messages);
       
       if (!aiResponse.success) {
-        return {
+        const response: AITaskGenerationResponse = {
           success: false,
           error: {
             code: AITaskGenerationErrorCode.AI_API_ERROR,
             message: aiResponse.error?.message || 'AI API调用失败'
           }
         };
+
+        // 保存失败的历史记录
+        this.saveGenerationHistory(request, response, Date.now() - startTime);
+        return response;
       }
 
       // 解析AI响应
       const parseResult = this.parseAIResponse(aiResponse.data.content);
       
       if (!parseResult.success) {
-        return {
+        const response: AITaskGenerationResponse = {
           success: false,
           error: {
             code: AITaskGenerationErrorCode.PARSE_ERROR,
             message: '解析AI响应失败'
           }
         };
+
+        // 保存失败的历史记录
+        this.saveGenerationHistory(request, response, Date.now() - startTime);
+        return response;
       }
 
       // 质量评估
       const quality = this.evaluateTaskQuality(parseResult.tasks);
       
       if (quality.overallScore < AI_TASK_GENERATION_CONSTANTS.MIN_QUALITY_THRESHOLD) {
-        return {
+        const response: AITaskGenerationResponse = {
           success: false,
           error: {
             code: AITaskGenerationErrorCode.QUALITY_TOO_LOW,
             message: `生成质量过低 (${quality.overallScore}分)，建议重新生成`
           }
         };
+
+        // 保存失败的历史记录（质量过低）
+        this.saveGenerationHistory(request, response, Date.now() - startTime);
+        return response;
       }
 
       // 构建响应
@@ -278,18 +295,25 @@ class AITaskGeneratorService {
       // 缓存结果
       this.generationCache.set(cacheKey, response);
       
+      // 保存成功的历史记录
+      this.saveGenerationHistory(request, response, Date.now() - startTime);
+      
       return response;
 
     } catch (error) {
       console.error('AI任务生成失败:', error);
       
-      return {
+      const response: AITaskGenerationResponse = {
         success: false,
         error: {
           code: AITaskGenerationErrorCode.AI_API_ERROR,
           message: error instanceof Error ? error.message : '未知错误'
         }
       };
+
+      // 保存异常的历史记录
+      this.saveGenerationHistory(request, response, Date.now() - startTime);
+      return response;
     }
   }
 
@@ -611,6 +635,12 @@ class AITaskGeneratorService {
     const suggestions: string[] = [];
     const issues: string[] = [];
 
+    // 新增质量检查项
+    this.checkTaskTitleDuplication(tasks, issues, suggestions);
+    this.checkTaskComplexity(tasks, issues, suggestions);
+    this.checkTaskActionability(tasks, issues, suggestions);
+    this.checkTaskDependencies(tasks, issues, suggestions);
+
     // 任务数量评分（3-8个为理想）
     const taskCount = tasks.length;
     if (taskCount >= 3 && taskCount <= 8) {
@@ -766,6 +796,379 @@ class AITaskGeneratorService {
       console.error(`测试${provider}连接失败:`, error);
       return false;
     }
+  }
+
+  /**
+   * 检查任务标题重复
+   */
+  private checkTaskTitleDuplication(tasks: GeneratedSubTask[], issues: string[], suggestions: string[]): void {
+    const titles = tasks.map(t => t.title.toLowerCase().trim());
+    const duplicates = titles.filter((title, index) => titles.indexOf(title) !== index);
+    
+    if (duplicates.length > 0) {
+      issues.push('发现重复的任务标题');
+      suggestions.push('建议重新生成以避免任务重复，或手动修改重复标题');
+    }
+  }
+
+  /**
+   * 检查任务复杂度
+   */
+  private checkTaskComplexity(tasks: GeneratedSubTask[], issues: string[], suggestions: string[]): void {
+    tasks.forEach((task, index) => {
+      const title = task.title.toLowerCase();
+      const estimatedHours = task.estimatedHours || 0;
+      
+      // 检查任务是否过于复杂（超过8小时的任务可能需要进一步拆分）
+      if (estimatedHours > 8) {
+        suggestions.push(`任务${index + 1}"${task.title}"预估时间较长，建议进一步拆分`);
+      }
+      
+      // 检查任务是否过于简单（少于0.5小时的任务可能过度拆分）
+      if (estimatedHours > 0 && estimatedHours < 0.5) {
+        suggestions.push(`任务${index + 1}"${task.title}"可能过度拆分，考虑与其他任务合并`);
+      }
+      
+      // 检查标题中的复杂度指示词
+      const complexWords = ['设计', '架构', '分析', '研究', '评估', '调研'];
+      const simpleWords = ['修改', '更新', '添加', '删除', '调整'];
+      
+      const hasComplexWords = complexWords.some(word => title.includes(word));
+      const hasSimpleWords = simpleWords.some(word => title.includes(word));
+      
+      if (hasComplexWords && estimatedHours < 2) {
+        suggestions.push(`任务${index + 1}涉及复杂工作，但时间估算可能偏低`);
+      }
+      
+      if (hasSimpleWords && estimatedHours > 4) {
+        suggestions.push(`任务${index + 1}看起来相对简单，但时间估算可能偏高`);
+      }
+    });
+  }
+
+  /**
+   * 检查任务可操作性
+   */
+  private checkTaskActionability(tasks: GeneratedSubTask[], issues: string[], suggestions: string[]): void {
+    const actionWords = ['创建', '开发', '实现', '设计', '编写', '构建', '配置', '测试', '部署', '修复', '更新', '添加', '删除', '分析', '调研'];
+    
+    tasks.forEach((task, index) => {
+      const title = task.title.toLowerCase();
+      const hasActionWord = actionWords.some(word => title.includes(word));
+      
+      if (!hasActionWord) {
+        suggestions.push(`任务${index + 1}"${task.title}"建议使用更明确的动作词，如"创建"、"实现"、"设计"等`);
+      }
+      
+      // 检查是否过于抽象
+      const abstractWords = ['优化', '改进', '提升', '完善', '加强'];
+      const isAbstract = abstractWords.some(word => title.includes(word));
+      
+      if (isAbstract && (!task.description || task.description.length < 20)) {
+        suggestions.push(`任务${index + 1}比较抽象，建议在描述中添加具体的实施步骤`);
+      }
+    });
+  }
+
+  /**
+   * 检查任务依赖关系
+   */
+  private checkTaskDependencies(tasks: GeneratedSubTask[], issues: string[], suggestions: string[]): void {
+    // 检查可能的依赖关系
+    const dependencyPatterns = [
+      { before: ['设计', '分析', '规划'], after: ['实现', '开发', '编码'] },
+      { before: ['创建', '搭建'], after: ['配置', '部署'] },
+      { before: ['开发', '实现'], after: ['测试', '调试'] },
+      { before: ['测试'], after: ['部署', '发布'] }
+    ];
+    
+    const taskTitles = tasks.map(t => t.title.toLowerCase());
+    
+    dependencyPatterns.forEach(pattern => {
+      const beforeTasks = taskTitles.filter(title => 
+        pattern.before.some(word => title.includes(word))
+      );
+      const afterTasks = taskTitles.filter(title => 
+        pattern.after.some(word => title.includes(word))
+      );
+      
+      if (beforeTasks.length > 0 && afterTasks.length > 0) {
+        suggestions.push(`建议按照依赖顺序执行任务：先完成${pattern.before.join('、')}相关任务，再进行${pattern.after.join('、')}相关任务`);
+      }
+    });
+    
+    // 检查时间分配是否合理
+    const totalHours = tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+    if (totalHours > 40) {
+      suggestions.push(`总工时预估${totalHours}小时，建议评估是否需要调整任务范围或延长时间线`);
+    } else if (totalHours < 4) {
+      suggestions.push(`总工时预估${totalHours}小时，可能任务拆分不够充分或时间估算偏低`);
+    }
+  }
+
+  /**
+   * 生成任务优化建议
+   */
+  generateOptimizationSuggestions(tasks: GeneratedSubTask[]): string[] {
+    const suggestions: string[] = [];
+    
+    // 基于任务分析生成优化建议
+    const priorities = tasks.map(t => t.priority);
+    const highPriorityCount = priorities.filter(p => p === 'high').length;
+    const totalTasks = tasks.length;
+    
+    // 优先级分布建议
+    if (highPriorityCount > totalTasks * 0.6) {
+      suggestions.push('高优先级任务过多，建议重新评估优先级分布，确保关键任务突出');
+    } else if (highPriorityCount === 0) {
+      suggestions.push('没有高优先级任务，建议识别最重要和紧急的任务并设为高优先级');
+    }
+    
+    // 时间分配建议
+    const timeEstimates = tasks.map(t => t.estimatedHours || 0);
+    const avgTime = timeEstimates.reduce((a, b) => a + b, 0) / timeEstimates.length;
+    
+    if (avgTime > 6) {
+      suggestions.push('平均任务时间较长，建议进一步拆分大型任务以提高执行效率');
+    } else if (avgTime < 1) {
+      suggestions.push('平均任务时间较短，可能过度拆分，建议合并相关的小任务');
+    }
+    
+    // 任务类型分布建议
+    const developmentTasks = tasks.filter(t => 
+      ['开发', '实现', '编码', '构建'].some(word => t.title.includes(word))
+    ).length;
+    
+    const testingTasks = tasks.filter(t => 
+      ['测试', '验证', '检查'].some(word => t.title.includes(word))
+    ).length;
+    
+    if (developmentTasks > 0 && testingTasks === 0) {
+      suggestions.push('建议添加测试相关任务，确保开发质量');
+    }
+    
+    return suggestions;
+  }
+
+  /**
+   * 保存生成历史记录
+   */
+  private saveGenerationHistory(
+    request: AITaskGenerationRequest,
+    response: AITaskGenerationResponse,
+    generationTime: number
+  ): void {
+    try {
+      const history: TaskGenerationHistory = {
+        id: this.generateId(),
+        timestamp: new Date(),
+        parentTaskId: request.parentTaskId,
+        parentTaskTitle: request.parentTaskTitle,
+        keywords: request.keywords,
+        usedProvider: response.data?.usedProvider || 'unknown' as AIProvider,
+        usedModel: response.data?.usedModel || 'unknown',
+        generatedCount: response.data?.generatedTasks?.length || 0,
+        quality: response.data?.estimatedQuality || 0,
+        tokensUsed: response.data?.tokensUsed?.total || 0,
+        cost: response.data?.estimatedCost || 0,
+        success: response.success,
+        errorMessage: response.error?.message
+      };
+
+      // 获取现有历史记录
+      const existingHistory = this.getGenerationHistory();
+      existingHistory.unshift(history); // 最新的在前面
+
+      // 保持最多100条记录
+      if (existingHistory.length > 100) {
+        existingHistory.splice(100);
+      }
+
+      // 保存到localStorage
+      localStorage.setItem('ai_generation_history', JSON.stringify(existingHistory));
+
+      console.log('生成历史记录已保存:', history);
+    } catch (error) {
+      console.error('保存历史记录失败:', error);
+    }
+  }
+
+  /**
+   * 获取生成历史记录
+   */
+  getGenerationHistory(): TaskGenerationHistory[] {
+    try {
+      const data = localStorage.getItem('ai_generation_history');
+      if (!data) return [];
+      
+      const parsed = JSON.parse(data);
+      return parsed.map((item: any) => ({
+        ...item,
+        timestamp: new Date(item.timestamp)
+      }));
+    } catch (error) {
+      console.error('读取历史记录失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 清除生成历史记录
+   */
+  clearGenerationHistory(): void {
+    try {
+      localStorage.removeItem('ai_generation_history');
+      console.log('历史记录已清除');
+    } catch (error) {
+      console.error('清除历史记录失败:', error);
+    }
+  }
+
+  /**
+   * 删除指定的历史记录
+   */
+  deleteGenerationHistory(id: string): boolean {
+    try {
+      const existingHistory = this.getGenerationHistory();
+      const filteredHistory = existingHistory.filter(item => item.id !== id);
+      
+      localStorage.setItem('ai_generation_history', JSON.stringify(filteredHistory));
+      console.log('历史记录已删除:', id);
+      return true;
+    } catch (error) {
+      console.error('删除历史记录失败:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 根据历史记录复用生成配置
+   */
+  async reuseGenerationConfig(history: TaskGenerationHistory): Promise<AITaskGenerationRequest> {
+    return {
+      parentTaskId: history.parentTaskId,
+      parentTaskTitle: history.parentTaskTitle,
+      keywords: history.keywords,
+      preferredProvider: history.usedProvider,
+      maxTasks: history.generatedCount,
+      complexity: 'detailed', // 默认复杂度
+      includeTimeEstimate: true,
+      projectId: undefined // 需要调用方提供
+    };
+  }
+
+  /**
+   * 获取Token使用统计
+   */
+  getTokenUsageStats(timeRange?: 'today' | 'week' | 'month' | 'all'): {
+    totalTokens: number;
+    totalCost: number;
+    avgTokensPerRequest: number;
+    avgCostPerRequest: number;
+    providerBreakdown: Record<AIProvider, { tokens: number; cost: number; requests: number }>;
+  } {
+    const history = this.getGenerationHistory();
+    
+    // 时间过滤
+    let filteredHistory = history;
+    if (timeRange && timeRange !== 'all') {
+      const now = new Date();
+      const filterDate = new Date();
+      
+      switch (timeRange) {
+        case 'today':
+          filterDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          filterDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          filterDate.setDate(now.getDate() - 30);
+          break;
+      }
+      
+      filteredHistory = history.filter(h => new Date(h.timestamp) >= filterDate);
+    }
+    
+    const totalTokens = filteredHistory.reduce((sum, h) => sum + h.tokensUsed, 0);
+    const totalCost = filteredHistory.reduce((sum, h) => sum + h.cost, 0);
+    const totalRequests = filteredHistory.length;
+    
+    const providerBreakdown: Record<AIProvider, { tokens: number; cost: number; requests: number }> = {
+      openai: { tokens: 0, cost: 0, requests: 0 },
+      claude: { tokens: 0, cost: 0, requests: 0 },
+      deepseek: { tokens: 0, cost: 0, requests: 0 }
+    };
+    
+    filteredHistory.forEach(h => {
+      if (providerBreakdown[h.usedProvider]) {
+        providerBreakdown[h.usedProvider].tokens += h.tokensUsed;
+        providerBreakdown[h.usedProvider].cost += h.cost;
+        providerBreakdown[h.usedProvider].requests += 1;
+      }
+    });
+    
+    return {
+      totalTokens,
+      totalCost,
+      avgTokensPerRequest: totalRequests > 0 ? totalTokens / totalRequests : 0,
+      avgCostPerRequest: totalRequests > 0 ? totalCost / totalRequests : 0,
+      providerBreakdown
+    };
+  }
+
+  /**
+   * 获取成本优化建议
+   */
+  getCostOptimizationSuggestions(): string[] {
+    const stats = this.getTokenUsageStats('month');
+    const suggestions: string[] = [];
+    
+    // 分析提供商使用情况
+    const totalCost = stats.totalCost;
+    const { providerBreakdown } = stats;
+    
+    if (totalCost > 1) { // 月度成本超过1元
+      const deepseekRatio = providerBreakdown.deepseek.cost / totalCost;
+      const claudeRatio = providerBreakdown.claude.cost / totalCost;
+      const openaiRatio = providerBreakdown.openai.cost / totalCost;
+      
+      if (openaiRatio > 0.5) {
+        suggestions.push('OpenAI使用占比较高，对于简单任务可考虑使用DeepSeek降低成本');
+      }
+      
+      if (claudeRatio > 0.3 && deepseekRatio < 0.3) {
+        suggestions.push('Claude适合复杂分析任务，日常任务建议更多使用DeepSeek');
+      }
+      
+      if (stats.avgTokensPerRequest > 3000) {
+        suggestions.push('平均Token使用量较高，建议优化prompt长度和复杂度');
+      }
+      
+      if (totalCost > 10) {
+        suggestions.push('月度使用成本较高，建议制定AI使用策略和预算控制');
+      }
+    }
+    
+    if (suggestions.length === 0) {
+      suggestions.push('当前使用成本控制良好，继续保持合理的AI使用习惯');
+    }
+    
+    return suggestions;
+  }
+
+  /**
+   * 预测月度成本
+   */
+  predictMonthlyCost(): number {
+    const todayStats = this.getTokenUsageStats('today');
+    const weekStats = this.getTokenUsageStats('week');
+    
+    // 基于最近7天的平均值预测
+    const dailyAvgCost = weekStats.totalCost / 7;
+    const predictedMonthlyCost = dailyAvgCost * 30;
+    
+    return predictedMonthlyCost;
   }
 }
 

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"log"
+	"ai-project-backend/handlers"
 )
 
 // Router 主路由器结构
@@ -44,6 +45,9 @@ func (r *Router) setupAPIRoutes() {
 	// 全局路由
 	r.setupGlobalRoutes()
 	
+	// 统计相关路由
+	r.setupStatisticsRoutes()
+	
 	log.Println("API路由设置完成")
 }
 
@@ -69,6 +73,13 @@ func (r *Router) setupGlobalRoutes() {
 	globalRoutes := NewGlobalRoutes(r.db)
 	
 	r.mux.HandleFunc("/api/global-tasks", r.withMiddleware(globalRoutes.HandleGlobalTasks))
+}
+
+// setupStatisticsRoutes 设置统计路由
+func (r *Router) setupStatisticsRoutes() {
+	statsHandlers := handlers.NewStatisticsHandlers(r.db)
+	
+	r.mux.HandleFunc("/api/statistics/today-stats", r.withMiddleware(statsHandlers.HandleTodayStats))
 }
 
 // withMiddleware 应用中间件

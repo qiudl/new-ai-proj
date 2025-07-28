@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
-	"your-project/models" // 替换为你的项目路径
+	"ai-project-backend/models" // 替换为你的项目路径
 )
 
 // DocumentService 文档管理服务
