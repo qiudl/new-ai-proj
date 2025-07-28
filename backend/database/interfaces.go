@@ -366,6 +366,9 @@ type TimerRepository interface {
 	// Timer statistics
 	GetUserTimerStats(ctx context.Context, userID int) (*models.TimerStatsResponse, error)
 	GetTaskTimeBreakdown(ctx context.Context, userID int, limit int) ([]models.TaskTimeBreakdown, error)
+	
+	// Weekly report
+	GetWeeklyReport(ctx context.Context, userID int, startDate, endDate string) (*models.WeeklyReportResponse, error)
 }
 
 // DB defines the database interface that combines all repositories

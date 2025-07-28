@@ -56,8 +56,9 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
-import { Task, HierarchicalTask as APIHierarchicalTask } from '../types/task';
-import { useSimplifiedTimer } from '../contexts/SimplifiedTimerContext';
+import { Task, TaskStatus, TaskRequest, HierarchicalTask as APIHierarchicalTask } from '../types/task';
+import { logUserAction, logApiError } from '../utils/logger';
+import { useTimer } from '../contexts/TimerContext';
 import AllFieldsTableGuide from './AllFieldsTableGuide';
 import dayjs from 'dayjs';
 import '../styles/AllFieldsTaskList.css';
@@ -188,7 +189,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   projectName 
 }) => {
   const navigate = useNavigate();
-  const { timerState, startTimer, stopTimer, pauseTimer, resumeTimer, isLoading: timerLoading } = useSimplifiedTimer();
+  const { timerState, startTimer, stopTimer, pauseTimer, resumeTimer, isLoading: timerLoading } = useTimer();
   
   // 数据状态
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -215,6 +216,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   // 列配置状态
   const [columnConfigs, setColumnConfigs] = useState<ColumnConfig[]>([]);
   const [customFields] = useState<CustomFieldConfig[]>(DEFAULT_CUSTOM_FIELDS);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createForm] = Form.useForm();
   
   // 排序状态
   const [sortConfig, setSortConfig] = useState<{
@@ -650,6 +653,48 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     }
   }, [projectId, filters, advancedFilters, sortConfig, flattenHierarchicalTasks]);
 
+  // 任务创建
+  const handleCreateTask = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields();
+      
+      // 构造符合后端 TaskRequest 模型的数据结构
+      const taskData: TaskRequest = {
+        title: values.title,
+        description: values.description || '',
+        status: values.status || 'todo',
+        assignee_id: values.assignee_id || undefined, // 使用 undefined 而不是 null
+        due_date: values.due_date ? values.due_date.toISOString() : undefined, // 发送 ISO 字符串，使用 undefined
+        custom_fields: {
+          priority: values.priority || 'medium',
+          estimated_hours: values.estimated_hours || undefined,
+          tags: values.tags || []
+        },
+        parent_id: undefined, // 使用 undefined 而不是 null
+        sort_order: 0
+      };
+
+      logUserAction('create_task_attempt', { projectId, taskTitle: taskData.title });
+      await TaskService.createTask(projectId, taskData);
+      
+      message.success('任务创建成功');
+      logUserAction('create_task_success', { projectId, taskTitle: taskData.title });
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      loadData(); // 重新加载数据
+    } catch (error: any) {
+      // 使用改进的错误日志记录
+      logApiError('Task creation failed in component', error, { 
+        projectId, 
+        component: 'EnhancedProjectTaskManager',
+        action: 'handleCreateTask'
+      });
+      
+      // 提供更详细的错误信息
+      const errorMessage = error?.message || error?.error?.message || '任务创建失败';
+      message.error(`任务创建失败: ${errorMessage}`);
+    }
+  }, [projectId, createForm, loadData]);
 
   // 高级筛选器操作
   const addAdvancedFilter = useCallback(() => {
@@ -1001,8 +1046,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           await TaskService.deleteTask(projectId, task.id);
           message.success('任务删除成功');
           loadData();
-        } catch (error) {
-          message.error('删除失败');
+        } catch (error: any) {
+          console.error('Error deleting task:', error);
+          const errorMessage = error?.message || error?.error?.message || '删除失败';
+          message.error(`删除失败: ${errorMessage}`);
         }
       },
     });
@@ -1019,15 +1066,22 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         try {
           // 并行更新所有选中的任务
           const updatePromises = selectedRowKeys.map(taskId => 
-            TaskService.updateTask(projectId, Number(taskId), { status: status as any })
+            TaskService.updateTask(projectId, Number(taskId), { status: status as TaskStatus })
           );
           
           await Promise.all(updatePromises);
           message.success(`成功更新了 ${selectedRowKeys.length} 个任务的状态`);
           setSelectedRowKeys([]);
           loadData();
-        } catch (error) {
-          message.error('批量更新状态失败');
+        } catch (error: any) {
+          logApiError('Batch status update failed', error, { 
+            projectId, 
+            taskCount: selectedRowKeys.length,
+            targetStatus: status,
+            component: 'EnhancedProjectTaskManager'
+          });
+          const errorMessage = error?.message || error?.error?.message || '批量更新状态失败';
+          message.error(`批量更新状态失败: ${errorMessage}`);
         }
       }
     });
@@ -1052,8 +1106,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           message.success(`成功设置了 ${selectedRowKeys.length} 个任务的优先级`);
           setSelectedRowKeys([]);
           loadData();
-        } catch (error) {
-          message.error('批量设置优先级失败');
+        } catch (error: any) {
+          console.error('Error in batch priority update:', error);
+          const errorMessage = error?.message || error?.error?.message || '批量设置优先级失败';
+          message.error(`批量设置优先级失败: ${errorMessage}`);
         }
       }
     });
@@ -1087,8 +1143,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           message.success(`成功删除了 ${selectedRowKeys.length} 个任务`);
           setSelectedRowKeys([]);
           loadData();
-        } catch (error) {
-          message.error('批量删除失败');
+        } catch (error: any) {
+          console.error('Error in batch delete:', error);
+          const errorMessage = error?.message || error?.error?.message || '批量删除失败';
+          message.error(`批量删除失败: ${errorMessage}`);
         }
       }
     });
@@ -1326,7 +1384,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
               <Button 
                 icon={<PlusOutlined />}
                 type="primary"
-                onClick={() => navigate(`/projects/${projectId}/tasks/new`)}
+                onClick={() => setCreateModalVisible(true)}
               >
                 新建任务
               </Button>
@@ -1632,6 +1690,117 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           bordered
         />
       </Card>
+
+      {/* 任务创建模态框 */}
+      <Modal
+        title="新建任务"
+        open={createModalVisible}
+        onOk={handleCreateTask}
+        onCancel={() => {
+          setCreateModalVisible(false);
+          createForm.resetFields();
+        }}
+        width={600}
+        okText="创建"
+        cancelText="取消"
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          style={{ marginTop: 16 }}
+        >
+          <Form.Item
+            name="title"
+            label="任务标题"
+            rules={[{ required: true, message: '请输入任务标题' }]}
+          >
+            <Input placeholder="请输入任务标题" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="任务描述"
+          >
+            <Input.TextArea rows={3} placeholder="请输入任务描述" />
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label="任务状态"
+                initialValue="todo"
+              >
+                <Select>
+                  <Option value="todo">待办</Option>
+                  <Option value="in_progress">进行中</Option>
+                  <Option value="completed">已完成</Option>
+                  <Option value="cancelled">已取消</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="priority"
+                label="优先级"
+                initialValue="medium"
+              >
+                <Select>
+                  <Option value="low">低</Option>
+                  <Option value="medium">中</Option>
+                  <Option value="high">高</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="assignee_id"
+                label="负责人"
+              >
+                <Select placeholder="选择负责人" allowClear>
+                  <Option value={1}>用户 1</Option>
+                  <Option value={2}>用户 2</Option>
+                  <Option value={3}>用户 3</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="due_date"
+                label="截止日期"
+              >
+                <DatePicker style={{ width: '100%' }} placeholder="选择截止日期" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="estimated_hours"
+                label="预估工时(小时)"
+              >
+                <Input type="number" placeholder="输入预估工时" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="tags"
+                label="标签"
+              >
+                <Select
+                  mode="tags"
+                  placeholder="添加标签"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
     </div>
   );
 };

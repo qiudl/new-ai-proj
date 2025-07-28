@@ -56,7 +56,7 @@ import TaskModal from '../components/TaskModal';
 import TaskTimeline from '../components/TaskTimeline';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
-import TaskDocumentEditor from '../components/TaskDocumentEditor';
+// import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -797,14 +797,17 @@ const TaskDetailPageNew: React.FC = () => {
                   ),
                   children: (
                     <div style={{ minHeight: '500px' }}>
-                      <TaskDocumentEditor
+                      {/* <TaskDocumentEditor
                         taskId={task.id}
                         projectId={parseInt(projectId || '0')}
                         onSave={(content) => {
                           setDocumentExists(true);
                           message.success('文档保存成功');
                         }}
-                      />
+                      /> */}
+                      <div style={{ padding: '20px', textAlign: 'center' }}>
+                        文档编辑器暂时不可用
+                      </div>
                     </div>
                   )
                 }

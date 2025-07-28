@@ -5,7 +5,7 @@ import { TimerCurrentResponse } from '../types/timer';
 
 interface TimerState {
   isRunning: boolean;
-  isPaused?: boolean;
+  isPaused: boolean; // 🎯 统一为必需字段，兼容SimplifiedTimer
   taskId?: number;
   taskTitle?: string;
   startTime?: Date;
@@ -19,12 +19,19 @@ interface TimerContextType {
   isLoading: boolean;
   connectionStatus: 'connected' | 'disconnected' | 'checking';
   
+  // 🎯 新增：模式配置
+  mode: 'full' | 'simplified';
+  setMode: (mode: 'full' | 'simplified') => void;
+  
   // 操作方法
   startTimer: (taskId: number, taskTitle: string) => Promise<boolean>;
   stopTimer: () => Promise<boolean>;
   pauseTimer: () => Promise<boolean>;
   resumeTimer: () => Promise<boolean>;
   refreshTimer: () => Promise<void>;
+  
+  // 🎯 新增：简化模式专用功能 (兼容SimplifiedTimer)
+  getDebugInfo: () => any;
   
   // 事件回调
   onTimerUpdate?: (isRunning: boolean, taskTitle?: string) => void;
@@ -34,11 +41,13 @@ const TimerContext = createContext<TimerContextType | undefined>(undefined);
 
 interface TimerProviderProps {
   children: React.ReactNode;
+  mode?: 'full' | 'simplified'; // 🎯 新增：模式配置
   onTimerUpdate?: (isRunning: boolean, taskTitle?: string) => void;
 }
 
 export const TimerProvider: React.FC<TimerProviderProps> = ({ 
   children, 
+  mode = 'full', // 🎯 默认为完整模式
   onTimerUpdate 
 }) => {
   // 状态管理 - 从localStorage初始化
@@ -87,6 +96,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  
+  // 🎯 新增：模式状态管理
+  const [currentMode, setCurrentMode] = useState<'full' | 'simplified'>(mode);
   
   // Refs for cleanup and performance
   const isMountedRef = useRef(true);
@@ -208,6 +220,75 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       }
     }
   }, [updateTimerFromResponse, startLocalTimer]);
+
+  // 🎯 新增：调试信息获取 (兼容SimplifiedTimer)
+  const getDebugInfo = useCallback(() => {
+    const localStorageState = (() => {
+      try {
+        const saved = localStorage.getItem('globalTimerState');
+        return saved ? JSON.parse(saved) : null;
+      } catch {
+        return 'Error parsing localStorage';
+      }
+    })();
+
+    const errors = [];
+    
+    // 检查常见问题
+    if (timerState.isRunning && !timerState.startTime) {
+      errors.push('定时器运行中但缺少开始时间');
+    }
+    
+    if (timerState.isRunning && timerState.isPaused) {
+      errors.push('定时器状态冲突：同时运行和暂停');
+    }
+    
+    if (!timerState.isRunning && localTimerRef.current) {
+      errors.push('定时器已停止但本地计时器仍在运行');
+    }
+    
+    if (connectionStatus === 'disconnected' && timerState.isRunning) {
+      errors.push('网络断开但定时器仍显示运行状态');
+    }
+
+    return {
+      // 基本状态
+      timerState,
+      isLoading,
+      connectionStatus,
+      mode: currentMode,
+      
+      // 内部状态
+      hasLocalTimer: !!localTimerRef.current,
+      intervalId: localTimerRef.current ? 'active' : 'inactive',
+      isMounted: isMountedRef.current,
+      
+      // 本地存储状态
+      hasLocalStorage: !!localStorageState,
+      localStorageState,
+      localStorageSync: localStorageState ? {
+        lastSync: localStorageState.lastSync,
+        isValid: localStorageState.lastSync && (Date.now() - new Date(localStorageState.lastSync).getTime()) < 300000 // 5分钟内
+      } : null,
+      
+      // 错误检测
+      errors,
+      errorCount: errors.length,
+      
+      // 性能信息
+      lastSync: new Date().toISOString(),
+      uptime: timerState.startTime ? Date.now() - new Date(timerState.startTime).getTime() : 0,
+      
+      // 简化模式特定信息
+      ...(currentMode === 'simplified' && {
+        simplifiedMode: true,
+        debugMode: process.env.NODE_ENV === 'development'
+      }),
+      
+      // 时间戳
+      timestamp: new Date().toISOString()
+    };
+  }, [timerState, isLoading, connectionStatus, currentMode]);
 
   // 启动定时器
   const startTimer = useCallback(async (taskId: number, taskTitle: string): Promise<boolean> => {
@@ -455,22 +536,30 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   const value: TimerContextType = useMemo(() => ({
     timerState,
     isLoading,
-    connectionStatus,
+    // 🎯 简化模式下优化连接状态 (减少网络检查)
+    connectionStatus: currentMode === 'simplified' ? 'connected' : connectionStatus,
+    // 🎯 新增：模式配置
+    mode: currentMode,
+    setMode: setCurrentMode,
     startTimer,
     stopTimer,
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    // 🎯 新增：调试功能
+    getDebugInfo,
     onTimerUpdate
   }), [
     timerState,
     isLoading,
     connectionStatus,
+    currentMode,
     startTimer,
     stopTimer,
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    getDebugInfo,
     onTimerUpdate
   ]);
 

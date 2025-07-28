@@ -22,7 +22,7 @@ const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
 const TimeWeeklyReportPage = React.lazy(() => import('./pages/TimeWeeklyReportPage'));
-const TimeAnalysisPage = React.lazy(() => import('./pages/TimeAnalysisPage'));
+// const TimeAnalysisPage = React.lazy(() => import('./pages/TimeAnalysisPage'));
 const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
@@ -36,6 +36,7 @@ const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage')
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
+const NavigationManagementPage = React.lazy(() => import('./pages/NavigationManagementPage'));
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
@@ -221,7 +222,8 @@ const AppContent: React.FC = () => {
             <Route path="/time-analysis" element={
               <PrivateRoute>
                 <Layout>
-                  <TimeAnalysisPage />
+                  {/* <TimeAnalysisPage /> */}
+                  <div>时间分析页面暂时不可用</div>
                 </Layout>
               </PrivateRoute>
             } />
@@ -246,6 +248,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <AuditLogPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/navigation-management" element={
+              <PrivateRoute>
+                <Layout>
+                  <NavigationManagementPage />
                 </Layout>
               </PrivateRoute>
             } />

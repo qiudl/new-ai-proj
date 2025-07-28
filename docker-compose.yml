@@ -36,6 +36,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-password}
       - DB_NAME=${DB_NAME:-main_db}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
+      - JWT_EXPIRATION=168h
       - GIN_MODE=${GIN_MODE:-debug}
       - LOG_LEVEL=${LOG_LEVEL:-debug}
       - GOPROXY=https://goproxy.cn,direct
@@ -66,7 +67,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-/api/v1}
+      - REACT_APP_API_URL=/api/v1
       - REACT_APP_ENV=development
       - CHOKIDAR_USEPOLLING=true
       - WDS_SOCKET_HOST=localhost

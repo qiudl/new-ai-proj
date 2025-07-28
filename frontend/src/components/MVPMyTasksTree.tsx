@@ -9,7 +9,7 @@ import {
   ReloadOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useSimplifiedTimer } from '../contexts/SimplifiedTimerContext';
+import { useTimer } from '../contexts/TimerContext';
 import { projectService } from '../services/projectService';
 import { Project } from '../types/project';
 import { Task } from '../types/task';
@@ -41,8 +41,8 @@ const MVPMyTasksTree: React.FC = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   
-  // 🎯 使用简化的定时器
-  const { timerState, startTimer } = useSimplifiedTimer();
+  // 🎯 使用统一的定时器
+  const { timerState, startTimer } = useTimer();
 
   // 🎯 简化的数据获取
   const fetchProjectsAndTasks = useCallback(async () => {

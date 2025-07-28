@@ -50,8 +50,14 @@ class ProjectService {
           break;
       }
       
-      // axios interceptor已经处理了响应格式化，直接返回data
-      return response.data || response;
+      // axios interceptor已经处理了响应格式化，返回的是后端response.data
+      // 后端返回格式: { success: true, data: {...}, message: "..." }
+      // api.ts的interceptor已经返回了response.data，所以response就是后端的整个响应
+      // 我们需要返回response.data，即后端响应中的data字段
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response.data;
+      }
+      return response;
     } catch (error: any) {
       console.error('API Error:', error);
       throw error;

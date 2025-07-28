@@ -50,6 +50,15 @@ import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
+// 使用统一的dayjs配置
+import '../utils/dayjs';
+// 导入周报API服务
+import weeklyReportService, { 
+  WeeklyStats, 
+  DailyStats, 
+  TaskTimeEntry, 
+  ProjectTimeStats 
+} from '../services/weeklyReportService';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -58,42 +67,6 @@ const { Option } = Select;
 
 dayjs.extend(weekOfYear);
 dayjs.extend(isoWeek);
-
-// 模拟数据类型定义
-interface WeeklyStats {
-  totalHours: number;
-  completedTasks: number;
-  totalTasks: number;
-  efficiency: number;
-  weekStart: string;
-  weekEnd: string;
-}
-
-interface TaskTimeEntry {
-  id: string;
-  taskTitle: string;
-  projectName: string;
-  duration: number;
-  date: string;
-  status: 'completed' | 'in_progress' | 'todo';
-  priority: 'high' | 'medium' | 'low';
-}
-
-interface DailyStats {
-  date: string;
-  totalHours: number;
-  tasksCompleted: number;
-  efficiency: number;
-  topTask: string;
-}
-
-interface ProjectTimeStats {
-  projectName: string;
-  totalHours: number;
-  tasksCount: number;
-  completionRate: number;
-  color: string;
-}
 
 const TimeWeeklyReportPage: React.FC = () => {
   const navigate = useNavigate();
@@ -105,70 +78,18 @@ const TimeWeeklyReportPage: React.FC = () => {
     dayjs().endOf('week')
   ]);
 
-  // 模拟数据
+  // 真实数据状态
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({
-    totalHours: 42.5,
-    completedTasks: 28,
-    totalTasks: 35,
-    efficiency: 85,
+    totalHours: 0,
+    completedTasks: 0,
+    totalTasks: 0,
+    efficiency: 0,
     weekStart: dayjs().startOf('week').format('YYYY-MM-DD'),
     weekEnd: dayjs().endOf('week').format('YYYY-MM-DD')
   });
-
-  const [taskTimeEntries, setTaskTimeEntries] = useState<TaskTimeEntry[]>([
-    {
-      id: '1',
-      taskTitle: '前端界面优化',
-      projectName: 'AI项目管理平台',
-      duration: 8.5,
-      date: '2025-01-27',
-      status: 'completed',
-      priority: 'high'
-    },
-    {
-      id: '2',
-      taskTitle: '数据库设计',
-      projectName: '客户管理系统',
-      duration: 6.0,
-      date: '2025-01-26',
-      status: 'completed',
-      priority: 'medium'
-    },
-    {
-      id: '3',
-      taskTitle: 'API接口开发',
-      projectName: 'AI项目管理平台',
-      duration: 7.5,
-      date: '2025-01-25',
-      status: 'in_progress',
-      priority: 'high'
-    },
-    {
-      id: '4',
-      taskTitle: '用户需求分析',
-      projectName: '文档管理系统',
-      duration: 4.0,
-      date: '2025-01-24',
-      status: 'completed',
-      priority: 'low'
-    }
-  ]);
-
-  const [dailyStats, setDailyStats] = useState<DailyStats[]>([
-    { date: '2025-01-21', totalHours: 8.0, tasksCompleted: 4, efficiency: 90, topTask: '前端界面设计' },
-    { date: '2025-01-22', totalHours: 7.5, tasksCompleted: 3, efficiency: 85, topTask: '后端API开发' },
-    { date: '2025-01-23', totalHours: 9.0, tasksCompleted: 5, efficiency: 92, topTask: '数据库优化' },
-    { date: '2025-01-24', totalHours: 8.5, tasksCompleted: 4, efficiency: 88, topTask: '用户需求分析' },
-    { date: '2025-01-25', totalHours: 6.0, tasksCompleted: 2, efficiency: 75, topTask: 'API接口开发' },
-    { date: '2025-01-26', totalHours: 3.5, tasksCompleted: 1, efficiency: 70, topTask: '数据库设计' },
-    { date: '2025-01-27', totalHours: 0, tasksCompleted: 0, efficiency: 0, topTask: '休息日' }
-  ]);
-
-  const [projectStats, setProjectStats] = useState<ProjectTimeStats[]>([
-    { projectName: 'AI项目管理平台', totalHours: 24.0, tasksCount: 12, completionRate: 85, color: '#1890ff' },
-    { projectName: '客户管理系统', totalHours: 15.5, tasksCount: 8, completionRate: 92, color: '#52c41a' },
-    { projectName: '文档管理系统', totalHours: 8.0, tasksCount: 5, completionRate: 78, color: '#fa8c16' }
-  ]);
+  const [taskTimeEntries, setTaskTimeEntries] = useState<TaskTimeEntry[]>([]);
+  const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
+  const [projectStats, setProjectStats] = useState<ProjectTimeStats[]>([]);
 
   // 计算周统计
   const weekSummary = useMemo(() => {
@@ -185,6 +106,41 @@ const TimeWeeklyReportPage: React.FC = () => {
       completionRate: (weeklyStats.completedTasks / weeklyStats.totalTasks) * 100
     };
   }, [weeklyStats, dailyStats]);
+
+  // 加载周报数据
+  const loadWeeklyReport = async () => {
+    try {
+      setLoading(true);
+      const startDate = selectedDateRange[0].format('YYYY-MM-DD');
+      const endDate = selectedDateRange[1].format('YYYY-MM-DD');
+      
+      const reportData = await weeklyReportService.getWeeklyReport(startDate, endDate);
+      
+      setWeeklyStats(reportData.weeklyStats);
+      setDailyStats(reportData.dailyStats);
+      setTaskTimeEntries(reportData.taskTimeEntries);
+      setProjectStats(reportData.projectStats);
+      
+      message.success('周报数据加载成功');
+    } catch (error) {
+      console.error('加载周报数据失败:', error);
+      message.error('加载周报数据失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 页面加载时获取数据
+  useEffect(() => {
+    loadWeeklyReport();
+  }, []);
+
+  // 日期范围变化时重新加载数据
+  useEffect(() => {
+    if (selectedDateRange[0] && selectedDateRange[1]) {
+      loadWeeklyReport();
+    }
+  }, [selectedDateRange]);
 
   // 获取优先级颜色
   const getPriorityColor = (priority: string) => {
@@ -208,13 +164,39 @@ const TimeWeeklyReportPage: React.FC = () => {
   };
 
   // 导出报告
-  const handleExportReport = () => {
-    message.success('报告导出成功！');
+  const handleExportReport = async () => {
+    try {
+      const startDate = selectedDateRange[0].format('YYYY-MM-DD');
+      const endDate = selectedDateRange[1].format('YYYY-MM-DD');
+      
+      const jsonData = await weeklyReportService.exportWeeklyReportJSON(startDate, endDate);
+      
+      // 创建下载链接
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `weekly-report-${startDate}-to-${endDate}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      message.success('报告导出成功！');
+    } catch (error) {
+      console.error('导出报告失败:', error);
+      message.error('导出报告失败，请稍后重试');
+    }
   };
 
   // 打印报告
   const handlePrintReport = () => {
     window.print();
+  };
+
+  // 刷新数据
+  const handleRefresh = () => {
+    loadWeeklyReport();
   };
 
   // 时间轴数据
@@ -271,7 +253,11 @@ const TimeWeeklyReportPage: React.FC = () => {
             format="MM-DD"
             allowClear={false}
           />
-          <Button icon={<ReloadOutlined />} onClick={() => setLoading(true)}>
+          <Button 
+            icon={<ReloadOutlined />} 
+            onClick={handleRefresh}
+            loading={loading}
+          >
             刷新
           </Button>
           <Button icon={<DownloadOutlined />} onClick={handleExportReport}>

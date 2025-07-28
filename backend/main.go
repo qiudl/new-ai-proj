@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -184,8 +185,10 @@ func (app *Application) setupRouter() *gin.Engine {
 		authorized.Use(middleware.CompanyAccessMiddleware())
 		authorized.Use(app.mapUserToCompanyUser()) // Map authenticated user to company user
 		{
-			// Global tasks route (all projects) - for compatibility
+			// Global tasks routes (all projects) - for compatibility
 			authorized.GET("/tasks", app.getAllTasksHandler)
+			authorized.GET("/tasks/today", app.getTodayTasksHandler)
+			authorized.GET("/tasks/today/stats", app.getTodayTasksStatsHandler)
 			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
@@ -428,6 +431,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				timer.POST("/stop", app.timerHandler.StopTimer)
 				timer.GET("/current", app.timerHandler.GetCurrentTimer)
 				timer.GET("/stats", app.timerHandler.GetTimerStats)
+				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)
 			}
 
 			// Permission management routes (system users with appropriate roles)
@@ -492,67 +496,6 @@ func (app *Application) setupRouter() *gin.Engine {
 		}
 	}
 
-	// Add legacy API routes for compatibility (without v1)
-	legacyApi := router.Group("/api")
-	{
-		// Auth routes
-		auth := legacyApi.Group("/auth")
-		{
-			auth.POST("/login", app.loginHandler)
-			auth.POST("/logout", app.logoutHandler)
-		}
-
-		// Protected routes (with user type access control - legacy API compatibility)
-		authorized := legacyApi.Group("/")
-		// Apply JWT authentication middleware first
-		authorized.Use(middleware.AuthMiddleware(app.jwtManager))
-		// Apply user type access control middleware
-		authorized.Use(middleware.UserTypeAccessMiddleware())
-		authorized.Use(middleware.CompanyAccessMiddleware())
-		authorized.Use(app.mapUserToCompanyUser())
-		{
-			// Global tasks route (all projects)
-			authorized.GET("/tasks", app.getAllTasksHandler)
-			// Projects routes
-			projects := authorized.Group("/projects")
-			{
-				projects.GET("", app.getProjectsHandler)
-				projects.POST("", app.createProjectHandler)
-				projects.GET("/:id", app.getProjectHandler)
-				projects.GET("/:id/stats", app.getProjectStatsHandler)
-				projects.PUT("/:id", app.updateProjectHandler)
-				projects.DELETE("/:id", app.deleteProjectHandler)
-
-				// Hierarchical task routes (more specific routes first)
-				projects.GET("/:id/tasks/tree", app.getTaskTreeHandler)
-				projects.GET("/:id/tasks/root", app.getRootTasksHandler)
-				projects.POST("/:id/tasks/bulk-import", app.bulkImportTasksHandler)
-				
-				// Task-specific hierarchical routes
-				projects.GET("/:id/tasks/:taskId/children", app.getTaskChildrenHandler)
-				projects.GET("/:id/tasks/:taskId/updates", app.getTaskUpdatesHandler)
-				projects.PUT("/:id/tasks/:taskId/updates/:updateId", app.updateTaskUpdateHandler)
-				projects.DELETE("/:id/tasks/:taskId/updates/:updateId", app.deleteTaskUpdateHandler)
-				projects.GET("/:id/tasks/:taskId/timeline", app.getTaskTimelineHandler)
-				
-				// Basic tasks routes
-				projects.GET("/:id/tasks", app.getTasksHandler)
-				projects.POST("/:id/tasks", app.createTaskHandler)
-				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
-				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
-				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
-				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
-				
-				// Task document routes
-				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
-				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
-				projects.HEAD("/:id/tasks/:taskId/document", app.taskDocumentHandler.CheckTaskDocument)
-				
-				// Project timeline
-				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
-			}
-		}
-	}
 
 	return router
 }
@@ -3363,6 +3306,388 @@ func (app *Application) getDocumentCategoriesHandler(c *gin.Context) {
 		"message": "Categories retrieved successfully",
 		"data":    categories,
 	})
+}
+
+// getTodayTasksHandler returns today's tasks based on specific criteria
+func (app *Application) getTodayTasksHandler(c *gin.Context) {
+	// Parse query parameters
+	projectID := c.Query("project_id")
+	userID := c.Query("user_id") 
+	status := c.Query("status")
+	priority := c.Query("priority")
+	sortBy := c.DefaultQuery("sort_by", "updated_at")
+	sortOrder := c.DefaultQuery("sort_order", "desc")
+	limitStr := c.DefaultQuery("limit", "1000")
+	
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 1000
+	}
+
+	// Get all tasks first
+	tasks, _, err := app.db.Tasks().GetAll(c.Request.Context(), limit, 0)
+	if err != nil {
+		app.logger.Printf("Error getting all tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Apply basic filters first
+	if projectID != "" {
+		if pid, err := strconv.Atoi(projectID); err == nil {
+			filteredTasks := []*models.Task{}
+			for _, task := range tasks {
+				if task.ProjectID == pid {
+					filteredTasks = append(filteredTasks, task)
+				}
+			}
+			tasks = filteredTasks
+		}
+	}
+
+	if userID != "" {
+		if uid, err := strconv.Atoi(userID); err == nil {
+			filteredTasks := []*models.Task{}
+			for _, task := range tasks {
+				if task.AssigneeID != nil && *task.AssigneeID == uid {
+					filteredTasks = append(filteredTasks, task)
+				}
+			}
+			tasks = filteredTasks
+		}
+	}
+
+	if status != "" {
+		filteredTasks := []*models.Task{}
+		for _, task := range tasks {
+			if task.Status == status {
+				filteredTasks = append(filteredTasks, task)
+			}
+		}
+		tasks = filteredTasks
+	}
+
+	if priority != "" {
+		filteredTasks := []*models.Task{}
+		for _, task := range tasks {
+			if task.CustomFields != nil {
+				if taskPriority, exists := task.CustomFields["priority"]; exists && taskPriority == priority {
+					filteredTasks = append(filteredTasks, task)
+				}
+			}
+		}
+		tasks = filteredTasks
+	}
+
+	// Apply today's tasks filtering logic
+	todayTasks := []*models.Task{}
+	inProgressTasks := []*models.Task{}
+	dueTodayTasks := []*models.Task{}
+	createdTodayTasks := []*models.Task{}
+	updatedTodayTasks := []*models.Task{}
+	overdueTasks := []*models.Task{}
+
+	today := time.Now().Format("2006-01-02")
+
+	for _, task := range tasks {
+		// Skip cancelled tasks
+		if task.Status == "cancelled" {
+			continue
+		}
+
+		isToday := false
+
+		// 1. Tasks with status "in_progress"
+		if task.Status == "in_progress" {
+			isToday = true
+			inProgressTasks = append(inProgressTasks, task)
+		}
+
+		// 2. Tasks due today
+		if task.DueDate != nil && task.DueDate.Format("2006-01-02") == today {
+			isToday = true
+			dueTodayTasks = append(dueTodayTasks, task)
+		}
+
+		// 3. Tasks created today
+		if task.CreatedAt.Format("2006-01-02") == today {
+			isToday = true
+			createdTodayTasks = append(createdTodayTasks, task)
+		}
+
+		// 4. Tasks updated today (where updated_at ≠ created_at)
+		if task.UpdatedAt.Format("2006-01-02") == today && !task.UpdatedAt.Equal(task.CreatedAt) {
+			isToday = true
+			updatedTodayTasks = append(updatedTodayTasks, task)
+		}
+
+		// 5. Overdue tasks that are not completed
+		if task.DueDate != nil {
+			dueDate := task.DueDate.Format("2006-01-02")
+			if dueDate < today && task.Status != "completed" && task.Status != "cancelled" {
+				isToday = true
+				overdueTasks = append(overdueTasks, task)
+			}
+		}
+
+		if isToday {
+			todayTasks = append(todayTasks, task)
+		}
+	}
+
+	// Remove duplicates (a task might satisfy multiple conditions)
+	uniqueTasks := make(map[int]*models.Task)
+	for _, task := range todayTasks {
+		uniqueTasks[task.ID] = task
+	}
+
+	finalTasks := make([]*models.Task, 0, len(uniqueTasks))
+	for _, task := range uniqueTasks {
+		finalTasks = append(finalTasks, task)
+	}
+
+	// Apply sorting
+	if len(finalTasks) > 0 {
+		switch sortBy {
+		case "created_at":
+			if sortOrder == "desc" {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].CreatedAt.After(finalTasks[j].CreatedAt)
+				})
+			} else {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].CreatedAt.Before(finalTasks[j].CreatedAt)
+				})
+			}
+		case "updated_at":
+			if sortOrder == "desc" {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].UpdatedAt.After(finalTasks[j].UpdatedAt)
+				})
+			} else {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].UpdatedAt.Before(finalTasks[j].UpdatedAt)
+				})
+			}
+		case "due_date":
+			if sortOrder == "desc" {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					if finalTasks[i].DueDate == nil && finalTasks[j].DueDate == nil {
+						return false
+					}
+					if finalTasks[i].DueDate == nil {
+						return false
+					}
+					if finalTasks[j].DueDate == nil {
+						return true
+					}
+					return finalTasks[i].DueDate.After(*finalTasks[j].DueDate)
+				})
+			} else {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					if finalTasks[i].DueDate == nil && finalTasks[j].DueDate == nil {
+						return false
+					}
+					if finalTasks[i].DueDate == nil {
+						return false
+					}
+					if finalTasks[j].DueDate == nil {
+						return true
+					}
+					return finalTasks[i].DueDate.Before(*finalTasks[j].DueDate)
+				})
+			}
+		case "priority":
+			priorityOrder := map[string]int{"high": 3, "medium": 2, "low": 1}
+			if sortOrder == "desc" {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					iPriority := 0
+					jPriority := 0
+					if finalTasks[i].CustomFields != nil {
+						if p, exists := finalTasks[i].CustomFields["priority"]; exists {
+							if pStr, ok := p.(string); ok {
+								iPriority = priorityOrder[pStr]
+							}
+						}
+					}
+					if finalTasks[j].CustomFields != nil {
+						if p, exists := finalTasks[j].CustomFields["priority"]; exists {
+							if pStr, ok := p.(string); ok {
+								jPriority = priorityOrder[pStr]
+							}
+						}
+					}
+					return iPriority > jPriority
+				})
+			} else {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					iPriority := 0
+					jPriority := 0
+					if finalTasks[i].CustomFields != nil {
+						if p, exists := finalTasks[i].CustomFields["priority"]; exists {
+							if pStr, ok := p.(string); ok {
+								iPriority = priorityOrder[pStr]
+							}
+						}
+					}
+					if finalTasks[j].CustomFields != nil {
+						if p, exists := finalTasks[j].CustomFields["priority"]; exists {
+							if pStr, ok := p.(string); ok {
+								jPriority = priorityOrder[pStr]
+							}
+						}
+					}
+					return iPriority < jPriority
+				})
+			}
+		case "title":
+			if sortOrder == "desc" {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].Title > finalTasks[j].Title
+				})
+			} else {
+				sort.Slice(finalTasks, func(i, j int) bool {
+					return finalTasks[i].Title < finalTasks[j].Title
+				})
+			}
+		}
+	}
+
+	// Convert to response format
+	taskResponses := make([]models.TaskResponse, len(finalTasks))
+	for i, task := range finalTasks {
+		taskResponses[i] = task.ToResponse()
+	}
+
+	// Calculate statistics
+	stats := map[string]interface{}{
+		"total_count":          len(finalTasks),
+		"in_progress_count":    len(inProgressTasks),
+		"due_today_count":      len(dueTodayTasks),
+		"created_today_count":  len(createdTodayTasks),
+		"updated_today_count":  len(updatedTodayTasks),
+		"overdue_count":        len(overdueTasks),
+		"high_priority_count":  0, // TODO: Count high priority tasks
+	}
+
+	// Grouping
+	grouping := map[string]interface{}{
+		"in_progress":     convertTasksToResponses(inProgressTasks),
+		"due_today":       convertTasksToResponses(dueTodayTasks),
+		"created_today":   convertTasksToResponses(createdTodayTasks),
+		"updated_today":   convertTasksToResponses(updatedTodayTasks),
+		"overdue":         convertTasksToResponses(overdueTasks),
+	}
+
+	responseData := map[string]interface{}{
+		"tasks":    taskResponses,
+		"stats":    stats,
+		"grouping": grouping,
+	}
+
+	response := models.NewSuccessResponse(responseData, "Today's tasks retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// getTodayTasksStatsHandler returns only statistics for today's tasks
+func (app *Application) getTodayTasksStatsHandler(c *gin.Context) {
+	// Get all tasks first
+	tasks, _, err := app.db.Tasks().GetAll(c.Request.Context(), 1000, 0)
+	if err != nil {
+		app.logger.Printf("Error getting all tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Apply today's tasks filtering logic (same as above but only count)
+	inProgressCount := 0
+	dueTodayCount := 0
+	createdTodayCount := 0
+	updatedTodayCount := 0
+	overdueCount := 0
+	highPriorityCount := 0
+	totalCount := 0
+
+	today := time.Now().Format("2006-01-02")
+	uniqueTasks := make(map[int]bool)
+
+	for _, task := range tasks {
+		// Skip cancelled tasks
+		if task.Status == "cancelled" {
+			continue
+		}
+
+		isToday := false
+
+		// 1. Tasks with status "in_progress"
+		if task.Status == "in_progress" {
+			inProgressCount++
+			isToday = true
+		}
+
+		// 2. Tasks due today
+		if task.DueDate != nil && task.DueDate.Format("2006-01-02") == today {
+			dueTodayCount++
+			isToday = true
+		}
+
+		// 3. Tasks created today
+		if task.CreatedAt.Format("2006-01-02") == today {
+			createdTodayCount++
+			isToday = true
+		}
+
+		// 4. Tasks updated today (where updated_at ≠ created_at)
+		if task.UpdatedAt.Format("2006-01-02") == today && !task.UpdatedAt.Equal(task.CreatedAt) {
+			updatedTodayCount++
+			isToday = true
+		}
+
+		// 5. Overdue tasks that are not completed
+		if task.DueDate != nil {
+			dueDate := task.DueDate.Format("2006-01-02")
+			if dueDate < today && task.Status != "completed" && task.Status != "cancelled" {
+				overdueCount++
+				isToday = true
+			}
+		}
+
+		if isToday && !uniqueTasks[task.ID] {
+			uniqueTasks[task.ID] = true
+			totalCount++
+
+			// Count high priority tasks
+			if task.CustomFields != nil {
+				if priority, exists := task.CustomFields["priority"]; exists && priority == "high" {
+					highPriorityCount++
+				}
+			}
+		}
+	}
+
+	stats := map[string]interface{}{
+		"total_count":          totalCount,
+		"in_progress_count":    inProgressCount,
+		"due_today_count":      dueTodayCount,
+		"created_today_count":  createdTodayCount,
+		"updated_today_count":  updatedTodayCount,
+		"overdue_count":        overdueCount,
+		"high_priority_count":  highPriorityCount,
+	}
+
+	response := models.NewSuccessResponse(stats, "Today's tasks statistics retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// Helper function to convert tasks to response format
+func convertTasksToResponses(tasks []*models.Task) []models.TaskResponse {
+	responses := make([]models.TaskResponse, len(tasks))
+	for i, task := range tasks {
+		responses[i] = task.ToResponse()
+	}
+	return responses
 }
 
 func main() {

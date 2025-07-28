@@ -221,6 +221,40 @@ func (h *TimerHandler) GetTimerStats(c *gin.Context) {
 	c.JSON(http.StatusOK, stats)
 }
 
+// GetWeeklyReport handles GET /api/v1/timer/weekly
+func (h *TimerHandler) GetWeeklyReport(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Parse query parameters for date range
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	
+	if startDate == "" || endDate == "" {
+		// Default to current week
+		now := time.Now()
+		startOfWeek := now.AddDate(0, 0, -int(now.Weekday()))
+		endOfWeek := startOfWeek.AddDate(0, 0, 6)
+		startDate = startOfWeek.Format("2006-01-02")
+		endDate = endOfWeek.Format("2006-01-02")
+	}
+
+	// Get weekly report data
+	report, err := h.db.Timer().GetWeeklyReport(ctx, uid, startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get weekly report", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
+}
+
 // stopCurrentTimer is a helper function to stop the current timer
 func (h *TimerHandler) stopCurrentTimer(ctx context.Context, user *models.User) error {
 	if user.TimingStatus != string(models.TimingStatusRunning) || user.CurrentTimingTaskID == nil {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Card, Typography, Space, Button, Tag, Divider } from 'antd';
 import { BugOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useSimplifiedTimer } from '../contexts/SimplifiedTimerContext';
+import { useTimer } from '../contexts/TimerContext';
 
 const { Text, Paragraph } = Typography;
 
@@ -11,7 +11,7 @@ interface TimerDebugModalProps {
 }
 
 const TimerDebugModal: React.FC<TimerDebugModalProps> = ({ visible, onClose }) => {
-  const { getDebugInfo } = useSimplifiedTimer();
+  const { getDebugInfo } = useTimer();
   const [debugInfo, setDebugInfo] = useState<any>(null);
 
   // 🎯 获取调试信息

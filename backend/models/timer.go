@@ -89,6 +89,53 @@ type TaskTimeBreakdown struct {
 	FormattedTime string `json:"formatted_time"`
 }
 
+// WeeklyReportResponse represents weekly timer report data
+type WeeklyReportResponse struct {
+	WeeklyStats     WeeklyStatsData    `json:"weekly_stats"`
+	DailyStats      []DailyStatsData   `json:"daily_stats"`
+	TaskTimeEntries []TaskTimeEntryData `json:"task_time_entries"`
+	ProjectStats    []ProjectStatsData  `json:"project_stats"`
+}
+
+// WeeklyStatsData represents weekly statistics
+type WeeklyStatsData struct {
+	TotalHours      float64 `json:"total_hours"`
+	CompletedTasks  int     `json:"completed_tasks"`
+	TotalTasks      int     `json:"total_tasks"`
+	Efficiency      float64 `json:"efficiency"`
+	WeekStart       string  `json:"week_start"`
+	WeekEnd         string  `json:"week_end"`
+}
+
+// DailyStatsData represents daily statistics
+type DailyStatsData struct {
+	Date            string  `json:"date"`
+	TotalHours      float64 `json:"total_hours"`
+	TasksCompleted  int     `json:"tasks_completed"`
+	Efficiency      float64 `json:"efficiency"`
+	TopTask         string  `json:"top_task"`
+}
+
+// TaskTimeEntryData represents task time entry
+type TaskTimeEntryData struct {
+	ID          string  `json:"id"`
+	TaskTitle   string  `json:"task_title"`
+	ProjectName string  `json:"project_name"`
+	Duration    float64 `json:"duration"`
+	Date        string  `json:"date"`
+	Status      string  `json:"status"`
+	Priority    string  `json:"priority"`
+}
+
+// ProjectStatsData represents project time statistics
+type ProjectStatsData struct {
+	ProjectName    string  `json:"project_name"`
+	TotalHours     float64 `json:"total_hours"`
+	TasksCount     int     `json:"tasks_count"`
+	CompletionRate float64 `json:"completion_rate"`
+	Color          string  `json:"color"`
+}
+
 // UserTimerState represents the current timer state for a user
 type UserTimerState struct {
 	UserID               int           `json:"user_id" db:"user_id"`

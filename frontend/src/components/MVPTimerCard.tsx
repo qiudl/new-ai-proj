@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect } from 'react';
 import { Card, Button, Typography, Space } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { useSimplifiedTimer } from '../contexts/SimplifiedTimerContext';
+import { useTimer } from '../contexts/TimerContext';
 
 const { Title, Text } = Typography;
 
@@ -11,7 +11,7 @@ interface MVPTimerCardProps {
 }
 
 const MVPTimerCard: React.FC<MVPTimerCardProps> = ({ style }) => {
-  const { timerState, isLoading, pauseTimer, resumeTimer, stopTimer } = useSimplifiedTimer();
+  const { timerState, isLoading, pauseTimer, resumeTimer, stopTimer } = useTimer();
 
   // 🎯 处理暂停/恢复
   const handlePauseResume = useCallback(async () => {

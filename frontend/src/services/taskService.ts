@@ -1,5 +1,6 @@
 import api from './api';
 import { ValidationHelper } from '../utils/errorHandling';
+import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
 import {
   Task,
   TaskRequest,
@@ -86,24 +87,43 @@ export class TaskService {
    * Create a new task
    */
   static async createTask(projectId: number, task: TaskRequest): Promise<Task> {
-    // Validate input
-    ValidationHelper.validateRequired(task.title, '任务标题');
-    ValidationHelper.validateLength(task.title, '任务标题', 2, 200);
+    const start = performance.now();
     
-    if (task.description) {
-      ValidationHelper.validateLength(task.description, '任务描述', 0, 1000);
-    }
+    try {
+      // Validate input
+      ValidationHelper.validateRequired(task.title, '任务标题');
+      ValidationHelper.validateLength(task.title, '任务标题', 2, 200);
+      
+      if (task.description) {
+        ValidationHelper.validateLength(task.description, '任务描述', 0, 1000);
+      }
 
-    const response: APIResponse<Task> = await api.post(
-      `/projects/${projectId}/tasks`,
-      task
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to create task');
+      const response: APIResponse<Task> = await api.post(
+        `/projects/${projectId}/tasks`,
+        task
+      );
+      
+      if (!response.success) {
+        const error = new Error(response.error?.message || 'Failed to create task');
+        logApiError('Task creation failed', error, { 
+          projectId, 
+          taskTitle: task.title,
+          endpoint: `/projects/${projectId}/tasks`
+        });
+        throw error;
+      }
+      
+      const duration = performance.now() - start;
+      logTaskAction('create', response.data!.id, projectId);
+      logPerformance('createTask', duration, { projectId, taskId: response.data!.id });
+      
+      return response.data!;
+    } catch (error) {
+      const duration = performance.now() - start;
+      logTaskAction('create', 'unknown', projectId, error);
+      logPerformance('createTask (failed)', duration, { projectId });
+      throw error;
     }
-    
-    return response.data!;
   }
 
   /**

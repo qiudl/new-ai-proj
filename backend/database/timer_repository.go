@@ -358,3 +358,245 @@ func (r *PostgresTimerRepository) GetTaskTimeBreakdown(ctx context.Context, user
 
 	return breakdown, nil
 }
+
+// GetWeeklyReport gets comprehensive weekly report data for a user
+func (r *PostgresTimerRepository) GetWeeklyReport(ctx context.Context, userID int, startDate, endDate string) (*models.WeeklyReportResponse, error) {
+	// Parse date strings
+	start, err := time.Parse("2006-01-02", startDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start date format: %w", err)
+	}
+	end, err := time.Parse("2006-01-02", endDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid end date format: %w", err)
+	}
+	
+	// Get weekly stats
+	weeklyStats, err := r.getWeeklyStats(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get daily stats
+	dailyStats, err := r.getDailyStats(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get task time entries
+	taskEntries, err := r.getTaskTimeEntries(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Get project stats
+	projectStats, err := r.getProjectStats(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &models.WeeklyReportResponse{
+		WeeklyStats:     *weeklyStats,
+		DailyStats:      dailyStats,
+		TaskTimeEntries: taskEntries,
+		ProjectStats:    projectStats,
+	}, nil
+}
+
+// getWeeklyStats gets weekly statistics for a user in date range
+func (r *PostgresTimerRepository) getWeeklyStats(ctx context.Context, userID int, start, end time.Time) (*models.WeeklyStatsData, error) {
+	query := `
+		SELECT 
+			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
+			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
+			COUNT(DISTINCT t.id) as total_tasks
+		FROM task_time_logs ttl
+		JOIN tasks t ON ttl.task_id = t.id
+		WHERE ttl.user_id = $1 
+		AND ttl.start_time >= $2 
+		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'`
+	
+	var totalSeconds, completedTasks, totalTasks int
+	row := r.getExecer().QueryRowContext(ctx, query, userID, start, end)
+	err := row.Scan(&totalSeconds, &completedTasks, &totalTasks)
+	if err != nil {
+		return nil, err
+	}
+	
+	totalHours := float64(totalSeconds) / 3600.0
+	efficiency := float64(0)
+	if totalTasks > 0 {
+		efficiency = (float64(completedTasks) / float64(totalTasks)) * 100
+	}
+	
+	return &models.WeeklyStatsData{
+		TotalHours:     totalHours,
+		CompletedTasks: completedTasks,
+		TotalTasks:     totalTasks,
+		Efficiency:     efficiency,
+		WeekStart:      start.Format("2006-01-02"),
+		WeekEnd:        end.Format("2006-01-02"),
+	}, nil
+}
+
+// getDailyStats gets daily statistics for a user in date range
+func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int, start, end time.Time) ([]models.DailyStatsData, error) {
+	query := `
+		SELECT 
+			DATE(ttl.start_time) as date,
+			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
+			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
+			MAX(t.title) as top_task
+		FROM task_time_logs ttl
+		JOIN tasks t ON ttl.task_id = t.id
+		WHERE ttl.user_id = $1 
+		AND ttl.start_time >= $2 
+		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
+		GROUP BY DATE(ttl.start_time)
+		ORDER BY date`
+	
+	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var dailyStats []models.DailyStatsData
+	for rows.Next() {
+		var date time.Time
+		var totalSeconds, completedTasks int
+		var topTask string
+		
+		err := rows.Scan(&date, &totalSeconds, &completedTasks, &topTask)
+		if err != nil {
+			return nil, err
+		}
+		
+		totalHours := float64(totalSeconds) / 3600.0
+		efficiency := float64(80 + (completedTasks * 5)) // Simple efficiency calculation
+		if efficiency > 100 {
+			efficiency = 100
+		}
+		
+		dailyStats = append(dailyStats, models.DailyStatsData{
+			Date:           date.Format("2006-01-02"),
+			TotalHours:     totalHours,
+			TasksCompleted: completedTasks,
+			Efficiency:     efficiency,
+			TopTask:        topTask,
+		})
+	}
+	
+	return dailyStats, nil
+}
+
+// getTaskTimeEntries gets task time entries for a user in date range
+func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID int, start, end time.Time) ([]models.TaskTimeEntryData, error) {
+	query := `
+		SELECT 
+			ttl.id,
+			t.title as task_title,
+			p.name as project_name,
+			ttl.duration_seconds,
+			DATE(ttl.start_time) as date,
+			t.status,
+			COALESCE(t.custom_fields->>'priority', 'medium') as priority
+		FROM task_time_logs ttl
+		JOIN tasks t ON ttl.task_id = t.id
+		JOIN projects p ON t.project_id = p.id
+		WHERE ttl.user_id = $1 
+		AND ttl.start_time >= $2 
+		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
+		ORDER BY ttl.start_time DESC
+		LIMIT 50`
+	
+	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var entries []models.TaskTimeEntryData
+	for rows.Next() {
+		var id int
+		var taskTitle, projectName, status, priority string
+		var durationSeconds int
+		var date time.Time
+		
+		err := rows.Scan(&id, &taskTitle, &projectName, &durationSeconds, &date, &status, &priority)
+		if err != nil {
+			return nil, err
+		}
+		
+		duration := float64(durationSeconds) / 3600.0
+		
+		entries = append(entries, models.TaskTimeEntryData{
+			ID:          fmt.Sprintf("%d", id),
+			TaskTitle:   taskTitle,
+			ProjectName: projectName,
+			Duration:    duration,
+			Date:        date.Format("2006-01-02"),
+			Status:      status,
+			Priority:    priority,
+		})
+	}
+	
+	return entries, nil
+}
+
+// getProjectStats gets project statistics for a user in date range
+func (r *PostgresTimerRepository) getProjectStats(ctx context.Context, userID int, start, end time.Time) ([]models.ProjectStatsData, error) {
+	query := `
+		SELECT 
+			p.name as project_name,
+			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
+			COUNT(DISTINCT t.id) as tasks_count,
+			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks
+		FROM task_time_logs ttl
+		JOIN tasks t ON ttl.task_id = t.id
+		JOIN projects p ON t.project_id = p.id
+		WHERE ttl.user_id = $1 
+		AND ttl.start_time >= $2 
+		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
+		GROUP BY p.id, p.name
+		ORDER BY total_seconds DESC`
+	
+	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	colors := []string{"#1890ff", "#52c41a", "#fa8c16", "#722ed1", "#eb2f96", "#13c2c2"}
+	colorIndex := 0
+	
+	var projectStats []models.ProjectStatsData
+	for rows.Next() {
+		var projectName string
+		var totalSeconds, tasksCount, completedTasks int
+		
+		err := rows.Scan(&projectName, &totalSeconds, &tasksCount, &completedTasks)
+		if err != nil {
+			return nil, err
+		}
+		
+		totalHours := float64(totalSeconds) / 3600.0
+		completionRate := float64(0)
+		if tasksCount > 0 {
+			completionRate = (float64(completedTasks) / float64(tasksCount)) * 100
+		}
+		
+		color := colors[colorIndex%len(colors)]
+		colorIndex++
+		
+		projectStats = append(projectStats, models.ProjectStatsData{
+			ProjectName:    projectName,
+			TotalHours:     totalHours,
+			TasksCount:     tasksCount,
+			CompletionRate: completionRate,
+			Color:          color,
+		})
+	}
+	
+	return projectStats, nil
+}

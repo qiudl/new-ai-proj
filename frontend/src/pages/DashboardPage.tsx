@@ -4,11 +4,11 @@ import { Typography, Button, message, Tooltip } from 'antd';
 // import { Typography, Button, Switch } from 'antd';
 // import { UndoOutlined, DragOutlined, InteractionOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { QuestionCircleOutlined, BugOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
-// 🔽 UPDATED: 使用MVP版定时器
-import { SimplifiedTimerProvider } from '../contexts/SimplifiedTimerContext';
+// 🔽 UPDATED: 使用统一定时器系统
 import { useTimer } from '../contexts/TimerContext';
 import MVPTimerCard from '../components/MVPTimerCard';
 import MVPMyTasksTree from '../components/MVPMyTasksTree';
+import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';
 import TaskProgressCard from '../components/TaskProgressCard';
@@ -467,8 +467,7 @@ const DashboardPage: React.FC = () => {
   // Render dashboard items (simplified layout) - 已移除，直接在JSX中定义布局
 
   return (
-    <SimplifiedTimerProvider>
-      <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+    <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -622,7 +621,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 第3列：我的任务 */}
+        {/* 第3列：我的任务 - 增强版层级任务树 */}
         <div className="column-3" style={{ 
           background: 'transparent',
           display: 'flex',
@@ -635,7 +634,13 @@ const DashboardPage: React.FC = () => {
             width: '100%', // 确保与父容器宽度一致
             minHeight: '400px' // 设置最小高度，确保有足够显示空间
           }}>
-            <MVPMyTasksTree />
+            <TimerErrorBoundary>
+              <EnhancedHierarchicalTaskTree 
+                height="100%" 
+                showProjectInfo={true}
+                compactMode={false}
+              />
+            </TimerErrorBoundary>
           </div>
         </div>
       </div>
@@ -654,7 +659,6 @@ const DashboardPage: React.FC = () => {
         onClose={() => setShowDebug(false)}
       />
       </div>
-    </SimplifiedTimerProvider>
   );
 };
 

@@ -74,54 +74,61 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     try {
       console.log('Fetching task info for taskId:', taskId);
       
-      // 使用正确的API路径获取任务信息
-      const response = await api.get(`tasks?limit=1000`);
-      const tasks = response?.data?.data || response?.data || [];
-      console.log('Tasks API response:', { total: tasks.length, tasks: tasks.slice(0, 3) });
-      
-      const task = tasks.find((t: any) => t.id === taskId);
-      
-      if (task && task.project_id) {
-        console.log('Found task info:', task);
-        setTaskDetailInfo({
-          id: task.id,
-          project_id: task.project_id,
-          title: task.title
-        });
-      } else {
-        console.warn('Task not found in tasks list. TaskId:', taskId, 'Available task IDs:', tasks.map((t: any) => t.id));
+      // 首先尝试从所有项目中查找该任务
+      try {
+        // 获取所有项目
+        const projectsResponse = await api.get('projects');
+        const projects = projectsResponse?.data?.data || projectsResponse?.data || [];
         
-        // 如果没有找到任务，尝试从TimerService的方法获取
-        try {
-          const availableTasks = await api.get('tasks?status=todo,in_progress&limit=200');
-          const timerTasks = availableTasks?.data?.data || availableTasks?.data || [];
-          const timerTask = timerTasks.find((t: any) => t.id === taskId);
-          
-          if (timerTask && timerTask.project_id) {
-            console.log('Found task in timer tasks:', timerTask);
-            setTaskDetailInfo({
-              id: timerTask.id,
-              project_id: timerTask.project_id,
-              title: timerTask.title
-            });
-          } else {
-            console.warn('Task not found in any source. TaskId:', taskId);
-            // 设置一个基本的任务信息，避免UI错误
-            setTaskDetailInfo({
-              id: taskId,
-              project_id: 0, // 默认项目ID
-              title: timerState.taskTitle || '未知任务'
-            });
+        if (projects.length === 0) {
+          throw new Error('No projects found');
+        }
+        
+        // 在所有项目中查找任务
+        let foundTask = null;
+        for (const project of projects) {
+          try {
+            const tasksResponse = await api.get(`projects/${project.id}/tasks`);
+            const tasks = tasksResponse?.data?.data || tasksResponse?.data || [];
+            const task = tasks.find((t: any) => t.id === taskId);
+            
+            if (task) {
+              foundTask = {
+                ...task,
+                project_id: project.id // 确保项目ID正确
+              };
+              break;
+            }
+          } catch (projectError) {
+            // 继续查找其他项目
+            console.warn(`Failed to fetch tasks for project ${project.id}:`, projectError);
           }
-        } catch (fallbackError) {
-          console.error('Fallback task fetch failed:', fallbackError);
-          // 设置基本任务信息
+        }
+        
+        if (foundTask) {
+          console.log('Found task info:', foundTask);
+          setTaskDetailInfo({
+            id: foundTask.id,
+            project_id: foundTask.project_id,
+            title: foundTask.title
+          });
+        } else {
+          console.warn('Task not found in any project. TaskId:', taskId);
+          // 设置一个基本的任务信息，避免UI错误
           setTaskDetailInfo({
             id: taskId,
-            project_id: 0,
+            project_id: 0, // 默认项目ID，表示未知项目
             title: timerState.taskTitle || '未知任务'
           });
         }
+      } catch (searchError) {
+        console.error('Failed to search for task across projects:', searchError);
+        // 设置基本任务信息
+        setTaskDetailInfo({
+          id: taskId,
+          project_id: 0,
+          title: timerState.taskTitle || '未知任务'
+        });
       }
     } catch (error) {
       console.error('Failed to fetch task info:', error);

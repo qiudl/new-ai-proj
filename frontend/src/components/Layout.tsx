@@ -137,7 +137,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/document-manager') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs')) {
+    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
       return ['/system-management'];
     }
     return [];
@@ -252,6 +252,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/audit-logs',
           icon: <AuditOutlined />,
           label: '审计日志',
+        },
+        {
+          key: '/navigation-management',
+          icon: <MenuUnfoldOutlined />,
+          label: '导航管理',
         },
       ],
     },

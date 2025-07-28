@@ -2,7 +2,7 @@ import axios from 'axios';
 import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorHandling';
 
 // API Base Configuration  
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api/v1';
+const API_BASE_URL = '/api/v1';
 
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;

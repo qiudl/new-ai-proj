@@ -57,7 +57,7 @@ import { projectService } from '../services/projectService';
 import companyService from '../services/companyService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
 import { useTimer } from '../contexts/TimerContext';
-import { SimplifiedTimerProvider } from '../contexts/SimplifiedTimerContext';
+// 🎯 移除：不再需要SimplifiedTimerProvider，使用统一定时器系统
 import DocumentList from '../components/DocumentList';
 import ProjectTaskList from '../components/ProjectTaskList';
 import EnhancedProjectTaskManager from '../components/EnhancedProjectTaskManager';
@@ -129,12 +129,10 @@ const ProjectDetailPage: React.FC = () => {
         </span>
       ),
       children: project ? (
-        <SimplifiedTimerProvider>
-          <EnhancedProjectTaskManager 
-            projectId={project.id} 
-            projectName={project.name}
-          />
-        </SimplifiedTimerProvider>
+        <EnhancedProjectTaskManager 
+          projectId={project.id} 
+          projectName={project.name}
+        />
       ) : null
     },
     {

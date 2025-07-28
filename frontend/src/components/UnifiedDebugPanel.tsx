@@ -41,7 +41,9 @@ const UnifiedDebugPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState('timer');
   
   // Timer debug state
-  const { timerState, isLoading, connectionStatus } = useTimer();
+  const { timerState, isLoading, connectionStatus, getDebugInfo, mode, setMode } = useTimer();
+  const [timerDebugInfo, setTimerDebugInfo] = useState<any>(null);
+  const [timerHistory, setTimerHistory] = useState<any[]>([]);
   
   // JWT debug state
   const [jwtStatus, setJwtStatus] = useState<any>(null);
@@ -50,11 +52,33 @@ const UnifiedDebugPanel: React.FC = () => {
   const [testResult, setTestResult] = useState<any>(null);
   const [jwtLoading, setJwtLoading] = useState(false);
 
-  // 刷新JWT状态
+  // 刷新状态
   const refreshJWTStatus = () => {
     const status = jwtDebugger.checkJWTStatus();
     setJwtStatus(status);
     setDebugHistory(jwtDebugger.getDebugHistory());
+  };
+
+  // 刷新定时器调试信息
+  const refreshTimerDebug = () => {
+    if (getDebugInfo) {
+      const debugInfo = getDebugInfo();
+      setTimerDebugInfo(debugInfo);
+      
+      // 添加到历史记录
+      const historyEntry = {
+        timestamp: new Date().toISOString(),
+        state: { ...timerState },
+        debugInfo: debugInfo,
+        connectionStatus
+      };
+      
+      setTimerHistory(prev => {
+        const newHistory = [...prev, historyEntry];
+        // 只保留最近20条记录
+        return newHistory.slice(-20);
+      });
+    }
   };
 
   // 测试JWT
@@ -81,11 +105,21 @@ const UnifiedDebugPanel: React.FC = () => {
     const timerReport = `
 === 定时器调试信息 ===
 运行状态: ${timerState.isRunning ? '运行中' : '已停止'}
+暂停状态: ${timerState.isPaused ? '已暂停' : '正常'}
+工作模式: ${mode === 'full' ? '完整模式' : '简化模式'}
 任务ID: ${timerState.taskId || '无'}
 任务标题: ${timerState.taskTitle || '无'}
-计时时间: ${timerState.formattedTime}
+计时时间: ${timerState.formattedTime} (${timerState.elapsedSeconds}秒)
+开始时间: ${timerState.startTime ? new Date(timerState.startTime).toLocaleString() : '无'}
 加载状态: ${isLoading ? '加载中' : '空闲'}
 连接状态: ${connectionStatus}
+${timerDebugInfo ? `
+=== 高级调试信息 ===
+LocalStorage: ${timerDebugInfo.hasLocalStorage ? '正常' : '异常'}
+定时器间隔: ${timerDebugInfo.intervalId ? '活跃' : '未设置'}
+上次同步: ${timerDebugInfo.lastSync ? new Date(timerDebugInfo.lastSync).toLocaleString() : '无'}
+错误计数: ${timerDebugInfo.errorCount || 0}
+` : ''}
     `;
     
     const fullReport = `${timerReport}\n${jwtReport}`;
@@ -118,8 +152,16 @@ const UnifiedDebugPanel: React.FC = () => {
   useEffect(() => {
     if (visible) {
       refreshJWTStatus();
+      refreshTimerDebug();
     }
   }, [visible]);
+
+  // 监听定时器状态变化，自动刷新调试信息
+  useEffect(() => {
+    if (visible && activeTab === 'timer') {
+      refreshTimerDebug();
+    }
+  }, [timerState, connectionStatus, isLoading, visible, activeTab]);
 
   // 只在开发环境显示
   if (process.env.NODE_ENV !== 'development') {
@@ -147,12 +189,19 @@ const UnifiedDebugPanel: React.FC = () => {
   // 定时器调试内容
   const renderTimerDebug = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
+      {/* 基本状态信息 */}
       <Card size="small" title={<Space><ClockCircleOutlined />定时器状态</Space>}>
         <Descriptions size="small" column={2}>
           <Descriptions.Item label="运行状态">
             <Badge 
               status={timerState.isRunning ? 'processing' : 'default'} 
               text={timerState.isRunning ? '运行中' : '已停止'}
+            />
+          </Descriptions.Item>
+          <Descriptions.Item label="暂停状态">
+            <Badge 
+              status={timerState.isPaused ? 'warning' : 'default'} 
+              text={timerState.isPaused ? '已暂停' : '正常'}
             />
           </Descriptions.Item>
           <Descriptions.Item label="连接状态">
@@ -164,23 +213,34 @@ const UnifiedDebugPanel: React.FC = () => {
               text={connectionStatus}
             />
           </Descriptions.Item>
+          <Descriptions.Item label="工作模式">
+            <Tag color={mode === 'full' ? 'blue' : 'green'}>{mode === 'full' ? '完整模式' : '简化模式'}</Tag>
+          </Descriptions.Item>
           <Descriptions.Item label="任务ID">
             {timerState.taskId || '无'}
           </Descriptions.Item>
           <Descriptions.Item label="加载状态">
-            {isLoading ? '加载中' : '空闲'}
+            <Badge status={isLoading ? 'processing' : 'success'} text={isLoading ? '加载中' : '空闲'} />
           </Descriptions.Item>
           <Descriptions.Item label="计时时间" span={2}>
-            <Text strong style={{ fontFamily: 'monospace' }}>
+            <Text strong style={{ fontFamily: 'monospace', fontSize: '16px' }}>
               {timerState.formattedTime}
             </Text>
+            <Text type="secondary" style={{ marginLeft: 8 }}>({timerState.elapsedSeconds}秒)</Text>
           </Descriptions.Item>
         </Descriptions>
         
         {timerState.taskTitle && (
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 16, padding: 8, background: '#f6f8fa', borderRadius: 4 }}>
             <Text strong>当前任务: </Text>
             <Text>{timerState.taskTitle}</Text>
+          </div>
+        )}
+
+        {timerState.startTime && (
+          <div style={{ marginTop: 8 }}>
+            <Text strong>开始时间: </Text>
+            <Text>{new Date(timerState.startTime).toLocaleString()}</Text>
           </div>
         )}
 
@@ -193,6 +253,304 @@ const UnifiedDebugPanel: React.FC = () => {
             style={{ marginTop: 16 }}
           />
         )}
+      </Card>
+
+      {/* 高级调试信息 */}
+      {timerDebugInfo && (
+        <Card size="small" title={<Space><BugOutlined />高级调试信息</Space>}>
+          <Descriptions size="small" column={2}>
+            <Descriptions.Item label="LocalStorage状态">
+              <Badge status={timerDebugInfo.hasLocalStorage ? 'success' : 'error'} 
+                     text={timerDebugInfo.hasLocalStorage ? '正常' : '异常'} />
+            </Descriptions.Item>
+            <Descriptions.Item label="定时器间隔">
+              {timerDebugInfo.intervalId ? '活跃' : '未设置'}
+            </Descriptions.Item>
+            <Descriptions.Item label="上次同步">
+              {timerDebugInfo.lastSync ? new Date(timerDebugInfo.lastSync).toLocaleTimeString() : '无'}
+            </Descriptions.Item>
+            <Descriptions.Item label="错误计数">
+              <Badge count={timerDebugInfo.errorCount || 0} showZero color="red" />
+            </Descriptions.Item>
+          </Descriptions>
+          
+          {timerDebugInfo.errors && timerDebugInfo.errors.length > 0 && (
+            <Alert
+              message="发现错误"
+              description={
+                <ul style={{ margin: 0, paddingLeft: 20 }}>
+                  {timerDebugInfo.errors.map((error: string, index: number) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              }
+              type="error"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+
+          {timerDebugInfo.localStorageSync && (
+            <div style={{ marginTop: 16, padding: 8, background: '#f0f2f5', borderRadius: 4 }}>
+              <Text strong>LocalStorage同步状态:</Text>
+              <br />
+              <Text style={{ fontSize: '12px' }}>
+                有效性: {timerDebugInfo.localStorageSync.isValid ? '✅ 有效' : '❌ 过期'} | 
+                上次同步: {timerDebugInfo.localStorageSync.lastSync ? 
+                  new Date(timerDebugInfo.localStorageSync.lastSync).toLocaleTimeString() : '无'}
+              </Text>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* 性能监控 */}
+      {timerDebugInfo && timerState.isRunning && (
+        <Card size="small" title={<Space><CheckCircleOutlined />性能监控</Space>}>
+          <Descriptions size="small" column={2}>
+            <Descriptions.Item label="运行时长">
+              {timerDebugInfo.uptime ? Math.floor(timerDebugInfo.uptime / 1000) + '秒' : '0秒'}
+            </Descriptions.Item>
+            <Descriptions.Item label="内存状态">
+              <Badge status="success" text="正常" />
+            </Descriptions.Item>
+            <Descriptions.Item label="更新频率">
+              1秒/次
+            </Descriptions.Item>
+            <Descriptions.Item label="组件状态">
+              <Badge status={timerDebugInfo.isMounted ? 'success' : 'error'} 
+                     text={timerDebugInfo.isMounted ? '已挂载' : '未挂载'} />
+            </Descriptions.Item>
+          </Descriptions>
+          
+          {timerDebugInfo.uptime > 3600000 && ( // 1小时
+            <Alert
+              message="长时间运行提醒"
+              description="定时器已运行超过1小时，建议适当休息"
+              type="warning"
+              showIcon
+              style={{ marginTop: 16 }}
+            />
+          )}
+        </Card>
+      )}
+
+      {/* 控制面板 */}
+      <Card size="small" title={<Space><ApiOutlined />调试操作</Space>}>
+        <Space wrap>
+          <Button 
+            type="primary" 
+            icon={<ReloadOutlined />} 
+            onClick={refreshTimerDebug}
+            size="small"
+          >
+            刷新调试信息
+          </Button>
+          <Button 
+            icon={<ClockCircleOutlined />} 
+            onClick={() => setMode(mode === 'full' ? 'simplified' : 'full')}
+            size="small"
+          >
+            切换到{mode === 'full' ? '简化' : '完整'}模式
+          </Button>
+          <Button 
+            danger 
+            onClick={() => {
+              localStorage.removeItem('globalTimerState');
+              message.success('定时器状态已清除');
+              refreshTimerDebug();
+            }}
+            size="small"
+          >
+            清除本地状态
+          </Button>
+          <Button 
+            icon={<ExclamationCircleOutlined />}
+            onClick={() => {
+              const debugInfo = getDebugInfo ? getDebugInfo() : {};
+              Modal.info({
+                title: '实时调试信息',
+                width: 600,
+                content: (
+                  <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+                    <pre style={{ fontSize: '11px', background: '#f5f5f5', padding: '8px', borderRadius: '4px' }}>
+                      {JSON.stringify(debugInfo, null, 2)}
+                    </pre>
+                  </div>
+                )
+              });
+            }}
+            size="small"
+          >
+            查看原始数据
+          </Button>
+        </Space>
+      </Card>
+
+      {/* 快速测试 */}
+      <Card size="small" title={<Space><CheckCircleOutlined />快速测试</Space>}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <Text strong>连通性测试：</Text>
+          <Space wrap>
+            <Button 
+              size="small"
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/timer/current', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  });
+                  if (response.ok) {
+                    message.success('API连接正常');
+                  } else {
+                    message.error(`API响应错误: ${response.status}`);
+                  }
+                } catch (error) {
+                  message.error('API连接失败');
+                }
+              }}
+            >
+              测试API连接
+            </Button>
+            <Button 
+              size="small"
+              onClick={() => {
+                try {
+                  localStorage.setItem('timer_test', 'test');
+                  localStorage.removeItem('timer_test');
+                  message.success('LocalStorage正常');
+                } catch (error) {
+                  message.error('LocalStorage访问失败');
+                }
+              }}
+            >
+              测试本地存储
+            </Button>
+            <Button 
+              size="small"
+              onClick={() => {
+                if ('Notification' in window) {
+                  if (Notification.permission === 'granted') {
+                    new Notification('定时器调试', { body: '通知功能正常' });
+                    message.success('通知功能正常');
+                  } else {
+                    Notification.requestPermission().then(permission => {
+                      if (permission === 'granted') {
+                        new Notification('定时器调试', { body: '通知权限已获取' });
+                        message.success('通知权限已获取');
+                      } else {
+                        message.warning('通知权限被拒绝');
+                      }
+                    });
+                  }
+                } else {
+                  message.error('浏览器不支持通知');
+                }
+              }}
+            >
+              测试通知
+            </Button>
+          </Space>
+        </Space>
+      </Card>
+
+      {/* 状态历史 */}
+      {timerHistory.length > 0 && (
+        <Card 
+          size="small" 
+          title={<Space><EyeOutlined />状态历史 ({timerHistory.length}条)</Space>}
+          extra={
+            <Button 
+              size="small" 
+              onClick={() => setTimerHistory([])}
+              type="text"
+            >
+              清空历史
+            </Button>
+          }
+        >
+          <Timeline size="small">
+            {timerHistory.slice(-5).reverse().map((history, index) => (
+              <Timeline.Item
+                key={index}
+                color={history.state.isRunning ? 'green' : 'gray'}
+                dot={history.state.isRunning ? <ClockCircleOutlined /> : <CloseCircleOutlined />}
+              >
+                <div>
+                  <Space>
+                    <Text strong>
+                      {history.state.isRunning ? '运行中' : '已停止'}
+                      {history.state.isPaused && ' (暂停)'}
+                    </Text>
+                    <Badge 
+                      status={history.connectionStatus === 'connected' ? 'success' : 'error'} 
+                      text={history.connectionStatus} 
+                    />
+                  </Space>
+                  <br />
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {new Date(history.timestamp).toLocaleString()}
+                  </Text>
+                  <br />
+                  <Text style={{ fontSize: '12px' }}>
+                    任务: {history.state.taskTitle || '无'} | 时长: {history.state.formattedTime}
+                  </Text>
+                  {history.debugInfo?.errorCount > 0 && (
+                    <>
+                      <br />
+                      <Text type="danger" style={{ fontSize: '11px' }}>
+                        {history.debugInfo.errorCount} 个错误
+                      </Text>
+                    </>
+                  )}
+                </div>
+              </Timeline.Item>
+            ))}
+          </Timeline>
+          
+          {timerHistory.length > 5 && (
+            <div style={{ textAlign: 'center', marginTop: 8 }}>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                显示最近5条记录，共{timerHistory.length}条
+              </Text>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* 实时监控 */}
+      <Card size="small" title={<Space><ReloadOutlined />实时监控</Space>}>
+        <Space direction="vertical" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text>自动刷新:</Text>
+            <Space>
+              <Button 
+                size="small" 
+                type={visible && activeTab === 'timer' ? 'primary' : 'default'}
+                onClick={() => {
+                  // 触发定期刷新
+                  const interval = setInterval(() => {
+                    if (visible && activeTab === 'timer') {
+                      refreshTimerDebug();
+                    } else {
+                      clearInterval(interval);
+                    }
+                  }, 5000); // 每5秒刷新一次
+                }}
+              >
+                启动监控
+              </Button>
+              <Text style={{ fontSize: '12px', color: '#666' }}>
+                每5秒更新一次
+              </Text>
+            </Space>
+          </div>
+          
+          <div style={{ fontSize: '12px', color: '#666', textAlign: 'center' }}>
+            最后更新: {new Date().toLocaleTimeString()}
+          </div>
+        </Space>
       </Card>
     </Space>
   );
@@ -386,8 +744,15 @@ const UnifiedDebugPanel: React.FC = () => {
         onCancel={() => setVisible(false)}
         width={900}
         footer={[
-          <Button key="refresh" icon={<ReloadOutlined />} onClick={refreshJWTStatus}>
-            刷新
+          <Button 
+            key="refresh" 
+            icon={<ReloadOutlined />} 
+            onClick={() => {
+              refreshJWTStatus();
+              refreshTimerDebug();
+            }}
+          >
+            刷新全部
           </Button>,
           <Button key="copy" icon={<EyeOutlined />} onClick={copyDebugReport}>
             复制报告

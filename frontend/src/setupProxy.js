@@ -21,6 +21,7 @@ module.exports = function(app) {
       agent: false,
       // Additional options for development
       logLevel: process.env.NODE_ENV === 'development' ? 'info' : 'warn',
+      // No pathRewrite - keep the original path
     })
   );
 };
