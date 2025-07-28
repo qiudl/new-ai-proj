@@ -7,7 +7,6 @@ import { QuestionCircleOutlined, BugOutlined, ClockCircleOutlined, EyeOutlined, 
 // 🔽 UPDATED: 使用统一定时器系统
 import { useTimer } from '../contexts/TimerContext';
 import MVPTimerCard from '../components/MVPTimerCard';
-import MVPMyTasksTree from '../components/MVPMyTasksTree';
 import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerStatsCard from '../components/TimerStatsCard';
 import TodayStatsCard from '../components/TodayStatsCard';

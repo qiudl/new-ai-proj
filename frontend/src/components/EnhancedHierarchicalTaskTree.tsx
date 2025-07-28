@@ -69,8 +69,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   showProjectInfo = true,
   compactMode = false
 }) => {
-  console.log('🔧 EnhancedHierarchicalTaskTree 组件开始加载');
-  
   const [loading, setLoading] = useState(true);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
@@ -79,8 +77,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   const navigate = useNavigate();
   
   const { timerState, startTimer, pauseTimer, resumeTimer } = useTimer();
-  
-  console.log('🔧 定时器状态:', timerState);
 
   // 获取任务状态颜色
   const getStatusColor = (status: string): string => {
@@ -212,19 +208,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             )}
             
             {/* 计时器状态 */}
-            {(() => {
-              const isInProgress = task.status === 'in_progress';
-              const shouldShowTimerControls = isInProgress;
-              console.log(`🔧 任务 ${task.title} 计时器显示条件:`, {
-                status: task.status,
-                isInProgress,
-                isCurrentTimer,
-                timerIsRunning: timerState.isRunning,
-                timerIsPaused: timerState.isPaused,
-                shouldShowTimerControls
-              });
-              return shouldShowTimerControls;
-            })() && (
+            {task.status === 'in_progress' && (
               <>
                 {isCurrentTimer && timerState.isRunning ? (
                   <Tooltip title="暂停计时">
@@ -235,7 +219,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
-                        console.log('🔧 暂停按钮被点击了!', task.title);
                         e.stopPropagation();
                         pauseTimer();
                       }}
@@ -250,7 +233,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
-                        console.log('🔧 继续按钮被点击了!', task.title);
                         e.stopPropagation();
                         resumeTimer();
                       }}
@@ -265,7 +247,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
                         cursor: 'pointer'
                       }}
                       onClick={(e) => {
-                        console.log('🔧 开始计时按钮被点击了!', task.title);
                         e.stopPropagation();
                         handleStartTimer(task);
                       }}
@@ -453,8 +434,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
 
   // 启动计时器
   const handleStartTimer = useCallback(async (task: Task) => {
-    console.log('🎯 检测到任务计时器启动', { taskId: task.id, taskTitle: task.title });
-    
     try {
       const success = await startTimer(task.id, task.title);
       if (success) {

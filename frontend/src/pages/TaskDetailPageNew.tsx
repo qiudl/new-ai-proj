@@ -723,12 +723,12 @@ const TaskDetailPageNew: React.FC = () => {
               </div>
 
               <Space>
-                <Button type="primary" icon={<EditOutlined />} onClick={handleEditTask}>
-                  编辑
-                </Button>
-                <Button danger icon={<DeleteOutlined />} onClick={handleDeleteTask}>
-                  删除
-                </Button>
+                <Tooltip title="编辑任务">
+                  <Button type="primary" icon={<EditOutlined />} onClick={handleEditTask} />
+                </Tooltip>
+                <Tooltip title="删除任务">
+                  <Button danger icon={<DeleteOutlined />} onClick={handleDeleteTask} />
+                </Tooltip>
               </Space>
             </div>
           </Card>

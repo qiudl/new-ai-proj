@@ -274,16 +274,12 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       return;
     }
 
+    // 如果已经有项目信息，直接跳转
     if (taskDetailInfo && taskDetailInfo.project_id && taskDetailInfo.project_id > 0) {
-      // 有project_id，使用项目任务页面路由
-      console.log('Navigating to project task detail:', taskDetailInfo);
-      navigate(`/projects/${taskDetailInfo.project_id}`, { 
-        state: { highlightTaskId: timerState.taskId }
-      });
+      navigate(`/projects/${taskDetailInfo.project_id}/tasks/${timerState.taskId}`);
     } else {
-      // 没有project_id或project_id为0，跳转到全局任务页面
-      console.log('Navigating to global tasks page with highlight:', timerState.taskId);
-      message.info('正在跳转到任务管理页面...');
+      // 如果没有项目信息，跳转到任务列表页
+      message.info('正在跳转到任务详情页...');
       navigate(`/tasks?highlight=${timerState.taskId}`);
     }
   }, [timerState.taskId, taskDetailInfo, navigate]);

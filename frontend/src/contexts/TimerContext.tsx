@@ -50,8 +50,6 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   mode = 'full', // 🎯 默认为完整模式
   onTimerUpdate 
 }) => {
-  console.log('🔧 TimerProvider 组件开始渲染');
-  
   // 状态管理 - 修复组件挂载问题
   const [timerState, setTimerState] = useState<TimerState>(() => {
     // 初始化时使用默认状态，避免复杂计算
@@ -149,29 +147,20 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
 
   // 从服务器加载当前定时器状态
   const refreshTimer = useCallback(async () => {
-    console.log('🔧 refreshTimer 开始执行');
-    
-    if (!isMountedRef.current) {
-      console.log('🔧 组件已卸载，跳过刷新');
-      return;
-    }
+    if (!isMountedRef.current) return;
     
     try {
       setConnectionStatus('checking');
-      console.log('🔧 调用 TimerService.getCurrentTimer');
       const response = await TimerService.getCurrentTimer();
-      console.log('🔧 getCurrentTimer 响应:', response);
       
       if (!isMountedRef.current) return;
       
-      console.log('🔧 调用 updateTimerFromResponse');
       updateTimerFromResponse(response);
       setConnectionStatus('connected');
-      console.log('🔧 refreshTimer 完成');
     } catch (error) {
       if (!isMountedRef.current) return;
       
-      console.error('🔧 refreshTimer 失败:', error);
+      console.error('Failed to refresh timer:', error);
       setConnectionStatus('disconnected');
       
       // 尝试从localStorage恢复
@@ -273,42 +262,29 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
 
   // 启动定时器
   const startTimer = useCallback(async (taskId: number, taskTitle: string): Promise<boolean> => {
-    console.log('🔧 TimerContext.startTimer 开始执行', { taskId, taskTitle, isLoading });
-    
-    if (isLoading) {
-      console.log('🔧 定时器正在加载中，跳过启动');
-      return false;
-    }
+    if (isLoading) return false;
     
     setIsLoading(true);
     try {
-      console.log('🔧 调用 TimerService.startTimer');
       const response = await TimerService.startTimer(taskId);
-      console.log('🔧 TimerService.startTimer 响应:', response);
       
-      if (!isMountedRef.current) {
-        console.log('🔧 组件已卸载，停止执行');
-        return false;
-      }
+      if (!isMountedRef.current) return false;
       
       message.success(`开始计时: ${response.task_title}`);
       
       // 立即刷新状态
-      console.log('🔧 调用 refreshTimer 刷新状态');
       await refreshTimer();
-      console.log('🔧 refreshTimer 完成，当前状态:', timerState);
       
       return true;
     } catch (error) {
       if (!isMountedRef.current) return false;
       
-      console.error('🔧 startTimer 失败:', error);
+      console.error('Failed to start timer:', error);
       message.error('启动定时器失败');
       return false;
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
-        console.log('🔧 startTimer 执行完成');
       }
     }
   }, [isLoading, refreshTimer]);
@@ -589,11 +565,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
 
   // 组件挂载状态管理 - 确保只在真正卸载时才设置为false
   useEffect(() => {
-    console.log('🔧 TimerContext 组件挂载');
     isMountedRef.current = true;
     
     return () => {
-      console.log('🔧 TimerContext 组件被卸载！');
       isMountedRef.current = false;
       stopLocalTimer();
       if (refreshIntervalRef.current) {
