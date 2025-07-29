@@ -306,24 +306,37 @@ const AIConfigPage: React.FC = () => {
         maxTokens: Math.min(values.maxTokens || 150, 150) // 限制测试用token
       };
       
-      console.log(`开始真实测试${AI_PROVIDER_INFO[provider].name}连接...`);
-      // const response = await realAITestService.testConnection(testRequest);
-      const response = { success: false, message: 'AI test service not available' };
+      console.log(`开始测试${AI_PROVIDER_INFO[provider].name}连接...`);
       
+      // 使用已有的aiConfigDatabaseService进行测试
+      const response = await aiConfigDatabaseService.testConnection({
+        provider,
+        apiKey: testRequest.apiKey,
+        model: testRequest.model,
+        baseURL: testRequest.baseURL
+      });
+      
+      // 处理API响应格式
+      const testResult = response.success ? response.data : {
+        success: false,
+        message: response.message || '测试失败',
+        responseTime: 0
+      };
+
       setTestResults(prev => ({
         ...prev,
         [provider]: { 
           testing: false, 
-          result: response
+          result: testResult
         }
       }));
 
-      if (response.success) {
+      if (testResult.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
-        console.log(`测试对话结果:`, (response as any).conversation);
+        console.log(`测试结果:`, testResult);
       } else {
-        message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${response.message}`);
-        console.error(`测试错误:`, (response as any).error);
+        message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${testResult.message}`);
+        console.error(`测试错误:`, testResult);
       }
     } catch (error) {
       console.error('测试连接失败:', error);

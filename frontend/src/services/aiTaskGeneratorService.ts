@@ -28,6 +28,29 @@ class AITaskGeneratorService {
   }
 
   /**
+   * 解析AI配置数据为数组格式
+   */
+  private parseConfigData(data: any): any[] {
+    if (Array.isArray(data)) {
+      return data;
+    } else if (typeof data === 'object' && data !== null) {
+      // 如果是对象，检查是否有 data 或 configs 属性
+      if (Array.isArray(data.data)) {
+        return data.data;
+      } else if (Array.isArray(data.configs)) {
+        return data.configs;
+      } else {
+        // 尝试将对象的值转换为数组
+        const values = Object.values(data);
+        if (values.length > 0 && values.every(v => typeof v === 'object' && v !== null)) {
+          return values;
+        }
+      }
+    }
+    return [];
+  }
+
+  /**
    * 初始化服务
    */
   private async initializeService(): Promise<void> {
@@ -46,11 +69,25 @@ class AITaskGeneratorService {
       const configs = await aiConfigDatabaseService.getConfigs();
       
       if (!configs.success || !configs.data) {
+        console.warn('AI配置获取失败或数据为空:', configs);
         return [];
       }
 
-      return configs.data
-        .filter(config => config.enabled && config.apiKeyMasked)
+      // 打印实际的数据结构以便调试
+      console.log('AI配置数据结构:', configs.data);
+
+      // 解析配置数据
+      const configArray = this.parseConfigData(configs.data);
+      
+      if (configArray.length === 0) {
+        console.error('AI配置数据格式错误，无法解析为配置数组:', configs.data);
+        return [];
+      }
+
+      console.log('解析后的配置数组:', configArray);
+
+      return configArray
+        .filter(config => config && config.enabled && config.apiKeyMasked)
         .map(config => config.provider);
     } catch (error) {
       console.error('获取可用AI提供商失败:', error);
@@ -68,8 +105,9 @@ class AITaskGeneratorService {
       try {
         const startTime = Date.now();
         const configs = await aiConfigDatabaseService.getConfigs();
-        const config = configs.success && configs.data ? 
-          configs.data.find(c => c.provider === provider) : null;
+        const configArray = configs.success && configs.data ? 
+          this.parseConfigData(configs.data) : [];
+        const config = configArray.find(c => c.provider === provider) || null;
 
         if (config) {
           const providerInstance = this.createProviderInstance(provider, config);
@@ -109,7 +147,8 @@ class AITaskGeneratorService {
       const status = this.serviceStatus.get(preferredProvider);
       if (status?.available) {
         const configs = await aiConfigDatabaseService.getConfigs();
-        const config = configs.data?.find(c => c.provider === preferredProvider);
+        const configArray = configs.data ? this.parseConfigData(configs.data) : [];
+        const config = configArray.find(c => c.provider === preferredProvider) || null;
         if (config) {
           return {
             provider: preferredProvider,
@@ -128,7 +167,8 @@ class AITaskGeneratorService {
       const status = this.serviceStatus.get(provider);
       if (status?.available) {
         const configs = await aiConfigDatabaseService.getConfigs();
-        const config = configs.data?.find(c => c.provider === provider);
+        const configArray = configs.data ? this.parseConfigData(configs.data) : [];
+        const config = configArray.find(c => c.provider === provider) || null;
         if (config) {
           return {
             provider,

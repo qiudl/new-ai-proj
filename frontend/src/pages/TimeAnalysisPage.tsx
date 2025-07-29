@@ -242,7 +242,7 @@ const TimeAnalysisPage: React.FC = () => {
   const calculateProjectStats = async (tasks: Task[]) => {
     try {
       // 获取项目信息
-      const response = await fetch('/api/projects?page=1&page_size=100', {
+      const response = await fetch('/api/v1/projects?page=1&page_size=100', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       const projectsData = await response.json();

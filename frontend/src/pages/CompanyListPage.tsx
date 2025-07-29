@@ -35,7 +35,7 @@ import {
   EnvironmentOutlined,
   DollarOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+// import type { ColumnsType } from 'antd/es/table'; // 暂时注释掉未使用的导入
 import { Company, CompanyFilter, PaginationParams } from '../types/company';
 import companyService from '../services/companyService';
 import { formatCurrency, formatDate, getStatusColor, getPriorityColor } from '../utils/formatters';
@@ -46,6 +46,96 @@ const { Option } = Select;
 const { Title, Text } = Typography;
 
 type ViewMode = 'list' | 'card';
+
+// 默认列配置 - 移出组件避免重复创建
+const defaultColumns: ColumnConfig[] = [
+  {
+    key: 'companyName',
+    title: '企业名称',
+    visible: true,
+    required: true,
+    description: '企业的名称和基本信息',
+    width: 200
+  },
+  {
+    key: 'industry',
+    title: '行业',
+    visible: true,
+    description: '企业所属行业领域',
+    width: 100
+  },
+  {
+    key: 'contact',
+    title: '联系方式',
+    visible: true,
+    description: '企业的联系电话和邮箱',
+    width: 150
+  },
+  {
+    key: 'status',
+    title: '状态',
+    visible: true,
+    description: '企业当前的状态',
+    width: 100
+  },
+  {
+    key: 'priority',
+    title: '优先级',
+    visible: true,
+    description: '企业的优先级等级',
+    width: 100
+  },
+  {
+    key: 'scale',
+    title: '规模',
+    visible: true,
+    description: '企业的规模和员工数量',
+    width: 120
+  },
+  {
+    key: 'address',
+    title: '地址',
+    visible: false,
+    description: '企业的所在地址',
+    width: 150
+  },
+  {
+    key: 'annualContractValue',
+    title: '年度合同金额',
+    visible: true,
+    description: '企业年度合同金额',
+    width: 120
+  },
+  {
+    key: 'totalContractValue',
+    title: '总合同金额',
+    visible: false,
+    description: '企业总合同金额',
+    width: 120
+  },
+  {
+    key: 'createdAt',
+    title: '创建时间',
+    visible: true,
+    description: '企业在系统中的创建时间',
+    width: 120
+  },
+  {
+    key: 'updatedAt',
+    title: '更新时间',
+    visible: false,
+    description: '企业信息最后更新时间',
+    width: 120
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    visible: true,
+    required: true,
+    description: '查看、编辑、删除操作',
+    width: 150
+  }
+];
 
 const CompanyListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -86,7 +176,7 @@ const CompanyListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.current, pagination.pageSize, filters]);
+  }, [pagination.current, pagination.pageSize, filters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadCompanies();
@@ -99,25 +189,25 @@ const CompanyListPage: React.FC = () => {
   };
 
   // Handle filter change
-  const handleFilterChange = (key: keyof CompanyFilter, value: string) => {
+  const handleFilterChange = useCallback((key: keyof CompanyFilter, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPagination(prev => ({ ...prev, current: 1 }));
-  };
+  }, []);
 
   // Clear filters
-  const handleClearFilters = () => {
+  const handleClearFilters = useCallback(() => {
     setFilters({});
     setPagination(prev => ({ ...prev, current: 1 }));
-  };
+  }, []);
 
   // Handle pagination change
-  const handleTableChange = (page: number, pageSize?: number) => {
+  const handleTableChange = useCallback((page: number, pageSize?: number) => {
     setPagination(prev => ({
       ...prev,
       current: page,
       pageSize: pageSize || prev.pageSize,
     }));
-  };
+  }, []);
 
   // Handle delete company
   const handleDelete = async (id: number, name: string) => {
@@ -140,105 +230,35 @@ const CompanyListPage: React.FC = () => {
     });
   };
 
-  // 默认列配置
-  const defaultColumns: ColumnConfig[] = [
-    {
-      key: 'companyName',
-      title: '企业名称',
-      visible: true,
-      required: true,
-      description: '企业的名称和基本信息',
-      width: 200
-    },
-    {
-      key: 'industry',
-      title: '行业',
-      visible: true,
-      description: '企业所属行业领域',
-      width: 100
-    },
-    {
-      key: 'contact',
-      title: '联系方式',
-      visible: true,
-      description: '企业的联系电话和邮箱',
-      width: 150
-    },
-    {
-      key: 'status',
-      title: '状态',
-      visible: true,
-      description: '企业当前的状态',
-      width: 100
-    },
-    {
-      key: 'priority',
-      title: '优先级',
-      visible: true,
-      description: '企业的优先级等级',
-      width: 100
-    },
-    {
-      key: 'scale',
-      title: '规模',
-      visible: true,
-      description: '企业的规模和员工数量',
-      width: 120
-    },
-    {
-      key: 'address',
-      title: '地址',
-      visible: false,
-      description: '企业的所在地址',
-      width: 150
-    },
-    {
-      key: 'annualContractValue',
-      title: '年度合同金额',
-      visible: true,
-      description: '企业年度合同金额',
-      width: 120
-    },
-    {
-      key: 'totalContractValue',
-      title: '总合同金额',
-      visible: false,
-      description: '企业总合同金额',
-      width: 120
-    },
-    {
-      key: 'createdAt',
-      title: '创建时间',
-      visible: true,
-      description: '企业在系统中的创建时间',
-      width: 120
-    },
-    {
-      key: 'updatedAt',
-      title: '更新时间',
-      visible: false,
-      description: '企业信息最后更新时间',
-      width: 120
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      visible: true,
-      required: true,
-      description: '查看、编辑、删除操作',
-      width: 150
-    }
-  ];
-
   // 初始化列配置
   useEffect(() => {
     setColumnConfig(defaultColumns);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 处理列配置变更
-  const handleColumnConfigChange = (newColumns: ColumnConfig[]) => {
+  const handleColumnConfigChange = useCallback((newColumns: ColumnConfig[]) => {
     setColumnConfig(newColumns);
-  };
+  }, []);
+
+  // 处理状态过滤器变更
+  const handleStatusFilterChange = useCallback((value: string) => {
+    handleFilterChange('status', value);
+  }, [handleFilterChange]);
+
+  // 处理优先级过滤器变更
+  const handlePriorityFilterChange = useCallback((value: string) => {
+    handleFilterChange('priority', value);
+  }, [handleFilterChange]);
+
+  // 处理行业过滤器变更
+  const handleIndustryFilterChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilterChange('industry', e.target.value);
+  }, [handleFilterChange]);
+
+  // 处理视图模式变更
+  const handleViewModeChange = useCallback((e: any) => {
+    setViewMode(e.target.value);
+  }, []);
 
   // 获取排序后的企业数据
   const getSortedCompanies = () => {
@@ -677,7 +697,7 @@ const CompanyListPage: React.FC = () => {
                 placeholder="状态"
                 allowClear
                 style={{ width: 120 }}
-                onChange={(value) => handleFilterChange('status', value)}
+                onChange={handleStatusFilterChange}
                 value={filters.status}
               >
                 {companyService.getStatusOptions().map(option => (
@@ -692,7 +712,7 @@ const CompanyListPage: React.FC = () => {
                 placeholder="优先级"
                 allowClear
                 style={{ width: 120 }}
-                onChange={(value) => handleFilterChange('priority', value)}
+                onChange={handlePriorityFilterChange}
                 value={filters.priority}
               >
                 {companyService.getPriorityOptions().map(option => (
@@ -707,7 +727,7 @@ const CompanyListPage: React.FC = () => {
                 placeholder="行业"
                 allowClear
                 style={{ width: 120 }}
-                onChange={(e) => handleFilterChange('industry', e.target.value)}
+                onChange={handleIndustryFilterChange}
                 value={filters.industry}
               />
             </Col>
@@ -747,7 +767,7 @@ const CompanyListPage: React.FC = () => {
                 <span style={{ color: '#8c8c8c' }}>视图模式:</span>
                 <Radio.Group 
                   value={viewMode} 
-                  onChange={(e) => setViewMode(e.target.value)}
+                  onChange={handleViewModeChange}
                   buttonStyle="solid"
                   size="small"
                 >

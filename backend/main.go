@@ -58,6 +58,7 @@ type Application struct {
 	smartTemplateHandler       *handlers.SmartTemplateHandler
 	collaborationHandler       *handlers.DocumentCollaborationHandler
 	statisticsHandler          *handlers.StatisticsHandlers
+	auditHandler               *handlers.AuditHandler
 }
 
 // NewApplication creates a new application instance
@@ -124,7 +125,7 @@ func NewApplication() (*Application, error) {
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
 	
 	// 创建文档服务和任务文档服务
-	taskDocumentService := services.NewTaskDocumentService(db.GetDB(), nil) // 使用nil DocumentService进行MVP演示
+	taskDocumentService := services.NewTaskDocumentService(db.GetDB().(*sql.DB), nil) // 使用nil DocumentService进行MVP演示
 	
 	// 创建统一文档处理器
 	unifiedTaskDocumentHandler := handlers.NewUnifiedTaskDocumentHandler(taskDocumentService)
@@ -139,15 +140,18 @@ func NewApplication() (*Application, error) {
 	)
 	
 	// 创建智能模板服务和处理器
-	smartTemplateService := services.NewSmartTemplateService(db.GetDB())
+	smartTemplateService := services.NewSmartTemplateService(db.GetDB().(*sql.DB))
 	smartTemplateHandler := handlers.NewSmartTemplateHandler(smartTemplateService)
 	
 	// 创建协作服务和处理器
-	collaborationService := services.NewDocumentCollaborationService(db.GetDB())
+	collaborationService := services.NewDocumentCollaborationService(db.GetDB().(*sql.DB))
 	collaborationHandler := handlers.NewDocumentCollaborationHandler(collaborationService)
 	
 	// 统计处理器
-	statisticsHandler := handlers.NewStatisticsHandlers(db.GetDB())
+	statisticsHandler := handlers.NewStatisticsHandlers(db.GetDB().(*sql.DB))
+	
+	// 审计处理器
+	auditHandler := handlers.NewAuditHandler(db, logger, validate)
 
 	return &Application{
 		config:              cfg,
@@ -175,6 +179,7 @@ func NewApplication() (*Application, error) {
 		smartTemplateHandler:        smartTemplateHandler,
 		collaborationHandler:        collaborationHandler,
 		statisticsHandler:           statisticsHandler,
+		auditHandler:                auditHandler,
 	}, nil
 }
 
@@ -214,6 +219,17 @@ func (app *Application) setupRouter() *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 	router.Use(app.corsMiddleware())
+	
+	// 审计中间件
+	auditMiddleware := middleware.NewAuditMiddleware(&middleware.AuditConfig{
+		DB:                 app.db,
+		LogRequestBody:     true,
+		LogResponseBody:    false, // 避免敏感数据泄露
+		MaxBodySize:        1024 * 1024, // 1MB
+		ExcludePaths:       []string{"/health", "/version", "/metrics"},
+		ExcludeMethods:     []string{"OPTIONS"},
+	})
+	router.Use(auditMiddleware.Middleware())
 
 	// Health check endpoint
 	router.GET("/health", app.healthHandler)
@@ -247,7 +263,9 @@ func (app *Application) setupRouter() *gin.Engine {
 			authorized.POST("/tasks/:id/postpone", app.postponeTodayTaskHandler)
 			
 			// Statistics routes
-			authorized.GET("/statistics/today-stats", app.statisticsHandler.HandleTodayStats)
+			authorized.GET("/statistics/today-stats", func(c *gin.Context) {
+				app.statisticsHandler.HandleTodayStats(c.Writer, c.Request)
+			})
 			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
@@ -629,11 +647,15 @@ func (app *Application) setupRouter() *gin.Engine {
 			taskDocuments.GET("/stats", app.unifiedTaskDocumentHandler.GetTaskDocumentStats)
 		}
 		
-		// 迁移管理路由（系统管理员专用）
-		migration := system.Group("/task-documents/migration")
+		// 系统管理路由
+		system := authorized.Group("/system")
 		{
-			migration.GET("/status", app.upgradedTaskDocumentHandler.GetMigrationStatus)
-			migration.POST("/switch", app.upgradedTaskDocumentHandler.SwitchToUnifiedSystem)
+			// 迁移管理路由（系统管理员专用）
+			migration := system.Group("/task-documents/migration")
+			{
+				migration.GET("/status", app.upgradedTaskDocumentHandler.GetMigrationStatus)
+				migration.POST("/switch", app.upgradedTaskDocumentHandler.SwitchToUnifiedSystem)
+			}
 		}
 	}
 

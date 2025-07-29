@@ -199,12 +199,40 @@ const TaskDashboardPage: React.FC = () => {
     async () => {
       try {
         setLoading(true);
+        console.log('🔄 开始获取所有任务数据...');
+        
+        // 检查认证状态
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('❌ 未找到认证token，用户未登录');
+          message.error('请先登录');
+          throw new Error('未登录');
+        }
+        
         const tasks = await DashboardService.getAllTasks();
-        console.log('获取到的所有任务:', tasks);
+        console.log('✅ 获取到的所有任务:', tasks, '总数:', tasks?.length || 0);
+        
+        if (!tasks || tasks.length === 0) {
+          console.warn('⚠️ 未获取到任务数据，可能是没有任务或API返回空数组');
+        }
+        
         return tasks || [];
       } catch (error) {
-        console.error('获取任务数据失败:', error);
-        message.error('获取任务数据失败');
+        console.error('❌ 获取任务数据失败:', error);
+        
+        // 更详细的错误处理
+        if (error instanceof Error) {
+          if (error.message.includes('401') || error.message.includes('未登录')) {
+            message.error('认证失败，请重新登录');
+          } else if (error.message.includes('网络')) {
+            message.error('网络连接失败，请检查网络');
+          } else {
+            message.error(`获取任务数据失败: ${error.message}`);
+          }
+        } else {
+          message.error('获取任务数据失败');
+        }
+        
         return [];
       } finally {
         setLoading(false);
@@ -215,14 +243,31 @@ const TaskDashboardPage: React.FC = () => {
 
   // 筛选本周任务
   const weeklyTasks = useMemo(() => {
-    if (!allTasks) return [];
+    if (!allTasks) {
+      console.log('🔍 筛选本周任务: allTasks为空');
+      return [];
+    }
 
-    return allTasks.filter((task: Task) => {
-      if (!task.due_date && !task.created_at) return false;
+    console.log('🔍 筛选本周任务: 总任务数', allTasks.length);
+    console.log('🔍 本周范围:', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
+
+    const filteredTasks = allTasks.filter((task: Task) => {
+      if (!task.due_date && !task.created_at) {
+        console.log('  🔍 任务无日期:', task.title);
+        return false;
+      }
       
       const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
-      return taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
+      const isInWeek = taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
+      
+      console.log(`  🔍 任务 "${task.title}": ${taskDate.format('YYYY-MM-DD')} -> 在本周: ${isInWeek}`);
+      
+      return isInWeek;
     });
+
+    console.log('✅ 本周任务筛选结果:', filteredTasks.length, '个任务');
+    
+    return filteredTasks;
   }, [allTasks, weekStart, weekEnd]);
 
   // 计算每日任务分布
@@ -413,6 +458,65 @@ const TaskDashboardPage: React.FC = () => {
         <Spin size="large" tip="加载任务数据...">
           <div style={{ height: '200px', width: '100%' }} />
         </Spin>
+      </div>
+    );
+  }
+
+  // 显示错误状态
+  if (tasksError) {
+    return (
+      <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+        <Card>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <Space direction="vertical">
+                <Text type="danger">
+                  <ExclamationCircleOutlined /> 数据加载失败
+                </Text>
+                <Text type="secondary">
+                  {tasksError?.toString() || '未知错误'}
+                </Text>
+                <Space>
+                  <Button type="primary" onClick={refreshAllData} loading={isDataLoading}>
+                    重新加载
+                  </Button>
+                  <Button onClick={() => window.location.href = '/login'}>
+                    返回登录
+                  </Button>
+                </Space>
+              </Space>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  // 显示数据为空的状态
+  if (!allTasks || allTasks.length === 0) {
+    return (
+      <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+        <Card>
+          <Empty
+            description={
+              <Space direction="vertical">
+                <Text>暂无任务数据</Text>
+                <Text type="secondary">
+                  系统中还没有任务，或者您没有权限查看任务
+                </Text>
+                <Space>
+                  <Button type="primary" onClick={refreshAllData} loading={isDataLoading}>
+                    刷新数据
+                  </Button>
+                  <Button onClick={() => navigate('/projects')}>
+                    查看项目
+                  </Button>
+                </Space>
+              </Space>
+            }
+          />
+        </Card>
       </div>
     );
   }

@@ -123,7 +123,8 @@ func (s *StringArray) scanFromBytes(data []byte) error {
 type AuditLog struct {
 	ID           int64     `json:"id" db:"id"`
 	EventID      string    `json:"event_id" db:"event_id"`
-	Timestamp    time.Time `json:"timestamp" db:"timestamp"`
+	Timestamp    time.Time `json:"timestamp,omitempty" db:"timestamp"`
+	CreatedAt    time.Time `json:"created_at" db:"timestamp"` // 前端兼容字段
 	
 	// User information
 	UserID    *int   `json:"user_id" db:"user_id"`
@@ -133,8 +134,10 @@ type AuditLog struct {
 	
 	// Operation information
 	Action       string `json:"action" db:"action"`
-	ResourceType string `json:"resource_type" db:"resource_type"`
-	ResourceID   string `json:"resource_id" db:"resource_id"`
+	ResourceType string `json:"resource_type,omitempty" db:"resource_type"`
+	EntityType   string `json:"entity_type" db:"resource_type"` // 前端兼容字段
+	ResourceID   string `json:"resource_id,omitempty" db:"resource_id"`
+	EntityID     string `json:"entity_id" db:"resource_id"` // 前端兼容字段（注意：前端期望number但后端是string）
 	ResourceName string `json:"resource_name" db:"resource_name"`
 	
 	// Request information
@@ -147,6 +150,7 @@ type AuditLog struct {
 	Description string `json:"description" db:"description"`
 	BeforeData  JSONB  `json:"before_data" db:"before_data"`
 	AfterData   JSONB  `json:"after_data" db:"after_data"`
+	EntityData  JSONB  `json:"entity_data" db:"after_data"` // 前端兼容字段，映射到after_data
 	Changes     JSONB  `json:"changes" db:"changes"`
 	
 	// Status information

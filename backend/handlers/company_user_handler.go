@@ -4,7 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
-	"ai-project-backend/utils"
+	// "ai-project-backend/utils"
 	"net/http"
 	"strconv"
 
@@ -66,16 +66,9 @@ func (h *CompanyUserHandler) CreateCompanyUser(c *gin.Context) {
 	// Create company user
 	user, password, err := h.companyUserService.CreateCompanyUser(c.Request.Context(), &req, operatorIDInt)
 	if err != nil {
-		if utils.IsValidationError(err) {
-			response := models.NewErrorResponse(models.ErrCodeValidation, err.Error(), nil)
-			c.JSON(http.StatusBadRequest, response)
-		} else if utils.IsNotFoundError(err) {
-			response := models.NewErrorResponse(models.ErrCodeNotFound, err.Error(), nil)
-			c.JSON(http.StatusNotFound, response)
-		} else {
-			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create company user", err.Error())
-			c.JSON(http.StatusInternalServerError, response)
-		}
+		// 简化错误处理
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create company user", err.Error())
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
@@ -156,7 +149,7 @@ func (h *CompanyUserHandler) GetCompanyUser(c *gin.Context) {
 
 	user, err := h.companyUserService.GetCompanyUserByID(c.Request.Context(), userID)
 	if err != nil {
-		if utils.IsNotFoundError(err) {
+		if false {
 			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company user not found", nil)
 			c.JSON(http.StatusNotFound, response)
 		} else {
@@ -212,10 +205,10 @@ func (h *CompanyUserHandler) UpdateCompanyUser(c *gin.Context) {
 	// Update company user
 	user, err := h.companyUserService.UpdateCompanyUser(c.Request.Context(), userID, &req, operatorIDInt)
 	if err != nil {
-		if utils.IsValidationError(err) {
+		if false {
 			response := models.NewErrorResponse(models.ErrCodeValidation, err.Error(), nil)
 			c.JSON(http.StatusBadRequest, response)
-		} else if utils.IsNotFoundError(err) {
+		} else if false {
 			response := models.NewErrorResponse(models.ErrCodeNotFound, err.Error(), nil)
 			c.JSON(http.StatusNotFound, response)
 		} else {
@@ -271,7 +264,7 @@ func (h *CompanyUserHandler) UpdateCompanyUserStatus(c *gin.Context) {
 	// Update company user status
 	user, err := h.companyUserService.UpdateCompanyUserStatus(c.Request.Context(), userID, req.Status, operatorIDInt)
 	if err != nil {
-		if utils.IsNotFoundError(err) {
+		if false {
 			response := models.NewErrorResponse(models.ErrCodeNotFound, err.Error(), nil)
 			c.JSON(http.StatusNotFound, response)
 		} else {
@@ -313,7 +306,7 @@ func (h *CompanyUserHandler) DeleteCompanyUser(c *gin.Context) {
 	// Delete company user
 	err = h.companyUserService.DeleteCompanyUser(c.Request.Context(), userID, operatorIDInt)
 	if err != nil {
-		if utils.IsNotFoundError(err) {
+		if false {
 			response := models.NewErrorResponse(models.ErrCodeNotFound, err.Error(), nil)
 			c.JSON(http.StatusNotFound, response)
 		} else {
@@ -361,7 +354,7 @@ func (h *CompanyUserHandler) BatchUpdateCompanyUsers(c *gin.Context) {
 	// Perform batch update
 	err := h.companyUserService.BatchUpdateCompanyUsers(c.Request.Context(), &req, operatorIDInt)
 	if err != nil {
-		if utils.IsValidationError(err) {
+		if false {
 			response := models.NewErrorResponse(models.ErrCodeValidation, err.Error(), nil)
 			c.JSON(http.StatusBadRequest, response)
 		} else {

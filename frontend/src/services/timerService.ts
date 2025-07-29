@@ -104,6 +104,40 @@ class TimerService {
     }
   }
 
+  // Get weekly report with real daily statistics
+  static async getWeeklyReport(startDate: string, endDate: string): Promise<any> {
+    try {
+      const response = await api.get(`/timer/weekly?start_date=${startDate}&end_date=${endDate}`);
+      
+      // Handle API response format: {success: true, data: {...}}
+      let data: any;
+      if (response && typeof response === 'object' && 'data' in response) {
+        data = response.data;
+      } else {
+        data = response;
+      }
+      
+      return data;
+      
+    } catch (error) {
+      console.error('Failed to get weekly report:', error);
+      // Return safe defaults on error
+      return {
+        weekly_stats: {
+          total_time_seconds: 0,
+          total_formatted_time: '00:00:00',
+          average_daily_seconds: 0,
+          average_daily_formatted: '00:00:00',
+          total_tasks: 0,
+          active_days: 0
+        },
+        daily_stats: [],
+        task_time_entries: [],
+        project_stats: []
+      };
+    }
+  }
+
   // Get available tasks for timer selection from all accessible projects
   static async getAvailableTasks(): Promise<TaskOption[]> {
     try {

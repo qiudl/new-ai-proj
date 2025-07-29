@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Drawer, Checkbox, Button, Space, Typography, Divider, List, Tooltip, Switch } from 'antd';
 import { SettingOutlined, DragOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
@@ -91,26 +91,29 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
       } catch (error) {
         console.warn('Failed to load column configuration:', error);
       }
+    } else {
+      // 如果没有保存的配置，使用默认配置
+      setLocalColumns(columns);
     }
-  }, [columns, onChange, storageKey]);
+  }, [columns, storageKey]); // 移除onChange依赖
 
   // 保存配置到localStorage
-  const saveConfiguration = (newColumns: ColumnConfig[]) => {
+  const saveConfiguration = useCallback((newColumns: ColumnConfig[]) => {
     localStorage.setItem(storageKey, JSON.stringify(newColumns));
     setLocalColumns(newColumns);
     onChange(newColumns);
-  };
+  }, [storageKey, onChange]);
 
   // 处理列可见性切换
-  const handleColumnToggle = (key: string, visible: boolean) => {
+  const handleColumnToggle = useCallback((key: string, visible: boolean) => {
     const newColumns = localColumns.map(col =>
       col.key === key ? { ...col, visible } : col
     );
     saveConfiguration(newColumns);
-  };
+  }, [localColumns, saveConfiguration]);
 
   // 处理拖拽排序
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
 
     const items = Array.from(localColumns);
@@ -118,21 +121,21 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
     items.splice(result.destination.index, 0, reorderedItem);
 
     saveConfiguration(items);
-  };
+  }, [localColumns, saveConfiguration]);
 
   // 重置为默认配置
-  const handleReset = () => {
+  const handleReset = useCallback(() => {
     const defaultColumns = columns.map(col => ({ ...col, visible: true }));
     saveConfiguration(defaultColumns);
-  };
+  }, [columns, saveConfiguration]);
 
   // 全部显示/隐藏
-  const handleToggleAll = (showAll: boolean) => {
+  const handleToggleAll = useCallback((showAll: boolean) => {
     const newColumns = localColumns.map(col => 
       col.required ? col : { ...col, visible: showAll }
     );
     saveConfiguration(newColumns);
-  };
+  }, [localColumns, saveConfiguration]);
 
   const visibleCount = localColumns.filter(col => col.visible).length;
   const totalCount = localColumns.length;

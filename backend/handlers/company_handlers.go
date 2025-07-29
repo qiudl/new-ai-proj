@@ -150,7 +150,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 		StartDate:            req.StartDate,
 		EmployeeCount:        req.EmployeeCount,
 		CompanySize:          req.CompanySize,
-		CreatedBy:            1, // TODO: Get from authenticated user context
+		CreatedBy:            intPtr(1), // TODO: Get from authenticated user context
 	}
 
 	// Create company in database
@@ -1035,4 +1035,9 @@ func (h *CompanyHandler) extractValidationErrors(err error) map[string]string {
 	}
 
 	return errors
+}
+
+// intPtr returns a pointer to the given int value
+func intPtr(i int) *int {
+	return &i
 }

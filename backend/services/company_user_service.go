@@ -3,12 +3,12 @@ package services
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
-	"ai-project-backend/utils"
+	// "ai-project-backend/utils"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"strings"
+	// "strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"

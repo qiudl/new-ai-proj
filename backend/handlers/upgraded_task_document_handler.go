@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"database/sql"
-	"context"
+	// "database/sql"
+	// "context" // 临时注释掉未使用的import
 	
 	"github.com/gin-gonic/gin"
+	"ai-project-backend/models"
 	"ai-project-backend/services" // 替换为实际项目路径
 )
 
@@ -54,14 +55,14 @@ func (h *UpgradedTaskDocumentHandler) GetTaskDocument(c *gin.Context) {
 	
 	// 使用传统文件系统，但尝试自动迁移
 	projectID := c.Param("id")
-	taskID := c.Param("taskId")
+	taskID := c.Param("taskID")
 	
 	// 验证参数
 	if _, err := strconv.Atoi(projectID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
 		return
 	}
-	if _, err := strconv.Atoi(taskId); err != nil {
+	if _, err := strconv.Atoi(taskID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
@@ -89,14 +90,14 @@ func (h *UpgradedTaskDocumentHandler) SaveTaskDocument(c *gin.Context) {
 	
 	// 使用传统文件系统，但尝试自动迁移
 	projectID := c.Param("id")
-	taskID := c.Param("taskId")
+	taskID := c.Param("taskID")
 	
 	// 验证参数
 	if _, err := strconv.Atoi(projectID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
 		return
 	}
-	if _, err := strconv.Atoi(taskId); err != nil {
+	if _, err := strconv.Atoi(taskID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
 		return
 	}
@@ -122,14 +123,14 @@ func (h *UpgradedTaskDocumentHandler) CheckTaskDocument(c *gin.Context) {
 	
 	// 检查文件系统和新系统
 	projectID := c.Param("id")
-	taskID := c.Param("taskId")
+	taskID := c.Param("taskID")
 	
 	// 验证参数
 	if _, err := strconv.Atoi(projectID); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
-	if _, err := strconv.Atoi(taskId); err != nil {
+	if _, err := strconv.Atoi(taskID); err != nil {
 		c.Status(http.StatusBadRequest)
 		return
 	}
@@ -137,9 +138,9 @@ func (h *UpgradedTaskDocumentHandler) CheckTaskDocument(c *gin.Context) {
 	// 先检查新系统
 	if h.taskDocService != nil {
 		projID, _ := strconv.Atoi(projectID)
-		taskIdInt, _ := strconv.Atoi(taskID)
+		taskIDInt, _ := strconv.Atoi(taskID)
 		
-		if exists, err := h.taskDocService.CheckTaskDocumentExists(c.Request.Context(), projID, taskIdInt); err == nil && exists {
+		if exists, err := h.taskDocService.CheckTaskDocumentExists(c.Request.Context(), projID, taskIDInt); err == nil && exists {
 			c.Status(http.StatusOK)
 			return
 		}
@@ -170,10 +171,10 @@ func (h *UpgradedTaskDocumentHandler) tryAutoMigration(c *gin.Context, projectID
 	}
 	
 	projID, _ := strconv.Atoi(projectID)
-	taskIdInt, _ := strconv.Atoi(taskID)
+	taskIDInt, _ := strconv.Atoi(taskID)
 	
 	// 检查新系统中是否已存在
-	exists, err := h.taskDocService.CheckTaskDocumentExists(c.Request.Context(), projID, taskIdInt)
+	exists, err := h.taskDocService.CheckTaskDocumentExists(c.Request.Context(), projID, taskIDInt)
 	if err != nil {
 		return false, err
 	}
@@ -201,7 +202,7 @@ func (h *UpgradedTaskDocumentHandler) tryAutoMigration(c *gin.Context, projectID
 		Content: stringPtr(string(content)),
 	}
 	
-	_, err = h.taskDocService.CreateOrUpdateTaskDocument(c.Request.Context(), projID, taskIdInt, updateRequest, userID)
+	_, err = h.taskDocService.CreateOrUpdateTaskDocument(c.Request.Context(), projID, taskIDInt, updateRequest, userID)
 	if err != nil {
 		return false, err
 	}
@@ -217,7 +218,7 @@ func (h *UpgradedTaskDocumentHandler) tryAutoMigrationWithSave(c *gin.Context, p
 	}
 	
 	projID, _ := strconv.Atoi(projectID)
-	taskIdInt, _ := strconv.Atoi(taskID)
+	taskIDInt, _ := strconv.Atoi(taskID)
 	
 	// 解析请求内容
 	var request DocumentRequest
@@ -236,7 +237,7 @@ func (h *UpgradedTaskDocumentHandler) tryAutoMigrationWithSave(c *gin.Context, p
 		Content: &request.Content,
 	}
 	
-	document, err := h.taskDocService.CreateOrUpdateTaskDocument(c.Request.Context(), projID, taskIdInt, updateRequest, userID)
+	document, err := h.taskDocService.CreateOrUpdateTaskDocument(c.Request.Context(), projID, taskIDInt, updateRequest, userID)
 	if err != nil {
 		return false, err
 	}
@@ -371,16 +372,9 @@ func (h *UpgradedTaskDocumentHandler) generateDefaultTemplate(taskID string) str
 }
 
 // stringPtr 返回字符串指针
-func stringPtr(s string) *string {
-	return &s
-}
+// stringPtr 在 simple_document_folder_handler.go 中已定义
+// func stringPtr(s string) *string {
+//     return &s
+// }
 
-// DocumentRequest 文档请求结构 (兼容)
-type DocumentRequest struct {
-	Content string `json:"content"`
-}
-
-// DocumentResponse 文档响应结构 (兼容)
-type DocumentResponse struct {
-	Content string `json:"content"`
-}
+// 注意：DocumentRequest 和 DocumentResponse 在 task_document_handler.go 中已定义

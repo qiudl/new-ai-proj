@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Statistic, Row, Col, Button, DatePicker, Space, message, Spin, Typography, Table } from 'antd';
 import { DownloadOutlined, BarChartOutlined, ClockCircleOutlined, TrophyOutlined } from '@ant-design/icons';
 import TimerService from '../services/timerService';
@@ -29,42 +29,74 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
   ]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
 
+  // ✅ 修复说明：该组件已修改为使用真实的API数据而非Mock数据
+  // 现在调用 /api/v1/timer/weekly 接口获取真实的每日计时统计
+
   // Load timer statistics
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await TimerService.getTimerStats();
-      setStats(response);
+      // 使用真实的周报API获取数据
+      const [startDate, endDate] = dateRange;
+      const weeklyReport = await TimerService.getWeeklyReport(
+        startDate.format('YYYY-MM-DD'),
+        endDate.format('YYYY-MM-DD')
+      );
       
-      // Generate daily stats from the response (mock data for demonstration)
-      generateDailyStats(response);
+      // 设置基础统计
+      setStats({
+        today_total_seconds: weeklyReport.weekly_stats?.total_time_seconds || 0,
+        today_formatted_time: weeklyReport.weekly_stats?.total_formatted_time || '00:00:00',
+        completed_tasks_today: weeklyReport.weekly_stats?.total_tasks || 0,
+        in_progress_tasks: 0,
+        recent_tasks: [],
+        task_time_breakdown: weeklyReport.task_time_entries || []
+      });
+      
+      // 使用真实的每日统计数据
+      generateDailyStatsFromAPI(weeklyReport);
     } catch (error) {
       console.error('Failed to load timer stats:', error);
       message.error('加载计时统计失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateRange]);
 
-  // Generate daily statistics for the chart
-  const generateDailyStats = (statsData: TimerStatsResponse) => {
+  // Generate daily statistics from real API data
+  const generateDailyStatsFromAPI = (weeklyReport: any) => {
     const days: DailyStats[] = [];
     const [startDate, endDate] = dateRange;
     
+    // 创建日期映射，用于快速查找API返回的数据
+    const apiDailyStats = weeklyReport.daily_stats || [];
+    const dailyDataMap = new Map();
+    
+    apiDailyStats.forEach((dayData: any) => {
+      dailyDataMap.set(dayData.date, dayData);
+    });
+    
+    // 为日期范围内的每一天生成数据
     for (let i = 0; i <= endDate.diff(startDate, 'day'); i++) {
       const currentDate = startDate.add(i, 'day');
       const dateString = currentDate.format('YYYY-MM-DD');
       
-      // Mock daily data - in real implementation, this would come from the API
+      // 从API数据中获取该日的真实数据
+      const apiDayData = dailyDataMap.get(dateString);
+      
       const dayData: DailyStats = {
         date: dateString,
-        totalTime: Math.floor(Math.random() * 28800), // 0-8 hours in seconds
-        formattedTime: '',
-        taskCount: Math.floor(Math.random() * 5) + 1,
-        tasks: [`任务 ${i + 1}`, `项目 ${i % 3 + 1}`]
+        totalTime: apiDayData?.total_time_seconds || 0,
+        formattedTime: apiDayData?.formatted_time || '00:00:00',
+        taskCount: apiDayData?.task_count || 0,
+        tasks: apiDayData?.task_names || []
       };
       
-      dayData.formattedTime = TimerService.formatDuration(dayData.totalTime);
+      // 如果API没有返回格式化时间，自己格式化
+      if (!dayData.formattedTime && dayData.totalTime > 0) {
+        dayData.formattedTime = TimerService.formatDuration(dayData.totalTime);
+      }
+      
       days.push(dayData);
     }
     
@@ -120,7 +152,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
   // Load stats on component mount and when refresh trigger changes
   useEffect(() => {
     loadStats();
-  }, [refreshTrigger]);
+  }, [loadStats, refreshTrigger]);
 
   // Table columns for daily statistics
   const dailyStatsColumns = [

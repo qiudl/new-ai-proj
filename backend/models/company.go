@@ -36,7 +36,7 @@ type Company struct {
 	CompanySize          *string    `json:"company_size" db:"company_size" validate:"omitempty,oneof=startup small medium large enterprise"`
 	
 	// Metadata
-	CreatedBy            int        `json:"created_by" db:"created_by"`
+	CreatedBy            *int       `json:"created_by" db:"created_by"`
 	UpdatedBy            *int       `json:"updated_by" db:"updated_by"`
 	CreatedAt            time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt            time.Time  `json:"updated_at" db:"updated_at"`
@@ -129,7 +129,7 @@ type CompanyResponse struct {
 	CompanySize          *string    `json:"companySize"`
 	CompanySizeText      *string    `json:"companySizeText"`
 	
-	CreatedBy            int        `json:"createdBy"`
+	CreatedBy            *int       `json:"createdBy"`
 	CreatedByName        *string    `json:"createdByName,omitempty"`
 	UpdatedBy            *int       `json:"updatedBy"`
 	UpdatedByName        *string    `json:"updatedByName,omitempty"`

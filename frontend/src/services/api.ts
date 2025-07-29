@@ -128,7 +128,7 @@ api.interceptors.response.use(
 // Helper function to get user name by ID
 export const getUserName = async (userId: string): Promise<string> => {
   try {
-    const response = await fetch(`/api/users/${userId}`, {
+    const response = await fetch(`/api/v1/users/${userId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
       },

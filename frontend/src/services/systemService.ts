@@ -32,7 +32,7 @@ export interface AuditLog {
   user_id?: number;
   action: string;
   entity_type: string;
-  entity_id: number;
+  entity_id: string | number;  // 兼容后端string类型
   entity_data?: any;
   ip_address?: string;
   user_agent?: string;

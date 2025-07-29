@@ -66,13 +66,45 @@ class AIConfigDatabaseService {
    */
   async getConfigs(): Promise<APIResponse<AIConfigResponse[]>> {
     try {
-      return await request.get<AIConfigResponse[]>('/api/v1/system/ai-configs');
+      const response = await request.get<AIConfigResponse[]>('/api/v1/system/ai-configs');
+      
+      // 如果后端返回空数组或空数据，使用localStorage的模拟数据
+      if (response.success && response.data && Array.isArray(response.data) && response.data.length === 0) {
+        console.log('后端返回空配置，使用本地模拟数据');
+        
+        // 从localStorage获取模拟配置（用于演示）
+        const savedConfigs = localStorage.getItem('ai-configs-demo');
+        let configs = savedConfigs ? JSON.parse(savedConfigs) : [];
+        
+        // 如果localStorage也是空的，创建默认配置
+        if (configs.length === 0) {
+          configs = this.createDefaultConfigs();
+          localStorage.setItem('ai-configs-demo', JSON.stringify(configs));
+          console.log('创建默认AI配置:', configs);
+        }
+        
+        return {
+          success: true,
+          message: '使用本地模拟配置（后端为空）',
+          data: configs,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      return response;
     } catch (error) {
       console.warn('AI配置接口不可用，使用本地模拟数据:', error);
       
       // 从localStorage获取模拟配置（用于演示）
       const savedConfigs = localStorage.getItem('ai-configs-demo');
-      const configs = savedConfigs ? JSON.parse(savedConfigs) : [];
+      let configs = savedConfigs ? JSON.parse(savedConfigs) : [];
+      
+      // 如果localStorage也是空的，创建默认配置
+      if (configs.length === 0) {
+        configs = this.createDefaultConfigs();
+        localStorage.setItem('ai-configs-demo', JSON.stringify(configs));
+        console.log('创建默认AI配置:', configs);
+      }
       
       return {
         success: true,
@@ -469,6 +501,50 @@ class AIConfigDatabaseService {
       default:
         return false;
     }
+  }
+
+  /**
+   * 创建默认配置数据
+   */
+  private createDefaultConfigs(): AIConfigResponse[] {
+    return [
+      {
+        id: 1,
+        provider: 'deepseek',
+        apiKeyMasked: 'sk-test••••••••••••••••••••••••••••••••1234',
+        model: 'deepseek-chat',
+        baseURL: 'https://api.deepseek.com/v1',
+        temperature: 0.3,
+        maxTokens: 2000,
+        enabled: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 2,
+        provider: 'claude',
+        apiKeyMasked: 'sk-ant-test••••••••••••••••••••••••••••••••1234',
+        model: 'claude-3-haiku-20240307',
+        baseURL: 'https://api.anthropic.com/v1',
+        temperature: 0.3,
+        maxTokens: 2000,
+        enabled: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 3,
+        provider: 'openai',
+        apiKeyMasked: 'sk-test••••••••••••••••••••••••••••••••1234',
+        model: 'gpt-3.5-turbo',
+        baseURL: 'https://api.openai.com/v1',
+        temperature: 0.3,
+        maxTokens: 2000,
+        enabled: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
   }
 
   /**

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
+	// "encoding/json"
 	"net/http"
 	"strconv"
 
@@ -325,22 +325,23 @@ func (h *UnifiedTaskDocumentHandler) GetTaskDocumentStats(c *gin.Context) {
 // ====================
 
 // getUserIDFromContext 从Gin上下文获取用户ID
-func getUserIDFromContext(c *gin.Context) int {
-	if userID, exists := c.Get("user_id"); exists {
-		if uid, ok := userID.(int); ok {
-			return uid
-		}
-	}
-	
-	// 临时方案：从Header获取用户ID（实际项目中应该从JWT或session获取）
-	if userIDStr := c.GetHeader("X-User-ID"); userIDStr != "" {
-		if uid, err := strconv.Atoi(userIDStr); err == nil {
-			return uid
-		}
-	}
-	
-	return 0
-}
+// getUserIDFromContext 在 smart_template_handler.go 中已定义
+// func getUserIDFromContext(c *gin.Context) int {
+// 	if userID, exists := c.Get("user_id"); exists {
+// 		if uid, ok := userID.(int); ok {
+// 			return uid
+// 		}
+// 	}
+// 	
+// 	// 临时方案：从Header获取用户ID（实际项目中应该从JWT或session获取）
+// 	if userIDStr := c.GetHeader("X-User-ID"); userIDStr != "" {
+// 		if uid, err := strconv.Atoi(userIDStr); err == nil {
+// 			return uid
+// 		}
+// 	}
+// 	
+// 	return 0
+// }
 
 // 向后兼容的处理器映射
 
