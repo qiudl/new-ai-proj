@@ -13,8 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 配置变量
-DEPLOY_DIR="/home/deploy/new-ai-proj"
-BACKUP_DIR="/home/deploy/backups"
+DEPLOY_DIR="/opt/new-ai-proj/app"
+BACKUP_DIR="/opt/new-ai-proj/backups"
 MAX_BACKUPS=5
 COMPOSE_FILE="docker-compose.yml"
 ENV_FILE=".env.production"
