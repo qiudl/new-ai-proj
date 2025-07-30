@@ -506,6 +506,7 @@ const AuditLogPage: React.FC = () => {
         onClose={() => setFilterVisible(false)}
         open={filterVisible}
         width={400}
+        zIndex={1001}
         extra={
           <Space>
             <Button onClick={() => setTempFilters({})}>重置</Button>
@@ -619,6 +620,7 @@ const AuditLogPage: React.FC = () => {
         onClose={() => setStatsVisible(false)}
         open={statsVisible}
         width={800}
+        zIndex={1001}
       >
         {statsLoading ? (
           <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -718,6 +720,7 @@ const AuditLogPage: React.FC = () => {
           </Button>,
         ]}
         width={800}
+        zIndex={1002}
       >
         {selectedLog && (
           <Space direction="vertical" style={{ width: '100%' }} size="middle">

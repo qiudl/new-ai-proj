@@ -106,21 +106,21 @@ export interface AICompanyAnalysisResponse {
 export const AI_PROVIDER_DEFAULTS: Record<AIProvider, Partial<AIProviderConfig[AIProvider]>> = {
   openai: {
     baseURL: 'https://api.openai.com/v1',
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4.1-2025-04-14',
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 10000,
   },
   claude: {
     baseURL: 'https://api.anthropic.com/v1',
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-sonnet-4-20250514',
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 10000,
   },
   deepseek: {
     baseURL: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens: 10000,
   },
 };
 
@@ -129,9 +129,11 @@ export const AI_PROVIDER_INFO = {
     name: 'OpenAI',
     description: 'GPT系列模型，通用性强，响应快速',
     models: [
-      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (推荐)', description: '性价比高，适合大多数场景' },
-      { value: 'gpt-4', label: 'GPT-4', description: '更强大的推理能力' },
-      { value: 'gpt-4o', label: 'GPT-4o', description: '最新优化模型' },
+      { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1 (推荐)', description: '最新GPT-4.1模型，性能全面提升' },
+      { value: 'o3-2025-04-16', label: 'O3', description: '最新推理模型，极致的推理和思考能力' },
+      { value: 'gpt-4o', label: 'GPT-4o', description: '多模态优化模型' },
+      { value: 'gpt-4', label: 'GPT-4', description: '经典强大推理模型' },
+      { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', description: '性价比高，适合大多数场景' },
     ],
     pricing: '相对较高',
     speed: '快',
@@ -140,9 +142,11 @@ export const AI_PROVIDER_INFO = {
     name: 'Anthropic Claude',
     description: 'Claude系列模型，在分析和推理方面表现优秀',
     models: [
-      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (推荐)', description: '快速且经济' },
-      { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', description: '平衡性能和成本' },
-      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', description: '最强性能' },
+      { value: 'claude-sonnet-4-20250514', label: 'Claude 4 Sonnet (推荐)', description: '最新模型，平衡性能和成本' },
+      { value: 'claude-opus-4-20250514', label: 'Claude 4 Opus', description: '最强性能，极致推理能力' },
+      { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku', description: '快速且经济的上一代模型' },
+      { value: 'claude-3-sonnet-20240229', label: 'Claude 3 Sonnet', description: '上一代平衡模型' },
+      { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus', description: '上一代最强模型' },
     ],
     pricing: '中等',
     speed: '中等',

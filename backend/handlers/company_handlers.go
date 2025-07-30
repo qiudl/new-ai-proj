@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -157,6 +158,16 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 	createdCompany, err := h.db.Companies().Create(c.Request.Context(), company)
 	if err != nil {
 		h.logger.Printf("Error creating company: %v", err)
+		
+		// Check for duplicate company name constraint violation
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && 
+		   strings.Contains(err.Error(), "customers_company_name_key") {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+				"Company name already exists. Please choose a different name.", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+		
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create company", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return

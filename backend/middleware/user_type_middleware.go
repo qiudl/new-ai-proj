@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"ai-project-backend/models"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -109,8 +110,21 @@ func getRequestCompanyID(c *gin.Context) int {
 // SystemUserOnlyMiddleware 限制只有系统用户才能访问的中间件
 func SystemUserOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 调试日志
+		log.Printf("[SYSTEM_MIDDLEWARE] Checking user type access")
+		log.Printf("[SYSTEM_MIDDLEWARE] Context keys: %v", gin.H(c.Keys))
+		
 		userType, exists := c.Get("current_user_type")
+		log.Printf("[SYSTEM_MIDDLEWARE] current_user_type: %v, exists: %v", userType, exists)
+		
+		// 如果current_user_type不存在，尝试从user_type获取
+		if !exists {
+			userType, exists = c.Get("user_type")
+			log.Printf("[SYSTEM_MIDDLEWARE] fallback user_type: %v, exists: %v", userType, exists)
+		}
+		
 		if !exists || userType != "system" {
+			log.Printf("[SYSTEM_MIDDLEWARE] Access denied for user_type: %v", userType)
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"Access denied",
@@ -121,6 +135,7 @@ func SystemUserOnlyMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("[SYSTEM_MIDDLEWARE] Access granted for system user")
 		c.Next()
 	}
 }

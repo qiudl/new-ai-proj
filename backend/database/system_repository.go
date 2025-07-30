@@ -463,16 +463,18 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	// Get actions distribution
 	actionsQuery := `
 		SELECT action, COUNT(*) as count 
-		FROM audit_logs` + func() string {
-		if len(whereConditions) > 0 {
-			return " WHERE " + fmt.Sprintf("%s", whereConditions[0])
+		FROM audit_logs`
+	if len(whereConditions) > 0 {
+		whereClause := " WHERE " + whereConditions[0]
+		for i := 1; i < len(whereConditions); i++ {
+			whereClause += " AND " + whereConditions[i]
 		}
-		return ""
-	}() + `
+		actionsQuery += whereClause
+	}
+	actionsQuery += `
 		GROUP BY action 
 		ORDER BY count DESC 
-		LIMIT 10
-	`
+		LIMIT 10`
 	
 	rows, err := exec.QueryContext(ctx, actionsQuery, args...)
 	if err != nil {
@@ -497,15 +499,17 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	// Get entities distribution
 	entitiesQuery := `
 		SELECT resource_type, COUNT(*) as count 
-		FROM audit_logs` + func() string {
-		if len(whereConditions) > 0 {
-			return " WHERE " + fmt.Sprintf("%s", whereConditions[0])
+		FROM audit_logs`
+	if len(whereConditions) > 0 {
+		whereClause := " WHERE " + whereConditions[0]
+		for i := 1; i < len(whereConditions); i++ {
+			whereClause += " AND " + whereConditions[i]
 		}
-		return ""
-	}() + `
+		entitiesQuery += whereClause
+	}
+	entitiesQuery += `
 		GROUP BY resource_type 
-		ORDER BY count DESC
-	`
+		ORDER BY count DESC`
 	
 	rows, err = exec.QueryContext(ctx, entitiesQuery, args...)
 	if err != nil {
@@ -527,23 +531,19 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	}
 	stats["entities_distribution"] = entitiesDistribution
 	
-	// Get timeline data (last 7 days)
+	// Get timeline data (last 30 days to ensure we have data)
 	timelineQuery := `
 		SELECT DATE(timestamp) as date, COUNT(*) as count
 		FROM audit_logs
-		WHERE timestamp >= NOW() - INTERVAL '7 days'` + func() string {
-		if len(whereConditions) > 0 {
-			conditions := ""
-			for _, condition := range whereConditions {
-				conditions += " AND " + condition
-			}
-			return conditions
+		WHERE timestamp >= NOW() - INTERVAL '30 days'`
+	if len(whereConditions) > 0 {
+		for _, condition := range whereConditions {
+			timelineQuery += " AND " + condition
 		}
-		return ""
-	}() + `
+	}
+	timelineQuery += `
 		GROUP BY DATE(timestamp)
-		ORDER BY date DESC
-	`
+		ORDER BY date DESC`
 	
 	rows, err = exec.QueryContext(ctx, timelineQuery, args...)
 	if err != nil {
@@ -569,20 +569,16 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	usersQuery := `
 		SELECT user_name, COUNT(*) as count
 		FROM audit_logs
-		WHERE user_name IS NOT NULL AND user_name != ''` + func() string {
-		if len(whereConditions) > 0 {
-			conditions := ""
-			for _, condition := range whereConditions {
-				conditions += " AND " + condition
-			}
-			return conditions
+		WHERE user_name IS NOT NULL AND user_name != ''`
+	if len(whereConditions) > 0 {
+		for _, condition := range whereConditions {
+			usersQuery += " AND " + condition
 		}
-		return ""
-	}() + `
+	}
+	usersQuery += `
 		GROUP BY user_name
 		ORDER BY count DESC
-		LIMIT 5
-	`
+		LIMIT 5`
 	
 	rows, err = exec.QueryContext(ctx, usersQuery, args...)
 	if err != nil {

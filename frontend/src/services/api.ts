@@ -43,11 +43,26 @@ api.interceptors.response.use(
   (error) => {
     // Handle network errors
     if (!error.response) {
-      const networkError = new AppError(
-        '网络连接失败，请检查网络连接', 
-        ErrorType.NETWORK
-      );
-      return Promise.reject(networkError);
+      // 检查是否是CORS或连接问题
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        const networkError = new AppError(
+          '请求超时，请检查网络连接或稍后重试', 
+          ErrorType.NETWORK
+        );
+        return Promise.reject(networkError);
+      } else if (error.message.includes('Network Error')) {
+        const networkError = new AppError(
+          '网络连接失败，请检查网络连接', 
+          ErrorType.NETWORK
+        );
+        return Promise.reject(networkError);
+      } else {
+        const networkError = new AppError(
+          '网络请求失败，请检查服务器连接', 
+          ErrorType.NETWORK
+        );
+        return Promise.reject(networkError);
+      }
     }
 
     // Handle HTTP status errors
@@ -64,21 +79,31 @@ api.interceptors.response.use(
         );
         break;
       case 401:
+        // 改进的401错误处理
         appError = new AppError(
-          '认证失败，请重新登录',
+          '登录已过期，请重新登录',
           ErrorType.AUTHENTICATION,
           401
         );
+        
         // 清除认证数据
         localStorage.removeItem('token');
-        console.log('401错误：Token无效，清除并准备跳转到登录页');
+        console.warn('JWT Token已过期或无效，已清除本地token');
+        
+        // 显示友好提示
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+          setTimeout(() => {
+            alert('登录已过期，即将跳转到登录页面');
+          }, 100);
+        }
         
         // 使用React Router导航，避免强制页面跳转
-        if (navigateFunction) {
+        if (navigateFunction && typeof navigateFunction === 'function') {
+          const nav = navigateFunction; // 确保类型安全
           setTimeout(() => {
             console.log('使用React Router导航到登录页');
-            navigateFunction!('/login');
-          }, 100);
+            nav('/login');
+          }, 1000);
         } else {
           // 备用方案：延迟执行页面跳转
           setTimeout(() => {
@@ -86,7 +111,7 @@ api.interceptors.response.use(
               console.log('备用方案：使用window.location跳转到登录页');
               window.location.href = '/login';
             }
-          }, 1000);
+          }, 1500);
         }
         break;
       case 403:
@@ -144,6 +169,29 @@ export const getUserName = async (userId: string): Promise<string> => {
   }
 };
 
+// 检查token有效性
+export const checkTokenValidity = (): boolean => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const isExpired = Date.now() > payload.exp * 1000;
+    
+    if (isExpired) {
+      console.warn('Token已过期，将清除本地存储');
+      localStorage.removeItem('token');
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Token格式无效:', error);
+    localStorage.removeItem('token');
+    return false;
+  }
+};
+
 // Enhanced API wrapper with retry mechanism
 export const apiWithRetry = {
   get: <T>(url: string, config?: any) => withRetry(() => api.get<T>(url, config)),
@@ -160,9 +208,25 @@ export const safeApiCall = async <T>(
   errorMessage = '操作失败'
 ): Promise<T> => {
   try {
+    // 在执行API调用前检查token有效性
+    if (!checkTokenValidity()) {
+      console.warn('Token无效，跳过API调用');
+      return fallbackValue;
+    }
+    
     return await apiCall();
   } catch (error) {
-    NetworkErrorHandler.handleError(error, errorMessage);
+    // 改进错误处理，区分不同类型的错误
+    if (error instanceof AppError) {
+      if (error.type === ErrorType.AUTHENTICATION) {
+        console.warn('认证错误:', error.message);
+        // 认证错误不显示通用错误消息，因为已经处理了跳转
+      } else {
+        NetworkErrorHandler.handleError(error, errorMessage);
+      }
+    } else {
+      NetworkErrorHandler.handleError(error, errorMessage);
+    }
     return fallbackValue;
   }
 };

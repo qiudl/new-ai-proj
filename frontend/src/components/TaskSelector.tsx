@@ -15,6 +15,7 @@ import { TaskService } from '../services/taskService';
 import TimerService from '../services/timerService';
 import { TaskOption } from '../types/timer';
 import { projectService } from '../services/projectService';
+import { AppError, ErrorType } from '../utils/errorHandling';
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -88,9 +89,19 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   const [searchText, setSearchText] = useState('');
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(projectId);
+  
+  // 添加防重复调用的状态
+  const [lastFetchParams, setLastFetchParams] = useState<string>('');
 
-  // AI模式：获取项目和任务数据
+  // AI模式：获取项目和任务数据 - 添加防抖和错误重试
   const fetchAIData = useCallback(async () => {
+    // 创建参数签名用于去重
+    const currentParams = JSON.stringify({ selectedProjectId, filterTaskIds, aiMode });
+    
+    // 防止重复调用
+    if (loading || currentParams === lastFetchParams) return;
+    
+    setLastFetchParams(currentParams);
     setLoading(true);
     try {
       // 获取项目列表
@@ -164,12 +175,30 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       });
 
       setAllTasks(combinedTasks);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('获取任务数据失败:', error);
+      
+      // 改进的错误处理：区分不同类型的错误
+      if (error instanceof AppError) {
+        if (error.type === ErrorType.AUTHENTICATION || error.statusCode === 401) {
+          console.warn('认证失败，token可能已过期，用户将被重定向到登录页');
+          // 认证错误已经在api.ts中处理，这里只需要记录
+        } else if (error.type === ErrorType.NETWORK) {
+          console.error('网络连接问题:', error.message);
+          // 可以在这里显示网络错误的UI提示
+        } else {
+          console.error('其他错误:', error);
+          // 处理其他类型的错误
+        }
+      } else if (error instanceof Error) {
+        console.error('标准错误:', error.message);
+      } else {
+        console.error('未知错误:', error);
+      }
     } finally {
       setLoading(false);
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, filterTaskIds, aiMode]);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -200,8 +229,26 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
         
         setTasks(availableTasks);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading tasks:', error);
+      
+      // 改进的错误处理：区分不同类型的错误
+      if (error instanceof AppError) {
+        if (error.type === ErrorType.AUTHENTICATION) {
+          console.warn('认证失败，用户将被重定向到登录页');
+          // 认证错误已经在api.ts中处理，这里只需要清空任务列表
+        } else if (error.type === ErrorType.NETWORK) {
+          console.error('网络连接问题:', error.message);
+        } else {
+          console.error('加载任务时发生未知错误:', error);
+        }
+      } else if (error instanceof Error) {
+        console.error('标准错误:', error.message);
+      } else {
+        console.error('未知错误:', error);
+      }
+      
+      // 清空任务列表
       if (timerMode) {
         setTimerTasks([]);
       } else {
@@ -213,9 +260,24 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   };
 
   useEffect(() => {
-    loadTasks();
-  }, [projectId, filterTaskIds, timerMode, aiMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
+    let mounted = true;
+    
+    const loadData = async () => {
+      if (aiMode) {
+        await fetchAIData();
+      } else {
+        await loadTasks();
+      }
+    };
+    
+    if (mounted) {
+      loadData();
+    }
+    
+    return () => {
+      mounted = false;
+    };
+  }, [projectId, filterTaskIds, timerMode, aiMode]); // 移除fetchAIData避免循环依赖
   // AI模式：应用过滤条件
   const applyFilters = useCallback((tasks: TaskWithChildren[]): TaskWithChildren[] => {
     const {
@@ -546,7 +608,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       showSearch
       filterOption={(input, option) => {
         if (aiMode) {
-          const task = currentTasks.find(t => t.id === option?.value);
+          const task = (currentTasks as any[]).find((t: any) => t.id === option?.value);
           const searchText = input.toLowerCase();
           return (
             task?.title?.toLowerCase().includes(searchText) ||

@@ -35,9 +35,11 @@ import { AIProvider, AI_PROVIDER_INFO } from '../types/ai';
 import {
   AITaskGenerationRequest,
   GeneratedSubTask,
-  AIServiceStatus
+  AIServiceStatus,
+  BulkTaskImportRequest
 } from '../types/aiTaskGenerator';
 import aiTaskGeneratorService from '../services/aiTaskGeneratorService';
+import aiConfigService from '../services/aiConfigDatabaseService';
 import { Task } from '../types/task';
 import TaskSelector from './TaskSelector';
 import GeneratedTasksList from './GeneratedTasksList';
@@ -45,6 +47,7 @@ import AIGenerationHistory from './AIGenerationHistory';
 import AIUsageStats from './AIUsageStats';
 import TokenUsageDisplay from './TokenUsageDisplay';
 import CostAlert from './CostAlert';
+import { request } from '../utils/request';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -100,18 +103,68 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   useEffect(() => {
     const initializeAI = async () => {
       try {
-        const providers = await aiTaskGeneratorService.getAvailableProviders();
-        setAvailableProviders(providers);
+        // 获取AI配置信息
+        const configData = await request.get('/system/ai-configs');
+        console.log('AI Config API Response:', configData);
         
-        const status = aiTaskGeneratorService.getServiceStatus();
-        setServiceStatus(status);
-        
-        if (providers.length > 0) {
-          // 自动选择第一个可用的提供商
-          setSelectedProvider(providers[0]);
+        if (configData.success && configData.data && configData.data.success && configData.data.data) {
+            // 处理数据，这里是真正的配置数组
+            const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
+            console.log('处理后的配置数组:', configArray);
+            const statusMap = new Map<AIProvider, AIServiceStatus>();
+            const providers: AIProvider[] = [];
+            
+            // 处理配置数据
+            configArray.forEach((config: any) => {
+              const provider = config.provider as AIProvider;
+              
+              // 根据配置的enabled状态确定是否可用
+              const isAvailable = config.enabled === true;
+              
+              console.log(`处理提供商 ${provider}:`, {
+                enabled: config.enabled,
+                isAvailable,
+                status: config.status
+              });
+              
+              statusMap.set(provider, {
+                provider,
+                available: isAvailable,
+                lastCheck: config.updated_at ? new Date(config.updated_at) : new Date(),
+                responseTime: 0, // 配置数据中没有响应时间信息
+                errorMessage: !isAvailable ? '配置已禁用' : (config.status === 'error' ? '连接测试失败' : undefined),
+                model: config.model || 'unknown'
+              });
+              
+              if (isAvailable) {
+                providers.push(provider);
+              }
+            });
+            
+            console.log('最终可用的提供商:', providers);
+            console.log('服务状态映射:', Array.from(statusMap.entries()));
+            
+            setAvailableProviders(providers);
+            setServiceStatus(statusMap);
+            
+            if (providers.length > 0) {
+              // 自动选择第一个可用的提供商
+              setSelectedProvider(providers[0]);
+              console.log('已选择提供商:', providers[0]);
+            } else {
+              console.warn('没有找到可用的AI提供商');
+            }
+        } else {
+          console.error('初始化AI服务失败: API返回错误', configData);
+          // 设置默认状态，避免界面卡住
+          setAvailableProviders([]);
+          setServiceStatus(new Map());
         }
       } catch (error) {
         console.error('初始化AI服务失败:', error);
+        // 设置默认状态，确保界面可以正常显示
+        setAvailableProviders([]);
+        setServiceStatus(new Map());
       }
     };
 
@@ -121,16 +174,48 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   // 刷新AI服务状态
   const refreshAIStatus = useCallback(async () => {
     try {
-      await aiTaskGeneratorService.refreshProviderStatus();
-      const providers = await aiTaskGeneratorService.getAvailableProviders();
-      const status = aiTaskGeneratorService.getServiceStatus();
+      // 获取AI配置信息
+      const configData = await request.get('/system/ai-configs');
+      console.log('AI Config Refresh Response:', configData);
       
-      setAvailableProviders(providers);
-      setServiceStatus(status);
-      setLastStatusCheck(new Date());
-      
-      message.success('AI服务状态已刷新');
+      if (configData.success && configData.data && configData.data.success && configData.data.data) {
+          // 处理数据，这里是真正的配置数组
+          const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
+          const statusMap = new Map<AIProvider, AIServiceStatus>();
+          const providers: AIProvider[] = [];
+          
+          // 处理配置数据
+          configArray.forEach((config: any) => {
+            const provider = config.provider as AIProvider;
+            
+            // 根据配置的enabled状态确定是否可用
+            const isAvailable = config.enabled === true;
+            
+            statusMap.set(provider, {
+              provider,
+              available: isAvailable,
+              lastCheck: config.updated_at ? new Date(config.updated_at) : new Date(),
+              responseTime: 0, // 配置数据中没有响应时间信息
+              errorMessage: !isAvailable ? '配置已禁用' : (config.status === 'error' ? '连接测试失败' : undefined),
+              model: config.model || 'unknown'
+            });
+            
+            if (isAvailable) {
+              providers.push(provider);
+            }
+          });
+          
+          setAvailableProviders(providers);
+          setServiceStatus(statusMap);
+          setLastStatusCheck(new Date());
+          
+          message.success('AI服务状态已刷新');
+      } else {
+        console.error('刷新AI服务状态失败: API返回错误', configData);
+        message.error('刷新AI服务状态失败');
+      }
     } catch (error) {
+      console.error('刷新AI服务状态失败:', error);
       message.error('刷新AI服务状态失败');
     }
   }, []);
@@ -140,11 +225,24 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     setIsTestingConnection(prev => new Set([...prev, provider]));
     
     try {
-      const result = await aiTaskGeneratorService.testAIConnection(provider);
-      if (result) {
+      const response = await fetch('/api/v1/system/ai-configs/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          provider: provider,
+          test_text: '测试连接'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.data?.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功`);
       } else {
-        message.error(`${AI_PROVIDER_INFO[provider].name} 连接测试失败`);
+        message.error(`${AI_PROVIDER_INFO[provider].name} 连接测试失败: ${data.data?.message || data.message}`);
       }
       
       // 刷新状态
@@ -184,7 +282,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     message.info(`已选择 ${AI_PROVIDER_INFO[availableProviders[0]].name}`);
   }, [availableProviders]);
 
-  // AI生成子任务
+  // AI生成子任务 (使用新的API)
   const handleAIGenerate = useCallback(async () => {
     if (!selectedParentTask) {
       message.warning('请先选择父任务');
@@ -203,41 +301,69 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
 
     setGenerating(true);
     try {
-      const request: AITaskGenerationRequest = {
-        parentTaskId: selectedParentTask.id,
-        parentTaskTitle: selectedParentTask.title,
-        keywords: keywords.trim(),
-        preferredProvider: selectedProvider,
-        maxTasks,
-        complexity,
-        includeTimeEstimate: true,
-        projectId
+      // 使用新的AI任务生成API
+      const request = {
+        provider: selectedProvider || availableProviders[0],
+        input_text: keywords.trim(),
+        project_id: projectId,
+        parent_task_id: selectedParentTask.id,
+        options: {
+          max_tasks: maxTasks,
+          enable_duplicate_check: true,
+          enable_dependency_analysis: true,
+          enable_priority_assignment: true,
+          enable_time_estimation: true,
+          enable_skill_tagging: true
+        }
       };
 
-      const response = await aiTaskGeneratorService.generateSubTasks(request);
+      const response = await fetch('/api/v1/system/ai-tasks/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
 
-      if (response.success && response.data) {
+      const data = await response.json();
+
+      if (data.success && data.data) {
+        const generationResult = data.data.generation_result;
         const result: GenerationResult = {
-          tasks: response.data.generatedTasks,
-          quality: response.data.estimatedQuality,
-          provider: response.data.usedProvider,
-          model: response.data.usedModel,
-          tokensUsed: response.data.tokensUsed,
-          cost: response.data.estimatedCost || 0,
-          generationTime: response.data.generationTime,
-          reasoning: response.data.reasoning
+          tasks: generationResult.generated_tasks.map((task: any) => ({
+            id: task.ai_generated_id,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            estimatedHours: task.estimated_hours,
+            tags: task.tags || [],
+            dependencies: task.dependencies || [],
+            confidence: task.confidence
+          })),
+          quality: generationResult.quality_metrics?.overall_score * 100 || 80,
+          provider: selectedProvider || availableProviders[0],
+          model: generationResult.model_info?.name || 'unknown',
+          tokensUsed: {
+            input: generationResult.token_usage?.prompt_tokens || 0,
+            output: generationResult.token_usage?.completion_tokens || 0,
+            total: generationResult.token_usage?.total_tokens || 0
+          },
+          cost: 0, // Calculate based on token usage and provider rates
+          generationTime: generationResult.processing_time_ms || 0,
+          reasoning: generationResult.suggestions?.join('; ') || ''
         };
 
         setGenerationResult(result);
-        setEditedTasks(result.tasks); // 初始化编辑的任务为生成的任务
+        setEditedTasks(result.tasks);
         
         if (onTasksGenerated) {
           onTasksGenerated(result.tasks);
         }
 
-        message.success(`AI成功生成${result.tasks.length}个子任务 (质量评分: ${result.quality}分)`);
+        message.success(`AI成功生成${result.tasks.length}个子任务 (质量评分: ${result.quality.toFixed(0)}分)`);
       } else {
-        message.error(response.error?.message || 'AI生成失败');
+        message.error(data.message || 'AI生成失败');
       }
     } catch (error) {
       console.error('AI生成失败:', error);
@@ -262,23 +388,88 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     handleAIGenerate();
   }, [handleAIGenerate]);
 
-  // 导入生成的任务
-  const handleImportTasks = useCallback(() => {
+  // 导入生成的任务 (使用AI批量导入API)
+  const handleImportTasks = useCallback(async () => {
     if (!editedTasks.length || !selectedParentTask) {
       message.warning('没有可导入的任务');
       return;
     }
 
-    if (onImport) {
-      onImport(editedTasks, selectedParentTask.id);
-      message.success(`已导入${editedTasks.length}个子任务`);
-      
-      // 清理生成结果
-      setGenerationResult(null);
-      setEditedTasks([]);
-      setKeywords('');
+    const loadingMessage = message.loading('正在导入任务...', 0);
+    
+    try {
+      // 使用AI批量导入API
+      const request = {
+        provider: selectedProvider || availableProviders[0],
+        input_text: keywords.trim(),
+        parent_task_id: selectedParentTask.id,
+        generation_options: {
+          max_tasks: maxTasks,
+          enable_duplicate_check: true,
+          enable_dependency_analysis: true,
+          enable_priority_assignment: true,
+          enable_time_estimation: true,
+          enable_skill_tagging: true
+        },
+        import_options: {
+          auto_import: true,
+          validate_first: true,
+          create_in_batches: false,
+          batch_size: 10
+        }
+      };
+
+      const response = await fetch(`/api/v1/projects/${projectId}/tasks/ai-bulk-import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      loadingMessage();
+
+      if (data.success && data.data) {
+        const { total_imported, total_failed, imported_tasks } = data.data;
+        
+        if (total_imported > 0) {
+          message.success(
+            `成功导入 ${total_imported} 个任务` + 
+            (total_failed > 0 ? `，${total_failed} 个任务导入失败` : '')
+          );
+          
+          // 清理生成结果
+          setGenerationResult(null);
+          setEditedTasks([]);
+          setKeywords('');
+          
+          // 调用回调通知父组件任务已导入
+          if (onImport && imported_tasks) {
+            onImport(imported_tasks.map((task: any) => ({
+              id: task.id,
+              title: task.title,
+              description: task.description,
+              priority: task.priority,
+              estimatedHours: task.custom_fields?.estimated_hours || 0,
+              tags: task.tags || [],
+              dependencies: [],
+              confidence: task.custom_fields?.ai_confidence || 0.8
+            })), selectedParentTask.id);
+          }
+        } else {
+          message.error('任务导入失败，请重试');
+        }
+      } else {
+        message.error(data.message || '任务导入失败');
+      }
+    } catch (error) {
+      loadingMessage();
+      console.error('导入任务失败:', error);
+      message.error('导入失败，请检查网络连接');
     }
-  }, [editedTasks, selectedParentTask, onImport]);
+  }, [editedTasks, selectedParentTask, selectedProvider, availableProviders, keywords, maxTasks, projectId, onImport]);
 
   // 处理历史记录复用
   const handleReuseHistory = useCallback(async (history: any, tasks: GeneratedSubTask[]) => {

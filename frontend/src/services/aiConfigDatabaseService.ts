@@ -16,10 +16,21 @@ export interface AIConfigEntity {
   updatedAt: string;
 }
 
-// 创建/更新AI配置请求
+// 创建AI配置请求
 export interface AIConfigRequest {
   provider: AIProvider;
   apiKey: string; // 明文API密钥，后端会加密存储
+  model: string;
+  baseURL?: string;
+  temperature: number;
+  maxTokens: number;
+  enabled: boolean;
+}
+
+// 更新AI配置请求（API密钥可选）
+export interface AIConfigUpdateRequest {
+  provider: AIProvider;
+  apiKey?: string; // 可选，如果不提供则保持现有密钥
   model: string;
   baseURL?: string;
   temperature: number;
@@ -47,6 +58,7 @@ export interface AITestRequest {
   apiKey?: string; // 可选，如果不提供则使用已保存的配置
   model: string;
   baseURL?: string;
+  testText?: string; // 可选的自定义测试问题
 }
 
 // 测试连接响应
@@ -58,6 +70,16 @@ export interface AITestResponse {
     name: string;
     version: string;
   };
+  conversation?: {
+    question: string;
+    answer: string;
+    model: string;
+    usage?: {
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    };
+  };
 }
 
 class AIConfigDatabaseService {
@@ -66,7 +88,7 @@ class AIConfigDatabaseService {
    */
   async getConfigs(): Promise<APIResponse<AIConfigResponse[]>> {
     try {
-      const response = await request.get<AIConfigResponse[]>('/api/v1/system/ai-configs');
+      const response = await request.get<AIConfigResponse[]>('/system/ai-configs');
       
       // 如果后端返回空数组或空数据，使用localStorage的模拟数据
       if (response.success && response.data && Array.isArray(response.data) && response.data.length === 0) {
@@ -119,7 +141,7 @@ class AIConfigDatabaseService {
    * 获取指定提供商的配置
    */
   async getConfig(provider: AIProvider): Promise<APIResponse<AIConfigResponse>> {
-    return request.get<AIConfigResponse>(`/api/v1/system/ai-configs/${provider}`);
+    return request.get<AIConfigResponse>(`/system/ai-configs/${provider}`);
   }
 
   /**
@@ -127,7 +149,18 @@ class AIConfigDatabaseService {
    */
   async createConfig(config: AIConfigRequest): Promise<APIResponse<AIConfigResponse>> {
     try {
-      return await request.post<AIConfigResponse>('/api/v1/system/ai-configs', config);
+      // 转换字段名：前端使用驼峰命名，后端使用下划线命名
+      const apiConfig = {
+        provider: config.provider,
+        api_key: config.apiKey,
+        model: config.model,
+        base_url: config.baseURL,
+        temperature: config.temperature,
+        max_tokens: config.maxTokens,
+        enabled: config.enabled
+      };
+      
+      return await request.post<AIConfigResponse>('/system/ai-configs', apiConfig);
     } catch (error) {
       console.warn('AI配置创建接口不可用，使用本地模拟存储:', error);
       
@@ -174,7 +207,25 @@ class AIConfigDatabaseService {
    */
   async updateConfig(provider: AIProvider, config: Partial<AIConfigRequest>): Promise<APIResponse<AIConfigResponse>> {
     try {
-      return await request.put<AIConfigResponse>(`/api/v1/system/ai-configs/${provider}`, config);
+      // 转换字段名：前端使用驼峰命名，后端使用下划线命名
+      const apiConfig: any = {
+        model: config.model,
+        temperature: config.temperature,
+        enabled: config.enabled
+      };
+      
+      // 只有在字段存在时才添加
+      if (config.apiKey !== undefined) {
+        apiConfig.api_key = config.apiKey;
+      }
+      if (config.baseURL !== undefined) {
+        apiConfig.base_url = config.baseURL;
+      }
+      if (config.maxTokens !== undefined) {
+        apiConfig.max_tokens = config.maxTokens;
+      }
+      
+      return await request.put<AIConfigResponse>(`/system/ai-configs/${provider}`, apiConfig);
     } catch (error) {
       console.warn('AI配置更新接口不可用，使用本地模拟存储:', error);
       
@@ -216,7 +267,7 @@ class AIConfigDatabaseService {
    */
   async deleteConfig(provider: AIProvider): Promise<APIResponse<void>> {
     try {
-      return await request.delete<void>(`/api/v1/system/ai-configs/${provider}`);
+      return await request.delete<void>(`/system/ai-configs/${provider}`);
     } catch (error) {
       console.warn('AI配置删除接口不可用，使用本地模拟存储:', error);
       
@@ -241,7 +292,24 @@ class AIConfigDatabaseService {
    */
   async testConnection(testConfig: AITestRequest): Promise<APIResponse<AITestResponse>> {
     try {
-      return await request.post<AITestResponse>('/api/v1/system/ai-configs/test', testConfig);
+      // 转换字段名：前端使用驼峰命名，后端使用下划线命名
+      const apiTestConfig: any = {
+        provider: testConfig.provider,
+        model: testConfig.model
+      };
+      
+      // 只有在字段存在时才添加
+      if (testConfig.apiKey !== undefined) {
+        apiTestConfig.api_key = testConfig.apiKey;
+      }
+      if (testConfig.baseURL !== undefined) {
+        apiTestConfig.base_url = testConfig.baseURL;
+      }
+      if (testConfig.testText !== undefined) {
+        apiTestConfig.test_text = testConfig.testText;
+      }
+      
+      return await request.post<AITestResponse>('/system/ai-configs/test', apiTestConfig);
     } catch (error) {
       console.warn('AI连接测试接口不可用，使用模拟测试:', error);
       
@@ -270,6 +338,16 @@ class AIConfigDatabaseService {
       const isValidTestKey = this.isValidTestApiKey(testConfig.provider, apiKey);
       
       if (isValidTestKey) {
+        // 生成模拟对话响应
+        const testQuestion = testConfig.testText || '你好，请简单介绍一下你自己。';
+        const mockAnswers = {
+          openai: '你好！我是ChatGPT，由OpenAI开发的AI助手。我可以帮助您回答问题、解决问题并进行各种对话。',
+          claude: 'Hello! I\'m Claude, an AI assistant created by Anthropic. I\'m here to help with a wide variety of tasks through conversation.',
+          deepseek: '你好！我是DeepSeek助手，一个由深度求索开发的AI模型。我擅长理解和生成中英文内容，可以协助您完成各种任务。'
+        };
+        
+        const mockAnswer = mockAnswers[testConfig.provider] || '你好！我是AI助手，很高兴为您服务。';
+        
         return {
           success: true,
           message: '模拟连接测试成功',
@@ -277,6 +355,16 @@ class AIConfigDatabaseService {
             success: true,
             message: '连接测试通过（模拟）',
             responseTime: mockResponseTime,
+            conversation: {
+              question: testQuestion,
+              answer: mockAnswer,
+              model: testConfig.model,
+              usage: {
+                prompt_tokens: Math.floor(testQuestion.length / 4),
+                completion_tokens: Math.floor(mockAnswer.length / 4),
+                total_tokens: Math.floor((testQuestion.length + mockAnswer.length) / 4)
+              }
+            },
             modelInfo: {
               name: testConfig.model,
               version: '1.0.0'
@@ -303,7 +391,7 @@ class AIConfigDatabaseService {
    * 启用/禁用AI配置
    */
   async toggleConfig(provider: AIProvider, enabled: boolean): Promise<APIResponse<AIConfigResponse>> {
-    return request.patch<AIConfigResponse>(`/api/v1/system/ai-configs/${provider}/toggle`, { enabled });
+    return request.patch<AIConfigResponse>(`/system/ai-configs/${provider}/toggle`, { enabled });
   }
 
   /**
@@ -311,7 +399,7 @@ class AIConfigDatabaseService {
    */
   async getEnabledConfig(): Promise<APIResponse<AIConfigResponse | null>> {
     try {
-      return await request.get<AIConfigResponse | null>('/api/v1/system/ai-configs/enabled');
+      return await request.get<AIConfigResponse | null>('/system/ai-configs/enabled');
     } catch (error) {
       console.warn('AI配置接口不可用，返回默认响应:', error);
       return {
@@ -336,7 +424,7 @@ class AIConfigDatabaseService {
     }[];
   }>> {
     try {
-      return await request.get('/api/v1/system/ai-configs/stats');
+      return await request.get('/system/ai-configs/stats');
     } catch (error) {
       console.warn('AI统计接口不可用，返回默认响应:', error);
       return {
@@ -356,7 +444,7 @@ class AIConfigDatabaseService {
    * 批量更新配置
    */
   async batchUpdateConfigs(configs: Partial<AIConfigRequest>[]): Promise<APIResponse<AIConfigResponse[]>> {
-    return request.post<AIConfigResponse[]>('/api/v1/system/ai-configs/batch', { configs });
+    return request.post<AIConfigResponse[]>('/system/ai-configs/batch', { configs });
   }
 
   /**
@@ -366,7 +454,7 @@ class AIConfigDatabaseService {
     configs: Omit<AIConfigResponse, 'apiKeyMasked'>[];
     exportTime: string;
   }>> {
-    return request.get('/api/v1/system/ai-configs/export');
+    return request.get('/system/ai-configs/export');
   }
 
   /**

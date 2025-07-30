@@ -51,6 +51,326 @@ class AITaskGeneratorService {
   }
 
   /**
+   * 系统健康检查
+   */
+  async checkSystemHealth(): Promise<boolean> {
+    try {
+      const response = await fetch('/api/v1/health');
+      return response.ok;
+    } catch (error) {
+      console.error('Health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * 生成任务
+   */
+  async generateTasks(request: AITaskGenerationRequest): Promise<AITaskGenerationResponse> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      return data.success ? data.data : data;
+    } catch (error: any) {
+      console.error('Generate tasks failed:', error);
+      throw new Error(error.message || '任务生成失败');
+    }
+  }
+
+  /**
+   * 验证任务
+   */
+  async validateTasks(request: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      return data.success ? data.data : data;
+    } catch (error: any) {
+      console.error('Validate tasks failed:', error);
+      throw new Error(error.message || '任务验证失败');
+    }
+  }
+
+  /**
+   * 优化任务
+   */
+  async optimizeTasks(request: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      return data.success ? data.data : data;
+    } catch (error: any) {
+      console.error('Optimize tasks failed:', error);
+      throw new Error(error.message || '任务优化失败');
+    }
+  }
+
+  /**
+   * 获取模板列表
+   */
+  async getTemplates(params?: string): Promise<any> {
+    try {
+      const url = params 
+        ? `/api/v1/system/ai-tasks/templates?${params}`
+        : '/api/v1/system/ai-tasks/templates';
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Get templates failed:', error);
+      throw new Error(error.message || '获取模板失败');
+    }
+  }
+
+  /**
+   * 创建模板
+   */
+  async createTemplate(templateData: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(templateData)
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Create template failed:', error);
+      throw new Error(error.message || '创建模板失败');
+    }
+  }
+
+  /**
+   * 更新模板
+   */
+  async updateTemplate(templateId: number, templateData: any): Promise<any> {
+    try {
+      const response = await fetch(`/api/v1/system/ai-tasks/templates/${templateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(templateData)
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Update template failed:', error);
+      throw new Error(error.message || '更新模板失败');
+    }
+  }
+
+  /**
+   * 删除模板
+   */
+  async deleteTemplate(templateId: number): Promise<any> {
+    try {
+      const response = await fetch(`/api/v1/system/ai-tasks/templates/${templateId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Delete template failed:', error);
+      throw new Error(error.message || '删除模板失败');
+    }
+  }
+
+  /**
+   * 基于模板生成任务
+   */
+  async generateFromTemplate(request: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/templates/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Generate from template failed:', error);
+      throw new Error(error.message || '基于模板生成任务失败');
+    }
+  }
+
+  /**
+   * 批量优化任务
+   */
+  async batchOptimizeTasks(request: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/batch/optimize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request)
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Batch optimize failed:', error);
+      throw new Error(error.message || '批量优化失败');
+    }
+  }
+
+  /**
+   * 获取成本摘要
+   */
+  async getCostSummary(params?: string): Promise<any> {
+    try {
+      const url = params 
+        ? `/api/v1/system/ai-tasks/cost/summary?${params}`
+        : '/api/v1/system/ai-tasks/cost/summary';
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Get cost summary failed:', error);
+      throw new Error(error.message || '获取成本摘要失败');
+    }
+  }
+
+  /**
+   * 获取预算状态
+   */
+  async getBudgetStatus(params?: string): Promise<any> {
+    try {
+      const url = params 
+        ? `/api/v1/system/ai-tasks/budget/status?${params}`
+        : '/api/v1/system/ai-tasks/budget/status';
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Get budget status failed:', error);
+      throw new Error(error.message || '获取预算状态失败');
+    }
+  }
+
+  /**
+   * 设置预算限制
+   */
+  async setBudgetLimit(budgetData: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/budget/limit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(budgetData)
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Set budget limit failed:', error);
+      throw new Error(error.message || '设置预算限制失败');
+    }
+  }
+
+  /**
+   * 获取预算警告
+   */
+  async getBudgetAlerts(): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/budget/alerts', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Get budget alerts failed:', error);
+      throw new Error(error.message || '获取预算警告失败');
+    }
+  }
+
+
+  /**
+   * 获取使用统计
+   */
+  async getUsageStats(request?: any): Promise<any> {
+    try {
+      const response = await fetch('/api/v1/system/ai-tasks/usage/stats', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(request || {})
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      console.error('Get usage stats failed:', error);
+      throw new Error(error.message || '获取使用统计失败');
+    }
+  }
+
+  /**
    * 初始化服务
    */
   private async initializeService(): Promise<void> {
@@ -1016,7 +1336,7 @@ class AITaskGeneratorService {
       };
 
       // 获取现有历史记录
-      const existingHistory = this.getGenerationHistory();
+      const existingHistory = this.getLocalGenerationHistory();
       existingHistory.unshift(history); // 最新的在前面
 
       // 保持最多100条记录
@@ -1034,9 +1354,9 @@ class AITaskGeneratorService {
   }
 
   /**
-   * 获取生成历史记录
+   * 获取本地生成历史记录
    */
-  getGenerationHistory(): TaskGenerationHistory[] {
+  getLocalGenerationHistory(): TaskGenerationHistory[] {
     try {
       const data = localStorage.getItem('ai_generation_history');
       if (!data) return [];
@@ -1069,7 +1389,7 @@ class AITaskGeneratorService {
    */
   deleteGenerationHistory(id: string): boolean {
     try {
-      const existingHistory = this.getGenerationHistory();
+      const existingHistory = this.getLocalGenerationHistory();
       const filteredHistory = existingHistory.filter(item => item.id !== id);
       
       localStorage.setItem('ai_generation_history', JSON.stringify(filteredHistory));
@@ -1107,7 +1427,7 @@ class AITaskGeneratorService {
     avgCostPerRequest: number;
     providerBreakdown: Record<AIProvider, { tokens: number; cost: number; requests: number }>;
   } {
-    const history = this.getGenerationHistory();
+    const history = this.getLocalGenerationHistory();
     
     // 时间过滤
     let filteredHistory = history;

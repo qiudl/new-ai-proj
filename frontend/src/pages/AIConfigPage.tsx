@@ -84,6 +84,12 @@ const AIConfigPage: React.FC = () => {
     claude: {},
     deepseek: {}
   });
+  // 自定义测试问题状态
+  const [testQuestions, setTestQuestions] = useState<Record<AIProvider, string>>({
+    openai: '',
+    claude: '',
+    deepseek: ''
+  });
 
   const [openaiForm] = Form.useForm();
   const [claudeForm] = Form.useForm();
@@ -202,15 +208,24 @@ const AIConfigPage: React.FC = () => {
       const form = forms[provider];
       const values = await form.validateFields();
       
-      // 简单验证API密钥不为空
-      if (!values.apiKey || values.apiKey.trim() === '') {
-        message.error('API密钥不能为空');
+      // 检查API密钥是否为脱敏格式
+      const isMaskedApiKey = values.apiKey && values.apiKey.includes('•');
+      
+      // 验证API密钥：新建时必须提供，更新时如果是脱敏格式则可以跳过
+      const existingConfig = configs[provider];
+      if (!existingConfig && (!values.apiKey || values.apiKey.trim() === '')) {
+        message.error('创建新配置时API密钥不能为空');
+        return;
+      }
+      
+      if (values.apiKey && values.apiKey.trim() !== '' && isMaskedApiKey && !existingConfig) {
+        message.error('请输入有效的API密钥');
         return;
       }
       
       const configRequest: AIConfigRequest = {
         provider,
-        apiKey: values.apiKey,
+        apiKey: isMaskedApiKey ? '' : values.apiKey, // 脱敏时发送空字符串，后端会保留原密钥
         model: values.model,
         baseURL: values.baseURL,
         temperature: values.temperature || 0.3,
@@ -218,7 +233,6 @@ const AIConfigPage: React.FC = () => {
         enabled: values.enabled || false
       };
       
-      const existingConfig = configs[provider];
       console.log(`${provider}现有配置：`, existingConfig);
       let response;
       
@@ -284,11 +298,18 @@ const AIConfigPage: React.FC = () => {
       }));
 
       const form = forms[provider];
-      const values = await form.validateFields(['apiKey', 'model', 'baseURL']);
+      const values = await form.validateFields(['model', 'baseURL']); // 移除apiKey验证，因为可能使用现有密钥
       
-      // 验证必填字段
-      if (!values.apiKey || values.apiKey.trim() === '') {
-        message.error('请先填写API密钥');
+      // 获取API密钥：优先使用表单输入，如果没有输入且有保存的配置则使用已保存的密钥
+      let apiKey = values.apiKey ? values.apiKey.trim() : '';
+      const existingConfig = configs[provider];
+      
+      if (!apiKey && existingConfig) {
+        // 如果没有输入新密钥但有现有配置，使用已保存的密钥进行测试
+        console.log(`使用已保存的${provider}配置进行连接测试`);
+        // 不需要设置apiKey，后端会自动使用已保存的密钥
+      } else if (!apiKey) {
+        message.error('请先填写API密钥或保存配置');
         setTestResults(prev => ({
           ...prev,
           [provider]: { testing: false }
@@ -297,31 +318,46 @@ const AIConfigPage: React.FC = () => {
       }
       
       // 使用真实的API测试服务
-      const testRequest = {
+      const testRequest: any = {
         provider,
-        apiKey: values.apiKey.trim(),
-        model: values.model || AI_PROVIDER_DEFAULTS[provider].model!,
-        baseURL: values.baseURL || AI_PROVIDER_DEFAULTS[provider].baseURL,
-        temperature: values.temperature || AI_PROVIDER_DEFAULTS[provider].temperature,
-        maxTokens: Math.min(values.maxTokens || 150, 150) // 限制测试用token
+        model: values.model || existingConfig?.model || AI_PROVIDER_DEFAULTS[provider].model!,
+        baseURL: values.baseURL || existingConfig?.baseURL || AI_PROVIDER_DEFAULTS[provider].baseURL,
+        temperature: values.temperature || existingConfig?.temperature || AI_PROVIDER_DEFAULTS[provider].temperature,
+        maxTokens: Math.min(values.maxTokens || existingConfig?.maxTokens || 150, 150) // 限制测试用token
       };
+
+      // 只有在提供了新的API密钥时才添加到请求中
+      if (apiKey) {
+        testRequest.apiKey = apiKey;
+      }
+
+      // 添加自定义测试问题
+      const customQuestion = testQuestions[provider];
+      if (customQuestion && customQuestion.trim()) {
+        testRequest.testText = customQuestion.trim();
+      }
       
-      console.log(`开始测试${AI_PROVIDER_INFO[provider].name}连接...`);
-      
-      // 使用已有的aiConfigDatabaseService进行测试
-      const response = await aiConfigDatabaseService.testConnection({
-        provider,
-        apiKey: testRequest.apiKey,
-        model: testRequest.model,
-        baseURL: testRequest.baseURL
+      console.log(`开始测试${AI_PROVIDER_INFO[provider].name}连接...`, {
+        hasApiKey: !!apiKey,
+        hasCustomQuestion: !!testRequest.testText,
+        model: testRequest.model
       });
       
+      // 使用已有的aiConfigDatabaseService进行测试
+      const response = await aiConfigDatabaseService.testConnection(testRequest);
+      
       // 处理API响应格式
-      const testResult = response.success ? response.data : {
+      // API返回格式: { success: true, data: { success: true, conversation: {...} } }
+      const testResult = (response.success && response.data) ? response.data : {
         success: false,
         message: response.message || '测试失败',
         responseTime: 0
       };
+      
+      // 如果API调用成功但data中没有success字段，根据response.success来判断
+      if (response.success && testResult && !testResult.hasOwnProperty('success')) {
+        testResult.success = true;
+      }
 
       setTestResults(prev => ({
         ...prev,
@@ -331,29 +367,64 @@ const AIConfigPage: React.FC = () => {
         }
       }));
 
-      if (testResult.success) {
+      // 调试日志
+      console.log('设置测试结果:', {
+        provider,
+        testResult,
+        hasConversation: !!testResult.conversation,
+        success: testResult.success
+      });
+
+      if (testResult?.success && testResult.conversation) {
+        // 成功时显示AI的回答内容作为提示
+        const answer = testResult.conversation.answer;
+        const shortAnswer = answer.length > 50 ? answer.substring(0, 50) + '...' : answer;
+        message.success(`${AI_PROVIDER_INFO[provider].name} 测试成功: ${shortAnswer}`);
+        console.log(`测试结果:`, testResult);
+      } else if (testResult?.success) {
+        // 成功但没有对话内容
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
         console.log(`测试结果:`, testResult);
       } else {
-        message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${testResult.message}`);
+        message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${testResult?.message || '未知错误'}`);
         console.error(`测试错误:`, testResult);
       }
     } catch (error) {
       console.error('测试连接失败:', error);
       const errorMessage = error instanceof Error ? error.message : '网络连接失败';
-      setTestResults(prev => ({
-        ...prev,
-        [provider]: { 
-          testing: false, 
-          result: {
-            success: false,
-            message: `测试失败: ${errorMessage}`,
-            responseTime: 0,
-            error: errorMessage
+      
+      // 检查是否实际上是成功的响应但被错误处理了
+      if (errorMessage.includes('AI connection test completed')) {
+        // 这实际上是成功的响应，但被错误地抛出为异常
+        const successResult = {
+          success: true,
+          message: errorMessage,
+          responseTime: 0
+        };
+        
+        setTestResults(prev => ({
+          ...prev,
+          [provider]: { 
+            testing: false, 
+            result: successResult
           }
-        }
-      }));
-      message.error(`连接测试失败: ${errorMessage}`);
+        }));
+        message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
+      } else {
+        setTestResults(prev => ({
+          ...prev,
+          [provider]: { 
+            testing: false, 
+            result: {
+              success: false,
+              message: `测试失败: ${errorMessage}`,
+              responseTime: 0,
+              error: errorMessage
+            }
+          }
+        }));
+        message.error(`连接测试失败: ${errorMessage}`);
+      }
     }
   };
 
@@ -397,7 +468,11 @@ const AIConfigPage: React.FC = () => {
     try {
       const form = forms[provider];
       const apiKey = form?.getFieldValue('apiKey');
-      return apiKey && apiKey.trim() !== '';
+      // 检查用户是否输入了新的API密钥
+      const hasNewApiKey = apiKey && apiKey.trim() !== '';
+      // 如果有现有配置且用户没有输入新密钥，也允许测试（使用保存的密钥）
+      const hasExistingKey = configs[provider] && configs[provider]?.apiKey;
+      return hasNewApiKey || !!hasExistingKey;
     } catch {
       return false;
     }
@@ -417,6 +492,16 @@ const AIConfigPage: React.FC = () => {
   // 检查是否已有保存的配置
   const hasExistingConfig = (provider: AIProvider) => {
     return !!configs[provider];
+  };
+
+  // 获取默认测试问题
+  const getDefaultTestQuestion = (provider: AIProvider) => {
+    const defaultQuestions = {
+      openai: '你好，请简单介绍一下你自己。',
+      claude: 'Hello, please briefly introduce yourself.',
+      deepseek: '你好，请用一句话介绍DeepSeek的特点。'
+    };
+    return defaultQuestions[provider] || '你好，这是一个连接测试。';
   };
 
   const renderProviderForm = (provider: AIProvider) => {
@@ -603,6 +688,108 @@ const AIConfigPage: React.FC = () => {
         <Divider />
         <div style={{ textAlign: 'center' }}>
           <Space direction="vertical" style={{ width: '100%' }}>
+            {/* 自定义测试问题 */}
+            <div style={{ marginBottom: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                <ExperimentOutlined style={{ marginRight: 4, color: '#1890ff' }} />
+                测试连接
+              </Text>
+              <Input.TextArea
+                placeholder={`输入自定义测试问题（可选）\n默认问题: ${getDefaultTestQuestion(provider)}`}
+                value={testQuestions[provider]}
+                onChange={(e) => setTestQuestions(prev => ({ ...prev, [provider]: e.target.value }))}
+                rows={3}
+                style={{ marginBottom: 8 }}
+              />
+              
+              {/* 测试结果显示 - 紧接在测试问题输入框下方 */}
+              {testResult.result && (
+                <div style={{ marginTop: 12 }}>
+                  {testResult.result.success && testResult.result.conversation ? (
+                    // 成功时显示AI对话内容
+                    <Card 
+                      size="small" 
+                      title={
+                        <Space>
+                          <RobotOutlined style={{ color: '#52c41a' }} />
+                          <Text style={{ color: '#52c41a' }}>AI回答</Text>
+                          <Tag color="green">{testResult.result.conversation.model}</Tag>
+                          {testResult.result.responseTime > 0 && (
+                            <Tag color="blue">{testResult.result.responseTime}ms</Tag>
+                          )}
+                        </Space>
+                      }
+                      style={{ 
+                        border: '1px solid #d9f7be',
+                        backgroundColor: '#f6ffed'
+                      }}
+                    >
+                      <div style={{ marginBottom: 8 }}>
+                        <Text strong style={{ color: '#1890ff' }}>问题：</Text>
+                        <div style={{ 
+                          background: '#f0f9ff', 
+                          padding: '8px 12px', 
+                          borderRadius: '6px',
+                          marginTop: 4,
+                          border: '1px solid #e1f5fe'
+                        }}>
+                          {testResult.result.conversation.question}
+                        </div>
+                      </div>
+                      
+                      <div style={{ marginBottom: 8 }}>
+                        <Text strong style={{ color: '#52c41a' }}>回答：</Text>
+                        <div style={{ 
+                          background: '#f6ffed', 
+                          padding: '8px 12px', 
+                          borderRadius: '6px',
+                          marginTop: 4,
+                          border: '1px solid #d9f7be',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {testResult.result.conversation.answer}
+                        </div>
+                      </div>
+                      
+                      {testResult.result.conversation.usage && (
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#8c8c8c',
+                          borderTop: '1px solid #f0f0f0',
+                          paddingTop: 8,
+                          marginTop: 8
+                        }}>
+                          <Space split={<span>|</span>}>
+                            <span>输入Token: {testResult.result.conversation.usage.prompt_tokens}</span>
+                            <span>输出Token: {testResult.result.conversation.usage.completion_tokens}</span>
+                            <span>总计: {testResult.result.conversation.usage.total_tokens}</span>
+                          </Space>
+                        </div>
+                      )}
+                    </Card>
+                  ) : (
+                    // 失败时显示错误信息
+                    <Alert
+                      message="连接测试失败"
+                      description={
+                        <div>
+                          <div>{testResult.result.message}</div>
+                          {testResult.result.responseTime > 0 && (
+                            <div style={{ marginTop: 4, fontSize: '12px', color: '#8c8c8c' }}>
+                              响应时间: {testResult.result.responseTime}ms
+                            </div>
+                          )}
+                        </div>
+                      }
+                      type="error"
+                      showIcon
+                      icon={<CloseCircleOutlined />}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+
             <Space>
               <Button
                 type="primary"
@@ -633,88 +820,6 @@ const AIConfigPage: React.FC = () => {
                 </Button>
               )}
             </Space>
-            
-            {testResult.result && (
-              <div style={{ marginTop: 12 }}>
-                <Alert
-                  message={testResult.result.success ? '连接测试成功' : '连接测试失败'}
-                  description={
-                    <div>
-                      <div>{testResult.result.message}</div>
-                      {testResult.result.responseTime > 0 && (
-                        <div style={{ marginTop: 4, fontSize: '12px', color: '#8c8c8c' }}>
-                          响应时间: {testResult.result.responseTime}ms
-                        </div>
-                      )}
-                    </div>
-                  }
-                  type={testResult.result.success ? 'success' : 'error'}
-                  showIcon
-                  icon={testResult.result.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
-                />
-                
-                {/* 显示测试对话 */}
-                {testResult.result.success && testResult.result.conversation && (
-                  <Card 
-                    size="small" 
-                    title={
-                      <Space>
-                        <RobotOutlined style={{ color: '#1890ff' }} />
-                        测试对话
-                        <Tag color="blue">{testResult.result.conversation.model}</Tag>
-                      </Space>
-                    }
-                    style={{ 
-                      marginTop: 8,
-                      border: '1px solid #d9f7be'
-                    }}
-                  >
-                    <div style={{ marginBottom: 8 }}>
-                      <Text strong style={{ color: '#1890ff' }}>问题：</Text>
-                      <div style={{ 
-                        background: '#f0f9ff', 
-                        padding: '8px 12px', 
-                        borderRadius: '6px',
-                        marginTop: 4,
-                        border: '1px solid #e1f5fe'
-                      }}>
-                        {testResult.result.conversation.question}
-                      </div>
-                    </div>
-                    
-                    <div style={{ marginBottom: 8 }}>
-                      <Text strong style={{ color: '#52c41a' }}>回答：</Text>
-                      <div style={{ 
-                        background: '#f6ffed', 
-                        padding: '8px 12px', 
-                        borderRadius: '6px',
-                        marginTop: 4,
-                        border: '1px solid #d9f7be',
-                        whiteSpace: 'pre-wrap'
-                      }}>
-                        {testResult.result.conversation.answer}
-                      </div>
-                    </div>
-                    
-                    {testResult.result.conversation.usage && (
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: '#8c8c8c',
-                        borderTop: '1px solid #f0f0f0',
-                        paddingTop: 8,
-                        marginTop: 8
-                      }}>
-                        <Space split={<span>|</span>}>
-                          <span>输入Token: {testResult.result.conversation.usage.promptTokens}</span>
-                          <span>输出Token: {testResult.result.conversation.usage.completionTokens}</span>
-                          <span>总计: {testResult.result.conversation.usage.totalTokens}</span>
-                        </Space>
-                      </div>
-                    )}
-                  </Card>
-                )}
-              </div>
-            )}
           </Space>
         </div>
       </div>
@@ -734,13 +839,7 @@ const AIConfigPage: React.FC = () => {
           <Paragraph type="secondary">
             配置AI API密钥以启用智能企业信息填充功能。API密钥将加密存储在数据库中，保存后只能修改不能查看。
           </Paragraph>
-          <Alert
-            message="演示模式说明"
-            description="由于浏览器安全限制，直接从前端调用AI API可能被CORS策略阻止。测试连接功能将在遇到此类问题时自动切换为演示模式，显示模拟的AI对话响应。在生产环境中，建议通过后端代理进行API调用。"
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
+       
         </div>
 
         <Spin spinning={loading}>
@@ -831,31 +930,7 @@ const AIConfigPage: React.FC = () => {
             })}
           />
 
-          {/* 帮助信息 */}
-          <Card size="small" style={{ marginTop: 16, backgroundColor: '#fafafa' }}>
-            <Title level={5}>
-              <InfoCircleOutlined style={{ color: '#1890ff' }} /> 帮助信息
-            </Title>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Text strong>API密钥获取：</Text>
-                <ul style={{ fontSize: '12px', marginTop: 4 }}>
-                  <li>OpenAI: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">获取密钥</a></li>
-                  <li>Claude: <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer">获取密钥</a></li>
-                  <li>DeepSeek: <a href="https://platform.deepseek.com/" target="_blank" rel="noopener noreferrer">获取密钥</a></li>
-                </ul>
-              </Col>
-              <Col span={12}>
-                <Text strong>安全特性：</Text>
-                <ul style={{ fontSize: '12px', marginTop: 4 }}>
-                  <li>API密钥加密存储在数据库</li>
-                  <li>保存后只能修改不能查看</li>
-                  <li>只有管理员可以配置</li>
-                  <li>支持启用/禁用功能</li>
-                </ul>
-              </Col>
-            </Row>
-          </Card>
+          
         </Spin>
       </Card>
     </div>

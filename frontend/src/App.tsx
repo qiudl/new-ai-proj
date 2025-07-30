@@ -41,7 +41,7 @@ const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const CompanyUserManagementPage = React.lazy(() => import('./pages/CompanyUserManagementPage'));
-const AIConfigPage = React.lazy(() => import('./pages/AIConfigPage'));
+const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
 const NavigationManagementPage = React.lazy(() => import('./pages/NavigationManagementPage'));

@@ -126,13 +126,13 @@ const TaskDetailPageNew: React.FC = () => {
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   
-  // 检查文档是否存在
-  const checkDocumentExists = useCallback(async () => {
-    if (!task || !projectId) return;
+  // 检查特定任务的文档是否存在
+  const checkDocumentExistsForTask = useCallback(async (taskData: Task) => {
+    if (!taskData || !projectId) return;
 
     try {
       // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
-      const response = await api.get(`/projects/${projectId}/tasks/${task.id}/document`);
+      const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/document`);
       setDocumentExists(true);
     } catch (error: any) {
       console.error('检查文档状态失败:', error);
@@ -143,7 +143,13 @@ const TaskDetailPageNew: React.FC = () => {
         setDocumentExists(false);
       }
     }
-  }, [task, projectId]);
+  }, [projectId]);
+
+  // 检查文档是否存在
+  const checkDocumentExists = useCallback(async () => {
+    if (!task || !projectId) return;
+    await checkDocumentExistsForTask(task);
+  }, [task, projectId, checkDocumentExistsForTask]);
 
   // 加载任务基本信息
   const loadTask = useCallback(async () => {
@@ -164,10 +170,10 @@ const TaskDetailPageNew: React.FC = () => {
       const taskData = await TaskService.getTask(parsedProjectId, parsedTaskId);
       setTask(taskData);
       // 任务加载完成后检查文档状态
-      setTimeout(() => checkDocumentExists(), 100);
+      setTimeout(() => checkDocumentExistsForTask(taskData), 100);
       
-      // 并行加载其他数据
-      loadAllTaskData();
+      // 并行加载其他数据，直接传递taskData
+      loadAllTaskDataWithTask(taskData);
     } catch (error) {
       message.error('获取任务详情失败');
       console.error('Error loading task:', error);
@@ -176,9 +182,15 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, [projectId, taskId, navigate]);
 
-  // 并行加载所有任务数据
+  // 并行加载所有任务数据（使用当前task状态）
   const loadAllTaskData = useCallback(async () => {
     if (!projectId || !taskId || !task) return;
+    await loadAllTaskDataWithTask(task);
+  }, [projectId, taskId, task]);
+
+  // 并行加载所有任务数据（使用传入的task参数）
+  const loadAllTaskDataWithTask = useCallback(async (taskData: Task) => {
+    if (!projectId || !taskId || !taskData) return;
     
     const parsedProjectId = parseInt(projectId);
     const parsedTaskId = parseInt(taskId);
@@ -206,15 +218,15 @@ const TaskDetailPageNew: React.FC = () => {
       }
       
       // 单独获取父任务信息和兄弟任务
-      if (task.parent_id) {
+      if (taskData.parent_id) {
         try {
-          const parentTaskInfo = await TaskService.getTask(parsedProjectId, task.parent_id);
+          const parentTaskInfo = await TaskService.getTask(parsedProjectId, taskData.parent_id);
           setParentTask(parentTaskInfo);
           
           // 获取兄弟任务（相同父任务的其他子任务）
-          const siblings = await TaskService.getTaskChildren(parsedProjectId, task.parent_id);
+          const siblings = await TaskService.getTaskChildren(parsedProjectId, taskData.parent_id);
           const filteredSiblings = Array.isArray(siblings) 
-            ? siblings.filter((sibling: Task) => sibling.id !== task.id)
+            ? siblings.filter((sibling: Task) => sibling.id !== taskData.id)
             : [];
           setSiblingTasks(filteredSiblings);
         } catch (error) {
@@ -225,7 +237,7 @@ const TaskDetailPageNew: React.FC = () => {
         try {
           const rootTasks = await TaskService.getRootTasks(parsedProjectId);
           const filteredRootSiblings = Array.isArray(rootTasks) 
-            ? rootTasks.filter((rootTask: Task) => rootTask.id !== task.id)
+            ? rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id)
             : [];
           setSiblingTasks(filteredRootSiblings);
         } catch (error) {
@@ -257,7 +269,7 @@ const TaskDetailPageNew: React.FC = () => {
     } finally {
       setDataLoading(false);
     }
-  }, [projectId, taskId, task]);
+  }, [projectId, taskId]);
 
   // 计算完成统计
   const calculateCompletionStats = (children: Task[]) => {

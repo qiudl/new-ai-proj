@@ -216,7 +216,11 @@ const TimeManagementHomePage: React.FC = () => {
       )}
       
       {/* 页面标题 */}
-      <Card style={{ marginBottom: '24px' }}>
+      <Card style={{ 
+        marginBottom: '24px',
+        border: '1px solid #d9d9d9',
+        background: '#ffffff'
+      }}>
         <Row justify="space-between" align="middle">
           <Col>
             <Space size="large">
@@ -253,7 +257,11 @@ const TimeManagementHomePage: React.FC = () => {
       {/* 今日任务统计概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={6}>
-          <Card>
+          <Card style={{ 
+            height: '156px', // 增加30%：120px * 1.3 = 156px
+            border: '1px solid #d9d9d9',
+            background: '#fafafa'
+          }}>
             <Statistic
               title="今日任务总数"
               value={todayStats.totalTasks}
@@ -274,7 +282,11 @@ const TimeManagementHomePage: React.FC = () => {
         </Col>
         
         <Col xs={24} sm={6}>
-          <Card>
+          <Card style={{ 
+            height: '156px', // 增加30%：120px * 1.3 = 156px
+            border: '1px solid #b7eb8f',
+            background: '#f6ffed'
+          }}>
             <Statistic
               title="已完成"
               value={todayStats.completedTasks}
@@ -297,7 +309,11 @@ const TimeManagementHomePage: React.FC = () => {
         </Col>
         
         <Col xs={24} sm={6}>
-          <Card>
+          <Card style={{ 
+            height: '156px', // 增加30%：120px * 1.3 = 156px
+            border: '1px solid #ffd591',
+            background: '#fff7e6'
+          }}>
             <Statistic
               title="进行中"
               value={todayStats.inProgressTasks}
@@ -316,7 +332,11 @@ const TimeManagementHomePage: React.FC = () => {
         </Col>
         
         <Col xs={24} sm={6}>
-          <Card>
+          <Card style={{ 
+            height: '156px', // 增加30%：120px * 1.3 = 156px
+            border: '1px solid #91d5ff',
+            background: '#f0f8ff'
+          }}>
             <Statistic
               title="时间效率"
               value={todayStats.timeEfficiency}
@@ -380,7 +400,15 @@ const TimeManagementHomePage: React.FC = () => {
       {/* 任务计时器卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} lg={8}>
-          <Card title="任务计时器" size="small">
+          <Card 
+            title="任务计时器" 
+            size="small"
+            style={{ 
+              height: '182px', // 增加30%：140px * 1.3 = 182px
+              border: '1px solid #d9d9d9',
+              background: '#fafafa'
+            }}
+          >
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
               <Text type="secondary">计时器功能暂时不可用</Text>
             </div>
@@ -388,7 +416,15 @@ const TimeManagementHomePage: React.FC = () => {
         </Col>
         <Col xs={24} lg={16}>
           {/* 这里可以添加其他工作台工具 */}
-          <Card title="工作台工具" size="small">
+          <Card 
+            title="工作台工具" 
+            size="small"
+            style={{ 
+              height: '182px', // 增加30%：140px * 1.3 = 182px
+              border: '1px solid #b7eb8f',
+              background: '#f6ffed'
+            }}
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               <Button 
                 block 
@@ -420,7 +456,15 @@ const TimeManagementHomePage: React.FC = () => {
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         {/* 任务状态分布 */}
         <Col xs={24} md={8}>
-          <Card title="任务状态分布" size="small">
+          <Card 
+            title="任务状态分布" 
+            size="small"
+            style={{ 
+              height: '234px', // 增加30%：180px * 1.3 = 234px
+              border: '1px solid #ffd591',
+              background: '#fff7e6'
+            }}
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Space>
@@ -458,7 +502,15 @@ const TimeManagementHomePage: React.FC = () => {
 
         {/* 优先级分布 */}
         <Col xs={24} md={8}>
-          <Card title="优先级分布" size="small">
+          <Card 
+            title="优先级分布" 
+            size="small"
+            style={{ 
+              height: '234px', // 增加30%：180px * 1.3 = 234px
+              border: '1px solid #91d5ff',
+              background: '#f0f8ff'
+            }}
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               {todayStats.priorityDistribution.urgent > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -496,7 +548,15 @@ const TimeManagementHomePage: React.FC = () => {
 
         {/* 时间统计 */}
         <Col xs={24} md={8}>
-          <Card title="时间统计" size="small">
+          <Card 
+            title="时间统计" 
+            size="small"
+            style={{ 
+              height: '234px', // 增加30%：180px * 1.3 = 234px
+              border: '1px solid #d3adf7',
+              background: '#f9f0ff'
+            }}
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
                 <Text type="secondary">计划时间:</Text>

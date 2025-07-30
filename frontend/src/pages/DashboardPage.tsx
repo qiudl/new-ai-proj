@@ -576,10 +576,13 @@ const DashboardPage: React.FC = () => {
             display: 'grid',
             gridTemplateColumns: '1fr 1fr', // 平均分为2列
             gap: '16px',
-            height: '300px'
+            height: '390px' // 增加30%：300px * 1.3 = 390px
           }}>
             <div className="timer-card" style={{ 
-              background: 'transparent',
+              background: '#fafafa',
+              border: '1px solid #d9d9d9',
+              borderRadius: '8px',
+              padding: '16px',
               overflow: 'hidden'
             }}>
               <TimerErrorBoundary>
@@ -588,7 +591,10 @@ const DashboardPage: React.FC = () => {
             </div>
             
             <div className="task-progress-card" style={{ 
-              background: 'transparent',
+              background: '#f6ffed',
+              border: '1px solid #b7eb8f',
+              borderRadius: '8px',
+              padding: '16px',
               overflow: 'hidden'
             }}>
               <TimerErrorBoundary>
@@ -599,10 +605,13 @@ const DashboardPage: React.FC = () => {
 
           {/* 第二行 - 今日工作统计（占2列） */}
           <div className="row-2" style={{
-            height: '280px'
+            height: '364px' // 增加30%：280px * 1.3 = 364px
           }}>
             <div className="today-stats-card" style={{ 
-              background: 'transparent',
+              background: '#fff7e6',
+              border: '1px solid #ffd591',
+              borderRadius: '8px',
+              padding: '16px',
               height: '100%',
               overflow: 'hidden'
             }}>
@@ -614,10 +623,13 @@ const DashboardPage: React.FC = () => {
 
           {/* 第三行 - 时间段任务统计（占2列） */}
           <div className="row-3" style={{
-            minHeight: '320px'
+            minHeight: '416px' // 增加30%：320px * 1.3 = 416px
           }}>
             <div className="timer-stats-card" style={{ 
-              background: 'transparent',
+              background: '#f0f8ff',
+              border: '1px solid #91d5ff',
+              borderRadius: '8px',
+              padding: '16px',
               height: '100%'
             }}>
               <div style={{ 
@@ -638,7 +650,10 @@ const DashboardPage: React.FC = () => {
 
         {/* 右侧区域：我的任务（固定1列宽度） */}
         <div className="right-tasks-area" style={{
-          background: 'transparent',
+          background: '#f9f0ff',
+          border: '1px solid #d3adf7',
+          borderRadius: '8px',
+          padding: '16px',
           display: 'flex',
           flexDirection: 'column'
         }}>
