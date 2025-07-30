@@ -58,6 +58,8 @@ interface AIAssistedBulkImportProps {
   onTasksGenerated?: (tasks: GeneratedSubTask[]) => void;
   onImport?: (tasks: GeneratedSubTask[], parentTaskId?: number) => void;
   className?: string;
+  selectedParentTaskId?: number; // 从外部传入的父任务ID
+  selectedParentTask?: Task; // 从外部传入的父任务对象
 }
 
 interface GenerationResult {
@@ -79,12 +81,14 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   projectId,
   onTasksGenerated,
   onImport,
-  className = ''
+  className = '',
+  selectedParentTaskId,
+  selectedParentTask: externalParentTask
 }) => {
   // 状态管理
   const [availableProviders, setAvailableProviders] = useState<AIProvider[]>([]);
   const [serviceStatus, setServiceStatus] = useState<Map<AIProvider, AIServiceStatus>>(new Map());
-  const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(null);
+  const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(externalParentTask || null);
   const [keywords, setKeywords] = useState('');
   const [selectedProvider, setSelectedProvider] = useState<AIProvider | undefined>();
   const [complexity, setComplexity] = useState<'simple' | 'detailed'>('detailed');
@@ -92,12 +96,19 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   
   const [generating, setGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState<GenerationResult | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true); // 默认展开高级选项
   const [editedTasks, setEditedTasks] = useState<GeneratedSubTask[]>([]);
   const [isTestingConnection, setIsTestingConnection] = useState<Set<AIProvider>>(new Set());
   const [lastStatusCheck, setLastStatusCheck] = useState<Date | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showStats, setShowStats] = useState(false);
+
+  // 当外部传入的父任务改变时，更新内部状态
+  useEffect(() => {
+    if (externalParentTask) {
+      setSelectedParentTask(externalParentTask);
+    }
+  }, [externalParentTask]);
 
   // 初始化：检查可用的AI提供商
   useEffect(() => {
@@ -284,7 +295,10 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
 
   // AI生成子任务 (使用新的API)
   const handleAIGenerate = useCallback(async () => {
-    if (!selectedParentTask) {
+    const effectiveParentTask = selectedParentTask || externalParentTask;
+    const effectiveParentTaskId = selectedParentTaskId || effectiveParentTask?.id;
+    
+    if (!effectiveParentTask && !effectiveParentTaskId) {
       message.warning('请先选择父任务');
       return;
     }
@@ -306,7 +320,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
         provider: selectedProvider || availableProviders[0],
         input_text: keywords.trim(),
         project_id: projectId,
-        parent_task_id: selectedParentTask.id,
+        parent_task_id: selectedParentTaskId || selectedParentTask?.id,
         options: {
           max_tasks: maxTasks,
           enable_duplicate_check: true,
@@ -390,8 +404,11 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
 
   // 导入生成的任务 (使用AI批量导入API)
   const handleImportTasks = useCallback(async () => {
-    if (!editedTasks.length || !selectedParentTask) {
-      message.warning('没有可导入的任务');
+    const effectiveParentTask = selectedParentTask || externalParentTask;
+    const effectiveParentTaskId = selectedParentTaskId || effectiveParentTask?.id;
+    
+    if (!editedTasks.length || (!effectiveParentTask && !effectiveParentTaskId)) {
+      message.warning('没有可导入的任务或未选择父任务');
       return;
     }
 
@@ -402,7 +419,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       const request = {
         provider: selectedProvider || availableProviders[0],
         input_text: keywords.trim(),
-        parent_task_id: selectedParentTask.id,
+        parent_task_id: selectedParentTaskId || selectedParentTask?.id,
         generation_options: {
           max_tasks: maxTasks,
           enable_duplicate_check: true,
@@ -456,7 +473,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               tags: task.tags || [],
               dependencies: [],
               confidence: task.custom_fields?.ai_confidence || 0.8
-            })), selectedParentTask.id);
+            })), selectedParentTaskId || selectedParentTask?.id);
           }
         } else {
           message.error('任务导入失败，请重试');
@@ -729,34 +746,37 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
 
         {/* 输入区域 */}
         <Row gutter={[16, 16]}>
-          <Col span={24}>
-            <div>
-              <Text strong>1. 选择父任务：</Text>
-              <div style={{ marginTop: 8 }}>
-                <TaskSelector
-                  projectId={projectId}
-                  value={selectedParentTask}
-                  onChange={(taskId, task) => {
-                    setSelectedParentTask(task as Task | null);
-                  }}
-                  placeholder="选择要添加子任务的父任务"
-                  style={{ width: '100%' }}
-                  aiMode={true}
-                  mode="select"
-                  showProjectNames={true}
-                  filterOptions={{
-                    excludeCompleted: true, // 排除已完成的任务
-                    statusFilter: ['todo', 'in_progress'] // 只显示待开始和进行中的任务
-                  }}
-                  allowClear
-                />
+          {/* 只有在没有外部传入父任务时才显示父任务选择器 */}
+          {!externalParentTask && (
+            <Col span={24}>
+              <div>
+                <Text strong>1. 选择父任务：</Text>
+                <div style={{ marginTop: 8 }}>
+                  <TaskSelector
+                    projectId={projectId}
+                    value={selectedParentTask}
+                    onChange={(taskId, task) => {
+                      setSelectedParentTask(task as Task | null);
+                    }}
+                    placeholder="选择要添加子任务的父任务"
+                    style={{ width: '100%' }}
+                    aiMode={true}
+                    mode="select"
+                    showProjectNames={true}
+                    filterOptions={{
+                      excludeCompleted: true, // 排除已完成的任务
+                      statusFilter: ['todo', 'in_progress'] // 只显示待开始和进行中的任务
+                    }}
+                    allowClear
+                  />
+                </div>
               </div>
-            </div>
-          </Col>
+            </Col>
+          )}
 
           <Col span={24}>
             <div>
-              <Text strong>2. 描述子任务需求：</Text>
+              <Text strong>{externalParentTask ? '1. 描述子任务需求：' : '2. 描述子任务需求：'}</Text>
               <div style={{ marginTop: 8 }}>
                 <TextArea
                   value={keywords}
@@ -853,7 +873,7 @@ AI将根据您的描述智能生成具体的子任务列表。"
             icon={<ThunderboltOutlined />}
             onClick={handleAIGenerate}
             loading={generating}
-            disabled={!selectedParentTask || !keywords.trim()}
+            disabled={(!selectedParentTask && !externalParentTask && !selectedParentTaskId) || !keywords.trim()}
             size="large"
           >
             {generating ? 'AI生成中...' : 'AI智能生成子任务'}

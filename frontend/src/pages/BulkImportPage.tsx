@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Input, Card, message, Steps, Alert, Tabs, Radio } from 'antd';
-import { ImportOutlined, CheckCircleOutlined, RobotOutlined } from '@ant-design/icons';
+import { Button, Input, Card, message, Steps, Alert, Tabs, Radio, Tooltip } from 'antd';
+import { ImportOutlined, CheckCircleOutlined, RobotOutlined, CloseOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import ProjectSelector from '../components/ProjectSelector';
 import TaskSelector from '../components/TaskSelector';
@@ -27,9 +27,26 @@ const BulkImportPage: React.FC = () => {
   const [jsonData, setJsonData] = useState('');
   const [parsedTasks, setParsedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  // AI-assisted import mode
-  const [importMode, setImportMode] = useState<'manual' | 'ai'>('ai');
+  // AI-assisted import mode - 固定为AI模式
+  // const [importMode, setImportMode] = useState<'manual' | 'ai'>('ai');
   const [aiGeneratedTasks, setAiGeneratedTasks] = useState<GeneratedSubTask[]>([]);
+  
+  // Alert 关闭状态管理
+  const [closedAlerts, setClosedAlerts] = useState<Set<string>>(new Set());
+  
+  // 关闭Alert的处理函数
+  const handleAlertClose = (alertId: string) => {
+    setClosedAlerts(prev => new Set([...prev, alertId]));
+  };
+  
+  // 重新打开Alert的处理函数
+  const handleAlertReopen = (alertId: string) => {
+    setClosedAlerts(prev => {
+      const newSet = new Set([...prev]);
+      newSet.delete(alertId);
+      return newSet;
+    });
+  };
   
   // 处理从URL参数预设父任务
   useEffect(() => {
@@ -362,13 +379,40 @@ const BulkImportPage: React.FC = () => {
           
           {/* 预设父任务提示 */}
           {searchParams.get('parentTaskId') && selectedParentTask && (
-            <Alert
-              message="已自动设置父任务"
-              description={`将导入的任务作为"${selectedParentTask.title} (id=${selectedParentTask.id})"的子任务`}
-              type="info"
-              showIcon
-              style={{ marginBottom: '16px' }}
-            />
+            <>
+              {!closedAlerts.has('parentTaskAlert') ? (
+                <Alert
+                  message="已自动设置父任务"
+                  description={`将导入的任务作为"${selectedParentTask.title} (id=${selectedParentTask.id})"的子任务`}
+                  type="info"
+                  showIcon
+                  closable
+                  onClose={() => handleAlertClose('parentTaskAlert')}
+                  style={{ marginBottom: '16px' }}
+                />
+              ) : (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  marginBottom: '16px',
+                  padding: '4px 8px',
+                  backgroundColor: '#f0f9ff',
+                  borderRadius: '4px',
+                  border: '1px solid #bae7ff'
+                }}>
+                  <Tooltip title="已自动设置父任务">
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
+                      onClick={() => handleAlertReopen('parentTaskAlert')}
+                    />
+                  </Tooltip>
+                  <span style={{ fontSize: '12px', color: '#1890ff' }}>父任务已设置</span>
+                </div>
+              )}
+            </>
           )}
           
           {/* 父任务选择行 */}
@@ -406,64 +450,106 @@ const BulkImportPage: React.FC = () => {
 
       {!selectedProjectId && (
         <Card>
-          <Alert
-            message="请先选择项目"
-            description="批量导入功能需要选择一个项目，请在上方选择器中选择要导入任务的项目。"
-            type="info"
-            showIcon
-            style={{ textAlign: 'center' }}
-          />
+          {!closedAlerts.has('projectSelectAlert') ? (
+            <Alert
+              message="请先选择项目"
+              description="批量导入功能需要选择一个项目，请在上方选择器中选择要导入任务的项目。"
+              type="info"
+              showIcon
+              closable
+              onClose={() => handleAlertClose('projectSelectAlert')}
+              style={{ textAlign: 'center' }}
+            />
+          ) : (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              alignItems: 'center', 
+              gap: '8px', 
+              padding: '12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '4px',
+              border: '1px solid #bae7ff'
+            }}>
+              <Tooltip title="请先选择项目">
+                <Button
+                  type="text"
+                  icon={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
+                  onClick={() => handleAlertReopen('projectSelectAlert')}
+                />
+              </Tooltip>
+              <span style={{ fontSize: '12px', color: '#1890ff' }}>需要选择项目</span>
+            </div>
+          )}
         </Card>
       )}
 
-      {/* 导入模式选择 */}
+      {/* 导入模式选择 - 只保留AI智能生成 */}
       {selectedProjectId && (
         <Card style={{ marginBottom: '24px' }}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{ fontWeight: 500, marginRight: '12px' }}>导入模式:</label>
             <Radio.Group 
-              value={importMode} 
-              onChange={(e) => setImportMode(e.target.value)}
+              value="ai" 
+              disabled
               size="large"
             >
               <Radio.Button value="ai">
                 <RobotOutlined /> AI智能生成
               </Radio.Button>
-              <Radio.Button value="manual">
+              {/* 手动JSON导入模式已注释 */}
+              {/* <Radio.Button value="manual">
                 <ImportOutlined /> 手动JSON导入
-              </Radio.Button>
+              </Radio.Button> */}
             </Radio.Group>
           </div>
           
-          {importMode === 'ai' ? (
+          {!closedAlerts.has('aiModeAlert') ? (
             <Alert
               message="AI智能生成模式"
               description="输入关键词和需求描述，AI将自动为您生成相关的任务列表，支持多种AI提供商。"
               type="info"
               showIcon
+              closable
+              onClose={() => handleAlertClose('aiModeAlert')}
             />
           ) : (
-            <Alert
-              message="手动JSON导入模式"
-              description="将从Claude或其他来源获得的JSON格式任务数据直接粘贴导入。"
-              type="info"
-              showIcon
-            />
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              padding: '8px 12px',
+              backgroundColor: '#f0f9ff',
+              borderRadius: '4px',
+              border: '1px solid #bae7ff'
+            }}>
+              <Tooltip title="AI智能生成模式说明">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
+                  onClick={() => handleAlertReopen('aiModeAlert')}
+                />
+              </Tooltip>
+              <span style={{ fontSize: '12px', color: '#1890ff' }}>AI智能生成模式</span>
+            </div>
           )}
         </Card>
       )}
 
-      {/* AI智能生成模式 */}
-      {selectedProjectId && importMode === 'ai' && (
+      {/* AI智能生成模式 - 总是显示 */}
+      {selectedProjectId && (
         <AIAssistedBulkImport
           projectId={selectedProjectId}
           onTasksGenerated={handleAITasksGenerated}
           onImport={handleAIImport}
+          selectedParentTaskId={selectedParentTaskId}
+          selectedParentTask={selectedParentTask}
         />
       )}
 
-      {/* 手动JSON导入模式 */}
-      {importMode === 'manual' && (
+      {/* 手动JSON导入模式已注释 */}
+      {false && (
         <>
           <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
@@ -538,7 +624,7 @@ const BulkImportPage: React.FC = () => {
                       fontWeight: 500,
                       color: '#1890ff'
                     }}>
-                      {selectedParentTask.title}
+                      {selectedParentTask?.title}
                     </span>
                     <span>的子任务导入</span>
                   </div>
