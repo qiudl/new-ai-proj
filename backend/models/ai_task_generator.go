@@ -128,7 +128,7 @@ type AITaskGenerationHistory struct {
 
 // AIBulkImportRequest AI智能批量导入请求
 type AIBulkImportRequest struct {
-	ProjectID      int             `json:"project_id" binding:"required"`
+	ProjectID      int             `json:"project_id"`
 	ParentTaskID   *int            `json:"parent_task_id"`
 	Provider       AIProvider      `json:"provider" binding:"required"`
 	InputText      string          `json:"input_text" binding:"required"`

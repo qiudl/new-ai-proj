@@ -347,17 +347,11 @@ const AIConfigPage: React.FC = () => {
       const response = await aiConfigDatabaseService.testConnection(testRequest);
       
       // 处理API响应格式
-      // API返回格式: { success: true, data: { success: true, conversation: {...} } }
-      const testResult = (response.success && response.data) ? response.data : {
+      const testResult = response.success ? response.data : {
         success: false,
         message: response.message || '测试失败',
         responseTime: 0
       };
-      
-      // 如果API调用成功但data中没有success字段，根据response.success来判断
-      if (response.success && testResult && !testResult.hasOwnProperty('success')) {
-        testResult.success = true;
-      }
 
       setTestResults(prev => ({
         ...prev,
@@ -367,22 +361,7 @@ const AIConfigPage: React.FC = () => {
         }
       }));
 
-      // 调试日志
-      console.log('设置测试结果:', {
-        provider,
-        testResult,
-        hasConversation: !!testResult.conversation,
-        success: testResult.success
-      });
-
-      if (testResult?.success && testResult.conversation) {
-        // 成功时显示AI的回答内容作为提示
-        const answer = testResult.conversation.answer;
-        const shortAnswer = answer.length > 50 ? answer.substring(0, 50) + '...' : answer;
-        message.success(`${AI_PROVIDER_INFO[provider].name} 测试成功: ${shortAnswer}`);
-        console.log(`测试结果:`, testResult);
-      } else if (testResult?.success) {
-        // 成功但没有对话内容
+      if (testResult?.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
         console.log(`测试结果:`, testResult);
       } else {
@@ -392,39 +371,19 @@ const AIConfigPage: React.FC = () => {
     } catch (error) {
       console.error('测试连接失败:', error);
       const errorMessage = error instanceof Error ? error.message : '网络连接失败';
-      
-      // 检查是否实际上是成功的响应但被错误处理了
-      if (errorMessage.includes('AI connection test completed')) {
-        // 这实际上是成功的响应，但被错误地抛出为异常
-        const successResult = {
-          success: true,
-          message: errorMessage,
-          responseTime: 0
-        };
-        
-        setTestResults(prev => ({
-          ...prev,
-          [provider]: { 
-            testing: false, 
-            result: successResult
+      setTestResults(prev => ({
+        ...prev,
+        [provider]: { 
+          testing: false, 
+          result: {
+            success: false,
+            message: `测试失败: ${errorMessage}`,
+            responseTime: 0,
+            error: errorMessage
           }
-        }));
-        message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
-      } else {
-        setTestResults(prev => ({
-          ...prev,
-          [provider]: { 
-            testing: false, 
-            result: {
-              success: false,
-              message: `测试失败: ${errorMessage}`,
-              responseTime: 0,
-              error: errorMessage
-            }
-          }
-        }));
-        message.error(`连接测试失败: ${errorMessage}`);
-      }
+        }
+      }));
+      message.error(`连接测试失败: ${errorMessage}`);
     }
   };
 
@@ -701,93 +660,6 @@ const AIConfigPage: React.FC = () => {
                 rows={3}
                 style={{ marginBottom: 8 }}
               />
-              
-              {/* 测试结果显示 - 紧接在测试问题输入框下方 */}
-              {testResult.result && (
-                <div style={{ marginTop: 12 }}>
-                  {testResult.result.success && testResult.result.conversation ? (
-                    // 成功时显示AI对话内容
-                    <Card 
-                      size="small" 
-                      title={
-                        <Space>
-                          <RobotOutlined style={{ color: '#52c41a' }} />
-                          <Text style={{ color: '#52c41a' }}>AI回答</Text>
-                          <Tag color="green">{testResult.result.conversation.model}</Tag>
-                          {testResult.result.responseTime > 0 && (
-                            <Tag color="blue">{testResult.result.responseTime}ms</Tag>
-                          )}
-                        </Space>
-                      }
-                      style={{ 
-                        border: '1px solid #d9f7be',
-                        backgroundColor: '#f6ffed'
-                      }}
-                    >
-                      <div style={{ marginBottom: 8 }}>
-                        <Text strong style={{ color: '#1890ff' }}>问题：</Text>
-                        <div style={{ 
-                          background: '#f0f9ff', 
-                          padding: '8px 12px', 
-                          borderRadius: '6px',
-                          marginTop: 4,
-                          border: '1px solid #e1f5fe'
-                        }}>
-                          {testResult.result.conversation.question}
-                        </div>
-                      </div>
-                      
-                      <div style={{ marginBottom: 8 }}>
-                        <Text strong style={{ color: '#52c41a' }}>回答：</Text>
-                        <div style={{ 
-                          background: '#f6ffed', 
-                          padding: '8px 12px', 
-                          borderRadius: '6px',
-                          marginTop: 4,
-                          border: '1px solid #d9f7be',
-                          whiteSpace: 'pre-wrap'
-                        }}>
-                          {testResult.result.conversation.answer}
-                        </div>
-                      </div>
-                      
-                      {testResult.result.conversation.usage && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: '#8c8c8c',
-                          borderTop: '1px solid #f0f0f0',
-                          paddingTop: 8,
-                          marginTop: 8
-                        }}>
-                          <Space split={<span>|</span>}>
-                            <span>输入Token: {testResult.result.conversation.usage.prompt_tokens}</span>
-                            <span>输出Token: {testResult.result.conversation.usage.completion_tokens}</span>
-                            <span>总计: {testResult.result.conversation.usage.total_tokens}</span>
-                          </Space>
-                        </div>
-                      )}
-                    </Card>
-                  ) : (
-                    // 失败时显示错误信息
-                    <Alert
-                      message="连接测试失败"
-                      description={
-                        <div>
-                          <div>{testResult.result.message}</div>
-                          {testResult.result.responseTime > 0 && (
-                            <div style={{ marginTop: 4, fontSize: '12px', color: '#8c8c8c' }}>
-                              响应时间: {testResult.result.responseTime}ms
-                            </div>
-                          )}
-                        </div>
-                      }
-                      type="error"
-                      showIcon
-                      icon={<CloseCircleOutlined />}
-                    />
-                  )}
-                </div>
-              )}
             </div>
 
             <Space>
@@ -820,6 +692,88 @@ const AIConfigPage: React.FC = () => {
                 </Button>
               )}
             </Space>
+            
+            {testResult.result && (
+              <div style={{ marginTop: 12 }}>
+                <Alert
+                  message={testResult.result.success ? '连接测试成功' : '连接测试失败'}
+                  description={
+                    <div>
+                      <div>{testResult.result.message}</div>
+                      {testResult.result.responseTime > 0 && (
+                        <div style={{ marginTop: 4, fontSize: '12px', color: '#8c8c8c' }}>
+                          响应时间: {testResult.result.responseTime}ms
+                        </div>
+                      )}
+                    </div>
+                  }
+                  type={testResult.result.success ? 'success' : 'error'}
+                  showIcon
+                  icon={testResult.result.success ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                />
+                
+                {/* 显示测试对话 */}
+                {testResult.result.success && testResult.result.conversation && (
+                  <Card 
+                    size="small" 
+                    title={
+                      <Space>
+                        <RobotOutlined style={{ color: '#1890ff' }} />
+                        测试对话
+                        <Tag color="blue">{testResult.result.conversation.model}</Tag>
+                      </Space>
+                    }
+                    style={{ 
+                      marginTop: 8,
+                      border: '1px solid #d9f7be'
+                    }}
+                  >
+                    <div style={{ marginBottom: 8 }}>
+                      <Text strong style={{ color: '#1890ff' }}>问题：</Text>
+                      <div style={{ 
+                        background: '#f0f9ff', 
+                        padding: '8px 12px', 
+                        borderRadius: '6px',
+                        marginTop: 4,
+                        border: '1px solid #e1f5fe'
+                      }}>
+                        {testResult.result.conversation.question}
+                      </div>
+                    </div>
+                    
+                    <div style={{ marginBottom: 8 }}>
+                      <Text strong style={{ color: '#52c41a' }}>回答：</Text>
+                      <div style={{ 
+                        background: '#f6ffed', 
+                        padding: '8px 12px', 
+                        borderRadius: '6px',
+                        marginTop: 4,
+                        border: '1px solid #d9f7be',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {testResult.result.conversation.answer}
+                      </div>
+                    </div>
+                    
+                    {testResult.result.conversation.usage && (
+                      <div style={{ 
+                        fontSize: '12px', 
+                        color: '#8c8c8c',
+                        borderTop: '1px solid #f0f0f0',
+                        paddingTop: 8,
+                        marginTop: 8
+                      }}>
+                        <Space split={<span>|</span>}>
+                          <span>输入Token: {testResult.result.conversation.usage.promptTokens}</span>
+                          <span>输出Token: {testResult.result.conversation.usage.completionTokens}</span>
+                          <span>总计: {testResult.result.conversation.usage.totalTokens}</span>
+                        </Space>
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </div>
+            )}
           </Space>
         </div>
       </div>
@@ -844,43 +798,7 @@ const AIConfigPage: React.FC = () => {
 
         <Spin spinning={loading}>
 
-          {/* 提供商比较 */}
-          <Collapse 
-            ghost 
-            style={{ marginBottom: 16 }}
-            items={[
-              {
-                key: 'comparison',
-                label: (
-                  <Space>
-                    <InfoCircleOutlined style={{ color: '#1890ff' }} />
-                    AI提供商对比
-                  </Space>
-                ),
-                children: (
-                  <Row gutter={[16, 16]}>
-                    {Object.entries(AI_PROVIDER_INFO).map(([key, info]) => (
-                      <Col span={8} key={key}>
-                        <Card size="small" title={info.name}>
-                          <div style={{ fontSize: '12px' }}>
-                            <div style={{ marginBottom: 4 }}>
-                              <Text type="secondary">价格:</Text> {info.pricing}
-                            </div>
-                            <div style={{ marginBottom: 4 }}>
-                              <Text type="secondary">速度:</Text> {info.speed}
-                            </div>
-                            <div>
-                              <Text type="secondary">特点:</Text> {info.description}
-                            </div>
-                          </div>
-                        </Card>
-                      </Col>
-                    ))}
-                  </Row>
-                )
-              }
-            ]}
-          />
+
 
           {/* 配置标签页 */}
           <Tabs
