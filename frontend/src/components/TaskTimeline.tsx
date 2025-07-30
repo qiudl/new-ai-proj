@@ -297,7 +297,17 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
               </Space>
               
               <Space>
-                {getUserAvatar(event)}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {getUserAvatar(event)}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                    <Text strong style={{ fontSize: '12px', color: '#262626', lineHeight: 1 }}>
+                      {event.username || '系统'}
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: '11px', lineHeight: 1 }}>
+                      {event.user_id ? `ID: ${event.user_id}` : '自动'}
+                    </Text>
+                  </div>
+                </div>
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {formatEventTime(event.event_date)}
                 </Text>
@@ -305,36 +315,80 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
             </div>
             
             {/* 事件描述 */}
-            <div style={{ color: '#333', lineHeight: 1.5 }}>
+            <div style={{ color: '#333', lineHeight: 1.5, marginBottom: '8px' }}>
               {event.description}
             </div>
             
-            {/* 元数据显示 */}
-            {showMetadata && event.metadata && Object.keys(event.metadata).length > 0 && (
+            {/* 增强的更新内容显示 */}
+            {event.metadata && (
               <div style={{ 
-                marginTop: 8, 
-                padding: 8, 
-                backgroundColor: '#fafafa', 
-                borderRadius: 4,
-                fontSize: 12,
+                marginBottom: '8px',
+                padding: '8px 12px',
+                backgroundColor: '#f8f9fa',
+                borderRadius: '6px',
+                fontSize: '13px'
               }}>
-                <Space direction="vertical" size={2} style={{ width: '100%' }}>
-                  {Object.entries(event.metadata).map(([key, value]) => {
-                    // 跳过已在标签中显示的字段
-                    if (key === 'priority' || key === 'new_status') return null;
-                    
-                    return (
-                      <div key={key} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          {key}:
-                        </Text>
-                        <Text style={{ fontSize: 11, fontWeight: 500 }}>
+                {/* 如果有旧值和新值，显示变更对比 */}
+                {event.metadata.old_value && event.metadata.new_value && (
+                  <div style={{ marginBottom: '6px' }}>
+                    <Text strong style={{ color: '#595959', fontSize: '12px' }}>更新内容：</Text>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      marginTop: '4px',
+                      fontFamily: 'monospace'
+                    }}>
+                      <span style={{ 
+                        padding: '2px 6px',
+                        backgroundColor: '#fff2f0',
+                        border: '1px solid #ffccc7',
+                        borderRadius: '3px',
+                        fontSize: '12px',
+                        textDecoration: 'line-through',
+                        color: '#cf1322'
+                      }}>
+                        {typeof event.metadata.old_value === 'object' 
+                          ? JSON.stringify(event.metadata.old_value)
+                          : String(event.metadata.old_value)
+                        }
+                      </span>
+                      <span style={{ color: '#8c8c8c' }}>→</span>
+                      <span style={{ 
+                        padding: '2px 6px',
+                        backgroundColor: '#f6ffed',
+                        border: '1px solid #b7eb8f',
+                        borderRadius: '3px',
+                        fontSize: '12px',
+                        color: '#389e0d',
+                        fontWeight: 500
+                      }}>
+                        {typeof event.metadata.new_value === 'object' 
+                          ? JSON.stringify(event.metadata.new_value)
+                          : String(event.metadata.new_value)
+                        }
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* 显示其他元数据信息 */}
+                {Object.entries(event.metadata).map(([key, value]) => {
+                  if (key === 'old_value' || key === 'new_value' || key === 'priority' || key === 'new_status') {
+                    return null;
+                  }
+                  
+                  return (
+                    <div key={key} style={{ marginBottom: '4px' }}>
+                      <Text style={{ fontSize: '12px' }}>
+                        <Text strong style={{ color: '#595959' }}>{key}:</Text>
+                        <span style={{ marginLeft: '8px', color: '#262626', fontWeight: 500 }}>
                           {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                        </Text>
-                      </div>
-                    );
-                  }).filter(Boolean)}
-                </Space>
+                        </span>
+                      </Text>
+                    </div>
+                  );
+                }).filter(Boolean)}
               </div>
             )}
             

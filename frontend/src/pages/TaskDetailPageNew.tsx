@@ -830,8 +830,9 @@ const TaskDetailPageNew: React.FC = () => {
                         projectId={parseInt(projectId || '0')}
                         useAdvancedAPI={false} // 先使用兼容版API
                         onSave={(content) => {
+                          // 文档保存成功后更新状态
                           setDocumentExists(true);
-                          message.success('文档保存成功');
+                          // 不在这里显示成功消息，让TaskDocumentEditor自己处理
                         }}
                         style={{ height: '500px' }}
                       />

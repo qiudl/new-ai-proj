@@ -13,6 +13,9 @@ import TodayStatsCard from '../components/TodayStatsCard';
 import TaskProgressCard from '../components/TaskProgressCard';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
 import TimerDebugModal from '../components/TimerDebugModal';
+import TaskTimeline from '../components/TaskTimeline';
+import { TaskService } from '../services/taskService';
+import { TimelineEvent } from '../types/task';
 // 🔽 COMMENTED OUT: 拖拽相关导入 - 简化第1步
 // import GridItemSettings, { GridItemConfig } from '../components/GridItemSettings';
 import TimeManagementGuide from '../components/TimeManagementGuide';
@@ -126,6 +129,10 @@ const DashboardPage: React.FC = () => {
   
   // 获取定时器状态
   const { timerState } = useTimer();
+  
+  // 时间线相关状态
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   // 从localStorage恢复浮动定时器可见性状态
   useEffect(() => {
@@ -268,11 +275,84 @@ const DashboardPage: React.FC = () => {
   }, [componentConfigs]);
   */
 
+  // 加载全局时间线事件（聚合所有任务的时间线）
+  const loadTimelineEvents = useCallback(async () => {
+    try {
+      setTimelineLoading(true);
+      
+      // 这里我们可以获取用户相关的所有项目和任务的时间线事件
+      // 由于没有全局时间线API，我们需要从多个来源聚合数据
+      
+      // 为了演示效果，我们先提供一些示例时间线事件
+      const sampleEvents: TimelineEvent[] = [
+        {
+          id: 1,
+          task_id: 1,
+          event_type: 'completed',
+          event_date: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30分钟前
+          description: '完成了任务开发工作',
+          user_id: 1,
+          username: 'admin',
+          task_title: 'AI任务生成模块优化',
+          metadata: {
+            old_value: 'in_progress',
+            new_value: 'completed',
+            priority: 'high',
+            completion_time: '2.5小时'
+          }
+        },
+        {
+          id: 2,
+          task_id: 2,
+          event_type: 'status_changed',
+          event_date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2小时前
+          description: '任务状态从待开始变更为进行中',
+          user_id: 1,
+          username: 'admin',
+          task_title: '时间线模块集成',
+          metadata: {
+            old_value: 'todo',
+            new_value: 'in_progress',
+            priority: 'medium',
+            estimated_hours: 4
+          }
+        },
+        {
+          id: 3,
+          task_id: 3,
+          event_type: 'created',
+          event_date: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), // 4小时前
+          description: '创建了新的任务',
+          user_id: 2,
+          username: 'dev_user_1',
+          task_title: '数据库性能优化',
+          metadata: {
+            priority: 'high',
+            estimated_hours: 8,
+            tags: ['数据库', '性能', '优化']
+          }
+        }
+      ];
+      
+      setTimelineEvents(sampleEvents);
+    } catch (error) {
+      console.error('加载时间线事件失败:', error);
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
   // 🔽 SIMPLIFIED: 简化的刷新逻辑
   const handleRefresh = useCallback(() => {
     if (!isMountedRef.current) return;
     setRefreshTrigger(prev => prev + 1);
-  }, []);
+    loadTimelineEvents(); // 同时刷新时间线
+  }, [loadTimelineEvents]);
+
+  // 组件挂载时加载时间线事件
+  useEffect(() => {
+    loadTimelineEvents();
+  }, [loadTimelineEvents]);
 
   // 🔽 COMMENTED OUT: 拖拽相关处理函数 - 简化第1步
   // Handle drag mode toggle
@@ -563,7 +643,7 @@ const DashboardPage: React.FC = () => {
         gridTemplateColumns: '2fr 1fr', // 左侧2列宽度 + 右侧1列宽度
         gap: '16px',
         minHeight: '600px', // 最小高度保证内容可见
-        height: 'calc(100vh - 140px)' // 减去头部高度
+        marginBottom: '24px' // 为底部时间线留出空间
       }}>
         {/* 左侧区域：2列宽度的内容区 */}
         <div className="left-content-area" style={{
@@ -672,6 +752,38 @@ const DashboardPage: React.FC = () => {
             </TimerErrorBoundary>
           </div>
         </div>
+      </div>
+      
+      {/* 🔽 NEW: 全局时间线显示区域 - 作为最后一个显示项 */}
+      <div className="global-timeline-section" style={{
+        background: '#fff',
+        border: '1px solid #d9d9d9',
+        borderRadius: '8px',
+        padding: '20px',
+        marginBottom: '24px'
+      }}>
+        <div style={{ 
+          marginBottom: '16px',
+          borderBottom: '1px solid #f0f0f0',
+          paddingBottom: '12px'
+        }}>
+          <Title level={3} style={{ margin: 0, color: '#262626' }}>
+            最新动态
+          </Title>
+          <Text type="secondary" style={{ fontSize: '14px' }}>
+            查看所有项目和任务的最新更新动态
+          </Text>
+        </div>
+        
+        <TimerErrorBoundary>
+          <TaskTimeline 
+            events={timelineEvents}
+            loading={timelineLoading}
+            onRefresh={loadTimelineEvents}
+            showFilters={true}
+            className="dashboard-timeline"
+          />
+        </TimerErrorBoundary>
       </div>
       
       {/* 🔽 REMOVED: 原拖拽网格布局代码已移除 - 简化第1步完成 */}
