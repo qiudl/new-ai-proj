@@ -58,7 +58,7 @@ import companyService from '../services/companyService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
 import { useTimer } from '../contexts/TimerContext';
 // 🎯 移除：不再需要SimplifiedTimerProvider，使用统一定时器系统
-import DocumentList from '../components/DocumentList';
+// import DocumentList from '../components/DocumentList'; // 已归档，保持MVP简洁
 import ProjectTaskList from '../components/ProjectTaskList';
 import EnhancedProjectTaskManager from '../components/EnhancedProjectTaskManager';
 import '../styles/timer-components.css';
@@ -486,11 +486,23 @@ const ProjectDetailPage: React.FC = () => {
         </span>
       ),
       children: project ? (
-        <DocumentList 
-          projectId={project.id} 
-          projectName={project.name}
-          onCreateDocument={() => navigate(`/projects/${project.id}/documents/new`)}
-        />
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <div style={{ marginBottom: '16px' }}>
+            📄 项目文档管理功能正在简化重构中...
+          </div>
+          <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
+            项目ID: {project.id} | 项目名称: {project.name}
+          </div>
+          <div style={{ marginTop: '16px' }}>
+            <Button 
+              type="primary" 
+              onClick={() => navigate(`/projects/${project.id}/documents/new`)}
+            >
+              创建文档
+            </Button>
+          </div>
+          {/* TODO: 实现简化的项目文档列表 */}
+        </div>
       ) : null
     },
     {

@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 PROJECT_DIR="/opt/new-ai-proj"
 DOCKER_COMPOSE_VERSION="2.21.0"
 NGINX_VERSION="latest"
-USER="ubuntu"  # 或者 "root"，根据你的服务器配置
+USER="ubuntu"  
 
 echo -e "${BLUE}🚀 开始腾讯云服务器初始化和项目部署${NC}"
 
@@ -66,11 +66,11 @@ install_docker() {
         
         # 添加Docker官方GPG密钥
         sudo mkdir -p /etc/apt/keyrings
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+        curl -fsSL -o-  https://mirrors.cloud.tencent.com/docker-ce/linux/ubuntu/gpg | sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
         
         # 添加Docker仓库
         echo \
-          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://mirrors.cloud.tencent.com/docker-ce/linux/ubuntu \
           $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         
         # 安装Docker
@@ -84,7 +84,7 @@ install_docker() {
         sudo yum install -y yum-utils
         
         # 添加Docker仓库
-        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+        sudo yum-config-manager --add-repo https://mirrors.cloud.tencent.com/docker-ce/linux/centos/docker-ce.repo
         
         # 安装Docker
         sudo yum install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
@@ -109,7 +109,7 @@ install_docker_compose() {
     echo -e "${YELLOW}🔧 安装Docker Compose...${NC}"
     
     # 下载Docker Compose
-    sudo curl -L "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo curl -L "https://get.daocloud.io/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     
     # 添加执行权限
     sudo chmod +x /usr/local/bin/docker-compose
@@ -282,18 +282,18 @@ EOF
 # 复制此文件为 .env.prod 并填入实际值
 
 # 数据库配置
-DB_USER=prod_user
-DB_PASSWORD=your_secure_password_here
-DB_NAME=prod_db
+DB_USER=qiudl
+DB_PASSWORD=5pAoHHIPoep1HPTqyM4u7li0yvR7Qk/M3uI2pCZBmJk=
+DB_NAME=proj_lodging
 
 # JWT配置
-JWT_SECRET=your_very_secure_jwt_secret_here
+JWT_SECRET=22i+m9h8Syz5WBEdc7za1dt5BbbstK9vA8rptpS1VHLgFjrXe46LV7gLOmo0pdCOvkI7PObiUCZPCZRF1EiqUg==
 
 # 域名配置
-DOMAIN=your-domain.com
+DOMAIN=joylodging.com
 
 # SSL配置
-SSL_EMAIL=your-email@domain.com
+SSL_EMAIL=qiudl@joylodging.com
 
 # 备份配置
 BACKUP_RETENTION_DAYS=30
@@ -366,7 +366,7 @@ EOF
     cat > $PROJECT_DIR/nginx/sites-available/default.conf << 'EOF'
 server {
     listen 80;
-    server_name your-domain.com www.your-domain.com;
+    server_name proj.joylodging.com;
     
     # 重定向到HTTPS
     return 301 https://$server_name$request_uri;
@@ -374,7 +374,7 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
+    server_name proj.joylodging.com;
 
     # SSL配置
     ssl_certificate /etc/nginx/ssl/fullchain.pem;
@@ -613,9 +613,9 @@ setup_ssl() {
     fi
     
     echo -e "${YELLOW}📝 请手动运行以下命令来获取SSL证书：${NC}"
-    echo "sudo certbot --nginx -d your-domain.com -d www.your-domain.com"
+    echo "sudo certbot --nginx -d joylodging.com -d www.joylodging.com"
     echo "或者使用通配符证书："
-    echo "sudo certbot certonly --manual --preferred-challenges=dns -d your-domain.com -d *.your-domain.com"
+    echo "sudo certbot certonly --manual --preferred-challenges=dns -d joylodging.com -d *.joylodging.com"
     
     echo -e "${GREEN}✅ SSL设置指引完成${NC}"
 }

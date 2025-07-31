@@ -18,7 +18,7 @@
 
 ```bash
 # 下载安装脚本
-wget https://raw.githubusercontent.com/qiudl/new-ai-proj/main/scripts/tencent-cloud-setup.sh
+wget https://raw.githubusercontent.com/qiudl/new-ai-proj/scripts/tencent-cloud-setup.sh
 
 # 赋予执行权限
 chmod +x tencent-cloud-setup.sh

@@ -56,8 +56,9 @@ type Application struct {
 	timerHandler               *handlers.TimerHandler
 	archiveHandler             *handlers.ArchiveHandler
 	taskDocumentHandler        *handlers.TaskDocumentHandler
-	unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
-	upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
+	// 归档的复杂处理器 - MVP版本不需要
+	// unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
+	// upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
 	smartTemplateHandler       *handlers.SmartTemplateHandler
 	collaborationHandler       *handlers.DocumentCollaborationHandler
 	statisticsHandler          *handlers.StatisticsHandlers
@@ -129,20 +130,12 @@ func NewApplication() (*Application, error) {
 	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
 	
-	// 创建文档服务和任务文档服务
-	taskDocumentService := services.NewTaskDocumentService(db.GetDB().(*sql.DB), nil) // 使用nil DocumentService进行MVP演示
+	// 归档复杂的任务文档服务 - MVP版本使用简单方案
+	// taskDocumentService := services.NewTaskDocumentService(db.GetDB().(*sql.DB), nil)
+	// unifiedTaskDocumentHandler := handlers.NewUnifiedTaskDocumentHandler(taskDocumentService)
+	// upgradedTaskDocumentHandler := handlers.NewUpgradedTaskDocumentHandler(...)
 	
-	// 创建统一文档处理器
-	unifiedTaskDocumentHandler := handlers.NewUnifiedTaskDocumentHandler(taskDocumentService)
-	
-	// 创建升级版处理器（向后兼容）
-	upgradedTaskDocumentHandler := handlers.NewUpgradedTaskDocumentHandler(
-		docsBasePath,
-		taskDocumentService,
-		unifiedTaskDocumentHandler,
-		true,  // useUnifiedSystem - 是否默认使用统一系统
-		true,  // enableAutoMigration - 是否启用自动迁移
-	)
+	// TODO: 实现简化版任务文档处理器
 	
 	// 创建智能模板服务和处理器
 	smartTemplateService := services.NewSmartTemplateService(db.GetDB().(*sql.DB))
@@ -197,8 +190,9 @@ func NewApplication() (*Application, error) {
 		timerHandler:                timerHandler,
 		archiveHandler:              archiveHandler,
 		taskDocumentHandler:         taskDocumentHandler,
-		unifiedTaskDocumentHandler:  unifiedTaskDocumentHandler,
-		upgradedTaskDocumentHandler: upgradedTaskDocumentHandler,
+		// 归档复杂处理器
+		// unifiedTaskDocumentHandler:  unifiedTaskDocumentHandler,
+		// upgradedTaskDocumentHandler: upgradedTaskDocumentHandler,
 		smartTemplateHandler:        smartTemplateHandler,
 		collaborationHandler:        collaborationHandler,
 		statisticsHandler:           statisticsHandler,
@@ -331,17 +325,18 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/archive/stats", app.archiveHandler.GetArchiveStatistics)
 				
 				// Task document routes (升级版，向后兼容)
-				projects.GET("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.GetTaskDocument)
-				projects.PUT("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.SaveTaskDocument)
-				projects.HEAD("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.CheckTaskDocument)
+				// 使用简单的任务文档处理器
+				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
+				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
+				// projects.HEAD("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.CheckTaskDocument)
 				
-				// 新的增强API路由
-				projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
-				projects.PATCH("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.UpdateTaskDocumentAdvanced)
-				projects.DELETE("/:id/tasks/:taskId/document", app.unifiedTaskDocumentHandler.DeleteTaskDocument)
+				// 删除增强版API路由 - 保持MVP简洁
+				// projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
+				// projects.PATCH("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.UpdateTaskDocumentAdvanced)
+				// projects.DELETE("/:id/tasks/:taskId/document", app.unifiedTaskDocumentHandler.DeleteTaskDocument)
 				
-				// 智能模板系统
-				projects.GET("/:id/tasks/:taskId/templates/recommendations", app.smartTemplateHandler.GetRecommendedTemplates)
+				// 智能模板系统 - 暂时注释，保持MVP简洁
+				// projects.GET("/:id/tasks/:taskId/templates/recommendations", app.smartTemplateHandler.GetRecommendedTemplates)
 				
 				// 文档协作功能
 				documents := projects.Group("/:id/documents")
@@ -695,23 +690,15 @@ func (app *Application) setupRouter() *gin.Engine {
 			comments.PATCH("/:id/resolve", app.collaborationHandler.ResolveComment)
 		}
 		
-		// 任务文档管理路由
-		taskDocuments := authorized.Group("/task-documents")
-		{
-			taskDocuments.GET("", app.unifiedTaskDocumentHandler.GetTaskDocumentList)
-			taskDocuments.GET("/stats", app.unifiedTaskDocumentHandler.GetTaskDocumentStats)
-		}
+		// 任务文档管理路由 - 暂时注释，保持MVP简洁
+		// taskDocuments := authorized.Group("/task-documents")
+		// {
+		//     // 归档复杂的任务文档列表功能
+		//     // taskDocuments.GET("", app.unifiedTaskDocumentHandler.GetTaskDocumentList)
+		//     // taskDocuments.GET("/stats", app.unifiedTaskDocumentHandler.GetTaskDocumentStats)
+		// }
 		
-		// 系统管理路由
-		system := authorized.Group("/system")
-		{
-			// 迁移管理路由（系统管理员专用）
-			migration := system.Group("/task-documents/migration")
-			{
-				migration.GET("/status", app.upgradedTaskDocumentHandler.GetMigrationStatus)
-				migration.POST("/switch", app.upgradedTaskDocumentHandler.SwitchToUnifiedSystem)
-			}
-		}
+		// 迁移管理路由已移至上面的system组中
 	}
 
 

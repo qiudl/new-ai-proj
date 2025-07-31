@@ -9,9 +9,8 @@ import {
   Spin, 
   Empty, 
   Badge, 
-  Tooltip,
-  Progress,
-  Tag
+  Tag,
+  Tooltip
 } from 'antd';
 import { 
   ProjectOutlined, 

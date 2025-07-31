@@ -30,11 +30,11 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 
-// 导入测试和演示组件
-import GoogleDocsTestPage from './GoogleDocsTestPage';
-import DocumentSystemShowcase from '../components/DocumentSystemShowcase';
-import EnterpriseDocumentDemo from '../components/EnterpriseDocumentDemo';
-import UnifiedDocumentManager from '../components/UnifiedDocumentManager';
+// 导入测试和演示组件 - 复杂文档组件已归档
+// import GoogleDocsTestPage from './GoogleDocsTestPage';
+// import DocumentSystemShowcase from '../components/DocumentSystemShowcase';
+// import EnterpriseDocumentDemo from '../components/EnterpriseDocumentDemo';
+// import UnifiedDocumentManager from '../components/UnifiedDocumentManager';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -250,7 +250,14 @@ const TestCenter: React.FC = () => {
             } 
             key="google-docs-test"
           >
-            <GoogleDocsTestPage />
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <div style={{ fontSize: '18px', marginBottom: '16px' }}>
+                📄 Google Docs 测试功能已归档
+              </div>
+              <Text type="secondary">
+                为保持MVP简洁，复杂的在线文档编辑功能已暂时移除
+              </Text>
+            </div>
           </TabPane>
 
           <TabPane 
@@ -271,22 +278,14 @@ const TestCenter: React.FC = () => {
                 style={{ marginBottom: 24 }}
               />
               
-              <UnifiedDocumentManager
-                mode="advanced"
-                projectId={1}
-                projectName="测试项目"
-                enableRealtimeCollaboration={true}
-                enableIntelligentSearch={true}
-                enableOnlineEditor={true}
-                enableVersionControl={true}
-                enableGoogleDocsIntegration={true}
-                showSearch={true}
-                showToolbar={true}
-                allowUpload={true}
-                allowBatch={true}
-                showViewToggle={true}
-                defaultView="table"
-              />
+              <div style={{ padding: '40px', textAlign: 'center' }}>
+                <div style={{ fontSize: '18px', marginBottom: '16px' }}>
+                  📁 统一文档管理器已归档
+                </div>
+                <Text type="secondary">
+                  复杂的文档管理功能已简化，专注于核心任务文档编辑
+                </Text>
+              </div>
             </Card>
           </TabPane>
 
@@ -299,7 +298,14 @@ const TestCenter: React.FC = () => {
             } 
             key="enterprise-demo"
           >
-            <EnterpriseDocumentDemo />
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <div style={{ fontSize: '18px', marginBottom: '16px' }}>
+                🏢 企业级演示已归档
+              </div>
+              <Text type="secondary">
+                企业级文档管理功能已简化，保持MVP精简性
+              </Text>
+            </div>
           </TabPane>
 
           <TabPane 
@@ -311,7 +317,14 @@ const TestCenter: React.FC = () => {
             } 
             key="system-showcase"
           >
-            <DocumentSystemShowcase />
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+              <div style={{ fontSize: '18px', marginBottom: '16px' }}>
+                ⚡ 系统展示已归档
+              </div>
+              <Text type="secondary">
+                文档系统展示功能已简化，专注核心业务功能
+              </Text>
+            </div>
           </TabPane>
         </Tabs>
       </Content>

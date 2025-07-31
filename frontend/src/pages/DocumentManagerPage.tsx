@@ -34,11 +34,12 @@ import {
 import { DocumentFolder } from '../types/document';
 import DocumentFileManager from '../components/DocumentFileManager';
 import DocumentSearch from '../components/DocumentSearch';
-import DocumentRelationsPanel from '../components/DocumentRelationsPanel';
-import DocumentPermissionPanel from '../components/DocumentPermissionPanel';
-import ResponsiveDocumentManager from '../components/ResponsiveDocumentManager';
-import MobilePermissionPanel from '../components/MobilePermissionPanel';
-import DocumentVersionPanel from '../components/DocumentVersionPanel';
+// Archived components - moved to _archived_document_components/
+// import DocumentRelationsPanel from '../components/DocumentRelationsPanel';
+// import DocumentPermissionPanel from '../components/DocumentPermissionPanel';
+// import ResponsiveDocumentManager from '../components/ResponsiveDocumentManager';
+// import MobilePermissionPanel from '../components/MobilePermissionPanel';
+// import DocumentVersionPanel from '../components/DocumentVersionPanel';
 import { documentFolderService } from '../services/documentFolderService';
 
 const { Title, Text } = Typography;
@@ -653,23 +654,14 @@ const DocumentManagerPage: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <ResponsiveDocumentManager
-                      folderId={selectedFolderId || undefined}
-                      showSearch={true}
-                      title="文档管理"
-                      showBreadcrumb={true}
-                      mobileOptimized={true}
-                      onDocumentSelect={(doc) => {
-                        console.log('Selected document:', doc);
-                        setSelectedDocumentId(doc.id);
-                        // TODO: Navigate to document editor
-                      }}
-                      onDocumentUpdate={() => {
-                        console.log('Document updated, refresh if needed');
-                        // Refresh folder tree and document list
-                        loadFolderTree();
-                      }}
-                    />
+                    <div style={{ padding: 20, textAlign: 'center' }}>
+                      <Text>文档管理功能正在简化重构中...</Text>
+                      <br />
+                      <Text type="secondary">
+                        当前文件夹ID: {selectedFolderId || '未选择'}
+                      </Text>
+                      {/* TODO: Implement simplified document manager */}
+                    </div>
                   ),
                 },
                 {
@@ -702,12 +694,14 @@ const DocumentManagerPage: React.FC = () => {
                   children: (
                     <div style={{ minHeight: '400px' }}>
                       {selectedDocumentId ? (
-                        <DocumentRelationsPanel
-                          documentId={selectedDocumentId}
-                          onRelationChange={() => {
-                            console.log('Relations changed for document:', selectedDocumentId);
-                          }}
-                        />
+                        <div style={{ padding: 20, textAlign: 'center' }}>
+                          <Text>文档关联功能暂时不可用</Text>
+                          <br />
+                          <Text type="secondary">
+                            文档ID: {selectedDocumentId}
+                          </Text>
+                          {/* TODO: Implement simplified document relations */}
+                        </div>
                       ) : (
                         <Card>
                           <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -735,21 +729,14 @@ const DocumentManagerPage: React.FC = () => {
                   children: (
                     <div style={{ minHeight: '400px' }}>
                       {selectedDocumentId ? (
-                        isMobile ? (
-                          <MobilePermissionPanel
-                            documentId={selectedDocumentId}
-                            onPermissionChange={() => {
-                              console.log('Permissions changed for document:', selectedDocumentId);
-                            }}
-                          />
-                        ) : (
-                          <DocumentPermissionPanel
-                            documentId={selectedDocumentId}
-                            onPermissionChange={() => {
-                              console.log('Permissions changed for document:', selectedDocumentId);
-                            }}
-                          />
-                        )
+                        <div style={{ padding: 20, textAlign: 'center' }}>
+                          <Text>权限管理功能暂时不可用</Text>
+                          <br />
+                          <Text type="secondary">
+                            文档ID: {selectedDocumentId}
+                          </Text>
+                          {/* TODO: Implement simplified permission management */}
+                        </div>
                       ) : (
                         <Card>
                           <div style={{ textAlign: 'center', padding: '40px 0' }}>
@@ -777,14 +764,14 @@ const DocumentManagerPage: React.FC = () => {
                   children: (
                     <div style={{ minHeight: '400px' }}>
                       {selectedDocumentId ? (
-                        <DocumentVersionPanel
-                          documentId={selectedDocumentId}
-                          currentVersion={1} // TODO: Get actual current version
-                          onVersionChange={(version) => {
-                            console.log('Version changed:', version);
-                            // TODO: Handle version change
-                          }}
-                        />
+                        <div style={{ padding: 20, textAlign: 'center' }}>
+                          <Text>版本管理功能暂时不可用</Text>
+                          <br />
+                          <Text type="secondary">
+                            文档ID: {selectedDocumentId}
+                          </Text>
+                          {/* TODO: Implement simplified version management */}
+                        </div>
                       ) : (
                         <Card>
                           <div style={{ textAlign: 'center', padding: '40px 0' }}>

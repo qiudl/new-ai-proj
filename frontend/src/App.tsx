@@ -47,7 +47,7 @@ const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard
 const NavigationManagementPage = React.lazy(() => import('./pages/NavigationManagementPage'));
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
-const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage'));
+// const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 
