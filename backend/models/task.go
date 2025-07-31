@@ -21,7 +21,7 @@ func (cf CustomFields) Value() (driver.Value, error) {
 // Scan implements the sql.Scanner interface for database retrieval
 func (cf *CustomFields) Scan(value interface{}) error {
 	if value == nil {
-		*cf = nil
+		*cf = CustomFields{}
 		return nil
 	}
 
@@ -30,6 +30,32 @@ func (cf *CustomFields) Scan(value interface{}) error {
 		return fmt.Errorf("cannot scan %T into CustomFields", value)
 	}
 
+	// First try to unmarshal as normal map
+	var temp map[string]interface{}
+	if err := json.Unmarshal(bytes, &temp); err == nil {
+		*cf = CustomFields(temp)
+		return nil
+	}
+
+	// If that fails, try to handle as array (for backward compatibility)
+	var arr []interface{}
+	if err := json.Unmarshal(bytes, &arr); err == nil {
+		// Convert array to map by merging non-nil map elements
+		result := make(CustomFields)
+		for _, item := range arr {
+			if itemMap, ok := item.(map[string]interface{}); ok {
+				for k, v := range itemMap {
+					if v != nil && k != "" {
+						result[k] = v
+					}
+				}
+			}
+		}
+		*cf = result
+		return nil
+	}
+
+	// If both fail, try to unmarshal directly to CustomFields
 	return json.Unmarshal(bytes, cf)
 }
 

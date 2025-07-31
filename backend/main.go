@@ -1516,6 +1516,14 @@ func (app *Application) createTaskHandler(c *gin.Context) {
 		req.Status = "todo"
 	}
 
+	// Validate and clean CustomFields
+	if err := utils.ValidateTaskRequest(&req); err != nil {
+		app.logger.Printf("Error validating task request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, err.Error(), nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
 	// Validate parent task if specified
 	if req.ParentID != nil {
 		// Validate parent task exists and is in the same project
@@ -1837,7 +1845,15 @@ func (app *Application) updateTaskHandler(c *gin.Context) {
 		existingTask.DueDate = req.DueDate
 	}
 	if req.CustomFields != nil {
-		existingTask.CustomFields = req.CustomFields
+		// Validate and clean CustomFields before assignment
+		cleanedFields, err := utils.ValidateAndCleanCustomFields(req.CustomFields)
+		if err != nil {
+			app.logger.Printf("Error validating custom_fields: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, fmt.Sprintf("Invalid custom_fields: %v", err), nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+		existingTask.CustomFields = cleanedFields
 	}
 	if req.SortOrder != 0 {
 		existingTask.SortOrder = req.SortOrder

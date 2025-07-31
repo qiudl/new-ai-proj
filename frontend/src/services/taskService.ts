@@ -1,6 +1,7 @@
 import api from './api';
 import { ValidationHelper } from '../utils/errorHandling';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
+import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
 import {
   Task,
   TaskRequest,
