@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Card,
   Button,
@@ -18,8 +18,6 @@ import {
   Tag,
   Badge,
   message,
-  Modal,
-  List,
   Collapse,
   Tooltip,
   Empty,
@@ -82,22 +80,6 @@ interface OptimizedTaskGroup {
   estimatedSavings: number;
 }
 
-interface BatchOptimizationStats {
-  totalTasksProcessed: number;
-  totalTasksOptimized: number;
-  tasksMerged: number;
-  tasksReordered: number;
-  estimatedTimeSaved: number;
-  optimizationRatio: number;
-}
-
-interface BatchQualityMetrics {
-  overallScore: number;
-  consistencyScore: number;
-  workflowEfficiency: number;
-  resourceOptimization: number;
-  dependencyQuality: number;
-}
 
 /**
  * AI批量优化器组件
@@ -109,8 +91,6 @@ const AIBatchOptimizer: React.FC = () => {
   const [optimizing, setOptimizing] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [addGroupModalVisible, setAddGroupModalVisible] = useState(false);
-  const [selectedTasks, setSelectedTasks] = useState<GeneratedSubTask[]>([]);
 
   const [batchOptions, setBatchOptions] = useState<BatchOptimizationOptions>({
     crossGroupOptimization: true,
@@ -770,7 +750,7 @@ const AIBatchOptimizer: React.FC = () => {
           </Empty>
         ) : (
           <Collapse>
-            {taskGroups.map((group, index) => (
+            {taskGroups.map((group, _index) => (
               <Panel
                 header={
                   <Space>

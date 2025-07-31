@@ -38,8 +38,7 @@ import { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 import { documentTypes, documentCategories } from './DocumentTypeSelector';
-import { DocumentType, DocumentStats, DocumentListItem } from '../types/document';
-import { DocumentFilter as DocumentListParams } from '../types/document';
+import { DocumentType, DocumentStats, DocumentListItem , DocumentFilter as DocumentListParams } from '../types/document';
 
 const { Title, Text } = Typography;
 const { Option } = Select;

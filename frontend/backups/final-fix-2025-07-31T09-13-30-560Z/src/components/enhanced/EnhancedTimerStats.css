@@ -1,0 +1,384 @@
+/* Enhanced Timer Stats Styles */
+.enhanced-timer-stats {
+  width: 100%;
+  height: 100%;
+}
+
+.enhanced-timer-stats-card {
+  border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+}
+
+.enhanced-timer-stats-card .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  padding: 16px 24px;
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stats-header .header-icon {
+  font-size: 20px;
+  color: #1890ff;
+}
+
+/* Tabs Styling */
+.stats-tabs .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.stats-tabs .ant-tabs-tab {
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.stats-tabs .ant-tabs-tab:hover {
+  color: #1890ff;
+}
+
+.stats-tabs .ant-tabs-tab-active {
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f8ff 100%);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Key Metrics Cards */
+.key-metrics {
+  margin-bottom: 24px;
+}
+
+.metric-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, transparent 0%, currentColor 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card:hover::before {
+  opacity: 1;
+}
+
+.metric-card.primary {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%);
+  border-color: #91d5ff;
+  color: #1890ff;
+}
+
+.metric-card.secondary {
+  background: linear-gradient(135deg, #f9f9f9 0%, #f5f5f5 100%);
+  border-color: #e8e8e8;
+}
+
+.metric-value {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metric-icon {
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+.metric-card .ant-statistic-title {
+  color: inherit;
+  opacity: 0.8;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+/* Trend Analysis */
+.trend-analysis {
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #e8e8e8;
+}
+
+.trend-card {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+}
+
+.trend-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.trend-item:last-child {
+  border-bottom: none;
+}
+
+.trend-value {
+  font-weight: 600;
+}
+
+.recommendations {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0f9eb 100%);
+  border: 1px solid #d9f7be;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.recommendations ul {
+  margin-bottom: 0;
+}
+
+.recommendations li {
+  margin-bottom: 4px;
+}
+
+/* Detailed Stats Table */
+.stats-table {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.stats-table .ant-table-thead > tr > th {
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border-bottom: 2px solid #e8e8e8;
+  font-weight: 600;
+  color: #262626;
+}
+
+.stats-table .ant-table-tbody > tr {
+  transition: all 0.2s ease;
+}
+
+.stats-table .ant-table-tbody > tr:hover {
+  background: linear-gradient(135deg, #f0f8ff 0%, #e6f7ff 100%);
+}
+
+.stats-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f5f5f5;
+  padding: 12px 8px;
+}
+
+/* Work Patterns */
+.work-patterns {
+  min-height: 300px;
+}
+
+.pattern-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  height: 100%;
+}
+
+.pattern-metrics {
+  margin-top: 16px;
+}
+
+.pattern-item {
+  margin-bottom: 16px;
+}
+
+.pattern-item:last-child {
+  margin-bottom: 0;
+}
+
+.pattern-item .ant-typography {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.time-distribution {
+  margin-top: 16px;
+}
+
+.distribution-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.distribution-item:last-child {
+  border-bottom: none;
+}
+
+/* Progress Customizations */
+.ant-progress-line {
+  margin-bottom: 0;
+}
+
+.ant-progress-circle {
+  margin: 0 auto;
+}
+
+/* Tags and Status */
+.ant-tag {
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+/* Empty State */
+.ant-empty {
+  padding: 40px 20px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .enhanced-timer-stats-card .ant-card-head {
+    padding: 12px 16px;
+  }
+  
+  .stats-header .ant-typography {
+    font-size: 16px;
+  }
+  
+  .metric-card {
+    padding: 16px;
+  }
+  
+  .metric-value {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .metric-icon {
+    font-size: 20px;
+  }
+  
+  .trend-analysis,
+  .pattern-card {
+    padding: 16px;
+  }
+  
+  .trend-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .stats-table .ant-table-tbody > tr > td {
+    padding: 8px 4px;
+  }
+}
+
+@media (max-width: 576px) {
+  .key-metrics .ant-col {
+    margin-bottom: 12px;
+  }
+  
+  .stats-tabs .ant-tabs-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .metric-card .ant-statistic-content {
+    font-size: 18px !important;
+  }
+  
+  .trend-analysis {
+    margin-top: 16px;
+  }
+}
+
+/* Animation Effects */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.metric-card {
+  animation: slideInUp 0.4s ease forwards;
+}
+
+.metric-card:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.metric-card:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.metric-card:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+  .enhanced-timer-stats-card {
+    background: linear-gradient(135deg, #1f1f1f 0%, #2d2d2d 100%);
+    border: 1px solid #404040;
+  }
+  
+  .metric-card {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #ffffff;
+  }
+  
+  .metric-card.primary {
+    background: linear-gradient(135deg, #0d1a2d 0%, #1a2a3d 100%);
+    border-color: #2d4a5c;
+  }
+  
+  .trend-analysis,
+  .pattern-card {
+    background: #2d2d2d;
+    border-color: #404040;
+  }
+  
+  .trend-card {
+    background: #1f1f1f;
+    border-color: #404040;
+  }
+  
+  .stats-table .ant-table-thead > tr > th {
+    background: #2d2d2d;
+    border-color: #404040;
+    color: #ffffff;
+  }
+  
+  .stats-table .ant-table-tbody > tr:hover {
+    background: linear-gradient(135deg, #1a2a3d 0%, #2d4a5c 100%);
+  }
+}

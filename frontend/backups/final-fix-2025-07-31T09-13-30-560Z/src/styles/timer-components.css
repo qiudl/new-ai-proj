@@ -1,0 +1,131 @@
+/* Timer Components Styles */
+
+.timer-start-button {
+  transition: all 0.3s ease;
+}
+
+.timer-start-button:hover {
+  transform: scale(1.05);
+}
+
+.timer-start-button.timer-running {
+  animation: pulse-green 2s infinite;
+}
+
+.timer-start-button.timer-running:hover {
+  animation: none;
+}
+
+/* Timer status indicator */
+.timer-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.timer-status-indicator.running {
+  background: rgba(82, 196, 26, 0.1);
+  color: #52c41a;
+  border: 1px solid rgba(82, 196, 26, 0.3);
+}
+
+.timer-status-indicator.stopped {
+  background: rgba(140, 140, 140, 0.1);
+  color: #8c8c8c;
+  border: 1px solid rgba(140, 140, 140, 0.3);
+}
+
+/* Timer quick actions */
+.timer-quick-actions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.timer-quick-actions .ant-btn {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Timer list integration */
+.task-list-timer-column {
+  width: 80px;
+  text-align: center;
+}
+
+.task-card-timer-action {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+}
+
+/* Animations */
+@keyframes pulse-green {
+  0% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(82, 196, 26, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(82, 196, 26, 0);
+  }
+}
+
+@keyframes timer-glow {
+  0% {
+    background-color: rgba(82, 196, 26, 0.1);
+  }
+  50% {
+    background-color: rgba(82, 196, 26, 0.2);
+  }
+  100% {
+    background-color: rgba(82, 196, 26, 0.1);
+  }
+}
+
+/* Timer table row highlighting */
+.ant-table-tbody > tr.timer-active-row {
+  background-color: rgba(82, 196, 26, 0.05) !important;
+  animation: timer-glow 3s infinite;
+}
+
+.ant-table-tbody > tr.timer-active-row:hover {
+  background-color: rgba(82, 196, 26, 0.1) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .timer-quick-actions {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .task-list-timer-column {
+    width: 60px;
+  }
+  
+  .timer-start-button {
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .task-card-timer-action {
+    position: static;
+    margin-top: 8px;
+  }
+  
+  .timer-status-indicator {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+}

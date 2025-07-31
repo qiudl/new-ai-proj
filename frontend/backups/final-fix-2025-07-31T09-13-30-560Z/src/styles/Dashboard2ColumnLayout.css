@@ -1,0 +1,136 @@
+/* Dashboard 3等分列宽布局样式 */
+.dashboard-3-equal-column-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* 左侧2/3宽度 + 右侧1/3宽度 */
+  gap: 16px;
+  min-height: 600px;
+  height: calc(100vh - 140px);
+  padding: 0;
+}
+
+.left-content-area {
+  display: grid;
+  grid-template-rows: auto auto auto; /* 3行布局 */
+  gap: 16px;
+}
+
+.right-tasks-area {
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 第一行：计时器 + 任务进度分析 */
+.row-1 {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 平均分为2列 */
+  gap: 16px;
+  height: 300px;
+}
+
+/* 第二行：今日工作统计 */
+.row-2 {
+  height: 280px;
+}
+
+/* 第三行：时间段任务统计 */
+.row-3 {
+  min-height: 320px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .dashboard-3-equal-column-layout {
+    grid-template-columns: 1fr; /* 小屏幕时改为单列 */
+    grid-template-rows: auto auto auto auto; /* 4行布局 */
+  }
+  
+  .left-content-area {
+    grid-template-rows: auto auto auto; /* 保持3行 */
+  }
+  
+  .row-1 {
+    grid-template-columns: 1fr; /* 小屏幕时改为单列 */
+    height: auto;
+  }
+  
+  .row-2, .row-3 {
+    height: auto;
+  }
+  
+  .right-tasks-area {
+    order: 4; /* 移到最后 */
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-3-equal-column-layout {
+    gap: 12px; /* 减小间距 */
+  }
+  
+  .timer-card,
+  .my-tasks-card {
+    height: 280px !important; /* 减小高度 */
+  }
+  
+  .today-stats-card,
+  .task-progress-card {
+    height: 240px !important; /* 减小高度 */
+  }
+  
+  .timer-stats-card {
+    min-height: 250px !important; /* 减小最小高度 */
+  }
+  
+  .row-1, .row-2, .row-3 {
+    height: auto !important;
+    min-height: auto !important;
+  }
+}
+
+/* 卡片样式增强 */
+.dashboard-3-equal-column-layout .timer-card,
+.dashboard-3-equal-column-layout .task-progress-card,
+.dashboard-3-equal-column-layout .today-stats-card,
+.dashboard-3-equal-column-layout .timer-stats-card,
+.dashboard-3-equal-column-layout .my-tasks-card {
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+}
+
+.dashboard-3-equal-column-layout .timer-card:hover,
+.dashboard-3-equal-column-layout .task-progress-card:hover,
+.dashboard-3-equal-column-layout .today-stats-card:hover,
+.dashboard-3-equal-column-layout .timer-stats-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* 时间段任务统计特殊样式 */
+.timer-stats-card {
+  background: #ffffff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.timer-stats-card .ant-typography h4 {
+  color: #262626;
+  font-weight: 600;
+}
+
+/* 响应式文字大小调整 */
+@media (max-width: 768px) {
+  .timer-stats-card .ant-typography h4 {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .timer-stats-card .ant-typography h4 {
+    font-size: 14px;
+  }
+  
+  .timer-stats-card {
+    padding: 12px;
+  }
+}

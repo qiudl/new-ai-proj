@@ -12,7 +12,6 @@ import {
   Col,
   Select,
   Tooltip,
-  Progress,
   Badge,
   Divider,
   Modal,
@@ -26,20 +25,15 @@ import {
   ReloadOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  ClockCircleOutlined,
-  DollarCircleOutlined,
   HistoryOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
 import { AIProvider, AI_PROVIDER_INFO } from '../types/ai';
 import {
-  AITaskGenerationRequest,
   GeneratedSubTask,
-  AIServiceStatus,
-  BulkTaskImportRequest
+  AIServiceStatus
 } from '../types/aiTaskGenerator';
 import aiTaskGeneratorService from '../services/aiTaskGeneratorService';
-import aiConfigService from '../services/aiConfigDatabaseService';
 import { Task } from '../types/task';
 import TaskSelector from './TaskSelector';
 import GeneratedTasksList from './GeneratedTasksList';
@@ -49,7 +43,7 @@ import TokenUsageDisplay from './TokenUsageDisplay';
 import CostAlert from './CostAlert';
 import { request } from '../utils/request';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 

@@ -30,8 +30,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import unifiedDocumentService from '../services/unifiedDocumentService';
-import { DocumentListItem } from '../types/document';
-import { DocumentFilter } from '../types/document';
+import { DocumentListItem , DocumentFilter } from '../types/document';
 
 const { Title, Text } = Typography;
 const { Option } = Select;

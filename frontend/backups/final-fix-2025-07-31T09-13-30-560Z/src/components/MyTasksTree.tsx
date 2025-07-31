@@ -1,0 +1,373 @@
+// @ts-nocheck
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Card, Tree, Typography, Button, Space, message, Spin, Empty, Badge } from 'antd';
+import { 
+  ProjectOutlined, 
+  FileTextOutlined, 
+  PlayCircleOutlined,
+  ClockCircleOutlined,
+  BranchesOutlined,
+  ReloadOutlined
+} from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
+import { useTimer } from '../contexts/TimerContext';
+import { projectService } from '../services/projectService';
+import { Project } from '../types/project';
+import { Task } from '../types/task';
+
+const { Title, Text } = Typography;
+
+interface TreeNodeData {
+  key: string;
+  title: React.ReactNode;
+  icon?: React.ReactNode;
+  children?: TreeNodeData[];
+  isLeaf?: boolean;
+  type: 'project' | 'task';
+  id: number;
+  status?: string;
+  parentId?: number;
+}
+
+interface TaskWithChildren extends Task {
+  children?: Task[];
+}
+
+const MyTasksTree: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const navigate = useNavigate();
+  const { timerState, startTimer } = useTimer();
+
+  // 获取项目和任务数据
+  const fetchProjectsAndTasks = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // 获取所有项目
+      const projectsResponse = await projectService.getProjects();
+      const projectsList = projectsResponse.data || [];
+      setProjects(projectsList);
+
+      // 为每个项目获取任务
+      const projectsWithTasks = await Promise.all(
+        projectsList.map(async (project) => {
+          try {
+            const tasksResponse = await projectService.getProjectTasks(project.id, {
+              page: 1,
+              pageSize: 20
+            });
+            const tasks = tasksResponse.data || [];
+            
+            // 构建任务层级结构
+            const taskMap = new Map<number, TaskWithChildren>();
+            const rootTasks: TaskWithChildren[] = [];
+            
+            // 首先创建所有任务的映射
+            tasks.forEach(task => {
+              taskMap.set(task.id, { ...task, children: [] });
+            });
+            
+            // 构建父子关系
+            tasks.forEach(task => {
+              const taskWithChildren = taskMap.get(task.id)!;
+              if (task.parent_id && taskMap.has(task.parent_id)) {
+                const parent = taskMap.get(task.parent_id)!;
+                parent.children = parent.children || [];
+                parent.children.push(taskWithChildren);
+              } else {
+                rootTasks.push(taskWithChildren);
+              }
+            });
+            
+            return { project, tasks: rootTasks };
+          } catch (error) {
+            console.warn(`Failed to fetch tasks for project ${project.id}:`, error);
+            return { project, tasks: [] };
+          }
+        })
+      );
+
+      // 构建树数据
+      const treeNodes: TreeNodeData[] = projectsWithTasks
+        .filter(({ tasks }) => tasks.length > 0)
+        .map(({ project, tasks }) => {
+          const buildTaskNodes = (tasks: TaskWithChildren[]): TreeNodeData[] => {
+            return tasks.map(task => ({
+              key: `task-${task.id}`,
+              title: (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  width: '100%',
+                  minWidth: 0 // 允许内容收缩
+                }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    flex: 1,
+                    minWidth: 0 // 允许内容收缩
+                  }}>
+                    <span style={{ 
+                      marginRight: '8px',
+                      color: task.status === 'in_progress' ? '#1890ff' : '#8c8c8c',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1
+                    }}>
+                      {task.title}
+                    </span>
+                    <Badge 
+                      status={task.status === 'in_progress' ? 'processing' : 'default'} 
+                      text={task.status === 'in_progress' ? '进行中' : '待开始'}
+                      style={{ fontSize: '11px', flexShrink: 0 }}
+                    />
+                  </div>
+                  {task.status === 'in_progress' && timerState.taskId !== task.id && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<PlayCircleOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartTimer(task);
+                      }}
+                      style={{ marginLeft: '8px', flexShrink: 0 }}
+                    />
+                  )}
+                  {timerState.taskId === task.id && timerState.isRunning && (
+                    <span style={{ 
+                      color: '#52c41a', 
+                      fontSize: '12px', 
+                      marginLeft: '8px',
+                      flexShrink: 0
+                    }}>
+                      <ClockCircleOutlined /> 计时中
+                    </span>
+                  )}
+                </div>
+              ),
+              icon: task.children && task.children.length > 0 ? <BranchesOutlined /> : <FileTextOutlined />,
+              children: task.children && task.children.length > 0 ? buildTaskNodes(task.children) : undefined,
+              isLeaf: !task.children || task.children.length === 0,
+              type: 'task' as const,
+              id: task.id,
+              status: task.status,
+              parentId: task.parent_id
+            }));
+          };
+
+          return {
+            key: `project-${project.id}`,
+            title: (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                width: '100%',
+                minWidth: 0
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  flex: 1,
+                  minWidth: 0
+                }}>
+                  <span style={{ 
+                    fontWeight: 500, 
+                    color: '#262626',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    flex: 1
+                  }}>
+                    {project.name}
+                  </span>
+                  <Badge 
+                    count={tasks.length} 
+                    showZero={false}
+                    style={{ 
+                      backgroundColor: '#f0f0f0', 
+                      color: '#666',
+                      marginLeft: '8px',
+                      flexShrink: 0
+                    }}
+                  />
+                </div>
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/projects/${project.id}`);
+                  }}
+                  style={{ marginLeft: '8px', flexShrink: 0 }}
+                >
+                  进入项目
+                </Button>
+              </div>
+            ),
+            icon: <ProjectOutlined />,
+            children: buildTaskNodes(tasks),
+            isLeaf: false,
+            type: 'project' as const,
+            id: project.id
+          };
+        });
+
+      setTreeData(treeNodes);
+      
+      // 默认展开第一个项目
+      if (treeNodes.length > 0) {
+        setExpandedKeys([treeNodes[0].key]);
+      }
+      
+    } catch (error) {
+      console.error('Failed to fetch projects and tasks:', error);
+      message.error('加载项目和任务失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [navigate]); // 优化依赖，减少不必要的重新获取
+
+  // 启动计时器
+  const handleStartTimer = useCallback(async (task: Task) => {
+    try {
+      const success = await startTimer(task.id, task.title);
+      if (success) {
+        message.success(`开始计时: ${task.title}`);
+      }
+    } catch (error) {
+      console.error('Failed to start timer:', error);
+      message.error('启动计时器失败');
+    }
+  }, [startTimer]);
+
+  // 处理树节点选择
+  const handleSelect = useCallback((selectedKeys: React.Key[], info: any) => {
+    if (selectedKeys.length === 0) return;
+    
+    const node = info.node;
+    if (node.type === 'project') {
+      navigate(`/projects/${node.id}`);
+    } else if (node.type === 'task') {
+      // 导航到任务详情页或项目页
+      navigate(`/projects/${info.node.parentId || projects.find(p => p.id)?.id}`, {
+        state: { highlightTaskId: node.id }
+      });
+    }
+  }, [navigate, projects]);
+
+  // 处理展开/收起
+  const handleExpand = useCallback((expandedKeys: React.Key[]) => {
+    setExpandedKeys(expandedKeys.map(key => key.toString()));
+  }, []);
+
+  // 手动刷新函数
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(prev => prev + 1);
+    fetchProjectsAndTasks();
+  }, [fetchProjectsAndTasks]);
+
+  // 组件挂载时和刷新时获取数据
+  useEffect(() => {
+    fetchProjectsAndTasks();
+  }, [refreshKey]); // 依赖refreshKey来控制刷新
+
+  // 树节点标题渲染优化
+  const memoizedTreeData = useMemo(() => treeData, [treeData]);
+
+  if (loading) {
+    return (
+      <Card 
+        title={
+          <Space>
+            <BranchesOutlined />
+            <span>我的任务</span>
+          </Space>
+        }
+        style={{ 
+          height: '100%',
+          width: '100%' // 确保加载状态下也与父容器宽度一致
+        }}
+      >
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: '16px' }}>
+            <Text type="secondary">加载项目和任务中...</Text>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      className="my-tasks-tree-card" // 添加CSS类名
+      title={
+        <Space>
+          <BranchesOutlined />
+          <span>我的任务</span>
+          <Badge count={treeData.length} showZero={false} />
+        </Space>
+      }
+      extra={
+        <Button
+          type="text"
+          icon={<ReloadOutlined />}
+          onClick={handleRefresh}
+          size="small"
+        >
+          刷新
+        </Button>
+      }
+      style={{ 
+        height: '100%',
+        width: '100%' // 确保Card与父容器宽度一致
+      }}
+      styles={{ 
+        body: { 
+          padding: '16px',
+          height: 'calc(100% - 57px)',
+          overflow: 'auto',
+          width: '100%' // 确保Card body与父容器宽度一致
+        } 
+      }}
+    >
+      {memoizedTreeData.length === 0 ? (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="暂无项目或任务"
+          style={{ marginTop: '40px' }}
+        >
+          <Button
+            type="primary"
+            onClick={() => navigate('/projects')}
+          >
+            去创建项目
+          </Button>
+        </Empty>
+      ) : (
+        <Tree
+          showIcon
+          treeData={memoizedTreeData}
+          expandedKeys={expandedKeys}
+          onExpand={handleExpand}
+          onSelect={handleSelect}
+          style={{
+            background: 'transparent',
+            width: '100%' // 确保与父容器宽度一致
+          }}
+          virtual={false}
+        />
+      )}
+    </Card>
+  );
+};
+
+export default MyTasksTree;

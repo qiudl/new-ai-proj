@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, Button, message, Modal, Image, Progress } from 'antd';
-import { Space } from 'antd';
+import { Upload, Button, message, Modal, Image, Progress , Space } from 'antd';
 import { 
   PictureOutlined, 
   DeleteOutlined, 

@@ -1,0 +1,519 @@
+/* Global styles for AI Project Management Platform */
+
+.App {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+/* Ant Design customization */
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-layout-header {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1001;
+}
+
+.ant-layout-sider {
+  background: #fff;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  z-index: 1000;
+}
+
+.ant-layout-sider-collapsed {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05);
+}
+
+.ant-layout-content {
+  padding: 24px;
+  background: #f5f5f5;
+  transition: margin-left 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Menu collapse/expand button styles */
+.sidebar-toggle-btn {
+  color: #595959;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-toggle-btn:hover {
+  color: #1890ff;
+  background-color: #f0f0f0;
+}
+
+.sidebar-toggle-btn:focus {
+  background-color: #e6f7ff;
+  color: #1890ff;
+}
+
+/* Collapsed menu item styles */
+.ant-menu-inline-collapsed > .ant-menu-item,
+.ant-menu-inline-collapsed > .ant-menu-submenu > .ant-menu-submenu-title {
+  padding: 0 calc(50% - 16px / 2);
+  text-overflow: clip;
+}
+
+.ant-menu-inline-collapsed .ant-menu-item .anticon,
+.ant-menu-inline-collapsed .ant-menu-submenu-title .anticon {
+  font-size: 16px;
+  line-height: 40px;
+  margin: 0;
+}
+
+/* Smooth menu transitions */
+.ant-menu {
+  transition: width 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.ant-menu-inline-collapsed {
+  width: 80px;
+}
+
+/* Logo area adjustments */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1890ff;
+  transition: opacity 0.2s ease;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px;
+  }
+  
+  .ant-layout-sider {
+    position: fixed !important;
+    height: 100vh;
+    left: 0;
+    top: 64px;
+    z-index: 999;
+  }
+  
+  .ant-layout-sider-collapsed {
+    left: -200px;
+  }
+  
+  .ant-layout-content {
+    margin-left: 0 !important;
+  }
+}
+
+/* Tooltip adjustments for collapsed menu */
+.ant-tooltip {
+  z-index: 1060;
+}
+
+/* Custom components */
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Page containers */
+.page-container {
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.page-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #262626;
+  margin: 0;
+}
+
+.page-description {
+  color: #8c8c8c;
+  margin-top: 8px;
+}
+
+/* Login page styles */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-box {
+  width: 400px;
+  padding: 40px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.login-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 32px;
+}
+
+/* Task import styles */
+.import-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.import-textarea {
+  min-height: 300px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+}
+
+.import-preview {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #d9d9d9;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Task list styles */
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Hierarchical task table styles */
+.task-hierarchy-table {
+  overflow: hidden;
+}
+
+.task-hierarchy-table .ant-table-thead > tr > th {
+  background-color: #fafafa;
+  border-bottom: 2px solid #f0f0f0;
+  font-weight: 600;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.root-task-row {
+  background-color: #fff;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.child-task-row {
+  background-color: #fafafa;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.level-1 {
+  background-color: #f9f9f9;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.level-2 {
+  background-color: #f5f5f5;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.level-3 {
+  background-color: #f0f0f0;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.child-task-row:hover {
+  background-color: #e6f7ff !important;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr.root-task-row:hover {
+  background-color: #f5f5f5 !important;
+}
+
+.task-hierarchy-table .ant-table-tbody > tr > td {
+  vertical-align: top;
+  padding: 12px 16px;
+}
+
+/* 确保任务名称列的内容不溢出 */
+.task-hierarchy-table .ant-table-tbody > tr > td:first-child {
+  overflow: hidden;
+}
+
+/* Task hierarchy animations */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Task expansion button styles */
+.task-expand-btn {
+  border: none !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease;
+}
+
+.task-expand-btn:hover {
+  background-color: #e6f7ff !important;
+  color: #1890ff !important;
+}
+
+/* Task hierarchy indent styles */
+.task-hierarchy-item {
+  position: relative;
+}
+
+.task-hierarchy-item.depth-1::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #e6f7ff;
+}
+
+.task-hierarchy-item.depth-2::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #d9f7be;
+}
+
+.task-hierarchy-item.depth-3::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #fff2e8;
+}
+
+.task-item {
+  background: #fff;
+  padding: 16px;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.3s ease;
+}
+
+.task-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.task-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 8px;
+}
+
+.task-description {
+  color: #8c8c8c;
+  margin-bottom: 12px;
+}
+
+.task-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .ant-layout-header {
+    padding: 0 16px;
+  }
+  
+  .ant-layout-content {
+    padding: 16px;
+  }
+  
+  .page-container {
+    padding: 16px;
+  }
+  
+  .login-box {
+    width: 90%;
+    padding: 24px;
+  }
+}
+
+/* Dashboard specific styles */
+.dashboard-stat-card {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #fff 0%, #fafafa 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.dashboard-progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-progress-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+  transition: background-color 0.2s ease;
+}
+
+.dashboard-activity-item:hover {
+  background-color: #fafafa;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 -12px;
+}
+
+.dashboard-activity-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-quick-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.dashboard-quick-action:hover {
+  background-color: #f9f9f9;
+  border-color: #e6f7ff;
+  transform: translateX(2px);
+}
+
+.dashboard-workload-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.dashboard-workload-item:last-child {
+  border-bottom: none;
+}
+
+.dashboard-card-extra {
+  color: #1890ff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dashboard-card-extra:hover {
+  text-decoration: underline;
+}
+
+/* Dashboard animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+.dashboard-card:nth-child(1) { animation-delay: 0.1s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.2s; }
+.dashboard-card:nth-child(3) { animation-delay: 0.3s; }
+.dashboard-card:nth-child(4) { animation-delay: 0.4s; }
+
+/* Utility classes */
+.text-center {
+  text-align: center;
+}
+
+.mb-24 {
+  margin-bottom: 24px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.error-message {
+  color: #ff4d4f;
+  text-align: center;
+  padding: 16px;
+}
