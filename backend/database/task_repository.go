@@ -534,3 +534,163 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 
 	return tasks, total, nil
 }
+// SearchParentTasks searches for potential parent tasks with filtering
+func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskID *int, maxLevel int, limit, offset int) ([]*models.Task, int, error) {
+	// Build the WHERE clause conditions
+	var conditions []string
+	var args []interface{}
+	argIndex := 1
+
+	// Basic filters
+	conditions = append(conditions, fmt.Sprintf("project_id = $%d", argIndex))
+	args = append(args, projectID)
+	argIndex++
+
+	conditions = append(conditions, "deleted_at IS NULL")
+
+	// Level filter (prevent creating 4th level tasks)
+	conditions = append(conditions, fmt.Sprintf("(task_level IS NULL OR task_level <= $%d)", argIndex))
+	args = append(args, maxLevel)
+	argIndex++
+
+	// Exclude specific task
+	if excludeTaskID != nil {
+		conditions = append(conditions, fmt.Sprintf("id != $%d", argIndex))
+		args = append(args, *excludeTaskID)
+		argIndex++
+	}
+
+	// Keyword search
+	if keyword != "" {
+		conditions = append(conditions, fmt.Sprintf("(title ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex+1))
+		keywordPattern := "%" + keyword + "%"
+		args = append(args, keywordPattern, keywordPattern)
+		argIndex += 2
+	}
+
+	whereClause := "WHERE " + strings.Join(conditions, " AND ")
+
+	// Count query
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*) 
+		FROM tasks 
+		%s`, whereClause)
+
+	exec := r.getExecer()
+	var total int
+	err := exec.QueryRowContext(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count parent tasks: %w", err)
+	}
+
+	// Main query with pagination
+	query := fmt.Sprintf(`
+		SELECT id, project_id, title, description, status, assignee_id, due_date, 
+		       custom_fields, created_at, updated_at, deleted_at, parent_id, 
+		       task_level, sort_order
+		FROM tasks 
+		%s
+		ORDER BY task_level ASC, title ASC
+		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to search parent tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		task := &models.Task{}
+		var customFieldsJSON []byte
+		var assigneeID sql.NullInt64
+		var dueDate sql.NullTime
+		var parentID sql.NullInt64
+		var taskLevel sql.NullInt64
+		var sortOrder sql.NullInt64
+
+		err := rows.Scan(
+			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt,
+			&parentID, &taskLevel, &sortOrder,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+		}
+
+		// Handle nullable fields  
+		if assigneeID.Valid {
+			intVal := int(assigneeID.Int64)
+			task.AssigneeID = &intVal
+		}
+		if dueDate.Valid {
+			task.DueDate = &dueDate.Time
+		}
+		if parentID.Valid {
+			intVal := int(parentID.Int64)
+			task.ParentID = &intVal
+		}
+		if taskLevel.Valid {
+			task.TaskLevel = int(taskLevel.Int64)
+		}
+		if sortOrder.Valid {
+			task.SortOrder = int(sortOrder.Int64)
+		}
+
+		// Unmarshal custom fields
+		if len(customFieldsJSON) > 0 {
+			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
+			}
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return tasks, total, nil
+}
+
+// CheckCircularDependency checks if setting taskID as child of potentialParentID would create a circular dependency
+func (r *PostgresTaskRepository) CheckCircularDependency(ctx context.Context, taskID int, potentialParentID int) (bool, error) {
+	// If potentialParentID is 0 or nil, it's a root task, no circular dependency
+	if potentialParentID == 0 {
+		return false, nil
+	}
+	
+	// If taskID equals potentialParentID, it's self-reference (circular)
+	if taskID == potentialParentID {
+		return true, nil
+	}
+	
+	// Use recursive CTE to check if potentialParentID is a descendant of taskID
+	// If it is, then making taskID a child of potentialParentID would create a cycle
+	query := `
+		WITH RECURSIVE task_hierarchy AS (
+			-- Start with the task we want to check
+			SELECT id, parent_id FROM tasks WHERE id = $1 AND deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- Recursively find all descendants
+			SELECT t.id, t.parent_id FROM tasks t
+			INNER JOIN task_hierarchy th ON t.parent_id = th.id
+			WHERE t.deleted_at IS NULL
+		)
+		SELECT EXISTS(SELECT 1 FROM task_hierarchy WHERE id = $2) as has_circular_dependency`
+	
+	exec := r.getExecer()
+	var hasCircularDependency bool
+	err := exec.QueryRowContext(ctx, query, taskID, potentialParentID).Scan(&hasCircularDependency)
+	if err != nil {
+		return false, fmt.Errorf("failed to check circular dependency: %w", err)
+	}
+	
+	return hasCircularDependency, nil
+}

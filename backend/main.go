@@ -299,6 +299,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				// Hierarchical task routes (more specific routes first)
 				projects.GET("/:id/tasks/tree", app.getTaskTreeHandler)
 				projects.GET("/:id/tasks/root", app.getRootTasksHandler)
+				projects.GET("/:id/tasks/search-parents", app.searchParentTasksHandler)
 				projects.POST("/:id/tasks/bulk-import", app.bulkImportTasksHandler)
 				projects.POST("/:id/tasks/ai-bulk-import", app.aiTaskGeneratorHandler.BulkImport)
 				
@@ -1575,8 +1576,8 @@ func (app *Application) createTaskHandler(c *gin.Context) {
 		depth := 1
 		currentParentID := *req.ParentID
 		for currentParentID != 0 {
-			if depth > 10 { // max depth
-				response := models.NewErrorResponse(models.ErrCodeBadRequest, "Maximum hierarchy depth (10) exceeded", nil)
+			if depth > 3 { // max depth: 0,1,2,3 (4 levels total)
+				response := models.NewErrorResponse(models.ErrCodeBadRequest, "Maximum hierarchy depth (3) exceeded", nil)
 				c.JSON(http.StatusBadRequest, response)
 				return
 			}
@@ -1883,9 +1884,16 @@ func (app *Application) updateTaskHandler(c *gin.Context) {
 			return
 		}
 		
-		// Check for circular reference
-		if err := app.validateNoCircularReference(c.Request.Context(), *req.ParentID, taskID); err != nil {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, err.Error(), nil)
+		// Check for circular reference using comprehensive algorithm
+		hasCircularDep, err := app.db.Tasks().CheckCircularDependency(c.Request.Context(), taskID, *req.ParentID)
+		if err != nil {
+			app.logger.Printf("Error checking circular dependency: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate parent relationship", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+		if hasCircularDep {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Setting this parent would create a circular dependency", nil)
 			c.JSON(http.StatusBadRequest, response)
 			return
 		}
@@ -2559,6 +2567,89 @@ func (app *Application) getRootTasksHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// searchParentTasksHandler searches for potential parent tasks
+func (app *Application) searchParentTasksHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get query parameters
+	keyword := c.Query("keyword")
+	excludeTaskIDStr := c.Query("exclude_task_id")
+	maxLevelStr := c.Query("max_level")
+	
+	// Parse pagination parameters
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
+	}
+
+	// Parse exclude task ID
+	var excludeTaskID *int
+	if excludeTaskIDStr != "" {
+		excludeID, err := strconv.Atoi(excludeTaskIDStr)
+		if err != nil {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid exclude_task_id", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+		excludeTaskID = &excludeID
+	}
+
+	// Parse max level (default to 2 to prevent 4th level tasks)
+	maxLevel := 2
+	if maxLevelStr != "" {
+		maxLevel, err = strconv.Atoi(maxLevelStr)
+		if err != nil || maxLevel < 0 || maxLevel > 2 {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid max_level (must be 0-2)", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+	}
+
+	// Call the task repository to search for parent tasks
+	offset := (pagination.Page - 1) * pagination.PageSize
+	tasks, total, err := app.db.Tasks().SearchParentTasks(c.Request.Context(), projectID, keyword, excludeTaskID, maxLevel, pagination.PageSize, offset)
+	if err != nil {
+		app.logger.Printf("Error searching parent tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to search parent tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Build pagination result
+	paginationResult := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
+		HasNext:    pagination.Page*pagination.PageSize < total,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	result := models.PaginatedResponse{
+		Data:       tasks,
+		Pagination: paginationResult,
+	}
+
+	response := models.NewSuccessResponse(result, "Parent tasks search completed successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // getTaskChildrenHandler gets direct children of a task
 func (app *Application) getTaskChildrenHandler(c *gin.Context) {
 	taskIDStr := c.Param("taskId")
@@ -3092,7 +3183,7 @@ func (app *Application) calculateTaskDepth(ctx context.Context, task *models.Tas
 
 // validateNoCircularReference checks if setting parentID for taskID would create a circular reference
 func (app *Application) validateNoCircularReference(ctx context.Context, parentID, taskID int) error {
-	const maxDepth = 10 // Maximum hierarchy depth allowed
+	const maxDepth = 3 // Maximum hierarchy depth allowed (0,1,2,3)
 	
 	// Follow the parent chain up to check for circular reference
 	currentParentID := parentID
