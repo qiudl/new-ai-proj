@@ -99,9 +99,18 @@ export class TaskService {
         ValidationHelper.validateLength(task.description, '任务描述', 0, 1000);
       }
 
+      // 验证和清理任务数据
+      const validationResult = validateTaskRequest(task);
+      if (!validationResult.isValid) {
+        throw new Error(`数据验证失败: ${validationResult.error}`);
+      }
+
+      // 清理数据格式
+      const cleanedTask = sanitizeForAPI(validationResult.cleanedData || task);
+
       const response: APIResponse<Task> = await api.post(
         `/projects/${projectId}/tasks`,
-        task
+        cleanedTask
       );
       
       if (!response.success) {
@@ -144,10 +153,14 @@ export class TaskService {
         taskStringified: JSON.stringify(task, null, 2)
       });
 
-      // Basic data validation - let backend handle detailed validation
-      const sanitizedTask = {
-        ...task
-      };
+      // 验证和清理任务数据
+      const validationResult = validateTaskRequest(task);
+      if (!validationResult.isValid) {
+        throw new Error(`数据验证失败: ${validationResult.error}`);
+      }
+
+      // 清理数据格式
+      const sanitizedTask = sanitizeForAPI(validationResult.cleanedData || task);
 
       const response: APIResponse<Task> = await api.put(
         `/projects/${projectId}/tasks/${taskId}`,

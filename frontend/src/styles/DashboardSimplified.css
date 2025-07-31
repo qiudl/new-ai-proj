@@ -1,0 +1,173 @@
+/* 简化版Dashboard 2列布局样式 - 不限高度版本 */
+.dashboard-simplified-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 左右各50%宽度 */
+  gap: 24px;
+  height: calc(100vh - 140px); /* 占满剩余视口空间 */
+  padding: 0;
+}
+
+/* 计时器区域样式 */
+.timer-section {
+  background: #fafafa;
+  border: 1px solid #d9d9d9;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.timer-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* 任务区域样式 */
+.tasks-section {
+  background: #f9f0ff;
+  border: 1px solid #d3adf7;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.tasks-section:hover {
+  box-shadow: 0 4px 12px rgba(147, 68, 199, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 区域标题样式 */
+.dashboard-simplified-layout .ant-typography h3 {
+  color: #262626;
+  font-weight: 600;
+  font-size: 18px;
+  margin: 0;
+}
+
+.dashboard-simplified-layout .ant-typography .ant-typography {
+  font-size: 14px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+
+/* 内容区域样式 */
+.timer-section > div:last-child,
+.tasks-section > div:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .dashboard-simplified-layout {
+    gap: 20px;
+    height: calc(100vh - 120px); /* 调整高度 */
+  }
+  
+  .timer-section,
+  .tasks-section {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-simplified-layout {
+    grid-template-columns: 1fr; /* 改为单列布局 */
+    gap: 16px;
+    height: auto; /* 小屏幕时恢复自动高度 */
+  }
+  
+  .timer-section,
+  .tasks-section {
+    padding: 16px;
+    min-height: 400px;
+  }
+  
+  .tasks-section > div:last-child {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-simplified-layout {
+    gap: 12px;
+  }
+  
+  .timer-section,
+  .tasks-section {
+    padding: 12px;
+    border-radius: 8px;
+    min-height: 320px;
+  }
+  
+  .dashboard-simplified-layout .ant-typography h3 {
+    font-size: 16px;
+  }
+  
+  .dashboard-simplified-layout .ant-typography .ant-typography {
+    font-size: 12px;
+  }
+  
+  .tasks-section > div:last-child {
+    min-height: 280px;
+  }
+}
+
+/* 加载和错误状态样式 */
+.timer-section .ant-spin-container,
+.tasks-section .ant-spin-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 优化滚动条样式 */
+.tasks-section ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.tasks-section ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.tasks-section ::-webkit-scrollbar-thumb {
+  background: rgba(147, 68, 199, 0.3);
+  border-radius: 3px;
+}
+
+.tasks-section ::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 68, 199, 0.5);
+}
+
+/* 性能优化：减少不必要的重绘 */
+.dashboard-simplified-layout * {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .timer-section {
+    background: #1f1f1f;
+    border-color: #424242;
+  }
+  
+  .tasks-section {
+    background: #2a1f3a;
+    border-color: #5a3f7a;
+  }
+  
+  .dashboard-simplified-layout .ant-typography h3 {
+    color: #ffffff;
+  }
+  
+  .dashboard-simplified-layout .ant-typography .ant-typography {
+    color: #cccccc;
+  }
+}

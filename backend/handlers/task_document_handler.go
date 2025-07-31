@@ -42,26 +42,8 @@ func (h *TaskDocumentHandler) getDocumentPath(taskID string) string {
 	return filepath.Join(h.docsBasePath, fmt.Sprintf("%s.md", taskID))
 }
 
-// generateDefaultTemplate 生成默认文档模板
-func (h *TaskDocumentHandler) generateDefaultTemplate(taskID string) string {
-	return fmt.Sprintf(`# 任务文档
-
-## 需求描述
-<!-- 在这里描述任务的具体需求 -->
-
-## 技术方案
-<!-- 在这里描述实现方案 -->
-
-## 实现进度
-- [ ] 需求分析
-- [ ] 技术设计
-- [ ] 代码实现
-- [ ] 测试验证
-
-## 备注
-<!-- 其他相关信息 -->
-`)
-}
+// 删除模板功能 - 防止覆盖用户内容
+// generateDefaultTemplate 功能已删除，避免意外覆盖用户数据
 
 // GetTaskDocument 获取任务文档 (Gin版本)
 func (h *TaskDocumentHandler) GetTaskDocument(c *gin.Context) {
@@ -124,9 +106,8 @@ func (h *TaskDocumentHandler) getDocumentGin(c *gin.Context, taskID string) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// 文件不存在，返回默认模板
-			defaultContent := h.generateDefaultTemplate(taskID)
-			c.JSON(http.StatusOK, DocumentResponse{Content: defaultContent})
+			// 文件不存在，返回空内容而不是模板，避免覆盖用户数据
+			c.JSON(http.StatusOK, DocumentResponse{Content: ""})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取文档失败: %v", err)})

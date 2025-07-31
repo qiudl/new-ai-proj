@@ -1,0 +1,231 @@
+/* 紧凑版历史任务组件样式 */
+
+/* 历史任务容器 */
+.compact-history-tasks {
+  background: #fff;
+  border-radius: 6px;
+}
+
+/* 任务列表项 - 2行布局优化 */
+.compact-task-item {
+  padding: 8px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 0;
+  transition: background-color 0.2s ease;
+}
+
+.compact-task-item:hover {
+  background-color: #f5f5f5;
+}
+
+/* 第一行：任务标题行 */
+.compact-task-row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  gap: 8px;
+}
+
+.compact-task-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  line-height: 1.3;
+}
+
+.compact-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 第二行：详细信息行 */
+.compact-task-row2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.compact-task-project {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: #8c8c8c;
+  line-height: 1.2;
+}
+
+.compact-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.compact-task-duration {
+  font-size: 11px;
+  color: #52c41a;
+  font-weight: 600;
+  font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+.compact-task-time {
+  font-size: 10px;
+  color: #bfbfbf;
+}
+
+/* 状态标签优化 */
+.compact-task-status {
+  font-size: 10px !important;
+  line-height: 1.2;
+  padding: 1px 6px;
+  margin: 0;
+  border-radius: 8px;
+}
+
+/* 操作按钮优化 */
+.compact-task-play-btn {
+  padding: 2px !important;
+  min-width: auto !important;
+  color: #1890ff;
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compact-task-play-btn:hover {
+  color: #40a9ff;
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+/* 标题区域 */
+.compact-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.compact-history-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-history-title-icon {
+  color: #1890ff;
+  font-size: 14px;
+}
+
+.compact-history-title-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.compact-history-refresh-btn {
+  padding: 4px !important;
+  min-width: auto !important;
+  color: #8c8c8c;
+  width: 24px;
+  height: 24px;
+}
+
+.compact-history-refresh-btn:hover {
+  color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.1);
+}
+
+/* 滚动条优化 */
+.compact-history-tasks ::-webkit-scrollbar {
+  width: 3px;
+}
+
+.compact-history-tasks ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.compact-history-tasks ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+.compact-history-tasks ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* 底部信息栏 */
+.compact-history-footer {
+  text-align: center;
+  padding: 6px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 0 0 6px 6px;
+}
+
+.compact-history-footer-text {
+  font-size: 10px;
+  color: #bfbfbf;
+}
+
+/* 空状态优化 */
+.compact-history-empty {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.compact-history-empty .ant-empty-description {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 加载状态 */
+.compact-history-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 0;
+}
+
+/* 响应式优化 */
+@media (max-width: 480px) {
+  .compact-task-row1,
+  .compact-task-row2 {
+    gap: 4px;
+  }
+  
+  .compact-task-title {
+    font-size: 12px;
+  }
+  
+  .compact-task-project {
+    font-size: 10px;
+  }
+  
+  .compact-task-duration {
+    font-size: 10px;
+  }
+  
+  .compact-task-time {
+    font-size: 9px;
+  }
+  
+  .compact-task-status {
+    font-size: 9px !important;
+    padding: 0px 4px;
+  }
+}
+
+/* 性能优化 */
+.compact-history-tasks * {
+  box-sizing: border-box;
+}

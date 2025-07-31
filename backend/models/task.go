@@ -299,38 +299,5 @@ type TaskDocumentStats struct {
 	RecentlyUpdated int `json:"recently_updated"`
 }
 
-// GetTaskDocumentDefaultTemplate 获取任务文档默认模板
-func GetTaskDocumentDefaultTemplate(taskTitle string, taskStatus string) string {
-	return fmt.Sprintf(`# %s 文档
-
-## 任务概述
-<!-- 在这里描述任务的基本信息和目标 -->
-
-## 需求分析
-<!-- 详细描述任务的需求和要求 -->
-
-## 技术方案
-<!-- 描述实现的技术方案和架构设计 -->
-
-## 实施计划
-- [ ] 需求分析
-- [ ] 方案设计
-- [ ] 开发实现
-- [ ] 测试验收
-- [ ] 部署上线
-
-## 进度记录
-| 日期 | 进度 | 备注 |
-|------|------|------|
-| %s | 创建文档 | 任务状态：%s |
-
-## 相关资源
-<!-- 链接到相关的文档、代码、设计稿等 -->
-
-## 问题记录
-<!-- 记录开发过程中遇到的问题和解决方案 -->
-
-## 备注
-<!-- 其他需要说明的信息 -->
-`, taskTitle, time.Now().Format("2006-01-02"), taskStatus)
-}
+// 删除任务文档默认模板功能 - 防止意外覆盖用户数据
+// GetTaskDocumentDefaultTemplate 功能已删除，避免模板覆盖用户内容

@@ -1499,10 +1499,42 @@ func (app *Application) createTaskHandler(c *gin.Context) {
 	}
 
 	var req models.TaskRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	
+	// 使用更灵活的JSON解析，先解析为通用结构
+	var rawRequest map[string]interface{}
+	if err := c.ShouldBindJSON(&rawRequest); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
+	}
+	
+	// 手动映射基本字段
+	if title, ok := rawRequest["title"].(string); ok {
+		req.Title = title
+	}
+	if desc, ok := rawRequest["description"].(string); ok {
+		req.Description = desc
+	}
+	if status, ok := rawRequest["status"].(string); ok {
+		req.Status = status
+	}
+	if parentID, ok := rawRequest["parent_id"]; ok && parentID != nil {
+		if id, ok := parentID.(float64); ok {
+			intID := int(id)
+			req.ParentID = &intID
+		}
+	}
+	if sortOrder, ok := rawRequest["sort_order"].(float64); ok {
+		req.SortOrder = int(sortOrder)
+	}
+	
+	// 处理custom_fields（可能是任何格式）
+	if customFields, exists := rawRequest["custom_fields"]; exists {
+		cleanedFields, err := utils.ValidateAndCleanCustomFields(customFields)
+		if err != nil {
+			app.logger.Printf("Error validating custom_fields during parsing: %v", err)
+		}
+		req.CustomFields = cleanedFields
 	}
 
 	// Validate required fields
@@ -1714,11 +1746,45 @@ func (app *Application) updateTaskHandler(c *gin.Context) {
 	}
 
 	var req models.TaskRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	
+	// 使用更灵活的JSON解析，先解析为通用结构
+	var rawRequest map[string]interface{}
+	if err := c.ShouldBindJSON(&rawRequest); err != nil {
 		app.logger.Printf("Error binding JSON for task update: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, fmt.Sprintf("Invalid request body: %v", err), nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
+	}
+	
+	// 手动映射基本字段
+	if title, ok := rawRequest["title"].(string); ok {
+		req.Title = title
+	}
+	if desc, ok := rawRequest["description"].(string); ok {
+		req.Description = desc
+	}
+	if status, ok := rawRequest["status"].(string); ok {
+		req.Status = status
+	}
+	if parentID, ok := rawRequest["parent_id"]; ok {
+		if parentID == nil {
+			req.ParentID = nil
+		} else if id, ok := parentID.(float64); ok {
+			intID := int(id)
+			req.ParentID = &intID
+		}
+	}
+	if sortOrder, ok := rawRequest["sort_order"].(float64); ok {
+		req.SortOrder = int(sortOrder)
+	}
+	
+	// 处理custom_fields（可能是任何格式）
+	if customFields, exists := rawRequest["custom_fields"]; exists {
+		cleanedFields, err := utils.ValidateAndCleanCustomFields(customFields)
+		if err != nil {
+			app.logger.Printf("Error validating custom_fields during parsing: %v", err)
+		}
+		req.CustomFields = cleanedFields
 	}
 
 	// Get existing task

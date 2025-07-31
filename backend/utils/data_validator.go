@@ -3,9 +3,8 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	
-	"github.com/your-project/backend/models"
+	"ai-project-backend/models"
 )
 
 // ValidateAndCleanCustomFields validates and cleans CustomFields to ensure it's always a map
