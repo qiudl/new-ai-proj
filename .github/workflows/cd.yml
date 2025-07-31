@@ -1,0 +1,305 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_run:
+    workflows: ["CI Pipeline"]
+    types: [completed]
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # 部署到开发环境
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop' && github.event.workflow_run.conclusion == 'success'
+    environment: development
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Images
+        run: |
+          # 构建并推送开发环境镜像
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:dev \
+            --push ./backend
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:dev \
+            --push ./frontend
+
+      - name: Deploy to Development Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_USER }}
+          key: ${{ secrets.DEV_SSH_KEY }}
+          script: |
+            cd /opt/new-ai-proj
+            
+            # 拉取最新镜像
+            docker-compose pull
+            
+            # 更新服务
+            docker-compose up -d --force-recreate
+            
+            # 等待服务启动
+            sleep 30
+            
+            # 运行健康检查
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:3000 || exit 1
+            
+            echo "✅ Development deployment completed successfully!"
+
+  # 部署到预生产环境
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success'
+    environment: staging
+    needs: []
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Images
+        run: |
+          # 构建并推送预生产环境镜像
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:staging \
+            --push ./backend
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:staging \
+            --push ./frontend
+
+      - name: Deploy to Staging Server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/new-ai-proj
+            
+            # 备份当前版本
+            docker-compose exec db pg_dump -U user main_db > backup_$(date +%Y%m%d_%H%M%S).sql
+            
+            # 拉取最新镜像
+            docker-compose pull
+            
+            # 更新服务
+            docker-compose up -d --force-recreate
+            
+            # 等待服务启动
+            sleep 30
+            
+            # 运行健康检查
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:3000 || exit 1
+            
+            # 运行冒烟测试
+            ./scripts/smoke-tests.sh
+            
+            echo "✅ Staging deployment completed successfully!"
+
+      - name: Run E2E Tests
+        run: |
+          # 等待服务完全启动
+          sleep 60
+          
+          # 运行端到端测试
+          npm install -g @playwright/test
+          cd frontend && npx playwright test --config=playwright.config.staging.ts
+
+  # 部署到生产环境
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    needs: []
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract Version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Production Images
+        run: |
+          # 构建并推送生产环境镜像
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest \
+            --push ./backend
+
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ steps.version.outputs.VERSION }} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest \
+            --push ./frontend
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Release ${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+
+      - name: Deploy to Production (Blue-Green)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/new-ai-proj
+            
+            # 创建完整备份
+            ./scripts/backup-production.sh
+            
+            # Blue-Green 部署
+            ./scripts/blue-green-deploy.sh ${{ steps.version.outputs.VERSION }}
+            
+            # 等待新服务启动
+            sleep 60
+            
+            # 运行健康检查
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:3000 || exit 1
+            
+            # 运行生产验证测试
+            ./scripts/production-tests.sh
+            
+            echo "✅ Production deployment completed successfully!"
+
+      - name: Notify Deployment Success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: "🚀 Production deployment ${{ steps.version.outputs.VERSION }} completed successfully!"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Deployment Failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: "❌ Production deployment ${{ steps.version.outputs.VERSION }} failed!"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # 数据库迁移
+  database-migration:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    environment: ${{ github.ref == 'refs/heads/main' && 'staging' || 'production' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Install golang-migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz | tar xvz
+          sudo mv migrate /usr/local/bin/migrate
+
+      - name: Run Database Migration
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # 检查数据库连接
+          migrate -database $DB_URL -path ./backend/migrations version
+          
+          # 运行迁移
+          migrate -database $DB_URL -path ./backend/migrations up
+          
+          echo "✅ Database migration completed successfully!"
+
+  # 回滚部署
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    if: failure() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [deploy-staging, deploy-production]
+    environment: ${{ github.ref == 'refs/heads/main' && 'staging' || 'production' }}
+    
+    steps:
+      - name: Rollback to Previous Version
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ github.ref == 'refs/heads/main' && secrets.STAGING_HOST || secrets.PROD_HOST }}
+          username: ${{ github.ref == 'refs/heads/main' && secrets.STAGING_USER || secrets.PROD_USER }}
+          key: ${{ github.ref == 'refs/heads/main' && secrets.STAGING_SSH_KEY || secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/new-ai-proj
+            
+            # 回滚到上一个版本
+            ./scripts/rollback.sh
+            
+            # 验证回滚成功
+            curl -f http://localhost:8080/health || exit 1
+            curl -f http://localhost:3000 || exit 1
+            
+            echo "✅ Rollback completed successfully!"
+
+      - name: Notify Rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: warning
+          text: "⚠️ Rollback executed due to deployment failure!"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

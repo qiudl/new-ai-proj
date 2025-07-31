@@ -329,3 +329,10 @@ cd frontend && npm run build
 - **SSL Scripts**: `deploy/ssl-setup.sh`, `deploy/ssl-manage.sh`  
 - **Nginx Config**: SSL-ready configuration templates
 - **Deployment**: Automated deployment scripts in `deploy/` directory
+```
+
+## 腾讯云部署记录
+
+- 腾讯云部署脚本 `tencent-cloud-setup.sh` 来源:
+  - 下载命令: `wget https://raw.githubusercontent.com/qiudl/new-ai-proj/main/scripts/tencent-cloud-setup.sh`
+  - 目前未详细说明脚本的具体来源和上传过程

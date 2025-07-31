@@ -7,8 +7,10 @@ on:
     branches: [ main, develop ]
 
 env:
-  GO_VERSION: '1.22'
-  NODE_VERSION: '18.12.1'
+  GO_VERSION: '1.24'
+  NODE_VERSION: '18'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # 前端代码检查和测试
