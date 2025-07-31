@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Tag, Tooltip, Alert } from 'antd';
+import { Button, Input, Select, Tag, Tooltip, Alert, Spin } from 'antd';
 import {
   SearchOutlined,
   ClearOutlined,
@@ -48,6 +48,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const { searchResults, searchParentTasks, clearResults, loadMore } = useTaskParentSearch();
   const { validateParentSelection, validateTaskLevel } = useParentValidation();
@@ -77,27 +78,37 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
 
   // Handle task selection
   const handleTaskSelect = async (task: Task) => {
-    // Validate selection
-    if (showValidation) {
-      const validation = await validateParentSelection(currentTaskId, task.id);
-      if (!validation.isValid) {
-        setValidationError(validation.error || '选择无效');
-        return;
+    try {
+      setIsValidating(true);
+      setValidationError(null);
+
+      // Validate selection
+      if (showValidation) {
+        const validation = await validateParentSelection(currentTaskId, task.id);
+        if (!validation.isValid) {
+          setValidationError(validation.error || '选择无效');
+          return;
+        }
+
+        const levelValidation = validateTaskLevel(task.task_level);
+        if (!levelValidation.isValid) {
+          setValidationError(levelValidation.error || '层级无效');
+          return;
+        }
       }
 
-      const levelValidation = validateTaskLevel(task.task_level);
-      if (!levelValidation.isValid) {
-        setValidationError(levelValidation.error || '层级无效');
-        return;
+      setSelectedTask(task);
+      setValidationError(null);
+      setIsOpen(false);
+
+      if (onChange) {
+        onChange(task.id, task);
       }
-    }
-
-    setSelectedTask(task);
-    setValidationError(null);
-    setIsOpen(false);
-
-    if (onChange) {
-      onChange(task.id, task);
+    } catch (error) {
+      console.error('Error selecting parent task:', error);
+      setValidationError('选择父任务时发生错误，请重试');
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -215,6 +226,14 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           <span>只能选择前3级任务作为父任务</span>
         </div>
 
+        {/* Validation loading */}
+        {isValidating && (
+          <div className="validation-loading">
+            <Spin size="small" />
+            <span>正在验证选择...</span>
+          </div>
+        )}
+
         {/* Task list */}
         <TaskTreeList
           tasks={searchResults.tasks}
@@ -245,7 +264,8 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
 
       {renderDropdown()}
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .task-parent-selector {
           position: relative;
           width: 100%;
@@ -356,6 +376,17 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           color: #52c41a;
         }
 
+        .validation-loading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 12px;
+          background-color: #f0f9ff;
+          border-bottom: 1px solid #f0f0f0;
+          font-size: 12px;
+          color: #1890ff;
+        }
+
         @media (max-width: 768px) {
           .parent-selector-dropdown {
             position: fixed;
@@ -366,7 +397,8 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
             max-height: 80vh;
           }
         }
-      `}</style>
+        `
+      }} />
     </div>
   );
 };

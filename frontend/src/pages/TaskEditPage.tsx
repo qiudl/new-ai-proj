@@ -32,6 +32,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
+import { TaskParentSelector } from '../components/TaskParentSelector';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -50,6 +51,7 @@ const TaskEditPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [parentTaskChanged, setParentTaskChanged] = useState(false);
 
   // 加载任务数据
   const loadTask = useCallback(async () => {
@@ -124,6 +126,18 @@ const TaskEditPage: React.FC = () => {
     setHasChanges(true);
   };
 
+  // 父任务变更处理
+  const handleParentChange = (parentId: number | null, parentTaskData: Task | null) => {
+    if (task) {
+      // Update task data with new parent
+      const updatedTask = { ...task, parent_id: parentId };
+      setTask(updatedTask);
+      setParentTask(parentTaskData);
+      setParentTaskChanged(true);
+      setHasChanges(true);
+    }
+  };
+
   // 保存任务
   const handleSave = async () => {
     if (!task || !projectId) return;
@@ -138,6 +152,8 @@ const TaskEditPage: React.FC = () => {
         status: values.status,
         assignee_id: values.assignee_id || null,
         due_date: values.due_date ? values.due_date.format('YYYY-MM-DDTHH:mm:ssZ') : null,
+        // Include parent_id if it has changed
+        ...(parentTaskChanged && { parent_id: task.parent_id }),
         // 根据后端TaskRequest模型，这些字段应该在顶层而不是custom_fields中
         // 只有当priority有有效值时才包含，避免空字符串导致验证失败
         ...(values.priority && ['low', 'medium', 'high'].includes(values.priority) && { priority: values.priority }),
@@ -152,6 +168,10 @@ const TaskEditPage: React.FC = () => {
       await TaskService.updateTask(parseInt(projectId), task.id, updateData);
       message.success('任务保存成功');
       setHasChanges(false);
+      setParentTaskChanged(false);
+      
+      // Reload task data to get updated parent information
+      await loadTask();
       
       // 返回任务详情页
       navigate(`/projects/${projectId}/tasks/${taskId}`);
@@ -387,17 +407,32 @@ const TaskEditPage: React.FC = () => {
                   `项目 #${task.project_id}`
                 )}
               </Descriptions.Item>
-              {parentTask && (
-                <Descriptions.Item label="父任务">
-                  <Button 
-                    type="link" 
-                    style={{ padding: 0, height: 'auto', fontSize: '14px' }}
-                    onClick={() => navigate(`/projects/${task.project_id}/tasks/${parentTask.id}`)}
-                  >
-                    {parentTask.title} (#{parentTask.id})
-                  </Button>
-                </Descriptions.Item>
-              )}
+              <Descriptions.Item label="父任务">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {parentTask ? (
+                    <Button 
+                      type="link" 
+                      style={{ padding: 0, height: 'auto', fontSize: '14px' }}
+                      onClick={() => navigate(`/projects/${task.project_id}/tasks/${parentTask.id}`)}
+                    >
+                      {parentTask.title} (#{parentTask.id})
+                    </Button>
+                  ) : (
+                    <Text type="secondary">无父任务（根任务）</Text>
+                  )}
+                  
+                  <TaskParentSelector
+                    projectId={task.project_id}
+                    currentTaskId={task.id}
+                    currentParentId={parentTask?.id || null}
+                    value={parentTask?.id || null}
+                    onChange={handleParentChange}
+                    placeholder="选择父任务"
+                    allowClear={true}
+                    className="task-edit-parent-selector"
+                  />
+                </div>
+              </Descriptions.Item>
               <Descriptions.Item label="创建时间">
                 {dayjs(task.created_at).format('YYYY-MM-DD HH:mm')}
               </Descriptions.Item>

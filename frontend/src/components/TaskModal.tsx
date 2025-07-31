@@ -9,10 +9,13 @@ import {
   Col,
   Button,
   Space,
+  Tag,
+  Tooltip,
 } from 'antd';
-import { EditOutlined } from '@ant-design/icons';
+import { EditOutlined, FolderOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
 import { TaskService } from '../services/taskService';
+import { TaskParentSelectorModal } from './TaskParentSelectorModal';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -42,41 +45,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   onEditDetails,
 }) => {
   const [form] = Form.useForm();
-  const [parentTasks, setParentTasks] = useState<Task[]>([]);
-  const [parentTasksLoading, setParentTasksLoading] = useState(false);
-
-  const loadParentTasks = async () => {
-    if (!allowParentSelection || !projectId) return;
-    
-    try {
-      setParentTasksLoading(true);
-      const response = await TaskService.getTasks(projectId, { page: 1, page_size: 500 });
-      // Filter out current task and its descendants to prevent circular references
-      let availableTasks = response.data.filter(t => t.id !== task?.id);
-      
-      // Additional filtering: prevent creating circular dependencies
-      if (task) {
-        // Also filter out tasks that have current task as parent (descendants)
-        availableTasks = availableTasks.filter(t => t.parent_id !== task.id);
-        // Could be extended to filter all descendants recursively for stronger validation
-      }
-      
-      // Sort tasks by hierarchy and title for better UX
-      availableTasks.sort((a, b) => {
-        // Root tasks first, then by task_level, then by title
-        if (a.task_level !== b.task_level) {
-          return (a.task_level || 0) - (b.task_level || 0);
-        }
-        return a.title.localeCompare(b.title);
-      });
-      
-      setParentTasks(availableTasks);
-    } catch (error) {
-      console.error('Error loading parent tasks:', error);
-    } finally {
-      setParentTasksLoading(false);
-    }
-  };
+  const [parentSelectorVisible, setParentSelectorVisible] = useState(false);
+  const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -93,6 +63,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
           estimated_hours: task.custom_fields?.estimated_hours,
           parent_id: task.parent_id,
         });
+        
+        // Set selected parent task for display
+        if (task.parent_id) {
+          setSelectedParentTask({
+            id: task.parent_id,
+            title: task.parent_title || `任务#${task.parent_id}`,
+            task_level: 0, // Will be updated by parent selector if needed
+          } as Task);
+        } else {
+          setSelectedParentTask(null);
+        }
       } else {
         // Create mode - reset form
         form.resetFields();
@@ -101,14 +82,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
           priority: 'medium',
           parent_id: parentTask?.id,
         });
+        
+        // Set initial parent task if provided
+        setSelectedParentTask(parentTask || null);
       }
-      
-      // Load parent tasks if parent selection is allowed
-      if (allowParentSelection) {
-        loadParentTasks();
-      }
+    } else {
+      // Reset state when modal closes
+      setSelectedParentTask(null);
+      setParentSelectorVisible(false);
     }
-  }, [visible, task, form, allowParentSelection, projectId, parentTask]);
+  }, [visible, task, form, parentTask]);
+
+  // Handle parent task selection
+  const handleParentSelect = (parentId: number | null, parentTask: Task | null) => {
+    form.setFieldValue('parent_id', parentId);
+    setSelectedParentTask(parentTask);
+    setParentSelectorVisible(false);
+  };
+
+  // Handle opening parent selector
+  const handleOpenParentSelector = () => {
+    setParentSelectorVisible(true);
+  };
 
   const handleOk = async () => {
     try {
@@ -134,13 +129,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         throw new Error('任务不能将自己设置为父任务');
       }
       
-      // 防止循环依赖：检查选择的父任务是否是当前任务的子任务
-      if (parentId && task) {
-        const selectedParent = parentTasks.find(p => p.id === parentId);
-        if (selectedParent && selectedParent.parent_id === task.id) {
-          throw new Error('不能选择当前任务的子任务作为父任务，这会造成循环依赖');
-        }
-      }
+      // Circular dependency validation is now handled by TaskParentSelectorModal
       
       // 如果是子任务，确保父任务ID有效（仅在创建模式下验证parentTask）
       if (parentId && !task && (!parentTask || !parentTask.project_id)) {
@@ -353,55 +342,55 @@ const TaskModal: React.FC<TaskModalProps> = ({
           <Form.Item
             name="parent_id"
             label="父任务"
-            help={
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                <span>选择父任务，将此任务作为子任务</span>
-                {task?.parent_id && (
-                  <span style={{ color: '#1890ff', fontSize: '12px' }}>
-                    当前父任务: {parentTasks.find(p => p.id === task.parent_id)?.title || `任务#${task.parent_id}`}
-                  </span>
-                )}
-              </div>
-            }
+            help="选择父任务，将此任务作为子任务。支持搜索和层级显示。"
           >
-            <Select
-              placeholder="请选择父任务（留空表示根任务）"
-              allowClear
-              loading={parentTasksLoading}
-              showSearch
-              filterOption={(input, option) => {
-                const taskTitle = option?.children?.toString() || '';
-                return taskTitle.toLowerCase().includes(input.toLowerCase());
-              }}
-              notFoundContent={parentTasksLoading ? '加载中...' : '暂无可选的父任务'}
-            >
-              {parentTasks.map(parentTask => {
-                const indent = '　'.repeat(parentTask.task_level || 0); // 使用全角空格缩进
-                const statusText = {
-                  'todo': '待办',
-                  'in_progress': '进行中', 
-                  'completed': '已完成',
-                  'cancelled': '已取消'
-                }[parentTask.status] || parentTask.status;
-                
-                return (
-                  <Option key={parentTask.id} value={parentTask.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ flex: 1 }}>
-                        {indent}{parentTask.title}
-                      </span>
-                      <span style={{ 
-                        fontSize: '12px', 
-                        color: '#8c8c8c',
-                        marginLeft: '8px'
-                      }}>
-                        #{parentTask.id} | {statusText}
-                      </span>
-                    </div>
-                  </Option>
-                );
-              })}
-            </Select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {selectedParentTask ? (
+                <div style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8,
+                  padding: '4px 8px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: 6,
+                  backgroundColor: '#fafafa'
+                }}>
+                  <FolderOutlined style={{ color: '#1890ff' }} />
+                  <span style={{ flex: 1 }}>{selectedParentTask.title}</span>
+                  <Tag color="blue">
+                    L{selectedParentTask.task_level + 1}
+                  </Tag>
+                  <Tooltip title="清除选择">
+                    <Button 
+                      type="text" 
+                      size="small" 
+                      onClick={() => handleParentSelect(null, null)}
+                    >
+                      ✕
+                    </Button>
+                  </Tooltip>
+                </div>
+              ) : (
+                <div style={{ 
+                  flex: 1, 
+                  padding: '4px 8px',
+                  border: '1px dashed #d9d9d9',
+                  borderRadius: 6,
+                  color: '#8c8c8c',
+                  textAlign: 'center'
+                }}>
+                  未选择父任务（根任务）
+                </div>
+              )}
+              <Button
+                type="primary"
+                icon={<EditOutlined />}
+                onClick={handleOpenParentSelector}
+              >
+                {selectedParentTask ? '修改' : '选择'}
+              </Button>
+            </div>
           </Form.Item>
         )}
 
@@ -413,6 +402,20 @@ const TaskModal: React.FC<TaskModalProps> = ({
           <Input placeholder="例如：前端,API,紧急" />
         </Form.Item>
       </Form>
+
+      {/* Parent Task Selection Modal */}
+      {allowParentSelection && (
+        <TaskParentSelectorModal
+          visible={parentSelectorVisible}
+          projectId={projectId}
+          currentTaskId={task?.id}
+          currentParentId={selectedParentTask?.id || null}
+          onOk={handleParentSelect}
+          onCancel={() => setParentSelectorVisible(false)}
+          title="选择父任务"
+          allowClear={true}
+        />
+      )}
     </Modal>
   );
 };

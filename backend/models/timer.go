@@ -78,6 +78,7 @@ type RecentTimedTask struct {
 	TotalSeconds    int    `json:"total_seconds"`
 	FormattedTime   string `json:"formatted_time"`
 	Status          string `json:"status"`
+	IsDeleted       bool   `json:"is_deleted"`
 }
 
 // TaskTimeBreakdown represents time breakdown by task

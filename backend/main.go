@@ -589,6 +589,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				timer.POST("/stop", app.timerHandler.StopTimer)
 				timer.GET("/current", app.timerHandler.GetCurrentTimer)
 				timer.GET("/stats", app.timerHandler.GetTimerStats)
+				timer.GET("/recent-tasks", app.timerHandler.GetTimerRecentTasks)
 				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)
 			}
 

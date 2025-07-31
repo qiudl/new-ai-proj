@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"ai-project-backend/database"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -219,6 +220,50 @@ func (h *TimerHandler) GetTimerStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// GetTimerRecentTasks handles GET /api/timer/recent-tasks with pagination
+func (h *TimerHandler) GetTimerRecentTasks(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Parse pagination parameters
+	limit := 8 // Default page size
+	offset := 0
+	
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+	
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Get recent tasks with pagination
+	tasks, err := h.db.Timer().GetRecentTasksByUserWithPagination(ctx, uid, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent tasks", "details": err.Error()})
+		return
+	}
+
+	response := gin.H{
+		"tasks":  tasks,
+		"limit":  limit,
+		"offset": offset,
+		"count":  len(tasks),
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // GetWeeklyReport handles GET /api/v1/timer/weekly

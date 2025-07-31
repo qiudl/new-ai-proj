@@ -179,8 +179,13 @@ func (r *PostgresTimerRepository) GetTodayTotalByUser(ctx context.Context, userI
 	return int(total.Int64), nil
 }
 
-// GetRecentTasksByUser gets the recent tasks worked on by a user
+// GetRecentTasksByUser gets the recent tasks worked on by a user, including deleted tasks
 func (r *PostgresTimerRepository) GetRecentTasksByUser(ctx context.Context, userID int, limit int) ([]models.RecentTimedTask, error) {
+	return r.GetRecentTasksByUserWithPagination(ctx, userID, limit, 0)
+}
+
+// GetRecentTasksByUserWithPagination gets the recent tasks worked on by a user with pagination support
+func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context.Context, userID int, limit int, offset int) ([]models.RecentTimedTask, error) {
 	query := `
 		SELECT DISTINCT 
 			t.id as task_id,
@@ -188,16 +193,17 @@ func (r *PostgresTimerRepository) GetRecentTasksByUser(ctx context.Context, user
 			p.name as project_name,
 			MAX(ttl.start_time) as last_timed_at,
 			t.total_time_seconds,
-			t.status
+			t.status,
+			CASE WHEN t.deleted_at IS NOT NULL THEN true ELSE false END as is_deleted
 		FROM task_time_logs ttl
-		JOIN tasks t ON ttl.task_id = t.id
-		JOIN projects p ON t.project_id = p.id
+		LEFT JOIN tasks t ON ttl.task_id = t.id
+		LEFT JOIN projects p ON t.project_id = p.id
 		WHERE ttl.user_id = $1
-		GROUP BY t.id, t.title, p.name, t.total_time_seconds, t.status
+		GROUP BY t.id, t.title, p.name, t.total_time_seconds, t.status, t.deleted_at
 		ORDER BY last_timed_at DESC
-		LIMIT $2`
+		LIMIT $2 OFFSET $3`
 
-	rows, err := r.getExecer().QueryContext(ctx, query, userID, limit)
+	rows, err := r.getExecer().QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -207,20 +213,42 @@ func (r *PostgresTimerRepository) GetRecentTasksByUser(ctx context.Context, user
 	for rows.Next() {
 		var task models.RecentTimedTask
 		var lastTimedAt time.Time
+		var isDeleted bool
+		var taskTitle, projectName, status sql.NullString
 		err := rows.Scan(
 			&task.TaskID,
-			&task.TaskTitle,
-			&task.ProjectName,
+			&taskTitle,
+			&projectName,
 			&lastTimedAt,
 			&task.TotalSeconds,
-			&task.Status,
+			&status,
+			&isDeleted,
 		)
 		if err != nil {
 			return nil, err
 		}
 		
+		// Handle potentially null values for deleted tasks
+		task.TaskTitle = taskTitle.String
+		task.ProjectName = projectName.String
+		task.Status = status.String
 		task.LastTimedAt = lastTimedAt
 		task.FormattedTime = models.FormatDuration(task.TotalSeconds)
+		task.IsDeleted = isDeleted
+		
+		// Set default values for deleted tasks
+		if isDeleted {
+			if task.TaskTitle == "" {
+				task.TaskTitle = "已删除的任务"
+			}
+			if task.ProjectName == "" {
+				task.ProjectName = "已删除的项目"
+			}
+			if task.Status == "" {
+				task.Status = "deleted"
+			}
+		}
+		
 		tasks = append(tasks, task)
 	}
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Input, Alert, Empty, Typography } from 'antd';
+import { Modal, Button, Input, Alert, Empty, Typography, Spin } from 'antd';
+import ErrorBoundary from './ErrorBoundary';
 import {
   SearchOutlined,
   InfoCircleOutlined,
@@ -215,7 +216,8 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
       }}
       destroyOnClose
     >
-      <div className="parent-selector-modal-content">
+      <ErrorBoundary>
+        <div className="parent-selector-modal-content">
         {/* Search section */}
         <div className="search-section">
           <Search
@@ -274,9 +276,11 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
             />
           </div>
         </div>
-      </div>
+        </div>
+      </ErrorBoundary>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .parent-selector-modal-content {
           display: flex;
           flex-direction: column;
@@ -398,7 +402,8 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
             height: 250px;
           }
         }
-      `}</style>
+        `
+      }} />
     </Modal>
   );
 };

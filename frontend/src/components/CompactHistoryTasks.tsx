@@ -28,33 +28,37 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  // 加载历史任务数据
+  // 加载历史任务数据（初始加载）
   const loadHistoryTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+      setOffset(0);
       
-      const statsResponse = await TimerService.getTimerStats();
+      // 使用新的分页API
+      const response = await fetch('/api/v1/timer/recent-tasks?limit=8&offset=0', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (statsResponse && statsResponse.recent_tasks && statsResponse.recent_tasks.length > 0) {
-        // 按最后计时时间倒序排列，限制显示数量
-        const sortedTasks = statsResponse.recent_tasks
-          .sort((a: any, b: any) => {
-            return dayjs(b.last_timed_at).valueOf() - dayjs(a.last_timed_at).valueOf();
-          })
-          .slice(0, 8); // 只显示最近8个任务
-        
-        setTasks(sortedTasks);
-        console.log('✅ 加载了', sortedTasks.length, '个历史任务');
-      } else {
-        // 如果API没有数据，使用演示数据（开发环境）
-        if (isDevelopment) {
-          console.log('🔄 API无数据，使用演示数据');
-          setTasks(mockHistoryTasks);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.tasks && Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+          setHasMore(data.tasks.length === 8); // 如果返回满8条，可能还有更多
+          console.log('✅ 加载了', data.tasks.length, '个历史任务');
         } else {
           setTasks([]);
+          setHasMore(false);
         }
+      } else {
+        throw new Error(`API请求失败: ${response.status}`);
       }
     } catch (error: any) {
       console.error('加载历史任务失败:', error);
@@ -63,15 +67,53 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
       if (isDevelopment) {
         console.log('🔄 API失败，使用演示数据');
         setTasks(mockHistoryTasks);
-        setError(null); // 清除错误，因为我们有演示数据
+        setError(null);
+        setHasMore(false);
       } else {
         setError(error.message || '加载失败');
         setTasks([]);
+        setHasMore(false);
       }
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // 加载更多数据
+  const loadMoreTasks = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    
+    try {
+      setLoadingMore(true);
+      const newOffset = offset + 8;
+      
+      const response = await fetch(`/api/v1/timer/recent-tasks?limit=8&offset=${newOffset}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.tasks && Array.isArray(data.tasks)) {
+          setTasks(prevTasks => [...prevTasks, ...data.tasks]);
+          setOffset(newOffset);
+          setHasMore(data.tasks.length === 8); // 如果返回不足8条，说明没有更多了
+          console.log('✅ 加载了更多', data.tasks.length, '个历史任务');
+        } else {
+          setHasMore(false);
+        }
+      } else {
+        throw new Error(`API请求失败: ${response.status}`);
+      }
+    } catch (error: any) {
+      console.error('加载更多历史任务失败:', error);
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [offset, loadingMore, hasMore]);
 
   // 组件挂载时加载数据
   useEffect(() => {
@@ -80,7 +122,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
 
   // 处理任务点击
   const handleTaskClick = useCallback((task: any) => {
-    if (onTaskSelect) {
+    if (onTaskSelect && !task.is_deleted) {
       onTaskSelect(task.task_id);
     }
   }, [onTaskSelect]);
@@ -164,9 +206,9 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
               dataSource={tasks}
               renderItem={(task: any) => (
                 <List.Item 
-                  className="compact-task-item"
+                  className={`compact-task-item ${task.is_deleted ? 'task-deleted' : ''}`}
                   onMouseEnter={(e) => {
-                    if (onTaskSelect) {
+                    if (onTaskSelect && !task.is_deleted) {
                       e.currentTarget.style.backgroundColor = '#f5f5f5';
                     }
                   }}
@@ -174,6 +216,10 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                     e.currentTarget.style.backgroundColor = 'transparent';
                   }}
                   onClick={() => handleTaskClick(task)}
+                  style={{ 
+                    cursor: task.is_deleted ? 'default' : 'pointer',
+                    opacity: task.is_deleted ? 0.7 : 1
+                  }}
                 >
                   <div style={{ width: '100%' }}>
                     {/* 第一行：任务标题 + 状态 + 操作按钮 */}
@@ -186,6 +232,15 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                       </Text>
                       
                       <div className="compact-task-actions">
+                        {task.is_deleted && (
+                          <Tag 
+                            size="small" 
+                            color="red"
+                            className="compact-task-status"
+                          >
+                            已删除
+                          </Tag>
+                        )}
                         <Tag 
                           size="small" 
                           color={getStatusColor(task.status)}
@@ -194,7 +249,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                           {getStatusText(task.status)}
                         </Tag>
                         
-                        {onTaskSelect && (
+                        {onTaskSelect && !task.is_deleted && (
                           <Tooltip title="开始计时">
                             <Button
                               type="text"
@@ -249,12 +304,23 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
         </Spin>
       </div>
       
-      {/* 底部信息 */}
+      {/* 底部信息和查看更多按钮 */}
       {tasks.length > 0 && (
         <div className="compact-history-footer">
           <Text type="secondary" className="compact-history-footer-text">
             显示最近 {tasks.length} 个任务
           </Text>
+          {hasMore && (
+            <Button
+              type="link"
+              size="small"
+              loading={loadingMore}
+              onClick={loadMoreTasks}
+              style={{ padding: '0 4px', height: 'auto', fontSize: '12px' }}
+            >
+              查看更多
+            </Button>
+          )}
         </div>
       )}
     </div>

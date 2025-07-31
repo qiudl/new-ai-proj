@@ -368,6 +368,7 @@ type TimerRepository interface {
 	GetByUserAndTaskToday(ctx context.Context, userID, taskID int) ([]models.TaskTimeLog, error)
 	GetTodayTotalByUser(ctx context.Context, userID int) (int, error)
 	GetRecentTasksByUser(ctx context.Context, userID int, limit int) ([]models.RecentTimedTask, error)
+	GetRecentTasksByUserWithPagination(ctx context.Context, userID int, limit int, offset int) ([]models.RecentTimedTask, error)
 	Update(ctx context.Context, log *models.TaskTimeLog) error
 	Delete(ctx context.Context, id int) error
 
