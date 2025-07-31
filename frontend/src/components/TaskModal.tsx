@@ -50,9 +50,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
     
     try {
       setParentTasksLoading(true);
-      const response = await TaskService.getTasks(projectId, { page: 1, page_size: 100 });
-      // Filter out current task to prevent self-reference
-      const availableTasks = response.data.filter(t => t.id !== task?.id);
+      const response = await TaskService.getTasks(projectId, { page: 1, page_size: 500 });
+      // Filter out current task and its descendants to prevent circular references
+      let availableTasks = response.data.filter(t => t.id !== task?.id);
+      
+      // Additional filtering: prevent creating circular dependencies
+      if (task) {
+        // Also filter out tasks that have current task as parent (descendants)
+        availableTasks = availableTasks.filter(t => t.parent_id !== task.id);
+        // Could be extended to filter all descendants recursively for stronger validation
+      }
+      
+      // Sort tasks by hierarchy and title for better UX
+      availableTasks.sort((a, b) => {
+        // Root tasks first, then by task_level, then by title
+        if (a.task_level !== b.task_level) {
+          return (a.task_level || 0) - (b.task_level || 0);
+        }
+        return a.title.localeCompare(b.title);
+      });
+      
       setParentTasks(availableTasks);
     } catch (error) {
       console.error('Error loading parent tasks:', error);
@@ -115,6 +132,14 @@ const TaskModal: React.FC<TaskModalProps> = ({
       // 防止自引用：任务不能将自己设置为父任务
       if (parentId && task && parentId === task.id) {
         throw new Error('任务不能将自己设置为父任务');
+      }
+      
+      // 防止循环依赖：检查选择的父任务是否是当前任务的子任务
+      if (parentId && task) {
+        const selectedParent = parentTasks.find(p => p.id === parentId);
+        if (selectedParent && selectedParent.parent_id === task.id) {
+          throw new Error('不能选择当前任务的子任务作为父任务，这会造成循环依赖');
+        }
       }
       
       // 如果是子任务，确保父任务ID有效（仅在创建模式下验证parentTask）
@@ -328,22 +353,54 @@ const TaskModal: React.FC<TaskModalProps> = ({
           <Form.Item
             name="parent_id"
             label="父任务"
-            help="选择父任务，将此任务作为子任务"
+            help={
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <span>选择父任务，将此任务作为子任务</span>
+                {task?.parent_id && (
+                  <span style={{ color: '#1890ff', fontSize: '12px' }}>
+                    当前父任务: {parentTasks.find(p => p.id === task.parent_id)?.title || `任务#${task.parent_id}`}
+                  </span>
+                )}
+              </div>
+            }
           >
             <Select
-              placeholder="请选择父任务（可选）"
+              placeholder="请选择父任务（留空表示根任务）"
               allowClear
               loading={parentTasksLoading}
               showSearch
-              filterOption={(input, option) =>
-                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
-              }
+              filterOption={(input, option) => {
+                const taskTitle = option?.children?.toString() || '';
+                return taskTitle.toLowerCase().includes(input.toLowerCase());
+              }}
+              notFoundContent={parentTasksLoading ? '加载中...' : '暂无可选的父任务'}
             >
-              {parentTasks.map(task => (
-                <Option key={task.id} value={task.id}>
-                  {task.title}
-                </Option>
-              ))}
+              {parentTasks.map(parentTask => {
+                const indent = '　'.repeat(parentTask.task_level || 0); // 使用全角空格缩进
+                const statusText = {
+                  'todo': '待办',
+                  'in_progress': '进行中', 
+                  'completed': '已完成',
+                  'cancelled': '已取消'
+                }[parentTask.status] || parentTask.status;
+                
+                return (
+                  <Option key={parentTask.id} value={parentTask.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ flex: 1 }}>
+                        {indent}{parentTask.title}
+                      </span>
+                      <span style={{ 
+                        fontSize: '12px', 
+                        color: '#8c8c8c',
+                        marginLeft: '8px'
+                      }}>
+                        #{parentTask.id} | {statusText}
+                      </span>
+                    </div>
+                  </Option>
+                );
+              })}
             </Select>
           </Form.Item>
         )}

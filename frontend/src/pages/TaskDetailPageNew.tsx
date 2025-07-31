@@ -1551,6 +1551,7 @@ const TaskDetailPageNew: React.FC = () => {
           onOk={handleTaskModalSubmit}
           onCancel={() => setTaskModalVisible(false)}
           loading={modalLoading}
+          allowParentSelection={true} // 始终允许父任务选择
           onEditDetails={() => {
             setTaskModalVisible(false);
             if (taskModalMode === 'edit') {

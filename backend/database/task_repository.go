@@ -303,6 +303,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 		UPDATE tasks 
 		SET title = $2, description = $3, assignee_id = $4, status = $5,
 		    due_date = $6, custom_fields = $7, total_time_seconds = $8,
+		    parent_id = $9, task_level = $10, sort_order = $11,
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
@@ -310,7 +311,8 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ID, task.Title, task.Description, task.AssigneeID,
-		task.Status, task.DueDate, customFieldsJSON, task.TotalTimeSeconds)
+		task.Status, task.DueDate, customFieldsJSON, task.TotalTimeSeconds,
+		task.ParentID, task.TaskLevel, task.SortOrder)
 
 	err = row.Scan(&task.UpdatedAt)
 	if err != nil {

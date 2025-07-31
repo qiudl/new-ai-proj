@@ -141,7 +141,10 @@ const AppContent: React.FC = () => {
             <Route path="/projects/:projectId/documents/new" element={
               <PrivateRoute>
                 <Layout>
-                  <DocumentEditorPage />
+                  <div style={{ padding: '50px', textAlign: 'center' }}>
+                    <h2>📄 文档编辑器已归档</h2>
+                    <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
+                  </div>
                 </Layout>
               </PrivateRoute>
             } />
@@ -149,7 +152,10 @@ const AppContent: React.FC = () => {
             <Route path="/documents/new" element={
               <PrivateRoute>
                 <Layout>
-                  <DocumentEditorPage />
+                  <div style={{ padding: '50px', textAlign: 'center' }}>
+                    <h2>📄 文档编辑器已归档</h2>
+                    <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
+                  </div>
                 </Layout>
               </PrivateRoute>
             } />
@@ -157,7 +163,10 @@ const AppContent: React.FC = () => {
             <Route path="/documents/:id/edit" element={
               <PrivateRoute>
                 <Layout>
-                  <DocumentEditorPage />
+                  <div style={{ padding: '50px', textAlign: 'center' }}>
+                    <h2>📄 文档编辑器已归档</h2>
+                    <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
+                  </div>
                 </Layout>
               </PrivateRoute>
             } />
@@ -165,7 +174,10 @@ const AppContent: React.FC = () => {
             <Route path="/documents/:id" element={
               <PrivateRoute>
                 <Layout>
-                  <DocumentEditorPage />
+                  <div style={{ padding: '50px', textAlign: 'center' }}>
+                    <h2>📄 文档编辑器已归档</h2>
+                    <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
+                  </div>
                 </Layout>
               </PrivateRoute>
             } />
