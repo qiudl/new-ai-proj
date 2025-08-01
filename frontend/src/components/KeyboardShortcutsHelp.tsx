@@ -3,7 +3,7 @@ import React from 'react';
 import { Modal, Table, Typography, Space, Tag, Divider } from 'antd';
 import { ControlOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 interface KeyboardShortcut {
   key: string;
