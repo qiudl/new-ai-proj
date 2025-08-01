@@ -11,6 +11,7 @@ import {
   Space,
   Tag,
   Tooltip,
+  Spin,
 } from 'antd';
 import { EditOutlined, FolderOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
@@ -51,6 +52,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [form] = Form.useForm();
   const [parentSelectorVisible, setParentSelectorVisible] = useState(false);
   const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(null);
+  const [loadingParentTask, setLoadingParentTask] = useState(false);
+
+  // Load parent task information when we have parent_id but no parent_title
+  const loadParentTaskInfo = async (parentId: number) => {
+    if (!projectId || parentId <= 0) return;
+    
+    try {
+      setLoadingParentTask(true);
+      const response = await TaskService.getTask(projectId, parentId);
+      if (response) {
+        setSelectedParentTask(response);
+      }
+    } catch (error) {
+      console.error('Failed to load parent task info:', error);
+      // Reset to null if we can't load parent task info
+      setSelectedParentTask(null);
+    } finally {
+      setLoadingParentTask(false);
+    }
+  };
 
   useEffect(() => {
     if (visible) {
@@ -69,12 +90,21 @@ const TaskModal: React.FC<TaskModalProps> = ({
         });
         
         // Set selected parent task for display
-        if (task.parent_id) {
+        if (task.parent_id && task.parent_title) {
+          // Only set if we have complete parent task information
           setSelectedParentTask({
             id: task.parent_id,
-            title: task.parent_title || `任务#${task.parent_id}`,
+            title: task.parent_title,
             task_level: 0, // Will be updated by parent selector if needed
+            project_id: projectId,
+            status: 'unknown', // Placeholder status
+            created_at: '',
+            updated_at: '',
+            description: '',
           } as Task);
+        } else if (task.parent_id && !task.parent_title) {
+          // If we have parent_id but no title, fetch parent task information
+          loadParentTaskInfo(task.parent_id);
         } else {
           setSelectedParentTask(null);
         }
@@ -414,7 +444,21 @@ const TaskModal: React.FC<TaskModalProps> = ({
             help="选择父任务，将此任务作为子任务。支持搜索和层级显示。"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {selectedParentTask ? (
+              {loadingParentTask ? (
+                <div style={{ 
+                  flex: 1, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 8,
+                  padding: '4px 8px',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: 6,
+                  backgroundColor: '#fafafa'
+                }}>
+                  <Spin size="small" />
+                  <span style={{ color: '#8c8c8c' }}>正在加载父任务信息...</span>
+                </div>
+              ) : selectedParentTask ? (
                 <div style={{ 
                   flex: 1, 
                   display: 'flex', 
