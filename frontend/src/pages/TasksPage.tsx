@@ -7,6 +7,7 @@ import { TaskService } from '../services/taskService';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
+import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import ProjectSelector from '../components/ProjectSelector';
 import TimerStartButton from '../components/TimerStartButton';
 import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
@@ -60,6 +61,10 @@ const TasksPage: React.FC = () => {
   // Archive modal state
   const [archiveModalVisible, setArchiveModalVisible] = useState(false);
   const [tasksToArchive, setTasksToArchive] = useState<Task[]>([]);
+  
+  // 批量子任务创建状态
+  const [bulkSubTaskModalVisible, setBulkSubTaskModalVisible] = useState(false);
+  const [selectedParentTaskForBulk, setSelectedParentTaskForBulk] = useState<Task | undefined>();
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
@@ -714,6 +719,30 @@ const TasksPage: React.FC = () => {
   // Handle view task details
   const handleViewTask = (task: Task) => {
     navigate(`/projects/${task.project_id}/tasks/${task.id}`);
+  };
+
+  // Handle bulk create subtasks
+  const handleBulkCreateSubTasks = (parentTask: Task) => {
+    if (!parentTask.project_id || parentTask.project_id <= 0) {
+      message.error('无法为此任务创建子任务：父任务缺少有效的项目信息');
+      return;
+    }
+    
+    setSelectedParentTaskForBulk(parentTask);
+    setBulkSubTaskModalVisible(true);
+  };
+
+  // Handle bulk subtask creation success
+  const handleBulkSubTaskSuccess = () => {
+    setBulkSubTaskModalVisible(false);
+    setSelectedParentTaskForBulk(undefined);
+    message.success('批量创建子任务成功！');
+    // 刷新任务列表
+    if (hierarchicalView) {
+      loadTasks();
+    } else {
+      loadTasksFlat(pagination.current, pagination.pageSize);
+    }
   };
 
   // Handle status update - 内联编辑状态
@@ -2169,6 +2198,15 @@ const TasksPage: React.FC = () => {
               title="添加子任务"
             />
             
+            {/* 批量创建子任务按钮 */}
+            <Button
+              type="text"
+              size="small"
+              icon={<BranchesOutlined />}
+              onClick={() => handleBulkCreateSubTasks(record)}
+              title="批量创建子任务"
+            />
+            
             {/* 查看按钮 - 外显 */}
             <Button
               type="text"
@@ -2491,6 +2529,7 @@ const TasksPage: React.FC = () => {
                 onEditTask={handleEditTask}
                 onDeleteTask={handleDeleteTask}
                 onCreateSubTask={handleCreateSubTask}
+                onBulkCreateSubTasks={handleBulkCreateSubTasks}
                 onArchiveTask={handleArchiveTask}
                 loading={loading}
               />
@@ -2639,6 +2678,17 @@ const TasksPage: React.FC = () => {
         tasks={tasksToArchive}
         mode={tasksToArchive.length === 1 ? 'single' : 'bulk'}
       />
+
+      {/* Bulk SubTask Creator Modal */}
+      {selectedParentTaskForBulk && (
+        <BulkSubTaskCreator
+          visible={bulkSubTaskModalVisible}
+          onCancel={() => setBulkSubTaskModalVisible(false)}
+          onSuccess={handleBulkSubTaskSuccess}
+          parentTask={selectedParentTaskForBulk}
+          projectId={selectedParentTaskForBulk.project_id}
+        />
+      )}
     </div>
   );
 };

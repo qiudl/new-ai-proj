@@ -195,7 +195,7 @@ export const TABLE_INTERACTION_CONFIG = {
   showActions: true,
   // 表格滚动配置
   scroll: {
-    x: 1200,
+    x: 1400,
     y: 400,
   },
 };
