@@ -1,7 +1,7 @@
 // 快捷键帮助组件 - Timer System 2.0
 import React from 'react';
 import { Modal, Table, Typography, Space, Tag, Divider } from 'antd';
-import { KeyboardOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { ControlOutlined, InfoCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -80,7 +80,7 @@ const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({
     <Modal
       title={
         <Space>
-          <KeyboardOutlined style={{ color: '#1890ff' }} />
+          <ControlOutlined style={{ color: '#1890ff' }} />
           <span>键盘快捷键</span>
         </Space>
       }
