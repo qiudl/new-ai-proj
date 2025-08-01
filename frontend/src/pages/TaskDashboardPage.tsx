@@ -35,7 +35,8 @@ import {
   BarChartOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  DownloadOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
@@ -57,6 +58,10 @@ import {
   TaskListSkeleton,
   SmartLoading
 } from '../components/SkeletonLoaders';
+import { useTaskDashboardUrlState, generateShareableUrl } from '../hooks/useUrlState';
+import { useFilterPersistence } from '../hooks/useFilterPersistence';
+import { QuickDatePicker } from '../components/QuickDatePicker';
+import { ExportModal } from '../components/ExportModal';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -141,13 +146,44 @@ interface DayTasks {
 
 const TaskDashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedWeek, setSelectedWeek] = useState<Dayjs>(dayjs());
-  const [searchText, setSearchText] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedProject, setSelectedProject] = useState<number | undefined>(undefined);
-  const [selectedCustomer, setSelectedCustomer] = useState<number | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   const [loading, setLoading] = useState(false);
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+  
+  // URL状态管理
+  const [urlFilters, setUrlFilters] = useTaskDashboardUrlState();
+  
+  // 筛选条件持久化
+  const {
+    bookmarks,
+    saveBookmark,
+    loadBookmark,
+    deleteBookmark,
+    exportBookmarks,
+    importBookmarks,
+    getRecommendedBookmarks,
+  } = useFilterPersistence(urlFilters);
+  
+  // 解构URL状态为单独的变量(保持向后兼容)
+  const {
+    selectedWeek,
+    selectedProject,
+    selectedCustomer,
+    selectedStatus,
+    searchText,
+    viewMode,
+  } = urlFilters;
+  
+  // 更新单个筛选条件的辅助函数
+  const updateFilter = <K extends keyof typeof urlFilters>(key: K, value: typeof urlFilters[K]) => {
+    setUrlFilters({ ...urlFilters, [key]: value });
+  };
+  
+  const setSelectedWeek = (week: Dayjs) => updateFilter('selectedWeek', week);
+  const setSelectedProject = (projectId: number | undefined) => updateFilter('selectedProject', projectId);
+  const setSelectedCustomer = (customerId: number | undefined) => updateFilter('selectedCustomer', customerId);
+  const setSelectedStatus = (status: string) => updateFilter('selectedStatus', status);
+  const setSearchText = (text: string) => updateFilter('searchText', text);
+  const setViewMode = (mode: 'calendar' | 'list') => updateFilter('viewMode', mode);
 
   // 计算当前周的开始和结束日期
   const weekStart = useMemo(() => {
@@ -451,6 +487,8 @@ const TaskDashboardPage: React.FC = () => {
       ]);
       // 同时失效仪表板缓存
       dashboardManager.invalidateDashboard();
+      // 预加载新数据
+      preloadManager.preloadNow(['dashboard', 'tasks']);
       message.success('数据刷新成功');
     } catch (error) {
       console.error('刷新数据失败:', error);
@@ -622,6 +660,13 @@ const TaskDashboardPage: React.FC = () => {
                 loading={isDataLoading}
               >
                 刷新
+              </Button>
+              <Button 
+                icon={<DownloadOutlined />} 
+                onClick={() => setExportModalVisible(true)}
+                disabled={!weeklyTasks || weeklyTasks.length === 0}
+              >
+                导出
               </Button>
             </Space>
           </Col>
@@ -1112,6 +1157,36 @@ const TaskDashboardPage: React.FC = () => {
           </Card>
         )}
       </SmartLoading>
+
+      {/* 导出模态框 */}
+      <ExportModal
+        visible={exportModalVisible}
+        onCancel={() => setExportModalVisible(false)}
+        data={{
+          weekRange: `${weekStart.format('YYYY年MM月DD日')} - ${weekEnd.format('MM月DD日')}`,
+          selectedWeek,
+          tasks: weeklyTasks || [],
+          projects: projects || [],
+          customers: customers || [],
+          stats: {
+            totalTasks: weeklyTasks?.length || 0,
+            completedTasks: weeklyTasks?.filter(task => task.status === 'completed').length || 0,
+            inProgressTasks: weeklyTasks?.filter(task => task.status === 'in_progress').length || 0,
+            todoTasks: weeklyTasks?.filter(task => task.status === 'todo').length || 0,
+            overdueTasks: weeklyTasks?.filter(task => 
+              task.due_date && dayjs(task.due_date).isBefore(dayjs(), 'day') && task.status !== 'completed'
+            ).length || 0,
+            completionRate: weeklyTasks?.length ? 
+              Math.round((weeklyTasks.filter(task => task.status === 'completed').length / weeklyTasks.length) * 100) : 0,
+          },
+          filters: {
+            selectedProject,
+            selectedCustomer,
+            selectedStatus,
+            searchText,
+          },
+        }}
+      />
     </div>
   );
 };
