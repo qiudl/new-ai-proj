@@ -51,6 +51,7 @@ const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
+const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -108,6 +109,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <PersonalTimerPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/timer-analytics" element={
+              <PrivateRoute>
+                <Layout>
+                  <TimerAnalyticsPage />
                 </Layout>
               </PrivateRoute>
             } />

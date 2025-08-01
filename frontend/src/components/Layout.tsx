@@ -24,6 +24,7 @@ import {
   FileTextOutlined,
   FolderOutlined,
   ClockCircleOutlined,
+  BarChartOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -113,6 +114,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return ['/'];
     if (path.includes('/personal-timer')) return ['/personal-timer'];
+    if (path.includes('/timer-analytics')) return ['/timer-analytics'];
     if (path.includes('/time-weekly-report')) return ['/time-weekly-report'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-list')) return ['/task-list'];
@@ -132,6 +134,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
+    }
+    if (path.includes('/personal-timer') || path.includes('/timer-analytics')) {
+      return ['/timer-management'];
     }
     if (path.includes('/projects') || path.includes('/companies')) {
       return ['/project-customer-management'];
@@ -187,9 +192,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       ],
     },
     {
-      key: '/personal-timer',
+      key: '/timer-management',
       icon: <ClockCircleOutlined />,
-      label: '个人计时',
+      label: '计时系统',
+      children: [
+        {
+          key: '/personal-timer',
+          icon: <ClockCircleOutlined />,
+          label: '个人计时',
+        },
+        {
+          key: '/timer-analytics',
+          icon: <BarChartOutlined />,
+          label: '数据分析',
+        },
+      ],
     },
     {
       key: '/project-customer-management',

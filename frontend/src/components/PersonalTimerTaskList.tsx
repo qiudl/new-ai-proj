@@ -37,6 +37,7 @@ interface PersonalTimerTaskListProps {
   tasks: UserTimerTaskResponse[];
   loading?: boolean;
   isTimerRunning?: boolean;
+  selectedTaskIndex?: number;
   onStartTimer?: (taskId: number) => void;
   onEditTask?: (task: UserTimerTaskResponse) => void;
   onDeleteTask?: (taskId: number) => void;
@@ -47,6 +48,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
   tasks,
   loading = false,
   isTimerRunning = false,
+  selectedTaskIndex = -1,
   onStartTimer,
   onEditTask,
   onDeleteTask,
@@ -179,12 +181,14 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
 
           return (
             <List.Item
+              className={`personal-timer-task-item ${index === selectedTaskIndex ? 'selected' : ''}`}
               style={{
                 padding: '16px',
                 border: '1px solid #f0f0f0',
                 borderRadius: '8px',
                 marginBottom: '8px',
-                background: task.is_favorite ? '#fff9e6' : '#fafafa'
+                background: task.is_favorite ? '#fff9e6' : '#fafafa',
+                position: 'relative'
               }}
               actions={[
                 <Button
@@ -291,6 +295,13 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                   </Space>
                 }
               />
+
+              {/* 键盘快捷键提示 */}
+              {index < 9 && (
+                <div className="keyboard-hint">
+                  ⌘{index + 1}
+                </div>
+              )}
             </List.Item>
           );
         }}

@@ -1,4 +1,5 @@
 import api from './api';
+import { timerCache } from '../utils/cache';
 
 // 个人计时任务相关类型定义
 export interface UserTimerTaskRequest {
@@ -124,11 +125,33 @@ export interface UserTimerTasksResponse {
 
 // 个人计时系统服务
 export const personalTimerService = {
+  // ========== 辅助方法 ==========
+  
+  // 获取当前用户ID（从localStorage或token中获取）
+  getCurrentUserId(): number | null {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_id || null;
+    } catch {
+      return null;
+    }
+  },
+
   // ========== 个人计时任务管理 ==========
   
   // 创建个人计时任务
   async createUserTimerTask(data: UserTimerTaskRequest): Promise<{ message: string; task: UserTimerTaskResponse }> {
     const response = await api.post('/user/timer-tasks', data);
+    
+    // 清除相关缓存
+    const userId = this.getCurrentUserId();
+    if (userId) {
+      timerCache.invalidateTasksCache(userId);
+    }
+    
     return response.data;
   },
 
@@ -137,7 +160,22 @@ export const personalTimerService = {
     limit?: number;
     offset?: number;
   } & UserTimerFilter): Promise<UserTimerTasksResponse> {
+    // 尝试从缓存获取
+    const userId = this.getCurrentUserId();
+    if (userId) {
+      const cached = timerCache.getTimerTasks(userId, params);
+      if (cached) {
+        return cached;
+      }
+    }
+
     const response = await api.get('/user/timer-tasks', { params });
+    
+    // 缓存结果
+    if (userId) {
+      timerCache.cacheTimerTasks(userId, response.data, params);
+    }
+    
     return response.data;
   },
 
@@ -195,7 +233,22 @@ export const personalTimerService = {
   
   // 获取个人计时仪表板数据
   async getDashboard(): Promise<PersonalTimerDashboard> {
+    // 尝试从缓存获取
+    const userId = this.getCurrentUserId();
+    if (userId) {
+      const cached = timerCache.getDashboard(userId);
+      if (cached) {
+        return cached;
+      }
+    }
+
     const response = await api.get('/user/timer/dashboard');
+    
+    // 缓存结果
+    if (userId) {
+      timerCache.cacheDashboard(userId, response.data);
+    }
+    
     return response.data;
   },
 

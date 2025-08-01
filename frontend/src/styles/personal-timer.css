@@ -1,5 +1,60 @@
 /* 个人计时页面样式 */
 
+/* 专注模式样式 */
+.personal-timer-page.focus-mode {
+  position: relative;
+}
+
+.personal-timer-page.focus-mode .stats-row,
+.personal-timer-page.focus-mode .task-list-section .ant-card-extra,
+.personal-timer-page.focus-mode .page-subtitle {
+  opacity: 0.3;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.personal-timer-page.focus-mode .stats-row:hover,
+.personal-timer-page.focus-mode .task-list-section .ant-card-extra:hover {
+  opacity: 0.6;
+}
+
+/* 专注模式下只突出显示当前计时器 */
+.personal-timer-page.focus-mode .personal-timer-control {
+  position: relative;
+  z-index: 10;
+  background: linear-gradient(135deg, #f6f9ff 0%, #e6f3ff 100%);
+  border: 2px solid #1890ff;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(24, 144, 255, 0.2);
+}
+
+/* 键盘快捷键提示 */
+.keyboard-hint {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #1890ff;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-family: Monaco, Consolas, monospace;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 20;
+}
+
+.personal-timer-task-item:hover .keyboard-hint {
+  opacity: 1;
+}
+
+/* 选中任务高亮 */
+.personal-timer-task-item.selected {
+  background: linear-gradient(135deg, #e6f3ff 0%, #bae7ff 100%) !important;
+  border-color: #1890ff !important;
+  transform: scale(1.02);
+}
+
 /* 计时器控制卡片动画效果 */
 .personal-timer-control {
   transition: all 0.3s ease;

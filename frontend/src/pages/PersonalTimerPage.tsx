@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Typography, Button, Space, Divider, Spin, message } from 'antd';
-import { PlayCircleOutlined, PauseCircleOutlined, PlusOutlined, ClockCircleOutlined, TrophyOutlined, BarChartOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PauseCircleOutlined, PlusOutlined, ClockCircleOutlined, TrophyOutlined, BarChartOutlined, QuestionCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { personalTimerService } from '../services/personalTimerService';
 import PersonalTimerControl from '../components/PersonalTimerControl';
 import PersonalTimerTaskList from '../components/PersonalTimerTaskList';
 import PersonalTimerTaskForm from '../components/PersonalTimerTaskForm';
+import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
+import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboardShortcuts';
 import '../styles/personal-timer.css';
 
 const { Title, Text } = Typography;
@@ -72,11 +75,15 @@ interface PersonalTimerDashboard {
 }
 
 const PersonalTimerPage: React.FC = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<PersonalTimerDashboard | null>(null);
   const [currentTimer, setCurrentTimer] = useState<PersonalTimerCurrent | null>(null);
   const [taskFormVisible, setTaskFormVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<UserTimerTaskResponse | null>(null);
+  const [shortcutsHelpVisible, setShortcutsHelpVisible] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
+  const [selectedTaskIndex, setSelectedTaskIndex] = useState<number>(-1);
 
   // 加载仪表板数据
   const loadDashboardData = async () => {
@@ -153,6 +160,77 @@ const PersonalTimerPage: React.FC = () => {
     }
   };
 
+  // 键盘快捷键配置
+  const shortcuts = createTimerShortcuts({
+    startTimer: () => {
+      if (dashboardData?.timer_tasks && dashboardData.timer_tasks.length > 0) {
+        const firstTask = dashboardData.timer_tasks[0];
+        startPersonalTimer(firstTask.id);
+      } else {
+        message.warning('没有可用的计时任务');
+      }
+    },
+    stopTimer: () => {
+      if (currentTimer?.is_running) {
+        stopTimer();
+      } else {
+        message.info('当前没有运行中的计时器');
+      }
+    },
+    pauseTimer: () => {
+      // 暂停功能（如果支持）
+      message.info('暂停功能即将推出');
+    },
+    createTask: () => {
+      setTaskFormVisible(true);
+    },
+    openTaskList: () => {
+      // 滚动到任务列表
+      const element = document.querySelector('.task-list-section');
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
+    },
+    openAnalytics: () => {
+      navigate('/timer-analytics');
+    },
+    openHistory: () => {
+      navigate('/timer-analytics');
+    },
+    showHelp: () => {
+      setShortcutsHelpVisible(true);
+    },
+    toggleFocus: () => {
+      setFocusMode(!focusMode);
+      message.info(focusMode ? '已退出专注模式' : '已进入专注模式');
+    },
+    quickSave: () => {
+      // 快速保存当前状态
+      loadDashboardData();
+      message.success('数据已刷新');
+    }
+  });
+
+  const { getShortcutsHelp } = useKeyboardShortcuts(shortcuts);
+
+  // 监听数字键选择任务
+  useEffect(() => {
+    const handleSelectTaskByIndex = (event: CustomEvent) => {
+      const { index } = event.detail;
+      if (dashboardData?.timer_tasks && dashboardData.timer_tasks[index]) {
+        const task = dashboardData.timer_tasks[index];
+        setSelectedTaskIndex(index);
+        startPersonalTimer(task.id);
+        message.success(`已选择任务: ${task.title}`);
+      }
+    };
+
+    document.addEventListener('selectTaskByIndex', handleSelectTaskByIndex as EventListener);
+    return () => {
+      document.removeEventListener('selectTaskByIndex', handleSelectTaskByIndex as EventListener);
+    };
+  }, [dashboardData?.timer_tasks]);
+
   useEffect(() => {
     loadDashboardData();
   }, []);
@@ -174,14 +252,42 @@ const PersonalTimerPage: React.FC = () => {
   }
 
   return (
-    <div className="personal-timer-page" style={{ padding: '24px' }}>
+    <div className={`personal-timer-page ${focusMode ? 'focus-mode' : ''}`} style={{ padding: '24px' }}>
       {/* 页面标题 */}
       <div style={{ marginBottom: '24px' }}>
-        <Title level={2} className="page-title" style={{ margin: 0 }}>
-          <ClockCircleOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
-          个人计时系统 2.0
-        </Title>
-        <Text type="secondary" className="page-subtitle">管理您的个人计时任务，提升工作效率</Text>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <Title level={2} className="page-title" style={{ margin: 0 }}>
+              <ClockCircleOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+              个人计时系统 2.0
+            </Title>
+            <Text type="secondary" className="page-subtitle">管理您的个人计时任务，提升工作效率</Text>
+          </div>
+          
+          {/* 右侧快捷操作按钮 */}
+          {!focusMode && (
+            <Space>
+              <Button
+                type="text"
+                icon={<QuestionCircleOutlined />}
+                onClick={() => setShortcutsHelpVisible(true)}
+                title="键盘快捷键 (Shift + ?)"
+              >
+                快捷键
+              </Button>
+              <Button
+                type={focusMode ? 'primary' : 'default'}
+                onClick={() => {
+                  setFocusMode(!focusMode);
+                  message.info(focusMode ? '已退出专注模式' : '已进入专注模式');
+                }}
+                title="专注模式 (Cmd/Ctrl + F)"
+              >
+                {focusMode ? '退出专注' : '专注模式'}
+              </Button>
+            </Space>
+          )}
+        </div>
       </div>
 
       {/* 计时器控制区域 */}
@@ -248,6 +354,7 @@ const PersonalTimerPage: React.FC = () => {
             tasks={dashboardData.timer_tasks}
             loading={loading}
             isTimerRunning={currentTimer?.is_running}
+            selectedTaskIndex={selectedTaskIndex}
             onStartTimer={startPersonalTimer}
             onEditTask={handleOpenTaskForm}
             onDeleteTask={handleDeleteTask}
@@ -293,6 +400,33 @@ const PersonalTimerPage: React.FC = () => {
         onCancel={handleCloseTaskForm}
         onSuccess={handleTaskFormSuccess}
       />
+
+      {/* 快捷键帮助弹窗 */}
+      <KeyboardShortcutsHelp
+        visible={shortcutsHelpVisible}
+        onClose={() => setShortcutsHelpVisible(false)}
+        shortcuts={getShortcutsHelp()}
+      />
+
+      {/* 专注模式提示 */}
+      {focusMode && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '12px',
+            zIndex: 1000,
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          🎯 专注模式 - 按 Cmd/Ctrl + F 退出
+        </div>
+      )}
     </div>
   );
 };
