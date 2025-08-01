@@ -9,7 +9,7 @@ import {
   MoreOutlined,
   ClockCircleOutlined,
   TrophyOutlined,
-  TargetOutlined
+  AimOutlined
 } from '@ant-design/icons';
 import { personalTimerService } from '../services/personalTimerService';
 
@@ -252,7 +252,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                       
                       {task.target_time_seconds > 0 && (
                         <Space size="small">
-                          <TargetOutlined style={{ color: '#666' }} />
+                          <AimOutlined style={{ color: '#666' }} />
                           <Text type="secondary" style={{ fontSize: '12px' }}>
                             目标: {task.formatted_target_time}
                           </Text>
