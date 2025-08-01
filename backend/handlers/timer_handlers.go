@@ -20,7 +20,7 @@ func NewTimerHandler(db database.DB) *TimerHandler {
 	return &TimerHandler{db: db}
 }
 
-// StartTimer handles POST /api/timer/start
+// StartTimer handles POST /api/timer/start with improved error handling and validation
 func (h *TimerHandler) StartTimer(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -34,6 +34,15 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
+	// Enhanced validation
+	if req.TaskID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid task ID",
+			"details": "Task ID must be a positive integer",
+		})
+		return
+	}
+
 	uid := userID.(int)
 	ctx := c.Request.Context()
 
@@ -44,14 +53,28 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
-	// Get task to verify it exists
-	task, err := h.db.Tasks().GetByID(ctx, req.TaskID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Task not found", "details": err.Error()})
+	// Check if user already has this task running (prevent duplicate starts)
+	if user.TimingStatus == string(models.TimingStatusRunning) && 
+	   user.CurrentTimingTaskID != nil && *user.CurrentTimingTaskID == req.TaskID {
+		// Same task is already running, return current state instead of error
+		c.JSON(http.StatusOK, models.TimerStartResponse{
+			TaskID:    req.TaskID,
+			TaskTitle: "Task already running",
+			StartTime: *user.TimingStartTime,
+			Status:    "already_running",
+			Message:   "Timer is already running for this task",
+		})
 		return
 	}
 
-	// Stop current timer if running
+	// Get task to verify it exists and user has access
+	task, err := h.db.Tasks().GetByID(ctx, req.TaskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Task not found", "details": "Task does not exist or you don't have access to it"})
+		return
+	}
+
+	// Stop current timer if running a different task
 	if user.TimingStatus == string(models.TimingStatusRunning) && user.CurrentTimingTaskID != nil {
 		if err := h.stopCurrentTimer(ctx, user); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to stop current timer", "details": err.Error()})
