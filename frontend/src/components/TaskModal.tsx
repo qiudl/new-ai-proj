@@ -31,6 +31,8 @@ interface TaskModalProps {
   parentTask?: Task;
   allowParentSelection?: boolean;
   onEditDetails?: () => void;
+  mode?: 'create' | 'edit' | 'createSubtask' | 'createSibling';
+  siblingTask?: Task; // 用于兄弟任务创建时的参考任务
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({
@@ -43,6 +45,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   parentTask,
   allowParentSelection = false,
   onEditDetails,
+  mode = 'create',
+  siblingTask,
 }) => {
   const [form] = Form.useForm();
   const [parentSelectorVisible, setParentSelectorVisible] = useState(false);
@@ -74,8 +78,28 @@ const TaskModal: React.FC<TaskModalProps> = ({
         } else {
           setSelectedParentTask(null);
         }
+      } else if (mode === 'createSibling' && siblingTask) {
+        // Sibling creation mode - use sibling's parent_id
+        form.resetFields();
+        form.setFieldsValue({
+          status: 'todo',
+          priority: siblingTask.custom_fields?.priority || 'medium', // 继承兄弟任务的优先级
+          parent_id: siblingTask.parent_id, // 相同的父任务ID
+          assignee_id: siblingTask.assignee_id, // 继承负责人
+        });
+        
+        // Set parent task if sibling has one
+        if (siblingTask.parent_id && siblingTask.parent_title) {
+          setSelectedParentTask({
+            id: siblingTask.parent_id,
+            title: siblingTask.parent_title,
+            task_level: 0, // Will be updated by parent selector if needed
+          } as Task);
+        } else {
+          setSelectedParentTask(null);
+        }
       } else {
-        // Create mode - reset form
+        // Regular create mode - reset form
         form.resetFields();
         form.setFieldsValue({
           status: 'todo',
@@ -91,7 +115,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       setSelectedParentTask(null);
       setParentSelectorVisible(false);
     }
-  }, [visible, task, form, parentTask]);
+  }, [visible, task, form, parentTask, mode, siblingTask]);
 
   // Handle parent task selection
   const handleParentSelect = (parentId: number | null, parentTask: Task | null) => {
@@ -165,6 +189,26 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   const getModalTitle = () => {
     if (task) return '编辑任务';
+    
+    if (mode === 'createSibling' && siblingTask) {
+      return (
+        <div>
+          <span>创建兄弟任务</span>
+          <div style={{ 
+            fontSize: '14px', 
+            fontWeight: 400, 
+            color: '#8c8c8c',
+            marginTop: '4px'
+          }}>
+            参考任务: {siblingTask.title}
+            {siblingTask.parent_title && (
+              <div>父任务: {siblingTask.parent_title}</div>
+            )}
+          </div>
+        </div>
+      );
+    }
+    
     if (parentTask) return (
       <div>
         <span>创建子任务</span>
@@ -253,6 +297,31 @@ const TaskModal: React.FC<TaskModalProps> = ({
             {parentTask.description && (
               <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '4px' }}>
                 {parentTask.description}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode === 'createSibling' && siblingTask && (
+          <div style={{ 
+            marginBottom: '16px',
+            padding: '12px 16px',
+            backgroundColor: '#fff7e6',
+            border: '1px solid #ffd591',
+            borderRadius: '6px'
+          }}>
+            <div style={{ color: '#fa8c16', fontWeight: 500, marginBottom: '4px' }}>
+              正在创建兄弟任务，参考任务:
+            </div>
+            <div style={{ color: '#262626' }}>{siblingTask.title}</div>
+            {siblingTask.parent_title && (
+              <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '4px' }}>
+                父任务: {siblingTask.parent_title}
+              </div>
+            )}
+            {!siblingTask.parent_title && (
+              <div style={{ color: '#8c8c8c', fontSize: '12px', marginTop: '4px' }}>
+                根任务级别
               </div>
             )}
           </div>

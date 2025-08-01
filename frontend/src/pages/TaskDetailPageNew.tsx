@@ -94,7 +94,7 @@ const TaskDetailPageNew: React.FC = () => {
   const [activeTab, setActiveTab] = useState(getActiveTabFromURL());
   // 统一的任务模态框状态管理
   const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [taskModalMode, setTaskModalMode] = useState<'edit' | 'createSubtask'>('edit');
+  const [taskModalMode, setTaskModalMode] = useState<'edit' | 'createSubtask' | 'createSibling'>('edit');
   const [modalLoading, setModalLoading] = useState(false);
   const [archiveModalVisible, setArchiveModalVisible] = useState(false);
   const [timelineActiveTab, setTimelineActiveTab] = useState('timeline'); // 'timeline', 'history'
@@ -478,6 +478,11 @@ const TaskDetailPageNew: React.FC = () => {
     setTaskModalVisible(true);
   };
 
+  const handleCreateSibling = () => {
+    setTaskModalMode('createSibling');
+    setTaskModalVisible(true);
+  };
+
   // 批量导入子任务处理函数
   const handleBulkImportSubtasks = () => {
     if (!task || !projectId) {
@@ -508,6 +513,8 @@ const TaskDetailPageNew: React.FC = () => {
       await handleUpdateTask(taskData);
     } else if (taskModalMode === 'createSubtask') {
       await handleCreateSubtaskSubmit(taskData);
+    } else if (taskModalMode === 'createSibling') {
+      await handleCreateSiblingSubmit(taskData);
     }
   };
 
@@ -536,6 +543,36 @@ const TaskDetailPageNew: React.FC = () => {
       loadTask();
     } catch (error) {
       message.error('子任务创建失败');
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const handleCreateSiblingSubmit = async (taskData: any) => {
+    if (!task || !projectId) return;
+    
+    const parsedProjectId = parseInt(projectId);
+    if (isNaN(parsedProjectId)) {
+      message.error('无效的项目ID');
+      return;
+    }
+    
+    try {
+      setModalLoading(true);
+      // 使用当前任务的parent_id作为兄弟任务的parent_id
+      const siblingData = {
+        ...taskData,
+        parent_id: task.parent_id || null // 如果当前任务是根任务，兄弟任务也是根任务
+      };
+      
+      await TaskService.createTask(parsedProjectId, siblingData);
+      message.success('兄弟任务创建成功');
+      setTaskModalVisible(false);
+      
+      // 重新加载所有数据
+      loadTask();
+    } catch (error) {
+      message.error('兄弟任务创建失败');
     } finally {
       setModalLoading(false);
     }
@@ -1244,6 +1281,14 @@ const TaskDetailPageNew: React.FC = () => {
               </Button>
               <Button 
                 block 
+                icon={<BranchesOutlined />}
+                onClick={handleCreateSibling}
+                style={{ color: '#fa8c16', borderColor: '#fa8c16' }}
+              >
+                创建兄弟任务
+              </Button>
+              <Button 
+                block 
                 icon={<ImportOutlined />}
                 onClick={handleBulkImportSubtasks}
               >
@@ -1547,6 +1592,8 @@ const TaskDetailPageNew: React.FC = () => {
           visible={taskModalVisible}
           task={taskModalMode === 'edit' ? task : undefined}
           parentTask={taskModalMode === 'createSubtask' ? task : undefined}
+          siblingTask={taskModalMode === 'createSibling' ? task : undefined}
+          mode={taskModalMode}
           projectId={parseInt(projectId)}
           onOk={handleTaskModalSubmit}
           onCancel={() => setTaskModalVisible(false)}
@@ -1560,6 +1607,9 @@ const TaskDetailPageNew: React.FC = () => {
             } else if (taskModalMode === 'createSubtask') {
               // 创建子任务模式：跳转到批量导入页面，可以创建多个子任务
               navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.id}`);
+            } else if (taskModalMode === 'createSibling') {
+              // 创建兄弟任务模式：跳转到批量导入页面
+              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.parent_id || ''}`);
             }
           }}
         />
