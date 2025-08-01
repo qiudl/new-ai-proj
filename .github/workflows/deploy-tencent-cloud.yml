@@ -116,20 +116,22 @@ jobs:
       - name: Setup SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.TENCENT_CLOUD_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.TENCENT_CLOUD_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Tencent Cloud Server
+      - name: Deploy to Production Server
         env:
-          HOST: ${{ secrets.TENCENT_CLOUD_HOST }}
-          USER: ${{ secrets.TENCENT_CLOUD_USER }}
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
           PROJECT_DIR: /opt/new-ai-proj
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET }}
-          DOMAIN: ${{ secrets.DOMAIN }}
+          DB_USER: ${{ secrets.PRODUCTION_DB_USER }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+          DB_NAME: ${{ secrets.PRODUCTION_DB_NAME }}
+          JWT_SECRET: ${{ secrets.PRODUCTION_JWT_SECRET }}
+          DOMAIN: ${{ secrets.PRODUCTION_HOST }}
+          API_URL: ${{ secrets.PRODUCTION_API_URL }}
+          FRONTEND_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
             set -e
@@ -148,7 +150,7 @@ jobs:
             
             # 拉取最新镜像
             echo "📥 拉取最新Docker镜像..."
-            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }}
+            docker login ghcr.io -u ${{ github.actor }} -p ${{ secrets.GHCR_TOKEN }}
             docker pull ${{ needs.build-and-push.outputs.backend-image }}
             docker pull ${{ needs.build-and-push.outputs.frontend-image }}
             
@@ -160,6 +162,8 @@ jobs:
           DB_NAME=${{ env.DB_NAME }}
           JWT_SECRET=${{ env.JWT_SECRET }}
           DOMAIN=${{ env.DOMAIN }}
+          REACT_APP_API_URL=${{ env.API_URL }}
+          REACT_APP_API_BASE_URL=/api/v1
           BACKEND_IMAGE=${{ needs.build-and-push.outputs.backend-image }}
           FRONTEND_IMAGE=${{ needs.build-and-push.outputs.frontend-image }}
           EOL
@@ -185,8 +189,8 @@ jobs:
 
       - name: Health Check
         env:
-          HOST: ${{ secrets.TENCENT_CLOUD_HOST }}
-          USER: ${{ secrets.TENCENT_CLOUD_USER }}
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
             echo "🔍 执行健康检查..."
@@ -214,7 +218,7 @@ jobs:
             fi
             
             # 检查数据库
-            if docker-compose -f /opt/new-ai-proj/docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.DB_USER }} > /dev/null 2>&1; then
+            if docker-compose -f /opt/new-ai-proj/docker-compose.prod.yml exec -T db pg_isready -U ${{ secrets.PRODUCTION_DB_USER }} > /dev/null 2>&1; then
               echo "✅ 数据库健康检查通过"
             else
               echo "❌ 数据库健康检查失败"
@@ -270,8 +274,8 @@ jobs:
     steps:
       - name: Rollback to Previous Version
         env:
-          HOST: ${{ secrets.TENCENT_CLOUD_HOST }}
-          USER: ${{ secrets.TENCENT_CLOUD_USER }}
+          HOST: ${{ secrets.PRODUCTION_HOST }}
+          USER: ${{ secrets.PRODUCTION_USER }}
         run: |
           ssh -o StrictHostKeyChecking=no $USER@$HOST << 'EOF'
             echo "🔄 开始回滚部署..."
