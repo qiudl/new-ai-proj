@@ -45,7 +45,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     setError(null);
     
     try {
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
+      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`) as TaskDocumentResponse;
       if (response && response.content !== undefined) {
         const documentContent = response.content || '';
         setContent(documentContent);

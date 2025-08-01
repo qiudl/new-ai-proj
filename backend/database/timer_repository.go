@@ -192,11 +192,11 @@ func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context
 			t.title as task_title,
 			p.name as project_name,
 			MAX(ttl.start_time) as last_timed_at,
-			t.total_time_seconds,
-			t.status,
+			COALESCE(t.total_time_seconds, 0) as total_time_seconds,
+			COALESCE(t.status, 'unknown') as status,
 			CASE WHEN t.deleted_at IS NOT NULL THEN true ELSE false END as is_deleted
 		FROM task_time_logs ttl
-		LEFT JOIN tasks t ON ttl.task_id = t.id
+		INNER JOIN tasks t ON ttl.task_id = t.id
 		LEFT JOIN projects p ON t.project_id = p.id
 		WHERE ttl.user_id = $1
 		GROUP BY t.id, t.title, p.name, t.total_time_seconds, t.status, t.deleted_at

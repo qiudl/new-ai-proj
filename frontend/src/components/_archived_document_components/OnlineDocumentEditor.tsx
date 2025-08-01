@@ -885,7 +885,7 @@ const OnlineDocumentEditor: React.FC<OnlineDocumentEditorProps> = ({
         padding: 0 
       }}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <div ref={fullscreenRef} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         {/* 工具栏 */}

@@ -1,0 +1,317 @@
+/* 批量子任务创建器样式 */
+
+.bulk-subtask-creator {
+  /* 容器样式 */
+}
+
+.bulk-subtask-creator .ant-modal-content {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.bulk-subtask-creator .ant-modal-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+  padding: 24px;
+}
+
+.bulk-subtask-creator .ant-modal-title {
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.bulk-subtask-creator .ant-modal-close {
+  color: white;
+  opacity: 0.8;
+}
+
+.bulk-subtask-creator .ant-modal-close:hover {
+  opacity: 1;
+}
+
+/* 命名规则说明区域 */
+.naming-rule-section {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae7ff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.naming-rule-section .ant-tag {
+  margin: 0 4px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+/* 进度条样式 */
+.create-progress {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.create-progress .ant-progress-text {
+  font-weight: 600;
+}
+
+/* 错误详情样式 */
+.error-details {
+  margin-bottom: 16px;
+}
+
+.error-details .ant-alert-description {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.error-item {
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.error-item:last-child {
+  border-bottom: none;
+}
+
+/* 表格样式优化 */
+.bulk-subtask-table {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.bulk-subtask-table .ant-table-thead > tr > th {
+  background: #fafbfc;
+  border-bottom: 2px solid #e2e8f0;
+  font-weight: 600;
+  color: #374151;
+  padding: 12px 8px;
+  font-size: 13px;
+}
+
+.bulk-subtask-table .ant-table-tbody > tr > td {
+  padding: 8px;
+  border-color: #f1f5f9;
+  vertical-align: top;
+}
+
+.bulk-subtask-table .ant-table-tbody > tr:hover > td {
+  background-color: #f8fafc;
+}
+
+/* 表格输入框样式 */
+.bulk-subtask-table .ant-input,
+.bulk-subtask-table .ant-select,
+.bulk-subtask-table .ant-picker {
+  border-radius: 6px;
+  border-color: #d1d5db;
+  transition: all 0.2s;
+}
+
+.bulk-subtask-table .ant-input:focus,
+.bulk-subtask-table .ant-select:focus .ant-select-selector,
+.bulk-subtask-table .ant-picker:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.bulk-subtask-table .ant-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+/* 任务名称预览样式 */
+.task-name-preview {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border: 1px solid #bae7ff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-top: 4px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.task-name-preview:hover {
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae7ff 100%);
+  transform: translateY(-1px);
+}
+
+.task-name-preview-text {
+  color: #1890ff;
+  font-weight: 500;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.action-buttons .ant-btn {
+  border-radius: 6px;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s;
+}
+
+.action-buttons .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 底部按钮区域 */
+.footer-buttons {
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  padding: 16px 24px;
+  margin: 0 -24px -24px -24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-buttons .ant-btn {
+  border-radius: 8px;
+  font-weight: 500;
+  padding: 8px 24px;
+  height: auto;
+  transition: all 0.2s;
+}
+
+.footer-buttons .ant-btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.footer-buttons .ant-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.footer-buttons .ant-btn-default {
+  background: white;
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+
+.footer-buttons .ant-btn-default:hover {
+  border-color: #9ca3af;
+  color: #374151;
+  transform: translateY(-1px);
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .bulk-subtask-table {
+    font-size: 12px;
+  }
+  
+  .bulk-subtask-table .ant-table-thead > tr > th,
+  .bulk-subtask-table .ant-table-tbody > tr > td {
+    padding: 6px 4px;
+  }
+}
+
+@media (max-width: 768px) {
+  .bulk-subtask-creator .ant-modal {
+    margin: 0;
+    max-width: 100%;
+    height: 100vh;
+  }
+  
+  .bulk-subtask-creator .ant-modal-content {
+    height: 100vh;
+    border-radius: 0;
+  }
+  
+  .naming-rule-section {
+    padding: 12px;
+  }
+  
+  .naming-rule-section .ant-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .footer-buttons {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .footer-buttons .ant-btn {
+    width: 100%;
+  }
+}
+
+/* 加载动画 */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* 序号列样式 */
+.sequence-number {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #374151;
+  font-size: 12px;
+}
+
+/* 优先级标签样式 */
+.priority-low { color: #10b981; }
+.priority-medium { color: #3b82f6; }
+.priority-high { color: #f59e0b; }
+.priority-urgent { color: #ef4444; }
+
+/* 状态标签样式 */
+.status-todo { color: #6b7280; }
+.status-in_progress { color: #3b82f6; }
+.status-completed { color: #10b981; }
+.status-cancelled { color: #ef4444; }
+
+/* 工具提示样式 */
+.ant-tooltip-inner {
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* 滚动条样式 */
+.bulk-subtask-table .ant-table-body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.bulk-subtask-table .ant-table-body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.bulk-subtask-table .ant-table-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.bulk-subtask-table .ant-table-body::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

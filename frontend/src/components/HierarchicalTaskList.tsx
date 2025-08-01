@@ -19,6 +19,7 @@ interface HierarchicalTaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   onCreateSubTask: (parentTask: Task) => void;
+  onBulkCreateSubTasks?: (parentTask: Task) => void;
   onArchiveTask?: (task: Task) => void;
   loading?: boolean;
 }
@@ -34,6 +35,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
   onEditTask,
   onDeleteTask,
   onCreateSubTask,
+  onBulkCreateSubTasks,
   onArchiveTask,
   loading = false,
 }) => {
@@ -424,6 +426,17 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
                 style={{ color: '#52c41a' }}
               />
             </Tooltip>
+            {onBulkCreateSubTasks && (
+              <Tooltip title="批量创建子任务">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<BranchesOutlined />}
+                  onClick={() => onBulkCreateSubTasks(record)}
+                  style={{ color: '#1890ff' }}
+                />
+              </Tooltip>
+            )}
             <Dropdown
               menu={{
                 items: [

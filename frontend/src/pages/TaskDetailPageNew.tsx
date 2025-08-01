@@ -798,89 +798,6 @@ const TaskDetailPageNew: React.FC = () => {
             </div>
           </Card>
 
-          {/* 任务详情Tabs */}
-          <Card style={{ marginBottom: '24px' }}>
-            <Tabs
-              activeKey={activeTab}
-              onChange={(key) => {
-                setActiveTab(key);
-                // 更新URL但不刷新页面
-                const searchParams = new URLSearchParams(location.search);
-                if (key === 'info') {
-                  searchParams.delete('tab');
-                } else {
-                  searchParams.set('tab', key);
-                }
-                const newSearch = searchParams.toString();
-                const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
-                window.history.replaceState(null, '', newUrl);
-              }}
-              type="card"
-              size="large"
-              items={[
-                {
-                  key: 'info',
-                  label: (
-                    <Space>
-                      <FileTextOutlined />
-                      <span>任务信息</span>
-                    </Space>
-                  ),
-                  children: (
-                    <div style={{ padding: '16px' }}>
-                      {/* 这里可以放置任务的其他详细信息 */}
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '40px 20px', 
-                        color: '#8c8c8c',
-                        background: '#fafafa',
-                        borderRadius: '6px',
-                        border: '1px dashed #d9d9d9'
-                      }}>
-                        <FileTextOutlined style={{ fontSize: '32px', marginBottom: '12px', color: '#d9d9d9' }} />
-                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>任务详细信息</div>
-                        <div style={{ fontSize: '12px', color: '#bfbfbf' }}>
-                          任务的详细信息已在上方卡片中显示
-                        </div>
-                      </div>
-                    </div>
-                  )
-                },
-                {
-                  key: 'document',
-                  label: (
-                    <Space>
-                      <EditOutlined />
-                      <span>任务文档</span>
-                      {documentExists === true && (
-                        <Badge status="success" />
-                      )}
-                      {documentExists === false && (
-                        <Badge status="default" />
-                      )}
-                    </Space>
-                  ),
-                  children: (
-                    <div style={{ minHeight: '500px' }}>
-                      <TaskDocumentEditor
-                        taskId={task.id}
-                        projectId={parseInt(projectId || '0')}
-                        useAdvancedAPI={false} // 先使用兼容版API
-                        onSave={(content) => {
-                          // 文档保存成功后更新状态
-                          setDocumentExists(true);
-                          // 不在这里显示成功消息，让TaskDocumentEditor自己处理
-                        }}
-                        style={{ height: '500px' }}
-                      />
-                    </div>
-                  )
-                }
-              ]}
-            />
-          </Card>
-
-
           {/* 完成情况统计 - 如果有子任务 */}
           {completionStats.totalSubtasks > 0 && (
             <Card title="任务完成情况" style={{ marginBottom: '24px' }}>
@@ -977,6 +894,88 @@ const TaskDetailPageNew: React.FC = () => {
               />
             </Card>
           )}
+
+          {/* 任务详情Tabs */}
+          <Card style={{ marginBottom: '24px' }}>
+            <Tabs
+              activeKey={activeTab}
+              onChange={(key) => {
+                setActiveTab(key);
+                // 更新URL但不刷新页面
+                const searchParams = new URLSearchParams(location.search);
+                if (key === 'info') {
+                  searchParams.delete('tab');
+                } else {
+                  searchParams.set('tab', key);
+                }
+                const newSearch = searchParams.toString();
+                const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
+                window.history.replaceState(null, '', newUrl);
+              }}
+              type="card"
+              size="large"
+              items={[
+                {
+                  key: 'info',
+                  label: (
+                    <Space>
+                      <FileTextOutlined />
+                      <span>任务信息</span>
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ padding: '16px' }}>
+                      {/* 这里可以放置任务的其他详细信息 */}
+                      <div style={{ 
+                        textAlign: 'center', 
+                        padding: '40px 20px', 
+                        color: '#8c8c8c',
+                        background: '#fafafa',
+                        borderRadius: '6px',
+                        border: '1px dashed #d9d9d9'
+                      }}>
+                        <FileTextOutlined style={{ fontSize: '32px', marginBottom: '12px', color: '#d9d9d9' }} />
+                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>任务详细信息</div>
+                        <div style={{ fontSize: '12px', color: '#bfbfbf' }}>
+                          任务的详细信息已在上方卡片中显示
+                        </div>
+                      </div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'document',
+                  label: (
+                    <Space>
+                      <EditOutlined />
+                      <span>任务文档</span>
+                      {documentExists === true && (
+                        <Badge status="success" />
+                      )}
+                      {documentExists === false && (
+                        <Badge status="default" />
+                      )}
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ minHeight: '500px' }}>
+                      <TaskDocumentEditor
+                        taskId={task.id}
+                        projectId={parseInt(projectId || '0')}
+                        useAdvancedAPI={false} // 先使用兼容版API
+                        onSave={(content) => {
+                          // 文档保存成功后更新状态
+                          setDocumentExists(true);
+                          // 不在这里显示成功消息，让TaskDocumentEditor自己处理
+                        }}
+                        style={{ height: '500px' }}
+                      />
+                    </div>
+                  )
+                }
+              ]}
+            />
+          </Card>
 
           {/* 更新历史 */}
           {taskUpdates.length > 0 && (

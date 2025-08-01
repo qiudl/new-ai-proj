@@ -68,7 +68,7 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
       onCancel={handleCancel}
       footer={null}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: '16px' }}>
         <Alert

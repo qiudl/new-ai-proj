@@ -635,7 +635,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
             保存属性
           </Button>
         ]}
-        destroyOnClose
+        destroyOnHidden
       >
         {renderFormContent()}
       </Modal>

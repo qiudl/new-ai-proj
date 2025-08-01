@@ -108,7 +108,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
       low: '低'
     };
     return (
-      <Tag color={colors[priority as keyof typeof colors]} size="small">
+      <Tag color={colors[priority as keyof typeof colors]}>
         {labels[priority as keyof typeof labels] || priority}
       </Tag>
     );
@@ -129,7 +129,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
       archived: '归档'
     };
     return (
-      <Tag color={colors[status as keyof typeof colors]} size="small">
+      <Tag color={colors[status as keyof typeof colors]}>
         {labels[status as keyof typeof labels] || status}
       </Tag>
     );
@@ -153,7 +153,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
     >
       <List
         dataSource={tasks}
-        renderItem={(task) => {
+        renderItem={(task, index) => {
           const menuItems = [
             {
               key: 'edit',

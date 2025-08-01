@@ -144,7 +144,7 @@ export const personalTimerService = {
   
   // 创建个人计时任务
   async createUserTimerTask(data: UserTimerTaskRequest): Promise<{ message: string; task: UserTimerTaskResponse }> {
-    const response = await api.post('/user/timer-tasks', data);
+    const response = await api.post('/user/timer-tasks', data) as { message: string; task: UserTimerTaskResponse };
     
     // 清除相关缓存
     const userId = this.getCurrentUserId();
@@ -169,7 +169,7 @@ export const personalTimerService = {
       }
     }
 
-    const response = await api.get('/user/timer-tasks', { params });
+    const response = await api.get('/user/timer-tasks', { params }) as UserTimerTasksResponse;
     
     // 缓存结果
     if (userId) {
@@ -181,25 +181,25 @@ export const personalTimerService = {
 
   // 获取单个个人计时任务
   async getUserTimerTask(id: number): Promise<UserTimerTaskResponse> {
-    const response = await api.get(`/user/timer-tasks/${id}`);
+    const response = await api.get(`/user/timer-tasks/${id}`) as UserTimerTaskResponse;
     return response;
   },
 
   // 更新个人计时任务
   async updateUserTimerTask(id: number, data: UserTimerTaskRequest): Promise<{ message: string; task: UserTimerTaskResponse }> {
-    const response = await api.put(`/user/timer-tasks/${id}`, data);
+    const response = await api.put(`/user/timer-tasks/${id}`, data) as { message: string; task: UserTimerTaskResponse };
     return response;
   },
 
   // 删除个人计时任务
   async deleteUserTimerTask(id: number): Promise<{ message: string }> {
-    const response = await api.delete(`/user/timer-tasks/${id}`);
+    const response = await api.delete(`/user/timer-tasks/${id}`) as { message: string };
     return response;
   },
 
   // 切换收藏状态
   async toggleFavoriteUserTimerTask(id: number, isFavorite: boolean): Promise<{ message: string; is_favorite: boolean }> {
-    const response = await api.post(`/user/timer-tasks/${id}/favorite`, { is_favorite: isFavorite });
+    const response = await api.post(`/user/timer-tasks/${id}/favorite`, { is_favorite: isFavorite }) as { message: string; is_favorite: boolean };
     return response;
   },
 
@@ -207,25 +207,25 @@ export const personalTimerService = {
   
   // 开始个人计时
   async startPersonalTimer(data: PersonalTimerStartRequest): Promise<any> {
-    const response = await api.post('/user/timer/start-personal', data);
+    const response = await api.post('/user/timer/start-personal', data) as any;
     return response;
   },
 
   // 开始项目计时
   async startProjectTimer(data: PersonalTimerStartRequest): Promise<any> {
-    const response = await api.post('/user/timer/start-project', data);
+    const response = await api.post('/user/timer/start-project', data) as any;
     return response;
   },
 
   // 停止计时
   async stopTimer(): Promise<any> {
-    const response = await api.post('/user/timer/stop');
+    const response = await api.post('/user/timer/stop') as any;
     return response;
   },
 
   // 获取当前计时状态
   async getCurrentTimer(): Promise<PersonalTimerCurrent> {
-    const response = await api.get('/user/timer/current');
+    const response = await api.get('/user/timer/current') as PersonalTimerCurrent;
     return response;
   },
 
@@ -242,7 +242,7 @@ export const personalTimerService = {
       }
     }
 
-    const response = await api.get('/user/timer/dashboard');
+    const response = await api.get('/user/timer/dashboard') as PersonalTimerDashboard;
     
     // 缓存结果 - response已经被axios拦截器处理，直接使用response
     if (userId) {
@@ -254,19 +254,19 @@ export const personalTimerService = {
 
   // 获取个人计时统计
   async getStats(): Promise<PersonalTimerSummary> {
-    const response = await api.get('/user/timer/stats');
+    const response = await api.get('/user/timer/stats') as PersonalTimerSummary;
     return response;
   },
 
   // 获取计时历史
   async getHistory(params?: { limit?: number; offset?: number }): Promise<{ sessions: PersonalTimerSession[]; limit: number; offset: number }> {
-    const response = await api.get('/user/timer/history', { params });
+    const response = await api.get('/user/timer/history', { params }) as { sessions: PersonalTimerSession[]; limit: number; offset: number };
     return response;
   },
 
   // 获取分析报告
   async getAnalytics(params?: { range?: string }): Promise<any> {
-    const response = await api.get('/user/timer/analytics', { params });
+    const response = await api.get('/user/timer/analytics', { params }) as any;
     return response;
   },
 

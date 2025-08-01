@@ -7,7 +7,7 @@ interface CacheItem<T> {
 }
 
 class CacheManager {
-  private cache = new Map<string, CacheItem<any>>();
+  protected cache = new Map<string, CacheItem<any>>();
   private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5分钟
 
   /**
@@ -129,12 +129,12 @@ class TimerCacheManager extends CacheManager {
   private readonly HISTORY_TTL = 60 * 1000; // 1分钟
 
   // 缓存个人计时任务列表
-  cacheTimerTasks(userId: number, tasks: any[], filters?: any): void {
+  cacheTimerTasks(userId: number, tasks: any, filters?: any): void {
     const key = `timer_tasks_${userId}_${JSON.stringify(filters || {})}`;
     this.set(key, tasks, this.TIMER_TASKS_TTL);
   }
 
-  getTimerTasks(userId: number, filters?: any): any[] | null {
+  getTimerTasks(userId: number, filters?: any): any | null {
     const key = `timer_tasks_${userId}_${JSON.stringify(filters || {})}`;
     return this.get(key);
   }

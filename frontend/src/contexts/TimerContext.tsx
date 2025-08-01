@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { message } from 'antd';
 import TimerService from '../services/timerService';
+import { personalTimerService, PersonalTimerCurrent } from '../services/personalTimerService';
 import { TimerCurrentResponse } from '../types/timer';
 
 interface TimerState {
@@ -151,11 +152,23 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
     try {
       setConnectionStatus('checking');
-      const response = await TimerService.getCurrentTimer();
+      // 🔧 使用personalTimerService获取Timer 2.0状态
+      const response = await personalTimerService.getCurrentTimer();
       
       if (!isMountedRef.current) return;
       
-      updateTimerFromResponse(response);
+      // 转换PersonalTimerCurrent到TimerCurrentResponse格式
+      const convertedResponse: TimerCurrentResponse = {
+        is_running: response.is_running,
+        is_paused: false, // PersonalTimerCurrent没有is_paused字段
+        task_id: response.task_id,
+        task_title: response.task_title,
+        start_time: response.start_time,
+        elapsed_seconds: response.elapsed_seconds,
+        formatted_time: response.formatted_time
+      };
+      
+      updateTimerFromResponse(convertedResponse);
       setConnectionStatus('connected');
     } catch (error) {
       if (!isMountedRef.current) return;
@@ -266,11 +279,16 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
     setIsLoading(true);
     try {
-      const response = await TimerService.startTimer(taskId);
+      // 🔧 使用personalTimerService启动Timer 2.0
+      const response = await personalTimerService.startPersonalTimer({
+        task_type: 'personal',
+        task_id: taskId,
+        auto_stop_others: true
+      });
       
       if (!isMountedRef.current) return false;
       
-      message.success(`开始计时: ${response.task_title}`);
+      message.success(`开始计时: ${taskTitle}`);
       
       // 立即刷新状态
       await refreshTimer();
@@ -295,11 +313,12 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
     setIsLoading(true);
     try {
-      const response = await TimerService.stopTimer();
+      // 🔧 使用personalTimerService停止Timer 2.0
+      const response = await personalTimerService.stopTimer();
       
       if (!isMountedRef.current) return false;
       
-      message.success(`计时结束: ${response.task_title} (${response.formatted_time})`);
+      message.success(`计时结束: ${timerState.taskTitle} (${timerState.formattedTime})`);
       
       // 立即刷新状态
       await refreshTimer();

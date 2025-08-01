@@ -15,6 +15,9 @@ import {
   DatePicker,
   Divider,
   Spin,
+  Alert,
+  Progress,
+  notification,
 } from 'antd';
 import {
   PlusOutlined,
@@ -38,6 +41,7 @@ import {
   VALIDATION_RULES,
 } from '../utils/bulkSubTaskConfig';
 import dayjs from 'dayjs';
+import '../styles/bulk-subtask-creator.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -62,6 +66,19 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
   const [subTasks, setSubTasks] = useState<SubTaskRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentWeek, setCurrentWeek] = useState<number>(0);
+  
+  // 错误处理和反馈状态
+  const [createProgress, setCreateProgress] = useState<{
+    current: number;
+    total: number;
+    status: 'active' | 'success' | 'exception' | 'normal';
+  }>({ current: 0, total: 0, status: 'normal' });
+  const [createErrors, setCreateErrors] = useState<Array<{
+    index: number;
+    title: string;
+    error: string;
+  }>>([]);
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   // 计算当前周数
   useEffect(() => {
@@ -244,73 +261,162 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
     }
   }, [subTasks, debouncedValidation]);
 
-  // 批量创建子任务
+  // 批量创建子任务 - 增强版错误处理
   const handleBulkCreate = useCallback(async () => {
     try {
       setLoading(true);
+      setCreateErrors([]);
+      setShowErrorDetails(false);
 
       // 验证所有数据
       const validation = validateAllRows();
       if (!validation.isValid) {
-        message.error('请修正表单中的错误后再提交');
+        // 显示详细的验证错误
+        const errorCount = Object.keys(validation.errors).length;
+        notification.error({
+          message: '数据验证失败',
+          description: `发现 ${errorCount} 个错误，请修正后重试`,
+          duration: 5,
+        });
         setValidationErrors(validation.errors);
         return;
       }
 
       const { validRows } = validation;
       if (validRows.length === 0) {
-        message.warning('没有有效的任务数据');
+        notification.warning({
+          message: '没有有效数据',
+          description: '请至少填写一个任务标题',
+          duration: 3,
+        });
         return;
       }
 
-      // 转换为TaskRequest格式并并行创建
-      const createPromises = validRows.map(async (row, index) => {
-        const taskName = generateSubTaskName(parentTask.id, index, row.title.trim(), currentWeek);
-        
-        const taskRequest: TaskRequest = {
-          title: taskName,
-          description: row.description || '',
-          status: row.status,
-          parent_id: parentTask.id,
-          due_date: row.due_date,
-          custom_fields: {
-            priority: row.priority,
-            estimated_hours: row.estimated_hours,
-            assignee: row.assignee,
-            sequence: index + 1,
-            batch_created: true,
-            batch_created_at: dayjs().toISOString(),
-            original_title: row.title.trim(), // 保存原始标题
-          }
-        };
-
-        return TaskService.createTask(projectId, taskRequest);
+      // 初始化进度
+      setCreateProgress({
+        current: 0,
+        total: validRows.length,
+        status: 'active'
       });
 
-      // 并行执行所有创建请求
-      const results = await Promise.allSettled(createPromises);
+      // 转换为TaskRequest格式
+      const taskRequests = validRows.map((row, index) => {
+        const taskName = generateSubTaskName(parentTask.id, index, row.title.trim(), currentWeek);
+        
+        return {
+          taskRequest: {
+            title: taskName,
+            description: row.description || '',
+            status: row.status,
+            parent_id: parentTask.id,
+            due_date: row.due_date,
+            custom_fields: {
+              priority: row.priority,
+              estimated_hours: row.estimated_hours,
+              assignee: row.assignee,
+              sequence: index + 1,
+              batch_created: true,
+              batch_created_at: dayjs().toISOString(),
+              original_title: row.title.trim(),
+            }
+          },
+          originalRow: row,
+          index
+        };
+      });
+
+      // 使用串行创建以提供实时进度反馈
+      const results: Array<{ success: boolean; index: number; title: string; error?: string }> = [];
       
-      // 统计结果
-      const successCount = results.filter(result => result.status === 'fulfilled').length;
-      const failureCount = results.filter(result => result.status === 'rejected').length;
-      
-      if (successCount > 0) {
-        message.success(`成功创建 ${successCount} 个子任务${failureCount > 0 ? `，${failureCount} 个失败` : ''}`);
-        onSuccess();
-        onCancel();
-      } else {
-        message.error('所有任务创建失败，请检查网络连接并重试');
+      for (let i = 0; i < taskRequests.length; i++) {
+        const { taskRequest, originalRow, index } = taskRequests[i];
+        
+        try {
+          await TaskService.createTask(projectId, taskRequest);
+          results.push({ 
+            success: true, 
+            index, 
+            title: originalRow.title 
+          });
+          
+          // 更新进度
+          setCreateProgress(prev => ({
+            ...prev,
+            current: i + 1
+          }));
+          
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.error?.message || error.message || '未知错误';
+          results.push({ 
+            success: false, 
+            index, 
+            title: originalRow.title,
+            error: errorMessage
+          });
+          
+          setCreateErrors(prev => [...prev, {
+            index,
+            title: originalRow.title,
+            error: errorMessage
+          }]);
+        }
       }
 
-      // 记录失败的详情
-      if (failureCount > 0) {
-        const failedResults = results.filter(result => result.status === 'rejected') as PromiseRejectedResult[];
-        console.error('批量创建子任务失败详情:', failedResults.map(result => result.reason));
+      // 统计结果
+      const successCount = results.filter(r => r.success).length;
+      const failureCount = results.filter(r => !r.success).length;
+      
+      // 更新最终进度状态
+      setCreateProgress(prev => ({
+        ...prev,
+        status: failureCount === 0 ? 'success' : 'exception'
+      }));
+
+      // 显示结果通知
+      if (successCount > 0 && failureCount === 0) {
+        notification.success({
+          message: '批量创建成功',
+          description: `成功创建 ${successCount} 个子任务`,
+          duration: 3,
+        });
+        
+        // 延迟关闭以显示成功状态
+        setTimeout(() => {
+          onSuccess();
+          onCancel();
+        }, 1500);
+        
+      } else if (successCount > 0 && failureCount > 0) {
+        notification.warning({
+          message: '部分创建成功',
+          description: `成功创建 ${successCount} 个，失败 ${failureCount} 个`,
+          duration: 5,
+        });
+        setShowErrorDetails(true);
+        
+      } else {
+        notification.error({
+          message: '批量创建失败',
+          description: '所有任务创建失败，请检查网络连接并重试',
+          duration: 5,
+        });
+        setShowErrorDetails(true);
       }
 
     } catch (error: any) {
       console.error('批量创建子任务失败:', error);
-      message.error(error.message || '创建失败，请重试');
+      
+      setCreateProgress(prev => ({
+        ...prev,
+        status: 'exception'
+      }));
+      
+      notification.error({
+        message: '系统错误',
+        description: error.message || '创建过程中发生未知错误，请重试',
+        duration: 5,
+      });
+      
     } finally {
       setLoading(false);
     }
@@ -339,9 +445,10 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       footer={null}
       destroyOnClose
       maskClosable={false}
+      className="bulk-subtask-creator"
     >
       {/* 命名规则说明 */}
-      <div style={{ marginBottom: 16 }}>
+      <div className="naming-rule-section">
         <Row gutter={16} align="middle">
           <Col>
             <Text strong>命名规则：</Text>
@@ -367,6 +474,58 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       </div>
 
       <Divider />
+
+      {/* 进度显示区 */}
+      {loading && createProgress.total > 0 && (
+        <div className="create-progress">
+          <Progress
+            percent={Math.round((createProgress.current / createProgress.total) * 100)}
+            status={createProgress.status}
+            format={() => `${createProgress.current}/${createProgress.total}`}
+          />
+          <Text type="secondary" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+            正在创建第 {createProgress.current + 1} 个任务...
+          </Text>
+        </div>
+      )}
+
+      {/* 错误详情显示 */}
+      {showErrorDetails && createErrors.length > 0 && (
+        <div className="error-details">
+          <Alert
+            message="创建失败详情"
+            description={
+              <div>
+                {createErrors.map((error, index) => (
+                  <div key={index} className="error-item">
+                    <Text strong>任务 {error.index + 1}: {error.title}</Text>
+                    <br />
+                    <Text type="danger" style={{ fontSize: 12 }}>
+                      错误：{error.error}
+                    </Text>
+                  </div>
+                ))}
+              </div>
+            }
+            type="error"
+            showIcon
+            closable
+            onClose={() => setShowErrorDetails(false)}
+          />
+        </div>
+      )}
+
+      {/* 通用错误提示 */}
+      {validationErrors.general && (
+        <div style={{ marginBottom: 16 }}>
+          <Alert
+            message="数据验证错误"
+            description={validationErrors.general.join('; ')}
+            type="warning"
+            showIcon
+          />
+        </div>
+      )}
 
       {/* 操作按钮区 */}
       <div style={{ marginBottom: 16 }}>
@@ -400,6 +559,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
             size="small"
             scroll={TABLE_INTERACTION_CONFIG.scroll}
             bordered
+            className="bulk-subtask-table"
             locale={{
               emptyText: '请添加任务行开始创建',
             }}
@@ -410,7 +570,9 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
               key="sequence"
               width={60}
               render={(_, __, index) => (
-                <Text strong>{String(index + 1).padStart(2, '0')}</Text>
+                <div className="sequence-number">
+                  {String(index + 1).padStart(2, '0')}
+                </div>
               )}
             />
             <Table.Column
@@ -439,16 +601,9 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                     </div>
                   )}
                   {text && (
-                    <div style={{ 
-                      fontSize: 12, 
-                      marginTop: 4,
-                      padding: '2px 6px',
-                      backgroundColor: '#f0f9ff',
-                      border: '1px solid #bae7ff',
-                      borderRadius: 4,
-                    }}>
+                    <div className="task-name-preview">
                       <Text type="secondary">预览：</Text>
-                      <Text style={{ color: '#1890ff', fontWeight: 500 }}>
+                      <Text className="task-name-preview-text">
                         {getTaskNamePreview(parentTask.id, text, currentWeek, index)}
                       </Text>
                     </div>
@@ -561,7 +716,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
               key="action"
               width={100}
               render={(_, record: SubTaskRow) => (
-                <Space size="small">
+                <div className="action-buttons">
                   <Tooltip title="复制行">
                     <Button
                       type="text"
@@ -582,7 +737,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                       disabled={subTasks.length <= TABLE_INTERACTION_CONFIG.minRows}
                     />
                   </Tooltip>
-                </Space>
+                </div>
               )}
             />
           </Table>
@@ -590,7 +745,17 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       </div>
 
       {/* 底部操作区 */}
-      <div style={{ textAlign: 'right' }}>
+      <div className="footer-buttons">
+        <div>
+          <Text type="secondary">
+            有效任务: {subTasks.filter(row => row.title?.trim()).length} 个
+            {Object.keys(validationErrors).length > 0 && (
+              <Text type="danger" style={{ marginLeft: 8 }}>
+                • {Object.keys(validationErrors).length} 个错误
+              </Text>
+            )}
+          </Text>
+        </div>
         <Space>
           <Button 
             onClick={onCancel}

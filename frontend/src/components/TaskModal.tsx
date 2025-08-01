@@ -201,6 +201,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
     try {
       const values = await form.validateFields();
       
+      console.log('🔍 [TaskModal] handleOk called with:', {
+        mode,
+        task: task ? { id: task.id, title: task.title } : null,
+        parentTask: parentTask ? { id: parentTask.id, title: parentTask.title } : null,
+        siblingTask: siblingTask ? { id: siblingTask.id, title: siblingTask.title, parent_id: siblingTask.parent_id } : null,
+        formValues: values,
+        projectId
+      });
+      
       // 严格验证项目ID
       if (!projectId || projectId <= 0) {
         throw new Error('无效的项目ID，无法创建任务');
@@ -216,6 +225,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         parentId = values.parent_id || parentTask?.id;
       }
       
+      console.log('🔍 [TaskModal] Determined parentId:', parentId);
+      
       // 防止自引用：任务不能将自己设置为父任务
       if (parentId && task && parentId === task.id) {
         throw new Error('任务不能将自己设置为父任务');
@@ -223,9 +234,30 @@ const TaskModal: React.FC<TaskModalProps> = ({
       
       // Circular dependency validation is now handled by TaskParentSelectorModal
       
-      // 如果是子任务，确保父任务ID有效（仅在创建模式下验证parentTask）
-      if (parentId && !task && (!parentTask || !parentTask.project_id)) {
-        throw new Error('父任务信息无效，无法创建子任务');
+      // 验证父任务信息的有效性
+      if (parentId && !task) {
+        console.log('🔍 [TaskModal] Validating parent task info for mode:', mode);
+        
+        // 如果是创建子任务模式，验证parentTask
+        if (mode === 'createSubtask' && (!parentTask || !parentTask.project_id)) {
+          console.error('❌ [TaskModal] createSubtask validation failed - parentTask:', parentTask);
+          throw new Error('父任务信息无效，无法创建子任务');
+        }
+        // 如果是创建兄弟任务模式，验证siblingTask及其父任务信息
+        else if (mode === 'createSibling') {
+          if (!siblingTask) {
+            console.error('❌ [TaskModal] createSibling validation failed - siblingTask is null');
+            throw new Error('兄弟任务信息无效，无法创建兄弟任务');
+          }
+          console.log('✅ [TaskModal] createSibling validation passed - siblingTask exists');
+          // 如果兄弟任务有父任务，但父任务信息不完整，则可能有问题
+          // 但允许创建，因为parent_id可能为null（根任务）
+        }
+        // 其他创建模式，如果指定了parent_id但没有parentTask，也要验证
+        else if (mode !== 'createSibling' && (!parentTask || !parentTask.project_id)) {
+          console.error('❌ [TaskModal] general create validation failed - parentTask:', parentTask);
+          throw new Error('父任务信息无效，无法创建任务');
+        }
       }
       
       // Transform form values to TaskRequest

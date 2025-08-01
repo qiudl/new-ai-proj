@@ -3,6 +3,7 @@ import { Card, Row, Col, Typography, Button, Space, Divider, Spin, message } fro
 import { PlayCircleOutlined, PauseCircleOutlined, PlusOutlined, ClockCircleOutlined, TrophyOutlined, BarChartOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { personalTimerService } from '../services/personalTimerService';
+import { useTimer } from '../contexts/TimerContext';
 import PersonalTimerControl from '../components/PersonalTimerControl';
 import PersonalTimerTaskList from '../components/PersonalTimerTaskList';
 import PersonalTimerTaskForm from '../components/PersonalTimerTaskForm';
@@ -78,12 +79,14 @@ const PersonalTimerPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<PersonalTimerDashboard | null>(null);
-  const [currentTimer, setCurrentTimer] = useState<PersonalTimerCurrent | null>(null);
   const [taskFormVisible, setTaskFormVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<UserTimerTaskResponse | null>(null);
   const [shortcutsHelpVisible, setShortcutsHelpVisible] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
   const [selectedTaskIndex, setSelectedTaskIndex] = useState<number>(-1);
+  
+  // 🔧 使用TimerContext获取计时器状态和操作
+  const { timerState, startTimer, stopTimer: stopTimerContext, refreshTimer } = useTimer();
 
   // 加载仪表板数据
   const loadDashboardData = async () => {
@@ -104,7 +107,7 @@ const PersonalTimerPage: React.FC = () => {
       }
       
       setDashboardData(data);
-      setCurrentTimer(data?.current_timer || null);
+      // 🔧 不再需要setCurrentTimer，计时器状态由TimerContext管理
     } catch (error) {
       message.error('加载个人计时数据失败，请刷新页面重试');
       console.error('Failed to load dashboard data:', error);
@@ -145,14 +148,16 @@ const PersonalTimerPage: React.FC = () => {
   // 启动个人计时
   const startPersonalTimer = async (taskId: number) => {
     try {
-      const response = await personalTimerService.startPersonalTimer({
-        task_type: 'personal',
-        task_id: taskId,
-        auto_stop_others: true
-      });
-      message.success('个人计时已开始');
-      // 重新加载数据
-      await loadDashboardData();
+      // 🔧 从dashboardData中找到任务标题
+      const task = dashboardData?.timer_tasks.find(t => t.id === taskId);
+      const taskTitle = task?.title || '未知任务';
+      
+      // 使用TimerContext的startTimer方法
+      const success = await startTimer(taskId, taskTitle);
+      if (success) {
+        // 重新加载数据以更新统计信息
+        await loadDashboardData();
+      }
     } catch (error) {
       message.error('启动计时失败');
       console.error('Failed to start personal timer:', error);
@@ -162,10 +167,12 @@ const PersonalTimerPage: React.FC = () => {
   // 停止计时
   const stopTimer = async () => {
     try {
-      await personalTimerService.stopTimer();
-      message.success('计时已停止');
-      // 重新加载数据
-      await loadDashboardData();
+      // 🔧 使用TimerContext的stopTimer方法
+      const success = await stopTimerContext();
+      if (success) {
+        // 重新加载数据以更新统计信息
+        await loadDashboardData();
+      }
     } catch (error) {
       message.error('停止计时失败');
       console.error('Failed to stop timer:', error);
@@ -335,7 +342,16 @@ const PersonalTimerPage: React.FC = () => {
       {/* 计时器控制区域 */}
       <div style={{ marginBottom: '24px' }}>
         <PersonalTimerControl
-          currentTimer={currentTimer}
+          currentTimer={{
+            is_running: timerState.isRunning,
+            task_id: timerState.taskId,
+            task_title: timerState.taskTitle,
+            task_color: '#1890ff', // 默认颜色，或从任务数据中获取
+            task_category: '个人任务',
+            start_time: timerState.startTime?.toISOString(), 
+            elapsed_seconds: timerState.elapsedSeconds,
+            formatted_time: timerState.formattedTime
+          }}
           availableTasks={dashboardData.timer_tasks}
           onRefresh={loadDashboardData}
         />
@@ -395,7 +411,7 @@ const PersonalTimerPage: React.FC = () => {
           <PersonalTimerTaskList
             tasks={dashboardData.timer_tasks}
             loading={loading}
-            isTimerRunning={currentTimer?.is_running}
+            isTimerRunning={timerState.isRunning}
             selectedTaskIndex={selectedTaskIndex}
             onStartTimer={startPersonalTimer}
             onEditTask={handleOpenTaskForm}

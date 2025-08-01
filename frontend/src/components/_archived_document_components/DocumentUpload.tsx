@@ -290,7 +290,7 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       okButtonProps={{ 
         disabled: hasUploadingFiles || successfulFiles.length === 0 
       }}
-      destroyOnClose
+      destroyOnHidden
     >
       <Row gutter={16} style={{ minHeight: '400px' }}>
         {/* Upload Area */}
