@@ -979,7 +979,6 @@ const TaskDetailPageNew: React.FC = () => {
                       <TaskDocumentEditor
                         taskId={task.id}
                         projectId={parseInt(projectId || '0')}
-                        useAdvancedAPI={false} // 先使用兼容版API
                         onSave={(content) => {
                           // 文档保存成功后更新状态
                           setDocumentExists(true);
