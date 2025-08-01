@@ -12,6 +12,59 @@ export interface DashboardStats {
   completionRate: number;
 }
 
+// 新的周报数据接口，匹配后端API响应
+export interface WeeklyDashboardStats {
+  date_range: {
+    start_date: string;
+    end_date: string;
+    week_number: number;
+    year: number;
+  };
+  summary: {
+    total_tasks: number;
+    completed_tasks: number;
+    in_progress_tasks: number;
+    pending_tasks: number;
+    overdue_tasks: number;
+    completion_rate: number;
+    projects_involved: number;
+  };
+  task_stats: {
+    todo: number;
+    in_progress: number;
+    completed: number;
+    cancelled: number;
+  };
+  project_stats: Array<{
+    project_id: number;
+    project_name: string;
+    task_count: number;
+    completed_count: number;
+    completion_rate: number;
+  }>;
+  daily_stats: Array<{
+    date: string;
+    tasks_created: number;
+    tasks_completed: number;
+    tasks_updated: number;
+  }>;
+  top_tasks: Array<{
+    id: number;
+    project_id: number;
+    project_name: string;
+    title: string;
+    status: string;
+    priority: string;
+    due_date: string | null;
+    updated_at: string;
+  }>;
+  trends: {
+    task_creation_trend: number;
+    completion_rate_trend: number;
+    productivity_trend: string;
+  };
+}
+
 export interface ProjectProgressInfo extends Project {
   totalTasks: number;
   completedTasks: number;
@@ -35,9 +88,55 @@ export interface TasksByStatus {
 
 export class DashboardService {
   /**
-   * 获取工作台统计数据（带降级策略）
+   * 获取周报统计数据（新API）
+   */
+  static async getWeeklyStats(startDate?: string, endDate?: string, projectId?: number): Promise<WeeklyDashboardStats> {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('start_date', startDate);
+      if (endDate) params.append('end_date', endDate);
+      if (projectId) params.append('project_id', projectId.toString());
+      
+      const queryString = params.toString();
+      const url = `/dashboard/weekly-stats${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await api.get(url);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching weekly dashboard stats:', error);
+      throw new Error('Failed to fetch weekly dashboard statistics');
+    }
+  }
+
+  /**
+   * 获取工作台统计数据（优化版，使用新API）
    */
   static async getDashboardStats(): Promise<DashboardStats> {
+    try {
+      // 使用新的周报API获取数据
+      const weeklyStats = await this.getWeeklyStats();
+      
+      // 转换为旧接口格式以保持兼容性
+      return {
+        totalProjects: weeklyStats.summary.projects_involved,
+        totalTasks: weeklyStats.summary.total_tasks,
+        completedTasks: weeklyStats.summary.completed_tasks,
+        inProgressTasks: weeklyStats.summary.in_progress_tasks,
+        todoTasks: weeklyStats.summary.pending_tasks,
+        overdueTasks: weeklyStats.summary.overdue_tasks,
+        completionRate: Math.round(weeklyStats.summary.completion_rate)
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard stats from new API, falling back to old method:', error);
+      // 如果新API失败，回退到旧方法
+      return this.getDashboardStatsLegacy();
+    }
+  }
+
+  /**
+   * 获取工作台统计数据（旧版本，作为降级策略）
+   */
+  static async getDashboardStatsLegacy(): Promise<DashboardStats> {
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
@@ -90,7 +189,7 @@ export class DashboardService {
         completionRate
       };
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('Error fetching legacy dashboard stats:', error);
       // 返回空统计作为降级，而不是抛出错误
       return this.getEmptyStats();
     }

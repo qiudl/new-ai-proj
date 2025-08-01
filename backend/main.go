@@ -67,6 +67,7 @@ type Application struct {
 	auditHandler               *handlers.AuditHandler
 	aiConfigHandler            *handlers.AIConfigHandler
 	aiTaskGeneratorHandler     *handlers.AITaskGeneratorHandler
+	dashboardHandler           *handlers.DashboardHandler
 }
 
 // NewApplication creates a new application instance
@@ -173,6 +174,9 @@ func NewApplication() (*Application, error) {
 		historyRepo,
 	)
 
+	// 仪表板处理器
+	dashboardHandler := handlers.NewDashboardHandler(db)
+
 	return &Application{
 		config:              cfg,
 		db:                  db,
@@ -205,6 +209,7 @@ func NewApplication() (*Application, error) {
 		auditHandler:                auditHandler,
 		aiConfigHandler:             aiConfigHandler,
 		aiTaskGeneratorHandler:      aiTaskGeneratorHandler,
+		dashboardHandler:            dashboardHandler,
 	}, nil
 }
 
@@ -291,6 +296,12 @@ func (app *Application) setupRouter() *gin.Engine {
 			authorized.GET("/statistics/today-stats", func(c *gin.Context) {
 				app.statisticsHandler.HandleTodayStats(c.Writer, c.Request)
 			})
+			
+			// Dashboard routes
+			dashboard := authorized.Group("/dashboard")
+			{
+				dashboard.GET("/weekly-stats", app.dashboardHandler.GetWeeklyStats)
+			}
 			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
