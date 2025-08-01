@@ -50,6 +50,7 @@ const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
+const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -99,6 +100,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <DashboardPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/personal-timer" element={
+              <PrivateRoute>
+                <Layout>
+                  <PersonalTimerPage />
                 </Layout>
               </PrivateRoute>
             } />

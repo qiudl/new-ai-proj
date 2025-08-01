@@ -23,6 +23,7 @@ import {
   RobotOutlined,
   FileTextOutlined,
   FolderOutlined,
+  ClockCircleOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -111,6 +112,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getSelectedKeys = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return ['/'];
+    if (path.includes('/personal-timer')) return ['/personal-timer'];
     if (path.includes('/time-weekly-report')) return ['/time-weekly-report'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/task-list')) return ['/task-list'];
@@ -183,6 +185,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '任务周报',
         },
       ],
+    },
+    {
+      key: '/personal-timer',
+      icon: <ClockCircleOutlined />,
+      label: '个人计时',
     },
     {
       key: '/project-customer-management',

@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS user_timer_tasks (
     deleted_at TIMESTAMP WITH TIME ZONE NULL,
     
     -- 唯一性约束：同一用户下的任务标题不能重复（软删除除外）
-    CONSTRAINT user_timer_tasks_user_title_unique UNIQUE(user_id, title) DEFERRABLE INITIALLY DEFERRED
+    CONSTRAINT user_timer_tasks_user_title_unique UNIQUE(user_id, title)
 );
 
 -- 添加注释
@@ -152,8 +152,7 @@ SELECT DISTINCT
     'active',
     '#52c41a'
 FROM users u
-WHERE u.id NOT IN (SELECT user_id FROM user_timer_tasks)
-ON CONFLICT (user_id, title) DO NOTHING;
+WHERE u.id NOT IN (SELECT COALESCE(user_id, 0) FROM user_timer_tasks WHERE user_id IS NOT NULL);
 
 -- 10. 创建个人计时数据统计函数
 CREATE OR REPLACE FUNCTION get_user_timer_dashboard_stats(p_user_id INTEGER)
@@ -246,15 +245,23 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
     RETURN QUERY
+    WITH task_consistency AS (
+        SELECT 
+            utt.id,
+            utt.total_time_seconds,
+            COALESCE(SUM(ttl.duration_seconds), 0) as logged_total,
+            ABS(utt.total_time_seconds - COALESCE(SUM(ttl.duration_seconds), 0)) as difference
+        FROM user_timer_tasks utt
+        LEFT JOIN task_time_logs ttl ON utt.id = ttl.user_timer_task_id
+        WHERE utt.deleted_at IS NULL
+        GROUP BY utt.id, utt.total_time_seconds
+    )
     SELECT 
         'User Timer Tasks Consistency Check'::TEXT as status,
         COUNT(*)::INTEGER as user_timer_task_count,
-        COUNT(CASE WHEN utt.total_time_seconds != COALESCE(SUM(ttl.duration_seconds), 0) THEN 1 END)::INTEGER as total_inconsistencies,
-        MAX(ABS(utt.total_time_seconds - COALESCE(SUM(ttl.duration_seconds), 0)))::INTEGER as max_difference_seconds
-    FROM user_timer_tasks utt
-    LEFT JOIN task_time_logs ttl ON utt.id = ttl.user_timer_task_id
-    WHERE utt.deleted_at IS NULL
-    GROUP BY ();
+        COUNT(CASE WHEN total_time_seconds != logged_total THEN 1 END)::INTEGER as total_inconsistencies,
+        MAX(difference)::INTEGER as max_difference_seconds
+    FROM task_consistency;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -337,11 +344,16 @@ BEGIN
     IF sample_user_id IS NOT NULL THEN
         -- 插入示例个人计时任务
         INSERT INTO user_timer_tasks (user_id, title, description, category, priority, color, is_favorite, target_time_seconds, tags)
-        VALUES 
-            (sample_user_id, '深度学习研究', '学习深度学习相关理论和实践', 'study', 'high', '#1890ff', true, 180000, '["AI", "机器学习", "Python"]'::jsonb),
-            (sample_user_id, '英语学习', '提升英语听说读写能力', 'study', 'medium', '#52c41a', true, 108000, '["英语", "学习"]'::jsonb),
-            (sample_user_id, '晨跑锻炼', '每日晨跑健身', 'fitness', 'medium', '#faad14', false, 36000, '["健身", "跑步"]'::jsonb)
-        ON CONFLICT (user_id, title) DO NOTHING;
+        SELECT sample_user_id, title, description, category, priority, color, is_favorite, target_time_seconds, tags::jsonb
+        FROM (VALUES 
+            ('深度学习研究', '学习深度学习相关理论和实践', 'study', 'high', '#1890ff', true, 180000, '["AI", "机器学习", "Python"]'),
+            ('英语学习', '提升英语听说读写能力', 'study', 'medium', '#52c41a', true, 108000, '["英语", "学习"]'),
+            ('晨跑锻炼', '每日晨跑健身', 'fitness', 'medium', '#faad14', false, 36000, '["健身", "跑步"]')
+        ) AS t(title, description, category, priority, color, is_favorite, target_time_seconds, tags)
+        WHERE NOT EXISTS (
+            SELECT 1 FROM user_timer_tasks 
+            WHERE user_id = sample_user_id AND user_timer_tasks.title = t.title
+        );
     END IF;
 END $$;
 
