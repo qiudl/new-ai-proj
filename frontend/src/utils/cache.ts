@@ -66,11 +66,15 @@ class CacheManager {
    */
   cleanup(): void {
     const now = Date.now();
-    for (const [key, item] of this.cache.entries()) {
+    const keysToDelete: string[] = [];
+    
+    this.cache.forEach((item, key) => {
       if (now > item.expires) {
-        this.cache.delete(key);
+        keysToDelete.push(key);
       }
-    }
+    });
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
   }
 
   /**
@@ -80,11 +84,11 @@ class CacheManager {
     const now = Date.now();
     let expired = 0;
     
-    for (const item of this.cache.values()) {
+    this.cache.forEach((item) => {
       if (now > item.expires) {
         expired++;
       }
-    }
+    });
 
     return {
       size: this.cache.size,
@@ -121,61 +125,185 @@ class CacheManager {
   }
 }
 
+// 缓存键命名规范
+export const CACHE_KEYS = {
+  // 仪表板相关
+  DASHBOARD_STATS: (userId: number) => `dashboard:stats:${userId}`,
+  DASHBOARD_WEEKLY: (userId: number, startDate: string, endDate: string, projectId?: number) => 
+    `dashboard:weekly:${userId}:${startDate}:${endDate}${projectId ? `:${projectId}` : ''}`,
+  DASHBOARD_PROJECT_PROGRESS: (userId: number) => `dashboard:project_progress:${userId}`,
+  DASHBOARD_USER_WORKLOAD: (userId: number) => `dashboard:user_workload:${userId}`,
+  DASHBOARD_RECENT_ACTIVITIES: (userId: number, limit: number) => `dashboard:activities:${userId}:${limit}`,
+  
+  // 任务相关
+  TASKS_BY_PROJECT: (projectId: number, page: number, pageSize: number) => 
+    `tasks:project:${projectId}:${page}:${pageSize}`,
+  TASKS_BY_STATUS: (userId: number) => `tasks:status:${userId}`,
+  TASKS_OVERDUE: (userId: number) => `tasks:overdue:${userId}`,
+  TASKS_HIGH_PRIORITY: (userId: number) => `tasks:high_priority:${userId}`,
+  TASKS_TODAY: (userId: number) => `tasks:today:${userId}`,
+  TASKS_THIS_WEEK: (userId: number) => `tasks:this_week:${userId}`,
+  
+  // 项目相关  
+  PROJECTS_ALL: (userId: number, page: number, pageSize: number) => 
+    `projects:all:${userId}:${page}:${pageSize}`,
+  PROJECT_DETAILS: (projectId: number) => `project:details:${projectId}`,
+  PROJECT_STATS: (projectId: number) => `project:stats:${projectId}`,
+  
+  // 计时系统相关
+  TIMER_TASKS: (userId: number, filters?: any) => 
+    `timer:tasks:${userId}:${JSON.stringify(filters || {})}`,
+  TIMER_ANALYTICS: (userId: number, timeRange: string) => 
+    `timer:analytics:${userId}:${timeRange}`,
+  TIMER_HISTORY: (userId: number, page: number, limit: number) => 
+    `timer:history:${userId}:${page}:${limit}`,
+  
+  // 周报相关
+  WEEKLY_REPORT: (userId: number, startDate: string, endDate: string) => 
+    `weekly:report:${userId}:${startDate}:${endDate}`,
+  WEEKLY_STATS_OVERVIEW: (userId: number, startDate: string, endDate: string) => 
+    `weekly:stats:${userId}:${startDate}:${endDate}`,
+  EFFICIENCY_TREND: (userId: number, startDate: string, endDate: string) => 
+    `weekly:efficiency:${userId}:${startDate}:${endDate}`,
+} as const;
+
+// 标准化TTL配置
+export const CACHE_TTL = {
+  // 实时数据 - 短缓存
+  REAL_TIME: 10 * 1000,        // 10秒 - 实时仪表板数据
+  LIVE_UPDATES: 30 * 1000,     // 30秒 - 任务状态更新
+  
+  // 频繁更新数据 - 中等缓存
+  FREQUENT: 2 * 60 * 1000,     // 2分钟 - 项目统计、用户工作负载
+  REGULAR: 5 * 60 * 1000,      // 5分钟 - 任务列表、项目列表
+  
+  // 稳定数据 - 长缓存
+  STABLE: 15 * 60 * 1000,      // 15分钟 - 周报数据、历史统计
+  SEMI_STATIC: 30 * 60 * 1000, // 30分钟 - 项目详情、用户信息
+  STATIC: 60 * 60 * 1000,      // 1小时 - 配置数据、权限信息
+} as const;
+
 // 专门用于计时系统的缓存管理器
 class TimerCacheManager extends CacheManager {
-  private readonly TIMER_TASKS_TTL = 30 * 1000; // 30秒
-  private readonly DASHBOARD_TTL = 10 * 1000; // 10秒
-  private readonly ANALYTICS_TTL = 2 * 60 * 1000; // 2分钟
-  private readonly HISTORY_TTL = 60 * 1000; // 1分钟
+  // 使用标准化的TTL配置
+  private readonly TIMER_TASKS_TTL = CACHE_TTL.LIVE_UPDATES;
+  private readonly DASHBOARD_TTL = CACHE_TTL.REAL_TIME;
+  private readonly ANALYTICS_TTL = CACHE_TTL.FREQUENT;
+  private readonly HISTORY_TTL = CACHE_TTL.REGULAR;
 
   // 缓存个人计时任务列表
   cacheTimerTasks(userId: number, tasks: any, filters?: any): void {
-    const key = `timer_tasks_${userId}_${JSON.stringify(filters || {})}`;
+    const key = CACHE_KEYS.TIMER_TASKS(userId, filters);
     this.set(key, tasks, this.TIMER_TASKS_TTL);
   }
 
   getTimerTasks(userId: number, filters?: any): any | null {
-    const key = `timer_tasks_${userId}_${JSON.stringify(filters || {})}`;
+    const key = CACHE_KEYS.TIMER_TASKS(userId, filters);
     return this.get(key);
   }
 
   // 缓存仪表板数据
   cacheDashboard(userId: number, dashboard: any): void {
-    const key = `dashboard_${userId}`;
+    const key = CACHE_KEYS.DASHBOARD_STATS(userId);
     this.set(key, dashboard, this.DASHBOARD_TTL);
   }
 
   getDashboard(userId: number): any | null {
-    const key = `dashboard_${userId}`;
+    const key = CACHE_KEYS.DASHBOARD_STATS(userId);
+    return this.get(key);
+  }
+
+  // 缓存周报仪表板数据
+  cacheWeeklyDashboard(userId: number, startDate: string, endDate: string, projectId: number | undefined, data: any): void {
+    const key = CACHE_KEYS.DASHBOARD_WEEKLY(userId, startDate, endDate, projectId);
+    this.set(key, data, CACHE_TTL.STABLE);
+  }
+
+  getWeeklyDashboard(userId: number, startDate: string, endDate: string, projectId?: number): any | null {
+    const key = CACHE_KEYS.DASHBOARD_WEEKLY(userId, startDate, endDate, projectId);
+    return this.get(key);
+  }
+
+  // 缓存项目进度数据
+  cacheProjectProgress(userId: number, data: any): void {
+    const key = CACHE_KEYS.DASHBOARD_PROJECT_PROGRESS(userId);
+    this.set(key, data, CACHE_TTL.FREQUENT);
+  }
+
+  getProjectProgress(userId: number): any | null {
+    const key = CACHE_KEYS.DASHBOARD_PROJECT_PROGRESS(userId);
+    return this.get(key);
+  }
+
+  // 缓存用户工作负载
+  cacheUserWorkload(userId: number, data: any): void {
+    const key = CACHE_KEYS.DASHBOARD_USER_WORKLOAD(userId);
+    this.set(key, data, CACHE_TTL.FREQUENT);
+  }
+
+  getUserWorkload(userId: number): any | null {
+    const key = CACHE_KEYS.DASHBOARD_USER_WORKLOAD(userId);
+    return this.get(key);
+  }
+
+  // 缓存最近活动
+  cacheRecentActivities(userId: number, limit: number, data: any): void {
+    const key = CACHE_KEYS.DASHBOARD_RECENT_ACTIVITIES(userId, limit);
+    this.set(key, data, CACHE_TTL.REGULAR);
+  }
+
+  getRecentActivities(userId: number, limit: number): any | null {
+    const key = CACHE_KEYS.DASHBOARD_RECENT_ACTIVITIES(userId, limit);
     return this.get(key);
   }
 
   // 缓存分析数据
   cacheAnalytics(userId: number, timeRange: string, analytics: any): void {
-    const key = `analytics_${userId}_${timeRange}`;
+    const key = CACHE_KEYS.TIMER_ANALYTICS(userId, timeRange);
     this.set(key, analytics, this.ANALYTICS_TTL);
   }
 
   getAnalytics(userId: number, timeRange: string): any | null {
-    const key = `analytics_${userId}_${timeRange}`;
+    const key = CACHE_KEYS.TIMER_ANALYTICS(userId, timeRange);
     return this.get(key);
   }
 
   // 缓存历史记录
   cacheHistory(userId: number, page: number, limit: number, history: any): void {
-    const key = `history_${userId}_${page}_${limit}`;
+    const key = CACHE_KEYS.TIMER_HISTORY(userId, page, limit);
     this.set(key, history, this.HISTORY_TTL);
   }
 
   getHistory(userId: number, page: number, limit: number): any | null {
-    const key = `history_${userId}_${page}_${limit}`;
+    const key = CACHE_KEYS.TIMER_HISTORY(userId, page, limit);
+    return this.get(key);
+  }
+
+  // 缓存任务相关数据
+  cacheTasksByProject(projectId: number, page: number, pageSize: number, data: any): void {
+    const key = CACHE_KEYS.TASKS_BY_PROJECT(projectId, page, pageSize);
+    this.set(key, data, CACHE_TTL.REGULAR);
+  }
+
+  getTasksByProject(projectId: number, page: number, pageSize: number): any | null {
+    const key = CACHE_KEYS.TASKS_BY_PROJECT(projectId, page, pageSize);
+    return this.get(key);
+  }
+
+  cacheTasksByStatus(userId: number, data: any): void {
+    const key = CACHE_KEYS.TASKS_BY_STATUS(userId);
+    this.set(key, data, CACHE_TTL.LIVE_UPDATES);
+  }
+
+  getTasksByStatus(userId: number): any | null {
+    const key = CACHE_KEYS.TASKS_BY_STATUS(userId);
     return this.get(key);
   }
 
   // 清除用户相关的所有缓存
   clearUserCache(userId: number): void {
     const userKeys = Array.from(this.cache.keys()).filter(key => 
-      key.includes(`_${userId}_`) || key.includes(`_${userId}`)
+      key.includes(`:${userId}:`) || key.includes(`:${userId}`) || key.endsWith(`:${userId}`)
     );
     
     userKeys.forEach(key => this.delete(key));
@@ -183,12 +311,69 @@ class TimerCacheManager extends CacheManager {
 
   // 当数据发生变化时清除相关缓存
   invalidateTasksCache(userId: number): void {
+    const patterns = [
+      `timer:tasks:${userId}:`,
+      `dashboard:stats:${userId}`,
+      `dashboard:weekly:${userId}:`,
+      `tasks:status:${userId}`,
+      `tasks:overdue:${userId}`,
+      `tasks:high_priority:${userId}`,
+      `tasks:today:${userId}`,
+      `tasks:this_week:${userId}`
+    ];
+    
     const taskKeys = Array.from(this.cache.keys()).filter(key => 
-      key.startsWith(`timer_tasks_${userId}_`) || 
-      key.startsWith(`dashboard_${userId}`)
+      patterns.some(pattern => key.startsWith(pattern))
     );
     
     taskKeys.forEach(key => this.delete(key));
+  }
+
+  // 清除项目相关缓存
+  invalidateProjectCache(projectId: number): void {
+    const patterns = [
+      `tasks:project:${projectId}:`,
+      `project:details:${projectId}`,
+      `project:stats:${projectId}`
+    ];
+    
+    const projectKeys = Array.from(this.cache.keys()).filter(key => 
+      patterns.some(pattern => key.startsWith(pattern))
+    );
+    
+    projectKeys.forEach(key => this.delete(key));
+  }
+
+  // 清除仪表板相关缓存
+  invalidateDashboardCache(userId: number): void {
+    const patterns = [
+      `dashboard:stats:${userId}`,
+      `dashboard:weekly:${userId}:`,
+      `dashboard:project_progress:${userId}`,
+      `dashboard:user_workload:${userId}`,
+      `dashboard:activities:${userId}:`
+    ];
+    
+    const dashboardKeys = Array.from(this.cache.keys()).filter(key => 
+      patterns.some(pattern => key.startsWith(pattern))
+    );
+    
+    dashboardKeys.forEach(key => this.delete(key));
+  }
+
+  // 清除周报相关缓存
+  invalidateWeeklyReportCache(userId: number): void {
+    const patterns = [
+      `weekly:report:${userId}:`,
+      `weekly:stats:${userId}:`,
+      `weekly:efficiency:${userId}:`
+    ];
+    
+    const weeklyKeys = Array.from(this.cache.keys()).filter(key => 
+      patterns.some(pattern => key.startsWith(pattern))
+    );
+    
+    weeklyKeys.forEach(key => this.delete(key));
   }
 }
 

@@ -199,9 +199,14 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 	var args []interface{}
 	argIndex := 1
 
-	args = append(args, startDate, endDate)
-	timeFilter := "((t.due_date >= $" + strconv.Itoa(argIndex) + " AND t.due_date <= $" + strconv.Itoa(argIndex+1) + ") OR (t.created_at >= $" + strconv.Itoa(argIndex) + " AND t.created_at <= $" + strconv.Itoa(argIndex+1) + "))"
-	argIndex += 2
+	args = append(args, startDate, endDate, startDate, endDate, startDate, endDate)
+	// 改进的时间筛选逻辑：任务在指定时间范围内创建、到期或有重要更新
+	timeFilter := "(" +
+		"(t.created_at >= $" + strconv.Itoa(argIndex) + " AND t.created_at <= $" + strconv.Itoa(argIndex+1) + ") OR " +
+		"(t.due_date >= $" + strconv.Itoa(argIndex+2) + " AND t.due_date <= $" + strconv.Itoa(argIndex+3) + ") OR " +
+		"(t.updated_at >= $" + strconv.Itoa(argIndex+4) + " AND t.updated_at <= $" + strconv.Itoa(argIndex+5) + " AND t.status = 'completed')" +
+		")"
+	argIndex += 6
 
 	if projectID != nil {
 		args = append(args, *projectID)
@@ -252,7 +257,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		Cancelled:  stats.Summary.TotalTasks - stats.Summary.PendingTasks - stats.Summary.InProgressTasks - stats.Summary.CompletedTasks,
 	}
 
-	// 3. Get project statistics
+	// 3. Get project statistics  
 	projectStatsQuery := `
 		SELECT 
 			p.id,
@@ -262,7 +267,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		FROM projects p 
 		LEFT JOIN tasks t ON p.id = t.project_id 
 			AND t.deleted_at IS NULL 
-			AND ((t.due_date >= $1 AND t.due_date <= $2) OR (t.created_at >= $1 AND t.created_at <= $2))
+			AND ` + timeFilter + `
 		WHERE p.deleted_at IS NULL` + projectFilter + `
 		GROUP BY p.id, p.name 
 		HAVING COUNT(t.id) > 0
@@ -289,7 +294,18 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		stats.ProjectStats = append(stats.ProjectStats, item)
 	}
 
-	// 4. Get daily statistics
+	// 4. Get daily statistics - 明确分离不同类型的统计
+	// 重新构建参数数组以适应新的查询结构
+	dailyArgs := []interface{}{startDate, endDate}
+	if projectID != nil {
+		dailyArgs = append(dailyArgs, *projectID, *projectID, *projectID)
+	}
+	
+	dailyProjectFilter := ""
+	if projectID != nil {
+		dailyProjectFilter = " AND t.project_id = $3"
+	}
+	
 	dailyStatsQuery := `
 		SELECT 
 			DATE(day_series.day) as date,
@@ -308,7 +324,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			WHERE t.deleted_at IS NULL 
 			AND p.deleted_at IS NULL
 			AND DATE(t.created_at) >= $1 
-			AND DATE(t.created_at) <= $2` + projectFilter + `
+			AND DATE(t.created_at) <= $2` + dailyProjectFilter + `
 			GROUP BY DATE(t.created_at)
 		) created_stats ON day_series.day = created_stats.date
 		LEFT JOIN (
@@ -321,7 +337,13 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			AND p.deleted_at IS NULL
 			AND t.status = 'completed'
 			AND DATE(t.updated_at) >= $1 
-			AND DATE(t.updated_at) <= $2` + projectFilter + `
+			AND DATE(t.updated_at) <= $2`
+	
+	if projectID != nil {
+		dailyStatsQuery += " AND t.project_id = $3"
+	}
+	
+	dailyStatsQuery += `
 			GROUP BY DATE(t.updated_at)
 		) completed_stats ON day_series.day = completed_stats.date
 		LEFT JOIN (
@@ -333,12 +355,18 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			WHERE t.deleted_at IS NULL 
 			AND p.deleted_at IS NULL
 			AND DATE(t.updated_at) >= $1 
-			AND DATE(t.updated_at) <= $2` + projectFilter + `
+			AND DATE(t.updated_at) <= $2`
+	
+	if projectID != nil {
+		dailyStatsQuery += " AND t.project_id = $3"
+	}
+	
+	dailyStatsQuery += `
 			GROUP BY DATE(t.updated_at)
 		) updated_stats ON day_series.day = updated_stats.date
 		ORDER BY day_series.day`
 
-	dailyRows, err := db.Query(dailyStatsQuery, args...)
+	dailyRows, err := db.Query(dailyStatsQuery, dailyArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +396,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		JOIN projects p ON t.project_id = p.id
 		WHERE t.deleted_at IS NULL 
 		AND p.deleted_at IS NULL 
-		AND ((t.due_date >= $1 AND t.due_date <= $2) OR (t.created_at >= $1 AND t.created_at <= $2))` + projectFilter + `
+		AND ` + timeFilter + projectFilter + `
 		ORDER BY 
 			CASE WHEN t.custom_fields->>'priority' = 'urgent' THEN 1
 				 WHEN t.custom_fields->>'priority' = 'high' THEN 2

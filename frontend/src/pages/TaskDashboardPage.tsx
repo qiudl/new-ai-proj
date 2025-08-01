@@ -44,7 +44,19 @@ import companyService from '../services/companyService';
 import { Task } from '../types/task';
 import { Project } from '../types/project';
 import { Company } from '../types/company';
-import { useCache } from '../hooks/useCache';
+import { useWeeklyDashboardStats, useDashboardManager } from '../hooks/useDashboard';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '../utils/queryClient';
+import { CACHE_TTL, CACHE_KEYS } from '../utils/cache';
+import { useDashboardPreload } from '../hooks/useSmartPreload';
+import { 
+  DashboardPageSkeleton, 
+  WeeklyCalendarSkeleton, 
+  DashboardStatsSkeleton,
+  ProjectSelectorSkeleton,
+  TaskListSkeleton,
+  SmartLoading
+} from '../components/SkeletonLoaders';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -146,15 +158,31 @@ const TaskDashboardPage: React.FC = () => {
     return selectedWeek.endOf('week');
   }, [selectedWeek]);
 
+  // 获取当前用户ID
+  const getCurrentUserId = (): number => {
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.user_id || 1;
+      }
+    } catch (error) {
+      console.warn('Failed to get user ID from token:', error);
+    }
+    return 1;
+  };
+
+  const userId = getCurrentUserId();
+
   // 获取项目列表
   const {
     data: projects,
-    loading: projectsLoading,
+    isLoading: projectsLoading,
     error: projectsError,
-    refresh: refreshProjects
-  } = useCache<Project[]>(
-    'task-dashboard-projects',
-    async () => {
+    refetch: refreshProjects
+  } = useQuery({
+    queryKey: queryKeys.projects.list(userId, 1, 100),
+    queryFn: async () => {
       try {
         const response = await projectService.getProjects({ page: 1, pageSize: 100 });
         return response.data || [];
@@ -164,18 +192,19 @@ const TaskDashboardPage: React.FC = () => {
         return [];
       }
     },
-    { ttl: 5 * 60 * 1000 } // 5分钟缓存
-  );
+    staleTime: CACHE_TTL.REGULAR,
+    gcTime: CACHE_TTL.FREQUENT,
+  });
 
   // 获取客户列表
   const {
     data: customers,
-    loading: customersLoading,
+    isLoading: customersLoading,
     error: customersError,
-    refresh: refreshCustomers
-  } = useCache<Company[]>(
-    'task-dashboard-customers',
-    async () => {
+    refetch: refreshCustomers
+  } = useQuery({
+    queryKey: ['companies', userId, 1, 100],
+    queryFn: async () => {
       try {
         const response = await companyService.getCompanies({ page: 1, pageSize: 100 });
         return response.data || [];
@@ -185,18 +214,19 @@ const TaskDashboardPage: React.FC = () => {
         return [];
       }
     },
-    { ttl: 5 * 60 * 1000 } // 5分钟缓存
-  );
+    staleTime: CACHE_TTL.REGULAR,
+    gcTime: CACHE_TTL.FREQUENT,
+  });
 
   // 获取所有任务数据
   const {
     data: allTasks,
-    loading: tasksLoading,
+    isLoading: tasksLoading,
     error: tasksError,
-    refresh: refreshTasks
-  } = useCache<Task[]>(
-    'task-dashboard-all-tasks',
-    async () => {
+    refetch: refreshTasks
+  } = useQuery({
+    queryKey: ['tasks', 'all', userId],
+    queryFn: async () => {
       try {
         setLoading(true);
         console.log('🔄 开始获取所有任务数据...');
@@ -238,8 +268,11 @@ const TaskDashboardPage: React.FC = () => {
         setLoading(false);
       }
     },
-    { ttl: 2 * 60 * 1000 } // 2分钟缓存
-  );
+    staleTime: CACHE_TTL.LIVE_UPDATES,
+    gcTime: CACHE_TTL.FREQUENT,
+    refetchInterval: 30000, // 30秒自动刷新
+    refetchIntervalInBackground: false,
+  });
 
   // 筛选本周任务
   const weeklyTasks = useMemo(() => {
@@ -401,6 +434,12 @@ const TaskDashboardPage: React.FC = () => {
     return days;
   }, [filteredTasks, weekStart]);
 
+  // React Query dashboard manager
+  const dashboardManager = useDashboardManager();
+  
+  // 智能预加载
+  const preloadManager = useDashboardPreload();
+
   // 刷新所有数据
   const refreshAllData = async () => {
     try {
@@ -410,6 +449,8 @@ const TaskDashboardPage: React.FC = () => {
         refreshProjects(),
         refreshCustomers()
       ]);
+      // 同时失效仪表板缓存
+      dashboardManager.invalidateDashboard();
       message.success('数据刷新成功');
     } catch (error) {
       console.error('刷新数据失败:', error);
@@ -445,21 +486,11 @@ const TaskDashboardPage: React.FC = () => {
   };
 
   const isDataLoading = tasksLoading || projectsLoading || customersLoading || loading;
-
-  // 如果数据仍在加载且没有缓存数据
-  if (isDataLoading && !allTasks) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '400px' 
-      }}>
-        <Spin size="large" tip="加载任务数据...">
-          <div style={{ height: '200px', width: '100%' }} />
-        </Spin>
-      </div>
-    );
+  const isInitialLoading = isDataLoading && !allTasks && !projects;
+  
+  // 智能加载状态 - 如果数据仍在加载且没有缓存数据，显示完整骨架屏
+  if (isInitialLoading) {
+    return <DashboardPageSkeleton />;
   }
 
   // 显示错误状态
@@ -599,7 +630,12 @@ const TaskDashboardPage: React.FC = () => {
 
       {/* 筛选控制区域 */}
       <Card style={{ marginBottom: '24px' }}>
-        <Row gutter={[16, 16]}>
+        <SmartLoading
+          loading={projectsLoading && !projects}
+          data={projects}
+          skeleton={<ProjectSelectorSkeleton />}
+        >
+          <Row gutter={[16, 16]}>
           <Col xs={24} sm={12} md={5}>
             <Space direction="vertical" size={4} style={{ width: '100%' }}>
               <Text type="secondary">项目筛选</Text>
@@ -684,11 +720,18 @@ const TaskDashboardPage: React.FC = () => {
               </div>
             </Space>
           </Col>
-        </Row>
+          </Row>
+        </SmartLoading>
       </Card>
 
       {/* 本周统计概览 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <SmartLoading
+          loading={tasksLoading && !allTasks}
+          data={weeklyTasks}
+          skeleton={<DashboardStatsSkeleton />}
+        >
+          <Row gutter={[16, 16]}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
@@ -744,13 +787,34 @@ const TaskDashboardPage: React.FC = () => {
               </div>
             )}
           </Card>
-        </Col>
-      </Row>
+            </Col>
+          </Row>
+        </SmartLoading>
+      </div>
 
       {/* 主要内容区域 */}
-      {viewMode === 'calendar' ? (
-        /* 日历视图 */
-        <Row gutter={[12, 12]}>
+      <SmartLoading
+        loading={tasksLoading && !allTasks}
+        data={filteredTasks}
+        skeleton={viewMode === 'calendar' ? <WeeklyCalendarSkeleton /> : <TaskListSkeleton rows={10} />}
+        emptyFallback={
+          <Card>
+            <Empty
+              description={
+                <Space direction="vertical">
+                  <Text>暂无符合条件的任务</Text>
+                  <Text type="secondary">
+                    尝试调整筛选条件或选择其他时间范围
+                  </Text>
+                </Space>
+              }
+            />
+          </Card>
+        }
+      >
+        {viewMode === 'calendar' ? (
+          /* 日历视图 */
+          <Row gutter={[12, 12]}>
           {filteredDailyTasks.map((day, index) => {
             const completedCount = day.tasks.filter(t => t.status === 'completed').length;
             const totalCount = day.tasks.length;
@@ -916,12 +980,12 @@ const TaskDashboardPage: React.FC = () => {
                 </Card>
               </Col>
             );
-          })}
-        </Row>
-      ) : (
-        /* 列表视图 */
-        <Card title="任务列表">
-          <List
+            })}
+          </Row>
+        ) : (
+          /* 列表视图 */
+          <Card title="任务列表">
+            <List
             itemLayout="horizontal"
             dataSource={filteredTasks}
             loading={isDataLoading}
@@ -1045,8 +1109,9 @@ const TaskDashboardPage: React.FC = () => {
               );
             }}
           />
-        </Card>
-      )}
+          </Card>
+        )}
+      </SmartLoading>
     </div>
   );
 };

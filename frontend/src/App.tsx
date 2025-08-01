@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
+import { QueryProvider } from './providers/QueryProvider';
 import FloatingTimer from './components/FloatingTimer';
 import UnifiedDebugPanel from './components/UnifiedDebugPanel';
 import { setNavigateFunction } from './services/api';
@@ -413,20 +414,22 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ConfigProvider locale={zhCN}>
-      <ErrorBoundary>
-        <TimerProvider>
-          <Router 
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <AppContent />
-          </Router>
-        </TimerProvider>
-      </ErrorBoundary>
-    </ConfigProvider>
+    <QueryProvider>
+      <ConfigProvider locale={zhCN}>
+        <ErrorBoundary>
+          <TimerProvider>
+            <Router 
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
+              <AppContent />
+            </Router>
+          </TimerProvider>
+        </ErrorBoundary>
+      </ConfigProvider>
+    </QueryProvider>
   );
 }
 

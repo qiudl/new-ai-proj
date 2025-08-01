@@ -1,6 +1,7 @@
 import api from './api';
 import { Task, TimelineEvent, TaskStatus } from '../types/task';
 import { Project } from '../types/project';
+import { timerCache, CACHE_KEYS, CACHE_TTL } from '../utils/cache';
 
 export interface DashboardStats {
   totalProjects: number;
@@ -88,20 +89,79 @@ export interface TasksByStatus {
 
 export class DashboardService {
   /**
-   * 获取周报统计数据（新API）
+   * 获取当前用户ID（从认证token或上下文中获取）
+   */
+  private static getCurrentUserId(): number {
+    // 这里应该从token或全局状态中获取用户ID
+    // 暂时返回默认值，实际使用时需要根据认证系统调整
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.user_id || 1;
+      }
+    } catch (error) {
+      console.warn('Failed to get user ID from token:', error);
+    }
+    return 1; // 默认用户ID
+  }
+
+  /**
+   * 获取当前周的开始日期
+   */
+  private static getCurrentWeekStart(): string {
+    const now = new Date();
+    const weekday = now.getDay(); // 0 = Sunday
+    const mondayOffset = weekday === 0 ? -6 : 1 - weekday; // Make Monday = 0
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + mondayOffset);
+    return monday.toISOString().split('T')[0];
+  }
+
+  /**
+   * 获取当前周的结束日期
+   */
+  private static getCurrentWeekEnd(): string {
+    const now = new Date();
+    const weekday = now.getDay(); // 0 = Sunday
+    const sundayOffset = weekday === 0 ? 0 : 7 - weekday; // Make Sunday = 6
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() + sundayOffset);
+    return sunday.toISOString().split('T')[0];
+  }
+  /**
+   * 获取周报统计数据（新API，带缓存）
    */
   static async getWeeklyStats(startDate?: string, endDate?: string, projectId?: number): Promise<WeeklyDashboardStats> {
+    // 获取用户ID用于缓存键（假设从token或上下文中获取）
+    const userId = this.getCurrentUserId();
+    
+    // 使用默认日期范围如果未提供
+    const finalStartDate = startDate || this.getCurrentWeekStart();
+    const finalEndDate = endDate || this.getCurrentWeekEnd();
+    
+    // 检查缓存
+    const cached = timerCache.getWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId);
+    if (cached) {
+      return cached;
+    }
+
     try {
       const params = new URLSearchParams();
-      if (startDate) params.append('start_date', startDate);
-      if (endDate) params.append('end_date', endDate);
+      if (finalStartDate) params.append('start_date', finalStartDate);
+      if (finalEndDate) params.append('end_date', finalEndDate);
       if (projectId) params.append('project_id', projectId.toString());
       
       const queryString = params.toString();
       const url = `/dashboard/weekly-stats${queryString ? `?${queryString}` : ''}`;
       
       const response = await api.get(url);
-      return response.data;
+      const data = response.data;
+      
+      // 缓存结果
+      timerCache.cacheWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId, data);
+      
+      return data;
     } catch (error) {
       console.error('Error fetching weekly dashboard stats:', error);
       throw new Error('Failed to fetch weekly dashboard statistics');
@@ -109,15 +169,23 @@ export class DashboardService {
   }
 
   /**
-   * 获取工作台统计数据（优化版，使用新API）
+   * 获取工作台统计数据（优化版，使用新API和缓存）
    */
   static async getDashboardStats(): Promise<DashboardStats> {
+    const userId = this.getCurrentUserId();
+    
+    // 检查缓存
+    const cached = timerCache.getDashboard(userId);
+    if (cached) {
+      return cached;
+    }
+
     try {
       // 使用新的周报API获取数据
       const weeklyStats = await this.getWeeklyStats();
       
       // 转换为旧接口格式以保持兼容性
-      return {
+      const dashboardStats: DashboardStats = {
         totalProjects: weeklyStats.summary.projects_involved,
         totalTasks: weeklyStats.summary.total_tasks,
         completedTasks: weeklyStats.summary.completed_tasks,
@@ -126,6 +194,11 @@ export class DashboardService {
         overdueTasks: weeklyStats.summary.overdue_tasks,
         completionRate: Math.round(weeklyStats.summary.completion_rate)
       };
+      
+      // 缓存结果
+      timerCache.cacheDashboard(userId, dashboardStats);
+      
+      return dashboardStats;
     } catch (error) {
       console.error('Error fetching dashboard stats from new API, falling back to old method:', error);
       // 如果新API失败，回退到旧方法
@@ -211,9 +284,16 @@ export class DashboardService {
   }
 
   /**
-   * 获取最近活动
+   * 获取最近活动（带缓存）
    */
   static async getRecentActivities(limit: number = 5): Promise<TimelineEvent[]> {
+    const userId = this.getCurrentUserId();
+    
+    // 检查缓存
+    const cached = timerCache.getRecentActivities(userId, limit);
+    if (cached) {
+      return cached;
+    }
     try {
       // 模拟从任务数据生成活动事件，因为后端没有timeline端点
       const tasks = await this.getAllTasks();
@@ -267,9 +347,14 @@ export class DashboardService {
       });
 
       // 按时间排序并返回最新的几条
-      return events
+      const activities = events
         .sort((a, b) => new Date(b.event_date).getTime() - new Date(a.event_date).getTime())
         .slice(0, limit);
+      
+      // 缓存结果
+      timerCache.cacheRecentActivities(userId, limit, activities);
+      
+      return activities;
     } catch (error) {
       console.error('Error fetching recent activities:', error);
       // 返回空数组作为降级
@@ -278,9 +363,16 @@ export class DashboardService {
   }
 
   /**
-   * 获取按状态分组的任务
+   * 获取按状态分组的任务（带缓存）
    */
   static async getTasksByStatus(): Promise<TasksByStatus> {
+    const userId = this.getCurrentUserId();
+    
+    // 检查缓存
+    const cached = timerCache.getTasksByStatus(userId);
+    if (cached) {
+      return cached;
+    }
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
@@ -299,12 +391,17 @@ export class DashboardService {
         return allTasks.concat(projectTasks);
       }, []);
 
-      return {
+      const tasksByStatus = {
         todo: tasks.filter((task: Task) => task.status === 'todo'),
         in_progress: tasks.filter((task: Task) => task.status === 'in_progress'),
         completed: tasks.filter((task: Task) => task.status === 'completed'),
         cancelled: tasks.filter((task: Task) => task.status === 'cancelled')
       };
+      
+      // 缓存结果
+      timerCache.cacheTasksByStatus(userId, tasksByStatus);
+      
+      return tasksByStatus;
     } catch (error) {
       console.error('Error fetching tasks by status:', error);
       throw new Error('Failed to fetch tasks by status');
@@ -312,9 +409,16 @@ export class DashboardService {
   }
 
   /**
-   * 获取项目进度信息
+   * 获取项目进度信息（带缓存）
    */
   static async getProjectProgress(): Promise<ProjectProgressInfo[]> {
+    const userId = this.getCurrentUserId();
+    
+    // 检查缓存
+    const cached = timerCache.getProjectProgress(userId);
+    if (cached) {
+      return cached;
+    }
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
@@ -337,7 +441,12 @@ export class DashboardService {
         };
       });
 
-      return await Promise.all(progressPromises);
+      const projectProgress = await Promise.all(progressPromises);
+      
+      // 缓存结果
+      timerCache.cacheProjectProgress(userId, projectProgress);
+      
+      return projectProgress;
     } catch (error) {
       console.error('Error fetching project progress:', error);
       // 返回空数组作为降级
@@ -346,9 +455,16 @@ export class DashboardService {
   }
 
   /**
-   * 获取用户工作负载
+   * 获取用户工作负载（带缓存）
    */
   static async getUserWorkload(): Promise<UserWorkload[]> {
+    const userId = this.getCurrentUserId();
+    
+    // 检查缓存
+    const cached = timerCache.getUserWorkload(userId);
+    if (cached) {
+      return cached;
+    }
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
@@ -392,7 +508,7 @@ export class DashboardService {
       });
 
       // 计算工作负载统计
-      return Array.from(userTasksMap.values()).map(user => {
+      const userWorkload = Array.from(userTasksMap.values()).map(user => {
         const todoTasks = user.tasks.filter(task => task.status === 'todo').length;
         const inProgressTasks = user.tasks.filter(task => task.status === 'in_progress').length;
         
@@ -410,6 +526,11 @@ export class DashboardService {
           totalEstimatedHours
         };
       });
+      
+      // 缓存结果
+      timerCache.cacheUserWorkload(userId, userWorkload);
+      
+      return userWorkload;
     } catch (error) {
       console.error('Error fetching user workload:', error);
       // 返回空数组作为降级
