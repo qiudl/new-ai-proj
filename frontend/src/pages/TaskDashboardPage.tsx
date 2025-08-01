@@ -37,7 +37,8 @@ import {
   UnorderedListOutlined,
   ExclamationCircleOutlined,
   DownloadOutlined,
-  DashboardOutlined
+  DashboardOutlined,
+  ToolOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
@@ -64,6 +65,7 @@ import { useFilterPersistence } from '../hooks/useFilterPersistence';
 import { QuickDatePicker } from '../components/QuickDatePicker';
 import { ExportModal } from '../components/ExportModal';
 import { PerformanceMonitorDashboard } from '../components/PerformanceMonitorDashboard';
+import { SystemValidationPanel } from '../components/SystemValidationPanel';
 import { 
   useComponentPerformanceTracking, 
   usePagePerformanceTracking,
@@ -156,6 +158,7 @@ const TaskDashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [performanceModalVisible, setPerformanceModalVisible] = useState(false);
+  const [validationPanelVisible, setValidationPanelVisible] = useState(false);
 
   // 性能追踪
   const { trackUserInteraction } = useComponentPerformanceTracking('TaskDashboardPage');
@@ -726,6 +729,16 @@ const TaskDashboardPage: React.FC = () => {
               >
                 性能监控
               </Button>
+              <Button 
+                icon={<ToolOutlined />} 
+                onClick={() => {
+                  trackPageAction('system-validation-open');
+                  setValidationPanelVisible(true);
+                }}
+                type="dashed"
+              >
+                系统验证
+              </Button>
             </Space>
           </Col>
         </Row>
@@ -1250,6 +1263,12 @@ const TaskDashboardPage: React.FC = () => {
       <PerformanceMonitorDashboard
         visible={performanceModalVisible}
         onClose={() => setPerformanceModalVisible(false)}
+      />
+
+      {/* 系统验证面板 */}
+      <SystemValidationPanel
+        visible={validationPanelVisible}
+        onClose={() => setValidationPanelVisible(false)}
       />
     </div>
   );
