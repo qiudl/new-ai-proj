@@ -18,6 +18,7 @@ export interface TaskTreeNodeProps {
   showDetails?: boolean;
   onClick?: (task: Task) => void;
   className?: string;
+  searchKeyword?: string;
 }
 
 /**
@@ -33,24 +34,60 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
   showDetails = true,
   onClick,
   className = '',
+  searchKeyword = '',
 }) => {
+  console.log('🔍 [TaskTreeNode] Rendering task:', task.id, task.title, 'level:', level, 'isSelected:', isSelected, 'isDisabled:', isDisabled);
   const handleClick = () => {
     if (!isDisabled && onClick) {
       onClick(task);
     }
   };
 
-
-  const getLevelIcon = (level: number, hasChildren: boolean = false) => {
-    if (level === 0) {
-      return hasChildren ? <FolderOpenOutlined /> : <FolderOutlined />;
-    }
-    return <FileTextOutlined />;
+  // Highlight search keyword in text
+  const highlightText = (text: string, keyword: string) => {
+    if (!keyword.trim()) return text;
+    
+    const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (regex.test(part)) {
+        return <span key={index} className="highlight-keyword">{part}</span>;
+      }
+      return part;
+    });
   };
 
-  // Memoize expensive calculations
+
+  const getLevelColor = (level: number) => {
+    switch (level) {
+      case 0: return '#1890ff';
+      case 1: return '#52c41a';
+      case 2: return '#faad14';
+      case 3: return '#722ed1';
+      default: return '#8c8c8c';
+    }
+  };
+
+  const getLevelIcon = (level: number, hasChildren: boolean = false) => {
+    const color = getLevelColor(level);
+    switch (level) {
+      case 0:
+        return hasChildren ? <FolderOpenOutlined style={{ color }} /> : <FolderOutlined style={{ color }} />;
+      case 1:
+        return <FileTextOutlined style={{ color }} />;
+      case 2:
+        return <FileTextOutlined style={{ color }} />;
+      default:
+        return <FileTextOutlined style={{ color }} />;
+    }
+  };
+
+  // Memoize expensive calculations with enhanced indentation
   const indentStyle = useMemo(() => ({
-    paddingLeft: `${level * 20 + 8}px`,
+    paddingLeft: `${level * 24 + 12}px`,
+    borderLeft: level > 0 ? `2px solid ${getLevelColor(level)}` : 'none',
+    marginLeft: level > 0 ? '8px' : '0',
   }), [level]);
 
   const nodeClassName = useMemo(() => [
@@ -122,12 +159,15 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
         {/* Task title and basic info */}
         <div className="task-tree-node-main">
           <div className="task-tree-node-title">
+            {/* Enhanced level badge */}
+            <span className={`task-level-badge level-${level}`}>
+              {level === 0 ? '根任务' : `L${level + 1}`}
+            </span>
             <Tooltip title={task.description || task.title}>
-              <span className="task-title">{task.title}</span>
+              <span className="task-title">
+                {highlightText(task.title, searchKeyword)}
+              </span>
             </Tooltip>
-            {level > 0 && (
-              <span className="task-level-indicator">L{level}</span>
-            )}
           </div>
 
           {showDetails && (
@@ -230,6 +270,39 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           flex: 1;
         }
 
+        .task-level-badge {
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 500;
+          flex-shrink: 0;
+          margin-right: 4px;
+        }
+
+        .task-level-badge.level-0 {
+          background-color: #e6f7ff;
+          color: #1890ff;
+          border: 1px solid #91d5ff;
+        }
+
+        .task-level-badge.level-1 {
+          background-color: #f6ffed;
+          color: #52c41a;
+          border: 1px solid #b7eb8f;
+        }
+
+        .task-level-badge.level-2 {
+          background-color: #fff7e6;
+          color: #faad14;
+          border: 1px solid #ffd591;
+        }
+
+        .task-level-badge.level-3 {
+          background-color: #f9f0ff;
+          color: #722ed1;
+          border: 1px solid #d3adf7;
+        }
+
         .task-level-indicator {
           background-color: #f0f0f0;
           color: #8c8c8c;
@@ -259,6 +332,14 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           font-size: 12px;
           color: #8c8c8c;
           font-style: italic;
+        }
+
+        .highlight-keyword {
+          background-color: #fff566;
+          padding: 1px 2px;
+          border-radius: 2px;
+          font-weight: 500;
+          color: #d48806;
         }
 
         @media (max-width: 768px) {

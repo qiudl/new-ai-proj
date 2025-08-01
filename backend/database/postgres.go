@@ -128,6 +128,11 @@ func (pdb *PostgresDB) Timer() TimerRepository {
 	return NewTimerRepository(pdb.db)
 }
 
+// UserTimer returns the user timer repository
+func (pdb *PostgresDB) UserTimer() UserTimerRepository {
+	return NewUserTimerRepository(pdb.db)
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db
@@ -231,6 +236,11 @@ func (ptx *PostgresTx) DocumentVersions() DocumentVersionRepository {
 // Timer returns the timer repository for transaction
 func (ptx *PostgresTx) Timer() TimerRepository {
 	return NewTimerRepository(ptx.tx)
+}
+
+// UserTimer returns the user timer repository for transaction
+func (ptx *PostgresTx) UserTimer() UserTimerRepository {
+	return NewUserTimerRepository(ptx.tx)
 }
 
 // Commit commits the transaction

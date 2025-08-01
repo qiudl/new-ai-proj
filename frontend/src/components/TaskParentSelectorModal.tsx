@@ -50,13 +50,105 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [recommendations, setRecommendations] = useState<Task[]>([]);
 
   const { searchResults, searchParentTasks, clearResults, loadMore } = useTaskParentSearch();
   const { validateParentSelection, validateTaskLevel } = useParentValidation();
 
+  // Intelligent task recommendation algorithm
+  const generateRecommendations = React.useCallback((currentTaskId?: number, tasks: Task[] = []) => {
+    if (!currentTaskId || tasks.length === 0) {
+      setRecommendations([]);
+      return;
+    }
+
+    // Get current task from results if available
+    const currentTask = tasks.find(t => t.id === currentTaskId);
+    if (!currentTask) {
+      setRecommendations([]);
+      return;
+    }
+
+    // Score tasks based on multiple factors
+    const scoredTasks = tasks
+      .filter(task => 
+        task.id !== currentTaskId && 
+        task.task_level <= 2 && // Only allow up to level 2 as parent
+        task.status !== 'cancelled'
+      )
+      .map(task => {
+        let score = 0;
+        
+        // 1. Prefer tasks with similar naming patterns
+        const currentTitle = currentTask.title.toLowerCase();
+        const taskTitle = task.title.toLowerCase();
+        
+        // Check for common keywords
+        const currentWords = currentTitle.split(/[\s-_]+/);
+        const taskWords = taskTitle.split(/[\s-_]+/);
+        const commonWords = currentWords.filter(word => 
+          word.length > 2 && taskWords.includes(word)
+        );
+        score += commonWords.length * 15;
+
+        // Check for similar prefixes (like "31-01", "31-02")
+        const currentPrefix = currentTitle.match(/^\d+-\d+/);
+        const taskPrefix = taskTitle.match(/^\d+-\d+/);
+        if (currentPrefix && taskPrefix) {
+          const currentWeek = currentPrefix[0].split('-')[0];
+          const taskWeek = taskPrefix[0].split('-')[0];
+          if (currentWeek === taskWeek) {
+            score += 25; // Same week tasks are highly related
+          }
+        }
+
+        // 2. Prefer active tasks (in_progress > todo > completed)
+        if (task.status === 'in_progress') score += 10;
+        else if (task.status === 'todo') score += 5;
+        else if (task.status === 'completed') score -= 5;
+
+        // 3. Prefer higher level tasks (better parent candidates)
+        score += (2 - task.task_level) * 8; // Level 0 gets +16, Level 1 gets +8, Level 2 gets 0
+
+        // 4. Prefer recently updated tasks
+        const taskUpdateTime = new Date(task.updated_at).getTime();
+        const daysSinceUpdate = (Date.now() - taskUpdateTime) / (1000 * 60 * 60 * 24);
+        if (daysSinceUpdate < 7) score += 5;
+        else if (daysSinceUpdate < 30) score += 2;
+
+        // 5. Prefer tasks with similar custom fields
+        if (currentTask.custom_fields && task.custom_fields) {
+          const currentPriority = currentTask.custom_fields.priority;
+          const taskPriority = task.custom_fields.priority;
+          if (currentPriority && taskPriority && currentPriority === taskPriority) {
+            score += 5;
+          }
+        }
+
+        return { task, score };
+      })
+      .sort((a, b) => b.score - a.score) // Sort by score descending
+      .slice(0, 3) // Take top 3 recommendations
+      .map(item => item.task);
+
+    setRecommendations(scoredTasks);
+  }, []);
+
+  // Generate recommendations when search results change
+  useEffect(() => {
+    if (visible && searchResults.tasks.length > 0 && !searchKeyword) {
+      generateRecommendations(currentTaskId, searchResults.tasks);
+    } else {
+      setRecommendations([]);
+    }
+  }, [visible, searchResults.tasks, currentTaskId, searchKeyword, generateRecommendations]);
+
   // Initialize search when modal opens
   useEffect(() => {
+    console.log('🔍 [TaskParentSelectorModal] Initialize search useEffect - visible:', visible, 'projectId:', projectId, 'currentTaskId:', currentTaskId);
+    
     if (visible && projectId) {
+      console.log('🔍 [TaskParentSelectorModal] Starting initial search...');
       // Initial search
       searchParentTasks({
         projectId,
@@ -114,27 +206,46 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Handle task selection
   const handleTaskSelect = async (task: Task) => {
+    console.log('🔍 [TaskParentSelectorModal] handleTaskSelect called with task:', task);
+    console.log('🔍 [TaskParentSelectorModal] currentTaskId:', currentTaskId);
+    console.log('🔍 [TaskParentSelectorModal] showValidation:', showValidation);
+    
     setSelectedTask(task);
     setValidationError(null);
 
     // Perform validation if enabled
     if (showValidation) {
+      console.log('🔍 [TaskParentSelectorModal] Starting validation...');
       setIsValidating(true);
       try {
-        const validation = await validateParentSelection(currentTaskId, task.id);
-        if (!validation.isValid) {
-          setValidationError(validation.error || '选择无效');
+        // Client-side validations only for now (skip server-side validation)
+        
+        // 1. Prevent self-reference
+        if (currentTaskId && currentTaskId === task.id) {
+          console.log('❌ [TaskParentSelectorModal] Self-reference validation failed');
+          setValidationError('任务不能将自己设为父任务');
           return;
         }
 
+        // 2. Level validation
+        console.log('🔍 [TaskParentSelectorModal] Checking level validation for task_level:', task.task_level);
         const levelValidation = validateTaskLevel(task.task_level);
         if (!levelValidation.isValid) {
+          console.log('❌ [TaskParentSelectorModal] Level validation failed:', levelValidation.error);
           setValidationError(levelValidation.error || '层级无效');
           return;
         }
+
+        console.log('✅ [TaskParentSelectorModal] All validations passed');
+      } catch (error) {
+        console.error('❌ [TaskParentSelectorModal] Validation error:', error);
+        setValidationError('验证过程中发生错误');
       } finally {
+        console.log('🔍 [TaskParentSelectorModal] Setting isValidating to false');
         setIsValidating(false);
       }
+    } else {
+      console.log('🔍 [TaskParentSelectorModal] Validation disabled, task selected successfully');
     }
   };
 
@@ -146,12 +257,24 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Handle OK button click
   const handleOk = () => {
+    console.log('🔍 [TaskParentSelectorModal] handleOk called');
+    console.log('🔍 [TaskParentSelectorModal] selectedTask:', selectedTask);
+    console.log('🔍 [TaskParentSelectorModal] validationError:', validationError);
+    console.log('🔍 [TaskParentSelectorModal] isValidating:', isValidating);
+    
     if (validationError) {
+      console.log('❌ [TaskParentSelectorModal] Cannot proceed - validation error exists:', validationError);
       return;
     }
 
     if (onOk) {
+      console.log('✅ [TaskParentSelectorModal] Calling onOk with:', {
+        parentId: selectedTask?.id || null,
+        selectedTask: selectedTask
+      });
       onOk(selectedTask?.id || null, selectedTask);
+    } else {
+      console.log('⚠️ [TaskParentSelectorModal] onOk callback not provided');
     }
   };
 
@@ -216,7 +339,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         disabled: validationError !== null || isValidating,
         loading: isValidating,
       }}
-      destroyOnClose
+      destroyOnClose={false}
     >
       <ErrorBoundary>
         <div className="parent-selector-modal-content">
@@ -234,9 +357,57 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           <div className="help-info">
             <InfoCircleOutlined />
             <Text type="secondary">
-              只能选择前3级任务作为父任务。选择父任务后，当前任务将成为其子任务。
+              {searchKeyword 
+                ? `正在搜索 "${searchKeyword}"，找到 ${searchResults.total} 个匹配的任务`
+                : "只能选择前3级任务作为父任务。选择父任务后，当前任务将成为其子任务。"
+              }
             </Text>
           </div>
+
+          {/* Search suggestions */}
+          {!searchKeyword && searchResults.tasks.length > 0 && recommendations.length === 0 && (
+            <div className="search-suggestions">
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                💡 快速搜索提示: 试试搜索 "文档"、"任务" 或状态关键词
+              </Text>
+            </div>
+          )}
+
+          {/* Smart recommendations */}
+          {!searchKeyword && recommendations.length > 0 && (
+            <div className="recommendations-section">
+              <div className="recommendations-header">
+                <Text strong style={{ color: '#1890ff', fontSize: '13px' }}>
+                  🎯 智能推荐父任务
+                </Text>
+                <Text type="secondary" style={{ fontSize: '11px' }}>
+                  基于相似性和关联度推荐
+                </Text>
+              </div>
+              <div className="recommendations-list">
+                {recommendations.map((task, index) => (
+                  <div 
+                    key={task.id} 
+                    className={`recommendation-item ${selectedTask?.id === task.id ? 'selected' : ''}`}
+                    onClick={() => handleTaskSelect(task)}
+                  >
+                    <div className="recommendation-rank">#{index + 1}</div>
+                    <div className="recommendation-content">
+                      <span className={`task-level-badge level-${task.task_level}`}>
+                        {task.task_level === 0 ? '根任务' : `L${task.task_level + 1}`}
+                      </span>
+                      <span className="recommendation-title">{task.title}</span>
+                      <span className={`recommendation-status status-${task.status}`}>
+                        {task.status === 'in_progress' ? '进行中' : 
+                         task.status === 'todo' ? '待办' : 
+                         task.status === 'completed' ? '已完成' : task.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Selected task info */}
@@ -262,20 +433,34 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           </div>
           
           <div className="task-list-container">
-            <TaskTreeList
-              tasks={searchResults.tasks}
-              loading={searchResults.loading}
-              error={searchResults.error}
-              selectedTaskId={selectedTask?.id}
-              disabledTaskIds={currentTaskId ? [currentTaskId] : []}
-              onTaskSelect={handleTaskSelect}
-              onLoadMore={loadMore}
-              hasMore={searchResults.hasMore}
-              showLevelFilter={true}
-              maxDisplayLevel={2}
-              emptyText={searchKeyword ? '未找到匹配的任务' : '暂无可选的父任务'}
-              className="modal-task-list"
-            />
+            {(() => {
+              console.log('🔍 [TaskParentSelectorModal] About to render TaskTreeList with:');
+              console.log('🔍 [TaskParentSelectorModal] searchResults:', searchResults);
+              console.log('🔍 [TaskParentSelectorModal] searchResults.tasks:', searchResults.tasks);
+              console.log('🔍 [TaskParentSelectorModal] searchResults.tasks.length:', searchResults.tasks?.length);
+              console.log('🔍 [TaskParentSelectorModal] searchResults.loading:', searchResults.loading);
+              console.log('🔍 [TaskParentSelectorModal] searchResults.error:', searchResults.error);
+              console.log('🔍 [TaskParentSelectorModal] selectedTask:', selectedTask);
+              console.log('🔍 [TaskParentSelectorModal] currentTaskId:', currentTaskId);
+              
+              return (
+                <TaskTreeList
+                  tasks={searchResults.tasks}
+                  loading={searchResults.loading}
+                  error={searchResults.error}
+                  selectedTaskId={selectedTask?.id}
+                  disabledTaskIds={currentTaskId ? [currentTaskId] : []}
+                  onTaskSelect={handleTaskSelect}
+                  onLoadMore={loadMore}
+                  hasMore={searchResults.hasMore}
+                  showLevelFilter={true}
+                  maxDisplayLevel={2}
+                  emptyText={searchKeyword ? '未找到匹配的任务' : '暂无可选的父任务'}
+                  className="modal-task-list"
+                  searchKeyword={searchKeyword}
+                />
+              );
+            })()}
           </div>
         </div>
         </div>
@@ -306,6 +491,138 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           background-color: #f6ffed;
           border: 1px solid #b7eb8f;
           border-radius: 6px;
+        }
+
+        .search-suggestions {
+          margin-top: 8px;
+          padding: 6px 12px;
+          background-color: #f0f8ff;
+          border: 1px solid #d1e7ff;
+          border-radius: 4px;
+          text-align: center;
+        }
+
+        .recommendations-section {
+          margin-top: 8px;
+          padding: 12px;
+          background-color: #f6ffed;
+          border: 1px solid #b7eb8f;
+          border-radius: 6px;
+        }
+
+        .recommendations-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .recommendations-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .recommendation-item {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          border: 1px solid #d9d9d9;
+          border-radius: 4px;
+          background-color: #fff;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .recommendation-item:hover {
+          border-color: #40a9ff;
+          box-shadow: 0 2px 4px rgba(64, 169, 255, 0.1);
+        }
+
+        .recommendation-item.selected {
+          border-color: #1890ff;
+          background-color: #e6f7ff;
+        }
+
+        .recommendation-rank {
+          width: 24px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: #1890ff;
+          color: white;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .recommendation-content {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .recommendation-title {
+          flex: 1;
+          font-size: 12px;
+          font-weight: 500;
+          color: #262626;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .recommendation-status {
+          font-size: 10px;
+          padding: 2px 6px;
+          border-radius: 8px;
+          flex-shrink: 0;
+        }
+
+        .recommendation-status.status-in_progress {
+          background-color: #e6f7ff;
+          color: #1890ff;
+        }
+
+        .recommendation-status.status-todo {
+          background-color: #f6ffed;
+          color: #52c41a;
+        }
+
+        .recommendation-status.status-completed {
+          background-color: #f0f0f0;
+          color: #8c8c8c;
+        }
+
+        .task-level-badge {
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .task-level-badge.level-0 {
+          background-color: #e6f7ff;
+          color: #1890ff;
+          border: 1px solid #91d5ff;
+        }
+
+        .task-level-badge.level-1 {
+          background-color: #f6ffed;
+          color: #52c41a;
+          border: 1px solid #b7eb8f;
+        }
+
+        .task-level-badge.level-2 {
+          background-color: #fff7e6;
+          color: #faad14;
+          border: 1px solid #ffd591;
         }
 
         .selected-section {

@@ -380,6 +380,34 @@ type TimerRepository interface {
 	GetWeeklyReport(ctx context.Context, userID int, startDate, endDate string) (*models.WeeklyReportResponse, error)
 }
 
+// UserTimerRepository defines the interface for user timer task operations
+type UserTimerRepository interface {
+	// CRUD operations
+	Create(ctx context.Context, task *models.UserTimerTask) (*models.UserTimerTask, error)
+	GetByID(ctx context.Context, id int) (*models.UserTimerTask, error)
+	GetByUserID(ctx context.Context, userID int, filter *models.UserTimerFilter, limit, offset int) ([]*models.UserTimerTask, int, error)
+	Update(ctx context.Context, task *models.UserTimerTask) (*models.UserTimerTask, error)
+	Delete(ctx context.Context, id int) error
+	SoftDelete(ctx context.Context, id int) error
+	
+	// Personal timer operations
+	ToggleFavorite(ctx context.Context, id int, isFavorite bool) error
+	UpdateStatus(ctx context.Context, id int, status string) error
+	GetFavoritesByUserID(ctx context.Context, userID int, limit int) ([]*models.UserTimerTask, error)
+	GetActiveByUserID(ctx context.Context, userID int, limit int) ([]*models.UserTimerTask, error)
+	
+	// Statistics and analytics
+	GetUserTimerStats(ctx context.Context, userID int) (*models.PersonalTimerSummary, error)
+	GetDashboardData(ctx context.Context, userID int) (*models.PersonalTimerDashboard, error)
+	GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error)
+	GetTodayStats(ctx context.Context, userID int) (*models.PersonalTimerTodayStats, error)
+	GetAnalytics(ctx context.Context, userID int, dateRange string) (*models.PersonalTimerAnalytics, error)
+	
+	// Task validation
+	CheckUserOwnership(ctx context.Context, taskID, userID int) (bool, error)
+	CheckTitleExists(ctx context.Context, userID int, title string, excludeID *int) (bool, error)
+}
+
 // DB defines the database interface that combines all repositories
 type DB interface {
 	Users() UserRepository
@@ -396,6 +424,7 @@ type DB interface {
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository
 	Timer() TimerRepository
+	UserTimer() UserTimerRepository // Personal timer tasks
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
@@ -417,6 +446,7 @@ type Tx interface {
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository
 	Timer() TimerRepository
+	UserTimer() UserTimerRepository
 	Commit() error
 	Rollback() error
 }

@@ -18,6 +18,7 @@ export interface TaskTreeListProps {
   hasMore?: boolean;
   className?: string;
   emptyText?: string;
+  searchKeyword?: string;
 }
 
 /**
@@ -38,30 +39,55 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
   hasMore = false,
   className = '',
   emptyText = '暂无可选的父任务',
+  searchKeyword = '',
 }) => {
+  console.log('🔍 [TaskTreeList] Component props:', {
+    tasks: tasks?.length || 0,
+    loading,
+    error,
+    selectedTaskId,
+    disabledTaskIds,
+    showDetails,
+    showLevelFilter,
+    maxDisplayLevel,
+    searchKeyword,
+    className,
+    emptyText
+  });
+  console.log('🔍 [TaskTreeList] Tasks data:', tasks);
   // Ensure tasks is always an array
   const safeTasks = React.useMemo(() => {
-    return Array.isArray(tasks) ? tasks : [];
+    const result = Array.isArray(tasks) ? tasks : [];
+    console.log('🔍 [TaskTreeList] safeTasks result:', result);
+    return result;
   }, [tasks]);
 
   // Filter tasks by level if specified
   const filteredTasks = React.useMemo(() => {
+    let result;
     if (!showLevelFilter || maxDisplayLevel === undefined) {
-      return safeTasks;
+      result = safeTasks;
+    } else {
+      result = safeTasks.filter(task => task.task_level <= maxDisplayLevel);
     }
-    return safeTasks.filter(task => task.task_level <= maxDisplayLevel);
+    console.log('🔍 [TaskTreeList] filteredTasks result:', result);
+    console.log('🔍 [TaskTreeList] Filter conditions - showLevelFilter:', showLevelFilter, 'maxDisplayLevel:', maxDisplayLevel);
+    return result;
   }, [safeTasks, showLevelFilter, maxDisplayLevel]);
 
   // Group tasks by level for better display
   const tasksByLevel = React.useMemo(() => {
     const groups: { [level: number]: Task[] } = {};
+    console.log('🔍 [TaskTreeList] Grouping filteredTasks:', filteredTasks);
     filteredTasks.forEach(task => {
       const level = task.task_level || 0;
+      console.log('🔍 [TaskTreeList] Processing task:', task.id, 'level:', level, 'title:', task.title);
       if (!groups[level]) {
         groups[level] = [];
       }
       groups[level].push(task);
     });
+    console.log('🔍 [TaskTreeList] Final tasksByLevel groups:', groups);
     return groups;
   }, [filteredTasks]);
 
@@ -78,7 +104,10 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
   };
 
   const renderTasks = () => {
+    console.log('🔍 [TaskTreeList] renderTasks called - error:', error, 'loading:', loading, 'filteredTasks.length:', filteredTasks.length);
+    
     if (error) {
+      console.log('❌ [TaskTreeList] Rendering error state:', error);
       return (
         <Alert
           message="加载失败"
@@ -91,6 +120,7 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
     }
 
     if (!loading && filteredTasks.length === 0) {
+      console.log('📋 [TaskTreeList] Rendering empty state - emptyText:', emptyText);
       return (
         <Empty
           description={emptyText}
@@ -103,33 +133,49 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
     const sortedLevels = Object.keys(tasksByLevel)
       .map(Number)
       .sort((a, b) => a - b);
+    
+    console.log('🔍 [TaskTreeList] sortedLevels:', sortedLevels);
+    console.log('🔍 [TaskTreeList] About to render tasks for levels:', sortedLevels);
 
     return (
       <div className="task-tree-content">
-        {sortedLevels.map(level => (
-          <div key={level} className="task-level-group">
-            {showLevelFilter && level > 0 && (
-              <div className="level-separator">
-                <span className="level-label">第{level + 1}级任务</span>
-              </div>
-            )}
-            
-            {tasksByLevel[level]
-              .sort((a, b) => a.title.localeCompare(b.title))
-              .map(task => (
-                <TaskTreeNode
-                  key={task.id}
-                  task={task}
-                  level={level}
-                  isSelected={selectedTaskId === task.id}
-                  isDisabled={disabledTaskIds.includes(task.id)}
-                  showDetails={showDetails}
-                  onClick={handleTaskClick}
-                  className="task-tree-item"
-                />
-              ))}
-          </div>
-        ))}
+        {sortedLevels.map(level => {
+          const levelTasks = tasksByLevel[level];
+          console.log(`🔍 [TaskTreeList] Rendering level ${level} with ${levelTasks?.length || 0} tasks:`, levelTasks);
+          
+          return (
+            <div key={level} className="task-level-group">
+              {showLevelFilter && level > 0 && (
+                <div className={`level-separator level-${level}`}>
+                  <div className="level-line"></div>
+                  <span className={`level-label level-${level}`}>
+                    {'└'.repeat(level)} 第{level + 1}级任务 ({tasksByLevel[level].length}个)
+                  </span>
+                  <div className="level-line"></div>
+                </div>
+              )}
+              
+              {tasksByLevel[level]
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .map(task => {
+                  console.log(`🔍 [TaskTreeList] Rendering TaskTreeNode for task:`, task.id, task.title);
+                  return (
+                    <TaskTreeNode
+                      key={task.id}
+                      task={task}
+                      level={level}
+                      isSelected={selectedTaskId === task.id}
+                      isDisabled={disabledTaskIds.includes(task.id)}
+                      showDetails={showDetails}
+                      onClick={handleTaskClick}
+                      className="task-tree-item"
+                      searchKeyword={searchKeyword}
+                    />
+                  );
+                })}
+            </div>
+          );
+        })}
 
         {/* Load more button */}
         {hasMore && (
@@ -195,7 +241,8 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
         }
 
         .task-level-group {
-          margin-bottom: 8px;
+          margin-bottom: 12px;
+          position: relative;
         }
 
         .task-level-group:last-child {
@@ -203,17 +250,57 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
         }
 
         .level-separator {
-          margin: 12px 0 8px 0;
-          padding: 0 8px;
+          display: flex;
+          align-items: center;
+          margin: 16px 12px 12px 12px;
+          font-size: 12px;
+        }
+
+        .level-separator.level-1 {
+          margin-left: 24px;
+        }
+
+        .level-separator.level-2 {
+          margin-left: 36px;
+        }
+
+        .level-separator.level-3 {
+          margin-left: 48px;
+        }
+
+        .level-line {
+          flex: 1;
+          height: 1px;
+          background: linear-gradient(to right, transparent, #d9d9d9, transparent);
         }
 
         .level-label {
-          font-size: 12px;
+          padding: 4px 12px;
+          white-space: nowrap;
+          background-color: #fafafa;
+          border: 1px solid #d9d9d9;
+          border-radius: 12px;
           font-weight: 500;
-          color: #8c8c8c;
-          background-color: #f5f5f5;
-          padding: 4px 8px;
-          border-radius: 3px;
+          margin: 0 8px;
+          font-size: 11px;
+        }
+
+        .level-label.level-1 {
+          color: #52c41a;
+          border-color: #b7eb8f;
+          background-color: #f6ffed;
+        }
+
+        .level-label.level-2 {
+          color: #faad14;
+          border-color: #ffd591;
+          background-color: #fff7e6;
+        }
+
+        .level-label.level-3 {
+          color: #722ed1;
+          border-color: #d3adf7;
+          background-color: #f9f0ff;
         }
 
         .task-tree-item {

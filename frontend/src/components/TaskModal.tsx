@@ -56,28 +56,49 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   // Load parent task information when we have parent_id but no parent_title
   const loadParentTaskInfo = async (parentId: number) => {
-    if (!projectId || parentId <= 0) return;
+    console.log('🔍 [TaskModal] loadParentTaskInfo called with parentId:', parentId);
+    console.log('🔍 [TaskModal] Current projectId:', projectId);
+    
+    if (!projectId || parentId <= 0) {
+      console.warn('⚠️ [TaskModal] Invalid parameters - projectId:', projectId, 'parentId:', parentId);
+      return;
+    }
     
     try {
+      console.log('🔍 [TaskModal] Setting loadingParentTask to true');
       setLoadingParentTask(true);
+      
+      console.log('🔍 [TaskModal] Calling TaskService.getTask with projectId:', projectId, 'parentId:', parentId);
       const response = await TaskService.getTask(projectId, parentId);
+      console.log('🔍 [TaskModal] TaskService.getTask response:', response);
+      
       if (response) {
+        console.log('✅ [TaskModal] Setting selected parent task:', response);
         setSelectedParentTask(response);
+      } else {
+        console.warn('⚠️ [TaskModal] No response received, setting parent task to null');
+        setSelectedParentTask(null);
       }
     } catch (error) {
-      console.error('Failed to load parent task info:', error);
+      console.error('❌ [TaskModal] Failed to load parent task info:', error);
       // Reset to null if we can't load parent task info
       setSelectedParentTask(null);
     } finally {
+      console.log('🔍 [TaskModal] Setting loadingParentTask to false');
       setLoadingParentTask(false);
     }
   };
 
   useEffect(() => {
+    console.log('🔍 [TaskModal] useEffect triggered - visible:', visible, 'task:', task, 'mode:', mode);
+    
     if (visible) {
       if (task) {
+        console.log('🔍 [TaskModal] Edit mode - task data:', task);
+        console.log('🔍 [TaskModal] Task parent_id:', task.parent_id, 'parent_title:', task.parent_title);
+        
         // Edit mode - populate form with task data
-        form.setFieldsValue({
+        const formValues = {
           title: task.title,
           description: task.description,
           status: task.status,
@@ -87,12 +108,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
           tags: task.custom_fields?.tags?.join(', ') || '',
           estimated_hours: task.custom_fields?.estimated_hours,
           parent_id: task.parent_id,
-        });
+        };
+        console.log('🔍 [TaskModal] Setting form values:', formValues);
+        form.setFieldsValue(formValues);
         
         // Set selected parent task for display
         if (task.parent_id && task.parent_title) {
+          console.log('✅ [TaskModal] Task has both parent_id and parent_title - setting selected parent task');
           // Only set if we have complete parent task information
-          setSelectedParentTask({
+          const parentTaskData = {
             id: task.parent_id,
             title: task.parent_title,
             task_level: 0, // Will be updated by parent selector if needed
@@ -101,11 +125,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
             created_at: '',
             updated_at: '',
             description: '',
-          } as Task);
+          } as Task;
+          console.log('🔍 [TaskModal] Created parent task object:', parentTaskData);
+          setSelectedParentTask(parentTaskData);
         } else if (task.parent_id && !task.parent_title) {
+          console.log('⚠️ [TaskModal] Task has parent_id but no parent_title - fetching parent info');
           // If we have parent_id but no title, fetch parent task information
           loadParentTaskInfo(task.parent_id);
         } else {
+          console.log('🔍 [TaskModal] Task has no parent - setting selected parent task to null');
           setSelectedParentTask(null);
         }
       } else if (mode === 'createSibling' && siblingTask) {
@@ -149,9 +177,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   // Handle parent task selection
   const handleParentSelect = (parentId: number | null, parentTask: Task | null) => {
+    console.log('🔍 [TaskModal] handleParentSelect called with:', {
+      parentId,
+      parentTask: parentTask ? { id: parentTask.id, title: parentTask.title } : null
+    });
+    
     form.setFieldValue('parent_id', parentId);
+    console.log('🔍 [TaskModal] Form parent_id field set to:', parentId);
+    
     setSelectedParentTask(parentTask);
+    console.log('🔍 [TaskModal] selectedParentTask state updated to:', parentTask ? parentTask.title : null);
+    
     setParentSelectorVisible(false);
+    console.log('✅ [TaskModal] Parent selector modal closed successfully');
   };
 
   // Handle opening parent selector
@@ -444,58 +482,71 @@ const TaskModal: React.FC<TaskModalProps> = ({
             help="选择父任务，将此任务作为子任务。支持搜索和层级显示。"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {loadingParentTask ? (
-                <div style={{ 
-                  flex: 1, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  padding: '4px 8px',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: 6,
-                  backgroundColor: '#fafafa'
-                }}>
-                  <Spin size="small" />
-                  <span style={{ color: '#8c8c8c' }}>正在加载父任务信息...</span>
-                </div>
-              ) : selectedParentTask ? (
-                <div style={{ 
-                  flex: 1, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 8,
-                  padding: '4px 8px',
-                  border: '1px solid #d9d9d9',
-                  borderRadius: 6,
-                  backgroundColor: '#fafafa'
-                }}>
-                  <FolderOutlined style={{ color: '#1890ff' }} />
-                  <span style={{ flex: 1 }}>{selectedParentTask.title}</span>
-                  <Tag color="blue">
-                    L{selectedParentTask.task_level + 1}
-                  </Tag>
-                  <Tooltip title="清除选择">
-                    <Button 
-                      type="text" 
-                      size="small" 
-                      onClick={() => handleParentSelect(null, null)}
-                    >
-                      ✕
-                    </Button>
-                  </Tooltip>
-                </div>
-              ) : (
-                <div style={{ 
-                  flex: 1, 
-                  padding: '4px 8px',
-                  border: '1px dashed #d9d9d9',
-                  borderRadius: 6,
-                  color: '#8c8c8c',
-                  textAlign: 'center'
-                }}>
-                  未选择父任务（根任务）
-                </div>
-              )}
+              {(() => {
+                console.log('🔍 [TaskModal] Rendering parent task display - loadingParentTask:', loadingParentTask, 'selectedParentTask:', selectedParentTask);
+                
+                if (loadingParentTask) {
+                  console.log('🔄 [TaskModal] Showing loading state');
+                  return (
+                    <div style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8,
+                      padding: '4px 8px',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 6,
+                      backgroundColor: '#fafafa'
+                    }}>
+                      <Spin size="small" />
+                      <span style={{ color: '#8c8c8c' }}>正在加载父任务信息...</span>
+                    </div>
+                  );
+                } else if (selectedParentTask) {
+                  console.log('✅ [TaskModal] Showing selected parent task:', selectedParentTask);
+                  return (
+                    <div style={{ 
+                      flex: 1, 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 8,
+                      padding: '4px 8px',
+                      border: '1px solid #d9d9d9',
+                      borderRadius: 6,
+                      backgroundColor: '#fafafa'
+                    }}>
+                      <FolderOutlined style={{ color: '#1890ff' }} />
+                      <span style={{ flex: 1 }}>{selectedParentTask.title}</span>
+                      <Tag color="blue">
+                        L{selectedParentTask.task_level + 1}
+                      </Tag>
+                      <Tooltip title="清除选择">
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          onClick={() => handleParentSelect(null, null)}
+                        >
+                          ✕
+                        </Button>
+                      </Tooltip>
+                    </div>
+                  );
+                } else {
+                  console.log('📋 [TaskModal] Showing no parent selected state');
+                  return (
+                    <div style={{ 
+                      flex: 1, 
+                      padding: '4px 8px',
+                      border: '1px dashed #d9d9d9',
+                      borderRadius: 6,
+                      color: '#8c8c8c',
+                      textAlign: 'center'
+                    }}>
+                      未选择父任务（根任务）
+                    </div>
+                  );
+                }
+              })()}
               <Button
                 type="primary"
                 icon={<EditOutlined />}
