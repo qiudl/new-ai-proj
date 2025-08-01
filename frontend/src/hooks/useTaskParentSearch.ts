@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Task, PaginatedResponse } from '../types/task';
 import api from '../services/api';
 import { logApiError } from '../utils/logger';
@@ -27,6 +27,10 @@ export interface UseTaskParentSearchReturn {
   loadMore: () => Promise<void>;
 }
 
+// Cache for search results to avoid unnecessary API calls
+const searchCache = new Map<string, { data: Task[]; total: number; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Hook for searching potential parent tasks
  * Provides search functionality with pagination and caching
@@ -41,13 +45,74 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
   });
 
   const [currentParams, setCurrentParams] = useState<ParentSearchParams | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isUnmountedRef = useRef(false);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Generate cache key for search params
+  const getCacheKey = useCallback((params: ParentSearchParams): string => {
+    return JSON.stringify({
+      projectId: params.projectId,
+      keyword: params.keyword || '',
+      excludeTaskId: params.excludeTaskId,
+      maxLevel: params.maxLevel,
+      limit: params.limit,
+      offset: params.offset,
+    });
+  }, []);
+
+  // Check if cache is valid
+  const getCachedResult = useCallback((cacheKey: string) => {
+    const cached = searchCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached;
+    }
+    return null;
+  }, []);
 
   /**
    * Search for potential parent tasks
    */
   const searchParentTasks = useCallback(async (params: ParentSearchParams) => {
+    // Abort previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const cacheKey = getCacheKey(params);
+    
+    // Check cache first
+    const cachedResult = getCachedResult(cacheKey);
+    if (cachedResult) {
+      if (!isUnmountedRef.current) {
+        setSearchResults({
+          tasks: cachedResult.data,
+          total: cachedResult.total,
+          loading: false,
+          error: null,
+          hasMore: cachedResult.data.length < cachedResult.total,
+        });
+        setCurrentParams(params);
+      }
+      return;
+    }
+
     try {
-      setSearchResults(prev => ({ ...prev, loading: true, error: null }));
+      if (!isUnmountedRef.current) {
+        setSearchResults(prev => ({ ...prev, loading: true, error: null }));
+      }
+
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
       setCurrentParams(params);
 
       const searchParams = {
@@ -59,8 +124,16 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
 
       const response = await api.get(
         `/projects/${params.projectId}/tasks/search-parents`,
-        { params: searchParams }
+        { 
+          params: searchParams,
+          signal: abortControllerRef.current.signal
+        }
       );
+
+      // Check if component is still mounted
+      if (isUnmountedRef.current) {
+        return;
+      }
 
       // response is already unwrapped by axios interceptor
       // Handle both formats: {data, pagination} and {data, total}
@@ -78,6 +151,15 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       
       const isLoadMore = (params.offset || 0) > 0;
 
+      // Cache the result for first page searches
+      if (!isLoadMore) {
+        searchCache.set(cacheKey, {
+          data,
+          total,
+          timestamp: Date.now(),
+        });
+      }
+
       setSearchResults(prev => ({
         tasks: isLoadMore ? [...prev.tasks, ...data] : data,
         total,
@@ -87,6 +169,15 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       }));
 
     } catch (error) {
+      // Don't update state if request was aborted or component unmounted
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+      
+      if (isUnmountedRef.current) {
+        return;
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Search failed';
       logApiError('searchParentTasks', error, params);
       
@@ -96,7 +187,7 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         error: errorMessage,
       }));
     }
-  }, []);
+  }, [getCacheKey, getCachedResult]);
 
   /**
    * Load more results for pagination

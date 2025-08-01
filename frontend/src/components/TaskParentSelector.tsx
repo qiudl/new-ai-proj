@@ -220,10 +220,10 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           />
         )}
 
-        {/* Help text */}
+        {/* Help text with improved UX */}
         <div className="help-text">
           <InfoCircleOutlined />
-          <span>只能选择前3级任务作为父任务</span>
+          <span>只能选择前3级任务作为父任务，选择后将创建层级关系</span>
         </div>
 
         {/* Validation loading */}

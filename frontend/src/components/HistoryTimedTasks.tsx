@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, List, Typography, Spin, Empty, Button, Tag, Space, Tooltip } from 'antd';
 import { ClockCircleOutlined, ReloadOutlined, ProjectOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import TimerService from '../services/timerService';
+import { useTimer } from '../contexts/TimerContext';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+import 'dayjs/locale/zh-cn';
+import '../styles/HistoryTimedTasks.css';
 interface RecentTimedTask {
   task_id: number;
   task_title: string;
@@ -11,11 +16,6 @@ interface RecentTimedTask {
   formatted_time: string;
   status: string;
 }
-import { useTimer } from '../contexts/TimerContext';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/zh-cn';
-import '../styles/HistoryTimedTasks.css';
 
 // 配置dayjs
 dayjs.extend(relativeTime);

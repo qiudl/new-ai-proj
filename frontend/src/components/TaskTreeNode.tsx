@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Task } from '../types/task';
 import { Tag, Tooltip } from 'antd';
 import {
@@ -23,8 +23,9 @@ export interface TaskTreeNodeProps {
 /**
  * Task tree node component for hierarchical display
  * Shows task information in a tree structure with level indentation
+ * Memoized for performance optimization
  */
-export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
+export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
   task,
   level,
   isSelected = false,
@@ -39,33 +40,6 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'success';
-      case 'in_progress':
-        return 'processing';
-      case 'cancelled':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'todo':
-        return '待办';
-      case 'in_progress':
-        return '进行中';
-      case 'completed':
-        return '已完成';
-      case 'cancelled':
-        return '已取消';
-      default:
-        return status;
-    }
-  };
 
   const getLevelIcon = (level: number, hasChildren: boolean = false) => {
     if (level === 0) {
@@ -74,12 +48,12 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
     return <FileTextOutlined />;
   };
 
-  // Calculate indentation based on level
-  const indentStyle = {
+  // Memoize expensive calculations
+  const indentStyle = useMemo(() => ({
     paddingLeft: `${level * 20 + 8}px`,
-  };
+  }), [level]);
 
-  const nodeClassName = [
+  const nodeClassName = useMemo(() => [
     'task-tree-node',
     isSelected ? 'selected' : '',
     isDisabled ? 'disabled' : '',
@@ -87,7 +61,43 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
     className,
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(' '), [isSelected, isDisabled, onClick, className]);
+
+  // Memoize status-related calculations
+  const statusInfo = useMemo(() => {
+    const getStatusColor = (status: string) => {
+      switch (status) {
+        case 'completed':
+          return 'success';
+        case 'in_progress':
+          return 'processing';
+        case 'cancelled':
+          return 'error';
+        default:
+          return 'default';
+      }
+    };
+
+    const getStatusText = (status: string) => {
+      switch (status) {
+        case 'todo':
+          return '待办';
+        case 'in_progress':
+          return '进行中';
+        case 'completed':
+          return '已完成';
+        case 'cancelled':
+          return '已取消';
+        default:
+          return status;
+      }
+    };
+
+    return {
+      color: getStatusColor(task.status),
+      text: getStatusText(task.status),
+    };
+  }, [task.status]);
 
   return (
     <div
@@ -123,8 +133,8 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
           {showDetails && (
             <div className="task-tree-node-details">
               {/* Status tag */}
-              <Tag color={getStatusColor(task.status)}>
-                {getStatusText(task.status)}
+              <Tag color={statusInfo.color}>
+                {statusInfo.text}
               </Tag>
 
               {/* Due date */}
@@ -270,4 +280,19 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = ({
       }} />
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memoization
+  return (
+    prevProps.task.id === nextProps.task.id &&
+    prevProps.task.title === nextProps.task.title &&
+    prevProps.task.status === nextProps.task.status &&
+    prevProps.task.due_date === nextProps.task.due_date &&
+    prevProps.task.assignee_id === nextProps.task.assignee_id &&
+    prevProps.level === nextProps.level &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.isDisabled === nextProps.isDisabled &&
+    prevProps.showDetails === nextProps.showDetails &&
+    prevProps.className === nextProps.className &&
+    prevProps.onClick === nextProps.onClick
+  );
+});

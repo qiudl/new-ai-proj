@@ -30,8 +30,8 @@ func (r *PostgresTimerRepository) getExecer() execer {
 // Create creates a new task time log entry
 func (r *PostgresTimerRepository) Create(ctx context.Context, log *models.TaskTimeLog) error {
 	query := `
-		INSERT INTO task_time_logs (task_id, user_id, start_time, end_time, duration_seconds)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO task_time_logs (task_id, user_id, start_time, end_time, duration_seconds, created_by)
+		VALUES ($1, $2, $3, $4, $5, $2)
 		RETURNING id, created_at, updated_at`
 
 	row := r.getExecer().QueryRowContext(ctx, query, log.TaskID, log.UserID, log.StartTime, log.EndTime, log.DurationSeconds)
