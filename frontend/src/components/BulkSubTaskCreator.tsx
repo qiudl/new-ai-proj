@@ -301,7 +301,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
 
       // 转换为TaskRequest格式
       const taskRequests = validRows.map((row, index) => {
-        const taskName = generateSubTaskName(parentTask.id, index, row.title.trim(), currentWeek);
+        const taskName = generateSubTaskName(parentTask.id, index, row.title.trim(), parentTask.title, currentWeek);
         
         return {
           taskRequest: {
@@ -604,7 +604,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                     <div className="task-name-preview">
                       <Text type="secondary">预览：</Text>
                       <Text className="task-name-preview-text">
-                        {getTaskNamePreview(parentTask.id, text, currentWeek, index)}
+                        {getTaskNamePreview(parentTask.id, text, parentTask.title, currentWeek, index)}
                       </Text>
                     </div>
                   )}
