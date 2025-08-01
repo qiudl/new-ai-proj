@@ -152,7 +152,7 @@ export const personalTimerService = {
       timerCache.invalidateTasksCache(userId);
     }
     
-    return response.data;
+    return response;
   },
 
   // 获取个人计时任务列表
@@ -173,34 +173,34 @@ export const personalTimerService = {
     
     // 缓存结果
     if (userId) {
-      timerCache.cacheTimerTasks(userId, response.data, params);
+      timerCache.cacheTimerTasks(userId, response, params);
     }
     
-    return response.data;
+    return response;
   },
 
   // 获取单个个人计时任务
   async getUserTimerTask(id: number): Promise<UserTimerTaskResponse> {
     const response = await api.get(`/user/timer-tasks/${id}`);
-    return response.data;
+    return response;
   },
 
   // 更新个人计时任务
   async updateUserTimerTask(id: number, data: UserTimerTaskRequest): Promise<{ message: string; task: UserTimerTaskResponse }> {
     const response = await api.put(`/user/timer-tasks/${id}`, data);
-    return response.data;
+    return response;
   },
 
   // 删除个人计时任务
   async deleteUserTimerTask(id: number): Promise<{ message: string }> {
     const response = await api.delete(`/user/timer-tasks/${id}`);
-    return response.data;
+    return response;
   },
 
   // 切换收藏状态
   async toggleFavoriteUserTimerTask(id: number, isFavorite: boolean): Promise<{ message: string; is_favorite: boolean }> {
     const response = await api.post(`/user/timer-tasks/${id}/favorite`, { is_favorite: isFavorite });
-    return response.data;
+    return response;
   },
 
   // ========== 个人计时操作 ==========
@@ -208,25 +208,25 @@ export const personalTimerService = {
   // 开始个人计时
   async startPersonalTimer(data: PersonalTimerStartRequest): Promise<any> {
     const response = await api.post('/user/timer/start-personal', data);
-    return response.data;
+    return response;
   },
 
   // 开始项目计时
   async startProjectTimer(data: PersonalTimerStartRequest): Promise<any> {
     const response = await api.post('/user/timer/start-project', data);
-    return response.data;
+    return response;
   },
 
   // 停止计时
   async stopTimer(): Promise<any> {
     const response = await api.post('/user/timer/stop');
-    return response.data;
+    return response;
   },
 
   // 获取当前计时状态
   async getCurrentTimer(): Promise<PersonalTimerCurrent> {
     const response = await api.get('/user/timer/current');
-    return response.data;
+    return response;
   },
 
   // ========== 仪表板和统计 ==========
@@ -244,30 +244,30 @@ export const personalTimerService = {
 
     const response = await api.get('/user/timer/dashboard');
     
-    // 缓存结果
+    // 缓存结果 - response已经被axios拦截器处理，直接使用response
     if (userId) {
-      timerCache.cacheDashboard(userId, response.data);
+      timerCache.cacheDashboard(userId, response);
     }
     
-    return response.data;
+    return response;
   },
 
   // 获取个人计时统计
   async getStats(): Promise<PersonalTimerSummary> {
     const response = await api.get('/user/timer/stats');
-    return response.data;
+    return response;
   },
 
   // 获取计时历史
   async getHistory(params?: { limit?: number; offset?: number }): Promise<{ sessions: PersonalTimerSession[]; limit: number; offset: number }> {
     const response = await api.get('/user/timer/history', { params });
-    return response.data;
+    return response;
   },
 
   // 获取分析报告
   async getAnalytics(params?: { range?: string }): Promise<any> {
     const response = await api.get('/user/timer/analytics', { params });
-    return response.data;
+    return response;
   },
 
   // ========== 辅助方法 ==========

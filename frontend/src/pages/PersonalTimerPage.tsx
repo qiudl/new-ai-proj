@@ -93,7 +93,14 @@ const PersonalTimerPage: React.FC = () => {
       
       // 验证数据结构
       if (!data || typeof data !== 'object') {
+        console.error('Dashboard API returned invalid data:', data);
         throw new Error('Invalid dashboard data structure');
+      }
+      
+      // 验证必要字段
+      if (!data.hasOwnProperty('current_timer') || !data.hasOwnProperty('today_stats')) {
+        console.error('Dashboard data missing required fields:', data);
+        throw new Error('Dashboard data missing required fields');
       }
       
       setDashboardData(data);

@@ -139,12 +139,14 @@ const PersonalTimerControl: React.FC<PersonalTimerControlProps> = ({
           <span>计时器控制</span>
         </Space>
       }
-      bodyStyle={{
-        background: currentTimer?.is_running 
-          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-          : '#f9f9f9',
-        color: currentTimer?.is_running ? 'white' : 'inherit',
-        borderRadius: '8px'
+      styles={{
+        body: {
+          background: currentTimer?.is_running 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+            : '#f9f9f9',
+          color: currentTimer?.is_running ? 'white' : 'inherit',
+          borderRadius: '8px'
+        }
       }}
     >
       {currentTimer?.is_running ? (
