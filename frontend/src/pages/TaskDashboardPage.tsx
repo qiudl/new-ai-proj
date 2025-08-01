@@ -36,7 +36,8 @@ import {
   AppstoreOutlined,
   UnorderedListOutlined,
   ExclamationCircleOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  DashboardOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
@@ -62,6 +63,12 @@ import { useTaskDashboardUrlState, generateShareableUrl } from '../hooks/useUrlS
 import { useFilterPersistence } from '../hooks/useFilterPersistence';
 import { QuickDatePicker } from '../components/QuickDatePicker';
 import { ExportModal } from '../components/ExportModal';
+import { PerformanceMonitorDashboard } from '../components/PerformanceMonitorDashboard';
+import { 
+  useComponentPerformanceTracking, 
+  usePagePerformanceTracking,
+  useSearchPerformanceTracking
+} from '../hooks/usePerformanceTracking';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
@@ -148,6 +155,12 @@ const TaskDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
+  const [performanceModalVisible, setPerformanceModalVisible] = useState(false);
+
+  // 性能追踪
+  const { trackUserInteraction } = useComponentPerformanceTracking('TaskDashboardPage');
+  const { trackPageAction } = usePagePerformanceTracking('task-dashboard');
+  const { trackSearchStart, trackSearchResult } = useSearchPerformanceTracking('task-dashboard-search');
   
   // URL状态管理
   const [urlFilters, setUrlFilters] = useTaskDashboardUrlState();
@@ -178,11 +191,33 @@ const TaskDashboardPage: React.FC = () => {
     setUrlFilters({ ...urlFilters, [key]: value });
   };
   
-  const setSelectedWeek = (week: Dayjs) => updateFilter('selectedWeek', week);
-  const setSelectedProject = (projectId: number | undefined) => updateFilter('selectedProject', projectId);
-  const setSelectedCustomer = (customerId: number | undefined) => updateFilter('selectedCustomer', customerId);
-  const setSelectedStatus = (status: string) => updateFilter('selectedStatus', status);
-  const setSearchText = (text: string) => updateFilter('searchText', text);
+  const setSelectedWeek = (week: Dayjs) => {
+    trackUserInteraction('week-selection', { 
+      from: selectedWeek.format('YYYY-MM-DD'), 
+      to: week.format('YYYY-MM-DD') 
+    });
+    updateFilter('selectedWeek', week);
+  };
+  const setSelectedProject = (projectId: number | undefined) => {
+    trackUserInteraction('project-filter', { projectId });
+    updateFilter('selectedProject', projectId);
+  };
+  const setSelectedCustomer = (customerId: number | undefined) => {
+    trackUserInteraction('customer-filter', { customerId });  
+    updateFilter('selectedCustomer', customerId);
+  };
+  const setSelectedStatus = (status: string) => {
+    trackUserInteraction('status-filter', { status });
+    updateFilter('selectedStatus', status);
+  };
+  const setSearchText = (text: string) => {
+    if (text !== searchText) {
+      if (text.length > 0) {
+        trackSearchStart(text);
+      }
+      updateFilter('searchText', text);
+    }
+  };
   const setViewMode = (mode: 'calendar' | 'list') => updateFilter('viewMode', mode);
 
   // 计算当前周的开始和结束日期
@@ -407,8 +442,10 @@ const TaskDashboardPage: React.FC = () => {
   // 过滤任务
   const filteredTasks = useMemo(() => {
     if (!weeklyTasks) return [];
+    
+    const startTime = performance.now();
 
-    return weeklyTasks.filter(task => {
+    const filtered = weeklyTasks.filter(task => {
       // 文本搜索
       const matchesSearch = !searchText || 
         task.title.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -442,7 +479,15 @@ const TaskDashboardPage: React.FC = () => {
 
       return matchesSearch && matchesStatus && matchesProject && matchesCustomer;
     });
-  }, [weeklyTasks, searchText, selectedStatus, selectedProject, selectedCustomer, projects]);
+    
+    // 追踪搜索结果性能
+    const endTime = performance.now();
+    if (searchText.length > 0) {
+      trackSearchResult(searchText, filtered.length);
+    }
+    
+    return filtered;
+  }, [weeklyTasks, searchText, selectedStatus, selectedProject, selectedCustomer, projects, trackSearchResult]);
 
   // 根据筛选重新计算每日任务
   const filteredDailyTasks: DayTasks[] = useMemo(() => {
@@ -663,10 +708,23 @@ const TaskDashboardPage: React.FC = () => {
               </Button>
               <Button 
                 icon={<DownloadOutlined />} 
-                onClick={() => setExportModalVisible(true)}
+                onClick={() => {
+                  trackPageAction('export-open', { taskCount: weeklyTasks?.length || 0 });
+                  setExportModalVisible(true);
+                }}
                 disabled={!weeklyTasks || weeklyTasks.length === 0}
               >
                 导出
+              </Button>
+              <Button 
+                icon={<DashboardOutlined />} 
+                onClick={() => {
+                  trackPageAction('performance-monitor-open');
+                  setPerformanceModalVisible(true);
+                }}
+                type="dashed"
+              >
+                性能监控
               </Button>
             </Space>
           </Col>
@@ -1186,6 +1244,12 @@ const TaskDashboardPage: React.FC = () => {
             searchText,
           },
         }}
+      />
+
+      {/* 性能监控仪表板 */}
+      <PerformanceMonitorDashboard
+        visible={performanceModalVisible}
+        onClose={() => setPerformanceModalVisible(false)}
       />
     </div>
   );

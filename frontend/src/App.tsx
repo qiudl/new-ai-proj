@@ -10,6 +10,7 @@ import { QueryProvider } from './providers/QueryProvider';
 import FloatingTimer from './components/FloatingTimer';
 import UnifiedDebugPanel from './components/UnifiedDebugPanel';
 import { setNavigateFunction } from './services/api';
+import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
 import './App.css';
 import './styles/task-hierarchy.css';
 
@@ -413,6 +414,15 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
+  // 安装性能监控拦截器
+  useEffect(() => {
+    installPerformanceInterceptors();
+    
+    return () => {
+      uninstallPerformanceInterceptors();
+    };
+  }, []);
+
   return (
     <QueryProvider>
       <ConfigProvider locale={zhCN}>
