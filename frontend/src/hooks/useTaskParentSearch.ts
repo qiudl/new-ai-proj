@@ -117,9 +117,10 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
 
       const searchParams = {
         keyword: params.keyword || '',
-        exclude: params.excludeTaskId,
-        limit: params.limit || 20,
-        offset: params.offset || 0,
+        exclude_task_id: params.excludeTaskId,
+        max_level: params.maxLevel || 2,
+        page: Math.floor((params.offset || 0) / (params.limit || 20)) + 1,
+        page_size: params.limit || 20,
       };
 
       const response = await api.get(

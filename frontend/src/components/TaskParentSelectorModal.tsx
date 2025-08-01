@@ -66,16 +66,18 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         limit: 20,
         offset: 0,
       });
+    }
+  }, [visible, projectId, currentTaskId]);
 
-      // Set current parent as selected if it exists
-      if (currentParentId && searchResults.tasks.length > 0) {
-        const currentParent = searchResults.tasks.find(task => task.id === currentParentId);
-        if (currentParent) {
-          setSelectedTask(currentParent);
-        }
+  // Set current parent as selected when search results are available
+  useEffect(() => {
+    if (visible && currentParentId && searchResults.tasks.length > 0 && !selectedTask) {
+      const currentParent = searchResults.tasks.find(task => task.id === currentParentId);
+      if (currentParent) {
+        setSelectedTask(currentParent);
       }
     }
-  }, [visible, projectId, currentTaskId, currentParentId]);
+  }, [visible, currentParentId, searchResults.tasks, selectedTask]);
 
   // Clear state when modal closes
   useEffect(() => {
@@ -271,7 +273,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
               hasMore={searchResults.hasMore}
               showLevelFilter={true}
               maxDisplayLevel={2}
-              emptyText={searchKeyword ? '未找到匹配的任务' : '请输入关键词搜索任务'}
+              emptyText={searchKeyword ? '未找到匹配的任务' : '暂无可选的父任务'}
               className="modal-task-list"
             />
           </div>
