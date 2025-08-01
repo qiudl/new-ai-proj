@@ -86,6 +86,35 @@ export interface BulkImportResponse {
   imported_tasks: number[];
 }
 
+// 批量子任务创建相关接口
+export interface SubTaskRow {
+  key: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  due_date?: string;
+  estimated_hours?: number;
+  assignee?: string;
+  customFields?: Record<string, any>;
+}
+
+export interface BulkSubTaskCreateRequest {
+  parentTaskId: number;
+  tasks: SubTaskCreateRequest[];
+}
+
+export interface SubTaskCreateRequest {
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority?: string;
+  due_date?: string;
+  estimated_hours?: number;
+  custom_fields?: Record<string, any>;
+  sequence?: number;
+}
+
 export interface APIResponse<T = any> {
   success: boolean;
   message?: string;
