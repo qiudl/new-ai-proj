@@ -39,13 +39,18 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
   className = '',
   emptyText = '暂无可选的父任务',
 }) => {
+  // Ensure tasks is always an array
+  const safeTasks = React.useMemo(() => {
+    return Array.isArray(tasks) ? tasks : [];
+  }, [tasks]);
+
   // Filter tasks by level if specified
   const filteredTasks = React.useMemo(() => {
     if (!showLevelFilter || maxDisplayLevel === undefined) {
-      return tasks;
+      return safeTasks;
     }
-    return tasks.filter(task => task.task_level <= maxDisplayLevel);
-  }, [tasks, showLevelFilter, maxDisplayLevel]);
+    return safeTasks.filter(task => task.task_level <= maxDisplayLevel);
+  }, [safeTasks, showLevelFilter, maxDisplayLevel]);
 
   // Group tasks by level for better display
   const tasksByLevel = React.useMemo(() => {
