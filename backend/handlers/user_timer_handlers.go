@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"net/http"
 	"strconv"
 
@@ -11,12 +12,16 @@ import (
 
 // UserTimerHandler handles personal timer task operations
 type UserTimerHandler struct {
-	db database.DB
+	db              database.DB
+	documentService *services.TaskDocumentFileService
 }
 
 // NewUserTimerHandler creates a new UserTimerHandler
-func NewUserTimerHandler(db database.DB) *UserTimerHandler {
-	return &UserTimerHandler{db: db}
+func NewUserTimerHandler(db database.DB, documentService *services.TaskDocumentFileService) *UserTimerHandler {
+	return &UserTimerHandler{
+		db:              db,
+		documentService: documentService,
+	}
 }
 
 // CreateUserTimerTask handles POST /api/v1/user/timer-tasks
@@ -90,6 +95,15 @@ func (h *UserTimerHandler) CreateUserTimerTask(c *gin.Context) {
 			"details": err.Error(),
 		})
 		return
+	}
+
+	// 自动创建个人任务文档
+	if h.documentService != nil {
+		if err := h.documentService.CreatePersonalTaskDocument(ctx, createdTask); err != nil {
+			// Log error but don't fail the request
+			// Note: Implement proper logging here
+			// app.logger.Printf("Error creating personal task document: %v", err)
+		}
 	}
 
 	response := createdTask.ToResponse()

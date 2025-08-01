@@ -1,0 +1,11 @@
+# 数据库自动备份任务
+# 每天6点、12点、18点执行备份
+
+# 每天早上6点备份
+0 6 * * * /Users/johnqiu/coding/www/projects/new-ai-proj/scripts/auto-backup.sh >> /Users/johnqiu/coding/www/projects/new-ai-proj/logs/backup.log 2>&1
+
+# 每天中午12点备份  
+0 12 * * * /Users/johnqiu/coding/www/projects/new-ai-proj/scripts/auto-backup.sh >> /Users/johnqiu/coding/www/projects/new-ai-proj/logs/backup.log 2>&1
+
+# 每天下午6点备份
+0 18 * * * /Users/johnqiu/coding/www/projects/new-ai-proj/scripts/auto-backup.sh >> /Users/johnqiu/coding/www/projects/new-ai-proj/logs/backup.log 2>&1

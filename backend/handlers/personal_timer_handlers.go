@@ -651,8 +651,8 @@ func (h *PersonalTimerHandler) updateUserWithTx(ctx context.Context, tx *sql.Tx,
 
 func (h *PersonalTimerHandler) createTimeLogWithTx(ctx context.Context, tx *sql.Tx, log *models.TaskTimeLog) error {
 	query := `
-		INSERT INTO task_time_logs (task_id, user_timer_task_id, user_id, start_time, end_time, duration_seconds, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $3)
+		INSERT INTO task_time_logs (task_id, user_timer_task_id, user_id, start_time, end_time, duration_seconds)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at`
 
 	row := tx.QueryRowContext(ctx, query, log.TaskID, log.UserTimerTaskID, log.UserID, log.StartTime, log.EndTime, log.DurationSeconds)

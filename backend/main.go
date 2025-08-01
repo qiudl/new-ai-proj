@@ -58,6 +58,7 @@ type Application struct {
 	personalTimerHandler       *handlers.PersonalTimerHandler
 	archiveHandler             *handlers.ArchiveHandler
 	taskDocumentHandler        *handlers.TaskDocumentHandler
+	taskDocumentFileHandler    *handlers.TaskDocumentFileHandler
 	// 归档的复杂处理器 - MVP版本不需要
 	// unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
 	// upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
@@ -125,14 +126,21 @@ func NewApplication() (*Application, error) {
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionCommentHandler := handlers.NewDocumentVersionCommentHandler(db, logger, validate) // 临时注释，避免编译错误
 	timerHandler := handlers.NewTimerHandler(db)
-	userTimerHandler := handlers.NewUserTimerHandler(db)
+	
+	// 任务文档处理器
+	docsBasePath := "./docs" // 可以通过配置文件配置
+	
+	// 基于文件的任务文档处理器
+	taskDocumentFileService := services.NewTaskDocumentFileService(docsBasePath)
+	taskDocumentFileHandler := handlers.NewTaskDocumentFileHandler(taskDocumentFileService)
+	
+	userTimerHandler := handlers.NewUserTimerHandler(db, taskDocumentFileService)
 	personalTimerHandler := handlers.NewPersonalTimerHandler(db)
 	
 	// 归档处理器
 	archiveHandler := handlers.NewArchiveHandler(db)
 	
-	// 任务文档处理器
-	docsBasePath := "./docs/tasks" // 可以通过配置文件配置
+	// 传统任务文档处理器
 	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
 	
 	// 归档复杂的任务文档服务 - MVP版本使用简单方案
@@ -200,6 +208,7 @@ func NewApplication() (*Application, error) {
 		personalTimerHandler:        personalTimerHandler,
 		archiveHandler:              archiveHandler,
 		taskDocumentHandler:         taskDocumentHandler,
+		taskDocumentFileHandler:     taskDocumentFileHandler,
 		// 归档复杂处理器
 		// unifiedTaskDocumentHandler:  unifiedTaskDocumentHandler,
 		// upgradedTaskDocumentHandler: upgradedTaskDocumentHandler,
@@ -347,6 +356,14 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks/:taskId/document", app.taskDocumentHandler.GetTaskDocument)
 				projects.PUT("/:id/tasks/:taskId/document", app.taskDocumentHandler.SaveTaskDocument)
 				// projects.HEAD("/:id/tasks/:taskId/document", app.upgradedTaskDocumentHandler.CheckTaskDocument)
+				
+				// 基于文件的任务文档管理API (新版本)
+				projects.GET("/:id/tasks/:taskId/document/file", app.taskDocumentFileHandler.GetTaskDocument)
+				projects.PUT("/:id/tasks/:taskId/document/file", app.taskDocumentFileHandler.UpdateTaskDocument)
+				projects.POST("/:id/tasks/:taskId/document/create", app.taskDocumentFileHandler.CreateTaskDocumentFromTask)
+				projects.POST("/:id/tasks/:taskId/document/archive", app.taskDocumentFileHandler.ArchiveTaskDocument)
+				projects.GET("/:id/tasks/:taskId/document/history", app.taskDocumentFileHandler.GetDocumentHistory)
+				projects.GET("/:id/tasks/:taskId/document/compare", app.taskDocumentFileHandler.CompareDocumentVersions)
 				
 				// 删除增强版API路由 - 保持MVP简洁
 				// projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
@@ -622,6 +639,10 @@ func (app *Application) setupRouter() *gin.Engine {
 					timerTasks.PUT("/:id", app.userTimerHandler.UpdateUserTimerTask)
 					timerTasks.DELETE("/:id", app.userTimerHandler.DeleteUserTimerTask)
 					timerTasks.POST("/:id/favorite", app.userTimerHandler.ToggleFavoriteUserTimerTask)
+					
+					// 个人任务文档管理API
+					timerTasks.GET("/:id/document", app.taskDocumentFileHandler.GetPersonalTaskDocument)
+					timerTasks.PUT("/:id/document", app.taskDocumentFileHandler.UpdatePersonalTaskDocument)
 				}
 
 				// Personal timer operations
@@ -875,10 +896,10 @@ func (app *Application) getProjectsHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -1374,10 +1395,10 @@ func (app *Application) getTasksHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -1430,10 +1451,10 @@ func (app *Application) getAllTasksHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -1674,6 +1695,14 @@ func (app *Application) createTaskHandler(c *gin.Context) {
 	if err := app.db.Tasks().CreateTimelineEvent(c.Request.Context(), timelineEvent); err != nil {
 		// Log error but don't fail the request
 		app.logger.Printf("Error creating timeline event: %v", err)
+	}
+	
+	// 自动创建任务文档
+	if err := app.taskDocumentFileHandler.DocumentService.CreateTaskDocument(c.Request.Context(), createdTask, projectID); err != nil {
+		// Log error but don't fail the request
+		app.logger.Printf("Error creating task document: %v", err)
+	} else {
+		app.logger.Printf("Task document created successfully for task %d", createdTask.ID)
 	}
 
 	response := models.NewSuccessResponse(createdTask.ToResponse(), "Task created successfully")
@@ -2097,10 +2126,10 @@ func (app *Application) getRecycledProjectsHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -2192,10 +2221,10 @@ func (app *Application) getRecycledTasksHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -2288,10 +2317,10 @@ func (app *Application) getAuditLogsHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
@@ -2586,6 +2615,14 @@ func (app *Application) getRootTasksHandler(c *gin.Context) {
 		return
 	}
 
+	// Set default pagination values
+	if pagination.Page <= 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize <= 0 {
+		pagination.PageSize = 20
+	}
+
 	offset := (pagination.Page - 1) * pagination.PageSize
 	tasks, total, err := app.db.Tasks().GetRootTasks(c.Request.Context(), projectID, pagination.PageSize, offset)
 	if err != nil {
@@ -2637,10 +2674,10 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 	}
 
 	// Default pagination values
-	if pagination.Page == 0 {
+	if pagination.Page <= 0 {
 		pagination.Page = 1
 	}
-	if pagination.PageSize == 0 {
+	if pagination.PageSize <= 0 {
 		pagination.PageSize = 20
 	}
 
