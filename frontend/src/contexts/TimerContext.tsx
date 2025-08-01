@@ -274,17 +274,26 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   }, [timerState, isLoading, connectionStatus, currentMode]);
 
   // 启动定时器
-  const startTimer = useCallback(async (taskId: number, taskTitle: string): Promise<boolean> => {
+  const startTimer = useCallback(async (taskId: number, taskTitle: string, taskType: 'personal' | 'project' = 'personal'): Promise<boolean> => {
     if (isLoading) return false;
     
     setIsLoading(true);
     try {
-      // 🔧 使用personalTimerService启动Timer 2.0
-      const response = await personalTimerService.startPersonalTimer({
-        task_type: 'personal',
-        task_id: taskId,
-        auto_stop_others: true
-      });
+      let response;
+      if (taskType === 'project') {
+        // 启动项目任务计时
+        response = await personalTimerService.startProjectTimer({
+          task_id: taskId,
+          auto_stop_others: true
+        });
+      } else {
+        // 启动个人任务计时
+        response = await personalTimerService.startPersonalTimer({
+          task_type: 'personal',
+          task_id: taskId,
+          auto_stop_others: true
+        });
+      }
       
       if (!isMountedRef.current) return false;
       

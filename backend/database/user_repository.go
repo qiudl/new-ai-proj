@@ -52,7 +52,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, 
-		       current_timing_task_id, timing_start_time, timing_status,
+		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
 		       created_at, updated_at
 		FROM users WHERE id = $1`
 
@@ -65,7 +65,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CurrentTimingTaskID, &user.TimingStartTime, &user.TimingStatus,
+		&user.CurrentTimingTaskID, &user.CurrentUserTimerTaskID, &user.TimingStartTime, &user.TimingStatus,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -84,7 +84,7 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at,
-		       current_timing_task_id, timing_start_time, timing_status,
+		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
 		       created_at, updated_at
 		FROM users WHERE username = $1`
 
@@ -97,7 +97,7 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CurrentTimingTaskID, &user.TimingStartTime, &user.TimingStatus,
+		&user.CurrentTimingTaskID, &user.CurrentUserTimerTaskID, &user.TimingStartTime, &user.TimingStatus,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 

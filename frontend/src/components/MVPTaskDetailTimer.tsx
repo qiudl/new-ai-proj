@@ -30,6 +30,7 @@ interface MVPTaskDetailTimerProps {
   taskTitle: string;
   taskStatus: string;
   projectId?: number; // Add optional projectId for navigation
+  taskType?: 'personal' | 'project'; // Add task type
   style?: React.CSSProperties;
   className?: string;
 }
@@ -38,6 +39,8 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
   taskId,
   taskTitle,
   taskStatus,
+  projectId,
+  taskType = projectId ? 'project' : 'personal', // 如果有projectId则为项目任务，否则为个人任务
   style = {},
   className = ''
 }) => {
@@ -156,7 +159,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
       });
     } else {
       try {
-        const success = await startTimer(taskId, taskTitle);
+        const success = await startTimer(taskId, taskTitle, taskType);
         if (success) {
           message.success(`开始为任务"${taskTitle}"计时`);
         } else {
