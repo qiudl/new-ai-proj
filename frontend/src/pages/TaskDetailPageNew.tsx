@@ -59,6 +59,7 @@ import TaskTimeline from '../components/TaskTimeline';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
+import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -98,6 +99,9 @@ const TaskDetailPageNew: React.FC = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [archiveModalVisible, setArchiveModalVisible] = useState(false);
   const [timelineActiveTab, setTimelineActiveTab] = useState('timeline'); // 'timeline', 'history'
+  
+  // 批量子任务创建状态
+  const [bulkSubTaskModalVisible, setBulkSubTaskModalVisible] = useState(false);
   
   // 附加数据状态
   const [projectInfo, setProjectInfo] = useState<any>(null);
@@ -505,6 +509,19 @@ const TaskDetailPageNew: React.FC = () => {
     message.success('任务已归档');
     // 返回到任务列表
     navigate(`/projects/${projectId}/tasks`);
+  };
+
+  // 手工批量创建子任务处理函数
+  const handleBulkCreateSubTasks = () => {
+    setBulkSubTaskModalVisible(true);
+  };
+
+  // 批量创建子任务成功处理
+  const handleBulkSubTaskSuccess = () => {
+    setBulkSubTaskModalVisible(false);
+    message.success('批量创建子任务成功');
+    // 重新加载任务数据
+    loadTask();
   };
 
   // 统一的任务模态框提交处理
@@ -1288,6 +1305,15 @@ const TaskDetailPageNew: React.FC = () => {
               </Button>
               <Button 
                 block 
+                icon={<BranchesOutlined />}
+                onClick={handleBulkCreateSubTasks}
+                type="primary"
+                ghost
+              >
+                手工批量创建子任务
+              </Button>
+              <Button 
+                block 
                 icon={<ImportOutlined />}
                 onClick={handleBulkImportSubtasks}
               >
@@ -1623,6 +1649,17 @@ const TaskDetailPageNew: React.FC = () => {
           projectId={parseInt(projectId)}
           tasks={[task]}
           mode="single"
+        />
+      )}
+
+      {/* Bulk SubTask Creator Modal */}
+      {task && projectId && (
+        <BulkSubTaskCreator
+          visible={bulkSubTaskModalVisible}
+          onCancel={() => setBulkSubTaskModalVisible(false)}
+          onSuccess={handleBulkSubTaskSuccess}
+          parentTask={task}
+          projectId={parseInt(projectId)}
         />
       )}
       </div>
