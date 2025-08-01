@@ -1,9 +1,6 @@
 package models
 
 import (
-	"database/sql/driver"
-	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -27,31 +24,7 @@ type UserTimerTask struct {
 	DeletedAt          *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
-// StringArray represents a JSONB array of strings
-type StringArray []string
-
-// Value implements the driver.Valuer interface for database storage
-func (sa StringArray) Value() (driver.Value, error) {
-	if sa == nil {
-		return nil, nil
-	}
-	return json.Marshal(sa)
-}
-
-// Scan implements the sql.Scanner interface for database retrieval
-func (sa *StringArray) Scan(value interface{}) error {
-	if value == nil {
-		*sa = StringArray{}
-		return nil
-	}
-
-	bytes, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("cannot scan %T into StringArray", value)
-	}
-
-	return json.Unmarshal(bytes, sa)
-}
+// Note: StringArray is already defined in audit_log.go, reusing that type
 
 // UserTimerTaskRequest represents a request to create/update a personal timer task
 type UserTimerTaskRequest struct {

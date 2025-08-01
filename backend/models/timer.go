@@ -15,14 +15,16 @@ const (
 
 // TaskTimeLog represents a timing session log for a task
 type TaskTimeLog struct {
-	ID              int       `json:"id" db:"id"`
-	TaskID          int       `json:"task_id" db:"task_id" validate:"required"`
-	UserID          int       `json:"user_id" db:"user_id" validate:"required"`
-	StartTime       time.Time `json:"start_time" db:"start_time" validate:"required"`
-	EndTime         *time.Time `json:"end_time,omitempty" db:"end_time"`
-	DurationSeconds int       `json:"duration_seconds" db:"duration_seconds"`
-	CreatedAt       time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ID                 int        `json:"id" db:"id"`
+	TaskID             *int       `json:"task_id,omitempty" db:"task_id"`               // Project task ID (optional)
+	UserTimerTaskID    *int       `json:"user_timer_task_id,omitempty" db:"user_timer_task_id"` // Personal timer task ID (optional)
+	UserID             int        `json:"user_id" db:"user_id" validate:"required"`
+	StartTime          time.Time  `json:"start_time" db:"start_time" validate:"required"`
+	EndTime            *time.Time `json:"end_time,omitempty" db:"end_time"`
+	DurationSeconds    int        `json:"duration_seconds" db:"duration_seconds"`
+	CreatedBy          int        `json:"created_by" db:"created_by"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // TimerStartRequest represents a request to start timing a task

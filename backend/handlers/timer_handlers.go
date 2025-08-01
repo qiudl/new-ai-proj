@@ -142,7 +142,7 @@ func (h *TimerHandler) StopTimer(c *gin.Context) {
 
 	// Create time log entry
 	timeLog := &models.TaskTimeLog{
-		TaskID:          *user.CurrentTimingTaskID,
+		TaskID:          user.CurrentTimingTaskID,
 		UserID:          uid,
 		StartTime:       *user.TimingStartTime,
 		EndTime:         &endTime,
@@ -335,7 +335,7 @@ func (h *TimerHandler) stopCurrentTimer(ctx context.Context, user *models.User) 
 
 	// Create time log entry
 	timeLog := &models.TaskTimeLog{
-		TaskID:          *user.CurrentTimingTaskID,
+		TaskID:          user.CurrentTimingTaskID,
 		UserID:          user.ID,
 		StartTime:       *user.TimingStartTime,
 		EndTime:         &endTime,

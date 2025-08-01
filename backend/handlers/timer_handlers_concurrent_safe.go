@@ -212,7 +212,7 @@ func (h *ConcurrentSafeTimerHandler) StopTimerConcurrentSafe(c *gin.Context) {
 
 	// Create time log entry
 	timeLog := &models.TaskTimeLog{
-		TaskID:          *user.CurrentTimingTaskID,
+		TaskID:          user.CurrentTimingTaskID,
 		UserID:          uid,
 		StartTime:       *user.TimingStartTime,
 		EndTime:         &endTime,
@@ -396,7 +396,7 @@ func (h *ConcurrentSafeTimerHandler) stopCurrentTimerWithTx(ctx context.Context,
 
 	// Create time log entry
 	timeLog := &models.TaskTimeLog{
-		TaskID:          *user.CurrentTimingTaskID,
+		TaskID:          user.CurrentTimingTaskID,
 		UserID:          user.ID,
 		StartTime:       *user.TimingStartTime,
 		EndTime:         &endTime,

@@ -57,9 +57,10 @@ type User struct {
 	LastProjectAccess   *time.Time   `json:"last_project_access,omitempty" db:"last_project_access"`
 	Notes               *string      `json:"notes,omitempty" db:"notes"`
 	// Timer fields
-	CurrentTimingTaskID *int         `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
-	TimingStartTime     *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
-	TimingStatus        string       `json:"timing_status" db:"timing_status"`
+	CurrentTimingTaskID     *int         `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
+	CurrentUserTimerTaskID  *int         `json:"current_user_timer_task_id,omitempty" db:"current_user_timer_task_id"`
+	TimingStartTime         *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
+	TimingStatus            string       `json:"timing_status" db:"timing_status"`
 	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
 }

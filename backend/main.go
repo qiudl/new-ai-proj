@@ -54,6 +54,8 @@ type Application struct {
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
 	// documentVersionCommentHandler *handlers.DocumentVersionCommentHandler // 临时注释，避免编译错误
 	timerHandler               *handlers.TimerHandler
+	userTimerHandler           *handlers.UserTimerHandler
+	personalTimerHandler       *handlers.PersonalTimerHandler
 	archiveHandler             *handlers.ArchiveHandler
 	taskDocumentHandler        *handlers.TaskDocumentHandler
 	// 归档的复杂处理器 - MVP版本不需要
@@ -122,6 +124,8 @@ func NewApplication() (*Application, error) {
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionCommentHandler := handlers.NewDocumentVersionCommentHandler(db, logger, validate) // 临时注释，避免编译错误
 	timerHandler := handlers.NewTimerHandler(db)
+	userTimerHandler := handlers.NewUserTimerHandler(db)
+	personalTimerHandler := handlers.NewPersonalTimerHandler(db)
 	
 	// 归档处理器
 	archiveHandler := handlers.NewArchiveHandler(db)
@@ -188,6 +192,8 @@ func NewApplication() (*Application, error) {
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
 		// documentVersionCommentHandler: documentVersionCommentHandler, // 临时注释，避免编译错误
 		timerHandler:                timerHandler,
+		userTimerHandler:            userTimerHandler,
+		personalTimerHandler:        personalTimerHandler,
 		archiveHandler:              archiveHandler,
 		taskDocumentHandler:         taskDocumentHandler,
 		// 归档复杂处理器
@@ -582,7 +588,7 @@ func (app *Application) setupRouter() *gin.Engine {
 // 			authorized.GET("/documents/:document_id/comments", app.documentVersionCommentHandler.GetDocumentComments) // 临时注释，避免编译错误
 // 			authorized.GET("/document-version-comments/:id/replies", app.documentVersionCommentHandler.GetCommentReplies) // 临时注释，避免编译错误
 
-			// Timer routes
+			// Timer routes (legacy project task timers)
 			timer := authorized.Group("/timer")
 			{
 				timer.POST("/start", app.timerHandler.StartTimer)
@@ -591,6 +597,34 @@ func (app *Application) setupRouter() *gin.Engine {
 				timer.GET("/stats", app.timerHandler.GetTimerStats)
 				timer.GET("/recent-tasks", app.timerHandler.GetTimerRecentTasks)
 				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)
+			}
+
+			// Personal Timer routes (Timer 2.0)
+			user := authorized.Group("/user")
+			{
+				// Personal timer task management
+				timerTasks := user.Group("/timer-tasks")
+				{
+					timerTasks.POST("", app.userTimerHandler.CreateUserTimerTask)
+					timerTasks.GET("", app.userTimerHandler.GetUserTimerTasks)
+					timerTasks.GET("/:id", app.userTimerHandler.GetUserTimerTask)
+					timerTasks.PUT("/:id", app.userTimerHandler.UpdateUserTimerTask)
+					timerTasks.DELETE("/:id", app.userTimerHandler.DeleteUserTimerTask)
+					timerTasks.POST("/:id/favorite", app.userTimerHandler.ToggleFavoriteUserTimerTask)
+				}
+
+				// Personal timer operations
+				personalTimer := user.Group("/timer")
+				{
+					personalTimer.POST("/start-personal", app.personalTimerHandler.StartPersonalTimer)
+					personalTimer.POST("/start-project", app.personalTimerHandler.StartProjectTimer)
+					personalTimer.POST("/stop", app.personalTimerHandler.StopTimer)
+					personalTimer.GET("/current", app.personalTimerHandler.GetCurrentTimer)
+					personalTimer.GET("/dashboard", app.userTimerHandler.GetUserTimerDashboard)
+					personalTimer.GET("/stats", app.userTimerHandler.GetUserTimerStats)
+					personalTimer.GET("/history", app.userTimerHandler.GetUserTimerHistory)
+					personalTimer.GET("/analytics", app.userTimerHandler.GetUserTimerAnalytics)
+				}
 			}
 
 			// Permission management routes (system users with appropriate roles)
