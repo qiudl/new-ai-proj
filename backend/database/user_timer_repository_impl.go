@@ -402,7 +402,11 @@ func (r *PostgresUserTimerRepository) GetUserTimerStats(ctx context.Context, use
 
 // GetDashboardData retrieves comprehensive dashboard data (simplified implementation)
 func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, userID int) (*models.PersonalTimerDashboard, error) {
-	dashboard := &models.PersonalTimerDashboard{}
+	dashboard := &models.PersonalTimerDashboard{
+		TimerTasks:     make([]models.UserTimerTaskResponse, 0),
+		RecentSessions: make([]models.PersonalTimerSession, 0),
+		FavoriteTasks:  make([]models.UserTimerTaskResponse, 0),
+	}
 
 	// Get current timer status (placeholder)
 	dashboard.CurrentTimer = &models.PersonalTimerCurrent{

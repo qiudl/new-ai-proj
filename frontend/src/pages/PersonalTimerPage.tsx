@@ -90,11 +90,46 @@ const PersonalTimerPage: React.FC = () => {
     try {
       setLoading(true);
       const data = await personalTimerService.getDashboard();
+      
+      // 验证数据结构
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid dashboard data structure');
+      }
+      
       setDashboardData(data);
-      setCurrentTimer(data.current_timer || null);
+      setCurrentTimer(data?.current_timer || null);
     } catch (error) {
-      message.error('加载个人计时数据失败');
+      message.error('加载个人计时数据失败，请刷新页面重试');
       console.error('Failed to load dashboard data:', error);
+      
+      // 设置默认数据避免页面崩溃
+      setDashboardData({
+        current_timer: null,
+        today_stats: {
+          total_seconds: 0,
+          formatted_time: '00:00:00',
+          sessions_count: 0,
+          tasks_worked_on: 0,
+          most_worked_task: '',
+          productive_hours: Array(24).fill(0),
+          efficiency_score: 0,
+          longest_session: 0
+        },
+        timer_tasks: [],
+        recent_sessions: [],
+        favorite_tasks: [],
+        summary: {
+          total_tasks: 0,
+          active_tasks: 0,
+          completed_tasks: 0,
+          favorite_tasks: 0,
+          total_time_seconds: 0,
+          formatted_total_time: '00:00:00',
+          average_daily_seconds: 0,
+          most_productive_day: '',
+          most_used_category: ''
+        }
+      });
     } finally {
       setLoading(false);
     }
