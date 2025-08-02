@@ -16,7 +16,7 @@ const { Text } = Typography;
 
 interface CompactHistoryTasksProps {
   maxHeight?: string;
-  onTaskSelect?: (taskId: number) => void;
+  onTaskSelect?: (taskId: number, taskTitle: string) => void | Promise<void>;
   compact?: boolean;
 }
 
@@ -121,9 +121,18 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
   }, [loadHistoryTasks]);
 
   // 处理任务点击
-  const handleTaskClick = useCallback((task: any) => {
+  const handleTaskClick = useCallback(async (task: any) => {
     if (onTaskSelect && !task.is_deleted) {
-      onTaskSelect(task.task_id);
+      try {
+        const result = onTaskSelect(task.task_id, task.task_title);
+        // 如果返回Promise，等待完成
+        if (result && typeof result.then === 'function') {
+          await result;
+        }
+      } catch (error) {
+        console.error('任务选择失败:', error);
+        // 这里可以添加用户提示，比如 message.error
+      }
     }
   }, [onTaskSelect]);
 

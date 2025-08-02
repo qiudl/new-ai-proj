@@ -22,9 +22,6 @@ const DashboardPage: React.FC = () => {
   // 获取定时器状态
   const { timerState } = useTimer();
   
-  // 简化的状态管理
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-
   // 从localStorage恢复浮动定时器可见性状态
   useEffect(() => {
     try {
@@ -61,12 +58,6 @@ const DashboardPage: React.FC = () => {
       console.error('Failed to save floating timer visibility:', error);
     }
   }, [floatingTimerVisible]);
-
-  // 简化的刷新逻辑
-  const handleRefresh = useCallback(() => {
-    if (!isMountedRef.current) return;
-    setRefreshTrigger(prev => prev + 1);
-  }, []);
 
   // 组件卸载时清理
   useEffect(() => {

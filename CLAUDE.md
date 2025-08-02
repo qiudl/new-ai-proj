@@ -19,6 +19,7 @@ This is an AI project management platform built with a microservices architectur
 - **Real-time Dashboard**: Live API integration replacing mock data
 - **Performance Hooks**: Custom React hooks for async data and caching
 - **Audit System**: Task update tracking and timeline features
+- **Fix**: Fixed frontend timer API endpoints to use unified /user/timer/start instead of legacy /user/timer/start-personal and /user/timer/start-project
 
 ## Development Setup
 
@@ -104,6 +105,7 @@ docker-compose down
 ./backend/scripts/build.sh prod          # Production Docker image
 ./backend/scripts/build.sh local         # Local binary
 ./backend/scripts/build.sh test          # Run tests with coverage
+./scripts/timer-debug.sh - 计时器问题全面诊断工具，检查API、数据库、认证等所有层面
 ```
 
 ### Backend Development
@@ -248,7 +250,36 @@ docker-compose exec db psql -U user -d main_db -c "SELECT id, title, parent_id, 
   - Statistics dashboard
   - Permission-controlled access
 
+### Unified Timer Architecture (Refactored 2025-08)
+- **Central Service**: `TimerService` provides all timer operations with concurrent safety
+- **Unified Handler**: `UnifiedTimerHandler` replaces multiple overlapping timer handlers
+- **Smart Time Tracking**: Real pause/resume with accumulated time preservation
+- **API Endpoints**:
+  - `POST /api/v1/user/timer/start` - Unified start (personal/project tasks)
+  - `POST /api/v1/user/timer/pause` - Pause current timer
+  - `POST /api/v1/user/timer/resume` - Resume paused timer
+  - `POST /api/v1/user/timer/stop` - Stop timer and create time log
+  - `GET /api/v1/user/timer/current` - Get current timer status
+  - `GET /api/v1/user/timer/health` - Health check and feature list
+- **Database Schema**:
+  - Enhanced `users` table with `timing_paused_time`, `timing_accumulated_seconds`
+  - Extended `timing_status` enum: `stopped`, `running`, `paused`
+  - Performance indexes for pause-related fields
+- **Legacy Compatibility**: 
+  - Old `/api/v1/timer/*` endpoints maintained for backward compatibility
+  - Legacy `/start-personal` and `/start-project` redirect to unified handler
+- **Frontend Integration**: All timer services updated to use unified API
+- **Migration**: Database migration `004_add_timer_pause_fields.sql` required
+- **Documentation**: See `backend/docs/TIMER_ARCHITECTURE.md` for detailed architecture
+
 ## Testing & Validation
+
+### System Restart Feature
+- **Status**: In Development
+- **Description**: TODO - Add description
+- **Implementation**: TODO - Add implementation details
+- **Files**: TODO - List relevant files
+
 
 ### Environment Testing
 ```bash
@@ -290,6 +321,9 @@ cd frontend && node validate-data.js         # Validate data consistency
 # Archive functionality testing
 # Test archive API endpoints and database functions
 docker-compose exec db psql -U user -d main_db -c "SELECT * FROM archive_statistics;"
+
+# Timer API compatibility testing  
+./scripts/test-timer-api-compatibility.sh       # Test unified timer architecture
 ```
 
 ## Development Workflow
@@ -335,4 +369,3 @@ cd frontend && npm run build
 
 - 腾讯云部署脚本 `tencent-cloud-setup.sh` 来源:
   - 下载命令: `wget https://raw.githubusercontent.com/qiudl/new-ai-proj/main/scripts/tencent-cloud-setup.sh`
-  - 目前未详细说明脚本的具体来源和上传过程

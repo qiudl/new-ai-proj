@@ -22,9 +22,9 @@ class TimerService {
     return response as unknown as TimerStartResponse;
   }
 
-  // Stop current timer
+  // Stop current timer (Phase 4: Use unified API)
   static async stopTimer(): Promise<TimerStopResponse> {
-    const response = await api.post('/timer/stop');
+    const response = await api.post('/user/timer/stop');
     // Handle API response format: {success: true, data: {...}}
     if (response && typeof response === 'object' && 'data' in response) {
       return response.data as TimerStopResponse;
@@ -32,10 +32,9 @@ class TimerService {
     return response as unknown as TimerStopResponse;
   }
 
-  // Pause current timer (simulate by stopping for now)
+  // Pause current timer (Phase 4: Use unified API)
   static async pauseTimer(): Promise<TimerPauseResponse> {
-    // Note: Backend doesn't have pause endpoint yet, simulate with stop
-    const response = await api.post('/timer/stop');
+    const response = await api.post('/user/timer/pause');
     // Handle API response format: {success: true, data: {...}}
     if (response && typeof response === 'object' && 'data' in response) {
       return response.data as TimerPauseResponse;
@@ -43,22 +42,19 @@ class TimerService {
     return response as unknown as TimerPauseResponse;
   }
 
-  // Resume current timer (simulate by restarting if needed)
+  // Resume current timer (Phase 4: Use unified API)
   static async resumeTimer(): Promise<TimerResumeResponse> {
-    // Note: Backend doesn't have resume endpoint yet, 
-    // this would need to be handled by the timer context
-    // For now, return a mock response
-    return {
-      task_id: 0,
-      task_title: '',
-      status: 'resumed',
-      message: 'Timer resumed (mock)'
-    } as TimerResumeResponse;
+    const response = await api.post('/user/timer/resume');
+    // Handle API response format: {success: true, data: {...}}
+    if (response && typeof response === 'object' && 'data' in response) {
+      return response.data as TimerResumeResponse;
+    }
+    return response as unknown as TimerResumeResponse;
   }
 
-  // Get current timer status
+  // Get current timer status (Phase 4: Use unified API)
   static async getCurrentTimer(): Promise<TimerCurrentResponse> {
-    const response = await api.get('/timer/current');
+    const response = await api.get('/user/timer/current');
     // Handle API response format: {success: true, data: {is_running: true, ...}}
     if (response && typeof response === 'object' && 'data' in response) {
       return response.data as TimerCurrentResponse;

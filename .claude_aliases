@@ -1,0 +1,29 @@
+#!/bin/bash
+
+# Claude Memory Shortcuts - Source this file for instant access
+# Usage: source .claude_aliases
+
+# Get the directory of this script
+CLAUDE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Quick shortcuts for Claude memory management
+alias cf="$CLAUDE_DIR/scripts/claude-memory.sh f"      # Add feature
+alias ca="$CLAUDE_DIR/scripts/claude-memory.sh a"      # Add API
+alias cc="$CLAUDE_DIR/scripts/claude-memory.sh c"      # Add command
+alias cx="$CLAUDE_DIR/scripts/claude-memory.sh x"      # Add fix/note
+alias cs="$CLAUDE_DIR/scripts/claude-memory.sh s"      # Search
+alias cb="$CLAUDE_DIR/scripts/claude-memory.sh backup" # Backup
+alias cl="$CLAUDE_DIR/scripts/claude-memory.sh list"   # List sections
+
+# Longer but memorable aliases
+alias claude-add-feature="$CLAUDE_DIR/scripts/claude-memory.sh feature"
+alias claude-add-api="$CLAUDE_DIR/scripts/claude-memory.sh api"
+alias claude-add-cmd="$CLAUDE_DIR/scripts/claude-memory.sh cmd"
+alias claude-search="$CLAUDE_DIR/scripts/claude-memory.sh search"
+alias claude-backup="$CLAUDE_DIR/scripts/claude-memory.sh backup"
+alias claude-help="$CLAUDE_DIR/scripts/claude-memory.sh help"
+
+# Show loaded message
+echo "🚀 Claude Memory shortcuts loaded!"
+echo "Quick commands: cf, ca, cc, cx, cs, cb, cl"
+echo "Type 'claude-help' for full documentation"

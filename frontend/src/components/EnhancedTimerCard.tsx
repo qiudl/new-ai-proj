@@ -37,9 +37,9 @@ const EnhancedTimerCard: React.FC<EnhancedTimerCardProps> = ({
   }, [timerState.isRunning, stopTimer]);
 
   // 🎯 处理历史任务选择
-  const handleHistoryTaskSelect = useCallback(async (taskId: number) => {
+  const handleHistoryTaskSelect = useCallback(async (taskId: number, taskTitle: string) => {
     try {
-      await startTimer(taskId);
+      await startTimer(taskId, taskTitle);
     } catch (error) {
       console.error('开始历史任务计时失败:', error);
     }
@@ -178,24 +178,6 @@ const EnhancedTimerCard: React.FC<EnhancedTimerCardProps> = ({
     );
   };
 
-  // 🎯 渲染键盘快捷键提示
-  const renderShortcutHint = () => {
-    if (!timerState.isRunning) return null;
-    
-    return (
-      <div style={{ 
-        margin: '12px 16px 16px 16px', 
-        padding: '8px 12px', 
-        backgroundColor: '#f0f9ff', 
-        borderRadius: '6px',
-        border: '1px solid #bae7ff'
-      }}>
-        <Text type="secondary" style={{ fontSize: '12px' }}>
-          ⌨️ 快捷键: Space 暂停/继续 | Enter 完成
-        </Text>
-      </div>
-    );
-  };
 
   // 🎯 渲染历史任务区域
   const renderHistoryTasks = () => {
@@ -261,8 +243,7 @@ const EnhancedTimerCard: React.FC<EnhancedTimerCardProps> = ({
         {/* 控制按钮 */}
         {renderControls()}
         
-        {/* 键盘快捷键提示 */}
-        {renderShortcutHint()}
+
         
         {/* 历史任务 */}
         {renderHistoryTasks()}
