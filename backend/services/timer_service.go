@@ -133,8 +133,9 @@ func (s *TimerService) StartTimer(ctx context.Context, userID int, req StartTime
 	}
 
 	// Update user timing status
+	now := time.Now()
 	user.TimingStatus = string(models.TimingStatusRunning)
-	user.TimingStartTime = time.Now()
+	user.TimingStartTime = &now
 
 	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
@@ -152,7 +153,7 @@ func (s *TimerService) StartTimer(ctx context.Context, userID int, req StartTime
 		TaskTitle: taskTitle,
 		TaskType:  req.TaskType,
 		Status:    "running",
-		StartTime: user.TimingStartTime,
+		StartTime: now,
 	}, nil
 }
 
@@ -184,7 +185,7 @@ func (s *TimerService) StopTimer(ctx context.Context, userID int) (*TimerRespons
 
 	// Calculate duration and create time log
 	endTime := time.Now()
-	duration := int(endTime.Sub(user.TimingStartTime).Seconds())
+	duration := int(endTime.Sub(*user.TimingStartTime).Seconds())
 	
 	var taskID int
 	var taskTitle string
@@ -208,12 +209,18 @@ func (s *TimerService) StopTimer(ctx context.Context, userID int) (*TimerRespons
 
 	// Create time log
 	timeLog := &models.TaskTimeLog{
-		TaskID:          taskID,
 		UserID:          userID,
-		StartTime:       user.TimingStartTime,
-		EndTime:         endTime,
+		StartTime:       *user.TimingStartTime,
+		EndTime:         &endTime,
 		DurationSeconds: duration,
 		CreatedBy:       userID,
+	}
+	
+	// Set appropriate task ID based on task type
+	if user.CurrentUserTimerTaskID != nil {
+		timeLog.UserTimerTaskID = &taskID  // Personal task
+	} else if user.CurrentTimingTaskID != nil {
+		timeLog.TaskID = &taskID           // Project task
 	}
 
 	if err := s.createTimeLogWithTx(ctx, tx, timeLog); err != nil {
@@ -224,7 +231,7 @@ func (s *TimerService) StopTimer(ctx context.Context, userID int) (*TimerRespons
 	user.TimingStatus = string(models.TimingStatusStopped)
 	user.CurrentTimingTaskID = nil
 	user.CurrentUserTimerTaskID = nil
-	user.TimingStartTime = time.Time{}
+	user.TimingStartTime = nil
 
 	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
@@ -283,8 +290,8 @@ func (s *TimerService) GetCurrentTimer(ctx context.Context, userID int) (*Curren
 		response.TaskID = &taskID
 		response.TaskTitle = taskTitle
 		response.TaskType = taskType
-		response.StartTime = &user.TimingStartTime
-		response.ElapsedSeconds = int(time.Since(user.TimingStartTime).Seconds())
+		response.StartTime = user.TimingStartTime
+		response.ElapsedSeconds = int(time.Since(*user.TimingStartTime).Seconds())
 	}
 
 	return response, nil
@@ -330,15 +337,15 @@ func (s *TimerService) getPersonalTaskWithAccess(ctx context.Context, tx *sql.Tx
 func (s *TimerService) getProjectTaskWithAccess(ctx context.Context, tx *sql.Tx, taskID, userID int) (*models.Task, error) {
 	var task models.Task
 	query := `
-		SELECT t.id, t.title, t.description, t.status, t.priority, t.due_date,
-			   t.project_id, t.assigned_to, t.created_by, t.created_at, t.updated_at
+		SELECT t.id, t.title, t.description, t.status, t.due_date,
+			   t.project_id, t.assignee_id, t.created_at, t.updated_at
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
-		WHERE t.id = $1 AND (p.owner_id = $2 OR t.assigned_to = $2) AND t.deleted_at IS NULL`
+		WHERE t.id = $1 AND (p.owner_id = $2 OR t.assignee_id = $2) AND t.deleted_at IS NULL`
 	
 	err := tx.QueryRowContext(ctx, query, taskID, userID).Scan(
-		&task.ID, &task.Title, &task.Description, &task.Status, &task.Priority, &task.DueDate,
-		&task.ProjectID, &task.AssignedTo, &task.CreatedBy, &task.CreatedAt, &task.UpdatedAt,
+		&task.ID, &task.Title, &task.Description, &task.Status, &task.DueDate,
+		&task.ProjectID, &task.AssigneeID, &task.CreatedAt, &task.UpdatedAt,
 	)
 	return &task, err
 }
@@ -371,11 +378,11 @@ func (s *TimerService) updateUserWithTx(ctx context.Context, tx *sql.Tx, user *m
 
 func (s *TimerService) createTimeLogWithTx(ctx context.Context, tx *sql.Tx, log *models.TaskTimeLog) error {
 	query := `
-		INSERT INTO task_time_logs (task_id, user_id, start_time, end_time, duration_seconds, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO task_time_logs (task_id, user_timer_task_id, user_id, start_time, end_time, duration_seconds, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	
-	_, err := tx.ExecContext(ctx, query, log.TaskID, log.UserID, log.StartTime, 
-		log.EndTime, log.DurationSeconds, log.CreatedBy)
+	_, err := tx.ExecContext(ctx, query, log.TaskID, log.UserTimerTaskID, log.UserID, 
+		log.StartTime, log.EndTime, log.DurationSeconds, log.CreatedBy)
 	return err
 }
 
@@ -386,7 +393,7 @@ func (s *TimerService) stopCurrentTimerWithTx(ctx context.Context, tx *sql.Tx, u
 
 	// Calculate duration and create time log
 	endTime := time.Now()
-	duration := int(endTime.Sub(user.TimingStartTime).Seconds())
+	duration := int(endTime.Sub(*user.TimingStartTime).Seconds())
 	
 	var taskID int
 	if user.CurrentUserTimerTaskID != nil {
@@ -399,12 +406,18 @@ func (s *TimerService) stopCurrentTimerWithTx(ctx context.Context, tx *sql.Tx, u
 
 	// Create time log
 	timeLog := &models.TaskTimeLog{
-		TaskID:          taskID,
 		UserID:          user.ID,
-		StartTime:       user.TimingStartTime,
-		EndTime:         endTime,
+		StartTime:       *user.TimingStartTime,
+		EndTime:         &endTime,
 		DurationSeconds: duration,
 		CreatedBy:       user.ID,
+	}
+	
+	// Set appropriate task ID based on task type
+	if user.CurrentUserTimerTaskID != nil {
+		timeLog.UserTimerTaskID = &taskID  // Personal task
+	} else if user.CurrentTimingTaskID != nil {
+		timeLog.TaskID = &taskID           // Project task
 	}
 
 	return s.createTimeLogWithTx(ctx, tx, timeLog)

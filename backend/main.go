@@ -56,6 +56,7 @@ type Application struct {
 	timerHandler               *handlers.TimerHandler
 	userTimerHandler           *handlers.UserTimerHandler
 	personalTimerHandler       *handlers.PersonalTimerHandler
+	unifiedTimerHandler        *handlers.UnifiedTimerHandler
 	archiveHandler             *handlers.ArchiveHandler
 	taskDocumentHandler        *handlers.TaskDocumentHandler
 	taskDocumentFileHandler    *handlers.TaskDocumentFileHandler
@@ -136,6 +137,7 @@ func NewApplication() (*Application, error) {
 	
 	userTimerHandler := handlers.NewUserTimerHandler(db, taskDocumentFileService)
 	personalTimerHandler := handlers.NewPersonalTimerHandler(db)
+	unifiedTimerHandler := handlers.NewUnifiedTimerHandler(db)
 	
 	// 归档处理器
 	archiveHandler := handlers.NewArchiveHandler(db)
@@ -206,6 +208,7 @@ func NewApplication() (*Application, error) {
 		timerHandler:                timerHandler,
 		userTimerHandler:            userTimerHandler,
 		personalTimerHandler:        personalTimerHandler,
+		unifiedTimerHandler:         unifiedTimerHandler,
 		archiveHandler:              archiveHandler,
 		taskDocumentHandler:         taskDocumentHandler,
 		taskDocumentFileHandler:     taskDocumentFileHandler,
@@ -648,10 +651,19 @@ func (app *Application) setupRouter() *gin.Engine {
 				// Personal timer operations
 				personalTimer := user.Group("/timer")
 				{
+					// 🆕 Unified Timer API (New Architecture)
+					personalTimer.POST("/start", app.unifiedTimerHandler.StartTimer)
+					personalTimer.POST("/pause", app.unifiedTimerHandler.PauseTimer)   // Placeholder for Phase 3
+					personalTimer.POST("/resume", app.unifiedTimerHandler.ResumeTimer) // Placeholder for Phase 3
+					personalTimer.GET("/health", app.unifiedTimerHandler.HealthCheck)
+					
+					// 🔄 Legacy compatibility endpoints (will be deprecated in Phase 5)
 					personalTimer.POST("/start-personal", app.personalTimerHandler.StartPersonalTimer)
 					personalTimer.POST("/start-project", app.personalTimerHandler.StartProjectTimer)
-					personalTimer.POST("/stop", app.personalTimerHandler.StopTimer)
-					personalTimer.GET("/current", app.personalTimerHandler.GetCurrentTimer)
+					personalTimer.POST("/stop", app.unifiedTimerHandler.StopTimer) // Unified implementation
+					personalTimer.GET("/current", app.unifiedTimerHandler.GetCurrentTimer) // Unified implementation
+					
+					// 📊 Statistics and analytics (existing)
 					personalTimer.GET("/dashboard", app.userTimerHandler.GetUserTimerDashboard)
 					personalTimer.GET("/stats", app.userTimerHandler.GetUserTimerStats)
 					personalTimer.GET("/history", app.userTimerHandler.GetUserTimerHistory)
