@@ -169,6 +169,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ['id', 'updates']
         }
+      },
+      {
+        name: 'move_task',
+        description: '移动任务到其他项目',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { 
+              type: 'number', 
+              description: '要移动的任务ID' 
+            },
+            targetProjectId: { 
+              type: 'number', 
+              description: '目标项目ID' 
+            }
+          },
+          required: ['id', 'targetProjectId']
+        }
       }
     ]
   };
@@ -211,6 +229,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'update_task':
         result = await taskServer.updateTask(args.id as number, args.updates as any);
+        break;
+      
+      case 'move_task':
+        result = await taskServer.moveTask(args.id as number, args.targetProjectId as number);
         break;
       
       default:

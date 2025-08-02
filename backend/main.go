@@ -318,7 +318,6 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("", app.getProjectsHandler)
 				projects.POST("", app.createProjectHandler)
 				projects.GET("/:id", app.getProjectHandler)
-				projects.GET("/:id/stats", app.getProjectStatsHandler)
 				projects.PUT("/:id", app.updateProjectHandler)
 				projects.DELETE("/:id", app.deleteProjectHandler)
 
@@ -1067,27 +1066,6 @@ func (app *Application) getProjectHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (app *Application) getProjectStatsHandler(c *gin.Context) {
-	projectIDStr := c.Param("id")
-	projectID, err := strconv.Atoi(projectIDStr)
-	if err != nil {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
-		c.JSON(http.StatusBadRequest, response)
-		return
-	}
-
-	// Get project stats using system repository
-	stats, err := app.db.System().GetProjectStats(c.Request.Context(), projectID)
-	if err != nil {
-		app.logger.Printf("Error getting project stats: %v", err)
-		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve project stats", nil)
-		c.JSON(http.StatusInternalServerError, response)
-		return
-	}
-
-	response := models.NewSuccessResponse(stats, "Project stats retrieved successfully")
-	c.JSON(http.StatusOK, response)
-}
 
 func (app *Application) updateProjectHandler(c *gin.Context) {
 	projectIDStr := c.Param("id")

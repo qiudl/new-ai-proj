@@ -6,7 +6,6 @@ import {
   Col,
   Typography,
   Tag,
-  Progress,
   Space,
   Avatar,
   Button,
@@ -14,7 +13,6 @@ import {
   Timeline,
   Table,
   Tabs,
-  Statistic,
   Badge,
   Tooltip,
   message,
@@ -200,52 +198,6 @@ const ProjectDetailPage: React.FC = () => {
               </Row>
             </Card>
           </Col>
-
-          {/* 项目统计 */}
-          <Col xs={24} lg={8}>
-            <Card title="项目统计" extra={<BarChartOutlined />}>
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Statistic 
-                    title="总任务数" 
-                    value={project?.task_count || 0}
-                    prefix={<CheckCircleOutlined />}
-                  />
-                </Col>
-                <Col span={12}>
-                  <Statistic 
-                    title="已完成" 
-                    value={project?.completed_task_count || 0}
-                    prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                  />
-                </Col>
-                <Col span={24}>
-                  <div style={{ marginTop: 16 }}>
-                    <Text type="secondary">完成进度</Text>
-                    <Progress 
-                      percent={
-                        project?.task_count ? 
-                        Math.round((project.completed_task_count || 0) / project.task_count * 100) : 
-                        0
-                      }
-                      strokeColor="#52c41a"
-                      style={{ marginTop: 8 }}
-                    />
-                  </div>
-                </Col>
-                <Col span={24}>
-                  <Divider style={{ margin: '12px 0' }} />
-                  <Statistic 
-                    title="团队成员" 
-                    value={project?.users?.length || 0}
-                    prefix={<TeamOutlined />}
-                    valueStyle={{ fontSize: '18px' }}
-                  />
-                </Col>
-              </Row>
-            </Card>
-          </Col>
-
           {/* 企业信息 */}
           {project?.company_id ? (
             <Col xs={24}>
@@ -725,12 +677,7 @@ const ProjectDetailPage: React.FC = () => {
                             {companyInfo?.companyName || '加载中...'}
                           </Button>
                         </Space>
-                        <div>
-                          <Text type="secondary" style={{ fontSize: '12px' }}>
-                            <HomeOutlined style={{ marginRight: '4px' }} />
-                            点击查看企业详情
-                          </Text>
-                        </div>
+              
                       </div>
                     </Space>
                   </Card>
@@ -755,42 +702,7 @@ const ProjectDetailPage: React.FC = () => {
                 </div>
               </Space>
             </Col>
-          </Row>
-          
-          <Divider />
-          
-          <Row gutter={[16, 16]}>
-            <Col xs={24} sm={12} md={6}>
-              <Statistic
-                title="总任务数"
-                value={project.task_count || 0}
-                prefix={<FileTextOutlined />}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Statistic
-                title="已完成任务"
-                value={project.completed_task_count || 0}
-                prefix={<CheckCircleOutlined />}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Statistic
-                title="团队成员"
-                value={project.users?.length || 0}
-                prefix={<TeamOutlined />}
-              />
-            </Col>
-            <Col xs={24} sm={12} md={6}>
-              <Statistic
-                title="项目进度"
-                value={project.progress || 0}
-                suffix="%"
-                prefix={<BarChartOutlined />}
-                valueStyle={{ color: project.progress && project.progress > 75 ? '#52c41a' : project.progress && project.progress > 50 ? '#fa8c16' : '#1890ff' }}
-              />
-            </Col>
-          </Row>
+          </Row>         
         </Card>
       </div>
 

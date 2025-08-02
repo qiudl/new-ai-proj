@@ -69,11 +69,32 @@
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
+    min-height: 120px;
   }
   
   .stats-card:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
+  }
+
+  /* 统一所有统计卡片的高度 */
+  .ant-card.ant-card-small {
+    height: 100%;
+  }
+
+  .ant-card.ant-card-small .ant-card-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 16px;
+  }
+
+  /* 统计数据容器样式 */
+  .ant-statistic {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
   }
 }
 

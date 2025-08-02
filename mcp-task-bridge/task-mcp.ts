@@ -29,20 +29,49 @@ export class TaskMCPServer {
   // 辅助方法：通过ID查找任务
   private async findTaskById(id: number): Promise<any> {
     try {
-      // 从项目1获取任务列表 (大部分任务都在项目1中)
-      const response = await axios.get(`${this.apiBase}/projects/1/tasks`, {
+      // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
+      const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
         headers: this.getHeaders(),
         proxy: false
       });
       
-      const tasks = response.data.data?.data || [];
-      const task = tasks.find((t: any) => t.id === id);
+      const tasks1 = response1.data.data?.data || [];
+      const task1 = tasks1.find((t: any) => t.id === id);
       
-      if (!task) {
-        throw new Error(`任务 ID ${id} 不存在`);
+      if (task1) {
+        return task1;
       }
       
-      return task;
+      // 如果在项目1中没有找到，尝试在其他项目中查找
+      const projectsResponse = await axios.get(`${this.apiBase}/projects`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      const projects = projectsResponse.data.data?.data || [];
+      
+      for (const project of projects) {
+        if (project.id === 1) continue; // 已经检查过项目1
+        
+        try {
+          const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+            headers: this.getHeaders(),
+            proxy: false
+          });
+          
+          const tasks = tasksResponse.data.data?.data || [];
+          const task = tasks.find((t: any) => t.id === id);
+          
+          if (task) {
+            return task;
+          }
+        } catch (projectError: any) {
+          // 忽略单个项目的错误，继续查找其他项目
+          console.error(`[WARNING] 无法获取项目 ${project.id} 的任务列表: ${projectError.message}`);
+        }
+      }
+      
+      throw new Error(`任务 ID ${id} 不存在`);
     } catch (error: any) {
       throw new Error(`查找任务失败: ${error.message}`);
     }
@@ -515,6 +544,111 @@ export class TaskMCPServer {
       return {
         success: false,
         error: `更新任务失败: ${error.response?.data?.error || error.message}`
+      };
+    }
+  }
+
+  // 移动任务到其他项目
+  async moveTask(id: number, targetProjectId: number): Promise<any> {
+    try {
+      console.error(`[DEBUG] 移动任务: ID ${id} 到项目 ${targetProjectId}`);
+      
+      const task = await this.findTaskById(id);
+      
+      // 验证目标项目存在
+      try {
+        const projectResponse = await axios.get(`${this.apiBase}/projects/${targetProjectId}`, {
+          headers: this.getHeaders(),
+          proxy: false
+        });
+        
+        if (!projectResponse.data.data) {
+          return {
+            success: false,
+            error: `目标项目 ID ${targetProjectId} 不存在`
+          };
+        }
+      } catch (projectError: any) {
+        return {
+          success: false,
+          error: `目标项目 ID ${targetProjectId} 不存在或无权限访问`
+        };
+      }
+
+      // 检查是否是移动到同一个项目
+      if (task.project_id === targetProjectId) {
+        return {
+          success: false,
+          error: `任务已在项目 ${targetProjectId} 中，无需移动`
+        };
+      }
+
+      // 检查任务是否有子任务
+      const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      const allTasks = childrenResponse.data.data?.data || [];
+      const childTasks = allTasks.filter((t: any) => t.parent_id === id);
+      
+      if (childTasks.length > 0) {
+        return {
+          success: false,
+          error: `任务有 ${childTasks.length} 个子任务，暂不支持移动有子任务的任务`,
+          child_count: childTasks.length,
+          children: childTasks.map((t: any) => ({ id: t.id, title: t.title }))
+        };
+      }
+
+      // 检查任务是否是子任务
+      if (task.parent_id) {
+        return {
+          success: false,
+          error: `任务是子任务（父任务ID: ${task.parent_id}），暂不支持移动子任务到其他项目`
+        };
+      }
+
+      // 构建移动数据 - 保持所有原有字段，只改变项目ID
+      const moveData = {
+        title: task.title,
+        description: task.description,
+        status: task.status,
+        project_id: targetProjectId,
+        assignee_id: task.assignee_id,
+        due_date: task.due_date,
+        custom_fields: task.custom_fields,
+        parent_id: null // 移动到新项目时重置父任务关系
+      };
+
+      // 在目标项目中创建任务
+      const createResponse = await axios.post(`${this.apiBase}/projects/${targetProjectId}/tasks`, moveData, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+
+      const newTask = createResponse.data.data;
+
+      // 删除原任务
+      const deleteResponse = await axios.delete(`${this.apiBase}/projects/${task.project_id}/tasks/${id}`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+
+      return {
+        success: true,
+        original_task_id: id,
+        new_task_id: newTask.id,
+        title: task.title,
+        source_project_id: task.project_id,
+        target_project_id: targetProjectId,
+        message: `📦 任务 "${task.title}" 已从项目 ${task.project_id} 移动到项目 ${targetProjectId} (新任务ID: ${newTask.id})`
+      };
+    } catch (error: any) {
+      console.error(`[ERROR] 移动任务失败:`, error.response?.data || error.message);
+      return {
+        success: false,
+        error: `移动任务失败: ${error.response?.data?.error || error.message}`
       };
     }
   }

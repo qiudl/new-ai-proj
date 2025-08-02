@@ -160,6 +160,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ['id', 'updates']
                 }
+            },
+            {
+                name: 'move_task',
+                description: '移动任务到其他项目',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'number',
+                            description: '要移动的任务ID'
+                        },
+                        targetProjectId: {
+                            type: 'number',
+                            description: '目标项目ID'
+                        }
+                    },
+                    required: ['id', 'targetProjectId']
+                }
             }
         ]
     };
@@ -193,6 +211,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'update_task':
                 result = await taskServer.updateTask(args.id, args.updates);
+                break;
+            case 'move_task':
+                result = await taskServer.moveTask(args.id, args.targetProjectId);
                 break;
             default:
                 throw new Error(`Unknown tool: ${name}`);

@@ -1174,7 +1174,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={6}>
           <Tooltip title="点击查看全部任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer' }}>
+            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 清除所有筛选，显示全部任务
                 setFilters(prev => ({ 
@@ -1195,7 +1195,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选已完成任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer' }}>
+            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选已完成任务
                 setFilters(prev => ({ 
@@ -1227,7 +1227,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选进行中任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer' }}>
+            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选进行中任务
                 setFilters(prev => ({ 
@@ -1248,7 +1248,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选逾期任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer' }}>
+            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选逾期任务
                 const yesterday = dayjs().subtract(1, 'day');
