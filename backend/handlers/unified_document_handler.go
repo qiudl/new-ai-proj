@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"ai-project-backend/interfaces"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -143,7 +145,8 @@ func (h *UnifiedDocumentHandler) GetDocument(c *gin.Context) {
 	// 调用服务
 	response, err := h.documentService.ReadDocument(c.Request.Context(), req)
 	if err != nil {
-		if err.Error() == "document not found" {
+		// 检查是否为文档不存在错误（使用字符串包含检查）
+		if strings.Contains(err.Error(), "document not found") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Document not found",
 				"code":  "DOCUMENT_NOT_FOUND",
@@ -220,7 +223,7 @@ func (h *UnifiedDocumentHandler) UpdateDocument(c *gin.Context) {
 
 	// 调用服务
 	if err := h.documentService.UpdateDocument(c.Request.Context(), req); err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Document not found",
 				"code":  "DOCUMENT_NOT_FOUND",
@@ -293,7 +296,7 @@ func (h *UnifiedDocumentHandler) DeleteDocument(c *gin.Context) {
 
 	// 调用服务
 	if err := h.documentService.DeleteDocument(c.Request.Context(), req); err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Document not found",
 				"code":  "DOCUMENT_NOT_FOUND",
@@ -445,7 +448,7 @@ func (h *UnifiedDocumentHandler) ArchiveDocument(c *gin.Context) {
 
 	// 调用服务
 	if err := h.documentService.ArchiveDocument(c.Request.Context(), req); err != nil {
-		if err.Error() == "document not found" {
+		if strings.Contains(err.Error(), "document not found") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"error": "Document not found",
 				"code":  "DOCUMENT_NOT_FOUND",
@@ -671,4 +674,631 @@ func (h *UnifiedDocumentHandler) CheckTaskDocument(c *gin.Context) {
 	}
 
 	c.Status(http.StatusOK)
+}
+
+// ========== Phase 2: 版本管理功能 ==========
+
+// CompareVersions 比较文档版本
+func (h *UnifiedDocumentHandler) CompareVersions(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	fromVersion := c.Query("from_version")
+	toVersion := c.Query("to_version")
+	if fromVersion == "" || toVersion == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "from_version and to_version are required"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	req := &interfaces.CompareVersionsRequest{
+		ProjectID:   projectID,
+		TaskID:      taskID,
+		UserID:      userID,
+		FromVersion: fromVersion,
+		ToVersion:   toVersion,
+	}
+
+	response, err := h.documentService.CompareVersions(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to compare versions", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetDocumentAtVersion 获取特定版本的文档
+func (h *UnifiedDocumentHandler) GetDocumentAtVersion(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	version := c.Param("version")
+	if version == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Version is required"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	req := &interfaces.VersionRequest{
+		ProjectID: projectID,
+		TaskID:    taskID,
+		UserID:    userID,
+		Version:   version,
+	}
+
+	response, err := h.documentService.GetDocumentAtVersion(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get document version", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// ResolveConflict 解决文档冲突
+func (h *UnifiedDocumentHandler) ResolveConflict(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		BaseVersion    string                              `json:"base_version"`
+		ConflictBlocks []interfaces.ConflictBlock          `json:"conflict_blocks"`
+		Resolution     interfaces.ConflictResolutionType   `json:"resolution"`
+		Message        string                              `json:"message"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	req := &interfaces.ConflictResolutionRequest{
+		ProjectID:      projectID,
+		TaskID:         taskID,
+		UserID:         userID,
+		BaseVersion:    requestBody.BaseVersion,
+		ConflictBlocks: requestBody.ConflictBlocks,
+		Resolution:     requestBody.Resolution,
+		Message:        requestBody.Message,
+	}
+
+	err = h.documentService.ResolveConflict(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to resolve conflict", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Conflict resolved successfully",
+	})
+}
+
+// ========== Phase 2: 高级搜索功能 ==========
+
+// SearchDocuments 搜索文档
+func (h *UnifiedDocumentHandler) SearchDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	query := c.Query("query")
+	if query == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing query parameter"})
+		return
+	}
+
+	// 解析可选参数
+	var projectIDs []int
+	if projectIDsStr := c.Query("project_ids"); projectIDsStr != "" {
+		for _, idStr := range strings.Split(projectIDsStr, ",") {
+			if id, err := strconv.Atoi(strings.TrimSpace(idStr)); err == nil {
+				projectIDs = append(projectIDs, id)
+			}
+		}
+	}
+
+	var taskIDs []int
+	if taskIDsStr := c.Query("task_ids"); taskIDsStr != "" {
+		for _, idStr := range strings.Split(taskIDsStr, ",") {
+			if id, err := strconv.Atoi(strings.TrimSpace(idStr)); err == nil {
+				taskIDs = append(taskIDs, id)
+			}
+		}
+	}
+
+	limit := 10
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	// 构建过滤器
+	filters := make(map[string]string)
+	if format := c.Query("format"); format != "" {
+		filters["format"] = format
+	}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+
+	req := &interfaces.SearchRequest{
+		UserID:     userID,
+		Query:      query,
+		ProjectIDs: projectIDs,
+		TaskIDs:    taskIDs,
+		Filters:    filters,
+		SortBy:     c.Query("sort_by"),
+		SortOrder:  c.Query("sort_order"),
+		Limit:      limit,
+		Offset:     offset,
+	}
+
+	response, err := h.documentService.SearchDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Search failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// IndexDocument 索引文档
+func (h *UnifiedDocumentHandler) IndexDocument(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		ProjectID int `json:"project_id"`
+		TaskID    int `json:"task_id"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		// 如果没有请求体，尝试从URL参数获取
+		if projectIDStr := c.Query("project_id"); projectIDStr != "" {
+			if id, err := strconv.Atoi(projectIDStr); err == nil {
+				requestBody.ProjectID = id
+			}
+		}
+		if taskIDStr := c.Query("task_id"); taskIDStr != "" {
+			if id, err := strconv.Atoi(taskIDStr); err == nil {
+				requestBody.TaskID = id
+			}
+		}
+	}
+
+	req := &interfaces.IndexRequest{
+		ProjectID: requestBody.ProjectID,
+		TaskID:    requestBody.TaskID,
+		UserID:    userID,
+	}
+
+	err := h.documentService.IndexDocument(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Index failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Document indexed successfully",
+	})
+}
+
+// ========== Phase 2: 批量操作功能 ==========
+
+// BatchCreateDocuments 批量创建文档
+func (h *UnifiedDocumentHandler) BatchCreateDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		Documents []interfaces.CreateDocumentRequest `json:"documents"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	req := &interfaces.BatchCreateRequest{
+		UserID:    userID,
+		Documents: requestBody.Documents,
+	}
+
+	response, err := h.documentService.BatchCreateDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Batch create failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// BatchUpdateDocuments 批量更新文档
+func (h *UnifiedDocumentHandler) BatchUpdateDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		Documents []interfaces.UpdateDocumentRequest `json:"documents"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	req := &interfaces.BatchUpdateRequest{
+		UserID:    userID,
+		Documents: requestBody.Documents,
+	}
+
+	response, err := h.documentService.BatchUpdateDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Batch update failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// BatchDeleteDocuments 批量删除文档
+func (h *UnifiedDocumentHandler) BatchDeleteDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		Documents []interfaces.DeleteDocumentRequest `json:"documents"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	req := &interfaces.BatchDeleteRequest{
+		UserID:    userID,
+		Documents: requestBody.Documents,
+	}
+
+	response, err := h.documentService.BatchDeleteDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Batch delete failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// ========== Phase 2: 导入导出功能 ==========
+
+// ExportDocuments 导出文档
+func (h *UnifiedDocumentHandler) ExportDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		ProjectIDs  []int  `json:"project_ids"`
+		TaskIDs     []int  `json:"task_ids"`
+		Format      string `json:"format"`
+		IncludeMeta bool   `json:"include_meta"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	req := &interfaces.ExportRequest{
+		UserID:      userID,
+		ProjectIDs:  requestBody.ProjectIDs,
+		TaskIDs:     requestBody.TaskIDs,
+		Format:      requestBody.Format,
+		IncludeMeta: requestBody.IncludeMeta,
+	}
+
+	response, err := h.documentService.ExportDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Export failed", "details": err.Error()})
+		return
+	}
+
+	// 设置下载响应头
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", response.FileName))
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Length", fmt.Sprintf("%d", response.Size))
+
+	c.Data(http.StatusOK, "application/octet-stream", response.Data)
+}
+
+// ImportDocuments 导入文档
+func (h *UnifiedDocumentHandler) ImportDocuments(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	projectID, err := strconv.Atoi(c.PostForm("project_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	format := c.PostForm("format")
+	if format == "" {
+		format = "zip" // 默认格式
+	}
+
+	// 获取上传的文件
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File upload failed", "details": err.Error()})
+		return
+	}
+
+	// 读取文件数据
+	fileContent, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file", "details": err.Error()})
+		return
+	}
+	defer fileContent.Close()
+
+	// 读取文件内容到字节数组
+	data := make([]byte, file.Size)
+	_, err = fileContent.Read(data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read file content", "details": err.Error()})
+		return
+	}
+
+	// 解析导入选项
+	options := interfaces.ImportOptions{
+		OverwriteExisting: c.PostForm("overwrite_existing") == "true",
+		CreateProjects:    c.PostForm("create_projects") == "true",
+		CreateTasks:       c.PostForm("create_tasks") == "true",
+	}
+
+	req := &interfaces.ImportRequest{
+		UserID:    userID,
+		ProjectID: projectID,
+		Data:      data,
+		Format:    format,
+		Options:   options,
+	}
+
+	response, err := h.documentService.ImportDocuments(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Import failed", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// ========== Phase 2: 协作功能 ==========
+
+// LockDocument 锁定文档
+func (h *UnifiedDocumentHandler) LockDocument(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var requestBody struct {
+		LockType string `json:"lock_type"`
+		TTL      int    `json:"ttl"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
+		return
+	}
+
+	if requestBody.LockType == "" {
+		requestBody.LockType = "write" // 默认写锁
+	}
+	if requestBody.TTL == 0 {
+		requestBody.TTL = 300 // 默认5分钟
+	}
+
+	req := &interfaces.DocumentLockRequest{
+		ProjectID: projectID,
+		TaskID:    taskID,
+		UserID:    userID,
+		LockType:  requestBody.LockType,
+		TTL:       requestBody.TTL,
+	}
+
+	err = h.documentService.LockDocument(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "Failed to lock document", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Document locked successfully",
+	})
+}
+
+// UnlockDocument 解锁文档
+func (h *UnifiedDocumentHandler) UnlockDocument(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	req := &interfaces.DocumentLockRequest{
+		ProjectID: projectID,
+		TaskID:    taskID,
+		UserID:    userID,
+	}
+
+	err = h.documentService.UnlockDocument(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unlock document", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Document unlocked successfully",
+	})
+}
+
+// GetDocumentLockStatus 获取文档锁定状态
+func (h *UnifiedDocumentHandler) GetDocumentLockStatus(c *gin.Context) {
+	projectID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
+		return
+	}
+
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	req := &interfaces.LockStatusRequest{
+		ProjectID: projectID,
+		TaskID:    taskID,
+		UserID:    userID,
+	}
+
+	response, err := h.documentService.GetDocumentLockStatus(c.Request.Context(), req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get lock status", "details": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+	})
 }

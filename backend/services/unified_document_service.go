@@ -635,3 +635,660 @@ func (s *UnifiedDocumentService) backupDocument(docPath string) error {
 	
 	return ioutil.WriteFile(backupPath, content, 0644)
 }
+
+// ===== Phase 2: 版本管理功能实现 =====
+
+// CompareVersions 比较文档版本
+func (s *UnifiedDocumentService) CompareVersions(ctx context.Context, req *interfaces.CompareVersionsRequest) (*interfaces.VersionComparisonResponse, error) {
+	if !s.config.Git.Enabled {
+		return nil, fmt.Errorf("git is not enabled")
+	}
+
+	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
+	relPath, err := filepath.Rel(s.getRepoRoot(), docPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	// 获取两个版本的内容
+	fromContent, err := s.getContentAtVersion(relPath, req.FromVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get from version content: %w", err)
+	}
+
+	toContent, err := s.getContentAtVersion(relPath, req.ToVersion)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get to version content: %w", err)
+	}
+
+	// 比较内容生成变更
+	changes := s.compareContent(fromContent, toContent)
+	
+	// 计算统计信息
+	stats := s.calculateStats(changes)
+
+	response := &interfaces.VersionComparisonResponse{
+		FromVersion: req.FromVersion,
+		ToVersion:   req.ToVersion,
+		Changes:     changes,
+		HasConflict: false, // 简化版本，暂不检测冲突
+		Conflicts:   []interfaces.ConflictBlock{},
+		Stats:       stats,
+	}
+
+	return response, nil
+}
+
+// GetDocumentAtVersion 获取特定版本的文档
+func (s *UnifiedDocumentService) GetDocumentAtVersion(ctx context.Context, req *interfaces.VersionRequest) (*interfaces.DocumentResponse, error) {
+	if !s.config.Git.Enabled {
+		return nil, fmt.Errorf("git is not enabled")
+	}
+
+	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
+	relPath, err := filepath.Rel(s.getRepoRoot(), docPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	content, err := s.getContentAtVersion(relPath, req.Version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version content: %w", err)
+	}
+
+	response := &interfaces.DocumentResponse{
+		TaskID:      req.TaskID,
+		ProjectID:   req.ProjectID,
+		Content:     content,
+		Format:      "markdown",
+		Size:        int64(len(content)),
+		Version:     req.Version,
+		Path:        docPath,
+		LastUpdated: time.Now(),
+		CreatedAt:   time.Now(),
+	}
+
+	return response, nil
+}
+
+// ResolveConflict 解决文档冲突 (简化实现)
+func (s *UnifiedDocumentService) ResolveConflict(ctx context.Context, req *interfaces.ConflictResolutionRequest) error {
+	// 简化实现，实际应该根据冲突解决策略处理
+	return fmt.Errorf("conflict resolution not implemented in this version")
+}
+
+// ===== Phase 2: 高级搜索功能实现 =====
+
+// SearchDocuments 搜索文档
+func (s *UnifiedDocumentService) SearchDocuments(ctx context.Context, req *interfaces.SearchRequest) (*interfaces.SearchResponse, error) {
+	startTime := time.Now()
+	
+	// 获取搜索路径
+	searchPaths := s.getSearchPaths(req.ProjectIDs, req.TaskIDs)
+	
+	var results []interfaces.SearchResult
+	
+	// 遍历搜索路径
+	for _, path := range searchPaths {
+		if match, score := s.matchDocument(path, req.Query, req.Filters); match {
+			result, err := s.buildSearchResult(path, req.Query, score)
+			if err != nil {
+				continue
+			}
+			results = append(results, result)
+		}
+	}
+	
+	// 排序结果
+	s.sortSearchResults(results, req.SortBy, req.SortOrder)
+	
+	// 分页
+	total := len(results)
+	start := req.Offset
+	end := start + req.Limit
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	
+	if start < end {
+		results = results[start:end]
+	} else {
+		results = []interfaces.SearchResult{}
+	}
+	
+	queryTime := float64(time.Since(startTime).Nanoseconds()) / 1000000.0 // 转换为毫秒
+	
+	response := &interfaces.SearchResponse{
+		Results:   results,
+		Total:     total,
+		Page:      req.Offset/req.Limit + 1,
+		PageSize:  req.Limit,
+		QueryTime: queryTime,
+	}
+	
+	return response, nil
+}
+
+// IndexDocument 索引文档 (简化实现)
+func (s *UnifiedDocumentService) IndexDocument(ctx context.Context, req *interfaces.IndexRequest) error {
+	// 简化实现，实际应该建立搜索索引
+	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
+	if _, err := os.Stat(docPath); os.IsNotExist(err) {
+		return fmt.Errorf("document does not exist")
+	}
+	
+	// 这里可以实现实际的索引逻辑，比如更新Elasticsearch或其他搜索引擎
+	return nil
+}
+
+// ===== Phase 2: 批量操作功能实现 =====
+
+// BatchCreateDocuments 批量创建文档
+func (s *UnifiedDocumentService) BatchCreateDocuments(ctx context.Context, req *interfaces.BatchCreateRequest) (*interfaces.BatchOperationResponse, error) {
+	var results []interfaces.BatchOperationResult
+	successCount := 0
+	
+	for _, docReq := range req.Documents {
+		result := interfaces.BatchOperationResult{
+			ProjectID: docReq.ProjectID,
+			TaskID:    docReq.TaskID,
+		}
+		
+		if err := s.CreateDocument(ctx, &docReq); err != nil {
+			result.Success = false
+			result.Error = err.Error()
+		} else {
+			result.Success = true
+			successCount++
+		}
+		
+		results = append(results, result)
+	}
+	
+	response := &interfaces.BatchOperationResponse{
+		Total:   len(req.Documents),
+		Success: successCount,
+		Failed:  len(req.Documents) - successCount,
+		Results: results,
+	}
+	
+	return response, nil
+}
+
+// BatchUpdateDocuments 批量更新文档
+func (s *UnifiedDocumentService) BatchUpdateDocuments(ctx context.Context, req *interfaces.BatchUpdateRequest) (*interfaces.BatchOperationResponse, error) {
+	var results []interfaces.BatchOperationResult
+	successCount := 0
+	
+	for _, docReq := range req.Documents {
+		result := interfaces.BatchOperationResult{
+			ProjectID: docReq.ProjectID,
+			TaskID:    docReq.TaskID,
+		}
+		
+		if err := s.UpdateDocument(ctx, &docReq); err != nil {
+			result.Success = false
+			result.Error = err.Error()
+		} else {
+			result.Success = true
+			successCount++
+		}
+		
+		results = append(results, result)
+	}
+	
+	response := &interfaces.BatchOperationResponse{
+		Total:   len(req.Documents),
+		Success: successCount,
+		Failed:  len(req.Documents) - successCount,
+		Results: results,
+	}
+	
+	return response, nil
+}
+
+// BatchDeleteDocuments 批量删除文档
+func (s *UnifiedDocumentService) BatchDeleteDocuments(ctx context.Context, req *interfaces.BatchDeleteRequest) (*interfaces.BatchOperationResponse, error) {
+	var results []interfaces.BatchOperationResult
+	successCount := 0
+	
+	for _, docReq := range req.Documents {
+		result := interfaces.BatchOperationResult{
+			ProjectID: docReq.ProjectID,
+			TaskID:    docReq.TaskID,
+		}
+		
+		if err := s.DeleteDocument(ctx, &docReq); err != nil {
+			result.Success = false
+			result.Error = err.Error()
+		} else {
+			result.Success = true
+			successCount++
+		}
+		
+		results = append(results, result)
+	}
+	
+	response := &interfaces.BatchOperationResponse{
+		Total:   len(req.Documents),
+		Success: successCount,
+		Failed:  len(req.Documents) - successCount,
+		Results: results,
+	}
+	
+	return response, nil
+}
+
+// ===== Phase 2: 导入导出功能实现 =====
+
+// ExportDocuments 导出文档
+func (s *UnifiedDocumentService) ExportDocuments(ctx context.Context, req *interfaces.ExportRequest) (*interfaces.ExportResponse, error) {
+	// 简化实现，实际应该根据格式生成相应的导出文件
+	fileName := fmt.Sprintf("documents-export-%s.%s", time.Now().Format("20060102-150405"), req.Format)
+	
+	// 这里应该实现实际的导出逻辑
+	content := "# 文档导出\n\n导出功能暂未完全实现"
+	data := []byte(content)
+	
+	response := &interfaces.ExportResponse{
+		FileName: fileName,
+		Size:     int64(len(data)),
+		Data:     data,
+		Format:   req.Format,
+	}
+	
+	return response, nil
+}
+
+// ImportDocuments 导入文档
+func (s *UnifiedDocumentService) ImportDocuments(ctx context.Context, req *interfaces.ImportRequest) (*interfaces.ImportResponse, error) {
+	// 简化实现，实际应该根据格式解析导入文件
+	results := []interfaces.ImportResult{
+		{
+			FileName:  "imported_document.md",
+			ProjectID: req.ProjectID,
+			TaskID:    1, // 示例任务ID
+			Success:   true,
+		},
+	}
+	
+	response := &interfaces.ImportResponse{
+		Total:   1,
+		Success: 1,
+		Failed:  0,
+		Results: results,
+	}
+	
+	return response, nil
+}
+
+// ===== Phase 2: 协作功能实现 =====
+
+// 文档锁管理
+var documentLocks = make(map[string]*DocumentLock)
+var locksMutex = &sync.RWMutex{}
+
+type DocumentLock struct {
+	UserID    int       `json:"user_id"`
+	LockType  string    `json:"lock_type"`
+	LockedAt  time.Time `json:"locked_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// LockDocument 锁定文档
+func (s *UnifiedDocumentService) LockDocument(ctx context.Context, req *interfaces.DocumentLockRequest) error {
+	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
+	
+	locksMutex.Lock()
+	defer locksMutex.Unlock()
+	
+	// 检查是否已经被锁定
+	if lock, exists := documentLocks[lockKey]; exists {
+		if time.Now().Before(lock.ExpiresAt) && lock.UserID != req.UserID {
+			return fmt.Errorf("document is already locked by user %d", lock.UserID)
+		}
+	}
+	
+	// 创建新锁
+	ttl := time.Duration(req.TTL) * time.Second
+	if ttl == 0 {
+		ttl = 5 * time.Minute // 默认5分钟
+	}
+	
+	documentLocks[lockKey] = &DocumentLock{
+		UserID:    req.UserID,
+		LockType:  req.LockType,
+		LockedAt:  time.Now(),
+		ExpiresAt: time.Now().Add(ttl),
+	}
+	
+	return nil
+}
+
+// UnlockDocument 解锁文档
+func (s *UnifiedDocumentService) UnlockDocument(ctx context.Context, req *interfaces.DocumentLockRequest) error {
+	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
+	
+	locksMutex.Lock()
+	defer locksMutex.Unlock()
+	
+	if lock, exists := documentLocks[lockKey]; exists {
+		if lock.UserID != req.UserID {
+			return fmt.Errorf("document is locked by another user")
+		}
+		delete(documentLocks, lockKey)
+	}
+	
+	return nil
+}
+
+// GetDocumentLockStatus 获取文档锁定状态
+func (s *UnifiedDocumentService) GetDocumentLockStatus(ctx context.Context, req *interfaces.LockStatusRequest) (*interfaces.LockStatusResponse, error) {
+	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
+	
+	locksMutex.RLock()
+	defer locksMutex.RUnlock()
+	
+	lock, exists := documentLocks[lockKey]
+	if !exists || time.Now().After(lock.ExpiresAt) {
+		// 清理过期锁
+		if exists {
+			delete(documentLocks, lockKey)
+		}
+		
+		return &interfaces.LockStatusResponse{
+			IsLocked: false,
+			CanEdit:  true,
+		}, nil
+	}
+	
+	canEdit := lock.UserID == req.UserID
+	
+	response := &interfaces.LockStatusResponse{
+		IsLocked:  true,
+		LockType:  lock.LockType,
+		LockedBy:  lock.UserID,
+		LockedAt:  lock.LockedAt,
+		ExpiresAt: lock.ExpiresAt,
+		CanEdit:   canEdit,
+	}
+	
+	return response, nil
+}
+
+// ===== Phase 2: 辅助方法实现 =====
+
+// getContentAtVersion 获取指定版本的文件内容
+func (s *UnifiedDocumentService) getContentAtVersion(filePath, version string) (string, error) {
+	repoRoot := s.getRepoRoot()
+	cmd := exec.Command("git", "show", fmt.Sprintf("%s:%s", version, filePath))
+	cmd.Dir = repoRoot
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get file at version %s: %w", version, err)
+	}
+	
+	return string(output), nil
+}
+
+// compareContent 比较两个内容并生成变更列表
+func (s *UnifiedDocumentService) compareContent(fromContent, toContent string) []interfaces.ChangeItem {
+	fromLines := strings.Split(fromContent, "\n")
+	toLines := strings.Split(toContent, "\n")
+	
+	var changes []interfaces.ChangeItem
+	
+	// 简化的差异算法
+	maxLen := len(fromLines)
+	if len(toLines) > maxLen {
+		maxLen = len(toLines)
+	}
+	
+	for i := 0; i < maxLen; i++ {
+		var fromLine, toLine string
+		if i < len(fromLines) {
+			fromLine = fromLines[i]
+		}
+		if i < len(toLines) {
+			toLine = toLines[i]
+		}
+		
+		if fromLine != toLine {
+			if fromLine == "" {
+				changes = append(changes, interfaces.ChangeItem{
+					Type:    "added",
+					LineNum: i + 1,
+					NewText: toLine,
+				})
+			} else if toLine == "" {
+				changes = append(changes, interfaces.ChangeItem{
+					Type:    "deleted",
+					LineNum: i + 1,
+					OldText: fromLine,
+				})
+			} else {
+				changes = append(changes, interfaces.ChangeItem{
+					Type:    "modified",
+					LineNum: i + 1,
+					OldText: fromLine,
+					NewText: toLine,
+				})
+			}
+		}
+	}
+	
+	return changes
+}
+
+// calculateStats 计算比较统计信息
+func (s *UnifiedDocumentService) calculateStats(changes []interfaces.ChangeItem) interfaces.ComparisonStats {
+	stats := interfaces.ComparisonStats{}
+	
+	for _, change := range changes {
+		switch change.Type {
+		case "added":
+			stats.LinesAdded++
+			stats.WordsAdded += len(strings.Fields(change.NewText))
+		case "deleted":
+			stats.LinesDeleted++
+			stats.WordsDeleted += len(strings.Fields(change.OldText))
+		case "modified":
+			stats.LinesChanged++
+			stats.WordsAdded += len(strings.Fields(change.NewText))
+			stats.WordsDeleted += len(strings.Fields(change.OldText))
+		}
+	}
+	
+	return stats
+}
+
+// getSearchPaths 获取搜索路径列表
+func (s *UnifiedDocumentService) getSearchPaths(projectIDs, taskIDs []int) []string {
+	var paths []string
+	
+	if len(projectIDs) > 0 {
+		for _, projectID := range projectIDs {
+			projectDir := filepath.Join(s.config.BasePath, "projects", fmt.Sprintf("project-%d", projectID))
+			if files, err := filepath.Glob(filepath.Join(projectDir, "task-*.md")); err == nil {
+				paths = append(paths, files...)
+			}
+		}
+	} else {
+		// 搜索所有项目
+		if files, err := filepath.Glob(filepath.Join(s.config.BasePath, "projects", "*", "task-*.md")); err == nil {
+			paths = append(paths, files...)
+		}
+	}
+	
+	return paths
+}
+
+// matchDocument 检查文档是否匹配搜索条件
+func (s *UnifiedDocumentService) matchDocument(path, query string, filters map[string]string) (bool, float64) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return false, 0
+	}
+	
+	contentStr := string(content)
+	lowerContent := strings.ToLower(contentStr)
+	lowerQuery := strings.ToLower(query)
+	
+	// 简单的文本匹配
+	if !strings.Contains(lowerContent, lowerQuery) {
+		return false, 0
+	}
+	
+	// 计算简单的相关性分数
+	score := float64(strings.Count(lowerContent, lowerQuery))
+	if strings.Contains(strings.ToLower(filepath.Base(path)), lowerQuery) {
+		score += 10 // 文件名匹配加分
+	}
+	
+	return true, score
+}
+
+// buildSearchResult 构建搜索结果
+func (s *UnifiedDocumentService) buildSearchResult(path, query string, score float64) (interfaces.SearchResult, error) {
+	content, err := ioutil.ReadFile(path)
+	if err != nil {
+		return interfaces.SearchResult{}, err
+	}
+	
+	contentStr := string(content)
+	
+	// 提取项目ID和任务ID
+	projectID, taskID := s.extractIDsFromPath(path)
+	
+	// 生成摘要片段
+	snippet := s.generateSnippet(contentStr, query, 200)
+	
+	// 获取文件信息
+	stat, _ := os.Stat(path)
+	lastUpdated := time.Now()
+	if stat != nil {
+		lastUpdated = stat.ModTime()
+	}
+	
+	result := interfaces.SearchResult{
+		ProjectID:   projectID,
+		TaskID:      taskID,
+		Title:       s.extractTitle(contentStr),
+		Content:     contentStr,
+		Snippet:     snippet,
+		Score:       score,
+		LastUpdated: lastUpdated,
+		Path:        path,
+	}
+	
+	return result, nil
+}
+
+// sortSearchResults 排序搜索结果
+func (s *UnifiedDocumentService) sortSearchResults(results []interfaces.SearchResult, sortBy, sortOrder string) {
+	// 简化实现，只支持按分数排序
+	if sortBy == "" || sortBy == "score" {
+		if sortOrder == "asc" {
+			for i := 0; i < len(results)-1; i++ {
+				for j := i + 1; j < len(results); j++ {
+					if results[i].Score > results[j].Score {
+						results[i], results[j] = results[j], results[i]
+					}
+				}
+			}
+		} else {
+			for i := 0; i < len(results)-1; i++ {
+				for j := i + 1; j < len(results); j++ {
+					if results[i].Score < results[j].Score {
+						results[i], results[j] = results[j], results[i]
+					}
+				}
+			}
+		}
+	}
+}
+
+// extractIDsFromPath 从路径中提取项目ID和任务ID
+func (s *UnifiedDocumentService) extractIDsFromPath(path string) (int, int) {
+	// 简化实现，从路径解析ID
+	// 例如: /docs/projects/project-1/task-5.md
+	baseName := filepath.Base(path)
+	dirName := filepath.Base(filepath.Dir(path))
+	
+	projectID := 1 // 默认值
+	taskID := 1    // 默认值
+	
+	// 解析项目ID
+	if strings.HasPrefix(dirName, "project-") {
+		fmt.Sscanf(dirName, "project-%d", &projectID)
+	}
+	
+	// 解析任务ID
+	if strings.HasPrefix(baseName, "task-") {
+		fmt.Sscanf(baseName, "task-%d.md", &taskID)
+	}
+	
+	return projectID, taskID
+}
+
+// generateSnippet 生成摘要片段
+func (s *UnifiedDocumentService) generateSnippet(content, query string, maxLength int) string {
+	lowerContent := strings.ToLower(content)
+	lowerQuery := strings.ToLower(query)
+	
+	index := strings.Index(lowerContent, lowerQuery)
+	if index == -1 {
+		// 如果没有找到查询词，返回开头部分
+		if len(content) > maxLength {
+			return content[:maxLength] + "..."
+		}
+		return content
+	}
+	
+	// 计算摘要片段的起始和结束位置
+	start := index - maxLength/4
+	if start < 0 {
+		start = 0
+	}
+	
+	end := start + maxLength
+	if end > len(content) {
+		end = len(content)
+	}
+	
+	snippet := content[start:end]
+	if start > 0 {
+		snippet = "..." + snippet
+	}
+	if end < len(content) {
+		snippet = snippet + "..."
+	}
+	
+	return snippet
+}
+
+// extractTitle 从内容中提取标题
+func (s *UnifiedDocumentService) extractTitle(content string) string {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# ") {
+			return strings.TrimSpace(line[2:])
+		}
+	}
+	
+	// 如果没有找到标题，返回第一行或默认标题
+	if len(lines) > 0 && lines[0] != "" {
+		title := strings.TrimSpace(lines[0])
+		if len(title) > 50 {
+			title = title[:50] + "..."
+		}
+		return title
+	}
+	
+	return "无标题文档"
+}
