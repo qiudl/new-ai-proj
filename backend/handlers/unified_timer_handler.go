@@ -3,6 +3,9 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/services"
+	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -40,8 +43,19 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
-	// Validate task type
-	if req.TaskType != services.TaskTypePersonal && req.TaskType != services.TaskTypeProject {
+	// Validate or infer task type
+	if req.TaskType == "" {
+		// Infer task type based on task ID
+		taskType, err := h.inferTaskType(c.Request.Context(), req.TaskID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid task ID",
+				"details": "Cannot find task with ID " + fmt.Sprintf("%d", req.TaskID),
+			})
+			return
+		}
+		req.TaskType = taskType
+	} else if req.TaskType != services.TaskTypePersonal && req.TaskType != services.TaskTypeProject {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid task type",
 			"details": "task_type must be either 'personal' or 'project'",
@@ -283,6 +297,29 @@ func (h *UnifiedTimerHandler) StartProjectTimer(c *gin.Context) {
 	
 	// Call unified handler  
 	h.StartTimer(c)
+}
+
+// inferTaskType automatically determines if a task is personal or project-based
+func (h *UnifiedTimerHandler) inferTaskType(ctx context.Context, taskID int) (services.TaskType, error) {
+	db := h.db.GetDB().(*sql.DB)
+	
+	// First, check if it's a project task
+	var count int
+	err := db.QueryRowContext(ctx, 
+		"SELECT COUNT(*) FROM tasks WHERE id = $1 AND deleted_at IS NULL", taskID).Scan(&count)
+	if err == nil && count > 0 {
+		return services.TaskTypeProject, nil
+	}
+	
+	// Then, check if it's a personal task
+	err = db.QueryRowContext(ctx, 
+		"SELECT COUNT(*) FROM user_timer_tasks WHERE id = $1 AND deleted_at IS NULL", taskID).Scan(&count)
+	if err == nil && count > 0 {
+		return services.TaskTypePersonal, nil
+	}
+	
+	// Task not found in either table
+	return "", fmt.Errorf("task with ID %d not found", taskID)
 }
 
 // Helper method to handle unified requests from legacy endpoints
