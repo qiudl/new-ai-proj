@@ -59,6 +59,58 @@ func (cf *CustomFields) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, cf)
 }
 
+// Dependencies represents a list of task IDs that this task depends on
+type Dependencies []int
+
+// Value implements the driver.Valuer interface for database storage
+func (d Dependencies) Value() (driver.Value, error) {
+	if d == nil {
+		return "[]", nil
+	}
+	return json.Marshal(d)
+}
+
+// Scan implements the sql.Scanner interface for database retrieval
+func (d *Dependencies) Scan(value interface{}) error {
+	if value == nil {
+		*d = Dependencies{}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into Dependencies", value)
+	}
+
+	return json.Unmarshal(bytes, d)
+}
+
+// Tags represents a list of tags for task categorization
+type Tags []string
+
+// Value implements the driver.Valuer interface for database storage
+func (t Tags) Value() (driver.Value, error) {
+	if t == nil {
+		return "[]", nil
+	}
+	return json.Marshal(t)
+}
+
+// Scan implements the sql.Scanner interface for database retrieval
+func (t *Tags) Scan(value interface{}) error {
+	if value == nil {
+		*t = Tags{}
+		return nil
+	}
+
+	bytes, ok := value.([]byte)
+	if !ok {
+		return fmt.Errorf("cannot scan %T into Tags", value)
+	}
+
+	return json.Unmarshal(bytes, t)
+}
+
 // Task represents a task in the system
 type Task struct {
 	ID                int          `json:"id" db:"id"`
@@ -73,6 +125,11 @@ type Task struct {
 	TaskLevel         int          `json:"task_level" db:"task_level"`
 	SortOrder         int          `json:"sort_order" db:"sort_order"`
 	TotalTimeSeconds  int          `json:"total_time_seconds" db:"total_time_seconds"`
+	// AI-enhanced fields
+	Dependencies      Dependencies `json:"dependencies" db:"dependencies"`
+	EstimatedHours    *float64     `json:"estimated_hours" db:"estimated_hours"`
+	Priority          string       `json:"priority" db:"priority" validate:"oneof=low medium high"`
+	Tags              Tags         `json:"tags" db:"tags"`
 	CreatedAt         time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time    `json:"updated_at" db:"updated_at"`
 	DeletedAt         *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
@@ -80,20 +137,23 @@ type Task struct {
 
 // TaskRequest represents a task creation/update request
 type TaskRequest struct {
-	Title        string       `json:"title" validate:"required,min=1,max=255"`
-	Description  string       `json:"description"`
-	Status       string       `json:"status" validate:"required,oneof=todo in_progress completed cancelled"`
-	AssigneeID   *int         `json:"assignee_id"`
-	DueDate      *time.Time   `json:"due_date"`
-	CustomFields CustomFields `json:"custom_fields"`
-	ParentID     *int         `json:"parent_id"`
-	SortOrder    int          `json:"sort_order"`
-	Priority       string       `json:"priority" db:"priority" validate:"oneof=low medium high"` 
-	EstimatedHours *float64     `json:"estimated_hours" db:"estimated_hours" validate:"min=0"` 
-	ActualHours    *float64     `json:"actual_hours" db:"actual_hours" validate:"min=0"` 
-	Progress       *int         `json:"progress" db:"progress" validate:"min=0,max=100"` 
-	Tags           []string     `json:"tags" db:"tags"` 
-	Metadata       CustomFields `json:"metadata" db:"metadata"`
+	Title          string       `json:"title" validate:"required,min=1,max=255"`
+	Description    string       `json:"description"`
+	Status         string       `json:"status" validate:"required,oneof=todo in_progress completed cancelled"`
+	AssigneeID     *int         `json:"assignee_id"`
+	DueDate        *time.Time   `json:"due_date"`
+	CustomFields   CustomFields `json:"custom_fields"`
+	ParentID       *int         `json:"parent_id"`
+	SortOrder      int          `json:"sort_order"`
+	// AI-enhanced fields
+	Dependencies   Dependencies `json:"dependencies"`
+	EstimatedHours *float64     `json:"estimated_hours" validate:"min=0"` 
+	Priority       string       `json:"priority" validate:"oneof=low medium high"` 
+	Tags           Tags         `json:"tags"` 
+	// Legacy fields (keeping for backward compatibility)
+	ActualHours    *float64     `json:"actual_hours" validate:"min=0"` 
+	Progress       *int         `json:"progress" validate:"min=0,max=100"` 
+	Metadata       CustomFields `json:"metadata"`
 }
 
 // TaskResponse represents a task response with additional info
@@ -115,6 +175,11 @@ type TaskResponse struct {
 	ChildrenCount  int          `json:"children_count"`
 	Depth          int          `json:"depth"`
 	HasChildren    bool         `json:"has_children"`
+	// AI-enhanced fields
+	Dependencies   Dependencies `json:"dependencies"`
+	EstimatedHours *float64     `json:"estimated_hours"`
+	Priority       string       `json:"priority"`
+	Tags           Tags         `json:"tags"`
 	CreatedAt      time.Time    `json:"created_at"`
 	UpdatedAt      time.Time    `json:"updated_at"`
 }
@@ -140,6 +205,26 @@ type TaskFilter struct {
 	DueAfter   string `form:"due_after"`
 	DueBefore  string `form:"due_before"`
 	Search     string `form:"search"`
+}
+
+// BatchUpdateTasksRequest represents a batch update request for multiple tasks
+type BatchUpdateTasksRequest struct {
+	TaskIDs   []int  `json:"task_ids" validate:"required,min=1"`
+	Status    string `json:"status" validate:"required,oneof=todo in_progress completed cancelled"`
+	UpdatedBy *int   `json:"updated_by,omitempty"`
+}
+
+// BatchUpdateTasksResponse represents the response for batch update operation
+type BatchUpdateTasksResponse struct {
+	UpdatedCount int              `json:"updated_count"`
+	FailedTasks  []BatchTaskError `json:"failed_tasks,omitempty"`
+	Message      string           `json:"message"`
+}
+
+// BatchTaskError represents an error for a specific task during batch operation
+type BatchTaskError struct {
+	TaskID int    `json:"task_id"`
+	Error  string `json:"error"`
 }
 
 

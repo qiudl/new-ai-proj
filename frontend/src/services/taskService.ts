@@ -390,4 +390,52 @@ export class TaskService {
     return response.data!;
   }
 
+  /**
+   * Batch update tasks status
+   */
+  static async batchUpdateTasks(
+    projectId: number,
+    taskIds: number[],
+    status: string
+  ): Promise<{
+    updated_count: number;
+    failed_tasks?: Array<{ task_id: number; error: string }>;
+    message: string;
+  }> {
+    try {
+      const requestData = {
+        task_ids: taskIds,
+        status: status,
+        updated_by: 1 // TODO: Get from auth context
+      };
+
+      const response: APIResponse<{
+        updated_count: number;
+        failed_tasks?: Array<{ task_id: number; error: string }>;
+        message: string;
+      }> = await api.patch(
+        `/projects/${projectId}/tasks/batch`,
+        requestData
+      );
+      
+      if (!response || !response.success) {
+        throw new Error(response?.error?.message || 'Failed to batch update tasks');
+      }
+      
+      // Log successful batch operation
+      logTaskAction('batch_update', {
+        projectId,
+        taskIds,
+        status,
+        updatedCount: response.data?.updated_count || 0,
+        failedCount: response.data?.failed_tasks?.length || 0
+      });
+      
+      return response.data!;
+    } catch (error) {
+      logApiError('batchUpdateTasks', error);
+      throw error;
+    }
+  }
+
 }

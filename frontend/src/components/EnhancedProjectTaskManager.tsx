@@ -196,6 +196,11 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const [loading, setLoading] = useState(true);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   
+  // 批量操作状态
+  const [batchOperationVisible, setBatchOperationVisible] = useState(false);
+  const [batchStatus, setBatchStatus] = useState<string>('');
+  const [batchLoading, setBatchLoading] = useState(false);
+  
   // 层级管理状态
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<number>>(new Set());
   const [hierarchicalTasks, setHierarchicalTasks] = useState<HierarchicalTask[]>([]);
@@ -1036,18 +1041,36 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const handleBatchUpdateStatus = useCallback(async (status: string) => {
     if (selectedRowKeys.length === 0) return;
 
+    const statusText = status === 'todo' ? '待开始' : 
+                      status === 'in_progress' ? '进行中' : 
+                      status === 'completed' ? '已完成' : '已取消';
+
     Modal.confirm({
       title: '批量更新状态',
-      content: `确定要将选中的 ${selectedRowKeys.length} 个任务状态更新为 "${status === 'todo' ? '待开始' : status === 'in_progress' ? '进行中' : status === 'completed' ? '已完成' : '已取消'}" 吗？`,
+      content: `确定要将选中的 ${selectedRowKeys.length} 个任务状态更新为 "${statusText}" 吗？`,
       onOk: async () => {
         try {
-          // 并行更新所有选中的任务
-          const updatePromises = selectedRowKeys.map(taskId => 
-            TaskService.updateTask(projectId, Number(taskId), { status: status as TaskStatus })
-          );
+          setBatchLoading(true);
           
-          await Promise.all(updatePromises);
-          message.success(`成功更新了 ${selectedRowKeys.length} 个任务的状态`);
+          // 使用新的批量更新API
+          const taskIds = selectedRowKeys.map(id => Number(id));
+          const result = await TaskService.batchUpdateTasks(projectId, taskIds, status);
+          
+          // 处理结果
+          if (result.failed_tasks && result.failed_tasks.length > 0) {
+            const successCount = result.updated_count;
+            const failureCount = result.failed_tasks.length;
+            
+            message.warning(
+              `批量更新完成：成功 ${successCount} 个，失败 ${failureCount} 个任务`
+            );
+            
+            // 显示失败的任务详情（可选）
+            console.warn('Failed tasks:', result.failed_tasks);
+          } else {
+            message.success(`成功更新了 ${result.updated_count} 个任务的状态`);
+          }
+          
           setSelectedRowKeys([]);
           loadData();
         } catch (error: any) {
@@ -1059,6 +1082,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           });
           const errorMessage = error?.message || error?.error?.message || '批量更新状态失败';
           message.error(`批量更新状态失败: ${errorMessage}`);
+        } finally {
+          setBatchLoading(false);
         }
       }
     });
@@ -1565,8 +1590,9 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     ],
                     onClick: ({ key }) => handleBatchUpdateStatus(key)
                   }}
+                  disabled={batchLoading}
                 >
-                  <Button size="small">
+                  <Button size="small" loading={batchLoading}>
                     批量更新状态 <CaretDownOutlined />
                   </Button>
                 </Dropdown>

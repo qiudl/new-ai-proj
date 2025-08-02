@@ -339,6 +339,7 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.GET("/:id/tasks", app.getTasksHandler)
 				projects.POST("/:id/tasks", app.createTaskHandler)
 				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
+				projects.PATCH("/:id/tasks/batch", app.batchUpdateTasksHandler)
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
@@ -2063,6 +2064,129 @@ func (app *Application) deleteTaskHandler(c *gin.Context) {
 	}
 
 	response := models.NewSuccessResponse(nil, "Task deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req models.BatchUpdateTasksRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if len(req.TaskIDs) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "At least one task ID is required", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if req.Status == "" {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Status is required", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate status value
+	validStatuses := map[string]bool{
+		"todo":        true,
+		"in_progress": true,
+		"completed":   true,
+		"cancelled":   true,
+	}
+	if !validStatuses[req.Status] {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+			"Invalid status. Must be one of: todo, in_progress, completed, cancelled", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Perform batch update with transaction
+	ctx := c.Request.Context()
+	updatedCount := 0
+	var failedTasks []models.BatchTaskError
+
+	// Start transaction for atomic operation
+	tx, err := app.db.BeginTx(ctx)
+	if err != nil {
+		app.logger.Printf("Error starting transaction: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to start batch update", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+	defer tx.Rollback()
+
+	for _, taskID := range req.TaskIDs {
+		// Verify task exists and belongs to the project
+		existingTask, err := app.db.Tasks().GetByID(ctx, taskID)
+		if err != nil {
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  "Task not found",
+			})
+			continue
+		}
+
+		if existingTask.ProjectID != projectID {
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  "Task does not belong to this project",
+			})
+			continue
+		}
+
+		// Skip if status is already the same
+		if existingTask.Status == req.Status {
+			continue
+		}
+
+		// Update task status
+		existingTask.Status = req.Status
+
+		_, err = app.db.Tasks().Update(ctx, existingTask)
+		if err != nil {
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  fmt.Sprintf("Failed to update: %v", err),
+			})
+			continue
+		}
+
+		// Note: Task update history creation is handled by the database layer if needed
+		// For MVP, we skip explicit update history creation to keep it simple
+
+		updatedCount++
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		app.logger.Printf("Error committing transaction: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to commit batch update", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Prepare response
+	batchResponse := models.BatchUpdateTasksResponse{
+		UpdatedCount: updatedCount,
+		FailedTasks:  failedTasks,
+		Message:      fmt.Sprintf("Successfully updated %d tasks to status '%s'", updatedCount, req.Status),
+	}
+
+	if len(failedTasks) > 0 {
+		batchResponse.Message += fmt.Sprintf(" (%d tasks failed)", len(failedTasks))
+	}
+
+	response := models.NewSuccessResponse(batchResponse, "Batch update completed")
 	c.JSON(http.StatusOK, response)
 }
 
