@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,9 +37,38 @@ func (h *TaskDocumentHandler) ensureDocsDir() error {
 	return os.MkdirAll(h.docsBasePath, 0755)
 }
 
-// getDocumentPath 获取文档文件路径
+// ensureProjectDocsDir 确保项目文档目录存在
+func (h *TaskDocumentHandler) ensureProjectDocsDir(projectID string) error {
+	projectDir := filepath.Join(h.docsBasePath, "tasks", "projects", fmt.Sprintf("project-%s", projectID))
+	return os.MkdirAll(projectDir, 0755)
+}
+
+// getDocumentPath 获取文档文件路径（向后兼容版本）
 func (h *TaskDocumentHandler) getDocumentPath(taskID string) string {
 	return filepath.Join(h.docsBasePath, fmt.Sprintf("%s.md", taskID))
+}
+
+// getProjectDocumentPath 获取项目结构的文档文件路径
+func (h *TaskDocumentHandler) getProjectDocumentPath(projectID, taskID string) string {
+	return filepath.Join(h.docsBasePath, "tasks", "projects", fmt.Sprintf("project-%s", projectID), fmt.Sprintf("task-%s.md", taskID))
+}
+
+// getBestDocumentPath 获取最佳文档路径（优先项目路径，回退到简单路径）
+func (h *TaskDocumentHandler) getBestDocumentPath(projectID, taskID string) string {
+	// 优先检查项目路径
+	projectPath := h.getProjectDocumentPath(projectID, taskID)
+	if _, err := os.Stat(projectPath); err == nil {
+		return projectPath
+	}
+
+	// 回退到简单路径
+	simplePath := h.getDocumentPath(taskID)
+	if _, err := os.Stat(simplePath); err == nil {
+		return simplePath
+	}
+
+	// 如果都不存在，返回项目路径（用于新文档）
+	return projectPath
 }
 
 // 删除模板功能 - 防止覆盖用户内容
@@ -60,7 +89,7 @@ func (h *TaskDocumentHandler) GetTaskDocument(c *gin.Context) {
 		return
 	}
 
-	h.getDocumentGin(c, taskID)
+	h.getDocumentGin(c, projectID, taskID)
 }
 
 // SaveTaskDocument 保存任务文档 (Gin版本)
@@ -78,7 +107,7 @@ func (h *TaskDocumentHandler) SaveTaskDocument(c *gin.Context) {
 		return
 	}
 
-	h.saveDocumentGin(c, taskID)
+	h.saveDocumentGin(c, projectID, taskID)
 }
 
 // CheckTaskDocument 检查任务文档是否存在 (Gin版本)
@@ -96,12 +125,12 @@ func (h *TaskDocumentHandler) CheckTaskDocument(c *gin.Context) {
 		return
 	}
 
-	h.checkDocumentGin(c, taskID)
+	h.checkDocumentGin(c, projectID, taskID)
 }
 
 // getDocumentGin 获取文档内容 (Gin版本)
-func (h *TaskDocumentHandler) getDocumentGin(c *gin.Context, taskID string) {
-	filePath := h.getDocumentPath(taskID)
+func (h *TaskDocumentHandler) getDocumentGin(c *gin.Context, projectID, taskID string) {
+	filePath := h.getBestDocumentPath(projectID, taskID)
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -118,10 +147,10 @@ func (h *TaskDocumentHandler) getDocumentGin(c *gin.Context, taskID string) {
 }
 
 // saveDocumentGin 保存文档内容 (Gin版本)
-func (h *TaskDocumentHandler) saveDocumentGin(c *gin.Context, taskID string) {
-	// 确保文档目录存在
-	if err := h.ensureDocsDir(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建文档目录失败: %v", err)})
+func (h *TaskDocumentHandler) saveDocumentGin(c *gin.Context, projectID, taskID string) {
+	// 确保项目文档目录存在
+	if err := h.ensureProjectDocsDir(projectID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("创建项目文档目录失败: %v", err)})
 		return
 	}
 
@@ -131,7 +160,8 @@ func (h *TaskDocumentHandler) saveDocumentGin(c *gin.Context, taskID string) {
 		return
 	}
 
-	filePath := h.getDocumentPath(taskID)
+	// 使用项目路径保存新文档
+	filePath := h.getProjectDocumentPath(projectID, taskID)
 	if err := os.WriteFile(filePath, []byte(request.Content), 0644); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("保存文档失败: %v", err)})
 		return
@@ -141,8 +171,8 @@ func (h *TaskDocumentHandler) saveDocumentGin(c *gin.Context, taskID string) {
 }
 
 // checkDocumentGin 检查文档是否存在 (Gin版本)
-func (h *TaskDocumentHandler) checkDocumentGin(c *gin.Context, taskID string) {
-	filePath := h.getDocumentPath(taskID)
+func (h *TaskDocumentHandler) checkDocumentGin(c *gin.Context, projectID, taskID string) {
+	filePath := h.getBestDocumentPath(projectID, taskID)
 
 	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
