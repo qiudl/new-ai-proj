@@ -341,7 +341,7 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
       {!analysisResult && !loading && (
         <Alert
           message="AI分析尚未运行"
-          description="点击"重新分析"按钮开始AI依赖关系分析。"
+          description="点击重新分析按钮开始AI依赖关系分析。"
           type="info"
           showIcon
         />

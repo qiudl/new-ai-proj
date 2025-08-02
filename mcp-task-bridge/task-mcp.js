@@ -58,10 +58,10 @@ export class TaskMCPServer {
         }
     }
     // 创建任务
-    async createTask(title, projectId = 1) {
+    async createTask(title, projectId = 1, parentId = null) {
         try {
-            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}`);
-            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, {
+            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}, 父任务ID: ${parentId}`);
+            const taskData = {
                 title,
                 project_id: projectId,
                 status: 'todo', // 默认状态改为'todo'（待开始）
@@ -69,7 +69,14 @@ export class TaskMCPServer {
                 custom_fields: {
                     priority: 'low' // 设置默认优先级为'低'
                 }
-            }, {
+            };
+            
+            // 如果指定了父任务ID，添加parent_id字段
+            if (parentId) {
+                taskData.parent_id = parentId;
+            }
+            
+            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, taskData, {
                 headers: this.getHeaders(),
                 timeout: 10000,
                 proxy: false

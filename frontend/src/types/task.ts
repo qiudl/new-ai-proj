@@ -17,6 +17,9 @@ export interface Task {
   sort_order: number;
   parent_title?: string;
   children_count?: number;
+  // AI-enhanced fields
+  dependencies?: number[];  // Array of task IDs this task depends on
+  tags?: string[];          // AI-generated tags for categorization
   created_at: string;
   updated_at: string;
   updated_by?: number;
@@ -36,12 +39,14 @@ export interface TaskRequest {
   custom_fields?: Record<string, any>;
   parent_id?: number;
   sort_order?: number;
-  // Add missing fields to match backend model
+  // AI-enhanced fields
+  dependencies?: number[];  // Array of task IDs this task depends on
   priority?: 'low' | 'medium' | 'high';
   estimated_hours?: number;
+  tags?: string[];          // AI-generated tags for categorization
+  // Legacy fields (keeping for backward compatibility)
   actual_hours?: number;
   progress?: number;
-  tags?: string[];
   metadata?: Record<string, any>;
 }
 
@@ -141,6 +146,11 @@ export interface HierarchicalTask {
   parent_id?: number;
   task_level: number;
   sort_order: number;
+  // AI-enhanced fields
+  dependencies?: number[];  // Array of task IDs this task depends on
+  priority?: 'low' | 'medium' | 'high';
+  estimated_hours?: number;
+  tags?: string[];          // AI-generated tags for categorization
   created_at: string;
   updated_at: string;
   children?: HierarchicalTask[];

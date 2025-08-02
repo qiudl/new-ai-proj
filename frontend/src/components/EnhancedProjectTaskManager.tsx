@@ -1061,14 +1061,31 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             const successCount = result.updated_count;
             const failureCount = result.failed_tasks.length;
             
-            message.warning(
-              `批量更新完成：成功 ${successCount} 个，失败 ${failureCount} 个任务`
-            );
-            
-            // 显示失败的任务详情（可选）
-            console.warn('Failed tasks:', result.failed_tasks);
+            // 显示详细的成功/失败信息
+            Modal.info({
+              title: '批量更新结果',
+              content: (
+                <div>
+                  <p>✅ 成功更新: {successCount} 个任务</p>
+                  <p>❌ 更新失败: {failureCount} 个任务</p>
+                  {failureCount <= 3 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <Text type="secondary">失败任务:</Text>
+                      <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+                        {result.failed_tasks.map(failed => (
+                          <li key={failed.task_id}>
+                            任务 #{failed.task_id}: {failed.error}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ),
+              okText: '确定'
+            });
           } else {
-            message.success(`成功更新了 ${result.updated_count} 个任务的状态`);
+            message.success(`✅ 成功更新了 ${result.updated_count} 个任务的状态为"${statusText}"`);
           }
           
           setSelectedRowKeys([]);
@@ -1169,6 +1186,27 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // 键盘快捷键支持
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + A: 全选任务
+      if ((event.ctrlKey || event.metaKey) && event.key === 'a' && selectedRowKeys.length === 0) {
+        event.preventDefault();
+        const allTaskIds = displayTasks.map(task => task.id);
+        setSelectedRowKeys(allTaskIds);
+        message.info(`已选择全部 ${allTaskIds.length} 个任务`);
+      }
+      // Escape: 取消选择
+      else if (event.key === 'Escape' && selectedRowKeys.length > 0) {
+        setSelectedRowKeys([]);
+        message.info('已取消选择');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRowKeys, displayTasks]);
 
   return (
     <div className="enhanced-project-task-manager">
@@ -1556,7 +1594,31 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 <Text strong>已选择 {selectedRowKeys.length} 个任务</Text>
                 <Button
                   size="small"
-                  onClick={() => setSelectedRowKeys([])}
+                  onClick={() => {
+                    const allTaskIds = displayTasks.map(task => task.id);
+                    setSelectedRowKeys(allTaskIds);
+                    message.info(`已选择全部 ${allTaskIds.length} 个任务`);
+                  }}
+                >
+                  全选
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    const allTaskIds = displayTasks.map(task => task.id);
+                    const unselectedIds = allTaskIds.filter(id => !selectedRowKeys.includes(id));
+                    setSelectedRowKeys(unselectedIds);
+                    message.info(`已反选，当前选择 ${unselectedIds.length} 个任务`);
+                  }}
+                >
+                  反选
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setSelectedRowKeys([]);
+                    message.info('已取消选择');
+                  }}
                 >
                   取消选择
                 </Button>

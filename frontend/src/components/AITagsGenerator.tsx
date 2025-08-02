@@ -471,7 +471,7 @@ export const AITagsGenerator: React.FC<AITagsGeneratorProps> = ({
       {!generationResult && !loading && (
         <Alert
           message="AI标签生成尚未运行"
-          description="点击"重新生成"按钮开始AI标签生成。"
+          description="点击重新生成按钮开始AI标签生成。"
           type="info"
           showIcon
         />

@@ -486,7 +486,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
       {!analysisResult && !loading && (
         <Alert
           message="AI分析尚未运行"
-          description="点击"重新分析"按钮开始AI优先级和工时分析。"
+          description="点击重新分析按钮开始AI优先级和工时分析。"
           type="info"
           showIcon
         />
