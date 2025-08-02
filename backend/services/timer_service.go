@@ -97,15 +97,22 @@ func (s *TimerService) StartTimer(ctx context.Context, userID int, req StartTime
 			return nil, fmt.Errorf("failed to stop current timer: %w", err)
 		}
 	} else {
-		// Check if another timer is running
-		if user.TimingStatus == string(models.TimingStatusRunning) {
+		// Check if another timer is running or paused
+		if user.TimingStatus == string(models.TimingStatusRunning) || user.TimingStatus == string(models.TimingStatusPaused) {
 			var currentTaskName string
+			var statusText string
+			if user.TimingStatus == string(models.TimingStatusRunning) {
+				statusText = "running"
+			} else {
+				statusText = "paused"
+			}
+			
 			if user.CurrentUserTimerTaskID != nil {
 				currentTaskName = "Personal Task"
 			} else if user.CurrentTimingTaskID != nil {
 				currentTaskName = "Project Task"
 			}
-			return nil, fmt.Errorf("another timer is already running: %s", currentTaskName)
+			return nil, fmt.Errorf("another timer is already %s: %s", statusText, currentTaskName)
 		}
 	}
 
@@ -132,10 +139,12 @@ func (s *TimerService) StartTimer(ctx context.Context, userID int, req StartTime
 		return nil, fmt.Errorf("invalid task type: %s", req.TaskType)
 	}
 
-	// Update user timing status
+	// Update user timing status and reset pause fields
 	now := time.Now()
 	user.TimingStatus = string(models.TimingStatusRunning)
 	user.TimingStartTime = &now
+	user.TimingPausedTime = nil
+	user.TimingAccumulatedSeconds = 0
 
 	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
@@ -178,14 +187,23 @@ func (s *TimerService) StopTimer(ctx context.Context, userID int) (*TimerRespons
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	// Check if timer is running
-	if user.TimingStatus != string(models.TimingStatusRunning) {
-		return nil, fmt.Errorf("no timer is currently running")
+	// Check if timer is running or paused
+	if user.TimingStatus != string(models.TimingStatusRunning) && user.TimingStatus != string(models.TimingStatusPaused) {
+		return nil, fmt.Errorf("no timer is currently running or paused")
 	}
 
 	// Calculate duration and create time log
 	endTime := time.Now()
-	duration := int(endTime.Sub(*user.TimingStartTime).Seconds())
+	var duration int
+	
+	if user.TimingStatus == string(models.TimingStatusRunning) {
+		// Timer is running: accumulated + current session
+		currentSessionSeconds := int(endTime.Sub(*user.TimingStartTime).Seconds())
+		duration = user.TimingAccumulatedSeconds + currentSessionSeconds
+	} else {
+		// Timer is paused: only accumulated time
+		duration = user.TimingAccumulatedSeconds
+	}
 	
 	var taskID int
 	var taskTitle string
@@ -227,11 +245,13 @@ func (s *TimerService) StopTimer(ctx context.Context, userID int) (*TimerRespons
 		return nil, fmt.Errorf("failed to create time log: %w", err)
 	}
 
-	// Update user status
+	// Update user status and reset all timer fields
 	user.TimingStatus = string(models.TimingStatusStopped)
 	user.CurrentTimingTaskID = nil
 	user.CurrentUserTimerTaskID = nil
 	user.TimingStartTime = nil
+	user.TimingPausedTime = nil
+	user.TimingAccumulatedSeconds = 0
 
 	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
 		return nil, fmt.Errorf("failed to update user: %w", err)
@@ -263,10 +283,11 @@ func (s *TimerService) GetCurrentTimer(ctx context.Context, userID int) (*Curren
 
 	response := &CurrentTimerResponse{
 		IsRunning: user.TimingStatus == string(models.TimingStatusRunning),
-		IsPaused:  false, // Will be implemented in Phase 3
+		IsPaused:  user.TimingStatus == string(models.TimingStatusPaused),
 	}
 
-	if response.IsRunning {
+	// Handle running or paused timer
+	if response.IsRunning || response.IsPaused {
 		var taskID int
 		var taskTitle string
 		var taskType string
@@ -291,10 +312,165 @@ func (s *TimerService) GetCurrentTimer(ctx context.Context, userID int) (*Curren
 		response.TaskTitle = taskTitle
 		response.TaskType = taskType
 		response.StartTime = user.TimingStartTime
-		response.ElapsedSeconds = int(time.Since(*user.TimingStartTime).Seconds())
+
+		// Calculate elapsed seconds based on timer state
+		if response.IsRunning {
+			// Timer is running: accumulated + current session
+			currentSessionSeconds := int(time.Since(*user.TimingStartTime).Seconds())
+			response.ElapsedSeconds = user.TimingAccumulatedSeconds + currentSessionSeconds
+		} else if response.IsPaused {
+			// Timer is paused: only accumulated time
+			response.ElapsedSeconds = user.TimingAccumulatedSeconds
+		}
 	}
 
 	return response, nil
+}
+
+// PauseTimer pauses the current running timer
+func (s *TimerService) PauseTimer(ctx context.Context, userID int) (*TimerResponse, error) {
+	// Begin transaction for concurrent safety
+	tx, err := s.db.GetDB().(*sql.DB).BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Get user with lock
+	user, err := s.getUserWithLock(ctx, tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if timer is running
+	if user.TimingStatus != string(models.TimingStatusRunning) {
+		return nil, fmt.Errorf("no timer is currently running")
+	}
+
+	// Calculate accumulated time
+	now := time.Now()
+	accumulatedSeconds := int(now.Sub(*user.TimingStartTime).Seconds())
+	
+	// Get task info for response
+	var taskID int
+	var taskTitle string
+	var taskType TaskType
+
+	if user.CurrentUserTimerTaskID != nil {
+		taskID = *user.CurrentUserTimerTaskID
+		taskType = TaskTypePersonal
+		if task, err := s.getPersonalTaskByID(ctx, tx, taskID); err == nil {
+			taskTitle = task.Title
+		}
+	} else if user.CurrentTimingTaskID != nil {
+		taskID = *user.CurrentTimingTaskID
+		taskType = TaskTypeProject
+		if task, err := s.getProjectTaskByID(ctx, tx, taskID); err == nil {
+			taskTitle = task.Title
+		}
+	}
+
+	// Update user status to paused
+	user.TimingStatus = string(models.TimingStatusPaused)
+	user.TimingPausedTime = &now
+	user.TimingAccumulatedSeconds += accumulatedSeconds
+	
+	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
+		return nil, fmt.Errorf("failed to update user: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &TimerResponse{
+		Success:   true,
+		Message:   "Timer paused successfully",
+		TaskID:    taskID,
+		TaskTitle: taskTitle,
+		TaskType:  taskType,
+		Status:    "paused",
+		Duration:  user.TimingAccumulatedSeconds,
+	}, nil
+}
+
+// ResumeTimer resumes a paused timer
+func (s *TimerService) ResumeTimer(ctx context.Context, userID int) (*TimerResponse, error) {
+	// Begin transaction for concurrent safety
+	tx, err := s.db.GetDB().(*sql.DB).BeginTx(ctx, &sql.TxOptions{
+		Isolation: sql.LevelSerializable,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Get user with lock
+	user, err := s.getUserWithLock(ctx, tx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Check if timer is paused
+	if user.TimingStatus != string(models.TimingStatusPaused) {
+		return nil, fmt.Errorf("no timer is currently paused")
+	}
+
+	// Get task info for response
+	var taskID int
+	var taskTitle string
+	var taskType TaskType
+
+	if user.CurrentUserTimerTaskID != nil {
+		taskID = *user.CurrentUserTimerTaskID
+		taskType = TaskTypePersonal
+		if task, err := s.getPersonalTaskByID(ctx, tx, taskID); err == nil {
+			taskTitle = task.Title
+		}
+	} else if user.CurrentTimingTaskID != nil {
+		taskID = *user.CurrentTimingTaskID
+		taskType = TaskTypeProject
+		if task, err := s.getProjectTaskByID(ctx, tx, taskID); err == nil {
+			taskTitle = task.Title
+		}
+	}
+
+	// Resume timer - reset start time to now
+	now := time.Now()
+	user.TimingStatus = string(models.TimingStatusRunning)
+	user.TimingStartTime = &now
+	user.TimingPausedTime = nil
+	
+	if err := s.updateUserWithTx(ctx, tx, user); err != nil {
+		return nil, fmt.Errorf("failed to update user: %w", err)
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &TimerResponse{
+		Success:   true,
+		Message:   "Timer resumed successfully",
+		TaskID:    taskID,
+		TaskTitle: taskTitle,
+		TaskType:  taskType,
+		Status:    "running",
+		StartTime: now,
+		Duration:  user.TimingAccumulatedSeconds,
+	}, nil
 }
 
 // Helper methods (extracted from existing handlers)
@@ -303,7 +479,8 @@ func (s *TimerService) getUserWithLock(ctx context.Context, tx *sql.Tx, userID i
 	var user models.User
 	query := `
 		SELECT id, username, email, role, timing_status, current_timing_task_id, 
-			   timing_start_time, current_user_timer_task_id, created_at, updated_at
+			   timing_start_time, current_user_timer_task_id, timing_paused_time, 
+			   timing_accumulated_seconds, created_at, updated_at
 		FROM users 
 		WHERE id = $1 
 		FOR UPDATE`
@@ -311,7 +488,8 @@ func (s *TimerService) getUserWithLock(ctx context.Context, tx *sql.Tx, userID i
 	err := tx.QueryRowContext(ctx, query, userID).Scan(
 		&user.ID, &user.Username, &user.Email, &user.Role,
 		&user.TimingStatus, &user.CurrentTimingTaskID, &user.TimingStartTime,
-		&user.CurrentUserTimerTaskID, &user.CreatedAt, &user.UpdatedAt,
+		&user.CurrentUserTimerTaskID, &user.TimingPausedTime, 
+		&user.TimingAccumulatedSeconds, &user.CreatedAt, &user.UpdatedAt,
 	)
 	return &user, err
 }
@@ -368,11 +546,13 @@ func (s *TimerService) updateUserWithTx(ctx context.Context, tx *sql.Tx, user *m
 	query := `
 		UPDATE users 
 		SET timing_status = $2, current_timing_task_id = $3, timing_start_time = $4,
-			current_user_timer_task_id = $5, updated_at = CURRENT_TIMESTAMP
+			current_user_timer_task_id = $5, timing_paused_time = $6, 
+			timing_accumulated_seconds = $7, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1`
 	
 	_, err := tx.ExecContext(ctx, query, user.ID, user.TimingStatus, 
-		user.CurrentTimingTaskID, user.TimingStartTime, user.CurrentUserTimerTaskID)
+		user.CurrentTimingTaskID, user.TimingStartTime, user.CurrentUserTimerTaskID,
+		user.TimingPausedTime, user.TimingAccumulatedSeconds)
 	return err
 }
 
@@ -387,13 +567,22 @@ func (s *TimerService) createTimeLogWithTx(ctx context.Context, tx *sql.Tx, log 
 }
 
 func (s *TimerService) stopCurrentTimerWithTx(ctx context.Context, tx *sql.Tx, user *models.User) error {
-	if user.TimingStatus != string(models.TimingStatusRunning) {
-		return nil // No timer running
+	if user.TimingStatus != string(models.TimingStatusRunning) && user.TimingStatus != string(models.TimingStatusPaused) {
+		return nil // No timer running or paused
 	}
 
 	// Calculate duration and create time log
 	endTime := time.Now()
-	duration := int(endTime.Sub(*user.TimingStartTime).Seconds())
+	var duration int
+	
+	if user.TimingStatus == string(models.TimingStatusRunning) {
+		// Timer is running: accumulated + current session
+		currentSessionSeconds := int(endTime.Sub(*user.TimingStartTime).Seconds())
+		duration = user.TimingAccumulatedSeconds + currentSessionSeconds
+	} else {
+		// Timer is paused: only accumulated time
+		duration = user.TimingAccumulatedSeconds
+	}
 	
 	var taskID int
 	if user.CurrentUserTimerTaskID != nil {

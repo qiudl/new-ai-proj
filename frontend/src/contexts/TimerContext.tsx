@@ -160,7 +160,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       // 转换PersonalTimerCurrent到TimerCurrentResponse格式
       const convertedResponse: TimerCurrentResponse = {
         is_running: response.is_running,
-        is_paused: false, // PersonalTimerCurrent没有is_paused字段
+        is_paused: response.is_paused || false, // 现在PersonalTimerCurrent有is_paused字段
         task_id: response.task_id,
         task_title: response.task_title,
         start_time: response.start_time,
@@ -286,6 +286,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         console.log('🚀 Starting PROJECT timer for task:', taskId);
         // 启动项目任务计时
         response = await personalTimerService.startProjectTimer({
+          task_type: 'project',
           task_id: taskId,
           auto_stop_others: true
         });
@@ -364,11 +365,12 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     
     setIsLoading(true);
     try {
-      const response = await TimerService.pauseTimer();
+      // 🔧 使用personalTimerService暂停Timer
+      const response = await personalTimerService.pauseTimer();
       
       if (!isMountedRef.current) return false;
       
-      message.success(`计时已暂停: ${response.task_title}`);
+      message.success(`计时已暂停: ${response.task_title || response.message}`);
       
       // 立即刷新状态
       await refreshTimer();
@@ -389,15 +391,16 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
 
   // 恢复定时器
   const resumeTimer = useCallback(async (): Promise<boolean> => {
-    if (isLoading || !timerState.isRunning || !timerState.isPaused) return false;
+    if (isLoading || timerState.isRunning || !timerState.isPaused) return false;
     
     setIsLoading(true);
     try {
-      const response = await TimerService.resumeTimer();
+      // 🔧 使用personalTimerService恢复Timer
+      const response = await personalTimerService.resumeTimer();
       
       if (!isMountedRef.current) return false;
       
-      message.success(`计时已恢复: ${response.task_title}`);
+      message.success(`计时已恢复: ${response.task_title || response.message}`);
       
       // 立即刷新状态
       await refreshTimer();

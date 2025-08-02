@@ -11,6 +11,7 @@ type TimingStatus string
 const (
 	TimingStatusStopped TimingStatus = "stopped"
 	TimingStatusRunning TimingStatus = "running"
+	TimingStatusPaused  TimingStatus = "paused"  // Phase 3: New paused state
 )
 
 // TaskTimeLog represents a timing session log for a task
@@ -165,6 +166,7 @@ func IsValidTimingStatus(status string) bool {
 	validStatuses := []TimingStatus{
 		TimingStatusStopped,
 		TimingStatusRunning,
+		TimingStatusPaused,  // Phase 3: Add paused status validation
 	}
 	
 	for _, validStatus := range validStatuses {

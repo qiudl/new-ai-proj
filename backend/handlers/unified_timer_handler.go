@@ -146,21 +146,67 @@ func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
 }
 
 // PauseTimer handles POST /api/v1/user/timer/pause
-// Pauses the current timer (placeholder for Phase 3)
+// Pauses the current running timer
 func (h *UnifiedTimerHandler) PauseTimer(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":   "Not implemented",
-		"message": "Pause functionality will be implemented in Phase 3",
-	})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	uid := userID.(int)
+
+	response, err := h.timerService.PauseTimer(ctx, uid)
+	if err != nil {
+		if err.Error() == "no timer is currently running" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "No active timer",
+				"message": "No timer is currently running to pause",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to pause timer",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // ResumeTimer handles POST /api/v1/user/timer/resume  
-// Resumes a paused timer (placeholder for Phase 3)
+// Resumes a paused timer
 func (h *UnifiedTimerHandler) ResumeTimer(c *gin.Context) {
-	c.JSON(http.StatusNotImplemented, gin.H{
-		"error":   "Not implemented",
-		"message": "Resume functionality will be implemented in Phase 3",
-	})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	uid := userID.(int)
+
+	response, err := h.timerService.ResumeTimer(ctx, uid)
+	if err != nil {
+		if err.Error() == "no timer is currently paused" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "No paused timer",
+				"message": "No timer is currently paused to resume",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to resume timer",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // Health check endpoint
@@ -173,7 +219,8 @@ func (h *UnifiedTimerHandler) HealthCheck(c *gin.Context) {
 			"start_timer",
 			"stop_timer",
 			"get_current",
-			"pause_resume_placeholder",
+			"pause_timer",
+			"resume_timer",
 		},
 	})
 }

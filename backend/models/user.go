@@ -61,6 +61,9 @@ type User struct {
 	CurrentUserTimerTaskID  *int         `json:"current_user_timer_task_id,omitempty" db:"current_user_timer_task_id"`
 	TimingStartTime         *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
 	TimingStatus            string       `json:"timing_status" db:"timing_status"`
+	// Pause/Resume fields for Phase 3
+	TimingPausedTime        *time.Time   `json:"timing_paused_time,omitempty" db:"timing_paused_time"`         // When the timer was paused
+	TimingAccumulatedSeconds int         `json:"timing_accumulated_seconds" db:"timing_accumulated_seconds"`   // Seconds accumulated before pause
 	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
 }

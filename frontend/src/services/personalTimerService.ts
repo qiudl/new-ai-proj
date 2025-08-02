@@ -43,6 +43,7 @@ export interface UserTimerTaskResponse {
 
 export interface PersonalTimerCurrent {
   is_running: boolean;
+  is_paused?: boolean;
   task_type?: string;
   task_id?: number;
   task_title?: string;
@@ -226,6 +227,24 @@ export const personalTimerService = {
   // 停止计时
   async stopTimer(): Promise<any> {
     const response = await api.post('/user/timer/stop') as any;
+    return response;
+  },
+
+  // 暂停计时
+  async pauseTimer(): Promise<any> {
+    console.log('🔥 personalTimerService.pauseTimer called');
+    console.log('🔥 Making POST request to: /user/timer/pause');
+    const response = await api.post('/user/timer/pause') as any;
+    console.log('🔥 personalTimerService.pauseTimer response:', response);
+    return response;
+  },
+
+  // 恢复计时
+  async resumeTimer(): Promise<any> {
+    console.log('🔥 personalTimerService.resumeTimer called');
+    console.log('🔥 Making POST request to: /user/timer/resume');
+    const response = await api.post('/user/timer/resume') as any;
+    console.log('🔥 personalTimerService.resumeTimer response:', response);
     return response;
   },
 
