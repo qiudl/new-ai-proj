@@ -619,15 +619,16 @@ func (app *Application) setupRouter() *gin.Engine {
 // 			authorized.GET("/documents/:document_id/comments", app.documentVersionCommentHandler.GetDocumentComments) // 临时注释，避免编译错误
 // 			authorized.GET("/document-version-comments/:id/replies", app.documentVersionCommentHandler.GetCommentReplies) // 临时注释，避免编译错误
 
-			// Timer routes (legacy project task timers)
+			// Timer routes (Phase 4: Legacy - kept for backward compatibility)
+			// NOTE: These routes use the old TimerHandler and will be deprecated in Phase 5
 			timer := authorized.Group("/timer")
 			{
-				timer.POST("/start", app.timerHandler.StartTimer)
-				timer.POST("/stop", app.timerHandler.StopTimer)
-				timer.GET("/current", app.timerHandler.GetCurrentTimer)
-				timer.GET("/stats", app.timerHandler.GetTimerStats)
-				timer.GET("/recent-tasks", app.timerHandler.GetTimerRecentTasks)
-				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)
+				timer.POST("/start", app.timerHandler.StartTimer)         // Legacy project timer
+				timer.POST("/stop", app.timerHandler.StopTimer)           // Legacy project timer  
+				timer.GET("/current", app.timerHandler.GetCurrentTimer)   // Legacy project timer
+				timer.GET("/stats", app.timerHandler.GetTimerStats)       // Legacy statistics
+				timer.GET("/recent-tasks", app.timerHandler.GetTimerRecentTasks) // Legacy data
+				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)    // Legacy reports
 			}
 
 			// Personal Timer routes (Timer 2.0)
@@ -651,19 +652,19 @@ func (app *Application) setupRouter() *gin.Engine {
 				// Personal timer operations
 				personalTimer := user.Group("/timer")
 				{
-					// 🆕 Unified Timer API (New Architecture)
+					// 🆕 Unified Timer API (Phase 4: Primary Architecture)
 					personalTimer.POST("/start", app.unifiedTimerHandler.StartTimer)
-					personalTimer.POST("/pause", app.unifiedTimerHandler.PauseTimer)   // Placeholder for Phase 3
-					personalTimer.POST("/resume", app.unifiedTimerHandler.ResumeTimer) // Placeholder for Phase 3
+					personalTimer.POST("/pause", app.unifiedTimerHandler.PauseTimer)   // Phase 3: Implemented
+					personalTimer.POST("/resume", app.unifiedTimerHandler.ResumeTimer) // Phase 3: Implemented
+					personalTimer.POST("/stop", app.unifiedTimerHandler.StopTimer)     // Phase 2: Unified implementation
+					personalTimer.GET("/current", app.unifiedTimerHandler.GetCurrentTimer) // Phase 2: Unified implementation
 					personalTimer.GET("/health", app.unifiedTimerHandler.HealthCheck)
 					
-					// 🔄 Legacy compatibility endpoints (will be deprecated in Phase 5)
-					personalTimer.POST("/start-personal", app.personalTimerHandler.StartPersonalTimer)
-					personalTimer.POST("/start-project", app.personalTimerHandler.StartProjectTimer)
-					personalTimer.POST("/stop", app.unifiedTimerHandler.StopTimer) // Unified implementation
-					personalTimer.GET("/current", app.unifiedTimerHandler.GetCurrentTimer) // Unified implementation
+					// 🔄 Legacy compatibility endpoints (Phase 4: Redirect to unified)
+					personalTimer.POST("/start-personal", app.unifiedTimerHandler.StartPersonalTimer)
+					personalTimer.POST("/start-project", app.unifiedTimerHandler.StartProjectTimer)
 					
-					// 📊 Statistics and analytics (existing)
+					// 📊 Statistics and analytics (existing UserTimerHandler)
 					personalTimer.GET("/dashboard", app.userTimerHandler.GetUserTimerDashboard)
 					personalTimer.GET("/stats", app.userTimerHandler.GetUserTimerStats)
 					personalTimer.GET("/history", app.userTimerHandler.GetUserTimerHistory)
