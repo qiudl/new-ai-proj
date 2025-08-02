@@ -1205,6 +1205,7 @@ const TaskDetailPageNew: React.FC = () => {
             taskId={task.id}
             taskTitle={task.title}
             taskStatus={task.status}
+            projectId={projectId ? parseInt(projectId) : undefined}
             style={{ marginBottom: '16px' }}
           />
           

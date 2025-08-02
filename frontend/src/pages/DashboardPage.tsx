@@ -1,13 +1,11 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Typography, Button, message, Tooltip } from 'antd';
-import { QuestionCircleOutlined, BugOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { QuestionCircleOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 // 统一定时器系统
 import { useTimer } from '../contexts/TimerContext';
 import EnhancedTimerCard from '../components/EnhancedTimerCard';
 import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
-import TimerDebugModal from '../components/TimerDebugModal';
-import TimeManagementGuide from '../components/TimeManagementGuide';
 import '../styles/DashboardSimplified.css';
 
 const { Title, Text } = Typography;
@@ -17,7 +15,6 @@ const DashboardPage: React.FC = () => {
   const isMountedRef = useRef(true);
   
   const [showGuide, setShowGuide] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   
   // 浮动定时器显示状态
   const [floatingTimerVisible, setFloatingTimerVisible] = useState(true);
@@ -85,22 +82,9 @@ const DashboardPage: React.FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Title level={2} style={{ margin: 0, color: '#262626' }}>
-              时间管理
+              我的工作台
             </Title>
-            <Button
-              type="text"
-              icon={<QuestionCircleOutlined />}
-              onClick={() => setShowGuide(true)}
-              title="查看使用指南"
-              style={{ color: '#8c8c8c' }}
-            />
-            <Button
-              type="text"
-              icon={<BugOutlined />}
-              onClick={() => setShowDebug(true)}
-              title="定时器调试"
-              style={{ color: '#8c8c8c' }}
-            />
+   
             <Tooltip 
               title={
                 !timerState.isRunning 
@@ -167,9 +151,6 @@ const DashboardPage: React.FC = () => {
             <Title level={3} style={{ margin: 0, color: '#262626' }}>
               任务计时
             </Title>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              开始、暂停、停止任务计时
-            </Text>
           </div>
           
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -196,9 +177,7 @@ const DashboardPage: React.FC = () => {
             <Title level={3} style={{ margin: 0, color: '#262626' }}>
               我的任务
             </Title>
-            <Text type="secondary" style={{ fontSize: '14px' }}>
-              查看和管理所有任务
-            </Text>
+
           </div>
           
           <div style={{ 
@@ -216,17 +195,7 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 使用指南模态框 */}
-      <TimeManagementGuide
-        visible={showGuide}
-        onClose={() => setShowGuide(false)}
-      />
-      
-      {/* 定时器调试模态框 */}
-      <TimerDebugModal
-        visible={showDebug}
-        onClose={() => setShowDebug(false)}
-      />
+
     </div>
   );
 };

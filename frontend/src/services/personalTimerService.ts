@@ -207,13 +207,19 @@ export const personalTimerService = {
   
   // 开始个人计时
   async startPersonalTimer(data: PersonalTimerStartRequest): Promise<any> {
+    console.log('🔥 personalTimerService.startPersonalTimer called with:', data);
+    console.log('🔥 Making POST request to: /user/timer/start-personal');
     const response = await api.post('/user/timer/start-personal', data) as any;
+    console.log('🔥 personalTimerService.startPersonalTimer response:', response);
     return response;
   },
 
   // 开始项目计时
   async startProjectTimer(data: PersonalTimerStartRequest): Promise<any> {
+    console.log('🔥 personalTimerService.startProjectTimer called with:', data);
+    console.log('🔥 Making POST request to: /user/timer/start-project');
     const response = await api.post('/user/timer/start-project', data) as any;
+    console.log('🔥 personalTimerService.startProjectTimer response:', response);
     return response;
   },
 
