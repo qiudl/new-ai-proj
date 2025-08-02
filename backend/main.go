@@ -55,7 +55,6 @@ type Application struct {
 	// documentVersionCommentHandler *handlers.DocumentVersionCommentHandler // 临时注释，避免编译错误
 	timerHandler               *handlers.TimerHandler
 	userTimerHandler           *handlers.UserTimerHandler
-	personalTimerHandler       *handlers.PersonalTimerHandler
 	unifiedTimerHandler        *handlers.UnifiedTimerHandler
 	archiveHandler             *handlers.ArchiveHandler
 	taskDocumentHandler        *handlers.TaskDocumentHandler
@@ -136,7 +135,6 @@ func NewApplication() (*Application, error) {
 	taskDocumentFileHandler := handlers.NewTaskDocumentFileHandler(taskDocumentFileService)
 	
 	userTimerHandler := handlers.NewUserTimerHandler(db, taskDocumentFileService)
-	personalTimerHandler := handlers.NewPersonalTimerHandler(db)
 	unifiedTimerHandler := handlers.NewUnifiedTimerHandler(db)
 	
 	// 归档处理器
@@ -207,7 +205,6 @@ func NewApplication() (*Application, error) {
 		// documentVersionCommentHandler: documentVersionCommentHandler, // 临时注释，避免编译错误
 		timerHandler:                timerHandler,
 		userTimerHandler:            userTimerHandler,
-		personalTimerHandler:        personalTimerHandler,
 		unifiedTimerHandler:         unifiedTimerHandler,
 		archiveHandler:              archiveHandler,
 		taskDocumentHandler:         taskDocumentHandler,
