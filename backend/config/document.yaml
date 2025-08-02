@@ -1,0 +1,50 @@
+# 统一文档服务配置
+document:
+  # 基础配置
+  base_path: "./docs"
+  max_file_size: 10485760  # 10MB
+  allowed_extensions: [".md", ".txt"]
+  backup_enabled: true
+  
+  # Git配置
+  git:
+    enabled: true
+    auto_commit: true
+    commit_prefix: "docs:"
+    author_name: "AI Project System"
+    author_email: "noreply@ai-project.com"
+  
+  # 缓存配置
+  cache:
+    enabled: true
+    ttl: 3600s  # 1小时
+    max_size: 1000  # 最大缓存条目数
+  
+  # 模板配置
+  templates:
+    task_template: "task-template.md"
+    personal_template: "personal-task-template.md"
+    project_template: "project-template.md"
+    
+# 开发环境配置
+development:
+  document:
+    base_path: "./docs"
+    git:
+      enabled: false  # 开发环境禁用Git
+    cache:
+      enabled: true
+      ttl: 300s  # 5分钟（更短的缓存时间）
+      
+# 生产环境配置
+production:
+  document:
+    base_path: "/app/data/docs"
+    max_file_size: 52428800  # 50MB
+    git:
+      enabled: true
+      author_name: "Production System"
+    cache:
+      enabled: true
+      ttl: 7200s  # 2小时
+      max_size: 5000
