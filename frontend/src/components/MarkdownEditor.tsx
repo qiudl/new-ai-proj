@@ -9,7 +9,11 @@ import {
   PictureOutlined,
   FilePdfOutlined,
 } from '@ant-design/icons';
-// Markdown rendering dependencies temporarily removed to fix compilation issues
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import ImageUpload from './ImageUpload';
 import PDFViewer from './PDFViewer';
 import './MarkdownEditor.css';
@@ -359,9 +363,139 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         backgroundColor: '#fafafa'
       }}
     >
-      <div style={{ padding: '16px', whiteSpace: 'pre-wrap' }}>
-        {value || '*开始编写内容，预览将在此显示...*'}
-      </div>
+      {value ? (
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{
+            code: ({ node, inline, className, children, ...props }) => {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={tomorrow}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            },
+            // 自定义链接渲染，支持PDF预览
+            a: ({ href, children, ...props }) => {
+              if (href && href.endsWith('.pdf')) {
+                return (
+                  <a 
+                    href={href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: '#1890ff' }}
+                    {...props}
+                  >
+                    📄 {children}
+                  </a>
+                );
+              }
+              return (
+                <a 
+                  href={href} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ color: '#1890ff' }}
+                  {...props}
+                >
+                  {children}
+                </a>
+              );
+            },
+            // 自定义图片渲染
+            img: ({ src, alt, ...props }) => (
+              <img 
+                src={src} 
+                alt={alt} 
+                style={{ 
+                  maxWidth: '100%', 
+                  height: 'auto',
+                  borderRadius: '4px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                {...props}
+              />
+            ),
+            // 自定义表格样式
+            table: ({ children, ...props }) => (
+              <div style={{ overflowX: 'auto', margin: '16px 0' }}>
+                <table 
+                  style={{ 
+                    borderCollapse: 'collapse',
+                    width: '100%',
+                    border: '1px solid #d9d9d9'
+                  }}
+                  {...props}
+                >
+                  {children}
+                </table>
+              </div>
+            ),
+            th: ({ children, ...props }) => (
+              <th 
+                style={{ 
+                  border: '1px solid #d9d9d9',
+                  padding: '8px 12px',
+                  backgroundColor: '#fafafa',
+                  textAlign: 'left'
+                }}
+                {...props}
+              >
+                {children}
+              </th>
+            ),
+            td: ({ children, ...props }) => (
+              <td 
+                style={{ 
+                  border: '1px solid #d9d9d9',
+                  padding: '8px 12px'
+                }}
+                {...props}
+              >
+                {children}
+              </td>
+            ),
+            // 自定义引用块样式
+            blockquote: ({ children, ...props }) => (
+              <blockquote 
+                style={{ 
+                  borderLeft: '4px solid #1890ff',
+                  paddingLeft: '16px',
+                  margin: '16px 0',
+                  color: '#595959',
+                  backgroundColor: '#f6f8fa',
+                  padding: '8px 16px',
+                  borderRadius: '0 4px 4px 0'
+                }}
+                {...props}
+              >
+                {children}
+              </blockquote>
+            ),
+          }}
+        >
+          {value}
+        </ReactMarkdown>
+      ) : (
+        <div style={{ 
+          padding: '32px', 
+          textAlign: 'center', 
+          color: '#8c8c8c',
+          fontStyle: 'italic'
+        }}>
+          开始编写内容，预览将在此显示...
+        </div>
+      )}
     </div>
   );
 

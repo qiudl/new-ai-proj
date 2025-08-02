@@ -56,6 +56,7 @@ import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import TaskTimeline from '../components/TaskTimeline';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
@@ -739,9 +740,6 @@ const TaskDetailPageNew: React.FC = () => {
                   <Title level={2} style={{ margin: 0, color: '#262626' }}>
                     {task.title}
                   </Title>
-                  <Tag color={statusConfig.color} style={{ fontSize: '14px', padding: '4px 12px' }}>
-                    {statusConfig.text}
-                  </Tag>
                 </div>
                 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
@@ -780,14 +778,14 @@ const TaskDetailPageNew: React.FC = () => {
                       <FileTextOutlined style={{ color: '#666' }} />
                       <Text strong>任务描述</Text>
                     </div>
-                    <Paragraph style={{ 
+                    <div style={{ 
                       background: 'rgba(255,255,255,0.8)', 
                       padding: '12px', 
                       borderRadius: '6px',
                       margin: 0 
                     }}>
-                      {task.description}
-                    </Paragraph>
+                      <MarkdownRenderer content={task.description} />
+                    </div>
                   </div>
                 )}
 

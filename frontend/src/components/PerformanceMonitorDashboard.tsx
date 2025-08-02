@@ -390,7 +390,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                     />
                     
                     <div>
-                      <Text>慢请求数量 (>2s): </Text>
+                      <Text>慢请求数量 (&gt;2s): </Text>
                       <Text strong type={performanceStats.slowRequestsCount > 0 ? 'danger' : undefined}>
                         {performanceStats.slowRequestsCount}
                       </Text>

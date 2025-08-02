@@ -17,6 +17,7 @@ import { EditOutlined, FolderOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
 import { TaskService } from '../services/taskService';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
+import TaskMarkdownEditor from './TaskMarkdownEditor';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -441,12 +442,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
         <Form.Item
           name="description"
           label="任务描述"
+          help="支持Markdown格式，可以使用**粗体**、*斜体*、[链接](url)、列表等"
         >
-          <TextArea
-            rows={3}
-            placeholder="请输入任务描述"
-            maxLength={1000}
-            showCount
+          <TaskMarkdownEditor
+            value={form.getFieldValue('description') || ''}
+            onChange={(value) => form.setFieldValue('description', value)}
+            placeholder="请输入任务描述（支持Markdown格式）"
+            rows={4}
           />
         </Form.Item>
 
