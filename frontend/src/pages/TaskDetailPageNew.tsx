@@ -57,6 +57,8 @@ import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import TaskTimeline from '../components/TaskTimeline';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import TaskInfoEditor from '../components/TaskInfoEditor';
+import TaskSummaryEditor from '../components/TaskSummaryEditor';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
@@ -629,9 +631,20 @@ const TaskDetailPageNew: React.FC = () => {
   // 子任务表格列定义
   const subtaskColumns = [
     {
+      title: '任务ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+      sorter: (a: Task, b: Task) => a.id - b.id,
+      render: (id: number) => (
+        <Text code style={{ fontSize: '12px' }}>#{id}</Text>
+      ),
+    },
+    {
       title: '任务名称',
       dataIndex: 'title',
       key: 'title',
+      sorter: (a: Task, b: Task) => a.title.localeCompare(b.title, 'zh-CN'),
       render: (text: string, record: Task) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {getStatusConfig(record.status).icon}
@@ -643,6 +656,12 @@ const TaskDetailPageNew: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
+      sorter: (a: Task, b: Task) => {
+        const statusOrder = { 'todo': 0, 'in_progress': 1, 'completed': 2, 'cancelled': 3 };
+        return (statusOrder[a.status as keyof typeof statusOrder] || 0) - 
+               (statusOrder[b.status as keyof typeof statusOrder] || 0);
+      },
       render: (status: string) => {
         const config = getStatusConfig(status);
         return <Tag color={config.color}>{config.text}</Tag>;
@@ -652,6 +671,8 @@ const TaskDetailPageNew: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 120,
+      sorter: (a: Task, b: Task) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       render: (date: string) => dayjs(date).format('MM-DD HH:mm'),
     },
   ];
@@ -772,22 +793,34 @@ const TaskDetailPageNew: React.FC = () => {
                   )}
                 </div>
 
-                {task.description && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                      <FileTextOutlined style={{ color: '#666' }} />
-                      <Text strong>任务描述</Text>
-                    </div>
-                    <div style={{ 
-                      background: 'rgba(255,255,255,0.8)', 
-                      padding: '12px', 
-                      borderRadius: '6px',
-                      margin: 0 
-                    }}>
-                      <MarkdownRenderer content={task.description} />
-                    </div>
+                {/* 任务摘要（AI提炼） */}
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <FileTextOutlined style={{ color: '#666' }} />
+                    <Text strong>任务摘要</Text>
                   </div>
-                )}
+                  <div style={{ 
+                    background: 'rgba(255,255,255,0.8)', 
+                    padding: '12px', 
+                    borderRadius: '6px',
+                    margin: 0 
+                  }}>
+                    <TaskSummaryEditor
+                      summary={task.custom_fields?.task_summary || ''}
+                      description={task.description || ''}
+                      onUpdate={async (summary) => {
+                        const updateData = {
+                          custom_fields: {
+                            ...task.custom_fields,
+                            task_summary: summary
+                          }
+                        };
+                        await handleUpdateTask(updateData);
+                      }}
+                      loading={modalLoading}
+                    />
+                  </div>
+                </div>
 
                 {/* 标签 */}
                 {task.custom_fields?.tags && Array.isArray(task.custom_fields.tags) && task.custom_fields.tags.length > 0 && (
@@ -939,23 +972,11 @@ const TaskDetailPageNew: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <div style={{ padding: '16px' }}>
-                      {/* 这里可以放置任务的其他详细信息 */}
-                      <div style={{ 
-                        textAlign: 'center', 
-                        padding: '40px 20px', 
-                        color: '#8c8c8c',
-                        background: '#fafafa',
-                        borderRadius: '6px',
-                        border: '1px dashed #d9d9d9'
-                      }}>
-                        <FileTextOutlined style={{ fontSize: '32px', marginBottom: '12px', color: '#d9d9d9' }} />
-                        <div style={{ fontSize: '14px', marginBottom: '8px' }}>任务详细信息</div>
-                        <div style={{ fontSize: '12px', color: '#bfbfbf' }}>
-                          任务的详细信息已在上方卡片中显示
-                        </div>
-                      </div>
-                    </div>
+                    <TaskInfoEditor
+                      task={task}
+                      onUpdate={handleUpdateTask}
+                      loading={modalLoading}
+                    />
                   )
                 },
                 {

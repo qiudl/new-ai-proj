@@ -114,7 +114,7 @@ const PersonalTimerPage: React.FC = () => {
       
       // 设置默认数据避免页面崩溃
       setDashboardData({
-        current_timer: null,
+        current_timer: undefined,
         today_stats: {
           total_seconds: 0,
           formatted_time: '00:00:00',
@@ -220,7 +220,7 @@ const PersonalTimerPage: React.FC = () => {
       }
     },
     stopTimer: () => {
-      if (currentTimer?.is_running) {
+      if (dashboardData?.current_timer?.is_running) {
         stopTimer();
       } else {
         message.info('当前没有运行中的计时器');

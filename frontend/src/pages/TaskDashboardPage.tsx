@@ -861,12 +861,24 @@ const TaskDashboardPage: React.FC = () => {
         </Col>
         <Col xs={24} sm={6}>
           <Card>
-            <Statistic
-              title="已完成"
-              value={weeklyStats.completedTasks}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
-              suffix="个"
+            <div style={{ marginBottom: '4px' }}>
+              <Text type="secondary">已完成</Text>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircleOutlined style={{ color: '#52c41a', fontSize: '16px' }} />
+              <span style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                {weeklyStats.completedTasks}
+              </span>
+            </div>
+            <div style={{ marginTop: '4px', fontSize: '12px', color: '#722ed1', fontWeight: 'bold' }}>
+              完成率 {weeklyStats.completionRate}%
+            </div>
+            <Progress 
+              percent={weeklyStats.completionRate} 
+              size="small" 
+              showInfo={false}
+              strokeColor="#722ed1"
+              style={{ marginTop: '4px' }}
             />
           </Card>
         </Col>
@@ -883,17 +895,12 @@ const TaskDashboardPage: React.FC = () => {
         </Col>
         <Col xs={24} sm={6}>
           <Card>
-            <div style={{ marginBottom: '8px' }}>
-              <Text type="secondary">完成率</Text>
-            </div>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#722ed1', marginBottom: '8px' }}>
-              {weeklyStats.completionRate}%
-            </div>
-            <Progress 
-              percent={weeklyStats.completionRate} 
-              size="small" 
-              showInfo={false}
-              strokeColor="#722ed1"
+            <Statistic
+              title="适期任务"
+              value={weeklyStats.totalTasks - weeklyStats.overdueTasks}
+              prefix={<CalendarOutlined style={{ color: '#13c2c2' }} />}
+              valueStyle={{ color: '#13c2c2' }}
+              suffix="个"
             />
             {weeklyStats.overdueTasks > 0 && (
               <div style={{ marginTop: '4px' }}>
@@ -903,7 +910,7 @@ const TaskDashboardPage: React.FC = () => {
               </div>
             )}
           </Card>
-            </Col>
+        </Col>
           </Row>
         </SmartLoading>
       </div>

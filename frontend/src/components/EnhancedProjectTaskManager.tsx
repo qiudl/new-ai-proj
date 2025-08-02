@@ -801,8 +801,6 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           return {
             ...baseColumn,
             render: (title: string, record: any) => {
-              const hasChildren = record.hasChildren || false;
-              const isExpanded = record.isExpanded || false;
               const level = record.level || 0;
               
               return (
@@ -814,27 +812,6 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     paddingLeft: level * 24
                   }}
                 >
-                  {hasChildren ? (
-                    <Button
-                      type="text"
-                      size="small"
-                      icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleTaskExpansion(record.id);
-                      }}
-                      style={{ 
-                        width: 20, 
-                        height: 20, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center' 
-                      }}
-                    />
-                  ) : (
-                    <div style={{ width: 20, height: 20 }} />
-                  )}
-                  
                   {level > 0 && (
                     <BranchesOutlined style={{ color: '#8c8c8c', fontSize: '12px' }} />
                   )}
@@ -852,7 +829,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     {title}
                   </Button>
                   
-                  {hasChildren && (
+                  {record.hasChildren && (
                     <Tag color="blue" style={{ fontSize: '11px', marginLeft: '8px' }}>
                       {record.children?.length || 0} 子任务
                     </Tag>
@@ -1307,26 +1284,28 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Card>
       )}
 
-      {/* 工具栏 */}
+      {/* 工具栏 - 优化为一行显示 */}
       <Card size="small" style={{ marginBottom: '16px' }}>
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Space wrap>
+        <Row justify="space-between" align="middle" gutter={8}>
+          <Col flex="auto">
+            <Space size="small" wrap>
               <Input
-                placeholder="搜索任务标题"
+                placeholder="搜索任务"
                 prefix={<SearchOutlined />}
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                style={{ width: 200 }}
+                style={{ width: 160 }}
                 allowClear
+                size="small"
               />
               <Select
                 mode="multiple"
-                placeholder="筛选状态"
+                placeholder="状态"
                 value={filters.status}
                 onChange={(status) => setFilters(prev => ({ ...prev, status }))}
-                style={{ width: 200 }}
+                style={{ width: 120 }}
                 allowClear
+                size="small"
               >
                 <Option value="todo">待开始</Option>
                 <Option value="in_progress">进行中</Option>
@@ -1334,22 +1313,26 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 <Option value="cancelled">已取消</Option>
               </Select>
               <RangePicker
-                placeholder={['开始日期', '结束日期']}
+                placeholder={['开始', '结束']}
                 value={filters.due_date_range}
                 onChange={(dates) => setFilters(prev => ({ ...prev, due_date_range: dates as [dayjs.Dayjs, dayjs.Dayjs] | null }))}
+                size="small"
+                style={{ width: 180 }}
               />
               <Button 
                 icon={<FilterOutlined />}
                 onClick={loadData}
+                size="small"
               >
-                应用筛选
+                筛选
               </Button>
               <Button
                 icon={<FilterFilled />}
                 type={advancedFilterVisible ? 'primary' : 'default'}
                 onClick={() => setAdvancedFilterVisible(!advancedFilterVisible)}
+                size="small"
               >
-                高级筛选
+                高级
                 {advancedFilters.length > 0 && (
                   <Badge count={advancedFilters.length} size="small" style={{ marginLeft: 4 }} />
                 )}
@@ -1366,29 +1349,30 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     });
                     clearAdvancedFilters();
                   }}
+                  size="small"
                 >
-                  清除筛选
+                  清除
                 </Button>
               )}
-            </Space>
-          </Col>
-          <Col>
-            <Space>
               <Button 
                 icon={<ReloadOutlined />} 
                 onClick={loadData}
                 loading={loading}
+                size="small"
               >
                 刷新
               </Button>
-              <Button 
-                icon={<PlusOutlined />}
-                type="primary"
-                onClick={() => setCreateModalVisible(true)}
-              >
-                新建任务
-              </Button>
             </Space>
+          </Col>
+          <Col>
+            <Button 
+              icon={<PlusOutlined />}
+              type="primary"
+              onClick={() => setCreateModalVisible(true)}
+              size="small"
+            >
+              新建任务
+            </Button>
           </Col>
         </Row>
       </Card>

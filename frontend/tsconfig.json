@@ -64,6 +64,11 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx"
+    "**/*.spec.tsx",
+    "src/components/_archived_document_components/**/*",
+    "src/pages/_archived_pages/**/*",
+    "src/services/_archived_services/**/*",
+    "src/types/_archived_types/**/*",
+    "src/examples/_archived_examples/**/*"
   ]
 }

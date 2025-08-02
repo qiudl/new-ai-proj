@@ -127,12 +127,12 @@ const TaskEditPage: React.FC = () => {
   };
 
   // 父任务变更处理
-  const handleParentChange = (parentId: number | null, parentTaskData: Task | null) => {
+  const handleParentChange = (parentId: number | null, parentTaskData?: Task | null) => {
     if (task) {
       // Update task data with new parent
-      const updatedTask = { ...task, parent_id: parentId };
+      const updatedTask = { ...task, parent_id: parentId ?? undefined };
       setTask(updatedTask);
-      setParentTask(parentTaskData);
+      setParentTask(parentTaskData || null);
       setParentTaskChanged(true);
       setHasChanges(true);
     }

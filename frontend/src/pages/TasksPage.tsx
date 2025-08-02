@@ -741,7 +741,7 @@ const TasksPage: React.FC = () => {
     if (hierarchicalView) {
       loadTasks();
     } else {
-      loadTasksFlat(pagination.current, pagination.pageSize);
+      loadTasks(pagination.current, pagination.pageSize);
     }
   };
 
