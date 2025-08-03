@@ -50,6 +50,7 @@ type Application struct {
 	// 文档管理处理器 (混合版本，直接SQL)
 	hybridDocumentHandler       *handlers.HybridDocumentHandler
 	hybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
+	simpleDocumentHandler       *handlers.SimpleDocumentHandler
 	// documentRelationHandler *handlers.DocumentRelationHandler // 临时注释，避免编译错误
 	// documentVersionHandler *handlers.DocumentVersionHandler // 临时注释，避免编译错误
 	// documentVersionLabelHandler *handlers.DocumentVersionLabelHandler // 临时注释，避免编译错误
@@ -123,6 +124,7 @@ func NewApplication() (*Application, error) {
 	// 文档管理处理器 (混合版本，直接SQL)
 	hybridDocumentHandler := handlers.NewHybridDocumentHandler(db)
 	hybridDocumentFolderHandler := handlers.NewHybridDocumentFolderHandler(db)
+	simpleDocumentHandler := handlers.NewSimpleDocumentHandler()
 	// documentRelationHandler := handlers.NewDocumentRelationHandler(db) // 临时注释，避免编译错误
 	// documentVersionHandler := handlers.NewDocumentVersionHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
@@ -210,6 +212,7 @@ func NewApplication() (*Application, error) {
 		// 混合版文档管理处理器 (直接SQL)
 		hybridDocumentHandler:       hybridDocumentHandler,
 		hybridDocumentFolderHandler: hybridDocumentFolderHandler,
+		simpleDocumentHandler:       simpleDocumentHandler,
 		// documentRelationHandler: documentRelationHandler, // 临时注释，避免编译错误
 		// documentVersionHandler: documentVersionHandler, // 临时注释，避免编译错误
 		// documentVersionLabelHandler: documentVersionLabelHandler, // 临时注释，避免编译错误
@@ -579,6 +582,21 @@ func (app *Application) setupRouter() *gin.Engine {
 				documentFolders.DELETE("/:id", app.hybridDocumentFolderHandler.DeleteFolder)
 				documentFolders.POST("/:id/move", app.hybridDocumentFolderHandler.MoveFolder)
 				documentFolders.POST("/batch-update", app.hybridDocumentFolderHandler.BatchUpdateFolders)
+				// 获取文件夹下的文档
+				documentFolders.GET("/:id/documents", app.simpleDocumentHandler.GetFolderDocuments)
+			}
+
+			// 简单文档管理路由 (工作笔记)
+			workNotes := authorized.Group("/work-notes")
+			{
+				workNotes.POST("", app.simpleDocumentHandler.CreateDocument)
+				workNotes.GET("", app.simpleDocumentHandler.GetDocuments)
+				workNotes.GET("/search", app.simpleDocumentHandler.SearchDocuments)
+				workNotes.GET("/:id", app.simpleDocumentHandler.GetDocument)
+				workNotes.PUT("/:id", app.simpleDocumentHandler.UpdateDocument)
+				workNotes.DELETE("/:id", app.simpleDocumentHandler.DeleteDocument)
+				workNotes.POST("/:id/copy", app.simpleDocumentHandler.CopyDocument)
+				workNotes.POST("/:id/toggle-template", app.simpleDocumentHandler.ToggleTemplate)
 			}
 
 			// Document Relation routes
