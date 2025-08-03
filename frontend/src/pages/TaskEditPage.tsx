@@ -17,7 +17,8 @@ import {
   Tag,
   Alert,
   Divider,
-  Typography
+  Typography,
+  Tabs
 } from 'antd';
 import { 
   SaveOutlined, 
@@ -26,13 +27,17 @@ import {
   CalendarOutlined,
   TagOutlined,
   ClockCircleOutlined,
-  BranchesOutlined
+  BranchesOutlined,
+  FileTextOutlined,
+  EditOutlined,
+  PlayCircleOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import { Task } from '../types/task';
 import { TaskParentSelector } from '../components/TaskParentSelector';
+import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -52,6 +57,7 @@ const TaskEditPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [parentTaskChanged, setParentTaskChanged] = useState(false);
+  const [activeTab, setActiveTab] = useState('basic');
 
   // 加载任务数据
   const loadTask = useCallback(async () => {
@@ -121,26 +127,16 @@ const TaskEditPage: React.FC = () => {
     loadTask();
   }, [loadTask]);
 
-  // 表单值变化处理
-  const handleFormChange = () => {
-    setHasChanges(true);
-  };
-
-  // 父任务变更处理
-  const handleParentChange = (parentId: number | null, parentTaskData?: Task | null) => {
-    if (task) {
-      // Update task data with new parent
-      const updatedTask = { ...task, parent_id: parentId ?? undefined };
-      setTask(updatedTask);
-      setParentTask(parentTaskData || null);
-      setParentTaskChanged(true);
-      setHasChanges(true);
-    }
-  };
-
-  // 保存任务
-  const handleSave = async () => {
+  // 保存任务基本信息
+  const handleSave = useCallback(async () => {
     if (!task || !projectId) return;
+    
+    // 如果不在基本信息标签页，提示用户
+    if (activeTab !== 'basic') {
+      message.info('当前在' + (activeTab === 'document' ? '文档' : '计时') + '标签页，请切换到基本信息标签页保存任务信息');
+      setActiveTab('basic');
+      return;
+    }
     
     try {
       const values = await form.validateFields();
@@ -184,7 +180,7 @@ const TaskEditPage: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [task, projectId, activeTab, form, parentTaskChanged, loadTask, navigate]);
 
   // 取消编辑
   const handleCancel = () => {
@@ -195,6 +191,44 @@ const TaskEditPage: React.FC = () => {
     }
     navigate(`/projects/${projectId}/tasks/${taskId}`);
   };
+
+  // 表单值变化处理
+  const handleFormChange = () => {
+    setHasChanges(true);
+  };
+
+  // 父任务变更处理
+  const handleParentChange = (parentId: number | null, parentTaskData?: Task | null) => {
+    if (task) {
+      // Update task data with new parent
+      const updatedTask = { ...task, parent_id: parentId ?? undefined };
+      setTask(updatedTask);
+      setParentTask(parentTaskData || null);
+      setParentTaskChanged(true);
+      setHasChanges(true);
+    }
+  };
+
+  // 快捷键处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S 保存当前标签页内容
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        if (activeTab === 'basic') {
+          handleSave();
+        } else if (activeTab === 'document') {
+          // 文档标签页有自己的保存快捷键处理
+          message.info('请在文档编辑器中使用 Ctrl+S 保存文档');
+        } else {
+          message.info('当前标签页暂不支持快捷键保存');
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, handleSave]);
 
   if (loading) {
     return (
@@ -271,120 +305,183 @@ const TaskEditPage: React.FC = () => {
       </div>
 
       <Row gutter={[24, 24]}>
-        {/* 左侧编辑表单 */}
+        {/* 主要编辑区域 */}
         <Col xs={24} lg={16}>
           <Card title="编辑任务" style={{ marginBottom: '24px' }}>
-            <Form
-              form={form}
-              layout="vertical"
-              onValuesChange={handleFormChange}
-            >
-              {/* 基本信息 */}
-              <Form.Item
-                name="title"
-                label="任务标题"
-                rules={[{ required: true, message: '请输入任务标题' }]}
-              >
-                <Input placeholder="请输入任务标题" size="large" />
-              </Form.Item>
+            <Tabs 
+              activeKey={activeTab} 
+              onChange={setActiveTab}
+              items={[
+                {
+                  key: 'basic',
+                  label: (
+                    <span>
+                      <EditOutlined />
+                      基本信息
+                    </span>
+                  ),
+                  children: (
+                    <Form
+                      form={form}
+                      layout="vertical"
+                      onValuesChange={handleFormChange}
+                    >
+                      {/* 基本信息 */}
+                      <Form.Item
+                        name="title"
+                        label="任务标题"
+                        rules={[{ required: true, message: '请输入任务标题' }]}
+                      >
+                        <Input placeholder="请输入任务标题" size="large" />
+                      </Form.Item>
 
-              <Form.Item
-                name="description"
-                label="任务描述"
-              >
-                <TextArea 
-                  rows={4} 
-                  placeholder="请输入任务详细描述"
-                  showCount
-                  maxLength={1000}
-                />
-              </Form.Item>
+                      <Form.Item
+                        name="description"
+                        label="任务描述"
+                      >
+                        <TextArea 
+                          rows={4} 
+                          placeholder="请输入任务详细描述"
+                          showCount
+                          maxLength={1000}
+                        />
+                      </Form.Item>
 
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="status"
-                    label="任务状态"
-                    rules={[{ required: true, message: '请选择任务状态' }]}
-                  >
-                    <Select placeholder="选择状态">
-                      <Option value="todo">待开始</Option>
-                      <Option value="in_progress">进行中</Option>
-                      <Option value="completed">已完成</Option>
-                      <Option value="cancelled">已取消</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="priority"
-                    label="优先级"
-                  >
-                    <Select placeholder="选择优先级">
-                      <Option value="low">低</Option>
-                      <Option value="medium">中</Option>
-                      <Option value="high">高</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-              </Row>
+                      <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="status"
+                            label="任务状态"
+                            rules={[{ required: true, message: '请选择任务状态' }]}
+                          >
+                            <Select placeholder="选择状态">
+                              <Option value="todo">待开始</Option>
+                              <Option value="in_progress">进行中</Option>
+                              <Option value="completed">已完成</Option>
+                              <Option value="cancelled">已取消</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="priority"
+                            label="优先级"
+                          >
+                            <Select placeholder="选择优先级">
+                              <Option value="low">低</Option>
+                              <Option value="medium">中</Option>
+                              <Option value="high">高</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
 
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="assignee_id"
-                    label="负责人"
-                  >
-                    <Select placeholder="选择负责人" allowClear>
-                      <Option value={1}>用户 1</Option>
-                      <Option value={2}>用户 2</Option>
-                      <Option value={3}>用户 3</Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="due_date"
-                    label="截止时间"
-                  >
-                    <DatePicker 
-                      style={{ width: '100%' }}
-                      placeholder="选择截止时间"
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+                      <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="assignee_id"
+                            label="负责人"
+                          >
+                            <Select placeholder="选择负责人" allowClear>
+                              <Option value={1}>用户 1</Option>
+                              <Option value={2}>用户 2</Option>
+                              <Option value={3}>用户 3</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="due_date"
+                            label="截止时间"
+                          >
+                            <DatePicker 
+                              style={{ width: '100%' }}
+                              placeholder="选择截止时间"
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
 
-              <Row gutter={16}>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="estimated_hours"
-                    label="预估工时"
-                  >
-                    <InputNumber 
-                      style={{ width: '100%' }}
-                      min={0}
-                      step={0.5}
-                      placeholder="预估工时(小时)"
-                      addonAfter="小时"
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item
-                    name="tags"
-                    label="标签"
-                  >
-                    <Select
-                      mode="tags"
-                      style={{ width: '100%' }}
-                      placeholder="添加标签"
-                      tokenSeparators={[',']}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Form>
+                      <Row gutter={16}>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="estimated_hours"
+                            label="预估工时"
+                          >
+                            <InputNumber 
+                              style={{ width: '100%' }}
+                              min={0}
+                              step={0.5}
+                              placeholder="预估工时(小时)"
+                              addonAfter="小时"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col xs={24} sm={12}>
+                          <Form.Item
+                            name="tags"
+                            label="标签"
+                          >
+                            <Select
+                              mode="tags"
+                              style={{ width: '100%' }}
+                              placeholder="添加标签"
+                              tokenSeparators={[',']}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </Form>
+                  )
+                },
+                {
+                  key: 'document',
+                  label: (
+                    <span>
+                      <FileTextOutlined />
+                      任务文档
+                    </span>
+                  ),
+                  children: task && projectId ? (
+                    <div style={{ minHeight: '500px' }}>
+                      <TaskDocumentEditor
+                        taskId={task.id}
+                        projectId={parseInt(projectId)}
+                        onSave={(content) => {
+                          // 文档保存成功的回调
+                          console.log('文档已保存:', content.length, '字符');
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '50px' }}>
+                      <Spin size="large" />
+                      <div style={{ marginTop: '16px' }}>加载任务信息...</div>
+                    </div>
+                  )
+                },
+                {
+                  key: 'timer',
+                  label: (
+                    <span>
+                      <PlayCircleOutlined />
+                      时间跟踪
+                    </span>
+                  ),
+                  children: (
+                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                      <div style={{ marginBottom: '16px' }}>
+                        <ClockCircleOutlined style={{ fontSize: '48px', color: '#1890ff' }} />
+                      </div>
+                      <Typography.Title level={4}>时间跟踪功能</Typography.Title>
+                      <Typography.Text type="secondary">
+                        计时器功能即将推出，敬请期待！
+                      </Typography.Text>
+                    </div>
+                  )
+                }
+              ]}
+            />
           </Card>
         </Col>
 
@@ -448,7 +545,13 @@ const TaskEditPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <SaveOutlined style={{ color: '#1890ff' }} />
                 <Text style={{ fontSize: '12px' }}>
-                  Ctrl + S 快速保存
+                  Ctrl + S 快速保存基本信息
+                </Text>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileTextOutlined style={{ color: '#52c41a' }} />
+                <Text style={{ fontSize: '12px' }}>
+                  文档标签页支持独立保存
                 </Text>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
