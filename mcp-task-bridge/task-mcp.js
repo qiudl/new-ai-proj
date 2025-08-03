@@ -408,14 +408,12 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
             // 验证更新字段
-            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id'];
-            const customFields = ['priority'];
+            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id', 'estimated_hours', 'priority', 'tags', 'total_time_seconds'];
+            const customFields = []; // 暂时移除custom_fields处理，因为大部分字段现在是直接字段
             const allFields = [...directFields, ...customFields];
             const changedFields = [];
             const updateData = {
-                project_id: task.project_id,
-                parent_id: task.parent_id,
-                custom_fields: { ...task.custom_fields }
+                project_id: task.project_id
             };
             // 构建更新数据，只包含变更的字段
             for (const [field, value] of Object.entries(updates)) {
