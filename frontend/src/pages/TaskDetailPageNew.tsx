@@ -139,7 +139,7 @@ const TaskDetailPageNew: React.FC = () => {
 
     try {
       // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
-      const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/document`);
+      const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
       setDocumentExists(true);
     } catch (error: any) {
       console.error('检查文档状态失败:', error);
