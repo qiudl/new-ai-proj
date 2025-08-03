@@ -31,7 +31,7 @@ api.interceptors.request.use(
     
     // 添加调试信息 - 特别关注计时器和任务相关的请求
     if (config.url?.includes('timer') || config.url?.includes('tasks')) {
-      ,
+      console.log('🌐 API Request:', {
         url: config.url,
         data: config.data,
         headers: {
@@ -53,7 +53,7 @@ api.interceptors.response.use(
   (response) => {
     // 添加响应调试信息 - 特别关注计时器和任务相关的请求
     if (response.config.url?.includes('timer') || response.config.url?.includes('tasks')) {
-      ,
+      console.log('🌐 API Response:', {
         url: response.config.url,
         status: response.status,
         data: response.data

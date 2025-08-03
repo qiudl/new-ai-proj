@@ -146,7 +146,7 @@ export class TaskService {
   ): Promise<Task> {
     try {
       // Log the request data for debugging
-      });
+      console.log('🔄 Updating task:', { projectId, taskId, task });
 
       // 验证和清理任务数据
       const validationResult = validateTaskRequest(task);

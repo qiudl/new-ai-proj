@@ -30,7 +30,7 @@ class TimerPerformanceMonitor {
   private static benchmarks: TimerBenchmark[] = [];
   private static isMonitoring = false;
   private static performanceObserver: PerformanceObserver | null = null;
-  private static memoryCheckInterval: NodeJS.Timeout | null = null; // FIX: Add interval reference
+  private static memoryCheckInterval: number | null = null; // FIX: Use browser-compatible type
 
   // Start performance monitoring
   static startMonitoring(): void {
@@ -174,16 +174,16 @@ class TimerPerformanceMonitor {
 
       if ('memory' in performance) {
         try {
-          const memInfo = (performance as unknown).memory;
+          const memInfo = (performance as any).memory;
           this.metrics.memoryUsage = memInfo.usedJSHeapSize / (1024 * 1024); // Convert to MB
           
           // Reduced threshold for memory warning
           if (this.metrics.memoryUsage > 100) {
             console.warn(`⚠️ High memory usage detected: ${this.metrics.memoryUsage.toFixed(2)}MB`);
             // Force garbage collection if available (Chrome DevTools)
-            if ('gc' in window && typeof (window as unknown).gc === 'function') {
+            if ('gc' in window && typeof (window as any).gc === 'function') {
               try {
-                (window as unknown).gc();
+                (window as any).gc();
               } catch (e) {
                 // Ignore errors
               }
@@ -196,14 +196,14 @@ class TimerPerformanceMonitor {
     };
 
     // Check memory every 60 seconds (increased from 30 to reduce overhead)
-    this.memoryCheckInterval = setInterval(checkMemory, 60000);
+    this.memoryCheckInterval = window.setInterval(checkMemory, 60000);
     checkMemory(); // Initial check
   }
 
   // FIX: Stop memory monitoring
   private static stopMemoryMonitoring(): void {
-    if (this.memoryCheckInterval) {
-      clearInterval(this.memoryCheckInterval);
+    if (this.memoryCheckInterval !== null) {
+      window.clearInterval(this.memoryCheckInterval);
       this.memoryCheckInterval = null;
     }
   }
@@ -296,7 +296,7 @@ ${this.generateRecommendations(metrics)}
       await Promise.all(operations.map(op => op()));
       
       const totalTime = performance.now() - startTime;
-      }ms`);
+      console.log(`✅ Concurrent operations completed in ${totalTime.toFixed(2)}ms`);
       
       this.recordBenchmark('concurrent_test', totalTime, true);
     } catch (error) {
@@ -349,10 +349,10 @@ ${this.generateRecommendations(metrics)}
     }
 
     // Force garbage collection if available
-    if ('gc' in window && typeof (window as unknown).gc === 'function') {
+    if ('gc' in window && typeof (window as any).gc === 'function') {
       try {
-        (window as unknown).gc();
-        } catch (e) {
+        (window as any).gc();
+      } catch (e) {
         console.warn('Manual garbage collection failed:', e);
       }
     }

@@ -1,10 +1,11 @@
-/* 简化版Dashboard 2列布局样式 - 不限高度版本 */
+/* Phase 3: Dashboard 4列布局样式 - 数据可视化版本 */
 .dashboard-simplified-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* 左右各50%宽度 */
+  grid-template-columns: 1fr 1fr 1.2fr 1fr; /* 四列布局，数据分析区域稍宽 */
   gap: 24px;
   height: calc(100vh - 140px); /* 占满剩余视口空间 */
   padding: 0;
+  transition: all 0.3s ease;
 }
 
 /* 计时器区域样式 */
@@ -20,6 +21,38 @@
 
 .timer-section:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+/* 个人计时器区域样式 */
+.personal-timer-section {
+  background: #f0f9ff;
+  border: 1px solid #91d5ff;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.personal-timer-section:hover {
+  box-shadow: 0 4px 12px rgba(24, 144, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* 数据分析区域样式 */
+.analytics-section {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.analytics-section:hover {
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.15);
   transform: translateY(-2px);
 }
 
@@ -55,6 +88,8 @@
 
 /* 内容区域样式 */
 .timer-section > div:last-child,
+.personal-timer-section > div:last-child,
+.analytics-section > div:last-child,
 .tasks-section > div:last-child {
   flex: 1;
   display: flex;
@@ -63,15 +98,34 @@
 }
 
 /* 响应式设计 */
-@media (max-width: 1024px) {
+@media (max-width: 1400px) {
   .dashboard-simplified-layout {
+    grid-template-columns: 1fr 1fr; /* 大中等屏幕改为2列 */
     gap: 20px;
-    height: calc(100vh - 120px); /* 调整高度 */
+    height: auto; /* 自动高度 */
+  }
+  
+  .analytics-section {
+    grid-column: 1 / -1; /* 数据分析区域占据整行 */
+    min-height: 400px;
   }
   
   .timer-section,
+  .personal-timer-section,
+  .analytics-section,
   .tasks-section {
     padding: 20px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .dashboard-simplified-layout {
+    grid-template-columns: 1fr 1fr; /* 中等屏幕维持2列 */
+    gap: 20px;
+  }
+  
+  .analytics-section {
+    min-height: 350px;
   }
 }
 
@@ -83,9 +137,31 @@
   }
   
   .timer-section,
+  .personal-timer-section,
+  .analytics-section,
   .tasks-section {
     padding: 16px;
     min-height: 400px;
+  }
+  
+  .personal-timer-section {
+    grid-column: 1; /* 重置网格列 */
+    min-height: 350px;
+    order: 1; /* 个人计时器排在第一位 */
+  }
+  
+  .analytics-section {
+    grid-column: 1; /* 重置网格列 */
+    min-height: 450px;
+    order: 2; /* 数据分析排在第二位 */
+  }
+  
+  .timer-section {
+    order: 3; /* 任务计时器排在第三位 */
+  }
+  
+  .tasks-section {
+    order: 4; /* 我的任务排在第四位 */
   }
   
   .tasks-section > div:last-child {
@@ -99,10 +175,20 @@
   }
   
   .timer-section,
+  .personal-timer-section,
+  .analytics-section,
   .tasks-section {
     padding: 12px;
     border-radius: 8px;
     min-height: 320px;
+  }
+  
+  .personal-timer-section {
+    min-height: 280px;
+  }
+  
+  .analytics-section {
+    min-height: 400px; /* 数据分析在移动端需要更多空间 */
   }
   
   .dashboard-simplified-layout .ant-typography h3 {
@@ -120,6 +206,7 @@
 
 /* 加载和错误状态样式 */
 .timer-section .ant-spin-container,
+.personal-timer-section .ant-spin-container,
 .tasks-section .ant-spin-container {
   height: 100%;
   display: flex;
@@ -158,6 +245,16 @@
     border-color: #424242;
   }
   
+  .personal-timer-section {
+    background: #1a2332;
+    border-color: #3a4f6b;
+  }
+  
+  .analytics-section {
+    background: #1f2a1a;
+    border-color: #3f5a3f;
+  }
+  
   .tasks-section {
     background: #2a1f3a;
     border-color: #5a3f7a;
@@ -170,4 +267,36 @@
   .dashboard-simplified-layout .ant-typography .ant-typography {
     color: #cccccc;
   }
+}
+
+/* Phase 2: 性能优化增强 */
+.dashboard-simplified-layout {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+.timer-section,
+.personal-timer-section,
+.analytics-section,
+.tasks-section {
+  will-change: transform, box-shadow;
+  contain: layout style paint;
+}
+
+/* GPU加速动画 */
+.timer-section:hover,
+.personal-timer-section:hover,
+.analytics-section:hover,
+.tasks-section:hover {
+  will-change: transform;
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* 优化滚动性能 */
+.timer-section > div:last-child,
+.personal-timer-section > div:last-child,
+.analytics-section > div:last-child,
+.tasks-section > div:last-child {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }

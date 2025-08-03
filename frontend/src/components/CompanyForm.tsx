@@ -128,7 +128,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
       // 显示成本信息（如果有）
       if (result.cost && result.cost > 0) {
-        } 元`);
+        message.info(`AI搜索成本: ${result.cost.toFixed(4)} 元`);
       }
     } catch (error) {
       console.error('AI搜索失败:', error);

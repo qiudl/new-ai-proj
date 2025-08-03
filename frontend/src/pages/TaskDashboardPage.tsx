@@ -350,7 +350,7 @@ const TaskDashboardPage: React.FC = () => {
       return [];
     }
 
-    , '到', weekEnd.format('YYYY-MM-DD'));
+    console.log('筛选本周任务：', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
 
     const filteredTasks = allTasks.filter((task: Task) => {
       if (!task.due_date && !task.created_at) {
@@ -360,7 +360,7 @@ const TaskDashboardPage: React.FC = () => {
       const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
       const isInWeek = taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
       
-      } -> 在本周: ${isInWeek}`);
+      console.log(`任务 ${task.title} -> 在本周: ${isInWeek}`);
       
       return isInWeek;
     });

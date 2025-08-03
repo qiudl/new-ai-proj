@@ -460,7 +460,6 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
         // Here you could call an API to save the new order
         // await unifiedDocumentService.updateDocumentOrder(folderId, newItems.map(item => item.id));
-        ));
         
         return newItems;
       });

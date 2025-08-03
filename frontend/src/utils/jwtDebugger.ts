@@ -151,20 +151,21 @@ class JWTDebugger {
     console.group(`🔍 JWT调试 - ${moduleName} (${moduleStatus.timestamp})`);
     
     if (status.payload) {
-      .toLocaleString()}`);
-      .toLocaleString()}`);
+      console.log(`✅ Token有效 - 用户: ${status.payload.username || '未知'}`);
+      console.log(`📅 过期时间: ${new Date(status.payload.exp * 1000).toLocaleString()}`);
       if (status.expiresIn) {
         const hours = Math.floor(status.expiresIn / 3600);
         const minutes = Math.floor((status.expiresIn % 3600) / 60);
-        }
+        console.log(`⏰ 剩余时间: ${hours}小时${minutes}分钟`);
+      }
     }
 
     if (status.errors.length > 0) {
-      status.errors.forEach(error => );
+      status.errors.forEach(error => console.error(`❌ ${error}`));
     }
 
     if (status.token) {
-      }...`);
+      console.log(`🔑 Token: ${status.token.substring(0, 20)}...`);
     }
 
     console.groupEnd();

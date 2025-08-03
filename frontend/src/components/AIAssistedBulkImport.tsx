@@ -137,15 +137,13 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               }
             });
             
-            ));
-            
             setAvailableProviders(providers);
             setServiceStatus(statusMap);
             
             if (providers.length > 0) {
               // 自动选择第一个可用的提供商
               setSelectedProvider(providers[0]);
-              } else {
+            } else {
               console.warn('没有找到可用的AI提供商');
             }
         } else {

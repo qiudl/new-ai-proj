@@ -575,22 +575,26 @@ class SystemValidator {
 
   // 控制台输出报告
   private printConsoleReport(report: SystemValidationReport) {
-    .format('YYYY-MM-DD HH:mm:ss')}`);
-    `);
+    console.log(`\n🔍 系统验证报告 - ${dayjs(report.timestamp).format('YYYY-MM-DD HH:mm:ss')}`);
+    console.log(`📊 总体状况: ${report.overall.passed}/${report.overall.total} 通过 (${report.overall.successRate}%)`);
     
     Object.entries(report.categories).forEach(([category, tests]) => {
       const passed = tests.filter(t => t.passed).length;
       const emoji = passed === tests.length ? '✅' : passed > 0 ? '⚠️' : '❌';
+      console.log(`\n${emoji} ${category} (${passed}/${tests.length})`);
       tests.forEach(test => {
         const status = test.passed ? '✓' : '✗';
         const duration = test.duration ? ` (${test.duration}ms)` : '';
+        console.log(`  ${status} ${test.test}${duration}`);
         if (!test.passed) {
-          }
+          console.log(`    ${test.message}`);
+        }
       });
     });
 
-    report.recommendations.forEach(rec => );
-    }
+    console.log('\n💡 优化建议:');
+    report.recommendations.forEach(rec => console.log(`  - ${rec}`));
+  }
 
   // 下载JSON报告
   private downloadJsonReport(report: SystemValidationReport) {

@@ -97,7 +97,7 @@ export class TimeManagementService {
    */
   static async getTodayTaskStats(): Promise<TodayTaskStats> {
     try {
-      ' : '生产环境');
+      console.log('获取今日任务统计数据');
       
       // 优先尝试调用后端统计API
       const response = await statsApi.get('/statistics/today-stats');

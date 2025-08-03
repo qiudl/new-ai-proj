@@ -154,14 +154,14 @@ export const useSmartPreload = (options?: {
       for (const priority of ['high', 'medium', 'low'] as const) {
         const group = priorityGroups[priority];
         if (group.length > 0) {
-          );
+          console.log(`🚀 开始预加载 ${priority} 优先级策略`);
           
           await Promise.allSettled(
             group.map(async (strategy) => {
               try {
                 await strategy.prefetcher();
                 setPreloadedStrategies(prev => new Set([...prev, strategy.key]));
-                } catch (error) {
+              } catch (error) {
                 console.warn(`⚠️ 预加载失败: ${strategy.key}`, error);
               }
             })
@@ -174,7 +174,7 @@ export const useSmartPreload = (options?: {
         }
       }
 
-      } catch (error) {
+    } catch (error) {
       console.error('❌ 预加载过程出错:', error);
     } finally {
       setIsPreloading(false);

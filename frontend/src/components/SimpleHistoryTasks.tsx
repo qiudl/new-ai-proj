@@ -29,18 +29,19 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
       setLoading(true);
       setError(null);
       
-      ...');
+      // 获取历史任务数据
       const statsResponse = await TimerService.getTimerStats();
       if (statsResponse && statsResponse.recent_tasks) {
         setTasks(statsResponse.recent_tasks);
       } else {
         setTasks([]);
       }
-    } catch (error: Error | unknown) {
+    } catch (error) {
       console.error('API调用失败:', error);
-      setError(error.message || '加载失败');
+      const errorMessage = error instanceof Error ? error.message : '加载失败';
+      setError(errorMessage);
       setTasks([]);
-      message.error('加载历史任务失败: ' + (error.message || '未知错误'));
+      message.error('加载历史任务失败: ' + errorMessage);
     } finally {
       setLoading(false);
     }

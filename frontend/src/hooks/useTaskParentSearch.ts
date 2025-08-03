@@ -135,8 +135,6 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         return;
       }
 
-      );
-
       // API response structure: {success, message, data: {data: [], pagination: {}}}
       // We need to extract the inner data object
       let actualData;
@@ -147,7 +145,6 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         }
       
       const responseData = actualData as unknown as PaginatedResponse<Task> | { data: Task[], total: number };
-      );
       
       let data: Task[];
       let total: number;
@@ -155,15 +152,15 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       if ('pagination' in responseData) {
         data = responseData.data;
         total = responseData.pagination.total;
-        :', data);
-        :', Array.isArray(data) ? 'Array' : typeof data);
-        :', total);
+        console.log('Pagination response data:', data);
+        console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
+        console.log('Total:', total);
       } else {
         data = responseData.data;
         total = responseData.total;
-        :', data);
-        :', Array.isArray(data) ? 'Array' : typeof data);
-        :', total);
+        console.log('Direct response data:', data);
+        console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
+        console.log('Total:', total);
       }
       
       const isLoadMore = (params.offset || 0) > 0;

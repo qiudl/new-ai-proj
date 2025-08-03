@@ -208,14 +208,14 @@ export const personalTimerService = {
   
   // 开始个人计时（使用统一的timer API）
   async startPersonalTimer(data: PersonalTimerStartRequest): Promise<any> {
-    ');
+    console.log('启动个人计时:', data);
     const response = await api.post('/user/timer/start', data) as unknown;
     return response;
   },
 
   // 开始项目计时（使用统一的timer API）
   async startProjectTimer(data: PersonalTimerStartRequest): Promise<any> {
-    ');
+    console.log('启动项目计时:', data);
     const response = await api.post('/user/timer/start', data) as unknown;
     return response;
   },

@@ -818,7 +818,6 @@ const UserManagementPage: React.FC = () => {
           onFinish={handleCreateUser}
           onFinishFailed={(errorInfo) => {
             console.error('表单验证失败:', errorInfo);
-            );
             
             const failedFields = errorInfo.errorFields?.map(field => ({
               name: field.name,
