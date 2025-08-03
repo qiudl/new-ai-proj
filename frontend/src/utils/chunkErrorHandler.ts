@@ -54,4 +54,3 @@ window.addEventListener('error', (event: ErrorEvent) => {
   }
 });
 
-console.log('✅ Chunk loading error handler initialized');

@@ -54,8 +54,7 @@ const enhancedResponseInterceptor = async (
 ): Promise<APIResponse> => {
   // 记录响应状态
   if (debugModule && process.env.NODE_ENV === 'development') {
-    console.log(`📡 [${debugModule}] HTTP ${response.status} - ${response.url}`);
-  }
+    }
 
   if (!response.ok) {
     if (response.status === 401) {
@@ -96,8 +95,7 @@ const enhancedResponseInterceptor = async (
     
     // 在开发环境下记录成功响应
     if (debugModule && process.env.NODE_ENV === 'development') {
-      console.log(`✅ [${debugModule}] 请求成功`, data);
-    }
+      }
     
     return {
       success: true,
@@ -129,11 +127,7 @@ const enhancedBaseRequest = async (
 
     // 在开发环境下记录请求开始
     if (options.debugModule && process.env.NODE_ENV === 'development') {
-      console.log(`🚀 [${options.debugModule}] 发起请求: ${finalOptions.method || 'GET'} ${url}`, {
-        headers: finalOptions.headers,
-        body: finalOptions.body
-      });
-    }
+      }
 
     const response = await fetch(`${BASE_URL}${url}`, {
       method: finalOptions.method || 'GET',

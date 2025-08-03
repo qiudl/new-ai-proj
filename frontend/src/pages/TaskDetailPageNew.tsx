@@ -143,7 +143,7 @@ const TaskDetailPageNew: React.FC = () => {
       // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
       const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
       setDocumentExists(true);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('检查文档状态失败:', error);
       // 404表示文档不存在，这是正常情况
       if (error.status === 404) {
@@ -432,7 +432,7 @@ const TaskDetailPageNew: React.FC = () => {
     setTaskModalVisible(true);
   };
 
-  const handleUpdateTask = async (taskData: any) => {
+  const handleUpdateTask = async (taskData: unknown) => {
     if (!task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -530,7 +530,7 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   // 统一的任务模态框提交处理
-  const handleTaskModalSubmit = async (taskData: any) => {
+  const handleTaskModalSubmit = async (taskData: unknown) => {
     if (taskModalMode === 'edit') {
       await handleUpdateTask(taskData);
     } else if (taskModalMode === 'createSubtask') {
@@ -540,7 +540,7 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
-  const handleCreateSubtaskSubmit = async (taskData: any) => {
+  const handleCreateSubtaskSubmit = async (taskData: unknown) => {
     if (!task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -570,7 +570,7 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
-  const handleCreateSiblingSubmit = async (taskData: any) => {
+  const handleCreateSiblingSubmit = async (taskData: unknown) => {
     if (!task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -1081,7 +1081,7 @@ const TaskDetailPageNew: React.FC = () => {
                   const updateInfo = getUpdateTypeInfo(update.update_type);
                   
                   // 解析变更详情
-                  const getChangeDetails = (update: any) => {
+                  const getChangeDetails = (update: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
                     try {
                       if (update.old_value && update.new_value) {
                         const oldVal = typeof update.old_value === 'string' ? update.old_value : JSON.stringify(update.old_value);

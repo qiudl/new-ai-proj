@@ -128,7 +128,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
         limit: pagination.pageSize,
         search: searchText || undefined,
         type: filterType !== 'all' ? [filterType] : undefined,
-        status: filterStatus !== 'all' ? filterStatus as any : undefined,
+        status: filterStatus !== 'all' ? filterStatus as unknown : undefined,
         sort_by: sortBy,
         order: sortOrder,
         project_id: projectId
@@ -176,7 +176,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
     if (!category) return null;
 
     const subcategory = subcategoryId 
-      ? category.subcategories.find((sub: any) => sub.id === subcategoryId)
+      ? category.subcategories.find((sub: unknown) => sub.id === subcategoryId)
       : null;
 
     return (
@@ -200,7 +200,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
   };
 
   // 处理筛选
-  const handleFilter = (key: string, value: any) => {
+  const handleFilter = (key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     switch (key) {
       case 'type':
         setFilterType(value);
@@ -308,7 +308,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
   };
 
   // 表格列定义
-  const columns: any[] = [
+  const columns: unknown[] = [
     {
       title: '文档',
       dataIndex: 'title',
@@ -383,7 +383,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       title: '操作',
       key: 'actions',
       width: 150,
-      render: (_: any, record: DocumentListItem) => (
+      render: (_: unknown, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="查看">
             <Button 

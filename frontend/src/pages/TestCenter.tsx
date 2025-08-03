@@ -144,7 +144,7 @@ const TestCenter: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <Text>{item.name}</Text>
                       <Badge 
-                        status={item.status as any} 
+                        status={item.status as unknown} 
                         text={`${item.coverage}%`} 
                       />
                     </div>

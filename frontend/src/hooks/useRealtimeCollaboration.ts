@@ -114,7 +114,6 @@ const useRealtimeCollaboration = (options: UseRealtimeCollaborationOptions = {})
       wsRef.current = new WebSocket(`${wsUrl}?token=${token}`);
 
       wsRef.current.onopen = () => {
-        console.log('🔗 实时协作连接已建立');
         setState(prev => ({ 
           ...prev, 
           connected: true, 
@@ -143,7 +142,6 @@ const useRealtimeCollaboration = (options: UseRealtimeCollaborationOptions = {})
       };
 
       wsRef.current.onclose = (event) => {
-        console.log('🔌 实时协作连接已断开', event.code, event.reason);
         setState(prev => ({ 
           ...prev, 
           connected: false, 
@@ -156,7 +154,7 @@ const useRealtimeCollaboration = (options: UseRealtimeCollaborationOptions = {})
         if (enabled && reconnectCountRef.current < reconnectAttempts) {
           reconnectCountRef.current++;
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`🔄 尝试重连 (${reconnectCountRef.current}/${reconnectAttempts})`);
+            `);
             connect();
           }, reconnectDelay * reconnectCountRef.current);
         }
@@ -226,8 +224,6 @@ const useRealtimeCollaboration = (options: UseRealtimeCollaborationOptions = {})
 
   // 处理传入事件
   const handleIncomingEvent = useCallback((event: CollaborationEvent) => {
-    console.log('📥 收到协作事件:', event);
-
     // 更新状态
     setState(prev => ({
       ...prev,

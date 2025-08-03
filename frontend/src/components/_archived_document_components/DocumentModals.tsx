@@ -92,7 +92,7 @@ const DocumentModals: React.FC<DocumentModalsProps> = ({
   const [uploadingFiles, setUploadingFiles] = React.useState<string[]>([]);
 
   // 创建文档
-  const handleCreateDocument = async (values: any) => {
+  const handleCreateDocument = async (values: unknown) => {
     try {
       const request = {
         folder_id: folderId,
@@ -114,14 +114,14 @@ const DocumentModals: React.FC<DocumentModalsProps> = ({
       message.success('文档创建成功');
       createForm.resetFields();
       onDocumentCreated();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('创建文档失败:', error);
       message.error(error.message || '创建文档失败');
     }
   };
 
   // 编辑文档
-  const handleEditDocument = async (values: any) => {
+  const handleEditDocument = async (values: unknown) => {
     try {
       if (!selectedDocument) return;
       
@@ -140,7 +140,7 @@ const DocumentModals: React.FC<DocumentModalsProps> = ({
       message.success('文档更新成功');
       editForm.resetFields();
       onDocumentUpdated();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('更新文档失败:', error);
       message.error(error.message || '更新文档失败');
     }

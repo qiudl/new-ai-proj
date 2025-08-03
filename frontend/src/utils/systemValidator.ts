@@ -314,7 +314,7 @@ class SystemValidator {
             viewMode: 'list' as const,
           };
           
-          saveFiltersToLocal(testFilters as any, 'test-filters');
+          saveFiltersToLocal(testFilters as unknown, 'test-filters');
           const loaded = loadFiltersFromLocal('test-filters');
           
           return loaded.selectedProject === 1 && loaded.selectedStatus === 'completed';
@@ -453,7 +453,6 @@ class SystemValidator {
 
   // 执行完整的系统验证
   async validateSystem(): Promise<SystemValidationReport> {
-    console.log('🔍 开始系统功能验证...');
     this.results = [];
 
     // 执行所有验证测试
@@ -500,7 +499,6 @@ class SystemValidator {
       recommendations,
     };
 
-    console.log('✅ 系统验证完成');
     return report;
   }
 
@@ -577,30 +575,22 @@ class SystemValidator {
 
   // 控制台输出报告
   private printConsoleReport(report: SystemValidationReport) {
-    console.log('\n🔍 ===== 系统验证报告 =====');
-    console.log(`📅 验证时间: ${dayjs(report.timestamp).format('YYYY-MM-DD HH:mm:ss')}`);
-    console.log(`📊 总体统计: ${report.overall.passed}/${report.overall.total} 通过 (${report.overall.successRate}%)`);
+    .format('YYYY-MM-DD HH:mm:ss')}`);
+    `);
     
-    console.log('\n📋 分类详情:');
     Object.entries(report.categories).forEach(([category, tests]) => {
       const passed = tests.filter(t => t.passed).length;
       const emoji = passed === tests.length ? '✅' : passed > 0 ? '⚠️' : '❌';
-      console.log(`${emoji} ${category}: ${passed}/${tests.length}`);
-      
       tests.forEach(test => {
         const status = test.passed ? '✓' : '✗';
         const duration = test.duration ? ` (${test.duration}ms)` : '';
-        console.log(`  ${status} ${test.test}${duration}`);
         if (!test.passed) {
-          console.log(`    ${test.message}`);
-        }
+          }
       });
     });
 
-    console.log('\n💡 建议:');
-    report.recommendations.forEach(rec => console.log(`  ${rec}`));
-    console.log('\n===========================\n');
-  }
+    report.recommendations.forEach(rec => );
+    }
 
   // 下载JSON报告
   private downloadJsonReport(report: SystemValidationReport) {

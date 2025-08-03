@@ -56,8 +56,8 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
         children: [],
       }));
       setTasks(rootTasks);
-      console.log('Root tasks loaded:', rootTasks); // Debug log
-    } catch (error: any) {
+      // Debug log
+    } catch (error: Error | unknown) {
       console.error('Error loading root tasks:', error);
       message.error(error.message || '获取任务列表失败');
       // Set empty array on error
@@ -108,7 +108,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
       });
 
       setExpandedKeys(prev => new Set(prev).add(parentTask.id));
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error loading task children:', error);
       message.error(error.message || '获取子任务失败');
     } finally {
@@ -379,7 +379,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
       title: '优先级',
       key: 'priority',
       width: 80,
-      render: (_: any, record: Task) => {
+      render: (_: unknown, record: Task) => {
         const priority = record.custom_fields?.priority || 'medium';
         return (
           <Tag color={getPriorityColor(priority)}>
@@ -393,7 +393,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
       key: 'action',
       width: 120,
       fixed: 'right' as const,
-      render: (_: any, record: ExpandedTaskItem) => {
+      render: (_: unknown, record: ExpandedTaskItem) => {
         const handleDeleteConfirm = () => {
           Modal.confirm({
             title: '确认删除',

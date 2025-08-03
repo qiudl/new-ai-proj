@@ -23,7 +23,7 @@ jest.mock('antd', () => ({
 
 // Mock 子组件
 jest.mock('../DocumentTableView', () => {
-  return function MockDocumentTableView(props: any) {
+  return function MockDocumentTableView(props: Record<string, unknown>) {
     return (
       <div data-testid="document-table-view">
         <div>Documents count: {props.documents.length}</div>
@@ -35,7 +35,7 @@ jest.mock('../DocumentTableView', () => {
 });
 
 jest.mock('../DocumentGridView', () => {
-  return function MockDocumentGridView(props: any) {
+  return function MockDocumentGridView(props: Record<string, unknown>) {
     return (
       <div data-testid="document-grid-view">
         <div>Documents count: {props.documents.length}</div>
@@ -46,7 +46,7 @@ jest.mock('../DocumentGridView', () => {
 });
 
 jest.mock('../DocumentToolbar', () => {
-  return function MockDocumentToolbar(props: any) {
+  return function MockDocumentToolbar(props: Record<string, unknown>) {
     return (
       <div data-testid="document-toolbar">
         <button onClick={props.onCreateDocument}>Create Document</button>
@@ -74,7 +74,7 @@ jest.mock('../DocumentToolbar', () => {
 });
 
 jest.mock('../DocumentModals', () => {
-  return function MockDocumentModals(props: any) {
+  return function MockDocumentModals(props: Record<string, unknown>) {
     return (
       <div data-testid="document-modals">
         {props.modalStates.create && <div>Create Modal Open</div>}

@@ -90,7 +90,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
     try {
       const projectResponse = await projectService.getProjects();
       const projectList = Array.isArray(projectResponse) ? projectResponse : projectResponse.data || [];
-      const projectOptions: ProjectOption[] = projectList.map((project: any) => ({
+      const projectOptions: ProjectOption[] = projectList.map((project: unknown) => ({
         id: project.id,
         name: project.name,
         description: project.description,
@@ -111,7 +111,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
     try {
       const customerResponse = await companyService.getCompanies();
       const customerList = Array.isArray(customerResponse) ? customerResponse : customerResponse.data || [];
-      const customerOptions: CustomerOption[] = customerList.map((company: any) => ({
+      const customerOptions: CustomerOption[] = customerList.map((company: unknown) => ({
         id: company.id,
         name: company.company_name || company.name || 'Unknown Customer',
         company_name: company.company_name,

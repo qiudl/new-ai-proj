@@ -150,37 +150,21 @@ class JWTDebugger {
 
     console.group(`🔍 JWT调试 - ${moduleName} (${moduleStatus.timestamp})`);
     
-    console.log('📋 基本信息:');
-    console.log(`  • 是否有Token: ${status.hasToken ? '✅ 是' : '❌ 否'}`);
-    console.log(`  • Token有效性: ${status.isValid ? '✅ 有效' : '❌ 无效'}`);
-    console.log(`  • 是否过期: ${status.isExpired ? '❌ 已过期' : '✅ 未过期'}`);
-
     if (status.payload) {
-      console.log('👤 用户信息:');
-      console.log(`  • 用户ID: ${status.payload.user_id}`);
-      console.log(`  • 用户名: ${status.payload.username}`);
-      console.log(`  • 角色: ${status.payload.role}`);
-      console.log(`  • 用户类型: ${status.payload.user_type}`);
-      
-      console.log('⏰ 时间信息:');
-      console.log(`  • 签发时间: ${new Date(status.payload.iat * 1000).toLocaleString()}`);
-      console.log(`  • 过期时间: ${new Date(status.payload.exp * 1000).toLocaleString()}`);
+      .toLocaleString()}`);
+      .toLocaleString()}`);
       if (status.expiresIn) {
         const hours = Math.floor(status.expiresIn / 3600);
         const minutes = Math.floor((status.expiresIn % 3600) / 60);
-        console.log(`  • 剩余时间: ${hours}小时${minutes}分钟`);
-      }
+        }
     }
 
     if (status.errors.length > 0) {
-      console.log('❌ 错误信息:');
-      status.errors.forEach(error => console.log(`  • ${error}`));
+      status.errors.forEach(error => );
     }
 
     if (status.token) {
-      console.log('🔑 Token预览:');
-      console.log(`  • 长度: ${status.token.length} 字符`);
-      console.log(`  • 前20字符: ${status.token.substring(0, 20)}...`);
+      }...`);
     }
 
     console.groupEnd();
@@ -300,10 +284,10 @@ export const getJWTReport = () => jwtDebugger.generateDebugReport();
 
 // 在开发环境下将调试器挂载到window对象
 if (process.env.NODE_ENV === 'development') {
-  (window as any).jwtDebugger = jwtDebugger;
-  (window as any).checkJWT = checkJWT;
-  (window as any).testJWT = testJWT;
-  (window as any).getJWTReport = getJWTReport;
+  (window as unknown).jwtDebugger = jwtDebugger;
+  (window as unknown).checkJWT = checkJWT;
+  (window as unknown).testJWT = testJWT;
+  (window as unknown).getJWTReport = getJWTReport;
 }
 
 export default jwtDebugger;

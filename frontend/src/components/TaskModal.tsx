@@ -57,24 +57,16 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   // Load parent task information when we have parent_id but no parent_title
   const loadParentTaskInfo = async (parentId: number) => {
-    console.log('🔍 [TaskModal] loadParentTaskInfo called with parentId:', parentId);
-    console.log('🔍 [TaskModal] Current projectId:', projectId);
-    
     if (!projectId || parentId <= 0) {
       console.warn('⚠️ [TaskModal] Invalid parameters - projectId:', projectId, 'parentId:', parentId);
       return;
     }
     
     try {
-      console.log('🔍 [TaskModal] Setting loadingParentTask to true');
       setLoadingParentTask(true);
       
-      console.log('🔍 [TaskModal] Calling TaskService.getTask with projectId:', projectId, 'parentId:', parentId);
       const response = await TaskService.getTask(projectId, parentId);
-      console.log('🔍 [TaskModal] TaskService.getTask response:', response);
-      
       if (response) {
-        console.log('✅ [TaskModal] Setting selected parent task:', response);
         setSelectedParentTask(response);
       } else {
         console.warn('⚠️ [TaskModal] No response received, setting parent task to null');
@@ -85,19 +77,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
       // Reset to null if we can't load parent task info
       setSelectedParentTask(null);
     } finally {
-      console.log('🔍 [TaskModal] Setting loadingParentTask to false');
       setLoadingParentTask(false);
     }
   };
 
   useEffect(() => {
-    console.log('🔍 [TaskModal] useEffect triggered - visible:', visible, 'task:', task, 'mode:', mode);
-    
     if (visible) {
       if (task) {
-        console.log('🔍 [TaskModal] Edit mode - task data:', task);
-        console.log('🔍 [TaskModal] Task parent_id:', task.parent_id, 'parent_title:', task.parent_title);
-        
         // Edit mode - populate form with task data
         const formValues = {
           title: task.title,
@@ -110,12 +96,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
           estimated_hours: task.custom_fields?.estimated_hours,
           parent_id: task.parent_id,
         };
-        console.log('🔍 [TaskModal] Setting form values:', formValues);
         form.setFieldsValue(formValues);
         
         // Set selected parent task for display
         if (task.parent_id && task.parent_title) {
-          console.log('✅ [TaskModal] Task has both parent_id and parent_title - setting selected parent task');
           // Only set if we have complete parent task information
           const parentTaskData = {
             id: task.parent_id,
@@ -127,14 +111,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
             updated_at: '',
             description: '',
           } as Task;
-          console.log('🔍 [TaskModal] Created parent task object:', parentTaskData);
           setSelectedParentTask(parentTaskData);
         } else if (task.parent_id && !task.parent_title) {
-          console.log('⚠️ [TaskModal] Task has parent_id but no parent_title - fetching parent info');
           // If we have parent_id but no title, fetch parent task information
           loadParentTaskInfo(task.parent_id);
         } else {
-          console.log('🔍 [TaskModal] Task has no parent - setting selected parent task to null');
           setSelectedParentTask(null);
         }
       } else if (mode === 'createSibling' && siblingTask) {
@@ -178,20 +159,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
 
   // Handle parent task selection
   const handleParentSelect = (parentId: number | null, parentTask: Task | null) => {
-    console.log('🔍 [TaskModal] handleParentSelect called with:', {
-      parentId,
-      parentTask: parentTask ? { id: parentTask.id, title: parentTask.title } : null
-    });
-    
     form.setFieldValue('parent_id', parentId);
-    console.log('🔍 [TaskModal] Form parent_id field set to:', parentId);
-    
     setSelectedParentTask(parentTask);
-    console.log('🔍 [TaskModal] selectedParentTask state updated to:', parentTask ? parentTask.title : null);
-    
     setParentSelectorVisible(false);
-    console.log('✅ [TaskModal] Parent selector modal closed successfully');
-  };
+    };
 
   // Handle opening parent selector
   const handleOpenParentSelector = () => {
@@ -201,15 +172,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
-      
-      console.log('🔍 [TaskModal] handleOk called with:', {
-        mode,
-        task: task ? { id: task.id, title: task.title } : null,
-        parentTask: parentTask ? { id: parentTask.id, title: parentTask.title } : null,
-        siblingTask: siblingTask ? { id: siblingTask.id, title: siblingTask.title, parent_id: siblingTask.parent_id } : null,
-        formValues: values,
-        projectId
-      });
       
       // 严格验证项目ID
       if (!projectId || projectId <= 0) {
@@ -226,8 +188,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
         parentId = values.parent_id || parentTask?.id;
       }
       
-      console.log('🔍 [TaskModal] Determined parentId:', parentId);
-      
       // 防止自引用：任务不能将自己设置为父任务
       if (parentId && task && parentId === task.id) {
         throw new Error('任务不能将自己设置为父任务');
@@ -237,8 +197,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
       
       // 验证父任务信息的有效性
       if (parentId && !task) {
-        console.log('🔍 [TaskModal] Validating parent task info for mode:', mode);
-        
         // 如果是创建子任务模式，验证parentTask
         if (mode === 'createSubtask' && (!parentTask || !parentTask.project_id)) {
           console.error('❌ [TaskModal] createSubtask validation failed - parentTask:', parentTask);
@@ -250,7 +208,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
             console.error('❌ [TaskModal] createSibling validation failed - siblingTask is null');
             throw new Error('兄弟任务信息无效，无法创建兄弟任务');
           }
-          console.log('✅ [TaskModal] createSibling validation passed - siblingTask exists');
           // 如果兄弟任务有父任务，但父任务信息不完整，则可能有问题
           // 但允许创建，因为parent_id可能为null（根任务）
         }
@@ -517,10 +474,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {(() => {
-                console.log('🔍 [TaskModal] Rendering parent task display - loadingParentTask:', loadingParentTask, 'selectedParentTask:', selectedParentTask);
-                
                 if (loadingParentTask) {
-                  console.log('🔄 [TaskModal] Showing loading state');
                   return (
                     <div style={{ 
                       flex: 1, 
@@ -537,7 +491,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     </div>
                   );
                 } else if (selectedParentTask) {
-                  console.log('✅ [TaskModal] Showing selected parent task:', selectedParentTask);
                   return (
                     <div style={{ 
                       flex: 1, 
@@ -566,7 +519,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
                     </div>
                   );
                 } else {
-                  console.log('📋 [TaskModal] Showing no parent selected state');
                   return (
                     <div style={{ 
                       flex: 1, 

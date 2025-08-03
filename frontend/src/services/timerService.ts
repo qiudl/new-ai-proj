@@ -69,7 +69,7 @@ class TimerService {
       const response = await api.get('/timer/stats');
       
       // Handle API response format: {success: true, data: {...}}
-      let data: any;
+      let data: Record<string, unknown>;
       if (response && typeof response === 'object' && 'data' in response) {
         data = response.data;
       } else {
@@ -106,7 +106,7 @@ class TimerService {
       const response = await api.get(`/timer/weekly?start_date=${startDate}&end_date=${endDate}`);
       
       // Handle API response format: {success: true, data: {...}}
-      let data: any;
+      let data: Record<string, unknown>;
       if (response && typeof response === 'object' && 'data' in response) {
         data = response.data;
       } else {
@@ -151,7 +151,7 @@ class TimerService {
       const projects = projectsResponse.data;
       
       // Get tasks from all user projects
-      const allTasks: any[] = [];
+      const allTasks: unknown[] = [];
       
       for (const project of projects) {
         try {
@@ -167,7 +167,7 @@ class TimerService {
       }
       
       // Transform the response to TaskOption format
-      return allTasks.map((task: any) => ({
+      return allTasks.map((task: unknown) => ({
         id: task.id,
         title: task.title,
         project_name: task.project_name || 'Unknown Project',

@@ -198,7 +198,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
           </Dropdown>
         </div>
       ),
-      icon: (props: any) => 
+      icon: (props: Record<string, unknown>) => 
         props.expanded ? <FolderOpenOutlined /> : <FolderOutlined />,
       children: folder.children?.map(buildNode) || [],
       isLeaf: !folder.children || folder.children.length === 0
@@ -215,7 +215,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       key: 'root',
       id: 0,
       path: '/',
-      documentCount: folderList.reduce((sum, f) => sum + ((f as any).document_count || 0), 0),
+      documentCount: folderList.reduce((sum, f) => sum + ((f as unknown).document_count || 0), 0),
       title: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
@@ -333,7 +333,6 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       };
 
       // 模拟创建API调用
-      console.log('Creating folder:', request);
       message.success('文件夹创建成功');
       
       setCreateModalVisible(false);
@@ -356,7 +355,6 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       };
 
       // 模拟更新API调用
-      console.log('Updating folder:', currentFolder.id, request);
       message.success('文件夹重命名成功');
       
       setEditModalVisible(false);

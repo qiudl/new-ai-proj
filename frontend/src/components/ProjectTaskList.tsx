@@ -114,7 +114,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   });
 
   // 加载任务数据
-  const loadTasks = useCallback(async (params: any = {}) => {
+  const loadTasks = useCallback(async (params: unknown = {}) => {
     try {
       setLoading(true);
       const response = await TaskService.getTasks(projectId, {
@@ -254,7 +254,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   };
 
   // 表格列定义
-  const columns: any[] = [
+  const columns: unknown[] = [
     {
       title: '任务',
       dataIndex: 'title',

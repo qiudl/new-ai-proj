@@ -164,7 +164,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
         tasks.forEach(task => {
           // 递归添加项目信息
           const addProjectInfo = (t: TaskWithChildren) => {
-            (t as any).project = project;
+            (t as unknown).project = project;
             if (t.children) {
               t.children.forEach(addProjectInfo);
             }
@@ -437,7 +437,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   // AI模式的额外功能
   const buildTreeNodes = useCallback((tasks: TaskWithChildren[]): TaskTreeNode[] => {
     return tasks.map(task => {
-      const project = (task as any).project as Project;
+      const project = (task as unknown).project as Project;
       const hasChildren = task.children && task.children.length > 0;
       
       return {
@@ -511,7 +511,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   }, []);
 
   const getTaskDisplayTitle = useCallback((task: TaskWithChildren): string => {
-    const project = (task as any).project as Project;
+    const project = (task as unknown).project as Project;
     const level = task.level || 0;
     const prefix = '  '.repeat(level);
     const projectPrefix = project && showProjectNames ? `[${project.name}] ` : '';
@@ -580,9 +580,9 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
             <Text strong>已选择:</Text>
             <div style={{ marginTop: 4 }}>
               <Text>{value.title}</Text>
-              {(value as any).project && showProjectNames && (
+              {(value as unknown).project && showProjectNames && (
                 <Text type="secondary" style={{ marginLeft: 8 }}>
-                  ({((value as any).project as Project).name})
+                  ({((value as unknown).project as Project).name})
                 </Text>
               )}
             </div>
@@ -608,7 +608,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       showSearch
       filterOption={(input, option) => {
         if (aiMode) {
-          const task = (currentTasks as any[]).find((t: any) => t.id === option?.value);
+          const task = (currentTasks as unknown[]).find((t: unknown) => t.id === option?.value);
           const searchText = input.toLowerCase();
           return (
             task?.title?.toLowerCase().includes(searchText) ||

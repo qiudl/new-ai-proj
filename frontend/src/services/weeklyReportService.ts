@@ -142,7 +142,7 @@ class WeeklyReportService {
   /**
    * 转换后端数据格式到前端格式
    */
-  private transformWeeklyReportData(backendData: any): WeeklyReportData {
+  private transformWeeklyReportData(backendData: unknown): WeeklyReportData {
     return {
       weeklyStats: {
         totalHours: backendData.weekly_stats?.total_hours || 0,
@@ -152,14 +152,14 @@ class WeeklyReportService {
         weekStart: backendData.weekly_stats?.week_start || '',
         weekEnd: backendData.weekly_stats?.week_end || '',
       },
-      dailyStats: (backendData.daily_stats || []).map((day: any) => ({
+      dailyStats: (backendData.daily_stats || []).map((day: unknown) => ({
         date: day.date,
         totalHours: day.total_hours || 0,
         tasksCompleted: day.tasks_completed || 0,
         efficiency: day.efficiency || 0,
         topTask: day.top_task || '无任务',
       })),
-      taskTimeEntries: (backendData.task_time_entries || []).map((entry: any) => ({
+      taskTimeEntries: (backendData.task_time_entries || []).map((entry: unknown) => ({
         id: entry.id,
         taskTitle: entry.task_title,
         projectName: entry.project_name,
@@ -168,7 +168,7 @@ class WeeklyReportService {
         status: this.mapTaskStatus(entry.status),
         priority: this.mapTaskPriority(entry.priority),
       })),
-      projectStats: (backendData.project_stats || []).map((project: any) => ({
+      projectStats: (backendData.project_stats || []).map((project: unknown) => ({
         projectName: project.project_name,
         totalHours: project.total_hours || 0,
         tasksCount: project.tasks_count || 0,

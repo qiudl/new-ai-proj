@@ -72,10 +72,10 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
 };
 
 // Axios拦截器（如果使用Axios）
-export const setupAxiosInterceptors = (axiosInstance: any) => {
+export const setupAxiosInterceptors = (axiosInstance: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
   // 请求拦截器
   axiosInstance.interceptors.request.use(
-    (config: any) => {
+    (config: unknown) => {
       const url = config.url || '';
       const method = config.method?.toUpperCase() || 'GET';
       
@@ -92,14 +92,14 @@ export const setupAxiosInterceptors = (axiosInstance: any) => {
       
       return config;
     },
-    (error: any) => {
+    (error: Error | unknown) => {
       return Promise.reject(error);
     }
   );
 
   // 响应拦截器
   axiosInstance.interceptors.response.use(
-    (response: any) => {
+    (response: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
       const config = response.config;
       const trackingId = config._performanceTrackingId;
       
@@ -117,7 +117,7 @@ export const setupAxiosInterceptors = (axiosInstance: any) => {
       
       return response;
     },
-    (error: any) => {
+    (error: Error | unknown) => {
       const config = error.config;
       const trackingId = config?._performanceTrackingId;
       
@@ -146,14 +146,14 @@ export const createPerformanceQueryClient = () => {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        onSuccess: (data: any, query: any) => {
+        onSuccess: (data: Record<string, unknown>, query: unknown) => {
           // 追踪成功的查询
           performanceMonitor.trackUserAction('query-success', query.queryKey.join('/'), {
             dataSize: JSON.stringify(data).length,
             fromCache: query._isCached,
           });
         },
-        onError: (error: any, query: any) => {
+        onError: (error: Error | unknown, query: unknown) => {
           // 追踪失败的查询
           performanceMonitor.trackUserAction('query-error', query.queryKey.join('/'), {
             error: error.message,
@@ -161,12 +161,12 @@ export const createPerformanceQueryClient = () => {
         },
       },
       mutations: {
-        onSuccess: (data: any, variables: any, context: any, mutation: any) => {
+        onSuccess: (data: Record<string, unknown>, variables: unknown, context: unknown, mutation: unknown) => {
           performanceMonitor.trackUserAction('mutation-success', mutation.mutationKey?.join('/') || 'unknown', {
             dataSize: JSON.stringify(data).length,
           });
         },
-        onError: (error: any, variables: any, context: any, mutation: any) => {
+        onError: (error: Error | unknown, variables: unknown, context: unknown, mutation: unknown) => {
           performanceMonitor.trackUserAction('mutation-error', mutation.mutationKey?.join('/') || 'unknown', {
             error: error instanceof Error ? error.message : 'Mutation failed',
           });
@@ -180,16 +180,14 @@ export const createPerformanceQueryClient = () => {
 export const installFetchInterceptor = () => {
   if (typeof window !== 'undefined' && window.fetch === originalFetch) {
     window.fetch = enhancedFetch;
-    console.log('Performance monitoring fetch interceptor installed');
-  }
+    }
 };
 
 // 卸载fetch拦截器
 export const uninstallFetchInterceptor = () => {
   if (typeof window !== 'undefined' && window.fetch === enhancedFetch) {
     window.fetch = originalFetch;
-    console.log('Performance monitoring fetch interceptor uninstalled');
-  }
+    }
 };
 
 // React组件性能追踪HOC
@@ -240,7 +238,7 @@ export const useComponentPerformance = (componentName: string) => {
 // 用户交互追踪装饰器
 export const trackUserInteraction = (action: string, target?: string) => {
   return (originalFunction: Function) => {
-    return function (this: any, ...args: any[]) {
+    return function (this: unknown, ...args: unknown[]) {
       performanceMonitor.trackUserAction(action, target || 'unknown', {
         arguments: args.length,
         timestamp: Date.now(),
@@ -273,11 +271,9 @@ export const installPerformanceInterceptors = () => {
     performanceMonitor.trackPageLoad(window.location.pathname);
   }
   
-  console.log('Performance monitoring interceptors installed');
-};
+  };
 
 // 清理所有拦截器
 export const uninstallPerformanceInterceptors = () => {
   uninstallFetchInterceptor();
-  console.log('Performance monitoring interceptors uninstalled');
-};
+  };

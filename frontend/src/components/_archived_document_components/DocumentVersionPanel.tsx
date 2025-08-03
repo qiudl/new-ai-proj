@@ -188,7 +188,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
   });
 
   // Handle version operations
-  const handleCreateLabel = async (values: any) => {
+  const handleCreateLabel = async (values: unknown) => {
     try {
       if (!selectedVersion) return;
       
@@ -218,7 +218,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
     }
   };
 
-  const handleCreateComment = async (values: any) => {
+  const handleCreateComment = async (values: unknown) => {
     try {
       if (!selectedVersion) return;
       
@@ -249,7 +249,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
     }
   };
 
-  const handleRestoreVersion = async (values: any) => {
+  const handleRestoreVersion = async (values: unknown) => {
     try {
       if (!selectedVersion) return;
       
@@ -308,7 +308,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
     }
   };
 
-  const handleBatchAddLabels = async (versionNumbers: number[], labelData: any) => {
+  const handleBatchAddLabels = async (versionNumbers: number[], labelData: unknown) => {
     try {
       // TODO: 调用批量添加标签API
       // await documentVersionService.batchAddLabels(documentId, versionNumbers, labelData);
@@ -605,7 +605,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
 
   // Render table view
   const renderTableView = () => {
-    const columns: any[] = [
+    const columns: unknown[] = [
       {
         title: '版本',
         key: 'version',

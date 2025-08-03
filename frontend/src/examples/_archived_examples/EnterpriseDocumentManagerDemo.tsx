@@ -57,8 +57,8 @@ const MOCK_DOCUMENTS = Array.from({ length: 150 }, (_, index) => ({
   id: index + 1,
   title: `企业文档 ${index + 1}`,
   description: `这是第 ${index + 1} 个企业级文档的详细描述，包含了丰富的内容和功能演示。`,
-  type: ['markdown', 'pdf', 'word', 'excel'][index % 4] as any,
-  status: ['draft', 'published', 'archived'][index % 3] as any,
+  type: ['markdown', 'pdf', 'word', 'excel'][index % 4] as unknown,
+  status: ['draft', 'published', 'archived'][index % 3] as unknown,
   owner_name: ['张经理', '李总监', '王主管', '陈专员'][index % 4],
   created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
   updated_at: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
@@ -122,10 +122,9 @@ const EnterpriseDocumentManagerDemo: React.FC = () => {
   };
 
   // 文档操作处理
-  const handleDocumentSelect = useCallback((doc: any) => {
+  const handleDocumentSelect = useCallback((doc: unknown) => {
     setSelectedDocument(doc);
-    console.log('选择文档:', doc);
-  }, []);
+    }, []);
 
   const handleDocumentUpdate = useCallback(() => {
     message.success('文档更新成功');
@@ -133,7 +132,7 @@ const EnterpriseDocumentManagerDemo: React.FC = () => {
   }, []);
 
   // 导入导出处理
-  const handleImportSuccess = useCallback((result: any) => {
+  const handleImportSuccess = useCallback((result: unknown) => {
     message.success(`成功导入 ${result.success} 个文档`);
     setImportExportVisible(false);
   }, []);
@@ -144,7 +143,7 @@ const EnterpriseDocumentManagerDemo: React.FC = () => {
   }, []);
 
   // 版本控制处理
-  const handleVersionRestore = useCallback((version: any) => {
+  const handleVersionRestore = useCallback((version: unknown) => {
     message.success(`已回滚到版本 ${version.version}`);
     setVersionControlVisible(false);
   }, []);
@@ -286,7 +285,6 @@ const EnterpriseDocumentManagerDemo: React.FC = () => {
           icon={<DashboardOutlined />}
           onClick={() => {
             const report = documentManagerPerf.generateReport();
-            console.log('性能报告:', report);
             message.success('性能报告已输出到控制台');
           }}
         >

@@ -10,7 +10,7 @@ jest.mock('../../hooks/useTaskParentSearch');
 jest.mock('../../hooks/useParentValidation');
 jest.mock('lodash', () => ({
   ...jest.requireActual('lodash'),
-  debounce: (fn: any) => fn,
+  debounce: (fn: unknown) => fn,
 }));
 
 const mockUseTaskParentSearch = useTaskParentSearchHook as jest.Mocked<typeof useTaskParentSearchHook>;

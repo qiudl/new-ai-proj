@@ -220,7 +220,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   // 更新导出选项
-  const updateExportOptions = (key: keyof ExportOptions, value: any) => {
+  const updateExportOptions = (key: keyof ExportOptions, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setExportOptions(prev => ({ ...prev, [key]: value }));
   };
 
@@ -402,7 +402,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </Row>
             <Divider />
             <Row gutter={[16, 8]}>
-              {previewData.summary.stats.map((stat: any, index: number) => (
+              {previewData.summary.stats.map((stat: unknown, index: number) => (
                 <Col span={6} key={index}>
                   <div style={{ textAlign: 'center' }}>
                     <Text type="secondary">{stat.label}</Text>

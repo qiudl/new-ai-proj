@@ -65,7 +65,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           setIsInitialLoad(false);
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg = err.response?.data?.error || err.message || '加载文档失败';
       setError(errorMsg);
       console.error('Error loading document:', err);
@@ -101,7 +101,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       if (onSave) {
         onSave(content);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       const errorMsg = err.response?.data?.error || err.message || '保存文档失败';
       setError(errorMsg);
       message.error(errorMsg);

@@ -6,8 +6,8 @@ const { Title } = Typography;
 interface AIGenerationHistoryProps {
   showDetailedView?: boolean;
   projectId?: number;
-  onReuse?: (history: any, tasks: any[]) => Promise<void>;
-  onSaveAsTemplate?: (history: any, templateName: string) => void;
+  onReuse?: (history: unknown, tasks: unknown[]) => Promise<void>;
+  onSaveAsTemplate?: (history: unknown, templateName: string) => void;
 }
 
 /**

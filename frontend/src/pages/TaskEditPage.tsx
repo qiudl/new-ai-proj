@@ -449,8 +449,7 @@ const TaskEditPage: React.FC = () => {
                         projectId={parseInt(projectId)}
                         onSave={(content) => {
                           // 文档保存成功的回调
-                          console.log('文档已保存:', content.length, '字符');
-                        }}
+                          }}
                       />
                     </div>
                   ) : (

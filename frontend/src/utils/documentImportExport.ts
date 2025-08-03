@@ -107,7 +107,7 @@ class DocumentImportExport {
 
   // 导出到CSV
   private async exportToCsv(
-    documents: any[],
+    documents: unknown[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -142,7 +142,7 @@ class DocumentImportExport {
 
   // 导出到JSON
   private async exportToJson(
-    documents: any[],
+    documents: unknown[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -157,7 +157,7 @@ class DocumentImportExport {
 
   // 导出到Excel
   private async exportToExcel(
-    documents: any[],
+    documents: unknown[],
     options: ExportOptions
   ): Promise<boolean> {
     try {
@@ -184,7 +184,7 @@ class DocumentImportExport {
 
   // 导出到PDF
   private async exportToPdf(
-    documents: any[],
+    documents: unknown[],
     options: ExportOptions
   ): Promise<boolean> {
     try {
@@ -251,7 +251,7 @@ class DocumentImportExport {
 
   // 导出到Markdown
   private async exportToMarkdown(
-    documents: any[],
+    documents: unknown[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -294,9 +294,9 @@ class DocumentImportExport {
   }
 
   // 准备导出数据
-  private prepareExportData(documents: any[], options: ExportOptions): any[] {
+  private prepareExportData(documents: unknown[], options: ExportOptions): any[] {
     return documents.map(doc => {
-      const exportDoc: any = {};
+      const exportDoc: unknown = {};
       
       // 基础字段
       exportDoc.id = doc.id;
@@ -317,7 +317,7 @@ class DocumentImportExport {
       // 根据选项过滤字段
       const fieldsToInclude = options.fields || options.includeFields;
       if (fieldsToInclude && fieldsToInclude.length > 0) {
-        const filtered: any = {};
+        const filtered: unknown = {};
         fieldsToInclude.forEach(field => {
           if (exportDoc.hasOwnProperty(field)) {
             filtered[field] = exportDoc[field];
@@ -419,7 +419,7 @@ class DocumentImportExport {
             continue;
           }
           
-          const rowData: any = {};
+          const rowData: unknown = {};
           headers.forEach((header, index) => {
             rowData[header] = values[index];
           });
@@ -535,7 +535,7 @@ class DocumentImportExport {
   }
 
   // 转换导入数据
-  private transformImportData(item: any): Partial<Document> {
+  private transformImportData(item: unknown): Partial<Document> {
     return {
       title: item.title || item.name || item.filename || 'Untitled',
       description: item.description || item.desc || '',
@@ -638,7 +638,7 @@ export const importDocuments = (
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as any).documentImportExport = documentImportExport;
+  (window as unknown).documentImportExport = documentImportExport;
 }
 
 export default DocumentImportExport;

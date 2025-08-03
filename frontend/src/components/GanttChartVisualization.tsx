@@ -368,8 +368,7 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
   // 导出功能
   const exportToExcel = () => {
     // 这里可以实现导出到Excel的功能
-    console.log('导出甘特图数据到Excel');
-  };
+    };
 
   // 全屏切换
   const toggleFullscreen = () => {

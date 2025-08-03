@@ -450,7 +450,7 @@ export class AITagsGenerator {
   /**
    * 生成推理说明
    */
-  private generateReasoning(suggestions: TagSuggestion[], analysis: any): string {
+  private generateReasoning(suggestions: TagSuggestion[], analysis: unknown): string {
     const parts = [];
 
     if (analysis.extractedKeywords.length > 0) {

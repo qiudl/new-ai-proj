@@ -272,7 +272,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
   }, [documentId]);
 
   // 处理创建/编辑关联关系
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: unknown) => {
     try {
       if (editingRelation) {
         // TODO: 调用更新API
@@ -399,7 +399,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
       title: '实体类型',
       key: 'entity_type',
       width: 100,
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: unknown) => (
         <Tag color={ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].color}>
           <Space size={4}>
             {ENTITY_CONFIG[record.entity_type as keyof typeof ENTITY_CONFIG].icon}

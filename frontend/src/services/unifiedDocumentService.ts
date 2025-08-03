@@ -199,7 +199,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.post<Document>('/documents', request);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error creating document:', error);
       // 使用模拟数据降级处理
       console.warn('Document API failed, using local storage fallback:', error);
@@ -246,7 +246,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.get<Document>(`/documents/${id}`);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting document:', error);
       console.warn('Document API not available, trying local storage');
       
@@ -278,7 +278,7 @@ export class UnifiedDocumentService {
       ];
       
       supportedFields.forEach(field => {
-        const value = (request as any)[field];
+        const value = (request as unknown)[field];
         if (value !== undefined && value !== null) {
           // 对于字符串字段，允许空字符串（可能有意要清空内容）
           if (typeof value === 'string' || Array.isArray(value) || typeof value === 'boolean' || typeof value === 'number') {
@@ -287,12 +287,9 @@ export class UnifiedDocumentService {
         }
       });
       
-      console.log('updateDocument - 原始请求:', request);
-      console.log('updateDocument - 清理后的请求:', cleanRequest);
-      
       const response = await apiCall.put<Document>(`/documents/${id}`, cleanRequest);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error updating document:', error);
       console.warn('Document API not available, using local storage');
       
@@ -312,7 +309,7 @@ export class UnifiedDocumentService {
   async deleteDocument(id: number): Promise<void> {
     try {
       await apiCall.delete(`/documents/${id}`);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error deleting document:', error);
       console.warn('Document API not available, using local storage');
       
@@ -335,14 +332,11 @@ export class UnifiedDocumentService {
       }
 
       const url = folderId ? `/documents?folder_id=${folderId}` : '/documents';
-      console.log('getDocuments - 请求URL:', url);
       const response = await apiCall.get<any>(url);
-      console.log('getDocuments - API原始响应:', response);
-      
       // 适配API响应格式：API返回 {success: true, data: [...], message: "..."}
       // 但组件期望 Document[] 数组
       if (response.success && Array.isArray(response.data)) {
-        const documents: Document[] = response.data.map((doc: any) => adaptSimpleToDocument({
+        const documents: Document[] = response.data.map((doc: unknown) => adaptSimpleToDocument({
           id: doc.id,
           folder_id: doc.folder_id,
           title: doc.title,
@@ -368,16 +362,14 @@ export class UnifiedDocumentService {
           is_favorite: doc.is_favorite
         }));
         
-        console.log('getDocuments - 适配后文档数组:', documents);
         return documents;
       } else if (response.success && response.data === null) {
-        console.log('getDocuments - 数据库中暂无文档');
         return [];
       } else {
         console.warn('getDocuments - API响应格式不正确:', response);
         return [];
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting documents:', error);
       
       // 区分错误类型，提供更精确的错误处理
@@ -424,16 +416,12 @@ export class UnifiedDocumentService {
       }
       
       const url = `/documents${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      console.log('getAllDocuments - 请求URL:', url);
-      
       const response = await apiCall.get<any>(url);
-      console.log('getAllDocuments - API原始响应:', response);
-      
       // 适配API响应格式：API返回 {success: true, data: [...], message: "..."}
       // 但组件期望 {documents: [...], total: number, ...}
       if (response.success && response.data) {
         const adaptedResponse: DocumentListResponse = {
-          documents: response.data.map((doc: any) => ({
+          documents: response.data.map((doc: unknown) => ({
             id: doc.id,
             title: doc.title,
             type: doc.type,
@@ -451,12 +439,11 @@ export class UnifiedDocumentService {
           has_more: false
         };
         
-        console.log('getAllDocuments - 适配后响应:', adaptedResponse);
         return adaptedResponse;
       } else {
         throw new Error('API响应格式不正确');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting all documents:', error);
       console.warn('Document API not available, using local mock data');
       
@@ -529,7 +516,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.post<Document>(`/documents/${id}/copy`);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error copying document:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to copy document');
     }
@@ -542,7 +529,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.post<Document>(`/documents/${id}/toggle-template`);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error toggling template:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to toggle template');
     }
@@ -554,7 +541,7 @@ export class UnifiedDocumentService {
   async batchDeleteDocuments(documentIds: number[]): Promise<void> {
     try {
       await apiCall.post('/documents/batch-delete', { document_ids: documentIds });
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error batch deleting documents:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to batch delete documents');
     }
@@ -569,7 +556,7 @@ export class UnifiedDocumentService {
         title: newTitle
       });
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error duplicating document:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to duplicate document');
     }
@@ -585,7 +572,7 @@ export class UnifiedDocumentService {
         responseType: 'blob'
       });
       return response.data as Blob;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error exporting document:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to export document');
     }
@@ -600,7 +587,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.get<ProjectOption[]>('/projects/options');
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting available projects:', error);
       return [];
     }
@@ -613,7 +600,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.get<CustomerOption[]>('/customers/options');
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting available customers:', error);
       return [];
     }
@@ -632,7 +619,7 @@ export class UnifiedDocumentService {
       
       const response = await apiCall.postFormData<FileUploadResponse>('/documents/upload-image', formData);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error uploading image:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to upload image');
     }
@@ -645,7 +632,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.get<DocumentVersion[]>(`/documents/${documentId}/versions`);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting document versions:', error);
       return [];
     }
@@ -658,7 +645,7 @@ export class UnifiedDocumentService {
     try {
       const response = await apiCall.post<Document>(`/documents/${documentId}/versions/${versionId}/restore`);
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error restoring document version:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to restore document version');
     }

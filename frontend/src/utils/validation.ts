@@ -5,7 +5,7 @@ import { AppError, ErrorType } from './errorHandling';
 export function validate<T extends any[]>(
   ...validators: Array<(args: T) => void>
 ) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: EventTarget | null, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
     descriptor.value = function (...args: T) {
@@ -25,7 +25,7 @@ export function validate<T extends any[]>(
 // 常用验证器
 export const Validators = {
   // 验证必填字段
-  required: (fieldName: string, index: number = 0) => (args: any[]) => {
+  required: (fieldName: string, index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (value === null || value === undefined || value === '') {
       throw new AppError(`${fieldName}不能为空`, ErrorType.VALIDATION);
@@ -33,7 +33,7 @@ export const Validators = {
   },
 
   // 验证字符串长度
-  stringLength: (fieldName: string, min: number, max: number, index: number = 0) => (args: any[]) => {
+  stringLength: (fieldName: string, min: number, max: number, index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (typeof value === 'string') {
       const length = value.trim().length;
@@ -47,7 +47,7 @@ export const Validators = {
   },
 
   // 验证数字范围
-  numberRange: (fieldName: string, min: number, max: number, index: number = 0) => (args: any[]) => {
+  numberRange: (fieldName: string, min: number, max: number, index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (typeof value === 'number') {
       if (value < min || value > max) {
@@ -60,7 +60,7 @@ export const Validators = {
   },
 
   // 验证邮箱格式
-  email: (fieldName: string, index: number = 0) => (args: any[]) => {
+  email: (fieldName: string, index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (typeof value === 'string') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,7 +71,7 @@ export const Validators = {
   },
 
   // 验证数组长度
-  arrayLength: (fieldName: string, min: number, max: number, index: number = 0) => (args: any[]) => {
+  arrayLength: (fieldName: string, min: number, max: number, index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (Array.isArray(value)) {
       if (value.length < min || value.length > max) {
@@ -84,7 +84,7 @@ export const Validators = {
   },
 
   // 验证项目ID
-  projectId: (index: number = 0) => (args: any[]) => {
+  projectId: (index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     if (typeof value === 'number' && (value <= 0 || !Number.isInteger(value))) {
       throw new AppError('项目ID无效', ErrorType.VALIDATION);
@@ -92,7 +92,7 @@ export const Validators = {
   },
 
   // 验证任务状态
-  taskStatus: (index: number = 0) => (args: any[]) => {
+  taskStatus: (index: number = 0) => (args: unknown[]) => {
     const value = args[index];
     const validStatuses = ['todo', 'in_progress', 'completed', 'cancelled'];
     if (typeof value === 'string' && !validStatuses.includes(value)) {
@@ -104,25 +104,25 @@ export const Validators = {
 // 数据清理和标准化
 export class DataSanitizer {
   // 清理字符串
-  static sanitizeString(value: any): string {
+  static sanitizeString(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string {
     if (typeof value !== 'string') return '';
     return value.trim().replace(/\s+/g, ' ');
   }
 
   // 确保数字
-  static ensureNumber(value: any, defaultValue = 0): number {
+  static ensureNumber(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = 0): number {
     const num = Number(value);
     return isNaN(num) ? defaultValue : num;
   }
 
   // 确保正整数
-  static ensurePositiveInteger(value: any, defaultValue = 1): number {
+  static ensurePositiveInteger(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = 1): number {
     const num = this.ensureNumber(value, defaultValue);
     return Math.max(1, Math.floor(Math.abs(num)));
   }
 
   // 确保布尔值
-  static ensureBoolean(value: any, defaultValue = false): boolean {
+  static ensureBoolean(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = false): boolean {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'string') {
       return value.toLowerCase() === 'true';
@@ -150,7 +150,7 @@ export class DataSanitizer {
   }
 
   // 清理任务数据
-  static sanitizeTask(task: any): any {
+  static sanitizeTask(task: unknown): unknown {
     return {
       ...task,
       title: this.sanitizeString(task.title),
@@ -164,7 +164,7 @@ export class DataSanitizer {
   }
 
   // 清理分页参数
-  static sanitizePagination(params: any): any {
+  static sanitizePagination(params: unknown): unknown {
     return {
       page: this.ensurePositiveInteger(params?.page, 1),
       page_size: Math.min(100, this.ensurePositiveInteger(params?.page_size, 20)),
@@ -175,13 +175,13 @@ export class DataSanitizer {
 // 表单验证Hook
 export function useFormValidation<T extends Record<string, any>>(
   initialValues: T,
-  validationRules: Record<keyof T, Array<(value: any) => void>>
+  validationRules: Record<keyof T, Array<(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => void>>
 ) {
   const [values, setValues] = React.useState<T>(initialValues);
   const [errors, setErrors] = React.useState<Partial<Record<keyof T, string>>>({});
   const [touched, setTouched] = React.useState<Partial<Record<keyof T, boolean>>>({});
 
-  const validateField = (fieldName: keyof T, value: any): string | null => {
+  const validateField = (fieldName: keyof T, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string | null => {
     const rules = validationRules[fieldName];
     if (!rules) return null;
 
@@ -198,7 +198,7 @@ export function useFormValidation<T extends Record<string, any>>(
     }
   };
 
-  const setValue = (fieldName: keyof T, value: any) => {
+  const setValue = (fieldName: keyof T, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setValues(prev => ({ ...prev, [fieldName]: value }));
     
     // 如果字段已被触摸过，立即验证

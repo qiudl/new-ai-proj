@@ -54,7 +54,7 @@ const UserProfilePage: React.FC = () => {
           email: response.data.email,
         });
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       message.error('加载用户资料失败');
       console.error('Error loading user profile:', error);
     } finally {
@@ -72,7 +72,7 @@ const UserProfilePage: React.FC = () => {
       }
       
       message.success('个人资料更新成功');
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       const errorMessage = error.response?.data?.error?.message || '更新个人资料失败';
       message.error(errorMessage);
       console.error('Error updating profile:', error);
@@ -87,7 +87,7 @@ const UserProfilePage: React.FC = () => {
       await userService.changePassword(values);
       passwordForm.resetFields();
       message.success('密码修改成功');
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       const errorMessage = error.response?.data?.error?.message || '密码修改失败';
       message.error(errorMessage);
       console.error('Error changing password:', error);

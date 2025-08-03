@@ -258,7 +258,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 <div style={{ marginTop: 8 }}>
                   <Space wrap>
                     <Badge 
-                      status={DOCUMENT_STATUS[document.status]?.color as any} 
+                      status={DOCUMENT_STATUS[document.status]?.color as unknown} 
                       text={DOCUMENT_STATUS[document.status]?.label}
                     />
                   </Space>
@@ -340,7 +340,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             <div style={{ marginTop: '8px' }}>
               <Space wrap>
                 <Badge 
-                  status={DOCUMENT_STATUS[document.status]?.color as any} 
+                  status={DOCUMENT_STATUS[document.status]?.color as unknown} 
                   text={DOCUMENT_STATUS[document.status]?.label}
                 />
                 {document.tags && document.tags.map(tag => (
@@ -460,7 +460,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
         // Here you could call an API to save the new order
         // await unifiedDocumentService.updateDocumentOrder(folderId, newItems.map(item => item.id));
-        console.log('Document order updated:', newItems.map(item => ({ id: item.id, title: item.title })));
+        ));
         
         return newItems;
       });
@@ -488,7 +488,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
   // 监听自定义复制文档事件
   useEffect(() => {
-    const handleCopyDocumentEvent = (event: any) => {
+    const handleCopyDocumentEvent = (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
       const document = event.detail;
       if (document) {
         handleCopyDocument(document);
@@ -496,9 +496,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
     };
 
     // 监听文件夹导航事件（可选：如果需要在当前组件内响应）
-    const handleFolderNavigateEvent = (event: any) => {
+    const handleFolderNavigateEvent = (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
       const { folderId, folderName } = event.detail;
-      console.log('文件夹导航事件:', { folderId, folderName });
       // 这里可以添加额外的处理逻辑，比如更新面包屑等
     };
 
@@ -571,7 +570,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
 
   // 处理文档操作
-  const handleCreateDocument = async (values: any) => {
+  const handleCreateDocument = async (values: unknown) => {
     try {
       const request = {
         folder_id: folderId,
@@ -597,13 +596,13 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('创建文档失败:', error);
       message.error(error.message || '创建文档失败');
     }
   };
 
-  const handleEditDocument = async (values: any) => {
+  const handleEditDocument = async (values: unknown) => {
     try {
       if (!selectedDocument) return;
       
@@ -627,7 +626,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('更新文档失败:', error);
       message.error(error.message || '更新文档失败');
     }
@@ -645,7 +644,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('删除文档失败:', error);
       message.error(error.message || '删除文档失败');
     }
@@ -967,8 +966,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       return true;
     },
     onDrop(e) {
-      console.log('Dropped files', e.dataTransfer.files);
-    },
+      },
     showUploadList: true,
     listType: 'text'
   };
@@ -984,16 +982,16 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
 
   // 表格列定义
-  const columns: any[] = [
+  const columns: unknown[] = [
     {
       title: '文档',
       key: 'document',
       width: 400,
       fixed: 'left',
-      render: (_: any, record: any) => (
+      render: (_: unknown, record: unknown) => (
         <Space>
           <span style={{ fontSize: '18px', color: '#1890ff' }}>
-            {(DOCUMENT_TYPES as any)[record.type]?.icon || <FileOutlined />}
+            {(DOCUMENT_TYPES as unknown)[record.type]?.icon || <FileOutlined />}
           </span>
           <div>
             <Space>
@@ -1030,7 +1028,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'folder_name',
       key: 'folder_name',
       width: 120,
-      render: (folderName: any, record: any) => (
+      render: (folderName: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown) => (
         folderName ? (
           <Space 
             style={{ cursor: 'pointer' }}
@@ -1055,9 +1053,9 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'tags',
       key: 'tags',
       width: 150,
-      render: (tags: any) => (
+      render: (tags: unknown) => (
         <Space wrap>
-          {tags.slice(0, 2).map((tag: any) => (
+          {tags.slice(0, 2).map((tag: unknown) => (
             <Tag key={tag}>{tag}</Tag>
           ))}
           {tags.length > 2 && (
@@ -1071,7 +1069,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'project_name',
       key: 'project_name',
       width: 120,
-      render: (projectName: any) => (
+      render: (projectName: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
         projectName ? (
           <Tag color="blue">{projectName}</Tag>
         ) : (
@@ -1084,7 +1082,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'customer_name',
       key: 'customer_name', 
       width: 120,
-      render: (customerName: any) => (
+      render: (customerName: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
         customerName ? (
           <Tag color="green">{customerName}</Tag>
         ) : (
@@ -1097,7 +1095,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'owner_name',
       key: 'owner_name',
       width: 100,
-      render: (name: any) => (
+      render: (name: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />} />
           <Text>{name}</Text>
@@ -1109,7 +1107,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 120,
-      render: (date: any) => (
+      render: (date: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
         <Tooltip title={dayjs(date).format('YYYY-MM-DD HH:mm:ss')}>
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {dayjs(date).fromNow()}
@@ -1122,7 +1120,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       key: 'actions',
       width: 120,
       fixed: 'right',
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: unknown) => {
         const moreActions: MenuProps['items'] = [
           {
             key: 'copy',
@@ -1394,8 +1392,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               value={`${sortBy}-${sortOrder}`}
               onChange={(value) => {
                 const [field, order] = value.split('-');
-                setSortBy(field as any);
-                setSortOrder(order as any);
+                setSortBy(field as unknown);
+                setSortOrder(order as unknown);
               }}
               style={{ width: 120 }}
               size="small"
@@ -1852,7 +1850,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
                 {DOCUMENT_TYPES[selectedDocument.type]?.label}
               </Tag>
               <Badge 
-                status={DOCUMENT_STATUS[selectedDocument.status]?.color as any} 
+                status={DOCUMENT_STATUS[selectedDocument.status]?.color as unknown} 
                 text={DOCUMENT_STATUS[selectedDocument.status]?.label}
               />
               <Text type="secondary">

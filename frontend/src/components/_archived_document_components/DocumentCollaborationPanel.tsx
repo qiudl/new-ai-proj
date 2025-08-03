@@ -313,7 +313,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
               <List.Item>
                 <Space>
                   <Badge 
-                    status={getUserStatusColor(user) as any}
+                    status={getUserStatusColor(user) as unknown}
                     offset={[-2, 2]}
                   >
                     <Avatar 

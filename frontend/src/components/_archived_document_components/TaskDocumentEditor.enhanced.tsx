@@ -39,7 +39,7 @@ interface TemplateRecommendation {
     type: string;
     category: string;
     content: string;
-    variables: any[];
+    variables: unknown[];
     usage_count: number;
   };
   score: number;
@@ -244,7 +244,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
     const interval = setInterval(async () => {
       try {
         const activeData = await collaborationService.getActiveCollaborators(projectId, taskId);
-        setActiveUsers(activeData.active_collaborators.map((u: any) => u.username));
+        setActiveUsers(activeData.active_collaborators.map((u: unknown) => u.username));
       } catch (error) {
         // 静默处理实时更新错误
       }

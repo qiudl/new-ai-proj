@@ -107,7 +107,7 @@ export class HistoryTaskService {
   /**
    * 转换API返回的历史任务数据
    */
-  private static transformHistoryTask(apiData: any): HistoryTask {
+  private static transformHistoryTask(apiData: unknown): HistoryTask {
     return {
       id: apiData.id || apiData.task_id,
       task_id: apiData.task_id,
@@ -124,7 +124,7 @@ export class HistoryTaskService {
   /**
    * 从RecentTimedTask转换为HistoryTask
    */
-  private static transformFromRecentTask(recentTask: any): HistoryTask {
+  private static transformFromRecentTask(recentTask: unknown): HistoryTask {
     return {
       id: recentTask.task_id,
       task_id: recentTask.task_id,

@@ -21,8 +21,6 @@ const FloatingTimerForced = () => {
     taskId: 999
   };
 
-  console.log('🚀 FloatingTimerForced 正在渲染');
-
   return (
     <div
       style={{

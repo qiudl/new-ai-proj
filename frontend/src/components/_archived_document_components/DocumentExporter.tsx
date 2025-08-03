@@ -85,7 +85,7 @@ const DocumentExporter: React.FC<DocumentExporterProps> = ({
   ];
 
   // 处理导出选项变化
-  const handleOptionsChange = (key: keyof ExportOptions, value: any) => {
+  const handleOptionsChange = (key: keyof ExportOptions, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setExportOptions(prev => ({
       ...prev,
       [key]: value

@@ -37,7 +37,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from '../utils/dayjs';
 // 简单的debounce实现，避免lodash依赖
-const debounce = <T extends (...args: any[]) => any>(
+const debounce = <T extends (...args: unknown[]) => any>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
@@ -331,7 +331,7 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
     setSearchQuery(suggestion);
   };
 
-  const handleFilterChange = (key: keyof SearchFilters, value: any) => {
+  const handleFilterChange = (key: keyof SearchFilters, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setFilters(prev => ({
       ...prev,
       [key]: value
@@ -687,7 +687,7 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                           {DOCUMENT_TYPES[document.type]?.label}
                         </Tag>
                         <Badge 
-                          status={DOCUMENT_STATUS[document.status]?.color as any} 
+                          status={DOCUMENT_STATUS[document.status]?.color as unknown} 
                           text={DOCUMENT_STATUS[document.status]?.label}
                         />
                       </Space>

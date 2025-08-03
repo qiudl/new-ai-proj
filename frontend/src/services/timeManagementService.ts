@@ -22,7 +22,6 @@ const createStatsApi = () => {
     const mockApi = {
       get: async (url: string) => {
         const fullUrl = `${MOCK_API_BASE_URL}${url}`;
-        console.log('调用模拟统计API:', fullUrl);
         try {
           const response = await fetch(fullUrl);
           if (!response.ok) {
@@ -98,15 +97,12 @@ export class TimeManagementService {
    */
   static async getTodayTaskStats(): Promise<TodayTaskStats> {
     try {
-      console.log('开始获取今日任务统计数据...');
-      console.log('环境:', isDevelopment ? '开发环境(使用模拟API)' : '生产环境');
+      ' : '生产环境');
       
       // 优先尝试调用后端统计API
       const response = await statsApi.get('/statistics/today-stats');
       
       if (response.data) {
-        console.log('✅ 统计API调用成功，返回数据:', response.data);
-        
         // 转换API数据为前端格式
         const apiData = response.data;
         const todayStats: TodayTaskStats = {
@@ -140,14 +136,6 @@ export class TimeManagementService {
         // 合并所有任务到 todayTasks
         todayStats.todayTasks = [...todayStats.urgentTasks, ...todayStats.upcomingDeadlines];
         
-        console.log('✅ 数据转换完成:', {
-          totalTasks: todayStats.totalTasks,
-          completedTasks: todayStats.completedTasks,
-          completionRate: todayStats.completionRate,
-          urgentTasksCount: todayStats.urgentTasks.length,
-          upcomingDeadlinesCount: todayStats.upcomingDeadlines.length
-        });
-        
         return todayStats;
       }
       
@@ -164,7 +152,7 @@ export class TimeManagementService {
   /**
    * 转换API任务数据为前端Task格式
    */
-  private static convertToTasks(apiTasks: any[]): Task[] {
+  private static convertToTasks(apiTasks: unknown[]): Task[] {
     return apiTasks.map(apiTask => ({
       id: apiTask.id,
       title: apiTask.title,
@@ -189,8 +177,6 @@ export class TimeManagementService {
    */
   private static async getFallbackStats(): Promise<TodayTaskStats> {
     try {
-      console.log('使用前端降级方案计算统计数据');
-      
       // 获取所有任务数据
       const allTasks = await this.getAllTasks();
       

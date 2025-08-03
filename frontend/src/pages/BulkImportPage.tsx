@@ -140,7 +140,7 @@ const BulkImportPage: React.FC = () => {
       if (selectedProjectId) {
         navigate(`/projects/${selectedProjectId}/tasks`);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('AI导入失败:', error);
       message.error(error.message || 'AI任务导入失败');
     } finally {
@@ -195,10 +195,8 @@ const BulkImportPage: React.FC = () => {
       // Import taskService
       const { TaskService } = await import('../services/taskService');
       
-      console.log('Importing to project:', selectedProjectId, 'tasks:', parsedTasks.length);
-      
       // First pass: Create tasks without parent relationships
-      const createdTasks: any[] = [];
+      const createdTasks: unknown[] = [];
       const tasksToCreate = parsedTasks.map((task, index) => ({
         title: task.title,
         description: task.description || '',
@@ -651,7 +649,7 @@ const BulkImportPage: React.FC = () => {
                   childrenMap.get(parentId).push(child);
                 });
 
-                const renderTask = (task: any, index: number, isChild = false) => (
+                const renderTask = (task: unknown, index: number, isChild = false) => (
                   <div key={`${task.parent_id || 'root'}-${index}`} className="task-item" style={{ 
                     marginLeft: isChild ? '24px' : '0',
                     borderLeft: isChild ? '2px solid #1890ff' : 'none',
@@ -703,7 +701,7 @@ const BulkImportPage: React.FC = () => {
                       <div key={index}>
                         {renderTask(task, index + 1)}
                         {childrenMap.has(index + 1) && 
-                          childrenMap.get(index + 1).map((child: any, childIndex: number) => 
+                          childrenMap.get(index + 1).map((child: unknown, childIndex: number) => 
                             renderTask(child, childIndex, true)
                           )
                         }

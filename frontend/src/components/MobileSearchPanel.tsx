@@ -16,7 +16,7 @@ const { Search } = Input;
 
 interface MobileSearchPanelProps {
   onSearch?: (searchTerm: string) => void;
-  onAdvancedSearch?: (filters: any) => void;
+  onAdvancedSearch?: (filters: unknown) => void;
 }
 
 const MobileSearchPanel: React.FC<MobileSearchPanelProps> = ({

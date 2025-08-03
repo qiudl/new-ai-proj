@@ -11,7 +11,7 @@ import { Company } from '../types/company';
 // 扩展jsPDF类型定义
 declare module 'jspdf' {
   interface jsPDF {
-    autoTable: (options: any) => jsPDF;
+    autoTable: (options: unknown) => jsPDF;
   }
 }
 
@@ -361,7 +361,7 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
         headStyles: { fillColor: [66, 139, 202] },
       });
 
-      yPosition = (pdf as any).lastAutoTable.finalY + 15;
+      yPosition = (pdf as unknown).lastAutoTable.finalY + 15;
     }
 
     // 任务详情表

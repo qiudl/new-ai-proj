@@ -83,7 +83,7 @@ interface OnlineDocumentEditorProps {
   visible: boolean;
   onClose: () => void;
   onSave?: (content: string) => Promise<void>;
-  onShare?: (shareData: any) => void;
+  onShare?: (shareData: unknown) => void;
   defaultEditor?: EditorType;
   readOnly?: boolean;
   enableCollaboration?: boolean;

@@ -1,6 +1,6 @@
 // Type declarations for Ant Design modules
 declare module 'antd/lib/locale/zh_CN' {
-  const zhCN: any;
+  const zhCN: unknown;
   export default zhCN;
 }
 
@@ -18,12 +18,12 @@ declare module 'antd/es/table' {
     title?: React.ReactNode;
     dataIndex?: string | string[];
     key?: string;
-    render?: (value: any, record: T, index: number) => React.ReactNode;
+    render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: T, index: number) => React.ReactNode;
     width?: number | string;
     ellipsis?: boolean;
     sorter?: boolean | ((a: T, b: T) => number);
     defaultSortOrder?: 'ascend' | 'descend';
-    filters?: Array<{ text: string; value: any }>;
+    filters?: Array<{ text: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
     onFilter?: (value: string | number | boolean, record: T) => boolean;
     [key: string]: any;
   }

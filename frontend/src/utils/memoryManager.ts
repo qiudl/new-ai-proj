@@ -17,7 +17,6 @@ class MemoryManager {
   static startMonitoring(): void {
     // Skip memory monitoring in development for better developer experience
     if (process.env.NODE_ENV === 'development') {
-      console.log('🧠 Memory monitoring disabled in development mode');
       return;
     }
 
@@ -26,8 +25,6 @@ class MemoryManager {
     }
 
     this.isMonitoring = true;
-    console.log('🧠 Memory monitoring started');
-
     this.checkInterval = setInterval(() => {
       this.checkMemoryUsage();
     }, this.CHECK_INTERVAL);
@@ -49,8 +46,7 @@ class MemoryManager {
       this.checkInterval = null;
     }
 
-    console.log('🧠 Memory monitoring stopped');
-  }
+    }
 
   // Check current memory usage
   private static checkMemoryUsage(): void {
@@ -88,7 +84,7 @@ class MemoryManager {
   // Get memory information
   static getMemoryInfo(): MemoryInfo | null {
     if ('memory' in performance) {
-      return (performance as any).memory as MemoryInfo;
+      return (performance as unknown).memory as MemoryInfo;
     }
     return null;
   }
@@ -116,8 +112,7 @@ class MemoryManager {
       // Clear expired session data
       this.clearExpiredSessionData();
       
-      console.log('🧹 Gentle memory cleanup completed');
-    } catch (error) {
+      } catch (error) {
       console.error('Gentle cleanup failed:', error);
     }
   }
@@ -134,8 +129,7 @@ class MemoryManager {
       // Force garbage collection if available
       this.forceGarbageCollection();
       
-      console.log('🚨 Emergency memory cleanup completed');
-    } catch (error) {
+      } catch (error) {
       console.error('Emergency cleanup failed:', error);
     }
   }
@@ -218,11 +212,10 @@ class MemoryManager {
 
   // Force garbage collection if available
   private static forceGarbageCollection(): void {
-    if ('gc' in window && typeof (window as any).gc === 'function') {
+    if ('gc' in window && typeof (window as unknown).gc === 'function') {
       try {
-        (window as any).gc();
-        console.log('🗑️ Forced garbage collection');
-      } catch (error) {
+        (window as unknown).gc();
+        } catch (error) {
         console.warn('Failed to force garbage collection:', error);
       }
     }
@@ -230,7 +223,6 @@ class MemoryManager {
 
   // Manual cleanup trigger
   static performManualCleanup(): void {
-    console.log('🧹 Performing manual cleanup...');
     this.performEmergencyCleanup();
   }
 

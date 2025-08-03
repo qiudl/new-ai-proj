@@ -52,20 +52,18 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
         if (data.tasks && Array.isArray(data.tasks)) {
           setTasks(data.tasks);
           setHasMore(data.tasks.length === 8); // 如果返回满8条，可能还有更多
-          console.log('✅ 加载了', data.tasks.length, '个历史任务');
-        } else {
+          } else {
           setTasks([]);
           setHasMore(false);
         }
       } else {
         throw new Error(`API请求失败: ${response.status}`);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('加载历史任务失败:', error);
       
       // 在开发环境下，API失败时使用演示数据
       if (isDevelopment) {
-        console.log('🔄 API失败，使用演示数据');
         setTasks(mockHistoryTasks);
         setError(null);
         setHasMore(false);
@@ -100,14 +98,13 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
           setTasks(prevTasks => [...prevTasks, ...data.tasks]);
           setOffset(newOffset);
           setHasMore(data.tasks.length === 8); // 如果返回不足8条，说明没有更多了
-          console.log('✅ 加载了更多', data.tasks.length, '个历史任务');
-        } else {
+          } else {
           setHasMore(false);
         }
       } else {
         throw new Error(`API请求失败: ${response.status}`);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('加载更多历史任务失败:', error);
       setHasMore(false);
     } finally {
@@ -121,7 +118,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
   }, [loadHistoryTasks]);
 
   // 处理任务点击
-  const handleTaskClick = useCallback(async (task: any) => {
+  const handleTaskClick = useCallback(async (task: unknown) => {
     if (onTaskSelect && !task.is_deleted) {
       try {
         const result = onTaskSelect(task.task_id, task.task_title);
@@ -213,7 +210,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
           {tasks.length > 0 ? (
             <List
               dataSource={tasks}
-              renderItem={(task: any) => (
+              renderItem={(task: unknown) => (
                 <List.Item 
                   className={`compact-task-item ${task.is_deleted ? 'task-deleted' : ''}`}
                   onMouseEnter={(e) => {

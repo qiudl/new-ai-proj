@@ -58,7 +58,7 @@ export interface PaginatedResponse<T> {
 }
 
 export interface BackendPaginatedResponse {
-  data: any;
+  data: Record<string, unknown>;
   pagination: {
     page: number;
     page_size: number;

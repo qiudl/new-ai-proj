@@ -119,8 +119,8 @@ export class OpenAIProvider {
 
       const data = await response.json();
       return data.data
-        .filter((model: any) => model.id.includes('gpt'))
-        .map((model: any) => model.id)
+        .filter((model: unknown) => model.id.includes('gpt'))
+        .map((model: unknown) => model.id)
         .sort();
     } catch (error) {
       console.error('获取OpenAI模型列表失败:', error);

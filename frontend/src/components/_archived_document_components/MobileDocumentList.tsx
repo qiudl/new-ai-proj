@@ -100,7 +100,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
       setLoading(true);
       const docs = await unifiedDocumentService.getDocuments(folderId);
       setDocuments(docs);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('加载文档失败:', error);
       message.error('加载文档失败');
     } finally {
@@ -109,7 +109,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
   };
 
   // 处理创建文档
-  const handleCreateDocument = async (values: any) => {
+  const handleCreateDocument = async (values: unknown) => {
     try {
       const request = {
         folder_id: folderId,
@@ -135,7 +135,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('创建文档失败:', error);
       message.error(error.message || '创建文档失败');
     }
@@ -148,7 +148,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
       message.success('文档删除成功');
       loadDocuments();
       onDocumentUpdate?.();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('删除文档失败:', error);
       message.error(error.message || '删除文档失败');
     }
@@ -221,7 +221,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
           type="text"
           size="small"
           icon={<EyeOutlined />}
-          onClick={() => onDocumentSelect?.(document as any)}
+          onClick={() => onDocumentSelect?.(document as unknown)}
         >
           查看
         </Button>

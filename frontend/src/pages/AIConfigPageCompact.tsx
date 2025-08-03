@@ -67,7 +67,7 @@ interface AIConfig {
 interface EditingField {
   provider: AIProvider;
   field: string;
-  value: any;
+  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
 }
 
 interface TestResult {
@@ -115,17 +115,13 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
   const loadingRef = useRef(false);
 
   const loadConfigs = useCallback(async () => {
-    console.log(`🔍 [DEBUG] 开始加载AI配置...`);
     if (loadingRef.current) {
-      console.log(`⏸️ [DEBUG] 正在加载中，跳过重复请求`);
       return;
     }
     loadingRef.current = true;
     setLoading(true);
     try {
       const response = await aiConfigDatabaseService.getConfigs();
-      console.log(`📡 [DEBUG] API响应:`, response);
-      
       const configMap: Record<AIProvider, AIConfig | null> = {
         openai: null,
         claude: null,
@@ -133,21 +129,14 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
       };
       
       // 处理API返回的嵌套数据结构
-      let configsData: any = response.data || [];
-      console.log(`📊 [DEBUG] 原始配置数据:`, configsData);
-      
+      let configsData: unknown = response.data || [];
       // 如果data是对象且包含data字段，则提取内层的data
       if (configsData && typeof configsData === 'object' && !Array.isArray(configsData) && configsData.data) {
-        console.log(`🔧 [DEBUG] 检测到嵌套数据结构，提取内层data:`, configsData.data);
         configsData = configsData.data;
       }
       
-      console.log(`📊 [DEBUG] 处理后的配置数据:`, configsData);
-      
       if (response.success && configsData && Array.isArray(configsData) && configsData.length > 0) {
-        console.log(`✅ [DEBUG] 从API加载配置，数量: ${configsData.length}`);
         configsData.forEach((config: AIConfigResponse) => {
-          console.log(`🔧 [DEBUG] 处理${config.provider}配置:`, config);
           configMap[config.provider] = {
             id: config.id,
             provider: config.provider,
@@ -162,26 +151,17 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
           };
         });
       } else {
-        console.log(`⚠️ [DEBUG] API无数据，尝试从localStorage加载`);
         // 临时：从localStorage加载测试配置
         const savedConfig = localStorage.getItem('test-deepseek-config');
         if (savedConfig) {
-          console.log(`💾 [DEBUG] 从localStorage找到配置:`, savedConfig);
           const testConfig = JSON.parse(savedConfig);
           const provider = testConfig.provider as AIProvider;
           if (provider && ['openai', 'claude', 'deepseek'].includes(provider)) {
             configMap[provider] = testConfig;
-            console.log(`✅ [DEBUG] 加载localStorage配置: ${provider}`);
-          }
+            }
         } else {
-          console.log(`❌ [DEBUG] localStorage中也没有配置`);
-        }
+          }
       }
-      
-      console.log(`🎯 [DEBUG] 最终配置映射:`, configMap);
-      console.log(`🔍 [DEBUG] OpenAI配置存在:`, !!configMap.openai);
-      console.log(`🔍 [DEBUG] Claude配置存在:`, !!configMap.claude);
-      console.log(`🔍 [DEBUG] DeepSeek配置存在:`, !!configMap.deepseek);
       
       setConfigs(configMap);
     } catch (error) {
@@ -196,7 +176,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     loadConfigs();
   }, [loadConfigs]);
 
-  const startEditing = (provider: AIProvider, field: string, currentValue: any) => {
+  const startEditing = (provider: AIProvider, field: string, currentValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setEditingField({ provider, field, value: currentValue });
     setTempValue(currentValue);
   };
@@ -225,7 +205,6 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         const existingConfigResponse = await aiConfigDatabaseService.getConfig(provider);
         hasExistingConfig = !!(existingConfigResponse.success && existingConfigResponse.data);
       } catch (error) {
-        console.log('检查现有配置失败，将尝试创建新配置');
         hasExistingConfig = false;
       }
 
@@ -237,8 +216,6 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
       let response;
       // 优先基于后端实际状态来决定调用哪个API
       if (hasExistingConfig || (config && config.id)) {
-        console.log(`更新现有配置: ${provider}`);
-        
         // 构建更新请求对象，不包含空的apiKey
         const updateRequest: Partial<AIConfigUpdateRequest> = {
           provider,
@@ -256,8 +233,6 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
 
         response = await aiConfigDatabaseService.updateConfig(provider, updateRequest);
       } else {
-        console.log(`创建新配置: ${provider}`);
-
         // 创建请求必须包含apiKey
         if (field !== 'apiKey' || !tempValue) {
           message.error('创建新配置时必须先设置API密钥');
@@ -276,10 +251,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
 
         try {
           response = await aiConfigDatabaseService.createConfig(createRequest);
-        } catch (createError: any) {
+        } catch (createError: unknown) {
           // 如果创建失败且是409冲突，说明配置已存在，改为更新
           if (createError.response?.status === 409) {
-            console.log(`配置已存在，改为更新: ${provider}`);
             const updateRequest: Partial<AIConfigUpdateRequest> = {
               provider,
               apiKey: tempValue,
@@ -297,13 +271,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
       }
 
       if (response.success) {
-        console.log(`🎉 [DEBUG] 配置保存成功:`, { provider, field, response });
         message.success('配置更新成功');
         
-        console.log(`🔄 [DEBUG] 开始重新加载配置...`);
         await loadConfigs();
-        
-        console.log(`✅ [DEBUG] 配置重新加载完成`);
         
         cancelEditing();
       } else {
@@ -362,15 +332,10 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
       };
 
       const response = await aiConfigDatabaseService.testConnection(testRequest);
-      console.log(`🧪 [DEBUG] 对话测试响应:`, response);
-      
       // 处理API返回的嵌套数据结构
-      let testResult: any = response.data || {};
-      console.log(`📊 [DEBUG] 原始测试结果:`, testResult);
-      
+      let testResult: unknown = response.data || {};
       // 如果data是对象且包含data字段，则提取内层的data
       if (testResult && typeof testResult === 'object' && !Array.isArray(testResult) && testResult.data) {
-        console.log(`🔧 [DEBUG] 检测到嵌套测试结果，提取内层data:`, testResult.data);
         testResult = testResult.data;
       }
       
@@ -380,9 +345,6 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         testResult.message = testResult.message || response.message || '测试成功';
       }
       
-      console.log(`🎯 [DEBUG] 处理后的测试结果:`, testResult);
-      console.log(`✅ [DEBUG] 测试成功: ${testResult.success}, 有对话: ${!!testResult.conversation}`);
-
       if (testResult.success && testResult.conversation) {
         // 添加AI回复
         const assistantMessage: ChatMessage = {
@@ -398,8 +360,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         };
 
         setChatMessages(prev => [...prev, assistantMessage]);
-        console.log(`💬 [DEBUG] 添加AI回复消息:`, assistantMessage);
-      } else if (testResult.success) {
+        } else if (testResult.success) {
         // 成功但没有对话内容，可能是连接测试成功的消息
         const successMessage: ChatMessage = {
           type: 'assistant',
@@ -408,8 +369,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         };
 
         setChatMessages(prev => [...prev, successMessage]);
-        console.log(`✅ [DEBUG] 添加成功消息:`, successMessage);
-      } else {
+        } else {
         // 添加错误消息，显示具体的错误信息
         let errorContent = `❌ 连接失败`;
         if (testResult.message) {
@@ -434,15 +394,13 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         };
 
         setChatMessages(prev => [...prev, errorMessage]);
-        console.log(`❌ [DEBUG] 添加错误消息:`, errorMessage);
-      }
+        }
     } catch (error) {
       console.error('测试连接失败:', error);
       const errorMessage = error instanceof Error ? error.message : '未知错误';
       
       // 检查是否是被错误处理的成功响应
       if (errorMessage.includes('AI connection test completed')) {
-        console.log(`🔄 [DEBUG] 检测到成功响应被错误处理，转换为成功消息`);
         const successMessage: ChatMessage = {
           type: 'assistant',
           content: `✅ 连接测试成功: AI服务响应正常`,
@@ -506,9 +464,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     provider: AIProvider,
     field: string,
     label: string,
-    value: any,
+    value: React.FormEvent | React.ChangeEvent<HTMLInputElement>,
     type: 'text' | 'select' | 'number' | 'switch' | 'password' = 'text',
-    options?: Array<{label: string, value: any}>,
+    options?: Array<{label: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>}>,
     placeholder?: string,
     size: 'small' | 'default' = 'small'
   ) => {
@@ -685,12 +643,6 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     const config = configs[provider];
     const testResult = testResults[provider];
     const hasConfig = !!config;
-    
-    console.log(`🎨 [DEBUG] 渲染${provider}卡片:`, { 
-      hasConfig, 
-      config: config ? '存在' : '不存在',
-      configDetails: config 
-    });
     
     return (
       <Card

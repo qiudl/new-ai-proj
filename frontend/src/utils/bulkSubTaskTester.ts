@@ -17,8 +17,8 @@ export class BulkSubTaskTester {
   /**
    * 测试任务名称生成功能
    */
-  static testTaskNameGeneration(): { passed: boolean; results: any[] } {
-    const results: any[] = [];
+  static testTaskNameGeneration(): { passed: boolean; results: unknown[] } {
+    const results: unknown[] = [];
     
     // 测试1: 正常情况 - 父任务是根任务
     try {
@@ -129,8 +129,8 @@ export class BulkSubTaskTester {
   /**
    * 测试数据验证功能
    */
-  static testDataValidation(): { passed: boolean; results: any[] } {
-    const results: any[] = [];
+  static testDataValidation(): { passed: boolean; results: unknown[] } {
+    const results: unknown[] = [];
 
     // 测试有效数据
     const validRow: SubTaskRow = {
@@ -202,8 +202,8 @@ export class BulkSubTaskTester {
   /**
    * 测试边界情况
    */
-  static testEdgeCases(): { passed: boolean; results: any[] } {
-    const results: any[] = [];
+  static testEdgeCases(): { passed: boolean; results: unknown[] } {
+    const results: unknown[] = [];
 
     // 测试1: 最小数据集
     try {
@@ -298,8 +298,8 @@ export class BulkSubTaskTester {
   /**
    * 测试性能场景
    */
-  static testPerformance(): { passed: boolean; results: any[] } {
-    const results: any[] = [];
+  static testPerformance(): { passed: boolean; results: unknown[] } {
+    const results: unknown[] = [];
 
     // 测试1: 大批量任务名称生成性能
     try {
@@ -368,10 +368,8 @@ export class BulkSubTaskTester {
   static runAllTests(): { 
     overall: boolean; 
     summary: { total: number; passed: number; failed: number };
-    categories: Record<string, { passed: boolean; results: any[] }>;
+    categories: Record<string, { passed: boolean; results: unknown[] }>;
   } {
-    console.log('🧪 开始批量子任务创建功能测试...');
-    
     const categories = {
       taskNameGeneration: this.testTaskNameGeneration(),
       dataValidation: this.testDataValidation(),
@@ -387,9 +385,6 @@ export class BulkSubTaskTester {
     };
 
     const overall = Object.values(categories).every(cat => cat.passed);
-    
-    console.log('📊 测试结果汇总:', summary);
-    console.log(overall ? '✅ 所有测试通过' : '❌ 部分测试失败');
     
     return { overall, summary, categories };
   }

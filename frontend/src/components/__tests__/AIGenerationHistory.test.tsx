@@ -280,7 +280,7 @@ describe('AIGenerationHistory', () => {
   });
 
   it('应该支持删除历史记录', async () => {
-    const mockLocalStorage = window.localStorage as any;
+    const mockLocalStorage = window.localStorage as unknown;
     render(<AIGenerationHistory {...defaultProps} />);
     
     // 点击删除按钮并确认
@@ -305,7 +305,7 @@ describe('AIGenerationHistory', () => {
       setAttribute: jest.fn(),
       click: jest.fn()
     };
-    mockCreateElement.mockReturnValue(mockLink as any);
+    mockCreateElement.mockReturnValue(mockLink as unknown);
     
     render(<AIGenerationHistory {...defaultProps} />);
     
@@ -321,7 +321,7 @@ describe('AIGenerationHistory', () => {
 
   it('应该正确处理空数据状态', () => {
     // Mock空的历史记录
-    const mockLocalStorage = window.localStorage as any;
+    const mockLocalStorage = window.localStorage as unknown;
     mockLocalStorage.getItem.mockImplementation((key) => {
       if (key === 'ai_generation_history') {
         return JSON.stringify([]);
@@ -364,7 +364,7 @@ describe('AIGenerationHistory', () => {
 
   it('应该处理localStorage错误', () => {
     // Mock localStorage抛出错误
-    const mockLocalStorage = window.localStorage as any;
+    const mockLocalStorage = window.localStorage as unknown;
     mockLocalStorage.getItem.mockImplementation(() => {
       throw new Error('localStorage error');
     });

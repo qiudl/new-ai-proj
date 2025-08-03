@@ -26,7 +26,7 @@ interface AdvancedTaskDocumentResponse {
   document_exists: boolean;
   can_edit: boolean;
   can_delete: boolean;
-  relations: any[];
+  relations: unknown[];
   last_modified?: string;
 }
 

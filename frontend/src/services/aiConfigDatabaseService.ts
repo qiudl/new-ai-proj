@@ -92,8 +92,6 @@ class AIConfigDatabaseService {
       
       // 如果后端返回空数组或空数据，使用localStorage的模拟数据
       if (response.success && response.data && Array.isArray(response.data) && response.data.length === 0) {
-        console.log('后端返回空配置，使用本地模拟数据');
-        
         // 从localStorage获取模拟配置（用于演示）
         const savedConfigs = localStorage.getItem('ai-configs-demo');
         let configs = savedConfigs ? JSON.parse(savedConfigs) : [];
@@ -102,8 +100,7 @@ class AIConfigDatabaseService {
         if (configs.length === 0) {
           configs = this.createDefaultConfigs();
           localStorage.setItem('ai-configs-demo', JSON.stringify(configs));
-          console.log('创建默认AI配置:', configs);
-        }
+          }
         
         return {
           success: true,
@@ -125,8 +122,7 @@ class AIConfigDatabaseService {
       if (configs.length === 0) {
         configs = this.createDefaultConfigs();
         localStorage.setItem('ai-configs-demo', JSON.stringify(configs));
-        console.log('创建默认AI配置:', configs);
-      }
+        }
       
       return {
         success: true,
@@ -183,7 +179,7 @@ class AIConfigDatabaseService {
       };
       
       // 更新或添加配置
-      const existingIndex = configs.findIndex((c: any) => c.provider === config.provider);
+      const existingIndex = configs.findIndex((c: unknown) => c.provider === config.provider);
       if (existingIndex >= 0) {
         configs[existingIndex] = newConfig;
       } else {
@@ -208,7 +204,7 @@ class AIConfigDatabaseService {
   async updateConfig(provider: AIProvider, config: Partial<AIConfigRequest>): Promise<APIResponse<AIConfigResponse>> {
     try {
       // 转换字段名：前端使用驼峰命名，后端使用下划线命名
-      const apiConfig: any = {
+      const apiConfig: unknown = {
         model: config.model,
         temperature: config.temperature,
         enabled: config.enabled
@@ -233,7 +229,7 @@ class AIConfigDatabaseService {
       const savedConfigs = localStorage.getItem('ai-configs-demo');
       const configs = savedConfigs ? JSON.parse(savedConfigs) : [];
       
-      const existingIndex = configs.findIndex((c: any) => c.provider === provider);
+      const existingIndex = configs.findIndex((c: unknown) => c.provider === provider);
       if (existingIndex >= 0) {
         // 更新现有配置
         const updatedConfig = {
@@ -255,7 +251,7 @@ class AIConfigDatabaseService {
         return {
           success: false,
           message: '未找到要更新的配置',
-          data: null as any,
+          data: null as unknown,
           timestamp: new Date().toISOString()
         };
       }
@@ -275,13 +271,13 @@ class AIConfigDatabaseService {
       const savedConfigs = localStorage.getItem('ai-configs-demo');
       const configs = savedConfigs ? JSON.parse(savedConfigs) : [];
       
-      const filteredConfigs = configs.filter((c: any) => c.provider !== provider);
+      const filteredConfigs = configs.filter((c: unknown) => c.provider !== provider);
       localStorage.setItem('ai-configs-demo', JSON.stringify(filteredConfigs));
       
       return {
         success: true,
         message: '配置已从本地模拟存储中删除',
-        data: null as any,
+        data: null as unknown,
         timestamp: new Date().toISOString()
       };
     }
@@ -293,7 +289,7 @@ class AIConfigDatabaseService {
   async testConnection(testConfig: AITestRequest): Promise<APIResponse<AITestResponse>> {
     try {
       // 转换字段名：前端使用驼峰命名，后端使用下划线命名
-      const apiTestConfig: any = {
+      const apiTestConfig: unknown = {
         provider: testConfig.provider,
         model: testConfig.model
       };

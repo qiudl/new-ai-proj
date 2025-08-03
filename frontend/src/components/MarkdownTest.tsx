@@ -17,8 +17,7 @@ const MarkdownTest: React.FC = () => {
 
 \`\`\`javascript
 function hello() {
-  console.log("Hello Markdown!");
-}
+  }
 \`\`\`
 
 ### 链接测试

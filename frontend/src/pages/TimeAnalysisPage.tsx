@@ -250,7 +250,7 @@ const TimeAnalysisPage: React.FC = () => {
       
       const stats: ProjectStats[] = [];
       
-      projects.forEach((project: any) => {
+      projects.forEach((project: unknown) => {
         const projectTasks = tasks.filter(task => task.project_id === project.id);
         
         if (projectTasks.length === 0) return;

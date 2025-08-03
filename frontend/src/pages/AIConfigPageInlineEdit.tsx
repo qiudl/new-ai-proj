@@ -59,7 +59,7 @@ interface AIConfig {
 interface EditingField {
   provider: AIProvider;
   field: string;
-  value: any;
+  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
 }
 
 interface TestResult {
@@ -137,7 +137,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
     }
   };
 
-  const startEditing = (provider: AIProvider, field: string, currentValue: any) => {
+  const startEditing = (provider: AIProvider, field: string, currentValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setEditingField({ provider, field, value: currentValue });
     setTempValue(currentValue);
   };
@@ -287,9 +287,9 @@ const AIConfigPageInlineEdit: React.FC = () => {
     provider: AIProvider, 
     field: string, 
     label: string, 
-    value: any, 
+    value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, 
     type: 'text' | 'select' | 'number' | 'switch' | 'password' = 'text',
-    options?: Array<{label: string, value: any}>,
+    options?: Array<{label: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>}>,
     placeholder?: string
   ) => {
     const isEditing = editingField?.provider === provider && editingField?.field === field;

@@ -227,7 +227,7 @@ const TaskDocumentListPage: React.FC = () => {
             {text}
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {(record as any).projectName}
+            {(record as unknown).projectName}
           </Text>
         </div>
       ),
@@ -250,7 +250,7 @@ const TaskDocumentListPage: React.FC = () => {
       title: '文档状态',
       key: 'documentStatus',
       width: 140,
-      render: (_: any, record: TaskDocumentInfo) => (
+      render: (_: unknown, record: TaskDocumentInfo) => (
         <Space direction="vertical" size={2}>
           {record.documentExists ? (
             <Badge status="success" text="有文档" />
@@ -276,7 +276,7 @@ const TaskDocumentListPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 200,
-      render: (_: any, record: TaskDocumentInfo) => (
+      render: (_: unknown, record: TaskDocumentInfo) => (
         <Space>
           <Tooltip title="查看任务详情">
             <Button

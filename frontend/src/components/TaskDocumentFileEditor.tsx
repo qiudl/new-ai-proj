@@ -57,7 +57,7 @@ export const TaskDocumentFileEditor: React.FC<TaskDocumentFileEditorProps> = ({
       
       setContent(doc.content);
       setHasChanges(false);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Failed to load document:', error);
       if (error.response?.status === 404) {
         message.info('文档不存在，将创建新文档');

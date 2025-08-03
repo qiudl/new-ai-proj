@@ -47,7 +47,7 @@ interface DemoConfig {
   name: string;
   description: string;
   features: string[];
-  props: any;
+  props: Record<string, unknown>;
   highlight?: boolean;
 }
 
@@ -441,17 +441,13 @@ const EnterpriseDocumentDemo: React.FC = () => {
         projectId={1}
         projectName="演示项目"
         onDocumentSelect={(doc) => {
-          console.log('选择文档:', doc);
-        }}
+          }}
         onDocumentUpdate={() => {
-          console.log('文档更新');
-        }}
+          }}
         onCreateDocument={() => {
-          console.log('创建文档');
-        }}
+          }}
         onEditDocument={(doc) => {
-          console.log('编辑文档:', doc);
-        }}
+          }}
       />
 
       {/* 底部说明 */}

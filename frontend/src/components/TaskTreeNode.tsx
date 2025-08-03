@@ -36,7 +36,6 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
   className = '',
   searchKeyword = '',
 }) => {
-  console.log('🔍 [TaskTreeNode] Rendering task:', task.id, task.title, 'level:', level, 'isSelected:', isSelected, 'isDisabled:', isDisabled);
   const handleClick = () => {
     if (!isDisabled && onClick) {
       onClick(task);
@@ -153,7 +152,7 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
       <div className="task-tree-node-content">
         {/* Level indicator and icon */}
         <div className="task-tree-node-icon">
-          {getLevelIcon(level, (task as any).children_count > 0)}
+          {getLevelIcon(level, (task as unknown).children_count > 0)}
         </div>
 
         {/* Task title and basic info */}
@@ -192,15 +191,15 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
                 <Tooltip title="负责人">
                   <span className="task-detail-item">
                     <UserOutlined />
-                    {(task as any).assignee_name || `用户${task.assignee_id}`}
+                    {(task as unknown).assignee_name || `用户${task.assignee_id}`}
                   </span>
                 </Tooltip>
               )}
 
               {/* Children count */}
-              {(task as any).children_count > 0 && (
+              {(task as unknown).children_count > 0 && (
                 <span className="task-children-count">
-                  ({(task as any).children_count}个子任务)
+                  ({(task as unknown).children_count}个子任务)
                 </span>
               )}
             </div>

@@ -445,7 +445,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   }, [startTimer]);
 
   // 处理节点选择
-  const handleSelect = useCallback((selectedKeys: React.Key[], info: any) => {
+  const handleSelect = useCallback((selectedKeys: React.Key[], info: unknown) => {
     if (selectedKeys.length === 0) return;
     
     const node = info.node;

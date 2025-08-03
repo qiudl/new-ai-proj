@@ -34,7 +34,7 @@ import {
 import { Document, DocumentType } from '../types/document';
 
 // Dynamic import for marked to handle missing dependency gracefully
-let marked: any = null;
+let marked: unknown = null;
 try {
   // @ts-ignore
   const markedModule = require('marked');

@@ -273,7 +273,7 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
   };
 
   // Custom workflow setup
-  const handleFormSubmit = (values: any) => {
+  const handleFormSubmit = (values: unknown) => {
     const { workflow: formWorkflow } = values;
     setWorkflow(formWorkflow);
     setShowSetupModal(false);

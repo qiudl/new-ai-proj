@@ -123,7 +123,7 @@ const DocumentManagerPage: React.FC = () => {
 
 
   // 创建文件夹
-  const handleCreateFolder = async (values: any) => {
+  const handleCreateFolder = async (values: unknown) => {
     try {
       const request = {
         name: values.name,
@@ -142,14 +142,14 @@ const DocumentManagerPage: React.FC = () => {
       
       // 重新加载文件夹树
       loadFolderTree();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('创建文件夹失败:', error);
       message.error(error.message || '创建文件夹失败');
     }
   };
 
   // 编辑文件夹
-  const handleEditFolder = async (values: any) => {
+  const handleEditFolder = async (values: unknown) => {
     try {
       if (!currentEditingFolder) return;
 
@@ -169,7 +169,7 @@ const DocumentManagerPage: React.FC = () => {
       
       // 重新加载文件夹树
       loadFolderTree();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('更新文件夹失败:', error);
       message.error(error.message || '更新文件夹失败');
     }
@@ -187,7 +187,7 @@ const DocumentManagerPage: React.FC = () => {
       
       // 重新加载文件夹树
       loadFolderTree();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('删除文件夹失败:', error);
       message.error(error.message || '删除文件夹失败');
     }
@@ -293,18 +293,11 @@ const DocumentManagerPage: React.FC = () => {
   };
 
   // 处理文件夹拖拽
-  const handleDrop = async (info: any) => {
+  const handleDrop = async (info: unknown) => {
     const dropKey = info.node.key;
     const dragKey = info.dragNode.key;
     const dropPos = info.node.pos.split('-');
     const dropPosition = info.dropPosition - Number(dropPos[dropPos.length - 1]);
-
-    console.log('Drop info:', {
-      dropKey,
-      dragKey,
-      dropPosition,
-      dropToGap: info.dropToGap
-    });
 
     try {
       setDragLoading(true);
@@ -343,7 +336,7 @@ const DocumentManagerPage: React.FC = () => {
       message.success('文件夹移动成功');
       // 重新加载文件夹树
       await loadFolderTree();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('移动文件夹失败:', error);
       message.error(error.message || '移动文件夹失败');
     } finally {
@@ -406,7 +399,7 @@ const DocumentManagerPage: React.FC = () => {
     // 构建树形结构
     const treeStructure = buildTree(folders);
     
-    const convertToTreeNode = (folder: DocumentFolder & { children?: DocumentFolder[] }): any => ({
+    const convertToTreeNode = (folder: DocumentFolder & { children?: DocumentFolder[] }): unknown => ({
       key: folder.id,
       title: (
         <div
@@ -675,7 +668,6 @@ const DocumentManagerPage: React.FC = () => {
                   children: (
                     <DocumentSearch
                       onResultSelect={(doc) => {
-                        console.log('Search result selected:', doc);
                         setSelectedDocumentId(doc.id);
                         // TODO: Navigate to document editor
                       }}

@@ -23,7 +23,6 @@ class JWTTestRunner {
    * 运行所有测试
    */
   async runAllTests(): Promise<TestResult[]> {
-    console.log('🧪 开始运行JWT调试功能测试...\n');
     this.results = [];
 
     // 保存原始token
@@ -62,8 +61,6 @@ class JWTTestRunner {
    * 测试基础功能
    */
   private async testBasicFunctionality(): Promise<void> {
-    console.log('📋 测试基础功能...');
-
     // 测试1: 检查调试器实例
     try {
       const status = jwtDebugger.checkJWTStatus();
@@ -74,7 +71,7 @@ class JWTTestRunner {
 
     // 测试2: 检查方法存在性
     const methods = ['checkJWTStatus', 'logModuleJWTStatus', 'printJWTStatus', 'testJWTWithAPI'];
-    const missingMethods = methods.filter(method => typeof (jwtDebugger as any)[method] !== 'function');
+    const missingMethods = methods.filter(method => typeof (jwtDebugger as unknown)[method] !== 'function');
     
     this.addResult(
       '基础功能 - 方法完整性',
@@ -87,8 +84,6 @@ class JWTTestRunner {
    * 测试Token解析
    */
   private async testTokenParsing(): Promise<void> {
-    console.log('🔍 测试Token解析...');
-
     // 测试1: 无Token情况
     localStorage.removeItem('token');
     const noTokenStatus = jwtDebugger.checkJWTStatus();
@@ -130,8 +125,6 @@ class JWTTestRunner {
    * 测试状态检查
    */
   private async testStatusChecking(): Promise<void> {
-    console.log('✅ 测试状态检查...');
-
     // 恢复有效token
     localStorage.setItem('token', MOCK_VALID_TOKEN);
 
@@ -160,8 +153,6 @@ class JWTTestRunner {
    * 测试模块记录
    */
   private async testModuleLogging(): Promise<void> {
-    console.log('📊 测试模块记录...');
-
     // 清除历史记录
     jwtDebugger.clearDebugHistory();
 
@@ -193,8 +184,6 @@ class JWTTestRunner {
    * 测试调试历史
    */
   private async testDebugHistory(): Promise<void> {
-    console.log('📚 测试调试历史...');
-
     // 测试历史清除
     jwtDebugger.clearDebugHistory();
     const emptyHistory = jwtDebugger.getDebugHistory();
@@ -223,8 +212,7 @@ class JWTTestRunner {
   private addResult(testName: string, passed: boolean, message: string): void {
     this.results.push({ testName, passed, message });
     const icon = passed ? '✅' : '❌';
-    console.log(`  ${icon} ${testName}: ${message}`);
-  }
+    }
 
   /**
    * 打印测试总结
@@ -234,20 +222,10 @@ class JWTTestRunner {
     const totalCount = this.results.length;
     const passRate = ((passedCount / totalCount) * 100).toFixed(1);
 
-    console.log('\n📊 测试总结:');
-    console.log(`总测试数: ${totalCount}`);
-    console.log(`通过数: ${passedCount}`);
-    console.log(`失败数: ${totalCount - passedCount}`);
-    console.log(`通过率: ${passRate}%`);
-
     if (passedCount === totalCount) {
-      console.log('🎉 所有测试通过！JWT调试功能正常工作。');
-    } else {
-      console.log('⚠️  有测试失败，请检查JWT调试功能。');
-      console.log('\n失败的测试:');
+      } else {
       this.results.filter(r => !r.passed).forEach(result => {
-        console.log(`- ${result.testName}: ${result.message}`);
-      });
+        });
     }
   }
 }
@@ -260,8 +238,8 @@ export const runJWTTests = () => jwtTestRunner.runAllTests();
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as any).runJWTTests = runJWTTests;
-  (window as any).jwtTestRunner = jwtTestRunner;
+  (window as unknown).runJWTTests = runJWTTests;
+  (window as unknown).jwtTestRunner = jwtTestRunner;
 }
 
 export default jwtTestRunner;

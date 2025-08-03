@@ -27,7 +27,7 @@ export interface UserTimerTaskResponse {
   total_time_seconds: number;
   target_time_seconds: number;
   tags: string[];
-  metadata: any;
+  metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   deleted_at?: string;
@@ -208,43 +208,33 @@ export const personalTimerService = {
   
   // 开始个人计时（使用统一的timer API）
   async startPersonalTimer(data: PersonalTimerStartRequest): Promise<any> {
-    console.log('🔥 personalTimerService.startPersonalTimer called with:', data);
-    console.log('🔥 Making POST request to: /user/timer/start (unified API)');
-    const response = await api.post('/user/timer/start', data) as any;
-    console.log('🔥 personalTimerService.startPersonalTimer response:', response);
+    ');
+    const response = await api.post('/user/timer/start', data) as unknown;
     return response;
   },
 
   // 开始项目计时（使用统一的timer API）
   async startProjectTimer(data: PersonalTimerStartRequest): Promise<any> {
-    console.log('🔥 personalTimerService.startProjectTimer called with:', data);
-    console.log('🔥 Making POST request to: /user/timer/start (unified API)');
-    const response = await api.post('/user/timer/start', data) as any;
-    console.log('🔥 personalTimerService.startProjectTimer response:', response);
+    ');
+    const response = await api.post('/user/timer/start', data) as unknown;
     return response;
   },
 
   // 停止计时
   async stopTimer(): Promise<any> {
-    const response = await api.post('/user/timer/stop') as any;
+    const response = await api.post('/user/timer/stop') as unknown;
     return response;
   },
 
   // 暂停计时
   async pauseTimer(): Promise<any> {
-    console.log('🔥 personalTimerService.pauseTimer called');
-    console.log('🔥 Making POST request to: /user/timer/pause');
-    const response = await api.post('/user/timer/pause') as any;
-    console.log('🔥 personalTimerService.pauseTimer response:', response);
+    const response = await api.post('/user/timer/pause') as unknown;
     return response;
   },
 
   // 恢复计时
   async resumeTimer(): Promise<any> {
-    console.log('🔥 personalTimerService.resumeTimer called');
-    console.log('🔥 Making POST request to: /user/timer/resume');
-    const response = await api.post('/user/timer/resume') as any;
-    console.log('🔥 personalTimerService.resumeTimer response:', response);
+    const response = await api.post('/user/timer/resume') as unknown;
     return response;
   },
 
@@ -291,7 +281,7 @@ export const personalTimerService = {
 
   // 获取分析报告
   async getAnalytics(params?: { range?: string }): Promise<any> {
-    const response = await api.get('/user/timer/analytics', { params }) as any;
+    const response = await api.get('/user/timer/analytics', { params }) as unknown;
     return response;
   },
 

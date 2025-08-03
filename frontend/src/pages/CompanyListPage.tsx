@@ -256,7 +256,7 @@ const CompanyListPage: React.FC = () => {
   }, [handleFilterChange]);
 
   // 处理视图模式变更
-  const handleViewModeChange = useCallback((e: any) => {
+  const handleViewModeChange = useCallback((e: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setViewMode(e.target.value);
   }, []);
 
@@ -265,8 +265,8 @@ const CompanyListPage: React.FC = () => {
     if (!sortConfig) return companies;
     
     return [...companies].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+      let bValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
       
       // 根据不同字段处理排序值
       switch (sortConfig.field) {
@@ -290,17 +290,17 @@ const CompanyListPage: React.FC = () => {
           break;
         case 'annualContractValue':
         case 'totalContractValue':
-          aValue = (a as any)[sortConfig.field] || 0;
-          bValue = (b as any)[sortConfig.field] || 0;
+          aValue = (a as unknown)[sortConfig.field] || 0;
+          bValue = (b as unknown)[sortConfig.field] || 0;
           break;
         case 'createdAt':
         case 'updatedAt':
-          aValue = new Date((a as any)[sortConfig.field]).getTime();
-          bValue = new Date((b as any)[sortConfig.field]).getTime();
+          aValue = new Date((a as unknown)[sortConfig.field]).getTime();
+          bValue = new Date((b as unknown)[sortConfig.field]).getTime();
           break;
         default:
-          aValue = (a as any)[sortConfig.field];
-          bValue = (b as any)[sortConfig.field];
+          aValue = (a as unknown)[sortConfig.field];
+          bValue = (b as unknown)[sortConfig.field];
       }
       
       let comparison = 0;
@@ -332,7 +332,7 @@ const CompanyListPage: React.FC = () => {
   };
 
   // 表格列配置
-  const columns: any[] = columnConfig
+  const columns: unknown[] = columnConfig
     .filter(col => col.visible)
     .map(col => {
       const baseColumn = {
@@ -340,7 +340,7 @@ const CompanyListPage: React.FC = () => {
         title: col.title,
         width: col.width,
         sorter: col.key !== 'actions', // 除了操作列，所有列都支持排序
-        sortOrder: sortConfig?.field === col.key ? sortConfig.direction + 'end' as any : null,
+        sortOrder: sortConfig?.field === col.key ? sortConfig.direction + 'end' as unknown : null,
         onHeaderCell: () => ({
           onClick: () => col.key !== 'actions' && handleSort(col.key)
         })
@@ -521,7 +521,7 @@ const CompanyListPage: React.FC = () => {
         default:
           return baseColumn;
       }
-    }) as any[];
+    }) as unknown[];
 
 
   // 渲染卡片视图

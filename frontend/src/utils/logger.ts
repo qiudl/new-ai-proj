@@ -86,7 +86,7 @@ class Logger {
   }
 
   // Specialized logging methods for common scenarios
-  apiError(message: string, error: any, context?: LogContext): void {
+  apiError(message: string, error: Error | unknown, context?: LogContext): void {
     const apiContext = {
       ...context,
       type: 'api_error',
@@ -138,7 +138,7 @@ class Logger {
 export const logger = Logger.getInstance();
 
 // Convenience functions
-export const logApiError = (message: string, error: any, context?: LogContext) => 
+export const logApiError = (message: string, error: Error | unknown, context?: LogContext) => 
   logger.apiError(message, error, context);
 
 export const logTaskAction = (action: string, taskId: string | number, projectId: string | number, error?: any) => 
@@ -151,11 +151,11 @@ export const logPerformance = (operation: string, duration: number, context?: Lo
   logger.performance(operation, duration, context);
 
 // Performance measurement decorator
-export function measurePerformance<T extends (...args: any[]) => Promise<any>>(
+export function measurePerformance<T extends (...args: unknown[]) => Promise<any>>(
   fn: T,
   operationName: string
 ): T {
-  return (async (...args: any[]) => {
+  return (async (...args: unknown[]) => {
     const start = performance.now();
     try {
       const result = await fn(...args);

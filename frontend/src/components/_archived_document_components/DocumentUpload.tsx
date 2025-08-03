@@ -217,11 +217,6 @@ const DocumentUpload: React.FC<DocumentUploadProps> = ({
       
       // Apply metadata to all uploaded files
       // TODO: Call API to update document metadata
-      console.log('Updating document metadata:', {
-        files: successfulFiles,
-        metadata: values
-      });
-      
       await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       
       message.success(`成功上传 ${successfulFiles.length} 个文件`);

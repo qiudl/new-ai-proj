@@ -78,8 +78,7 @@ const AppContent: React.FC = () => {
   // 设置全局导航函数
   useEffect(() => {
     setNavigateFunction(navigate);
-    console.log('设置全局导航函数成功');
-  }, [navigate]);
+    }, [navigate]);
 
   return (
     <div className="App">

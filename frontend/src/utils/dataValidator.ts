@@ -10,7 +10,7 @@ export interface ValidationResult {
 /**
  * 验证和清理CustomFields数据格式
  */
-export function validateAndCleanCustomFields(input: any): ValidationResult {
+export function validateAndCleanCustomFields(input: unknown): ValidationResult {
   if (input === null || input === undefined) {
     return {
       isValid: true,
@@ -72,7 +72,7 @@ export function validateAndCleanCustomFields(input: any): ValidationResult {
 /**
  * 合并数组格式的数据到对象
  */
-function mergeArrayToObject(arr: any[]): CustomFields {
+function mergeArrayToObject(arr: unknown[]): CustomFields {
   const result: CustomFields = {};
   
   for (const item of arr) {
@@ -95,7 +95,7 @@ function mergeArrayToObject(arr: any[]): CustomFields {
 /**
  * 清理CustomFields对象
  */
-function cleanCustomFieldsObject(obj: any): CustomFields {
+function cleanCustomFieldsObject(obj: unknown): CustomFields {
   const result: CustomFields = {};
   
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
@@ -150,7 +150,7 @@ function cleanCustomFieldsObject(obj: any): CustomFields {
 /**
  * 清理tags数组
  */
-function cleanTagsArray(value: any): string[] {
+function cleanTagsArray(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string[] {
   if (Array.isArray(value)) {
     return value
       .filter(tag => typeof tag === 'string' && tag.trim() !== '')
@@ -168,7 +168,7 @@ function cleanTagsArray(value: any): string[] {
 /**
  * 验证TaskRequest数据
  */
-export function validateTaskRequest(taskData: any): ValidationResult {
+export function validateTaskRequest(taskData: unknown): ValidationResult {
   if (!taskData) {
     return {
       isValid: false,
@@ -231,7 +231,7 @@ export function validateTaskRequest(taskData: any): ValidationResult {
 /**
  * 在发送API请求前清理数据
  */
-export function sanitizeForAPI(data: any): any {
+export function sanitizeForAPI(data: Record<string, unknown>): unknown {
   if (!data) return data;
 
   // 处理CustomFields
@@ -251,7 +251,7 @@ export function sanitizeForAPI(data: any): any {
 /**
  * 从API响应中清理数据
  */
-export function sanitizeFromAPI(data: any): any {
+export function sanitizeFromAPI(data: Record<string, unknown>): unknown {
   if (!data) return data;
 
   // 如果是任务数组

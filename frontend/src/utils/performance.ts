@@ -1,14 +1,14 @@
 import React from 'react';
 
 // 防抖函数
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => any>(
   func: T,
   wait: number,
   immediate = false
 ): T {
   let timeout: NodeJS.Timeout | null = null;
   
-  return ((...args: any[]) => {
+  return ((...args: unknown[]) => {
     const later = () => {
       timeout = null;
       if (!immediate) func(...args);
@@ -24,13 +24,13 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // 节流函数
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => any>(
   func: T,
   limit: number
 ): T {
   let inThrottle: boolean = false;
   
-  return ((...args: any[]) => {
+  return ((...args: unknown[]) => {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
@@ -95,7 +95,7 @@ export class PerformanceMonitor {
     const endTime = performance.now();
     const duration = endTime - startTime;
     
-    console.log(`${name}: ${duration.toFixed(2)}ms`);
+    }ms`);
     return duration;
   }
   

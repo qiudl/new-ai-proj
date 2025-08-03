@@ -43,7 +43,7 @@ export const FlexibleDataTable: React.FC<FlexibleDataTableProps> = ({
       sorter: false,
       ellipsis: false,
       align: 'center' as const,
-      render: (_: any, record: any, index: number) => (
+      render: (_: unknown, record: unknown, index: number) => (
         <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
           {actions.map(action => (
             <button

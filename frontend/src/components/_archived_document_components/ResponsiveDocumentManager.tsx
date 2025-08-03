@@ -12,7 +12,7 @@ const { Title } = Typography;
 interface ResponsiveDocumentManagerProps {
   folderId?: number;
   showSearch?: boolean;
-  onDocumentSelect?: (document: any) => void;
+  onDocumentSelect?: (document: unknown) => void;
   onDocumentUpdate?: () => void;
   title?: string;
   showBreadcrumb?: boolean;
@@ -106,8 +106,7 @@ const ResponsiveDocumentManager: React.FC<ResponsiveDocumentManagerProps> = ({
               <div style={{ marginTop: 12 }}>
                 <MobileSearchPanel
                   onSearch={(searchTerm) => {
-                    console.log('Mobile search:', searchTerm);
-                  }}
+                    }}
                 />
               </div>
             )}
@@ -117,8 +116,7 @@ const ResponsiveDocumentManager: React.FC<ResponsiveDocumentManagerProps> = ({
               <div style={{ marginTop: 12 }}>
                 <MobileFilterPanel
                   onFilterChange={(filters) => {
-                    console.log('Mobile filters:', filters);
-                  }}
+                    }}
                 />
               </div>
             )}

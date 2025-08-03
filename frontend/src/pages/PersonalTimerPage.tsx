@@ -70,7 +70,7 @@ interface PersonalTimerDashboard {
   current_timer?: PersonalTimerCurrent;
   today_stats: PersonalTimerTodayStats;
   timer_tasks: UserTimerTaskResponse[];
-  recent_sessions: any[];
+  recent_sessions: unknown[];
   favorite_tasks: UserTimerTaskResponse[];
   summary: PersonalTimerSummary;
 }

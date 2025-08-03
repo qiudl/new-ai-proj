@@ -147,7 +147,7 @@ export class ValidationHelper {
     return name.trim().length >= 2 && name.trim().length <= 100;
   }
 
-  static validateRequired(value: any, fieldName: string): void {
+  static validateRequired(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, fieldName: string): void {
     if (value === null || value === undefined || value === '') {
       throw new AppError(`${fieldName}不能为空`, ErrorType.VALIDATION);
     }
@@ -172,7 +172,7 @@ export class BoundaryHelper {
   }
 
   // 安全的对象属性访问
-  static safeGet<T>(obj: any, path: string, defaultValue: T): T {
+  static safeGet<T>(obj: unknown, path: string, defaultValue: T): T {
     try {
       const keys = path.split('.');
       let current = obj;
@@ -191,7 +191,7 @@ export class BoundaryHelper {
   }
 
   // 确保数组格式
-  static ensureArray<T>(value: any): T[] {
+  static ensureArray<T>(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): T[] {
     if (Array.isArray(value)) return value;
     if (value == null) return [];
     return [value];

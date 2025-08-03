@@ -192,14 +192,14 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
     }
   }, [intelligentSearchEnabled, advancedMode, documents, updateState, debouncedSearch]);
 
-  const handleFilterChange = useCallback((key: string, value: any) => {
+  const handleFilterChange = useCallback((key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     updateState({ [key]: value });
   }, [updateState]);
 
   const handleSortChange = useCallback((field: string, order: string) => {
     updateState({ 
-      sortBy: field as any, 
-      sortOrder: order as any 
+      sortBy: field as unknown, 
+      sortOrder: order as unknown 
     });
   }, [updateState]);
 
@@ -352,13 +352,13 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
   useEffect(() => {
     if (!collaboration.connected) return;
 
-    const unsubscribeDocUpdate = collaboration.addEventListener('document_update', (event: any) => {
+    const unsubscribeDocUpdate = collaboration.addEventListener('document_update', (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
       if (event.userId !== 'current-user-id') { // 避免自己触发的事件
         refresh(); // 刷新文档列表
       }
     });
 
-    const unsubscribeDocDelete = collaboration.addEventListener('document_delete', (event: any) => {
+    const unsubscribeDocDelete = collaboration.addEventListener('document_delete', (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
       if (event.userId !== 'current-user-id') {
         refresh(); // 刷新文档列表
       }

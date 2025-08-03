@@ -153,12 +153,9 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
 
-  console.log('API请求: 初始化文档属性编辑器');
-
   // 初始化表单数据
   useEffect(() => {
     if (document) {
-      console.log('API请求: 设置表单初始值', document);
       form.setFieldsValue({
         title: document.title,
         description: document.description || '',
@@ -180,9 +177,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
     try {
-      console.log('API请求: GET /projects');
       const response = await projectService.getProjects({ page: 1, pageSize: 100 });
-      console.log('加载项目列表成功:', response.data);
       setProjects(response.data);
     } catch (error) {
       console.error('加载项目列表失败:', error);
@@ -206,9 +201,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
   const loadCustomers = useCallback(async () => {
     setLoadingCustomers(true);
     try {
-      console.log('API请求: GET /customers');
       const customers = await customerService.getCustomersForDocumentMetadata();
-      console.log('加载客户列表成功:', customers);
       setCustomers(customers);
     } catch (error) {
       console.error('加载客户列表失败:', error);
@@ -230,7 +223,6 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
 
   // 组件挂载时加载数据
   useEffect(() => {
-    console.log('API请求: 组件挂载，开始加载元数据');
     loadProjects();
     loadCustomers();
   }, [loadProjects, loadCustomers]);
@@ -267,8 +259,6 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       const values = await form.validateFields();
       setSaving(true);
 
-      console.log('API请求: 保存文档属性', values);
-
       const updatedDocument: Document = {
         ...document,
         ...values,
@@ -292,7 +282,6 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
         shared_with: updatedDocument.shared_with
       });
 
-      console.log('文档属性保存成功:', savedDocument);
       message.success('文档属性已更新');
       onSave(savedDocument);
     } catch (error) {
@@ -438,7 +427,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
               >
                 {DOCUMENT_CATEGORIES.map(category => (
                   <Select.OptGroup key={category.value} label={category.label}>
-                    {category.children.map((child: any) => (
+                    {category.children.map((child: unknown) => (
                       <Option key={child.value} value={child.value}>
                         {child.label}
                       </Option>

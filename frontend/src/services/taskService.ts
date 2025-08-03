@@ -50,7 +50,7 @@ export class TaskService {
       }
       
       return response.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('TaskService.getTasks error:', error);
       console.warn('Using fallback empty data for getTasks due to API error');
       
@@ -146,11 +146,6 @@ export class TaskService {
   ): Promise<Task> {
     try {
       // Log the request data for debugging
-      console.log('TaskService.updateTask - Request data:', {
-        projectId,
-        taskId,
-        task,
-        taskStringified: JSON.stringify(task, null, 2)
       });
 
       // 验证和清理任务数据
@@ -173,7 +168,7 @@ export class TaskService {
       }
       
       return response.data!;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('TaskService.updateTask - Error details:', {
         error: error.message,
         status: error.status,
@@ -288,7 +283,7 @@ export class TaskService {
       }
       
       return response.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('TaskService.getRootTasks error:', error);
       console.warn('Using fallback empty data for getRootTasks due to API error');
       
@@ -322,7 +317,7 @@ export class TaskService {
       
       // Ensure response.data is an array
       return Array.isArray(response.data) ? response.data : [];
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('TaskService.getTaskChildren error:', error);
       console.warn('Using fallback empty array for getTaskChildren due to API error');
       

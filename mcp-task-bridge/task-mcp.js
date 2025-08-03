@@ -1,12 +1,47 @@
 import axios from 'axios';
+import { TaskContentAnalyzer, createTaskContentAnalyzer } from './TaskContentAnalyzer.js';
+import { AutoDocumentService, createAutoDocumentService } from './AutoDocumentService.js';
+import { HistoricalDataMigrator, createHistoricalDataMigrator } from './HistoricalDataMigrator.js';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    constructor(apiBase = 'http://localhost/api/v1') {
+    // 智能文档自动化组件
+    contentAnalyzer;
+    autoDocService;
+    migrationTool;
+    autoDocConfig;
+
+    constructor(apiBase = 'http://localhost/api/v1', config = {}) {
         this.apiBase = apiBase;
         // 使用系统 JWT token
         this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
+        
+        // 初始化自动文档化组件
+        this.initializeAutoDocComponents(config);
     }
+    /**
+     * 初始化自动文档化组件
+     * @param {Object} config - 配置参数
+     */
+    initializeAutoDocComponents(config = {}) {
+        // 自动文档配置
+        this.autoDocConfig = {
+            enabled: config.autoDocEnabled !== false,
+            triggerOnComplete: config.triggerOnComplete !== false,
+            triggerOnDescriptionChange: config.triggerOnDescriptionChange || false,
+            minConfidenceThreshold: config.minConfidenceThreshold || 0.6,
+            qualityCheckEnabled: config.qualityCheckEnabled !== false,
+            ...config.autoDoc
+        };
+
+        // 初始化组件
+        this.contentAnalyzer = createTaskContentAnalyzer(config.analyzer);
+        this.autoDocService = createAutoDocumentService(this, config.autoDocService);
+        this.migrationTool = createHistoricalDataMigrator(this, config.migration);
+
+        console.log('🤖 智能文档自动化系统已初始化');
+    }
+
     getHeaders() {
         return {
             'Content-Type': 'application/json',
@@ -519,6 +554,16 @@ export class TaskMCPServer {
                 proxy: false
             });
             const updatedTask = updateResponse.data.data;
+            
+            // 自动文档创建逻辑
+            let autoDocResult = null;
+            if (this.autoDocConfig.enabled) {
+                const shouldTrigger = this.shouldTriggerAutoDocCreation(task, updates, changedFields);
+                if (shouldTrigger.should) {
+                    autoDocResult = await this.handleAutoDocumentCreation(updatedTask, shouldTrigger.reason);
+                }
+            }
+            
             // 使用智能字段读取函数处理返回数据
             const getDisplayValue = (field, task) => {
                 if (dualStorageFields.includes(field)) {
@@ -534,7 +579,7 @@ export class TaskMCPServer {
                 return task[field];
             };
 
-            return {
+            const result = {
                 success: true,
                 updated_task: {
                     id: updatedTask.id,
@@ -553,6 +598,19 @@ export class TaskMCPServer {
                 changed_fields: changedFields,
                 message: `📝 任务 "${updatedTask.title}" 已更新${changedFields.length > 0 ? ` (${changedFields.join(', ')})` : ''}`
             };
+
+            // 附加自动文档创建结果
+            if (autoDocResult) {
+                result.auto_document_created = autoDocResult.success;
+                result.document_confidence = autoDocResult.confidence;
+                result.auto_doc_message = autoDocResult.message;
+                
+                if (autoDocResult.success) {
+                    result.message += ` 📄 (自动创建任务文档)`;
+                }
+            }
+
+            return result;
         }
         catch (error) {
             console.error(`[ERROR] 更新任务失败:`, error.response?.data || error.message);
@@ -802,6 +860,256 @@ export class TaskMCPServer {
             return {
                 success: false,
                 error: `删除任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // ===== 智能文档自动化相关方法 =====
+
+    /**
+     * 判断是否应该触发自动文档创建
+     * @param {Object} originalTask - 原始任务
+     * @param {Object} updates - 更新的字段
+     * @param {Array} changedFields - 变更的字段列表
+     * @returns {Object} 触发判断结果
+     */
+    shouldTriggerAutoDocCreation(originalTask, updates, changedFields) {
+        if (!this.autoDocConfig.enabled) {
+            return { should: false, reason: '自动文档功能已禁用' };
+        }
+
+        // 1. 任务完成触发
+        if (this.autoDocConfig.triggerOnComplete && 
+            changedFields.includes('status') && 
+            updates.status === 'completed') {
+            return { 
+                should: true, 
+                reason: 'task_completed',
+                message: '任务状态变更为completed' 
+            };
+        }
+
+        // 2. 描述重大变化触发
+        if (this.autoDocConfig.triggerOnDescriptionChange && 
+            changedFields.includes('description')) {
+            const hasSignificantChange = this.hasSignificantDescriptionChange(
+                originalTask.description, 
+                updates.description
+            );
+            
+            if (hasSignificantChange) {
+                return { 
+                    should: true, 
+                    reason: 'description_significant_change',
+                    message: '任务描述发生重大变化' 
+                };
+            }
+        }
+
+        // 3. 其他可配置的状态变更触发
+        if (this.autoDocConfig.otherStatusTriggers && 
+            changedFields.includes('status')) {
+            const triggerStatuses = this.autoDocConfig.otherStatusTriggers;
+            if (triggerStatuses.includes(updates.status)) {
+                return { 
+                    should: true, 
+                    reason: 'status_change',
+                    message: `任务状态变更为${updates.status}` 
+                };
+            }
+        }
+
+        return { should: false, reason: '未满足触发条件' };
+    }
+
+    /**
+     * 检测描述是否有重大变化
+     * @param {string} oldDescription - 原描述
+     * @param {string} newDescription - 新描述
+     * @returns {boolean} 是否有重大变化
+     */
+    hasSignificantDescriptionChange(oldDescription, newDescription) {
+        if (!oldDescription || !newDescription) {
+            return false;
+        }
+
+        const oldLen = oldDescription.length;
+        const newLen = newDescription.length;
+
+        // 长度变化阈值：30%变化或200字符差异
+        const lengthChangeThreshold = 0.3;
+        const absoluteChangeThreshold = 200;
+        
+        const lengthDiff = Math.abs(newLen - oldLen);
+        const relativeChange = lengthDiff / Math.max(oldLen, newLen);
+
+        if (relativeChange >= lengthChangeThreshold || lengthDiff >= absoluteChangeThreshold) {
+            return true;
+        }
+
+        // 内容相似性检查（简化版本）
+        const similarity = this.calculateTextSimilarity(oldDescription, newDescription);
+        return similarity < 0.7; // 70%相似度阈值
+    }
+
+    /**
+     * 计算文本相似度（简化算法）
+     * @param {string} text1 - 文本1
+     * @param {string} text2 - 文本2
+     * @returns {number} 相似度 (0-1)
+     */
+    calculateTextSimilarity(text1, text2) {
+        // 简化的相似度计算：基于共同词汇比例
+        const words1 = new Set(text1.toLowerCase().split(/\s+/));
+        const words2 = new Set(text2.toLowerCase().split(/\s+/));
+        
+        const intersection = new Set([...words1].filter(word => words2.has(word)));
+        const union = new Set([...words1, ...words2]);
+        
+        return intersection.size / union.size;
+    }
+
+    /**
+     * 处理自动文档创建
+     * @param {Object} task - 任务对象
+     * @param {string} reason - 触发原因
+     * @returns {Promise<Object>} 创建结果
+     */
+    async handleAutoDocumentCreation(task, reason) {
+        try {
+            console.log(`🤖 触发自动文档创建: 任务${task.id} (原因: ${reason})`);
+
+            const result = await this.autoDocService.createDocumentFromTask(task, {
+                force: false, // 尊重质量检查
+                duplicateAction: this.autoDocConfig.duplicateAction || 'skip',
+                message: `自动创建 - ${reason} - ${new Date().toLocaleString('zh-CN')}`
+            });
+
+            if (result.success) {
+                console.log(`✅ 任务${task.id}自动文档创建成功，置信度${result.confidence}`);
+            } else {
+                console.log(`⚠️ 任务${task.id}自动文档创建跳过: ${result.message}`);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.error(`❌ 任务${task.id}自动文档创建失败:`, error.message);
+            return {
+                success: false,
+                confidence: 0,
+                message: `自动文档创建失败: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * 手动触发自动文档创建
+     * @param {number} taskId - 任务ID
+     * @param {Object} options - 创建选项
+     * @returns {Promise<Object>} 创建结果
+     */
+    async triggerAutoDocumentCreation(taskId, options = {}) {
+        try {
+            const task = await this.findTaskById(taskId);
+            
+            return await this.autoDocService.createDocumentFromTask(task, {
+                force: options.force || false,
+                duplicateAction: options.duplicateAction || 'skip',
+                message: options.message || `手动触发自动创建 - ${new Date().toLocaleString('zh-CN')}`
+            });
+
+        } catch (error) {
+            return {
+                success: false,
+                error: `手动触发自动文档创建失败: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * 批量自动文档创建（历史数据迁移）
+     * @param {Object} options - 迁移选项
+     * @returns {Promise<Object>} 迁移结果
+     */
+    async batchAutoDocumentCreation(options = {}) {
+        try {
+            console.log('🚀 开始批量自动文档创建...');
+
+            // 1. 扫描和筛选任务
+            const scanResult = await this.migrationTool.scanAndFilterTasks(options);
+            
+            if (!scanResult.success) {
+                return {
+                    success: false,
+                    error: '扫描任务失败',
+                    details: scanResult
+                };
+            }
+
+            // 2. 执行迁移
+            const migrationResult = await this.migrationTool.executeMigration(
+                scanResult.tasks.qualified,
+                options
+            );
+
+            console.log(`✅ 批量文档创建完成: ${migrationResult.summary.success}/${migrationResult.summary.total}`);
+
+            return migrationResult;
+
+        } catch (error) {
+            console.error('❌ 批量自动文档创建失败:', error.message);
+            return {
+                success: false,
+                error: `批量创建失败: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * 获取自动文档统计信息
+     * @returns {Promise<Object>} 统计信息
+     */
+    async getAutoDocumentStatistics() {
+        try {
+            return {
+                config: this.autoDocConfig,
+                analyzer: this.contentAnalyzer.getStatistics(),
+                autoDocService: this.autoDocService.getStatistics(),
+                migrationTool: this.migrationTool.getStatistics(),
+                version: '1.0.0',
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            return {
+                error: `获取统计信息失败: ${error.message}`
+            };
+        }
+    }
+
+    /**
+     * 更新自动文档配置
+     * @param {Object} newConfig - 新配置
+     * @returns {Object} 更新结果
+     */
+    updateAutoDocumentConfig(newConfig) {
+        try {
+            this.autoDocConfig = {
+                ...this.autoDocConfig,
+                ...newConfig
+            };
+
+            console.log('🔧 自动文档配置已更新');
+
+            return {
+                success: true,
+                config: this.autoDocConfig,
+                message: '配置更新成功'
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: `配置更新失败: ${error.message}`
             };
         }
     }

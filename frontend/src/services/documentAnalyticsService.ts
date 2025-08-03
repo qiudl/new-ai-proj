@@ -720,7 +720,6 @@ class DocumentAnalyticsService {
 
     try {
       // TODO: 发送到服务器
-      console.log('Flushing analytics events:', this.pendingEvents);
       this.pendingEvents = [];
     } catch (error) {
       console.error('Failed to flush analytics events:', error);

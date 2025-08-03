@@ -64,7 +64,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
   }, [dateRange]);
 
   // Generate daily statistics from real API data
-  const generateDailyStatsFromAPI = (weeklyReport: any) => {
+  const generateDailyStatsFromAPI = (weeklyReport: unknown) => {
     const days: DailyStats[] = [];
     const [startDate, endDate] = dateRange;
     
@@ -72,7 +72,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
     const apiDailyStats = weeklyReport.daily_stats || [];
     const dailyDataMap = new Map();
     
-    apiDailyStats.forEach((dayData: any) => {
+    apiDailyStats.forEach((dayData: unknown) => {
       dailyDataMap.set(dayData.date, dayData);
     });
     

@@ -3,9 +3,9 @@ import { Drawer, Checkbox, Button, Space, Typography, Divider, List, Tooltip, Sw
 import { SettingOutlined, DragOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 // Dynamic import for react-beautiful-dnd
-let DragDropContext: any = null;
-let Droppable: any = null;
-let Draggable: any = null;
+let DragDropContext: unknown = null;
+let Droppable: React.FormEvent | React.ChangeEvent<HTMLInputElement> = null;
+let Draggable: React.FormEvent | React.ChangeEvent<HTMLInputElement> = null;
 try {
   const dnd = require('react-beautiful-dnd');
   DragDropContext = dnd.DragDropContext;
@@ -29,14 +29,14 @@ interface DropResult {
 
 interface DroppableProvided {
   innerRef: React.Ref<any>;
-  droppableProps: any;
+  droppableProps: unknown;
   placeholder?: React.ReactElement;
 }
 
 interface DraggableProvided {
   innerRef: React.Ref<any>;
-  draggableProps: any;
-  dragHandleProps: any;
+  draggableProps: unknown;
+  dragHandleProps: unknown;
 }
 
 interface DraggableStateSnapshot {

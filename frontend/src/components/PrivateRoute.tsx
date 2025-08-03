@@ -30,7 +30,6 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   if (!token || !isTokenValid(token)) {
     // 清除无效token
     localStorage.removeItem('token');
-    console.log('Token无效或已过期，重定向到登录页');
     return <Navigate to="/login" replace />;
   }
   

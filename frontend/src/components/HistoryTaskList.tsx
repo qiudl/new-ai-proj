@@ -325,7 +325,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                     <List
                       size="small"
                       dataSource={taskTimeHistory.sessions}
-                      renderItem={(session: any) => (
+                      renderItem={(session: unknown) => (
                         <List.Item>
                           <List.Item.Meta
                             title={session.date}

@@ -223,7 +223,7 @@ describe('AIUsageStats', () => {
       setAttribute: jest.fn(),
       click: jest.fn()
     };
-    mockCreateElement.mockReturnValue(mockLink as any);
+    mockCreateElement.mockReturnValue(mockLink as unknown);
 
     render(<AIUsageStats />);
 

@@ -59,7 +59,6 @@ class DocumentVersionService {
     currentVersion: string;
   }> {
     try {
-      console.log(`API请求: GET ${this.baseUrl}/${documentId}/versions`);
       const response = await fetch(`${this.baseUrl}/${documentId}/versions`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -72,8 +71,6 @@ class DocumentVersionService {
       }
 
       const data = await response.json();
-      console.log('版本历史API响应:', data);
-
       if (data.success && data.data) {
         return {
           versions: data.data.versions || [],
@@ -141,7 +138,6 @@ class DocumentVersionService {
 
   async compareVersionsReal(documentId: number, sourceId: string, targetId: string): Promise<VersionDiff> {
     try {
-      console.log(`API请求: GET ${this.baseUrl}/${documentId}/versions/compare`);
       const response = await fetch(`${this.baseUrl}/${documentId}/versions/compare?from=${sourceId}&to=${targetId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -154,8 +150,6 @@ class DocumentVersionService {
       }
 
       const data = await response.json();
-      console.log('版本比较API响应:', data);
-
       if (data.success && data.data) {
         return data.data;
       } else {
@@ -200,7 +194,6 @@ class DocumentVersionService {
 
   async restoreVersionReal(documentId: number, versionId: string): Promise<any> {
     try {
-      console.log(`API请求: POST ${this.baseUrl}/${documentId}/versions/${versionId}/restore`);
       const response = await fetch(`${this.baseUrl}/${documentId}/versions/${versionId}/restore`, {
         method: 'POST',
         headers: {
@@ -214,8 +207,6 @@ class DocumentVersionService {
       }
 
       const data = await response.json();
-      console.log('版本恢复API响应:', data);
-
       if (data.success) {
         return data;
       } else {

@@ -258,7 +258,7 @@ const SortableDocumentCard: React.FC<SortableDocumentCardProps> = ({
               <div style={{ marginBottom: 8 }}>
                 <Space wrap>
                   <Badge 
-                    status={DOCUMENT_STATUS[document.status]?.color as any} 
+                    status={DOCUMENT_STATUS[document.status]?.color as unknown} 
                     text={
                       <Text style={{ fontSize: '12px' }}>
                         {DOCUMENT_STATUS[document.status]?.label}
@@ -361,7 +361,7 @@ const DocumentGridView: React.FC<DocumentGridViewProps> = ({
         const newItems = arrayMove(items, oldIndex, newIndex);
         
         // 这里可以调用API保存新的排序
-        console.log('Document order updated:', newItems.map(item => ({ id: item.id, title: item.title })));
+        ));
         
         return newItems;
       });

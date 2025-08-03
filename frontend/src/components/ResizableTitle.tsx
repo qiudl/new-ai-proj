@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Dynamic import for react-resizable
-let Resizable: any = null;
+let Resizable: React.FormEvent | React.ChangeEvent<HTMLInputElement> = null;
 try {
   const resizable = require('react-resizable');
   Resizable = resizable.Resizable;
@@ -37,7 +37,7 @@ const ResizableTitle: React.FC<ResizableTitleProps> = ({
     <Resizable
       width={width}
       height={0}
-      onResize={(e: any, { size }: { size: { width: number; height: number } }) => {
+      onResize={(e: React.FormEvent | React.ChangeEvent<HTMLInputElement>, { size }: { size: { width: number; height: number } }) => {
         // 限制宽度范围
         const newWidth = Math.max(minWidth, Math.min(maxWidth, size.width));
         onResize(newWidth);

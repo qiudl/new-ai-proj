@@ -19,7 +19,7 @@ const { Title, Text } = Typography;
 
 interface TaskInfoEditorProps {
   task: Task;
-  onUpdate: (taskData: any) => Promise<void>;
+  onUpdate: (taskData: unknown) => Promise<void>;
   loading?: boolean;
   style?: React.CSSProperties;
 }

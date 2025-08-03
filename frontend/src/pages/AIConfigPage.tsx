@@ -108,10 +108,7 @@ const AIConfigPage: React.FC = () => {
   const loadConfigs = async () => {
     setLoading(true);
     try {
-      console.log('开始加载AI配置...');
       const response = await aiConfigDatabaseService.getConfigs();
-      console.log('AI配置API响应：', response);
-      
       const configMap: Record<AIProvider, AIConfig | null> = {
         openai: null,
         claude: null,
@@ -120,13 +117,9 @@ const AIConfigPage: React.FC = () => {
       
       // 获取配置数据数组
       const configsData = response.data || [];
-      console.log('解析后的配置数据：', configsData);
-      
       if (response.success && configsData && Array.isArray(configsData) && configsData.length > 0) {
-        console.log('找到AI配置数据，数量：', configsData.length);
         // 将响应数据转换为配置映射
         configsData.forEach((config: AIConfigResponse) => {
-          console.log(`处理${config.provider}配置：`, config);
           configMap[config.provider] = {
             id: config.id,
             provider: config.provider,
@@ -141,22 +134,17 @@ const AIConfigPage: React.FC = () => {
           };
         });
       } else {
-        console.log('没有找到AI配置数据或API调用失败，configsData:', configsData);
-        
         // 临时：为了测试UI，添加一个模拟的已保存配置
         const savedDeepSeekConfig = localStorage.getItem('test-deepseek-config');
         if (savedDeepSeekConfig) {
-          console.log('发现本地测试配置，加载中...');
           const testConfig = JSON.parse(savedDeepSeekConfig);
           const provider = testConfig.provider as AIProvider;
           if (provider && (provider === 'openai' || provider === 'claude' || provider === 'deepseek')) {
             configMap[provider] = testConfig;
-            console.log('加载的测试配置：', testConfig);
-          }
+            }
         }
       }
       
-      console.log('最终配置映射：', configMap);
       setConfigs(configMap);
       
       // 设置表单默认值
@@ -233,20 +221,15 @@ const AIConfigPage: React.FC = () => {
         enabled: values.enabled || false
       };
       
-      console.log(`${provider}现有配置：`, existingConfig);
       let response;
       
       if (existingConfig) {
-        console.log('更新现有配置...');
         // 更新现有配置
         response = await aiConfigDatabaseService.updateConfig(provider, configRequest);
       } else {
-        console.log('创建新配置...');
         // 创建新配置
         response = await aiConfigDatabaseService.createConfig(configRequest);
       }
-      
-      console.log(`${provider}保存响应：`, response);
       
       if (response.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 配置保存成功！`);
@@ -265,8 +248,6 @@ const AIConfigPage: React.FC = () => {
           updated_at: new Date().toISOString()
         };
         localStorage.setItem('test-deepseek-config', JSON.stringify(testConfig));
-        console.log('保存测试配置到localStorage:', testConfig);
-        
         // 重新加载配置
         await loadConfigs();
         
@@ -275,9 +256,7 @@ const AIConfigPage: React.FC = () => {
         
         // 使用setTimeout确保状态更新后再检查
         setTimeout(() => {
-          console.log('配置保存成功，当前配置状态：', configs[provider]);
-          console.log('所有配置状态：', configs);
-        }, 500);
+          }, 500);
       } else {
         message.error(response.message || '保存配置失败');
       }
@@ -301,12 +280,11 @@ const AIConfigPage: React.FC = () => {
       const values = await form.validateFields(['model', 'baseURL']); // 移除apiKey验证，因为可能使用现有密钥
       
       // 获取API密钥：优先使用表单输入，如果没有输入且有保存的配置则使用已保存的密钥
-      let apiKey = values.apiKey ? values.apiKey.trim() : '';
+      const apiKey = values.apiKey ? values.apiKey.trim() : '';
       const existingConfig = configs[provider];
       
       if (!apiKey && existingConfig) {
         // 如果没有输入新密钥但有现有配置，使用已保存的密钥进行测试
-        console.log(`使用已保存的${provider}配置进行连接测试`);
         // 不需要设置apiKey，后端会自动使用已保存的密钥
       } else if (!apiKey) {
         message.error('请先填写API密钥或保存配置');
@@ -318,7 +296,7 @@ const AIConfigPage: React.FC = () => {
       }
       
       // 使用真实的API测试服务
-      const testRequest: any = {
+      const testRequest: unknown = {
         provider,
         model: values.model || existingConfig?.model || AI_PROVIDER_DEFAULTS[provider].model!,
         baseURL: values.baseURL || existingConfig?.baseURL || AI_PROVIDER_DEFAULTS[provider].baseURL,
@@ -336,12 +314,6 @@ const AIConfigPage: React.FC = () => {
       if (customQuestion && customQuestion.trim()) {
         testRequest.testText = customQuestion.trim();
       }
-      
-      console.log(`开始测试${AI_PROVIDER_INFO[provider].name}连接...`, {
-        hasApiKey: !!apiKey,
-        hasCustomQuestion: !!testRequest.testText,
-        model: testRequest.model
-      });
       
       // 使用已有的aiConfigDatabaseService进行测试
       const response = await aiConfigDatabaseService.testConnection(testRequest);
@@ -363,8 +335,7 @@ const AIConfigPage: React.FC = () => {
 
       if (testResult?.success) {
         message.success(`${AI_PROVIDER_INFO[provider].name} 连接测试成功！`);
-        console.log(`测试结果:`, testResult);
-      } else {
+        } else {
         message.error(`${AI_PROVIDER_INFO[provider].name} 测试失败：${testResult?.message || '未知错误'}`);
         console.error(`测试错误:`, testResult);
       }
@@ -418,7 +389,7 @@ const AIConfigPage: React.FC = () => {
   };
 
   // 监听表单变化
-  const handleFormChange = (provider: AIProvider, changedValues: any, allValues: any) => {
+  const handleFormChange = (provider: AIProvider, changedValues: unknown, allValues: unknown) => {
     setFormValues(prev => ({ ...prev, [provider]: allValues }));
   };
   

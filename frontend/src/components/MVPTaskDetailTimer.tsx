@@ -44,7 +44,6 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
   style = {},
   className = ''
 }) => {
-  console.log('🏗️ MVPTaskDetailTimer props:', { taskId, taskTitle, taskStatus, projectId, taskType });
   const { timerState, isLoading, startTimer, stopTimer } = useTimer();
   const navigate = useNavigate();
   
@@ -160,9 +159,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
       });
     } else {
       try {
-        console.log('🎬 MVPTaskDetailTimer calling startTimer:', { taskId, taskTitle, taskType });
         const success = await startTimer(taskId, taskTitle, taskType);
-        console.log('🎬 MVPTaskDetailTimer startTimer result:', success);
         if (success) {
           message.success(`开始为任务"${taskTitle}"计时`);
         } else {

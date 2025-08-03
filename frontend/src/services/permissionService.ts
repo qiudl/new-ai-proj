@@ -40,7 +40,7 @@ export interface UserPermissionSummary {
     isActive: boolean;
   };
   customPermissions: Record<string, boolean>;
-  projectPermissions: any[];
+  projectPermissions: unknown[];
   effectivePermissions: Permission[];
   lastUpdated: string;
 }
@@ -123,7 +123,7 @@ export const permissionService = {
   async getPermissionAuditLogs(userId?: number, limit = 20, offset = 0) {
     const params = { limit, offset };
     if (userId) {
-      (params as any).user_id = userId;
+      (params as unknown).user_id = userId;
     }
     const response = await api.get('/permissions/audit-logs', { params });
     return response.data;

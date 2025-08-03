@@ -123,7 +123,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error creating folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to create folder');
     }
@@ -142,7 +142,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder');
     }
@@ -162,7 +162,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error updating folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to update folder');
     }
@@ -179,7 +179,7 @@ class DocumentFolderService {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to delete folder');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error deleting folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to delete folder');
     }
@@ -218,7 +218,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error listing folders:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to list folders');
     }
@@ -242,7 +242,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting folder tree:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder tree');
     }
@@ -261,7 +261,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting folder stats:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder stats');
     }
@@ -279,7 +279,7 @@ class DocumentFolderService {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to move folder');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error moving folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to move folder');
     }
@@ -298,7 +298,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting folder children:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder children');
     }
@@ -306,13 +306,13 @@ class DocumentFolderService {
 
   // 获取文件夹下的文档
   async getFolderDocuments(id: number | 'root', limit = 50, offset = 0): Promise<{
-    documents: any[];
+    documents: unknown[];
     total_count: number;
     has_more: boolean;
   }> {
     try {
       const response = await axios.get<APIResponse<{
-        documents: any[];
+        documents: unknown[];
         total_count: number;
         has_more: boolean;
       }>>(
@@ -325,7 +325,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting folder documents:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder documents');
     }
@@ -343,7 +343,7 @@ class DocumentFolderService {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to move document');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error moving document:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to move document');
     }
@@ -361,7 +361,7 @@ class DocumentFolderService {
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to batch update folders');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error batch updating folders:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to batch update folders');
     }
@@ -380,7 +380,7 @@ class DocumentFolderService {
       }
       
       return response.data.data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error getting user folder stats:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get user folder stats');
     }

@@ -248,7 +248,7 @@ const MyTasksTree: React.FC = () => {
   }, [startTimer]);
 
   // 处理树节点选择
-  const handleSelect = useCallback((selectedKeys: React.Key[], info: any) => {
+  const handleSelect = useCallback((selectedKeys: React.Key[], info: unknown) => {
     if (selectedKeys.length === 0) return;
     
     const node = info.node;

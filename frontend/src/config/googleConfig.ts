@@ -146,11 +146,7 @@ export const validateGoogleConfig = (): boolean => {
       missingFields.map(f => f.key).join(', '));
     
     if (FEATURE_FLAGS.DEBUG_MODE) {
-      console.log('Please check your .env file and ensure the following variables are set:');
-      console.log('- REACT_APP_GOOGLE_CLIENT_ID');
-      console.log('- REACT_APP_GOOGLE_API_KEY');
-      console.log('\nRefer to GOOGLE_API_SETUP.md for detailed setup instructions.');
-    }
+      }
     
     return false;
   }

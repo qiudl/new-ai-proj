@@ -181,7 +181,7 @@ const NavigationManagementPage: React.FC = () => {
   };
 
   // 菜单项表格列定义
-  const menuItemColumns: any[] = [
+  const menuItemColumns: unknown[] = [
     {
       title: '菜单标签',
       dataIndex: 'label',
@@ -278,7 +278,7 @@ const NavigationManagementPage: React.FC = () => {
   ];
 
   // 路由配置表格列定义
-  const routeColumns: any[] = [
+  const routeColumns: unknown[] = [
     {
       title: '路径',
       dataIndex: 'path',

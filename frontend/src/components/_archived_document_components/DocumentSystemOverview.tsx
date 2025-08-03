@@ -361,7 +361,7 @@ const DocumentSystemOverview: React.FC = () => {
   };
 
   // 热门文档表格列
-  const popularDocsColumns: any[] = [
+  const popularDocsColumns: unknown[] = [
     {
       title: '文档名称',
       dataIndex: 'title',
@@ -509,7 +509,7 @@ const DocumentSystemOverview: React.FC = () => {
           <Space>
             <span>系统运行状态：</span>
             <Badge
-              status={healthStatus.color as any}
+              status={healthStatus.color as unknown}
               text={
                 <Text strong style={{ color: healthStatus.color }}>
                   {healthStatus.text}

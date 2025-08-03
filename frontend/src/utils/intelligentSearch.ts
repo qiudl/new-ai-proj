@@ -700,7 +700,7 @@ export const getSearchSuggestions = (query: string, limit?: number) =>
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as any).intelligentSearch = intelligentSearch;
+  (window as unknown).intelligentSearch = intelligentSearch;
 }
 
 export default IntelligentSearch;

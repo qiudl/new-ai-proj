@@ -48,7 +48,7 @@ const DocumentBreadcrumb: React.FC<DocumentBreadcrumbProps> = ({
 
   // 构建面包屑项目
   const buildBreadcrumbItems = () => {
-    const items: any[] = [];
+    const items: unknown[] = [];
 
     // 首页
     items.push({

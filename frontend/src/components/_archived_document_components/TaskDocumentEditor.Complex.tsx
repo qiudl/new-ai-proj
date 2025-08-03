@@ -31,7 +31,7 @@ interface AdvancedTaskDocumentResponse {
   document_exists: boolean;
   can_edit: boolean;
   can_delete: boolean;
-  relations: any[];
+  relations: unknown[];
   last_modified?: string;
 }
 
@@ -151,7 +151,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         }
         
         return true; // 空响应也算成功
-      } catch (error: any) {
+      } catch (error: Error | unknown) {
         console.error(`加载文档失败 (尝试 ${attempt + 1}/${maxRetries + 1}):`, error);
         
         if (error.status === 401) {
@@ -275,7 +275,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         }
         onSave?.(content);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('保存文档失败:', error);
       if (error.status === 401) {
         setError('未授权访问，请重新登录');
@@ -348,7 +348,6 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     const handleVisibilityChange = () => {
       if (!document.hidden && error && !loading) {
         // 页面重新可见且之前有错误，尝试重新加载
-        console.log('页面重新可见，尝试重新加载文档');
         setTimeout(() => loadDocument(), 1000);
       }
     };

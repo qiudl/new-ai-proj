@@ -249,8 +249,7 @@ const TasksPage: React.FC = () => {
                 !existing.every((task, index) => task.id === children[index].id)) {
               newSubTasks.set(parentId, children);
               hasChanges = true;
-              console.log(`Updated subtasks for parent ${parentId}: ${children.length} children`);
-            }
+              }
           });
           
           return hasChanges ? newSubTasks : prev;
@@ -265,8 +264,7 @@ const TasksPage: React.FC = () => {
             if (!newExpanded.has(parentId)) {
               newExpanded.add(parentId);
               hasNewExpansions = true;
-              console.log(`Auto-expanding parent task ${parentId} with ${children.length} children`);
-            }
+              }
           });
           
           return hasNewExpansions ? newExpanded : prev;
@@ -279,7 +277,7 @@ const TasksPage: React.FC = () => {
   const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
-      let response: any;
+      let response: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
       if (effectiveProjectId) {
         // Load tasks for specific project
         response = await TaskService.getTasks(effectiveProjectId, {
@@ -319,7 +317,7 @@ const TasksPage: React.FC = () => {
       }
       
       // Ensure the data field is an array
-      let tasksData: any[] = [];
+      let tasksData: unknown[] = [];
       if (Array.isArray(response.data)) {
         // If response.data is directly an array
         tasksData = response.data;
@@ -332,7 +330,7 @@ const TasksPage: React.FC = () => {
       }
       
       // Additional validation - filter out invalid task objects
-      const validTasks = tasksData.filter((task: any) => 
+      const validTasks = tasksData.filter((task: unknown) => 
         task && 
         typeof task === 'object' && 
         typeof task.id === 'number' && 
@@ -369,7 +367,7 @@ const TasksPage: React.FC = () => {
         pageSize: response.pagination?.page_size || pageSize,
         total: adjustedTotal,
       });
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error loading tasks:', error);
       
       // 提供更详细的错误信息
@@ -457,8 +455,6 @@ const TasksPage: React.FC = () => {
         ? { ...taskData, parent_id: parentTaskForNew.id }
         : taskData;
       
-      console.log('Creating task with project ID:', projectId, 'Parent:', parentTaskForNew?.id);
-      
       await TaskService.createTask(projectId, requestData);
       message.success(parentTaskForNew ? '子任务创建成功' : '任务创建成功');
       setTaskModalVisible(false);
@@ -478,7 +474,7 @@ const TasksPage: React.FC = () => {
           }
         }, 500);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Task creation error:', error);
       message.error(error.message || '任务创建失败');
     } finally {
@@ -509,7 +505,7 @@ const TasksPage: React.FC = () => {
       setSubTasks(new Map());
       setExpandedTasks(new Set());
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       message.error(error.message || '任务更新失败');
     } finally {
       setModalLoading(false);
@@ -543,7 +539,7 @@ const TasksPage: React.FC = () => {
           setSubTasks(new Map());
           setExpandedTasks(new Set());
           loadTasks(pagination.current, pagination.pageSize);
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           message.error(error.message || '任务删除失败');
         }
       },
@@ -609,13 +605,13 @@ const TasksPage: React.FC = () => {
     
     // 在全局模式下，自动设置项目选择器到父任务的项目
     if (!effectiveProjectId && parentTask.project_id) {
-      message.info(`已自动选择项目：${(parentTask as any).project_name || parentTask.project_id}`);
+      message.info(`已自动选择项目：${(parentTask as unknown).project_name || parentTask.project_id}`);
       setSelectedProjectId(parentTask.project_id);
       // 如果有项目名称，也设置项目对象
-      if ((parentTask as any).project_name) {
+      if ((parentTask as unknown).project_name) {
         setSelectedProject({
           id: parentTask.project_id,
-          name: (parentTask as any).project_name,
+          name: (parentTask as unknown).project_name,
           description: '',
           owner_id: 1, // 默认值
           created_at: '',
@@ -642,7 +638,7 @@ const TasksPage: React.FC = () => {
   };
 
   // Handle pagination change
-  const handleTableChange = (paginationParams: any) => {
+  const handleTableChange = (paginationParams: unknown) => {
     loadTasks(paginationParams.current, paginationParams.pageSize);
   };
 
@@ -696,7 +692,7 @@ const TasksPage: React.FC = () => {
           newExpandedTasks.add(taskId);
           setExpandedTasks(newExpandedTasks);
           
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           console.error('Error loading children for task:', taskId, error);
           message.error(error.message || '获取子任务失败');
           return;
@@ -758,7 +754,7 @@ const TasksPage: React.FC = () => {
       const hideLoading = message.loading('正在更新状态...', 0);
 
       await TaskService.updateTask(projectId, taskId, { 
-        status: newStatus as any
+        status: newStatus as unknown
       });
       
       hideLoading();
@@ -766,7 +762,7 @@ const TasksPage: React.FC = () => {
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Status update error:', error);
       if (error.statusCode === 403) {
         message.error('权限不足，无法更新任务状态');
@@ -808,7 +804,7 @@ const TasksPage: React.FC = () => {
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Due date update error:', error);
       if (error.statusCode === 403) {
         message.error('权限不足，无法更新截止日期');
@@ -861,7 +857,7 @@ const TasksPage: React.FC = () => {
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Title update error:', error);
       if (error.statusCode === 403) {
         message.error('权限不足，无法更新任务标题');
@@ -942,7 +938,7 @@ const TasksPage: React.FC = () => {
           setSubTasks(new Map());
           setExpandedTasks(new Set());
           loadTasks(pagination.current, pagination.pageSize);
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           message.error(error.message || '批量删除失败');
         } finally {
           setBulkDeleteLoading(false);
@@ -978,8 +974,6 @@ const TasksPage: React.FC = () => {
       const rootTasks = validTasks.filter(task => 
         task && typeof task === 'object' && typeof task.id === 'number' && !task.parent_id
       );
-      
-      console.log(`Found ${rootTasks.length} root tasks out of ${validTasks.length} total tasks`);
       
       // 为根任务添加 depth: 0
       const result = rootTasks.map(task => ({
@@ -1115,7 +1109,7 @@ const TasksPage: React.FC = () => {
             dataIndex: 'selection',
             key: 'selection',
             width: config.width,
-            render: (_: any, record: Task) => (
+            render: (_: unknown, record: Task) => (
               <Checkbox
                 checked={selectedTaskIds.includes(record.id)}
                 onChange={(e) => handleSelectTask(record.id, e.target.checked)}
@@ -1534,7 +1528,7 @@ const TasksPage: React.FC = () => {
             title: createResizableTitle(config, '标签'),
             key: 'tags',
             width: config.width,
-            render: (_: any, record: Task) => {
+            render: (_: unknown, record: Task) => {
               const tags = record.custom_fields?.tags || [];
               
               return (
@@ -1580,7 +1574,7 @@ const TasksPage: React.FC = () => {
             title: createResizableTitle(config, '操作'),
             key: 'action',
             width: config.width,
-            render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => {
+            render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => {
               const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
               
               return (
@@ -1651,7 +1645,7 @@ const TasksPage: React.FC = () => {
         default:
           return null;
       }
-    }).filter(Boolean) as any[];
+    }).filter(Boolean) as unknown[];
   }, [columnConfigs, selectedTaskIds, stableDataSource, effectiveProjectId, expandedTasks, loadingChildren, subTasks]);
 
   // 保留原有的静态columns定义作为备用（当前使用generateColumns）
@@ -1667,7 +1661,7 @@ const TasksPage: React.FC = () => {
       dataIndex: 'selection',
       key: 'selection',
       width: '60px',
-      render: (_: any, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Checkbox
           checked={selectedTaskIds.includes(record.id)}
           onChange={(e) => handleSelectTask(record.id, e.target.checked)}
@@ -2130,7 +2124,7 @@ const TasksPage: React.FC = () => {
       title: '标签',
       key: 'tags',
       width: effectiveProjectId ? '12%' : '10%',
-      render: (_: any, record: Task) => {
+      render: (_: unknown, record: Task) => {
         const tags = record.custom_fields?.tags || [];
         
         return (
@@ -2174,7 +2168,7 @@ const TasksPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 160, // 增加宽度以容纳计时器按钮
-      render: (_: any, record: Task & { isSubTask?: boolean; depth?: number }) => {
+      render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => {
         const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
         
         return (

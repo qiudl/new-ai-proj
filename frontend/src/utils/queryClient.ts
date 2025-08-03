@@ -16,7 +16,7 @@ const queryClientOptions = {
       // 网络重连时自动重新获取
       refetchOnReconnect: true,
       // 重试次数
-      retry: (failureCount: number, error: any) => {
+      retry: (failureCount: number, error: Error | unknown) => {
         // HTTP 4xx 错误不重试
         if (error?.status >= 400 && error?.status < 500) {
           return false;
@@ -165,7 +165,7 @@ export const prefetchQueries = {
 };
 
 // 错误处理
-export const handleQueryError = (error: any, context?: string) => {
+export const handleQueryError = (error: Error | unknown, context?: string) => {
   console.error(`Query error${context ? ` in ${context}` : ''}:`, error);
   
   // 可以在这里添加全局错误处理逻辑
@@ -175,10 +175,9 @@ export const handleQueryError = (error: any, context?: string) => {
 };
 
 // 成功处理
-export const handleQuerySuccess = (data: any, context?: string) => {
+export const handleQuerySuccess = (data: Record<string, unknown>, context?: string) => {
   if (context) {
-    console.log(`Query success in ${context}:`, data);
-  }
+    }
   
   return data;
 };

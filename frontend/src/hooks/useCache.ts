@@ -7,7 +7,7 @@ interface CacheOptions {
 }
 
 interface CacheEntry {
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
   ttl: number;
   memorySize: number; // Estimated memory size in MB
@@ -28,7 +28,7 @@ class MemoryAwareCache {
     this.startCleanupTimer();
   }
 
-  private estimateMemoryUsage(data: any): number {
+  private estimateMemoryUsage(data: Record<string, unknown>): number {
     try {
       // More accurate memory estimation
       const str = JSON.stringify(data);
@@ -173,7 +173,7 @@ class MemoryAwareCache {
 
     // Log cleanup results in development
     if (keysToDelete.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log(`Cache cleanup: removed ${keysToDelete.length} expired entries, current size: ${this.cache.size}, memory: ${this.currentMemoryMB.toFixed(2)}MB`);
+      }MB`);
     }
   }
 
@@ -281,7 +281,7 @@ export function useCache<T>(
       
       setData(result);
       return result;
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (!isMountedRef.current || err.name === 'AbortError') {
         return null;
       }

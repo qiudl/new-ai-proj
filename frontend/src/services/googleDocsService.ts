@@ -339,7 +339,7 @@ class GoogleDocsService {
   async importDocument(googleDocId: string): Promise<{
     title: string;
     content: string;
-    metadata: any;
+    metadata: Record<string, unknown>;
   }> {
     try {
       const doc = await this.getDocument(googleDocId);
@@ -506,7 +506,7 @@ class GoogleDocsService {
 // 全局类型声明
 declare global {
   interface Window {
-    gapi: any;
+    gapi: unknown;
   }
 }
 
@@ -524,7 +524,7 @@ export const exportToGoogleDocs = (title: string, content: string) =>
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as any).googleDocsService = googleDocsService;
+  (window as unknown).googleDocsService = googleDocsService;
 }
 
 export default GoogleDocsService;

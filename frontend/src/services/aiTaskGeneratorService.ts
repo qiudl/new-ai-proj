@@ -30,7 +30,7 @@ class AITaskGeneratorService {
   /**
    * 解析AI配置数据为数组格式
    */
-  private parseConfigData(data: any): any[] {
+  private parseConfigData(data: Record<string, unknown>): any[] {
     if (Array.isArray(data)) {
       return data;
     } else if (typeof data === 'object' && data !== null) {
@@ -79,7 +79,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data.success ? data.data : data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Generate tasks failed:', error);
       throw new Error(error.message || '任务生成失败');
     }
@@ -88,7 +88,7 @@ class AITaskGeneratorService {
   /**
    * 验证任务
    */
-  async validateTasks(request: any): Promise<any> {
+  async validateTasks(request: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/validate', {
         method: 'POST',
@@ -101,7 +101,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data.success ? data.data : data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Validate tasks failed:', error);
       throw new Error(error.message || '任务验证失败');
     }
@@ -110,7 +110,7 @@ class AITaskGeneratorService {
   /**
    * 优化任务
    */
-  async optimizeTasks(request: any): Promise<any> {
+  async optimizeTasks(request: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/optimize', {
         method: 'POST',
@@ -123,7 +123,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data.success ? data.data : data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Optimize tasks failed:', error);
       throw new Error(error.message || '任务优化失败');
     }
@@ -146,7 +146,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Get templates failed:', error);
       throw new Error(error.message || '获取模板失败');
     }
@@ -155,7 +155,7 @@ class AITaskGeneratorService {
   /**
    * 创建模板
    */
-  async createTemplate(templateData: any): Promise<any> {
+  async createTemplate(templateData: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/templates', {
         method: 'POST',
@@ -168,7 +168,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Create template failed:', error);
       throw new Error(error.message || '创建模板失败');
     }
@@ -177,7 +177,7 @@ class AITaskGeneratorService {
   /**
    * 更新模板
    */
-  async updateTemplate(templateId: number, templateData: any): Promise<any> {
+  async updateTemplate(templateId: number, templateData: unknown): Promise<any> {
     try {
       const response = await fetch(`/api/v1/system/ai-tasks/templates/${templateId}`, {
         method: 'PUT',
@@ -190,7 +190,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Update template failed:', error);
       throw new Error(error.message || '更新模板失败');
     }
@@ -210,7 +210,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Delete template failed:', error);
       throw new Error(error.message || '删除模板失败');
     }
@@ -219,7 +219,7 @@ class AITaskGeneratorService {
   /**
    * 基于模板生成任务
    */
-  async generateFromTemplate(request: any): Promise<any> {
+  async generateFromTemplate(request: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/templates/generate', {
         method: 'POST',
@@ -232,7 +232,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Generate from template failed:', error);
       throw new Error(error.message || '基于模板生成任务失败');
     }
@@ -241,7 +241,7 @@ class AITaskGeneratorService {
   /**
    * 批量优化任务
    */
-  async batchOptimizeTasks(request: any): Promise<any> {
+  async batchOptimizeTasks(request: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/batch/optimize', {
         method: 'POST',
@@ -254,7 +254,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Batch optimize failed:', error);
       throw new Error(error.message || '批量优化失败');
     }
@@ -277,7 +277,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Get cost summary failed:', error);
       throw new Error(error.message || '获取成本摘要失败');
     }
@@ -300,7 +300,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Get budget status failed:', error);
       throw new Error(error.message || '获取预算状态失败');
     }
@@ -309,7 +309,7 @@ class AITaskGeneratorService {
   /**
    * 设置预算限制
    */
-  async setBudgetLimit(budgetData: any): Promise<any> {
+  async setBudgetLimit(budgetData: unknown): Promise<any> {
     try {
       const response = await fetch('/api/v1/system/ai-tasks/budget/limit', {
         method: 'POST',
@@ -322,7 +322,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Set budget limit failed:', error);
       throw new Error(error.message || '设置预算限制失败');
     }
@@ -341,7 +341,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Get budget alerts failed:', error);
       throw new Error(error.message || '获取预算警告失败');
     }
@@ -364,7 +364,7 @@ class AITaskGeneratorService {
 
       const data = await response.json();
       return data;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Get usage stats failed:', error);
       throw new Error(error.message || '获取使用统计失败');
     }
@@ -394,8 +394,6 @@ class AITaskGeneratorService {
       }
 
       // 打印实际的数据结构以便调试
-      console.log('AI配置数据结构:', configs.data);
-
       // 解析配置数据
       const configArray = this.parseConfigData(configs.data);
       
@@ -403,8 +401,6 @@ class AITaskGeneratorService {
         console.error('AI配置数据格式错误，无法解析为配置数组:', configs.data);
         return [];
       }
-
-      console.log('解析后的配置数组:', configArray);
 
       return configArray
         .filter(config => config && config.enabled && config.apiKeyMasked)
@@ -459,8 +455,8 @@ class AITaskGeneratorService {
    */
   async selectBestProvider(preferredProvider?: AIProvider): Promise<{
     provider: AIProvider;
-    config: any;
-    instance: any;
+    config: unknown;
+    instance: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
   }> {
     // 如果指定了偏好提供商，优先使用
     if (preferredProvider) {
@@ -505,7 +501,7 @@ class AITaskGeneratorService {
   /**
    * 创建AI提供商实例
    */
-  private createProviderInstance(provider: AIProvider, config: any): any {
+  private createProviderInstance(provider: AIProvider, config: unknown): unknown {
     const providerConfig = {
       apiKey: config.apiKey || 'placeholder', // 实际使用时会从数据库获取
       baseURL: config.baseURL,
@@ -569,12 +565,12 @@ class AITaskGeneratorService {
 
       // 构建prompt
       const systemPrompt = PromptSelector.getSystemPrompt(
-        provider as any,
+        provider as unknown,
         request.complexity || 'detailed'
       );
       
       const userPrompt = PromptSelector.getUserPrompt(
-        provider as any,
+        provider as unknown,
         request.parentTaskTitle,
         request.keywords,
         request.complexity || 'detailed'
@@ -700,7 +696,7 @@ class AITaskGeneratorService {
         throw new Error('响应格式错误：缺少tasks数组');
       }
 
-      const tasks: GeneratedSubTask[] = parsed.tasks.map((task: any, index: number) => {
+      const tasks: GeneratedSubTask[] = parsed.tasks.map((task: unknown, index: number) => {
         // 验证必需字段
         if (!task.title) {
           warnings.push(`任务${index + 1}缺少标题`);
@@ -1347,8 +1343,7 @@ class AITaskGeneratorService {
       // 保存到localStorage
       localStorage.setItem('ai_generation_history', JSON.stringify(existingHistory));
 
-      console.log('生成历史记录已保存:', history);
-    } catch (error) {
+      } catch (error) {
       console.error('保存历史记录失败:', error);
     }
   }
@@ -1362,7 +1357,7 @@ class AITaskGeneratorService {
       if (!data) return [];
       
       const parsed = JSON.parse(data);
-      return parsed.map((item: any) => ({
+      return parsed.map((item: unknown) => ({
         ...item,
         timestamp: new Date(item.timestamp)
       }));
@@ -1378,8 +1373,7 @@ class AITaskGeneratorService {
   clearGenerationHistory(): void {
     try {
       localStorage.removeItem('ai_generation_history');
-      console.log('历史记录已清除');
-    } catch (error) {
+      } catch (error) {
       console.error('清除历史记录失败:', error);
     }
   }
@@ -1393,7 +1387,6 @@ class AITaskGeneratorService {
       const filteredHistory = existingHistory.filter(item => item.id !== id);
       
       localStorage.setItem('ai_generation_history', JSON.stringify(filteredHistory));
-      console.log('历史记录已删除:', id);
       return true;
     } catch (error) {
       console.error('删除历史记录失败:', error);

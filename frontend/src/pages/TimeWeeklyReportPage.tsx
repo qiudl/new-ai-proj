@@ -481,7 +481,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                   const data = getCalendarData(value);
                   return data ? (
                     <Badge
-                      status={data.type as any}
+                      status={data.type as unknown}
                       text={data.content}
                     />
                   ) : null;

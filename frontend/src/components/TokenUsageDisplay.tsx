@@ -100,7 +100,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({
   // 详细显示模式
   return (
     <Card 
-      size={size as any} 
+      size={size as unknown} 
       title={
         <Space>
           <ThunderboltOutlined />

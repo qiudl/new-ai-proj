@@ -9,15 +9,6 @@ const { Text } = Typography;
 const FloatingTimerDebug = () => {
   const { timerState, isLoading, connectionStatus } = useTimer();
   
-  console.log('🔍 FloatingTimer Debug Info:', {
-    isRunning: timerState.isRunning,
-    taskId: timerState.taskId,
-    taskTitle: timerState.taskTitle,
-    formattedTime: timerState.formattedTime,
-    isLoading,
-    connectionStatus
-  });
-
   // 强制显示调试信息（不管是否运行）
   return (
     <div

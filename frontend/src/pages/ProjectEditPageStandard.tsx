@@ -158,8 +158,8 @@ const ProjectEditPageNew: React.FC = () => {
       }
 
       // 设置选中的用户（如果项目详情包含用户信息）
-      if ((projectData as any).users) {
-        const userKeys = (projectData as any).users.map((pu: any) => `${pu.user_id}_${pu.project_id}`);
+      if ((projectData as unknown).users) {
+        const userKeys = (projectData as unknown).users.map((pu: unknown) => `${pu.user_id}_${pu.project_id}`);
         setSelectedUsers(userKeys);
       }
     } catch (error) {
@@ -438,7 +438,7 @@ const ProjectEditPageNew: React.FC = () => {
     return roleInfo || { value: 'customer', label: '客户代表', color: 'orange' };
   };
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: unknown) => {
     try {
       setSubmitting(true);
       
@@ -460,13 +460,6 @@ const ProjectEditPageNew: React.FC = () => {
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD') || undefined,
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD') || undefined
       };
-
-      console.log('Project form data:', {
-        selectedCompanies,
-        selectedUsers,
-        formValues: values,
-        projectData
-      });
 
       if (isEditing && projectId) {
         await projectService.updateProject(Number(projectId), projectData);

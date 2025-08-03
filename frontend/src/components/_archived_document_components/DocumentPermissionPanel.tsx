@@ -371,7 +371,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
   };
 
   // 处理协作者操作
-  const handleAddCollaborator = async (values: any) => {
+  const handleAddCollaborator = async (values: unknown) => {
     try {
       // TODO: 调用API添加协作者
       // await documentPermissionApi.addCollaborator(documentId, values);
@@ -385,7 +385,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
     }
   };
 
-  const handleUpdateCollaborator = async (values: any) => {
+  const handleUpdateCollaborator = async (values: unknown) => {
     try {
       if (!editingCollaborator) return;
       // TODO: 调用API更新协作者权限
@@ -414,7 +414,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
   };
 
   // 处理分享链接操作
-  const handleCreateShareLink = async (values: any) => {
+  const handleCreateShareLink = async (values: unknown) => {
     try {
       // TODO: 调用API创建分享链接
       // const response = await documentPermissionApi.createShareLink(documentId, values);
@@ -515,7 +515,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
   };
 
   // 处理评论操作
-  const handleAddComment = async (values: any) => {
+  const handleAddComment = async (values: unknown) => {
     try {
       // TODO: 调用API添加评论
       // await documentPermissionApi.addComment(documentId, values);
@@ -539,7 +539,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
   };
 
   // 协作者表格列
-  const collaboratorColumns: any[] = [
+  const collaboratorColumns: unknown[] = [
     {
       title: '用户',
       key: 'user',

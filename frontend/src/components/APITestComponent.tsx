@@ -24,12 +24,10 @@ const APITestComponent: React.FC = () => {
   });
 
   const testProjectsAPI = async () => {
-    console.log('开始测试项目API...');
     setTestResults(prev => ({ ...prev, projects: { status: 'pending' } }));
     
     try {
       const response = await projectService.getProjects({ page: 1, pageSize: 5 });
-      console.log('项目API测试成功:', response);
       setTestResults(prev => ({ 
         ...prev, 
         projects: { status: 'success', data: response.data.slice(0, 3) } 
@@ -46,12 +44,10 @@ const APITestComponent: React.FC = () => {
   };
 
   const testCustomersAPI = async () => {
-    console.log('开始测试客户API...');
     setTestResults(prev => ({ ...prev, customers: { status: 'pending' } }));
     
     try {
       const customers = await customerService.getCustomersForDocumentMetadata();
-      console.log('客户API测试成功:', customers);
       setTestResults(prev => ({ 
         ...prev, 
         customers: { status: 'success', data: customers.slice(0, 3) } 
@@ -68,12 +64,10 @@ const APITestComponent: React.FC = () => {
   };
 
   const testVersionsAPI = async () => {
-    console.log('开始测试版本历史API...');
     setTestResults(prev => ({ ...prev, versions: { status: 'pending' } }));
     
     try {
       const response = await documentVersionService.getVersionHistory(1); // 测试文档ID 1
-      console.log('版本历史API测试成功:', response);
       setTestResults(prev => ({ 
         ...prev, 
         versions: { status: 'success', data: response } 
@@ -90,12 +84,10 @@ const APITestComponent: React.FC = () => {
   };
 
   const runAllTests = async () => {
-    console.log('开始运行所有API测试...');
     await testProjectsAPI();
     await testCustomersAPI();
     await testVersionsAPI();
-    console.log('所有API测试完成');
-  };
+    };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -172,7 +164,7 @@ const APITestComponent: React.FC = () => {
             <div>
               <Text strong>成功加载 {testResults.projects.data.length} 个项目:</Text>
               <ul>
-                {testResults.projects.data.map((project: any) => (
+                {testResults.projects.data.map((project: unknown) => (
                   <li key={project.id}>
                     <Text>{project.name}</Text>
                     {project.description && (
@@ -204,7 +196,7 @@ const APITestComponent: React.FC = () => {
             <div>
               <Text strong>成功加载 {testResults.customers.data.length} 个客户:</Text>
               <ul>
-                {testResults.customers.data.map((customer: any) => (
+                {testResults.customers.data.map((customer: unknown) => (
                   <li key={customer.id}>
                     <Text>{customer.name}</Text>
                     {customer.description && (

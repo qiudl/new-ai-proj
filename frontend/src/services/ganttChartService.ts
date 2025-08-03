@@ -435,7 +435,7 @@ export class GanttChartService {
     
     ganttTasks.forEach(task => {
       // 假设task中有assignee_id字段
-      const assigneeId = (task as any).assignee_id;
+      const assigneeId = (task as unknown).assignee_id;
       if (assigneeId) {
         if (!tasksByAssignee.has(assigneeId)) {
           tasksByAssignee.set(assigneeId, []);
@@ -526,7 +526,7 @@ export class GanttChartService {
    */
   private calculateStartDate(dueDate: Date, duration: number): Date {
     const endDate = new Date(dueDate);
-    let startDate = new Date(endDate);
+    const startDate = new Date(endDate);
     let daysToSubtract = duration;
 
     while (daysToSubtract > 0) {

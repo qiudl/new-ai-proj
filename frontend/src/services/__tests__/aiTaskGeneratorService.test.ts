@@ -25,9 +25,9 @@ jest.mock('./aiTaskPrompts', () => ({
 }));
 
 describe('AITaskGeneratorService', () => {
-  let mockAiConfigService: any;
-  let mockPromptValidator: any;
-  let mockPromptSelector: any;
+  let mockAiConfigService: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+  let mockPromptValidator: jest.MockedFunction<() => unknown>;
+  let mockPromptSelector: jest.MockedFunction<() => unknown>;
 
   beforeEach(() => {
     // 清除localStorage
@@ -142,7 +142,7 @@ describe('AITaskGeneratorService', () => {
       };
 
       // Mock createProviderInstance
-      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as any, 'createProviderInstance');
+      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'createProviderInstance');
       createProviderInstanceSpy.mockReturnValue(mockInstance);
 
       const response = await aiTaskGeneratorService.generateSubTasks(mockRequest);
@@ -188,7 +188,7 @@ describe('AITaskGeneratorService', () => {
         })
       };
 
-      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as any, 'createProviderInstance');
+      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'createProviderInstance');
       createProviderInstanceSpy.mockReturnValue(mockInstance);
 
       const response = await aiTaskGeneratorService.generateSubTasks(mockRequest);
@@ -208,7 +208,7 @@ describe('AITaskGeneratorService', () => {
         })
       };
 
-      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as any, 'createProviderInstance');
+      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'createProviderInstance');
       createProviderInstanceSpy.mockReturnValue(mockInstance);
 
       const response = await aiTaskGeneratorService.generateSubTasks(mockRequest);
@@ -237,7 +237,7 @@ describe('AITaskGeneratorService', () => {
         })
       };
 
-      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as any, 'createProviderInstance');
+      const createProviderInstanceSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'createProviderInstance');
       createProviderInstanceSpy.mockReturnValue(mockInstance);
 
       const response = await aiTaskGeneratorService.generateSubTasks(mockRequest);
@@ -261,7 +261,7 @@ describe('AITaskGeneratorService', () => {
         reasoning: '分析推理'
       });
 
-      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as any, 'parseAIResponse');
+      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'parseAIResponse');
       const result = parseAIResponseSpy.call(aiTaskGeneratorService, content);
 
       expect(result.success).toBe(true);
@@ -282,7 +282,7 @@ describe('AITaskGeneratorService', () => {
         ]
       }) + '\n```';
 
-      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as any, 'parseAIResponse');
+      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'parseAIResponse');
       const result = parseAIResponseSpy.call(aiTaskGeneratorService, content);
 
       expect(result.success).toBe(true);
@@ -296,7 +296,7 @@ describe('AITaskGeneratorService', () => {
         3. 实现核心功能
       `;
 
-      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as any, 'parseAIResponse');
+      const parseAIResponseSpy = jest.spyOn(aiTaskGeneratorService as unknown, 'parseAIResponse');
       const result = parseAIResponseSpy.call(aiTaskGeneratorService, content);
 
       expect(result.success).toBe(true);
@@ -335,7 +335,7 @@ describe('AITaskGeneratorService', () => {
         }
       ];
 
-      const evaluateTaskQualitySpy = jest.spyOn(aiTaskGeneratorService as any, 'evaluateTaskQuality');
+      const evaluateTaskQualitySpy = jest.spyOn(aiTaskGeneratorService as unknown, 'evaluateTaskQuality');
       const result = evaluateTaskQualitySpy.call(aiTaskGeneratorService, tasks);
 
       expect(result.overallScore).toBeGreaterThan(60);
@@ -356,7 +356,7 @@ describe('AITaskGeneratorService', () => {
         }
       ];
 
-      const evaluateTaskQualitySpy = jest.spyOn(aiTaskGeneratorService as any, 'evaluateTaskQuality');
+      const evaluateTaskQualitySpy = jest.spyOn(aiTaskGeneratorService as unknown, 'evaluateTaskQuality');
       const result = evaluateTaskQualitySpy.call(aiTaskGeneratorService, tasks);
 
       expect(result.overallScore).toBeLessThan(60);
@@ -382,7 +382,7 @@ describe('AITaskGeneratorService', () => {
 
     it('应该能保存历史记录', () => {
       // 模拟私有方法调用
-      const saveGenerationHistorySpy = jest.spyOn(aiTaskGeneratorService as any, 'saveGenerationHistory');
+      const saveGenerationHistorySpy = jest.spyOn(aiTaskGeneratorService as unknown, 'saveGenerationHistory');
       
       // 手动调用保存方法（实际中会在generateSubTasks中自动调用）
       const mockRequest: AITaskGenerationRequest = {

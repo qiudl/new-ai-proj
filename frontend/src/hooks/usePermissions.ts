@@ -119,7 +119,7 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
     return userPermissions?.role?.roleCode === roleCode;
   }, [userPermissions]);
 
-  // Check if user has any of the specified roles
+  // Check if user has unknown of the specified roles
   const hasAnyRole = useCallback((roleCodes: string[]): boolean => {
     return roleCodes.some(roleCode => hasRole(roleCode));
   }, [hasRole]);

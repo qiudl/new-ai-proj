@@ -77,7 +77,7 @@ interface CustomFieldConfig {
   key: string;
   title: string;
   dataType: 'string' | 'number' | 'boolean' | 'array' | 'date';
-  render?: (value: any, record: Task) => React.ReactNode;
+  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => React.ReactNode;
   width?: number;
   sortable?: boolean;
 }
@@ -100,7 +100,7 @@ interface AdvancedFilter {
   id: string;
   field: string;
   operator: string;
-  value: any;
+  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
   logicalOperator?: 'AND' | 'OR';
 }
 
@@ -109,7 +109,7 @@ interface FilterFieldOption {
   value: string;
   label: string;
   dataType: 'string' | 'number' | 'date' | 'select' | 'multiSelect';
-  options?: { value: any; label: string }[];
+  options?: { value: React.FormEvent | React.ChangeEvent<HTMLInputElement>; label: string }[];
 }
 
 // 默认自定义字段配置
@@ -569,7 +569,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     const visibleColumns = columnConfigs.filter(config => config.visible);
     
     return visibleColumns.map(config => {
-      const baseColumn: any = {
+      const baseColumn: unknown = {
         key: config.key,
         title: config.title,
         dataIndex: config.dataIndex,
@@ -591,7 +591,7 @@ const AllFieldsTaskListPage: React.FC = () => {
         case 'title':
           return {
             ...baseColumn,
-            render: (title: string, record: any) => {
+            render: (title: string, record: unknown) => {
               const hasChildren = record.hasChildren || false;
               const isExpanded = record.isExpanded || false;
               const level = record.level || 0;
@@ -782,7 +782,7 @@ const AllFieldsTaskListPage: React.FC = () => {
             ...baseColumn,
             fixed: 'right', // 确保操作列固定在右侧
             width: 120, // 固定宽度
-            render: (_: any, record: Task) => (
+            render: (_: unknown, record: Task) => (
               <Space size="small">
                 <Tooltip title="查看详情">
                   <Button
@@ -821,7 +821,7 @@ const AllFieldsTaskListPage: React.FC = () => {
             
             return {
               ...baseColumn,
-              render: (value: any, record: Task) => {
+              render: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => {
                 if (fieldConfig?.render) {
                   return fieldConfig.render(value, record);
                 }
@@ -845,7 +845,7 @@ const AllFieldsTaskListPage: React.FC = () => {
           page: pagination.current,
           page_size: pagination.pageSize,
           search: filters.search || undefined,
-          status: filters.status.length > 0 ? filters.status.join(',') as any : undefined,
+          status: filters.status.length > 0 ? filters.status.join(',') as unknown : undefined,
           assignee_id: filters.assignee_id,
           due_after: filters.due_date_range?.[0]?.format('YYYY-MM-DD'),
           due_before: filters.due_date_range?.[1]?.format('YYYY-MM-DD'),
@@ -1005,10 +1005,10 @@ const AllFieldsTaskListPage: React.FC = () => {
       const customKey = field.replace('custom_', '');
       return task.custom_fields?.[customKey];
     }
-    return (task as any)[field];
+    return (task as unknown)[field];
   };
 
-  const matchesFilterCondition = (fieldValue: any, operator: string, filterValue: any) => {
+  const matchesFilterCondition = (fieldValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>, operator: string, filterValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     if (fieldValue == null || filterValue == null) return false;
 
     switch (operator) {
@@ -1061,7 +1061,6 @@ const AllFieldsTaskListPage: React.FC = () => {
       // 默认禁用WebSocket，因为后端未实现WebSocket服务
       const isWebSocketEnabled = localStorage.getItem('enableWebSocket') === 'true';
       if (!isWebSocketEnabled) {
-        console.log('WebSocket功能已禁用 - 后端WebSocket服务未实现');
         setConnectionStatus('disabled');
         return;
       }
@@ -1073,12 +1072,9 @@ const AllFieldsTaskListPage: React.FC = () => {
         ? 'wss://your-domain.com/ws/tasks' 
         : 'ws://localhost:8080/ws/tasks';
       
-      console.log('尝试连接WebSocket:', wsUrl);
-      
       const ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket连接已建立');
         setWsConnected(true);
         setConnectionStatus('connected');
         
@@ -1108,13 +1104,11 @@ const AllFieldsTaskListPage: React.FC = () => {
       };
       
       ws.onclose = (event) => {
-        console.log('WebSocket连接已关闭, 代码:', event.code, '原因:', event.reason);
         setWsConnected(false);
         setConnectionStatus('disconnected');
         
         // 如果是正常关闭或者服务器拒绝连接，不要重连
         if (event.code === 1000 || event.code === 1006) {
-          console.log('WebSocket连接被正常关闭或服务器不可用，停止重连');
           return;
         }
         
@@ -1133,8 +1127,7 @@ const AllFieldsTaskListPage: React.FC = () => {
         // 如果连接立即失败，禁用WebSocket功能
         if (ws.readyState === WebSocket.CONNECTING) {
           localStorage.setItem('enableWebSocket', 'false');
-          console.log('WebSocket服务不可用，已自动禁用');
-        }
+          }
       };
       
       wsRef.current = ws;
@@ -1157,7 +1150,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     setConnectionStatus('disconnected');
   }, []);
 
-  const handleWebSocketMessage = useCallback((message: any) => {
+  const handleWebSocketMessage = useCallback((message: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setLastUpdateTime(dayjs().format('HH:mm:ss'));
     
     switch (message.type) {
@@ -1174,8 +1167,7 @@ const AllFieldsTaskListPage: React.FC = () => {
         handleBulkUpdate(message.data);
         break;
       default:
-        console.log('未知的WebSocket消息类型:', message.type);
-    }
+        }
   }, []);
 
   const handleTaskCreated = useCallback((taskData: Task) => {
@@ -1706,7 +1698,7 @@ const AllFieldsTaskListPage: React.FC = () => {
             }}
             loading={loading}
             scroll={{ x: 'max-content', y: 600 }}
-            rowClassName={(record: any) => {
+            rowClassName={(record: unknown) => {
               const level = record.level || 0;
               const classes = [`task-level-${level}`];
               if (record.hasChildren) {

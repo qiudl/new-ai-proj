@@ -47,13 +47,11 @@ interface ListChildComponentProps {
 class List extends React.Component<any> {
   scrollToItem = (index: number, align?: string) => {
     // Mock implementation
-    console.log('scrollToItem called with:', index, align);
-  };
+    };
   
   scrollTo = (scrollOffset: number) => {
     // Mock implementation  
-    console.log('scrollTo called with:', scrollOffset);
-  };
+    };
   
   render() {
     return <div {...this.props}>{this.props.children}</div>;
@@ -169,7 +167,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
           {isSelectMode && (
             <Checkbox
               checked={isSelected}
-              onChange={(e) => handleToggleSelection(e as any)}
+              onChange={(e) => handleToggleSelection(e as unknown)}
               style={{ marginRight: 12 }}
             />
           )}
@@ -243,7 +241,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
           {isSelectMode && (
             <Checkbox
               checked={isSelected}
-              onChange={(e) => handleToggleSelection(e as any)}
+              onChange={(e) => handleToggleSelection(e as unknown)}
               style={{ marginRight: 12 }}
               onClick={(e) => e.stopPropagation()}
             />
@@ -268,7 +266,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
             
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Badge 
-                status={DOCUMENT_STATUS[doc.status]?.color as any} 
+                status={DOCUMENT_STATUS[doc.status]?.color as unknown} 
                 text={
                   <Text style={{ fontSize: '12px' }}>
                     {DOCUMENT_STATUS[doc.status]?.label}
@@ -343,8 +341,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
                   onClick={(e) => {
                     e.stopPropagation();
                     // 复制文档逻辑
-                    console.log('复制文档:', doc.title);
-                  }}
+                    }}
                 />
               </Tooltip>
               <Tooltip title="删除">

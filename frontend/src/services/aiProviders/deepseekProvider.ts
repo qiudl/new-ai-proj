@@ -120,8 +120,8 @@ export class DeepSeekProvider {
 
       const data = await response.json();
       return data.data
-        .filter((model: any) => model.id.includes('deepseek'))
-        .map((model: any) => model.id)
+        .filter((model: unknown) => model.id.includes('deepseek'))
+        .map((model: unknown) => model.id)
         .sort();
     } catch (error) {
       console.error('获取DeepSeek模型列表失败:', error);

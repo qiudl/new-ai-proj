@@ -17,7 +17,7 @@ const shouldSuppressMessage = (message: string): boolean => {
 };
 
 // Override console.warn to filter findDOMNode warnings
-console.warn = (...args: any[]) => {
+console.warn = (...args: unknown[]) => {
   const message = args.join(' ');
   if (!shouldSuppressMessage(message)) {
     originalConsoleWarn.apply(console, args);
@@ -25,7 +25,7 @@ console.warn = (...args: any[]) => {
 };
 
 // Override console.error for error messages
-console.error = (...args: any[]) => {
+console.error = (...args: unknown[]) => {
   const message = args.join(' ');
   if (!shouldSuppressMessage(message)) {
     originalConsoleError.apply(console, args);

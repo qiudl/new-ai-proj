@@ -31,11 +31,11 @@ const mockTouchSupport = () => {
 
   // Mock touch events
   global.TouchEvent = class MockTouchEvent extends Event {
-    touches: any[];
-    targetTouches: any[];
-    changedTouches: any[];
+    touches: unknown[];
+    targetTouches: unknown[];
+    changedTouches: unknown[];
 
-    constructor(type: string, eventInitDict: any = {}) {
+    constructor(type: string, eventInitDict: unknown = {}) {
       super(type, eventInitDict);
       this.touches = eventInitDict.touches || [];
       this.targetTouches = eventInitDict.targetTouches || [];
@@ -433,7 +433,7 @@ describe('Mobile Responsive Tests', () => {
 
       // Mock slow device performance
       const originalRequestAnimationFrame = window.requestAnimationFrame;
-      let frameCallbacks: (() => void)[] = [];
+      const frameCallbacks: (() => void)[] = [];
       
       window.requestAnimationFrame = jest.fn((callback) => {
         frameCallbacks.push(callback);

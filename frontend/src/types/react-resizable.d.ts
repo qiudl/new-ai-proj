@@ -4,12 +4,12 @@ declare module 'react-resizable' {
   export interface ResizableProps {
     width: number;
     height: number;
-    onResize: (e: any, data: { size: { width: number; height: number } }) => void;
+    onResize: (e: React.FormEvent | React.ChangeEvent<HTMLInputElement>, data: { size: { width: number; height: number } }) => void;
     children: ReactNode;
     handle?: ReactNode;
     draggableOpts?: any;
   }
   
   export const Resizable: React.FC<ResizableProps>;
-  export const ResizableBox: any;
+  export const ResizableBox: unknown;
 }

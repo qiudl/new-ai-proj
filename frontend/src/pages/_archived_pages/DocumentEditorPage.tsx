@@ -84,19 +84,9 @@ const DocumentEditorPage: React.FC = () => {
   const [creationStep, setCreationStep] = useState<'association' | 'type' | 'editor'>('association');
 
   // 调试用日志
-  console.log('DocumentEditorPage - Debug Info:', {
-    id,
-    documentId,
-    pathname: location.pathname,
-    isNewDocument,
-    isEditMode,
-    isViewMode,
-    creationStep
-  });
-
   // 创建新文档
   const createNewDocument = useCallback((docType: DocumentType, category?: string, subcategory?: string) => {
-    const typeConfig = (documentTypes as any)[docType];
+    const typeConfig = (documentTypes as unknown)[docType];
     const newDoc: DocumentModel = {
       id: 0,
       title: `新建${typeConfig.name}`,
@@ -136,7 +126,7 @@ const DocumentEditorPage: React.FC = () => {
         try {
           // 尝试从本地存储获取
           const localDocuments = JSON.parse(localStorage.getItem('mock_documents') || '[]');
-          const localDoc = localDocuments.find((d: any) => d.id === possibleId);
+          const localDoc = localDocuments.find((d: unknown) => d.id === possibleId);
           if (localDoc) {
             setDocument(localDoc);
             if (possibleId < 0) {

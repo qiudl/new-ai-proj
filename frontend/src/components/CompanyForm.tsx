@@ -41,9 +41,9 @@ const { TextArea } = Input;
 const { Title } = Typography;
 
 interface CompanyFormProps {
-  form: any;
+  form: unknown;
   company?: Company;
-  onValuesChange?: (changedValues: any, allValues: any) => void;
+  onValuesChange?: (changedValues: unknown, allValues: unknown) => void;
   disabled?: boolean;
 }
 
@@ -128,7 +128,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
       // 显示成本信息（如果有）
       if (result.cost && result.cost > 0) {
-        console.log(`AI调用成本: ${result.cost.toFixed(4)} 元`);
+        } 元`);
       }
     } catch (error) {
       console.error('AI搜索失败:', error);
@@ -143,7 +143,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
   // 应用AI搜索结果
   const handleApplyAiResult = (aiInfo: AICompanyInfo) => {
-    const formValues: any = {
+    const formValues: unknown = {
       companyName: aiInfo.companyName,
       companyType: aiInfo.companyType,
       industry: aiInfo.industry,
@@ -500,7 +500,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 placeholder="请输入年度合同金额"
                 style={{ width: '100%' }}
                 formatter={value => `¥ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={value => parseFloat(value!.replace(/¥\s?|(,*)/g, '')) || 0 as any}
+                parser={value => parseFloat(value!.replace(/¥\s?|(,*)/g, '')) || 0 as unknown}
                 min={0}
               />
             </Form.Item>
@@ -555,7 +555,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 style={{ width: '100%' }}
                 min={1}
                 formatter={value => `${value}人`}
-                parser={value => parseInt(value!.replace('人', '')) || 1 as any}
+                parser={value => parseInt(value!.replace('人', '')) || 1 as unknown}
               />
             </Form.Item>
           </Col>

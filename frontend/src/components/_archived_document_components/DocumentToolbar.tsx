@@ -214,7 +214,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
   }, [searchSuggestions]);
 
   // 高级搜索配置处理
-  const handleAdvancedFilterSubmit = useCallback((values: any) => {
+  const handleAdvancedFilterSubmit = useCallback((values: unknown) => {
     if (onAdvancedFiltersChange) {
       onAdvancedFiltersChange(values);
     }
@@ -529,8 +529,8 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
           value={`${sortBy}-${sortOrder}`}
           onChange={(value) => {
             const [field, order] = value.split('-');
-            onSortByChange(field as any);
-            onSortOrderChange(order as any);
+            onSortByChange(field as unknown);
+            onSortOrderChange(order as unknown);
           }}
           style={{ width: mode === 'simple' ? 100 : 120 }}
           size="small"

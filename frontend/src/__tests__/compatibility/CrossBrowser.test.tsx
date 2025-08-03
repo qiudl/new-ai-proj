@@ -22,8 +22,8 @@ const browsers = {
 
 // Mock CSS supports for feature detection
 const mockCSSSupports = (feature: string, value: string) => {
-  const originalSupports = (CSS as any).supports;
-  (CSS as any).supports = jest.fn((prop: string, val: string) => {
+  const originalSupports = (CSS as unknown).supports;
+  (CSS as unknown).supports = jest.fn((prop: string, val: string) => {
     if (prop === feature && val === value) {
       return true;
     }
@@ -175,8 +175,8 @@ describe('Cross-Browser Compatibility Tests', () => {
       mockUserAgent(browsers.ie11);
       
       // Mock missing modern features
-      delete (window as any).fetch;
-      delete (window as any).AbortController;
+      delete (window as unknown).fetch;
+      delete (window as unknown).AbortController;
     });
 
     it('should gracefully degrade for IE11', () => {
@@ -230,7 +230,7 @@ describe('Cross-Browser Compatibility Tests', () => {
 
     it('should fallback to flexbox when CSS Grid is not available', () => {
       // Mock no grid support
-      (CSS as any).supports = jest.fn(() => false);
+      (CSS as unknown).supports = jest.fn(() => false);
 
       render(
         <TaskParentSelectorModal
@@ -246,7 +246,7 @@ describe('Cross-Browser Compatibility Tests', () => {
 
     it('should handle missing IntersectionObserver API', () => {
       const originalIntersectionObserver = window.IntersectionObserver;
-      delete (window as any).IntersectionObserver;
+      delete (window as unknown).IntersectionObserver;
 
       render(
         <TaskParentSelectorModal

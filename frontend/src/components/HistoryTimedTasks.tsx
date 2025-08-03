@@ -43,15 +43,9 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
   const loadHistoryTasks = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('开始加载历史任务数据...');
-      
       const statsResponse = await TimerService.getTimerStats();
-      console.log('Timer stats response:', statsResponse);
-      
       // 获取最近的计时任务，按最后计时时间倒序
       const recentTasks = statsResponse.recent_tasks || [];
-      console.log('Recent tasks from API:', recentTasks);
-      
       // 按最后计时时间倒序排列
       const sortedTasks = recentTasks.sort((a, b) => {
         const timeA = dayjs(a.last_timed_at);
@@ -59,7 +53,6 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
         return timeB.valueOf() - timeA.valueOf();
       });
       
-      console.log('Sorted tasks:', sortedTasks);
       setTasks(sortedTasks);
       setLastUpdated(new Date());
     } catch (error) {

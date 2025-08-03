@@ -79,7 +79,7 @@ class DocumentManagerPerformance {
   // 获取内存使用情况
   private getMemoryUsage(): number {
     if ('memory' in performance) {
-      return (performance as any).memory.usedJSHeapSize / 1024 / 1024; // MB
+      return (performance as unknown).memory.usedJSHeapSize / 1024 / 1024; // MB
     }
     return 0;
   }
@@ -149,7 +149,7 @@ class DocumentManagerPerformance {
   }
 
   // 生成性能建议
-  private generateRecommendations(summary: any): string[] {
+  private generateRecommendations(summary: unknown): string[] {
     const recommendations: string[] = [];
 
     if (summary.averageRenderTime > 50) {
@@ -301,7 +301,7 @@ export const documentManagerPerf = new DocumentManagerPerformance();
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as any).documentManagerPerf = documentManagerPerf;
+  (window as unknown).documentManagerPerf = documentManagerPerf;
 }
 
 // 便捷函数

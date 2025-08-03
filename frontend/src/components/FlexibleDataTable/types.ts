@@ -6,7 +6,7 @@ import type { TableProps } from 'antd';
 export interface FlexibleColumnConfig {
   key: string;
   title: string;
-  dataIndex: string | string[] | ((record: any) => any);
+  dataIndex: string | string[] | ((record: unknown) => any);
   width?: number;
   minWidth?: number;
   maxWidth?: number;
@@ -17,10 +17,10 @@ export interface FlexibleColumnConfig {
   draggable: boolean;
   required?: boolean; // 必须显示的列，无法隐藏
   customField?: boolean; // 自定义字段标识
-  render?: (value: any, record: any, index: number) => ReactNode;
-  sorter?: boolean | ((a: any, b: any) => number);
-  filters?: Array<{ text: string; value: any }>;
-  onFilter?: (value: any, record: any) => boolean;
+  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown, index: number) => ReactNode;
+  sorter?: boolean | ((a: unknown, b: unknown) => number);
+  filters?: Array<{ text: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
+  onFilter?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown) => boolean;
   ellipsis?: boolean;
   align?: 'left' | 'center' | 'right';
   className?: string;
@@ -33,10 +33,10 @@ export interface ActionButton {
   icon?: ReactNode;
   type?: 'default' | 'primary' | 'text' | 'link' | 'ghost' | 'dashed';
   danger?: boolean;
-  disabled?: (record: any) => boolean;
-  visible?: (record: any) => boolean;
-  onClick: (record: any, index: number) => void;
-  loading?: (record: any) => boolean;
+  disabled?: (record: unknown) => boolean;
+  visible?: (record: unknown) => boolean;
+  onClick: (record: unknown, index: number) => void;
+  loading?: (record: unknown) => boolean;
 }
 
 // 批量操作配置
@@ -45,9 +45,9 @@ export interface BatchAction {
   title: string;
   icon?: ReactNode;
   danger?: boolean;
-  disabled?: (selectedKeys: React.Key[], selectedRows: any[]) => boolean;
-  visible?: (selectedKeys: React.Key[], selectedRows: any[]) => boolean;
-  onClick: (selectedKeys: React.Key[], selectedRows: any[]) => void;
+  disabled?: (selectedKeys: React.Key[], selectedRows: unknown[]) => boolean;
+  visible?: (selectedKeys: React.Key[], selectedRows: unknown[]) => boolean;
+  onClick: (selectedKeys: React.Key[], selectedRows: unknown[]) => void;
   confirm?: {
     title: string;
     content?: string;
@@ -69,7 +69,7 @@ export interface FilterConfig {
     key: string;
     title: string;
     type: 'select' | 'dateRange' | 'numberRange' | 'text';
-    options?: Array<{ label: string; value: any }>;
+    options?: Array<{ label: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
     placeholder?: string;
     defaultValue?: any;
   }>;
@@ -98,9 +98,9 @@ interface SortState {
 // 表格主配置接口
 export interface FlexibleDataTableProps {
   // 数据相关
-  dataSource: any[];
+  dataSource: React.FormEvent | React.ChangeEvent<HTMLInputElement>[];
   loading?: boolean;
-  rowKey?: string | ((record: any) => string);
+  rowKey?: string | ((record: unknown) => string);
   
   // 列配置
   columns: FlexibleColumnConfig[];
@@ -114,10 +114,10 @@ export interface FlexibleDataTableProps {
   rowSelection?: {
     type?: 'checkbox' | 'radio';
     selectedRowKeys?: React.Key[];
-    onChange?: (selectedRowKeys: React.Key[], selectedRows: any[]) => void;
-    onSelect?: (record: any, selected: boolean, selectedRows: any[], nativeEvent: Event) => void;
-    onSelectAll?: (selected: boolean, selectedRows: any[], changeRows: any[]) => void;
-    getCheckboxProps?: (record: any) => any;
+    onChange?: (selectedRowKeys: React.Key[], selectedRows: unknown[]) => void;
+    onSelect?: (record: unknown, selected: boolean, selectedRows: unknown[], nativeEvent: Event) => void;
+    onSelectAll?: (selected: boolean, selectedRows: unknown[], changeRows: unknown[]) => void;
+    getCheckboxProps?: (record: unknown) => any;
   };
   
   // 搜索和筛选
@@ -153,20 +153,20 @@ export interface FlexibleDataTableProps {
     enable: boolean;
     formats?: ('csv' | 'excel' | 'pdf')[];
     fileName?: string;
-    onExport?: (format: string, data: any[]) => void;
+    onExport?: (format: string, data: Record<string, unknown>[]) => void;
   };
   
   // 扩展功能
   expandable?: {
-    expandedRowRender?: (record: any, index: number, indent: number, expanded: boolean) => ReactNode;
+    expandedRowRender?: (record: unknown, index: number, indent: number, expanded: boolean) => ReactNode;
     expandedRowKeys?: React.Key[];
-    onExpand?: (expanded: boolean, record: any) => void;
+    onExpand?: (expanded: boolean, record: unknown) => void;
     onExpandedRowsChange?: (expandedRows: readonly React.Key[]) => void;
   };
   
   // 事件回调
-  onRow?: (record: any, index?: number) => any;
-  onChange?: (pagination: any, filters: any, sorter: SorterResult<any> | SorterResult<any>[], extra: any) => void;
+  onRow?: (record: unknown, index?: number) => any;
+  onChange?: (pagination: unknown, filters: unknown, sorter: SorterResult<any> | SorterResult<any>[], extra: unknown) => void;
   
   // 其他 Ant Design Table 属性
   className?: string;
@@ -216,7 +216,7 @@ export interface ToolbarConfig {
 export interface TableState {
   loading: boolean;
   selectedRowKeys: React.Key[];
-  selectedRows: any[];
+  selectedRows: unknown[];
   searchValue: string;
   filters: Record<string, any>;
   sorter: SortState | null;

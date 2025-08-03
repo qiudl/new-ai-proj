@@ -221,7 +221,7 @@ export class DashboardService {
       }
 
       // 为每个项目获取任务数据，使用Promise.allSettled避免单个项目失败影响整体
-      const taskPromises = projects.map((project: any) => 
+      const taskPromises = projects.map((project: unknown) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`).catch(error => {
           console.warn(`Failed to load tasks for project ${project.id}:`, error);
           return { data: { data: [] } }; // 返回空数组作为降级
@@ -379,7 +379,7 @@ export class DashboardService {
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: any) => 
+      const taskPromises = projects.map((project: unknown) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
@@ -425,7 +425,7 @@ export class DashboardService {
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据并计算进度
-      const progressPromises = projects.map(async (project: any) => {
+      const progressPromises = projects.map(async (project: unknown) => {
         const tasksResponse = await api.get(`/projects/${project.id}/tasks?page=1&page_size=100`);
         const projectTasks = tasksResponse.data?.data || [];
         
@@ -471,7 +471,7 @@ export class DashboardService {
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: any) => 
+      const taskPromises = projects.map((project: unknown) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
@@ -561,7 +561,7 @@ export class DashboardService {
       const projects = projectsResponse.data?.data || [];
 
       // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: any) => 
+      const taskPromises = projects.map((project: unknown) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       

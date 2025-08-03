@@ -69,14 +69,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           return;
         }
 
-        console.log('Fetching user profile...');
         const response = await userService.getProfile();
-        console.log('User profile response:', response);
-        
         if (response.success && response.data) {
           setCurrentUser(response.data);
-          console.log('User profile loaded successfully:', response.data);
-        } else {
+          } else {
           console.error('Failed to load user profile:', response.message);
           // Don't redirect to login for profile fetch failure, user might still be authenticated
         }
@@ -85,8 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         // Check if it's an authentication error
         if (error && typeof error === 'object' && 'type' in error) {
-          if ((error as any).type === 'AUTHENTICATION') {
-            console.log('Authentication error detected, redirecting to login');
+          if ((error as unknown).type === 'AUTHENTICATION') {
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
             navigate('/login');
@@ -95,7 +90,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
         
         // For other errors, don't redirect but show a fallback
-        console.log('Non-authentication error, continuing with fallback user data');
         const storedUser = localStorage.getItem('currentUser');
         if (storedUser) {
           try {

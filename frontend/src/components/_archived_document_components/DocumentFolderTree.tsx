@@ -409,7 +409,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
       message.success('文件夹移动成功');
       loadFolderTree();
       onFolderChange?.();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       message.error(error.message || '移动文件夹失败');
     }
   };
@@ -426,7 +426,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
       if (selectedFolderId === folderId) {
         onFolderSelect?.(null);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       message.error(error.message || '删除文件夹失败');
     }
   };
@@ -464,7 +464,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
   };
 
   // 处理表单提交
-  const handleFormSubmit = async (values: any) => {
+  const handleFormSubmit = async (values: unknown) => {
     try {
       if (modalMode === 'create') {
         const request: CreateDocumentFolderRequest = {
@@ -483,7 +483,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
       form.resetFields();
       loadFolderTree();
       onFolderChange?.();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       message.error(error.message || '操作失败');
     }
   };

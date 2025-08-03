@@ -303,8 +303,6 @@ const TaskDashboardPage: React.FC = () => {
     queryFn: async () => {
       try {
         setLoading(true);
-        console.log('🔄 开始获取所有任务数据...');
-        
         // 检查认证状态
         const token = localStorage.getItem('token');
         if (!token) {
@@ -314,8 +312,6 @@ const TaskDashboardPage: React.FC = () => {
         }
         
         const tasks = await DashboardService.getAllTasks();
-        console.log('✅ 获取到的所有任务:', tasks, '总数:', tasks?.length || 0);
-        
         if (!tasks || tasks.length === 0) {
           console.warn('⚠️ 未获取到任务数据，可能是没有任务或API返回空数组');
         }
@@ -351,29 +347,24 @@ const TaskDashboardPage: React.FC = () => {
   // 筛选本周任务
   const weeklyTasks = useMemo(() => {
     if (!allTasks) {
-      console.log('🔍 筛选本周任务: allTasks为空');
       return [];
     }
 
-    console.log('🔍 筛选本周任务: 总任务数', allTasks.length);
-    console.log('🔍 本周范围:', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
+    , '到', weekEnd.format('YYYY-MM-DD'));
 
     const filteredTasks = allTasks.filter((task: Task) => {
       if (!task.due_date && !task.created_at) {
-        console.log('  🔍 任务无日期:', task.title);
         return false;
       }
       
       const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
       const isInWeek = taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
       
-      console.log(`  🔍 任务 "${task.title}": ${taskDate.format('YYYY-MM-DD')} -> 在本周: ${isInWeek}`);
+      } -> 在本周: ${isInWeek}`);
       
       return isInWeek;
     });
 
-    console.log('✅ 本周任务筛选结果:', filteredTasks.length, '个任务');
-    
     return filteredTasks;
   }, [allTasks, weekStart, weekEnd]);
 

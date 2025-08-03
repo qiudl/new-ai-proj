@@ -80,11 +80,6 @@ const DocumentList: React.FC<DocumentListProps> = ({
     try {
       // 检查认证状态
       const token = localStorage.getItem('token');
-      console.log('当前认证状态:', token ? '已登录' : '未登录');
-      console.log('获取文档列表 - 项目ID:', projectId);
-      console.log('搜索条件:', searchTerm);
-      console.log('排序:', sortBy, order);
-
       const filter: DocumentFilter = {
         page: page || 1,
         limit: pageSize || 20,
@@ -97,17 +92,16 @@ const DocumentList: React.FC<DocumentListProps> = ({
       }
 
       const data = projectId 
-        ? await unifiedDocumentService.getAllDocuments({ ...filter, project_id: projectId } as any)
-        : await unifiedDocumentService.getAllDocuments(filter as any);
+        ? await unifiedDocumentService.getAllDocuments({ ...filter, project_id: projectId } as unknown)
+        : await unifiedDocumentService.getAllDocuments(filter as unknown);
       
-      console.log('获取到的文档数据:', data);
       setDocuments(data.documents || []);
       setTotal(data.total || 0);
       
       if (!token) {
         message.warning('当前使用本地数据，请登录以获取最新文档');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Failed to fetch documents:', error);
       const errorMessage = error.message || '获取文档列表失败';
       message.error(errorMessage);
@@ -192,7 +186,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   // 表格列定义
-  const columns: any[] = [
+  const columns: unknown[] = [
     {
       title: '文档标题',
       dataIndex: 'title',
@@ -259,7 +253,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       title: '操作',
       key: 'actions',
       width: 100,
-      render: (_: any, record: DocumentListItem) => (
+      render: (_: unknown, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="编辑">
             <Button

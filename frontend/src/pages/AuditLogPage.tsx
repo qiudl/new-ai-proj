@@ -245,7 +245,7 @@ const AuditLogPage: React.FC = () => {
   }, [filters]);
 
   // 表格列定义
-  const columns: any[] = [
+  const columns: unknown[] = [
     {
       title: '时间',
       dataIndex: 'created_at',

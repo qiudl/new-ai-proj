@@ -195,7 +195,7 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
                 <Divider />
                 <Title level={5}>热门搜索类别</Title>
                 <Space wrap>
-                  {searchAnalytics.topCategories.map((category: any, index: number) => (
+                  {searchAnalytics.topCategories.map((category: unknown, index: number) => (
                     <Tag key={index} color="blue">
                       {category.category} ({category.searches})
                     </Tag>
@@ -225,8 +225,8 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
             allowUpload={true}
             allowBatch={true}
             showViewToggle={true}
-            onDocumentSelect={(doc) => console.log('选择文档:', doc)}
-            onDocumentUpdate={() => console.log('文档已更新')}
+            onDocumentSelect={(doc) => }
+            onDocumentUpdate={() => }
           />
         </Card>
 
@@ -249,7 +249,7 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
             enableIntelligentSearch={true}
             allowUpload={true}
             allowBatch={true}
-            onDocumentSelect={(doc) => console.log('协作选择:', doc)}
+            onDocumentSelect={(doc) => }
           />
         </Card>
 
@@ -270,7 +270,7 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
             enableIntelligentSearch={true}
             showViewToggle={true}
             allowBatch={true}
-            onDocumentSelect={(doc) => console.log('高性能选择:', doc)}
+            onDocumentSelect={(doc) => }
           />
         </Card>
 
@@ -291,7 +291,7 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
                 projectId={1}
                 showViewToggle={false}
                 allowBatch={false}
-                onDocumentSelect={(doc) => console.log('简洁选择:', doc)}
+                onDocumentSelect={(doc) => }
               />
             </Card>
           </Col>
@@ -313,7 +313,7 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
                 allowUpload={true}
                 allowBatch={true}
                 showViewToggle={true}
-                onDocumentSelect={(doc) => console.log('高级选择:', doc)}
+                onDocumentSelect={(doc) => }
               />
             </Card>
           </Col>
@@ -349,8 +349,8 @@ const AdvancedDocumentManagerExamples: React.FC = () => {
             <Button
               icon={<ExperimentOutlined />}
               onClick={() => {
-                console.log('搜索分析:', intelligentSearch.getSearchAnalytics());
-                console.log('热门搜索:', intelligentSearch.getTrendingSearches(5));
+                );
+                );
               }}
             >
               输出搜索分析

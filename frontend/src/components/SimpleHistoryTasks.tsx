@@ -29,18 +29,14 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
       setLoading(true);
       setError(null);
       
-      console.log('正在调用 TimerService.getTimerStats()...');
+      ...');
       const statsResponse = await TimerService.getTimerStats();
-      console.log('API 响应:', statsResponse);
-      
       if (statsResponse && statsResponse.recent_tasks) {
-        console.log('找到历史任务:', statsResponse.recent_tasks.length, '个');
         setTasks(statsResponse.recent_tasks);
       } else {
-        console.log('没有历史任务数据');
         setTasks([]);
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('API调用失败:', error);
       setError(error.message || '加载失败');
       setTasks([]);
@@ -119,7 +115,7 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
           {tasks.length > 0 ? (
             <List
               dataSource={tasks}
-              renderItem={(task: any) => (
+              renderItem={(task: unknown) => (
                 <List.Item style={{ padding: '12px 16px' }}>
                   <div style={{ width: '100%' }}>
                     <div style={{ marginBottom: '8px' }}>

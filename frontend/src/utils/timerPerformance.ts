@@ -37,8 +37,6 @@ class TimerPerformanceMonitor {
     if (this.isMonitoring) return;
 
     this.isMonitoring = true;
-    console.log('🚀 Timer performance monitoring started');
-
     // Initialize Performance Observer for API calls
     if ('PerformanceObserver' in window) {
       try {
@@ -77,7 +75,6 @@ class TimerPerformanceMonitor {
     // FIX: Clean up memory monitoring interval
     this.stopMemoryMonitoring();
 
-    console.log('⏹️ Timer performance monitoring stopped');
     this.generatePerformanceReport();
   }
 
@@ -177,16 +174,16 @@ class TimerPerformanceMonitor {
 
       if ('memory' in performance) {
         try {
-          const memInfo = (performance as any).memory;
+          const memInfo = (performance as unknown).memory;
           this.metrics.memoryUsage = memInfo.usedJSHeapSize / (1024 * 1024); // Convert to MB
           
           // Reduced threshold for memory warning
           if (this.metrics.memoryUsage > 100) {
             console.warn(`⚠️ High memory usage detected: ${this.metrics.memoryUsage.toFixed(2)}MB`);
             // Force garbage collection if available (Chrome DevTools)
-            if ('gc' in window && typeof (window as any).gc === 'function') {
+            if ('gc' in window && typeof (window as unknown).gc === 'function') {
               try {
-                (window as any).gc();
+                (window as unknown).gc();
               } catch (e) {
                 // Ignore errors
               }
@@ -251,7 +248,6 @@ ${recentBenchmarks.map(b =>
 ${this.generateRecommendations(metrics)}
     `;
 
-    console.log(report);
     return report;
   }
 
@@ -287,8 +283,6 @@ ${this.generateRecommendations(metrics)}
   static async testConcurrentOperations(): Promise<void> {
     if (!this.isMonitoring) return;
 
-    console.log('🧪 Testing concurrent timer operations...');
-
     const operations = [
       () => this.simulateApiCall('start_timer', 100),
       () => this.simulateApiCall('get_current', 75),
@@ -302,7 +296,7 @@ ${this.generateRecommendations(metrics)}
       await Promise.all(operations.map(op => op()));
       
       const totalTime = performance.now() - startTime;
-      console.log(`✅ Concurrent operations completed in ${totalTime.toFixed(2)}ms`);
+      }ms`);
       
       this.recordBenchmark('concurrent_test', totalTime, true);
     } catch (error) {
@@ -355,11 +349,10 @@ ${this.generateRecommendations(metrics)}
     }
 
     // Force garbage collection if available
-    if ('gc' in window && typeof (window as any).gc === 'function') {
+    if ('gc' in window && typeof (window as unknown).gc === 'function') {
       try {
-        (window as any).gc();
-        console.log('🗑️ Manual garbage collection triggered');
-      } catch (e) {
+        (window as unknown).gc();
+        } catch (e) {
         console.warn('Manual garbage collection failed:', e);
       }
     }

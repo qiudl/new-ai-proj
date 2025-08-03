@@ -192,7 +192,7 @@ class TimerCacheManager extends CacheManager {
   private readonly HISTORY_TTL = CACHE_TTL.REGULAR;
 
   // 缓存个人计时任务列表
-  cacheTimerTasks(userId: number, tasks: any, filters?: any): void {
+  cacheTimerTasks(userId: number, tasks: unknown, filters?: any): void {
     const key = CACHE_KEYS.TIMER_TASKS(userId, filters);
     this.set(key, tasks, this.TIMER_TASKS_TTL);
   }
@@ -203,7 +203,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存仪表板数据
-  cacheDashboard(userId: number, dashboard: any): void {
+  cacheDashboard(userId: number, dashboard: unknown): void {
     const key = CACHE_KEYS.DASHBOARD_STATS(userId);
     this.set(key, dashboard, this.DASHBOARD_TTL);
   }
@@ -214,7 +214,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存周报仪表板数据
-  cacheWeeklyDashboard(userId: number, startDate: string, endDate: string, projectId: number | undefined, data: any): void {
+  cacheWeeklyDashboard(userId: number, startDate: string, endDate: string, projectId: number | undefined, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.DASHBOARD_WEEKLY(userId, startDate, endDate, projectId);
     this.set(key, data, CACHE_TTL.STABLE);
   }
@@ -225,7 +225,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存项目进度数据
-  cacheProjectProgress(userId: number, data: any): void {
+  cacheProjectProgress(userId: number, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.DASHBOARD_PROJECT_PROGRESS(userId);
     this.set(key, data, CACHE_TTL.FREQUENT);
   }
@@ -236,7 +236,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存用户工作负载
-  cacheUserWorkload(userId: number, data: any): void {
+  cacheUserWorkload(userId: number, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.DASHBOARD_USER_WORKLOAD(userId);
     this.set(key, data, CACHE_TTL.FREQUENT);
   }
@@ -247,7 +247,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存最近活动
-  cacheRecentActivities(userId: number, limit: number, data: any): void {
+  cacheRecentActivities(userId: number, limit: number, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.DASHBOARD_RECENT_ACTIVITIES(userId, limit);
     this.set(key, data, CACHE_TTL.REGULAR);
   }
@@ -258,7 +258,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存分析数据
-  cacheAnalytics(userId: number, timeRange: string, analytics: any): void {
+  cacheAnalytics(userId: number, timeRange: string, analytics: unknown): void {
     const key = CACHE_KEYS.TIMER_ANALYTICS(userId, timeRange);
     this.set(key, analytics, this.ANALYTICS_TTL);
   }
@@ -269,7 +269,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存历史记录
-  cacheHistory(userId: number, page: number, limit: number, history: any): void {
+  cacheHistory(userId: number, page: number, limit: number, history: unknown): void {
     const key = CACHE_KEYS.TIMER_HISTORY(userId, page, limit);
     this.set(key, history, this.HISTORY_TTL);
   }
@@ -280,7 +280,7 @@ class TimerCacheManager extends CacheManager {
   }
 
   // 缓存任务相关数据
-  cacheTasksByProject(projectId: number, page: number, pageSize: number, data: any): void {
+  cacheTasksByProject(projectId: number, page: number, pageSize: number, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.TASKS_BY_PROJECT(projectId, page, pageSize);
     this.set(key, data, CACHE_TTL.REGULAR);
   }
@@ -290,7 +290,7 @@ class TimerCacheManager extends CacheManager {
     return this.get(key);
   }
 
-  cacheTasksByStatus(userId: number, data: any): void {
+  cacheTasksByStatus(userId: number, data: Record<string, unknown>): void {
     const key = CACHE_KEYS.TASKS_BY_STATUS(userId);
     this.set(key, data, CACHE_TTL.LIVE_UPDATES);
   }
@@ -378,7 +378,7 @@ class TimerCacheManager extends CacheManager {
 }
 
 // 防抖函数
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => any>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -391,7 +391,7 @@ export function debounce<T extends (...args: any[]) => any>(
 }
 
 // 节流函数
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => any>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -466,8 +466,8 @@ export const memoryMonitor = {
   }),
   
   getMemoryUsage: () => {
-    if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as any)) {
-      const memory = (window.performance as any).memory;
+    if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as unknown)) {
+      const memory = (window.performance as unknown).memory;
       return {
         used: Math.round(memory.usedJSHeapSize / 1024 / 1024),
         total: Math.round(memory.totalJSHeapSize / 1024 / 1024),

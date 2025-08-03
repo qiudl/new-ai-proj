@@ -533,7 +533,7 @@ const MobileDragDrop: React.FC<MobileDragDropProps> = ({
                 <Button
                   type="text"
                   icon={<ArrowLeftOutlined />}
-                  onClick={() => onFolderSelect?.(null as any)}
+                  onClick={() => onFolderSelect?.(null as unknown)}
                 />
               )}
               <Title level={5} style={{ margin: 0 }}>

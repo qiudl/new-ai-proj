@@ -3,7 +3,7 @@
 /**
  * Debounce function to limit function calls
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -18,7 +18,7 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * Throttle function to limit function calls to once per interval
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -55,7 +55,7 @@ export function chunkArray<T>(array: T[], size: number = 100): T[][] {
 /**
  * Estimate memory usage of an object in bytes
  */
-export function estimateObjectSize(obj: any): number {
+export function estimateObjectSize(obj: unknown): number {
   try {
     const str = JSON.stringify(obj);
     return str.length * 2; // Each character is ~2 bytes in UTF-16
@@ -154,7 +154,7 @@ export const MemoryUtils = {
    */
   getCurrentMemoryUsage(): { used: number; total: number; limit: number } | null {
     if ('memory' in performance) {
-      const memory = (performance as any).memory;
+      const memory = (performance as unknown).memory;
       return {
         used: memory.usedJSHeapSize,
         total: memory.totalJSHeapSize,
@@ -196,7 +196,7 @@ export const MemoryUtils = {
    */
   forceGarbageCollection(): void {
     if ('gc' in window) {
-      (window as any).gc();
+      (window as unknown).gc();
     }
   }
 };

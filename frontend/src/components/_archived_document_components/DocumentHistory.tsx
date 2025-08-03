@@ -47,16 +47,11 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
   const [compareMode, setCompareMode] = useState(false);
   const [compareVersions, setCompareVersions] = useState<[DocumentVersion | null, DocumentVersion | null]>([null, null]);
 
-  console.log('API请求: 初始化文档版本历史组件');
-
   // 加载版本历史 - 使用真实API
   const loadVersionHistory = async () => {
     setLoading(true);
     try {
-      console.log('API请求: GET /api/v1/documents/' + document.id + '/versions');
       const response = await documentVersionService.getVersionHistory(document.id);
-      console.log('版本历史API响应:', response);
-      
       // 转换数据格式以匹配组件需要的结构
       const formattedVersions: DocumentVersion[] = response.versions.map((version, index) => ({
         id: parseInt(version.id),
@@ -142,7 +137,6 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
 
   useEffect(() => {
     if (visible) {
-      console.log('API请求: 组件显示，开始加载版本历史');
       loadVersionHistory();
     }
   }, [visible]);
@@ -156,9 +150,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
       cancelText: '取消',
       onOk: async () => {
         try {
-          console.log('API请求: POST /api/v1/documents/' + document.id + '/versions/' + version.id + '/restore');
           await documentVersionService.restoreVersion(document.id, version.id.toString());
-          console.log('版本恢复成功');
           message.success(`已恢复到版本 ${version.version}`);
           onRestore?.(version);
           onClose();
@@ -212,9 +204,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
   // 版本比较 - 使用真实API
   const performVersionComparison = async (version1: DocumentVersion, version2: DocumentVersion) => {
     try {
-      console.log(`API请求: GET /api/v1/documents/${document.id}/versions/compare?from=${version1.id}&to=${version2.id}`);
       const diff = await documentVersionService.compareVersions(document.id, version1.id.toString(), version2.id.toString());
-      console.log('版本比较API响应:', diff);
       return diff;
     } catch (error) {
       console.warn('版本比较API调用失败，使用本地计算:', error);

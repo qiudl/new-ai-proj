@@ -155,7 +155,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     try {
       await onDocumentCopy(document.id);
       message.success(`文档"${document.title}"复制成功`);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('复制文档失败:', error);
       message.error(`复制文档失败: ${error.message || '未知错误'}`);
     } finally {
@@ -177,7 +177,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     try {
       await onToggleTemplate(document.id);
       message.success(`${newStatus}模板"${document.title}"成功`);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('切换模板状态失败:', error);
       message.error(`${newStatus}模板失败: ${error.message || '未知错误'}`);
     } finally {
@@ -193,7 +193,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       // 模拟导出延迟
       await new Promise(resolve => setTimeout(resolve, 1000));
       message.success(`文档"${document.title}"导出为${format}成功`);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('导出文档失败:', error);
       message.error(`导出文档失败: ${error.message || '未知错误'}`);
     } finally {
@@ -233,7 +233,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         URL.revokeObjectURL(url);
       }
       message.success(`文档"${document.title}"下载成功`);
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('下载文档失败:', error);
       message.error(`下载文档失败: ${error.message || '未知错误'}`);
     } finally {
@@ -262,7 +262,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         />
       ),
       width: 50,
-      render: (_: any, record: DocumentListItem) => (
+      render: (_: unknown, record: DocumentListItem) => (
         <Checkbox
           checked={selectedDocuments.includes(record.id)}
           onChange={() => onToggleSelection(record.id)}
@@ -334,7 +334,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       title: '操作',
       key: 'actions',
       width: 100,
-      render: (_: any, record: DocumentListItem) => (
+      render: (_: unknown, record: DocumentListItem) => (
         <Space size="small">
           <Tooltip title="编辑">
             <Button
@@ -362,7 +362,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
                 setOperationLoadingState(loadingKey, true);
                 try {
                   await onDocumentDelete(record.id);
-                } catch (error: any) {
+                } catch (error: Error | unknown) {
                   console.error('删除文档失败:', error);
                   message.error(`删除文档失败: ${error.message || '未知错误'}`);
                 } finally {
@@ -408,7 +408,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         />
       ),
       width: 50,
-      render: (_: any, record: Document) => (
+      render: (_: unknown, record: Document) => (
         <Checkbox
           checked={selectedDocuments.includes(record.id)}
           onChange={() => onToggleSelection(record.id)}
@@ -418,7 +418,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
     {
       title: '文档',
       key: 'document',
-      render: (_: any, record: Document) => (
+      render: (_: unknown, record: Document) => (
         <Space>
           {DOCUMENT_TYPE_ICONS[record.type] || DOCUMENT_TYPE_ICONS.text}
           <div>
@@ -471,7 +471,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         const config = DOCUMENT_STATUS[status as keyof typeof DOCUMENT_STATUS];
         return (
           <Badge 
-            status={config?.color as any} 
+            status={config?.color as unknown} 
             text={config?.label || status}
           />
         );
@@ -548,7 +548,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       title: '操作',
       key: 'actions',
       width: 140,
-      render: (_: any, record: Document) => {
+      render: (_: unknown, record: Document) => {
         const moreActions: MenuProps['items'] = [
           {
             key: 'template',
@@ -654,7 +654,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
                   setOperationLoadingState(loadingKey, true);
                   try {
                     await onDocumentDelete(record.id);
-                  } catch (error: any) {
+                  } catch (error: Error | unknown) {
                     console.error('删除文档失败:', error);
                     message.error(`删除文档失败: ${error.message || '未知错误'}`);
                   } finally {
@@ -681,7 +681,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   ];
 
   const columns = mode === 'simple' 
-    ? getSimpleColumns() as any[]
+    ? getSimpleColumns() as unknown[]
     : getAdvancedColumns();
 
   // 错误状态处理
@@ -724,8 +724,8 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
   return (
     <Spin spinning={loading} tip="加载文档列表...">
       <Table
-        columns={columns as any}
-        dataSource={documents as any}
+        columns={columns as unknown}
+        dataSource={documents as unknown}
         rowKey="id"
         pagination={{
           current: page,

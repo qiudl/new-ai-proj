@@ -81,7 +81,7 @@ interface CustomFieldConfig {
   key: string;
   title: string;
   dataType: 'string' | 'number' | 'boolean' | 'array' | 'date';
-  render?: (value: any, record: Task) => React.ReactNode;
+  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => React.ReactNode;
   width?: number;
   sortable?: boolean;
 }
@@ -104,7 +104,7 @@ interface AdvancedFilter {
   id: string;
   field: string;
   operator: string;
-  value: any;
+  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
   logicalOperator?: 'AND' | 'OR';
 }
 
@@ -687,7 +687,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData(); // 重新加载数据
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       // 使用改进的错误日志记录
       logApiError('Task creation failed in component', error, { 
         projectId, 
@@ -733,10 +733,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       const customKey = field.replace('custom_', '');
       return task.custom_fields?.[customKey];
     }
-    return (task as any)[field];
+    return (task as unknown)[field];
   };
 
-  const matchesFilterCondition = (fieldValue: any, operator: string, filterValue: any) => {
+  const matchesFilterCondition = (fieldValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>, operator: string, filterValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     // 处理为空和不为空的特殊情况
     if (operator === 'isEmpty') {
       return fieldValue == null || fieldValue === '' || 
@@ -779,13 +779,13 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     const visibleColumns = columnConfigs.filter(config => config.visible);
     
     return visibleColumns.map(config => {
-      const baseColumn: any = {
+      const baseColumn: unknown = {
         key: config.key,
         title: config.title,
         dataIndex: config.dataIndex,
         width: config.width,
         fixed: config.fixed,
-        sorter: config.sortable ? (a: any, b: any) => {
+        sorter: config.sortable ? (a: unknown, b: unknown) => {
           // 使用自定义排序逻辑，实际排序在loadData中处理
           return 0;
         } : false,
@@ -805,7 +805,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         case 'title':
           return {
             ...baseColumn,
-            render: (title: string, record: any) => {
+            render: (title: string, record: unknown) => {
               const level = record.level || 0;
               
               return (
@@ -862,7 +862,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         case 'timer_actions':
           return {
             ...baseColumn,
-            render: (_: any, record: Task) => {
+            render: (_: unknown, record: Task) => {
               const isCurrentTask = timerState.taskId === record.id;
               const isRunning = timerState.isRunning && isCurrentTask;
               const isPaused = isRunning && timerState.isPaused;
@@ -962,7 +962,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             ...baseColumn,
             fixed: 'right',
             width: 120,
-            render: (_: any, record: Task) => (
+            render: (_: unknown, record: Task) => (
               <Space size="small">
                 <Tooltip title="查看详情">
                   <Button
@@ -1001,7 +1001,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             
             return {
               ...baseColumn,
-              render: (value: any, record: Task) => {
+              render: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => {
                 if (fieldConfig?.render) {
                   return fieldConfig.render(value, record);
                 }
@@ -1028,7 +1028,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           await TaskService.deleteTask(projectId, task.id);
           message.success('任务删除成功');
           loadData();
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           console.error('Error deleting task:', error);
           const errorMessage = error?.message || error?.error?.message || '删除失败';
           message.error(`删除失败: ${errorMessage}`);
@@ -1090,7 +1090,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           
           setSelectedRowKeys([]);
           loadData();
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           logApiError('Batch status update failed', error, { 
             projectId, 
             taskCount: selectedRowKeys.length,
@@ -1125,7 +1125,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           message.success(`成功设置了 ${selectedRowKeys.length} 个任务的优先级`);
           setSelectedRowKeys([]);
           loadData();
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           console.error('Error in batch priority update:', error);
           const errorMessage = error?.message || error?.error?.message || '批量设置优先级失败';
           message.error(`批量设置优先级失败: ${errorMessage}`);
@@ -1162,7 +1162,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           message.success(`成功删除了 ${selectedRowKeys.length} 个任务`);
           setSelectedRowKeys([]);
           loadData();
-        } catch (error: any) {
+        } catch (error: Error | unknown) {
           console.error('Error in batch delete:', error);
           const errorMessage = error?.message || error?.error?.message || '批量删除失败';
           message.error(`批量删除失败: ${errorMessage}`);
@@ -1735,7 +1735,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           }}
           loading={loading}
           scroll={{ x: 'max-content', y: 600 }}
-          rowClassName={(record: any) => {
+          rowClassName={(record: unknown) => {
             const level = record.level || 0;
             const classes = [`task-level-${level}`];
             

@@ -52,7 +52,7 @@ const LoginPage: React.FC = () => {
       } else {
         message.error('登录失败，请检查网络连接');
       }
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Login error:', error);
       
       if (error.name === 'AbortError') {

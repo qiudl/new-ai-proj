@@ -153,14 +153,14 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [filters, loadUsers]);
 
   // Handle filter change
-  const handleFilterChange = useCallback((key: string, value: any) => {
+  const handleFilterChange = useCallback((key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     const newFilters = { ...filters, [key]: value, page: 1 };
     setFilters(newFilters);
     loadUsers(newFilters);
   }, [filters, loadUsers]);
 
   // Handle pagination change
-  const handleTableChange = useCallback((newPagination: any) => {
+  const handleTableChange = useCallback((newPagination: unknown) => {
     const newFilters = {
       ...filters,
       page: newPagination.current,
@@ -304,7 +304,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [editForm]);
 
   // Table columns
-  const columns: any[] = useMemo(() => [
+  const columns: unknown[] = useMemo(() => [
     {
       title: '用户信息',
       key: 'userInfo',
@@ -366,7 +366,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
         return (
           <div>
             <Badge
-              status={statusConfig.color as any}
+              status={statusConfig.color as unknown}
               text={statusConfig.text}
             />
             {isExpired && (
@@ -566,7 +566,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
                   onChange={(value) => handleFilterChange('company_id', value)}
                   showSearch
                   filterOption={(input, option) =>
-                    (option?.children as any)?.toString()?.toLowerCase().includes(input.toLowerCase())
+                    (option?.children as unknown)?.toString()?.toLowerCase().includes(input.toLowerCase())
                   }
                 >
                   {companies.map(company => (
@@ -642,7 +642,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
                   placeholder="选择企业"
                   showSearch
                   filterOption={(input, option) =>
-                    (option?.children as any)?.toString()?.toLowerCase().includes(input.toLowerCase())
+                    (option?.children as unknown)?.toString()?.toLowerCase().includes(input.toLowerCase())
                   }
                 >
                   {companies.map(company => (

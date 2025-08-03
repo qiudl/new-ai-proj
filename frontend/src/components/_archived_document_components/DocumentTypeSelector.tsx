@@ -237,7 +237,7 @@ const DocumentTypeSelector: React.FC<DocumentTypeSelectorProps> = ({
               placeholder="选择子分类"
               allowClear
             >
-              {documentCategories[selectedCategory as keyof typeof documentCategories].subcategories.map((sub: any) => (
+              {documentCategories[selectedCategory as keyof typeof documentCategories].subcategories.map((sub: unknown) => (
                 <Option key={sub.id} value={sub.id}>
                   {sub.name}
                 </Option>

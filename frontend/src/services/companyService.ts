@@ -161,7 +161,6 @@ class CompanyService {
       )
     );
 
-    console.log('更新企业数据:', cleanedData);
     const response = await api.put(`${API_BASE_URL}/${id}`, cleanedData);
     return response.data;
   }

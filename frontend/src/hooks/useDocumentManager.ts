@@ -76,7 +76,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
 
   // 构建查询参数
   const getQueryParams = useCallback(() => {
-    const params: any = {
+    const params: unknown = {
       page: state.page,
       limit: state.pageSize,
       sort_by: state.sortBy,
@@ -128,7 +128,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
         loading: false
       }));
 
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       const errorMessage = error.message || '加载文档失败';
       setState(prev => ({
         ...prev,
@@ -194,13 +194,13 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
         // 从状态中移除文档
         setState(prev => ({
           ...prev,
-          documents: (prev.documents as any[]).filter((doc: any) => doc.id !== documentId),
+          documents: (prev.documents as unknown[]).filter((doc: unknown) => doc.id !== documentId),
           selectedDocuments: prev.selectedDocuments.filter(id => id !== documentId),
           total: prev.total - 1
         }));
         
         // clearCache(); // Disabled cache
-      } catch (error: any) {
+      } catch (error: Error | unknown) {
         message.error(error.message || '删除文档失败');
       }
     },
@@ -216,14 +216,14 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
         
         setState(prev => ({
           ...prev,
-          documents: (prev.documents as any[]).filter((doc: any) => !documentIds.includes(doc.id)),
+          documents: (prev.documents as unknown[]).filter((doc: unknown) => !documentIds.includes(doc.id)),
           selectedDocuments: [],
           isSelectMode: false,
           total: prev.total - documentIds.length
         }));
         
         // clearCache(); // Disabled cache
-      } catch (error: any) {
+      } catch (error: Error | unknown) {
         message.error('批量删除失败');
       }
     },
@@ -343,7 +343,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
     
     // 过滤后的文档（用于本地过滤）
     filteredDocuments: useMemo(() => {
-      let filtered = [...state.documents];
+      const filtered = [...state.documents];
       
       // 这里可以添加额外的本地过滤逻辑
       // 比如客户端侧的实时搜索过滤等

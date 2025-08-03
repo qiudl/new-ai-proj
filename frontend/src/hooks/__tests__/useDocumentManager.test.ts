@@ -61,7 +61,7 @@ describe('useDocumentManager', () => {
       deleteDocument: jest.fn(),
       updateDocument: jest.fn(),
       createDocument: jest.fn()
-    } as any;
+    } as unknown;
   });
 
   describe('初始化测试', () => {

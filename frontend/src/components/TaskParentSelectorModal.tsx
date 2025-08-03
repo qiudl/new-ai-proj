@@ -145,10 +145,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Initialize search when modal opens
   useEffect(() => {
-    console.log('🔍 [TaskParentSelectorModal] Initialize search useEffect - visible:', visible, 'projectId:', projectId, 'currentTaskId:', currentTaskId);
-    
     if (visible && projectId) {
-      console.log('🔍 [TaskParentSelectorModal] Starting initial search...');
       // Initial search
       searchParentTasks({
         projectId,
@@ -206,47 +203,36 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Handle task selection
   const handleTaskSelect = async (task: Task) => {
-    console.log('🔍 [TaskParentSelectorModal] handleTaskSelect called with task:', task);
-    console.log('🔍 [TaskParentSelectorModal] currentTaskId:', currentTaskId);
-    console.log('🔍 [TaskParentSelectorModal] showValidation:', showValidation);
-    
     setSelectedTask(task);
     setValidationError(null);
 
     // Perform validation if enabled
     if (showValidation) {
-      console.log('🔍 [TaskParentSelectorModal] Starting validation...');
       setIsValidating(true);
       try {
         // Client-side validations only for now (skip server-side validation)
         
         // 1. Prevent self-reference
         if (currentTaskId && currentTaskId === task.id) {
-          console.log('❌ [TaskParentSelectorModal] Self-reference validation failed');
           setValidationError('任务不能将自己设为父任务');
           return;
         }
 
         // 2. Level validation
-        console.log('🔍 [TaskParentSelectorModal] Checking level validation for task_level:', task.task_level);
         const levelValidation = validateTaskLevel(task.task_level);
         if (!levelValidation.isValid) {
-          console.log('❌ [TaskParentSelectorModal] Level validation failed:', levelValidation.error);
           setValidationError(levelValidation.error || '层级无效');
           return;
         }
 
-        console.log('✅ [TaskParentSelectorModal] All validations passed');
-      } catch (error) {
+        } catch (error) {
         console.error('❌ [TaskParentSelectorModal] Validation error:', error);
         setValidationError('验证过程中发生错误');
       } finally {
-        console.log('🔍 [TaskParentSelectorModal] Setting isValidating to false');
         setIsValidating(false);
       }
     } else {
-      console.log('🔍 [TaskParentSelectorModal] Validation disabled, task selected successfully');
-    }
+      }
   };
 
   // Handle clear selection
@@ -257,25 +243,14 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Handle OK button click
   const handleOk = () => {
-    console.log('🔍 [TaskParentSelectorModal] handleOk called');
-    console.log('🔍 [TaskParentSelectorModal] selectedTask:', selectedTask);
-    console.log('🔍 [TaskParentSelectorModal] validationError:', validationError);
-    console.log('🔍 [TaskParentSelectorModal] isValidating:', isValidating);
-    
     if (validationError) {
-      console.log('❌ [TaskParentSelectorModal] Cannot proceed - validation error exists:', validationError);
       return;
     }
 
     if (onOk) {
-      console.log('✅ [TaskParentSelectorModal] Calling onOk with:', {
-        parentId: selectedTask?.id || null,
-        selectedTask: selectedTask
-      });
       onOk(selectedTask?.id || null, selectedTask);
     } else {
-      console.log('⚠️ [TaskParentSelectorModal] onOk callback not provided');
-    }
+      }
   };
 
   // Handle Cancel button click
@@ -434,15 +409,6 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           
           <div className="task-list-container">
             {(() => {
-              console.log('🔍 [TaskParentSelectorModal] About to render TaskTreeList with:');
-              console.log('🔍 [TaskParentSelectorModal] searchResults:', searchResults);
-              console.log('🔍 [TaskParentSelectorModal] searchResults.tasks:', searchResults.tasks);
-              console.log('🔍 [TaskParentSelectorModal] searchResults.tasks.length:', searchResults.tasks?.length);
-              console.log('🔍 [TaskParentSelectorModal] searchResults.loading:', searchResults.loading);
-              console.log('🔍 [TaskParentSelectorModal] searchResults.error:', searchResults.error);
-              console.log('🔍 [TaskParentSelectorModal] selectedTask:', selectedTask);
-              console.log('🔍 [TaskParentSelectorModal] currentTaskId:', currentTaskId);
-              
               return (
                 <TaskTreeList
                   tasks={searchResults.tasks}

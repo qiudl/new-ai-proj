@@ -32,7 +32,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
 
   const getMemoryStats = (): MemoryStats | null => {
     if ('memory' in performance) {
-      const memory = (performance as any).memory;
+      const memory = (performance as unknown).memory;
       const cacheStats = globalCache.getStats();
       
       return {
@@ -89,11 +89,10 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
       
       // Force garbage collection if available
       if ('gc' in window) {
-        (window as any).gc();
+        (window as unknown).gc();
       }
       
-      console.log(`Memory cleanup: cleared cache, removed ${keysToRemove.length} localStorage items`);
-    } catch (error) {
+      } catch (error) {
       console.error('Memory cleanup failed:', error);
     }
   };

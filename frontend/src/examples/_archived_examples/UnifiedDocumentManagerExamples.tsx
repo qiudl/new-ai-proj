@@ -42,8 +42,8 @@ const UnifiedDocumentManagerExamples: React.FC = () => {
           projectName="示例项目"
           showViewToggle={false}
           allowBatch={false}
-          onDocumentSelect={(doc) => console.log('选择文档:', doc)}
-          onCreateDocument={() => console.log('创建文档')}
+          onDocumentSelect={(doc) => }
+          onCreateDocument={() => }
         />
       )
     },
@@ -58,7 +58,7 @@ const UnifiedDocumentManagerExamples: React.FC = () => {
           allowUpload={true}
           allowBatch={true}
           defaultView="grid"
-          onDocumentUpdate={() => console.log('文档更新')}
+          onDocumentUpdate={() => }
         />
       )
     },
@@ -75,7 +75,6 @@ const UnifiedDocumentManagerExamples: React.FC = () => {
             allowUpload={false}
             allowBatch={false}
             onDocumentSelect={(doc) => {
-              console.log('选择了文档:', doc);
               // 在实际使用中，这里会关闭模态框并返回选中的文档
             }}
           />
@@ -230,7 +229,7 @@ const CustomConfigExample: React.FC = () => {
     defaultView: 'table' as 'table' | 'grid'
   });
 
-  const handleConfigChange = (key: string, value: any) => {
+  const handleConfigChange = (key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setConfig(prev => ({ ...prev, [key]: value }));
   };
 
@@ -329,8 +328,8 @@ const CustomConfigExample: React.FC = () => {
         defaultView={config.defaultView}
         projectId={1}
         projectName="自定义配置示例"
-        onDocumentSelect={(doc) => console.log('文档选择:', doc)}
-        onDocumentUpdate={() => console.log('文档更新')}
+        onDocumentSelect={(doc) => }
+        onDocumentUpdate={() => }
       />
     </div>
   );

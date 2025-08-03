@@ -143,7 +143,7 @@ const RecycleBinPage: React.FC = () => {
   };
 
   // Project columns
-  const projectColumns: any[] = [
+  const projectColumns: unknown[] = [
     {
       title: '项目名称',
       dataIndex: 'name',
@@ -215,7 +215,7 @@ const RecycleBinPage: React.FC = () => {
   ];
 
   // Task columns
-  const taskColumns: any[] = [
+  const taskColumns: unknown[] = [
     {
       title: '任务标题',
       dataIndex: 'title',

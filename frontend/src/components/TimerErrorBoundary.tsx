@@ -26,7 +26,7 @@ class TimerErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: unknown) {
     console.error('Timer Error Boundary caught an error:', error, errorInfo);
     
     // Check if it's a memory-related error
@@ -62,12 +62,11 @@ class TimerErrorBoundary extends Component<Props, State> {
       });
       
       // Force garbage collection if available
-      if ('gc' in window && typeof (window as any).gc === 'function') {
-        (window as any).gc();
+      if ('gc' in window && typeof (window as unknown).gc === 'function') {
+        (window as unknown).gc();
       }
       
-      console.log('Memory cleanup completed');
-    } catch (cleanupError) {
+      } catch (cleanupError) {
       console.error('Error during memory cleanup:', cleanupError);
     }
   };

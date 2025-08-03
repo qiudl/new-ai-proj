@@ -305,7 +305,7 @@ export class PromptSelector {
     complexity: 'simple' | 'detailed' = 'detailed',
     domain?: string
   ): string {
-    const prompt = this.selectPrompt(provider, complexity, domain as any);
+    const prompt = this.selectPrompt(provider, complexity, domain as unknown);
     return prompt.system;
   }
 
@@ -317,7 +317,7 @@ export class PromptSelector {
     context?: string,
     domain?: string
   ): string {
-    const prompt = this.selectPrompt(provider, complexity, domain as any);
+    const prompt = this.selectPrompt(provider, complexity, domain as unknown);
     return prompt.user(parentTask, keywords, context);
   }
 }

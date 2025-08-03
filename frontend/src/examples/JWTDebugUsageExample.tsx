@@ -38,44 +38,38 @@ const JWTDebugUsageExample: React.FC = () => {
 
   // 组件加载时记录JWT状态
   useEffect(() => {
-    console.log('🔍 JWTDebugExample组件加载，检查JWT状态');
     checkJWT('JWTDebugExample_Mount');
   }, []);
 
   // 模拟API调用
   const handleApiCall = async () => {
     try {
-      console.log('📡 发起API调用...');
       const response = await exampleRequest.get('/api/v1/users/profile');
       setApiTestResult({ success: true, data: response.data });
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       setApiTestResult({ success: false, error: error.message });
     }
   };
 
   // 测试JWT有效性
   const handleJWTTest = async () => {
-    console.log('🧪 测试JWT...');
     const result = await testJWT('/api/v1/users/profile');
     setApiTestResult(result);
   };
 
   // 运行完整测试套件
   const handleRunTests = async () => {
-    console.log('🧪 运行JWT调试功能测试套件...');
     const results = await runJWTTests();
     setTestResults(results);
   };
 
   // 手动打印调试信息
   const handlePrintDebugInfo = () => {
-    console.log('📋 手动打印JWT调试信息:');
     jwtDebugger.printJWTStatus('JWTDebugExample_Manual');
     
     // 生成并打印报告
     const report = jwtDebugger.generateDebugReport();
-    console.log('📊 调试报告:\n', report);
-  };
+    };
 
   // 清除token（测试用）
   const handleClearToken = () => {

@@ -72,8 +72,6 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     
     setLoadingTaskInfo(true);
     try {
-      console.log('Fetching task info for taskId:', taskId);
-      
       // 首先尝试从所有项目中查找该任务
       try {
         // 获取所有项目
@@ -85,12 +83,12 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         }
         
         // 在所有项目中查找任务
-        let foundTask: any = null;
+        let foundTask: unknown = null;
         for (const project of projects) {
           try {
             const tasksResponse = await api.get(`projects/${project.id}/tasks`);
             const tasks = tasksResponse?.data?.data || tasksResponse?.data || [];
-            const task = tasks.find((t: any) => t.id === taskId);
+            const task = tasks.find((t: unknown) => t.id === taskId);
             
             if (task) {
               foundTask = {
@@ -106,7 +104,6 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         }
         
         if (foundTask) {
-          console.log('Found task info:', foundTask);
           setTaskDetailInfo({
             id: foundTask.id,
             project_id: foundTask.project_id,

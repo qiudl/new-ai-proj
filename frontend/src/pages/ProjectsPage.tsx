@@ -240,8 +240,8 @@ const ProjectsPage: React.FC = () => {
     if (!sortConfig) return projects;
     
     return [...projects].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
+      let aValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+      let bValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
       
       // 根据不同字段处理排序值
       switch (sortConfig.field) {
@@ -273,12 +273,12 @@ const ProjectsPage: React.FC = () => {
           break;
         case 'created_at':
         case 'updated_at':
-          aValue = new Date((a as any)[sortConfig.field]).getTime();
-          bValue = new Date((b as any)[sortConfig.field]).getTime();
+          aValue = new Date((a as unknown)[sortConfig.field]).getTime();
+          bValue = new Date((b as unknown)[sortConfig.field]).getTime();
           break;
         default:
-          aValue = (a as any)[sortConfig.field];
-          bValue = (b as any)[sortConfig.field];
+          aValue = (a as unknown)[sortConfig.field];
+          bValue = (b as unknown)[sortConfig.field];
       }
       
       let comparison = 0;
@@ -310,7 +310,7 @@ const ProjectsPage: React.FC = () => {
   };
 
   // 表格列配置
-  const columns: any[] = columnConfig
+  const columns: unknown[] = columnConfig
     .filter(col => col.visible)
     .map(col => {
       const baseColumn = {
@@ -318,7 +318,7 @@ const ProjectsPage: React.FC = () => {
         title: col.title,
         width: col.width,
         sorter: col.key !== 'actions', // 除了操作列，所有列都支持排序
-        sortOrder: sortConfig?.field === col.key ? sortConfig.direction + 'end' as any : null,
+        sortOrder: sortConfig?.field === col.key ? sortConfig.direction + 'end' as unknown : null,
         onHeaderCell: () => ({
           onClick: () => col.key !== 'actions' && handleSort(col.key)
         })
@@ -426,7 +426,7 @@ const ProjectsPage: React.FC = () => {
           return {
             ...baseColumn,
             fixed: 'right',
-            render: (_: any, record: Project) => (
+            render: (_: unknown, record: Project) => (
               <Space size="middle">
                 <Tooltip title="查看">
                   <Button
@@ -462,7 +462,7 @@ const ProjectsPage: React.FC = () => {
         default:
           return baseColumn;
       }
-    }) as any[];
+    }) as unknown[];
 
 
   // 渲染卡片视图

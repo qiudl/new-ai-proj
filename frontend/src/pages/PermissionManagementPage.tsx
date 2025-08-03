@@ -137,7 +137,7 @@ const PermissionManagementPage: React.FC = () => {
     }
   };
 
-  const handleCreateRole = async (values: any) => {
+  const handleCreateRole = async (values: unknown) => {
     try {
       const roleData = {
         roleCode: values.roleCode,
@@ -156,7 +156,7 @@ const PermissionManagementPage: React.FC = () => {
     }
   };
 
-  const handleUpdateRole = async (values: any) => {
+  const handleUpdateRole = async (values: unknown) => {
     if (!selectedRole) return;
     
     try {
@@ -254,7 +254,7 @@ const PermissionManagementPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      render: (text: any, record: Role) => (
+      render: (text: unknown, record: Role) => (
         <Space>
           <Button
             type="link"
@@ -365,7 +365,7 @@ const PermissionManagementPage: React.FC = () => {
     {
       title: '操作',
       key: 'actions',
-      render: (text: any, record: CompanyUser) => (
+      render: (text: unknown, record: CompanyUser) => (
         <Space>
           <Button
             type="link"

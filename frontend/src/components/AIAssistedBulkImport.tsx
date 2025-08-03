@@ -110,27 +110,18 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       try {
         // 获取AI配置信息
         const configData = await request.get('/system/ai-configs');
-        console.log('AI Config API Response:', configData);
-        
         if (configData.success && configData.data && configData.data.success && configData.data.data) {
             // 处理数据，这里是真正的配置数组
             const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
-            console.log('处理后的配置数组:', configArray);
             const statusMap = new Map<AIProvider, AIServiceStatus>();
             const providers: AIProvider[] = [];
             
             // 处理配置数据
-            configArray.forEach((config: any) => {
+            configArray.forEach((config: unknown) => {
               const provider = config.provider as AIProvider;
               
               // 根据配置的enabled状态确定是否可用
               const isAvailable = config.enabled === true;
-              
-              console.log(`处理提供商 ${provider}:`, {
-                enabled: config.enabled,
-                isAvailable,
-                status: config.status
-              });
               
               statusMap.set(provider, {
                 provider,
@@ -146,8 +137,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               }
             });
             
-            console.log('最终可用的提供商:', providers);
-            console.log('服务状态映射:', Array.from(statusMap.entries()));
+            ));
             
             setAvailableProviders(providers);
             setServiceStatus(statusMap);
@@ -155,8 +145,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
             if (providers.length > 0) {
               // 自动选择第一个可用的提供商
               setSelectedProvider(providers[0]);
-              console.log('已选择提供商:', providers[0]);
-            } else {
+              } else {
               console.warn('没有找到可用的AI提供商');
             }
         } else {
@@ -181,8 +170,6 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     try {
       // 获取AI配置信息
       const configData = await request.get('/system/ai-configs');
-      console.log('AI Config Refresh Response:', configData);
-      
       if (configData.success && configData.data && configData.data.success && configData.data.data) {
           // 处理数据，这里是真正的配置数组
           const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
@@ -190,7 +177,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
           const providers: AIProvider[] = [];
           
           // 处理配置数据
-          configArray.forEach((config: any) => {
+          configArray.forEach((config: unknown) => {
             const provider = config.provider as AIProvider;
             
             // 根据配置的enabled状态确定是否可用
@@ -339,7 +326,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       if (data.success && data.data) {
         const generationResult = data.data.generation_result;
         const result: GenerationResult = {
-          tasks: generationResult.generated_tasks.map((task: any) => ({
+          tasks: generationResult.generated_tasks.map((task: unknown) => ({
             id: task.ai_generated_id,
             title: task.title,
             description: task.description,
@@ -458,7 +445,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
           
           // 调用回调通知父组件任务已导入
           if (onImport && imported_tasks) {
-            onImport(imported_tasks.map((task: any) => ({
+            onImport(imported_tasks.map((task: unknown) => ({
               id: task.id,
               title: task.title,
               description: task.description,
@@ -483,7 +470,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   }, [editedTasks, selectedParentTask, selectedProvider, availableProviders, keywords, maxTasks, projectId, onImport]);
 
   // 处理历史记录复用
-  const handleReuseHistory = useCallback(async (history: any, tasks: GeneratedSubTask[]) => {
+  const handleReuseHistory = useCallback(async (history: unknown, tasks: GeneratedSubTask[]) => {
     try {
       // 复用历史配置
       setKeywords(history.keywords);
@@ -518,7 +505,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   }, [onTasksGenerated]);
 
   // 处理模板保存
-  const handleSaveAsTemplate = useCallback((history: any, templateName: string) => {
+  const handleSaveAsTemplate = useCallback((history: unknown, templateName: string) => {
     message.success(`模板"${templateName}"已保存`);
   }, []);
 

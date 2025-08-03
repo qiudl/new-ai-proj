@@ -14,7 +14,7 @@ export interface BulkSubTaskColumn {
   type: 'text' | 'textarea' | 'select' | 'number' | 'date' | 'preview';
   placeholder?: string;
   tooltip?: string;
-  options?: Array<{ label: string; value: any; color?: string }>;
+  options?: Array<{ label: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement>; color?: string }>;
   validation?: {
     min?: number;
     max?: number;

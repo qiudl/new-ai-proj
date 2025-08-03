@@ -1,7 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
 import { TaskParentSelector } from '../../components/TaskParentSelector';
 import { TaskParentSelectorModal } from '../../components/TaskParentSelectorModal';
 import { Task } from '../../types/task';
@@ -11,7 +10,7 @@ jest.mock('../../hooks/useTaskParentSearch');
 jest.mock('../../hooks/useParentValidation');
 jest.mock('lodash', () => ({
   ...jest.requireActual('lodash'),
-  debounce: (fn: any) => fn,
+  debounce: (fn: unknown) => fn,
 }));
 
 // Test data generators
@@ -23,7 +22,7 @@ const generateLargeTasks = (count: number): Task[] => {
       id: i,
       title: `Task ${i} - ${i % 10 === 0 ? 'Very Long Task Title That Might Cause UI Issues' : 'Normal Task'}`,
       description: i % 5 === 0 ? 'Very long description that might cause text overflow issues in the UI components and needs to be handled properly by the ellipsis truncation' : 'Short desc',
-      status: ['todo', 'in_progress', 'completed', 'cancelled'][i % 4] as any,
+      status: ['todo', 'in_progress', 'completed', 'cancelled'][i % 4] as unknown,
       project_id: 1,
       parent_id: i > 50 ? Math.floor(Math.random() * 50) + 1 : null,
       task_level: i > 50 ? Math.floor(Math.random() * 3) : 0,
@@ -469,7 +468,7 @@ describe('Edge Cases and Boundary Conditions E2E Tests', () => {
     });
 
     it('should handle component unmounting during async operations', async () => {
-      let resolveSearch: (value: any) => void;
+      let resolveSearch: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => void;
       const searchPromise = new Promise(resolve => {
         resolveSearch = resolve;
       });

@@ -58,7 +58,7 @@ class ProjectService {
         return response.data;
       }
       return response;
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('API Error:', error);
       throw error;
     }
@@ -113,8 +113,6 @@ class ProjectService {
       })
     );
 
-    console.log('Creating project with data:', cleanedData);
-
     return this.request<Project>('/projects', {
       method: 'POST',
       data: cleanedData,
@@ -147,8 +145,6 @@ class ProjectService {
         return true;
       })
     );
-
-    console.log('Updating project with data:', cleanedData);
 
     return this.request<Project>(`/projects/${id}`, {
       method: 'PUT',
@@ -253,11 +249,8 @@ class ProjectService {
    */
   async getProjectsForDocumentMetadata(): Promise<ProjectOption[]> {
     try {
-      console.log('API请求: GET /api/v1/projects/metadata');
       const response = await api.get('/projects/metadata');
-      console.log('项目元数据API响应:', response.data);
-      
-      return response.data.map((project: any) => ({
+      return response.data.map((project: unknown) => ({
         id: project.id,
         name: project.name,
         description: project.description,

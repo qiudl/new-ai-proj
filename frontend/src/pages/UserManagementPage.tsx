@@ -237,7 +237,7 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   // 处理筛选
-  const handleFilter = useCallback((key: string, value: any) => {
+  const handleFilter = useCallback((key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
     setSearchParams(prev => ({
       ...prev,
       [key]: value,
@@ -246,7 +246,7 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   // 处理分页
-  const handleTableChange = useCallback((pagination: any) => {
+  const handleTableChange = useCallback((pagination: unknown) => {
     setSearchParams(prev => ({
       ...prev,
       page: pagination.current,
@@ -257,8 +257,6 @@ const UserManagementPage: React.FC = () => {
   // 创建用户
   const handleCreateUser = useCallback(async (values: UserCreateRequest) => {
     try {
-      console.log('创建用户表单数据:', values);
-      
       // 验证必填字段
       if (!values.role) {
         message.error('请选择角色');
@@ -408,7 +406,7 @@ const UserManagementPage: React.FC = () => {
   }, []);
 
   // 表格列定义
-  const columns: any[] = useMemo(() => [
+  const columns: unknown[] = useMemo(() => [
     {
       title: '用户信息',
       key: 'user_info',
@@ -784,7 +782,7 @@ const UserManagementPage: React.FC = () => {
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,
-            getCheckboxProps: (record: any) => ({
+            getCheckboxProps: (record: unknown) => ({
               disabled: record.role === 'admin' && record.id === 1, // 防止删除超级管理员
             }),
           }}
@@ -820,7 +818,7 @@ const UserManagementPage: React.FC = () => {
           onFinish={handleCreateUser}
           onFinishFailed={(errorInfo) => {
             console.error('表单验证失败:', errorInfo);
-            console.log('当前表单值:', createForm.getFieldsValue());
+            );
             
             const failedFields = errorInfo.errorFields?.map(field => ({
               name: field.name,

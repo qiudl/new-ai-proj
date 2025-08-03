@@ -702,10 +702,5 @@ describe('GanttChartService 集成测试', () => {
     const hasMainPathTasks = mainPath.filter(taskId => criticalPath.tasks.includes(taskId));
     expect(hasMainPathTasks.length).toBeGreaterThan(4);
 
-    console.log('✅ 甘特图服务集成测试通过');
-    console.log(`📊 生成甘特图任务: ${ganttTasks.length}个`);
-    console.log(`🔗 依赖关系: ${dependencies.length}个`);
-    console.log(`🎯 关键路径: ${criticalPath.tasks.length}个任务`);
-    console.log(`📈 项目进度: ${stats.progressPercentage}%`);
-  });
+    });
 });
