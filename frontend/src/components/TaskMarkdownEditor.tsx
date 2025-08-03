@@ -23,7 +23,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
   disabled = false,
   rows = 4,
 }) => {
-  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
+  const [mode, setMode] = useState<'edit' | 'preview'>('preview');
 
   const handleInsertMarkdown = (before: string, after: string = '') => {
     const textarea = document.querySelector('.task-markdown-textarea') as HTMLTextAreaElement;

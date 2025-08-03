@@ -1,6 +1,6 @@
 // unifiedTimerService - 统一计时器API服务
 // 任务#243: 前端通用组件开发 - API服务层
-import { apiClient } from './apiClient';
+import api from './api';
 import type { 
   TimerStatus, 
   TimerSuggestion, 
@@ -9,14 +9,14 @@ import type {
   ApiResponse 
 } from '../types/timer';
 
-const API_BASE = '/api/v1/user/timer';
-const LEGACY_API_BASE = '/api/v1/timer';
+const API_BASE = '/user/timer';
+const LEGACY_API_BASE = '/timer';
 
 export class UnifiedTimerService {
   // 核心计时器操作
   async startTimer(request: StartTimerRequest): Promise<ApiResponse<TimerStatus>> {
     try {
-      const response = await apiClient.post(`${API_BASE}/start`, {
+      const response = await api.post(`${API_BASE}/start`, {
         task_type: request.task_type,
         task_id: request.task_id,
         title: request.title,
@@ -50,7 +50,7 @@ export class UnifiedTimerService {
 
   async pauseTimer(): Promise<ApiResponse<TimerStatus>> {
     try {
-      const response = await apiClient.post(`${API_BASE}/pause`);
+      const response = await api.post(`${API_BASE}/pause`);
 
       return {
         success: true,
@@ -68,7 +68,7 @@ export class UnifiedTimerService {
 
   async resumeTimer(): Promise<ApiResponse<TimerStatus>> {
     try {
-      const response = await apiClient.post(`${API_BASE}/resume`);
+      const response = await api.post(`${API_BASE}/resume`);
 
       return {
         success: true,
@@ -86,7 +86,7 @@ export class UnifiedTimerService {
 
   async stopTimer(): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.post(`${API_BASE}/stop`);
+      const response = await api.post(`${API_BASE}/stop`);
 
       return {
         success: true,
@@ -104,7 +104,7 @@ export class UnifiedTimerService {
 
   async getCurrentTimer(): Promise<ApiResponse<TimerStatus>> {
     try {
-      const response = await apiClient.get(`${API_BASE}/current`);
+      const response = await api.get(`${API_BASE}/current`);
 
       return {
         success: true,
@@ -131,7 +131,7 @@ export class UnifiedTimerService {
 
   async getHealthStatus(): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get(`${API_BASE}/health`);
+      const response = await api.get(`${API_BASE}/health`);
 
       return {
         success: true,
@@ -202,7 +202,7 @@ export class UnifiedTimerService {
   async getTemplates(): Promise<ApiResponse<TimerTemplate[]>> {
     try {
       // 调用模板API - 实际应该从后端获取
-      const response = await apiClient.get('/api/v1/timer/templates');
+      const response = await api.get('/api/v1/timer/templates');
       
       return {
         success: true,
@@ -285,7 +285,7 @@ export class UnifiedTimerService {
   // 最近任务功能
   async getRecentTasks(limit: number = 10): Promise<ApiResponse<any[]>> {
     try {
-      const response = await apiClient.get(`${LEGACY_API_BASE}/recent-tasks`, {
+      const response = await api.get(`${LEGACY_API_BASE}/recent-tasks`, {
         params: { limit }
       });
 
@@ -353,7 +353,7 @@ export class UnifiedTimerService {
   // 用户偏好设置
   async getUserPreferences(): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get('/api/v1/user/timer/preferences');
+      const response = await api.get('/api/v1/user/timer/preferences');
 
       return {
         success: true,
@@ -382,7 +382,7 @@ export class UnifiedTimerService {
 
   async updateUserPreferences(preferences: any): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.put('/api/v1/user/timer/preferences', preferences);
+      const response = await api.put('/api/v1/user/timer/preferences', preferences);
 
       return {
         success: true,
@@ -401,7 +401,7 @@ export class UnifiedTimerService {
   // 计时统计数据
   async getTimerStats(timeRange: string = '7d'): Promise<ApiResponse<any>> {
     try {
-      const response = await apiClient.get('/api/v1/user/timer/stats', {
+      const response = await api.get('/api/v1/user/timer/stats', {
         params: { range: timeRange }
       });
 

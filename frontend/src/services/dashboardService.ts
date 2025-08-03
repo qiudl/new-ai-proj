@@ -155,8 +155,27 @@ export class DashboardService {
       const queryString = params.toString();
       const url = `/dashboard/weekly-stats${queryString ? `?${queryString}` : ''}`;
       
+      console.log('🔍 Fetching weekly stats from:', url);
       const response = await api.get(url);
-      const data = response.data;
+      
+      // 处理API响应结构：{ success: true, data: {...} }
+      let data = response;
+      if (response && response.data) {
+        data = response.data;
+      }
+      
+      // 验证响应数据结构
+      if (!data || typeof data !== 'object') {
+        console.error('Invalid response data:', data);
+        throw new Error('Invalid response format from weekly stats API');
+      }
+      
+      if (!data.summary) {
+        console.error('Response missing summary field:', data);
+        throw new Error('Weekly stats response missing summary field');
+      }
+      
+      console.log('✅ Weekly stats fetched successfully:', data.summary);
       
       // 缓存结果
       timerCache.cacheWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId, data);
@@ -164,7 +183,7 @@ export class DashboardService {
       return data;
     } catch (error) {
       console.error('Error fetching weekly dashboard stats:', error);
-      throw new Error('Failed to fetch weekly dashboard statistics');
+      throw new Error('Failed to fetch weekly dashboard statistics: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   }
 
@@ -184,16 +203,39 @@ export class DashboardService {
       // 使用新的周报API获取数据
       const weeklyStats = await this.getWeeklyStats();
       
+      // 添加数据验证和智能结构检测
+      if (!weeklyStats) {
+        console.warn('Weekly stats data is null, falling back to old method');
+        throw new Error('No weekly stats data received');
+      }
+      
+      // 检测实际的数据结构
+      let summaryData;
+      if (weeklyStats.summary) {
+        // 标准结构：{ summary: {...} }
+        summaryData = weeklyStats.summary;
+        console.log('✅ Using standard data structure with summary field');
+      } else if (weeklyStats.total_tasks !== undefined) {
+        // 扁平结构：直接就是summary数据
+        summaryData = weeklyStats;
+        console.log('✅ Using flat data structure (direct summary data)');
+      } else {
+        console.warn('Weekly stats has unexpected structure:', weeklyStats);
+        throw new Error('Invalid weekly stats response structure');
+      }
+      
       // 转换为旧接口格式以保持兼容性
       const dashboardStats: DashboardStats = {
-        totalProjects: weeklyStats.summary.projects_involved,
-        totalTasks: weeklyStats.summary.total_tasks,
-        completedTasks: weeklyStats.summary.completed_tasks,
-        inProgressTasks: weeklyStats.summary.in_progress_tasks,
-        todoTasks: weeklyStats.summary.pending_tasks,
-        overdueTasks: weeklyStats.summary.overdue_tasks,
-        completionRate: Math.round(weeklyStats.summary.completion_rate)
+        totalProjects: summaryData.projects_involved || 0,
+        totalTasks: summaryData.total_tasks || 0,
+        completedTasks: summaryData.completed_tasks || 0,
+        inProgressTasks: summaryData.in_progress_tasks || 0,
+        todoTasks: summaryData.pending_tasks || 0,
+        overdueTasks: summaryData.overdue_tasks || 0,
+        completionRate: Math.round(summaryData.completion_rate || 0)
       };
+      
+      console.log('🎯 Mapped dashboard stats:', dashboardStats);
       
       // 缓存结果
       timerCache.cacheDashboard(userId, dashboardStats);
@@ -557,23 +599,38 @@ export class DashboardService {
   static async getAllTasks(): Promise<Task[]> {
     try {
       // 先获取项目数据
-      const projectsResponse = await api.get('/projects?page=1&page_size=100');
+      console.log('🔍 getAllTasks - 开始获取项目列表...');
+      const projectsResponse = await api.get('/projects?page=1&page_size=1000');
       const projects = projectsResponse.data?.data || [];
+      console.log(`✅ getAllTasks - 获取到 ${projects.length} 个项目`);
 
-      // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: unknown) => 
-        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
+      if (projects.length === 0) {
+        console.warn('⚠️ getAllTasks - 没有项目，返回空任务列表');
+        return [];
+      }
+
+      // 为每个项目获取任务数据，使用Promise.allSettled避免单个失败影响全部
+      console.log('🔍 getAllTasks - 开始获取各项目任务...');
+      const taskPromises = projects.map((project: any) => 
+        api.get(`/projects/${project.id}/tasks?page=1&page_size=1000`)
+          .catch(error => {
+            console.warn(`⚠️ 获取项目 ${project.id} 任务失败:`, error);
+            return { data: { data: [] } }; // 返回空结果而不是失败
+          })
       );
       
       const taskResponses = await Promise.all(taskPromises);
       
       // 合并所有任务数据
-      return taskResponses.reduce((allTasks, response) => {
+      const allTasks = taskResponses.reduce((accumulator, response) => {
         const projectTasks = response.data?.data || [];
-        return allTasks.concat(projectTasks);
+        return accumulator.concat(projectTasks);
       }, []);
+      
+      console.log(`✅ getAllTasks - 合并完成，总共 ${allTasks.length} 个任务`);
+      return allTasks;
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('❌ getAllTasks - 获取任务失败:', error);
       throw new Error('Failed to fetch tasks');
     }
   }

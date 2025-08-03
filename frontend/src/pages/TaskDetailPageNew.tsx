@@ -1035,209 +1035,6 @@ const TaskDetailPageNew: React.FC = () => {
             />
           </Card>
 
-          {/* 更新历史 */}
-          {taskUpdates.length > 0 && (
-            <Card 
-              title={
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <HistoryOutlined />
-                    <span>更新历史</span>
-                    <Badge count={taskUpdates.length} style={{ backgroundColor: '#1890ff' }} />
-                  </div>
-                  {taskUpdates.length > 5 && (
-                    <Button 
-                      type="link" 
-                      size="small"
-                      onClick={() => {/* 查看完整历史 */}}
-                    >
-                      查看全部 ({taskUpdates.length})
-                    </Button>
-                  )}
-                </div>
-              }
-              style={{ marginBottom: '24px' }}
-            >
-              <Timeline>
-                {taskUpdates.slice(0, 5).map((update, index) => {
-                  // 获取更新类型的详细信息
-                  const getUpdateTypeInfo = (type: string) => {
-                    const types = {
-                      'status': { icon: '🔄', text: '状态变更', color: 'blue' },
-                      'priority': { icon: '🔥', text: '优先级调整', color: 'orange' },
-                      'assignee': { icon: '👤', text: '负责人变更', color: 'green' },
-                      'due_date': { icon: '📅', text: '截止时间调整', color: 'purple' },
-                      'description': { icon: '📝', text: '描述更新', color: 'cyan' },
-                      'title': { icon: '✏️', text: '标题修改', color: 'geekblue' },
-                      'tags': { icon: '🏷️', text: '标签变更', color: 'magenta' },
-                      'custom_fields': { icon: '⚙️', text: '自定义字段更新', color: 'volcano' },
-                      'created': { icon: '✨', text: '任务创建', color: 'green' },
-                      'completed': { icon: '✅', text: '任务完成', color: 'green' },
-                      'archived': { icon: '📦', text: '任务归档', color: 'default' }
-                    };
-                    return types[type as keyof typeof types] || { icon: '📄', text: '信息更新', color: 'gray' };
-                  };
-
-                  const updateInfo = getUpdateTypeInfo(update.update_type);
-                  
-                  // 解析变更详情
-                  const getChangeDetails = (update: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
-                    try {
-                      if (update.old_value && update.new_value) {
-                        const oldVal = typeof update.old_value === 'string' ? update.old_value : JSON.stringify(update.old_value);
-                        const newVal = typeof update.new_value === 'string' ? update.new_value : JSON.stringify(update.new_value);
-                        
-                        if (update.update_type === 'status') {
-                          const statusMap = {
-                            'todo': '待开始',
-                            'in_progress': '进行中', 
-                            'completed': '已完成',
-                            'cancelled': '已取消'
-                          };
-                          return `${statusMap[oldVal as keyof typeof statusMap] || oldVal} → ${statusMap[newVal as keyof typeof statusMap] || newVal}`;
-                        }
-                        
-                        if (update.update_type === 'priority') {
-                          const priorityMap = { 'low': '低', 'medium': '中', 'high': '高' };
-                          return `${priorityMap[oldVal as keyof typeof priorityMap] || oldVal} → ${priorityMap[newVal as keyof typeof priorityMap] || newVal}`;
-                        }
-                        
-                        if (update.update_type === 'due_date') {
-                          const oldDate = oldVal ? dayjs(oldVal).format('YYYY-MM-DD') : '未设置';
-                          const newDate = newVal ? dayjs(newVal).format('YYYY-MM-DD') : '未设置';
-                          return `${oldDate} → ${newDate}`;
-                        }
-                        
-                        return `"${oldVal}" → "${newVal}"`;
-                      }
-                      return null;
-                    } catch {
-                      return null;
-                    }
-                  };
-
-                  const changeDetails = getChangeDetails(update);
-                  const timeAgo = dayjs(update.created_at).fromNow();
-
-                  return (
-                    <Timeline.Item
-                      key={index}
-                      color={updateInfo.color}
-                      dot={
-                        <div style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          backgroundColor: '#fff',
-                          border: `2px solid ${updateInfo.color === 'blue' ? '#1890ff' : 
-                                                updateInfo.color === 'green' ? '#52c41a' :
-                                                updateInfo.color === 'orange' ? '#fa8c16' :
-                                                updateInfo.color === 'purple' ? '#722ed1' : '#8c8c8c'}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '10px'
-                        }}>
-                          {updateInfo.icon}
-                        </div>
-                      }
-                    >
-                      <div style={{ marginLeft: '8px' }}>
-                        {/* 更新标题 */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Text strong style={{ color: '#262626' }}>
-                              {updateInfo.text}
-                            </Text>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {dayjs(update.created_at).format('MM-DD HH:mm')}
-                            </Text>
-                          </div>
-                          <Text type="secondary" style={{ fontSize: '11px' }}>
-                            {timeAgo}
-                          </Text>
-                        </div>
-                        
-                        {/* 操作人信息 - 移到顶部 */}
-                        {(update.updated_by_username || update.updated_by) && (
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px', 
-                            marginBottom: '8px',
-                            padding: '6px 10px',
-                            backgroundColor: '#f8f9fa',
-                            borderRadius: '16px',
-                            width: 'fit-content',
-                            border: '1px solid #e8e8e8'
-                          }}>
-                            <Avatar 
-                              size={18} 
-                              icon={<UserOutlined />}
-                              style={{ 
-                                backgroundColor: '#1890ff', 
-                                fontSize: '10px'
-                              }}
-                            />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                              <Text style={{ fontSize: '12px', color: '#333', fontWeight: 500 }}>
-                                {update.updated_by_username || `用户${update.updated_by}`}
-                              </Text>
-                              {update.updated_by && (
-                                <Text type="secondary" style={{ fontSize: '10px', lineHeight: 1 }}>
-                                  ID: {update.updated_by}
-                                </Text>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* 变更详情 */}
-                        {changeDetails && (
-                          <div style={{ 
-                            marginBottom: '6px',
-                            padding: '6px 10px',
-                            backgroundColor: '#f5f5f5',
-                            borderRadius: '4px',
-                            fontSize: '13px',
-                            fontFamily: 'monospace'
-                          }}>
-                            {changeDetails}
-                          </div>
-                        )}
-                        
-                        {/* 更新备注 */}
-                        {update.notes && (
-                          <div style={{ 
-                            marginTop: '6px',
-                            padding: '8px 12px',
-                            backgroundColor: '#fafafa',
-                            borderLeft: '3px solid #1890ff',
-                            borderRadius: '0 4px 4px 0',
-                            fontSize: '13px',
-                            lineHeight: '1.4'
-                          }}>
-                            <Text style={{ color: '#595959' }}>{update.notes}</Text>
-                          </div>
-                        )}
-                      </div>
-                    </Timeline.Item>
-                  );
-                })}
-              </Timeline>
-              
-              {taskUpdates.length === 0 && (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '40px 20px',
-                  color: '#8c8c8c'
-                }}>
-                  <HistoryOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
-                  <div>暂无更新历史</div>
-                </div>
-              )}
-            </Card>
-          )}
         </Col>
 
         {/* 右侧信息面板 */}
@@ -1601,32 +1398,167 @@ const TaskDetailPageNew: React.FC = () => {
                     </Space>
                   ),
                   children: taskUpdates.length > 0 ? (
-                    <Timeline>
-                      {taskUpdates.map((update, index) => (
-                        <Timeline.Item
-                          key={index}
-                          color="blue"
-                        >
-                          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                            {dayjs(update.created_at).format('MM-DD HH:mm')}
-                          </div>
-                          <div style={{ fontWeight: 500 }}>
-                            {update.update_type}
-                          </div>
-                          {update.updated_by_username && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#595959' }}>
-                              <UserOutlined />
-                              {update.updated_by_username}
-                            </div>
-                          )}
-                          {update.notes && (
-                            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
-                              {update.notes}
-                            </div>
-                          )}
-                        </Timeline.Item>
-                      ))}
-                    </Timeline>
+                    <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      <Timeline>
+                        {taskUpdates.map((update, index) => {
+                          // 获取更新类型的详细信息
+                          const getUpdateTypeInfo = (type: string) => {
+                            const types = {
+                              'status': { icon: '🔄', text: '状态变更', color: 'blue' },
+                              'priority': { icon: '🔥', text: '优先级调整', color: 'orange' },
+                              'assignee': { icon: '👤', text: '负责人变更', color: 'green' },
+                              'due_date': { icon: '📅', text: '截止时间调整', color: 'purple' },
+                              'description': { icon: '📝', text: '描述更新', color: 'cyan' },
+                              'title': { icon: '✏️', text: '标题修改', color: 'geekblue' },
+                              'tags': { icon: '🏷️', text: '标签变更', color: 'magenta' },
+                              'custom_fields': { icon: '⚙️', text: '自定义字段更新', color: 'volcano' },
+                              'created': { icon: '✨', text: '任务创建', color: 'green' },
+                              'completed': { icon: '✅', text: '任务完成', color: 'green' },
+                              'archived': { icon: '📦', text: '任务归档', color: 'default' }
+                            };
+                            return types[type as keyof typeof types] || { icon: '📄', text: '信息更新', color: 'gray' };
+                          };
+
+                          const updateInfo = getUpdateTypeInfo(update.update_type);
+                          
+                          // 解析变更详情
+                          const getChangeDetails = (update: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+                            try {
+                              if (update.old_value && update.new_value) {
+                                const oldVal = typeof update.old_value === 'string' ? update.old_value : JSON.stringify(update.old_value);
+                                const newVal = typeof update.new_value === 'string' ? update.new_value : JSON.stringify(update.new_value);
+                                
+                                if (update.update_type === 'status') {
+                                  const statusMap = {
+                                    'todo': '待开始',
+                                    'in_progress': '进行中', 
+                                    'completed': '已完成',
+                                    'cancelled': '已取消'
+                                  };
+                                  return `${statusMap[oldVal as keyof typeof statusMap] || oldVal} → ${statusMap[newVal as keyof typeof statusMap] || newVal}`;
+                                }
+                                
+                                if (update.update_type === 'priority') {
+                                  const priorityMap = { 'low': '低', 'medium': '中', 'high': '高' };
+                                  return `${priorityMap[oldVal as keyof typeof priorityMap] || oldVal} → ${priorityMap[newVal as keyof typeof priorityMap] || newVal}`;
+                                }
+                                
+                                if (update.update_type === 'due_date') {
+                                  const oldDate = oldVal ? dayjs(oldVal).format('YYYY-MM-DD') : '未设置';
+                                  const newDate = newVal ? dayjs(newVal).format('YYYY-MM-DD') : '未设置';
+                                  return `${oldDate} → ${newDate}`;
+                                }
+                                
+                                return `"${oldVal}" → "${newVal}"`;
+                              }
+                              return null;
+                            } catch {
+                              return null;
+                            }
+                          };
+
+                          const changeDetails = getChangeDetails(update);
+                          const timeAgo = dayjs(update.created_at).fromNow();
+
+                          return (
+                            <Timeline.Item
+                              key={index}
+                              color={updateInfo.color}
+                              dot={
+                                <div style={{
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#fff',
+                                  border: `2px solid ${updateInfo.color === 'blue' ? '#1890ff' : 
+                                                        updateInfo.color === 'green' ? '#52c41a' :
+                                                        updateInfo.color === 'orange' ? '#fa8c16' :
+                                                        updateInfo.color === 'purple' ? '#722ed1' : '#8c8c8c'}`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '8px'
+                                }}>
+                                  {updateInfo.icon}
+                                </div>
+                              }
+                            >
+                              <div style={{ marginLeft: '4px' }}>
+                                {/* 更新标题 */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                  <Text strong style={{ color: '#262626', fontSize: '13px' }}>
+                                    {updateInfo.text}
+                                  </Text>
+                                  <Text type="secondary" style={{ fontSize: '10px' }}>
+                                    {timeAgo}
+                                  </Text>
+                                </div>
+                                
+                                <div style={{ fontSize: '11px', color: '#8c8c8c', marginBottom: '4px' }}>
+                                  {dayjs(update.created_at).format('MM-DD HH:mm')}
+                                </div>
+                                
+                                {/* 操作人信息 */}
+                                {(update.updated_by_username || update.updated_by) && (
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '6px', 
+                                    marginBottom: '6px',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#f8f9fa',
+                                    borderRadius: '12px',
+                                    width: 'fit-content',
+                                    border: '1px solid #e8e8e8'
+                                  }}>
+                                    <Avatar 
+                                      size={14} 
+                                      icon={<UserOutlined />}
+                                      style={{ 
+                                        backgroundColor: '#1890ff', 
+                                        fontSize: '8px'
+                                      }}
+                                    />
+                                    <Text style={{ fontSize: '11px', color: '#333', fontWeight: 500 }}>
+                                      {update.updated_by_username || `用户${update.updated_by}`}
+                                    </Text>
+                                  </div>
+                                )}
+                                
+                                {/* 变更详情 */}
+                                {changeDetails && (
+                                  <div style={{ 
+                                    marginBottom: '4px',
+                                    padding: '4px 8px',
+                                    backgroundColor: '#f5f5f5',
+                                    borderRadius: '4px',
+                                    fontSize: '11px',
+                                    fontFamily: 'monospace'
+                                  }}>
+                                    {changeDetails}
+                                  </div>
+                                )}
+                                
+                                {/* 更新备注 */}
+                                {update.notes && (
+                                  <div style={{ 
+                                    marginTop: '4px',
+                                    padding: '6px 8px',
+                                    backgroundColor: '#fafafa',
+                                    borderLeft: '2px solid #1890ff',
+                                    borderRadius: '0 4px 4px 0',
+                                    fontSize: '11px',
+                                    lineHeight: '1.4'
+                                  }}>
+                                    <Text style={{ color: '#595959' }}>{update.notes}</Text>
+                                  </div>
+                                )}
+                              </div>
+                            </Timeline.Item>
+                          );
+                        })}
+                      </Timeline>
+                    </div>
                   ) : (
                     <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8c8c8c' }}>
                       <HistoryOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />

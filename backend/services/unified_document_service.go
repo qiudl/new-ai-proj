@@ -369,9 +369,9 @@ func (s *UnifiedDocumentService) HealthCheck(ctx context.Context) error {
 
 // 私有方法
 
-// getDocumentPath 获取文档路径（统一路径策略）
+// getDocumentPath 获取文档路径（兼容现有tasks目录结构）
 func (s *UnifiedDocumentService) getDocumentPath(projectID, taskID int) string {
-	return filepath.Join(s.config.BasePath, "projects", fmt.Sprintf("project-%d", projectID), fmt.Sprintf("task-%d.md", taskID))
+	return filepath.Join(s.config.BasePath, "tasks", "projects", fmt.Sprintf("project-%d", projectID), fmt.Sprintf("task-%d.md", taskID))
 }
 
 // getArchivedDocumentPath 获取归档文档路径

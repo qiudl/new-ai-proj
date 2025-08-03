@@ -157,15 +157,32 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       
       if (!isMountedRef.current) return;
       
+      // 检查响应是否为空
+      if (!response) {
+        // 当没有活动计时器时，设置默认状态
+        const emptyResponse: TimerCurrentResponse = {
+          is_running: false,
+          is_paused: false,
+          task_id: null,
+          task_title: null,
+          start_time: null,
+          elapsed_seconds: 0,
+          formatted_time: '00:00'
+        };
+        updateTimerFromResponse(emptyResponse);
+        setConnectionStatus('connected');
+        return;
+      }
+
       // 转换PersonalTimerCurrent到TimerCurrentResponse格式
       const convertedResponse: TimerCurrentResponse = {
         is_running: response.is_running,
         is_paused: response.is_paused || false, // 现在PersonalTimerCurrent有is_paused字段
-        task_id: response.task_id,
-        task_title: response.task_title,
+        task_id: response.target_id,
+        task_title: response.target_title,
         start_time: response.start_time,
         elapsed_seconds: response.elapsed_seconds,
-        formatted_time: response.formatted_time
+        formatted_time: response.formatted_time || TimerService.formatDuration(response.elapsed_seconds)
       };
       
       updateTimerFromResponse(convertedResponse);
@@ -285,6 +302,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         response = await personalTimerService.startProjectTimer({
           task_type: 'project',
           task_id: taskId,
+          title: taskTitle,
+          context: 'dashboard',
           auto_stop_others: true
         });
         } else {
@@ -292,6 +311,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         response = await personalTimerService.startPersonalTimer({
           task_type: 'personal',
           task_id: taskId,
+          title: taskTitle,
+          context: 'dashboard',
           auto_stop_others: true
         });
         }

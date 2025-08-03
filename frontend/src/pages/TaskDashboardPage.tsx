@@ -18,7 +18,8 @@ import {
   Avatar,
   Tooltip,
   Radio,
-  message
+  message,
+  Tabs
 } from 'antd';
 import { 
   ClockCircleOutlined,
@@ -38,7 +39,8 @@ import {
   ExclamationCircleOutlined,
   DownloadOutlined,
   DashboardOutlined,
-  ToolOutlined
+  ToolOutlined,
+  BulbOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
@@ -66,6 +68,7 @@ import { QuickDatePicker } from '../components/QuickDatePicker';
 import { ExportModal } from '../components/ExportModal';
 import { PerformanceMonitorDashboard } from '../components/PerformanceMonitorDashboard';
 import { SystemValidationPanel } from '../components/SystemValidationPanel';
+import TaskAnalysisPanel from '../components/TaskAnalysisPanel';
 import { 
   useComponentPerformanceTracking, 
   usePagePerformanceTracking,
@@ -87,6 +90,7 @@ dayjs.extend(isSameOrBefore);
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
+const { TabPane } = Tabs;
 
 // 转换英文星期为中文
 const getDayName = (englishDay: string): string => {
@@ -159,6 +163,7 @@ const TaskDashboardPage: React.FC = () => {
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [performanceModalVisible, setPerformanceModalVisible] = useState(false);
   const [validationPanelVisible, setValidationPanelVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // 性能追踪
   const { trackUserInteraction } = useComponentPerformanceTracking('TaskDashboardPage');
@@ -312,8 +317,14 @@ const TaskDashboardPage: React.FC = () => {
         }
         
         const tasks = await DashboardService.getAllTasks();
+        console.log('🔍 TaskDashboardPage - getAllTasks结果:', {
+          isArray: Array.isArray(tasks),
+          length: tasks?.length || 0,
+          firstTask: tasks?.[0] || null
+        });
+        
         if (!tasks || tasks.length === 0) {
-          console.warn('⚠️ 未获取到任务数据，可能是没有任务或API返回空数组');
+          console.warn('⚠️ TaskDashboardPage - 未获取到任务数据，可能是没有任务或API返回空数组');
         }
         
         return tasks || [];
@@ -350,21 +361,35 @@ const TaskDashboardPage: React.FC = () => {
       return [];
     }
 
-    console.log('筛选本周任务：', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
+    console.log('🔍 筛选本周任务：', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
+    console.log('🔍 当前allTasks数量:', allTasks.length);
+    console.log('🔍 weekStart对象:', weekStart.toISOString());
+    console.log('🔍 weekEnd对象:', weekEnd.toISOString());
 
     const filteredTasks = allTasks.filter((task: Task) => {
       if (!task.due_date && !task.created_at) {
+        console.log(`❌ 任务 ${task.title} 没有due_date和created_at，跳过`);
         return false;
       }
       
       const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
       const isInWeek = taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
       
-      console.log(`任务 ${task.title} -> 在本周: ${isInWeek}`);
+      if (isInWeek) {
+        console.log(`✅ 任务 ${task.title} -> 日期: ${taskDate.format('YYYY-MM-DD')} -> 在本周: ${isInWeek}`);
+      }
       
       return isInWeek;
     });
 
+    console.log(`🎯 本周任务筛选结果: ${filteredTasks.length}/${allTasks.length}`);
+    if (filteredTasks.length === 0) {
+      console.log('⚠️ 没有找到本周任务，检查前5个任务的日期:');
+      allTasks.slice(0, 5).forEach((task: Task) => {
+        const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
+        console.log(`  - ${task.title}: ${taskDate?.format('YYYY-MM-DD') || '无日期'}`);
+      });
+    }
     return filteredTasks;
   }, [allTasks, weekStart, weekEnd]);
 
@@ -396,7 +421,16 @@ const TaskDashboardPage: React.FC = () => {
 
   // 计算本周统计数据
   const weeklyStats: WeeklyStats = useMemo(() => {
+    console.log('🔍 计算weeklyStats，weeklyTasks:', {
+      isArray: Array.isArray(weeklyTasks),
+      length: weeklyTasks?.length || 0,
+      isNull: weeklyTasks === null,
+      isUndefined: weeklyTasks === undefined,
+      actualValue: weeklyTasks
+    });
+
     if (!weeklyTasks) {
+      console.log('⚠️ weeklyTasks为空，返回默认统计数据');
       return {
         totalTasks: 0,
         completedTasks: 0,
@@ -413,6 +447,15 @@ const TaskDashboardPage: React.FC = () => {
     const inProgressTasks = weeklyTasks.filter(task => task.status === 'in_progress').length;
     const todoTasks = weeklyTasks.filter(task => task.status === 'todo').length;
     
+    console.log('📊 weeklyStats计算结果:', {
+      totalTasks,
+      completedTasks,
+      inProgressTasks,
+      todoTasks
+    });
+    
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
     // 计算逾期任务
     const today = dayjs();
     const overdueTasks = weeklyTasks.filter(task => {
@@ -420,9 +463,7 @@ const TaskDashboardPage: React.FC = () => {
       return dayjs(task.due_date).isBefore(today, 'day');
     }).length;
 
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-    return {
+    const finalStats = {
       totalTasks,
       completedTasks,
       inProgressTasks,
@@ -431,6 +472,9 @@ const TaskDashboardPage: React.FC = () => {
       completionRate,
       weekRange: `${weekStart.format('MM/DD')} - ${weekEnd.format('MM/DD')}`
     };
+    
+    console.log('🎯 最终weeklyStats:', finalStats);
+    return finalStats;
   }, [weeklyTasks, weekStart, weekEnd]);
 
   // 过滤任务
@@ -631,6 +675,24 @@ const TaskDashboardPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
+      
+
+      {/* 主要标签页内容 */}
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab}
+        size="large"
+        style={{ background: 'transparent' }}
+      >
+        <TabPane 
+          tab={
+            <Space>
+              <BarChartOutlined />
+              任务周报
+            </Space>
+          } 
+          key="dashboard"
+        >
       {/* 周选择器和标题 */}
       <Card style={{ marginBottom: '24px' }}>
         <Row justify="space-between" align="middle">
@@ -838,15 +900,25 @@ const TaskDashboardPage: React.FC = () => {
           data={weeklyTasks}
           skeleton={<DashboardStatsSkeleton />}
         >
+          {(() => {
+            console.log('🎨 UI渲染时的weeklyStats:', weeklyStats);
+            console.log('🎨 UI渲染时的加载状态:', { tasksLoading, hasAllTasks: !!allTasks, hasWeeklyTasks: !!weeklyTasks });
+            return null;
+          })()}
           <Row gutter={[16, 16]}>
         <Col xs={24} sm={6}>
           <Card>
             <Statistic
               title="本周任务总数"
-              value={weeklyStats.totalTasks}
+              value={weeklyStats.totalTasks || 0}
               prefix={<BarChartOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#1890ff', fontSize: '24px' }}
               suffix="个"
+              precision={0}
+              formatter={(value) => {
+                console.log('🔢 Statistic formatter called with value:', value, typeof value);
+                return value?.toString() || '0';
+              }}
             />
           </Card>
         </Col>
@@ -877,10 +949,11 @@ const TaskDashboardPage: React.FC = () => {
           <Card>
             <Statistic
               title="进行中"
-              value={weeklyStats.inProgressTasks}
+              value={weeklyStats.inProgressTasks || 0}
               prefix={<ClockCircleOutlined style={{ color: '#fa8c16' }} />}
-              valueStyle={{ color: '#fa8c16' }}
+              valueStyle={{ color: '#fa8c16', fontSize: '24px' }}
               suffix="个"
+              precision={0}
             />
           </Card>
         </Col>
@@ -1263,11 +1336,25 @@ const TaskDashboardPage: React.FC = () => {
         onClose={() => setPerformanceModalVisible(false)}
       />
 
-      {/* 系统验证面板 */}
-      <SystemValidationPanel
-        visible={validationPanelVisible}
-        onClose={() => setValidationPanelVisible(false)}
-      />
+        </TabPane>
+
+        <TabPane 
+          tab={
+            <Space>
+              <BulbOutlined />
+              任务分析
+            </Space>
+          } 
+          key="analysis"
+        >
+          <TaskAnalysisPanel 
+            projectId={selectedProject}
+            taskId={undefined}
+            style={{ marginTop: 16 }}
+            allTasks={allTasks}
+          />
+        </TabPane>
+      </Tabs>
     </div>
   );
 };

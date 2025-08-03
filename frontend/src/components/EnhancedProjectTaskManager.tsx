@@ -213,6 +213,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   });
   const [filters, setFilters] = useState({
     search: '',
+    taskIdSearch: '',
     status: [] as string[],
     assignee_id: undefined as number | undefined,
     due_date_range: null as [dayjs.Dayjs, dayjs.Dayjs] | null,
@@ -285,11 +286,11 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         key: 'id',
         title: 'ID',
         dataIndex: 'id',
-        width: 80,
+        width: undefined, // 自适应宽度
         fixed: 'left',
         visible: true,
         sortable: true,
-        resizable: false,
+        resizable: true,
       },
       {
         key: 'title',
@@ -501,16 +502,127 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     return result;
   }, []);
 
-  // 更新分层任务数据
+  // 注释掉重复的层级任务处理，因为现在直接从API设置层级数据
+  // useEffect(() => {
+  //   const hierarchical = processHierarchicalTasks(tasks);
+  //   setHierarchicalTasks(hierarchical);
+  // }, [tasks, processHierarchicalTasks]);
+
+  // 过滤层级任务数据
+  const filteredHierarchicalTasks = useMemo(() => {
+    if (!hierarchicalTasks) return [];
+    
+    const filterHierarchicalData = (tasksData: any[]): any[] => {
+      return tasksData.filter(task => {
+        // 检查当前任务是否匹配过滤条件
+        let matches = true;
+        
+        // 搜索筛选
+        if (filters.search && matches) {
+          matches = task.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+                   (task.description && task.description.toLowerCase().includes(filters.search.toLowerCase()));
+        }
+        
+        // 任务ID搜索筛选
+        if (filters.taskIdSearch && matches) {
+          matches = task.id.toString().includes(filters.taskIdSearch);
+        }
+        
+        // 状态筛选
+        if (filters.status.length > 0 && matches) {
+          matches = filters.status.includes(task.status);
+        }
+        
+        // 负责人筛选
+        if (filters.assignee_id && matches) {
+          matches = task.assignee_id === filters.assignee_id;
+        }
+        
+        // 日期筛选
+        if (filters.due_date_range && matches) {
+          if (!task.due_date) {
+            matches = false;
+          } else {
+            const [startDate, endDate] = filters.due_date_range;
+            const taskDate = dayjs(task.due_date);
+            matches = taskDate.isAfter(startDate, 'day') && taskDate.isBefore(endDate, 'day');
+          }
+        }
+        
+        // 如果当前任务匹配，保留它
+        if (matches) {
+          // 递归过滤子任务
+          if (task.children && task.children.length > 0) {
+            task.children = filterHierarchicalData(task.children);
+          }
+          return true;
+        }
+        
+        // 如果当前任务不匹配，检查是否有子任务匹配
+        if (task.children && task.children.length > 0) {
+          const filteredChildren = filterHierarchicalData(task.children);
+          if (filteredChildren.length > 0) {
+            task.children = filteredChildren;
+            return true; // 保留有匹配子任务的父任务
+          }
+        }
+        
+        return false;
+      });
+    };
+    
+    return filterHierarchicalData(hierarchicalTasks);
+  }, [hierarchicalTasks, filters]);
+
+  // 自动展开搜索结果的父级任务
   useEffect(() => {
-    const hierarchical = processHierarchicalTasks(tasks);
-    setHierarchicalTasks(hierarchical);
-  }, [tasks, processHierarchicalTasks]);
+    if (filters.taskIdSearch && filteredHierarchicalTasks.length > 0) {
+      const newExpandedIds = new Set<number>();
+      
+      // 递归查找匹配的任务并展开其所有父级
+      const findAndExpandMatches = (tasks: any[], parentIds: number[] = []) => {
+        tasks.forEach(task => {
+          // 检查当前任务是否匹配ID搜索
+          if (task.id.toString().includes(filters.taskIdSearch)) {
+            // 展开所有父级任务
+            parentIds.forEach(parentId => newExpandedIds.add(parentId));
+          }
+          
+          // 递归检查子任务
+          if (task.children && task.children.length > 0) {
+            findAndExpandMatches(task.children, [...parentIds, task.id]);
+          }
+        });
+      };
+      
+      findAndExpandMatches(filteredHierarchicalTasks);
+      
+      // 如果有需要展开的任务，更新展开状态
+      if (newExpandedIds.size > 0) {
+        setExpandedTaskIds(prev => {
+          const merged = new Set([...prev, ...newExpandedIds]);
+          return merged;
+        });
+      }
+    } else if (!filters.taskIdSearch) {
+      // 清除任务ID搜索时，可以选择性地收起所有任务（可选）
+      // setExpandedTaskIds(new Set());
+    }
+  }, [filters.taskIdSearch, filteredHierarchicalTasks]);
 
   // 获取用于表格显示的扁平化任务数据
   const displayTasks = useMemo(() => {
-    return flattenTasksForTable(hierarchicalTasks);
-  }, [hierarchicalTasks, flattenTasksForTable]);
+    return flattenTasksForTable(filteredHierarchicalTasks);
+  }, [filteredHierarchicalTasks, flattenTasksForTable]);
+
+  // 同步tasks状态和pagination，用于统计
+  useEffect(() => {
+    setTasks(displayTasks);
+    setPagination(prev => ({
+      ...prev,
+      total: displayTasks.length,
+    }));
+  }, [displayTasks]);
 
   // 定时器操作处理
   const handleStartTimer = useCallback(async (task: Task) => {
@@ -547,108 +659,11 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       setLoading(true);
       
       // 使用层级任务树API
-      const hierarchicalTasks = await TaskService.getTaskTree(projectId);
+      const hierarchicalTasksFromAPI = await TaskService.getTaskTree(projectId);
       
-      if (hierarchicalTasks) {
-        // 将层级任务展平为普通任务列表以支持现有过滤逻辑
-        const flatTasks = flattenHierarchicalTasks(hierarchicalTasks);
-        
-        // 应用筛选器
-        let filteredTasks = flatTasks;
-        
-        // 搜索筛选
-        if (filters.search) {
-          filteredTasks = filteredTasks.filter(task =>
-            task.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-            task.description?.toLowerCase().includes(filters.search.toLowerCase())
-          );
-        }
-        
-        // 状态筛选
-        if (filters.status.length > 0) {
-          filteredTasks = filteredTasks.filter(task => filters.status.includes(task.status));
-        }
-        
-        // 负责人筛选
-        if (filters.assignee_id) {
-          filteredTasks = filteredTasks.filter(task => task.assignee_id === filters.assignee_id);
-        }
-        
-        // 日期筛选
-        if (filters.due_date_range) {
-          const [startDate, endDate] = filters.due_date_range;
-          filteredTasks = filteredTasks.filter(task => {
-            if (!task.due_date) return false;
-            const taskDate = dayjs(task.due_date);
-            return taskDate.isAfter(startDate, 'day') && taskDate.isBefore(endDate, 'day');
-          });
-        }
-        
-        // 应用高级筛选器
-        if (advancedFilters.length > 0) {
-          filteredTasks = filteredTasks.filter((task: Task) => {
-            return advancedFilters.every((filter) => {
-              if (!filter.field || !filter.operator) return true;
-              
-              const fieldValue = getTaskFieldValue(task, filter.field);
-              return matchesFilterCondition(fieldValue, filter.operator, filter.value);
-            });
-          });
-        }
-        
-        // 应用排序
-        let sortedTasks = filteredTasks;
-        if (sortConfig) {
-          sortedTasks = [...filteredTasks].sort((a, b) => {
-            const aValue = getTaskFieldValue(a, sortConfig.field);
-            const bValue = getTaskFieldValue(b, sortConfig.field);
-            
-            // 处理不同数据类型的排序
-            let result = 0;
-            
-            if (aValue === null || aValue === undefined) {
-              result = bValue === null || bValue === undefined ? 0 : 1;
-            } else if (bValue === null || bValue === undefined) {
-              result = -1;
-            } else {
-              // 特殊字段排序处理
-              switch (sortConfig.field) {
-                case 'status':
-                  const statusOrder = { 'todo': 1, 'in_progress': 2, 'completed': 3, 'cancelled': 4 };
-                  result = (statusOrder[aValue as keyof typeof statusOrder] || 0) - (statusOrder[bValue as keyof typeof statusOrder] || 0);
-                  break;
-                case 'custom_priority':
-                  const priorityOrder = { 'low': 1, 'medium': 2, 'high': 3 };
-                  result = (priorityOrder[aValue as keyof typeof priorityOrder] || 0) - (priorityOrder[bValue as keyof typeof priorityOrder] || 0);
-                  break;
-                case 'due_date':
-                case 'created_at':
-                case 'updated_at':
-                  result = dayjs(aValue).isAfter(dayjs(bValue)) ? 1 : -1;
-                  break;
-                case 'custom_progress':
-                case 'custom_estimated_hours':
-                  result = Number(aValue) - Number(bValue);
-                  break;
-                default:
-                  // 字符串和数字的默认排序
-                  if (typeof aValue === 'string' && typeof bValue === 'string') {
-                    result = aValue.localeCompare(bValue, 'zh-CN');
-                  } else {
-                    result = aValue > bValue ? 1 : -1;
-                  }
-              }
-            }
-            
-            return sortConfig.order === 'descend' ? -result : result;
-          });
-        }
-        
-        setTasks(sortedTasks);
-        setPagination(prev => ({
-          ...prev,
-          total: sortedTasks.length,
-        }));
+      if (hierarchicalTasksFromAPI) {
+        // 设置原始层级数据
+        setHierarchicalTasks(hierarchicalTasksFromAPI);
       }
     } catch (error) {
       message.error('加载任务数据失败');
@@ -797,6 +812,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         case 'id':
           return {
             ...baseColumn,
+            width: 'auto', // 明确设置为自动宽度
             render: (id: number) => (
               <Text strong style={{ color: '#1890ff' }}>#{id}</Text>
             ),
@@ -819,6 +835,25 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 >
                   {level > 0 && (
                     <BranchesOutlined style={{ color: '#8c8c8c', fontSize: '12px' }} />
+                  )}
+                  
+                  {record.hasChildren && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={record.isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTaskExpansion(record.id);
+                      }}
+                      style={{
+                        padding: 0,
+                        minWidth: 'auto',
+                        height: 'auto',
+                        marginRight: '4px',
+                        color: '#8c8c8c'
+                      }}
+                    />
                   )}
                   
                   <Button
@@ -1219,6 +1254,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 // 清除所有筛选，显示全部任务
                 setFilters(prev => ({ 
                   ...prev, 
+                  search: '',
+                  taskIdSearch: '',
                   status: [], 
                   due_date_range: null 
                 }));
@@ -1240,6 +1277,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 // 筛选已完成任务
                 setFilters(prev => ({ 
                   ...prev, 
+                  search: '',
+                  taskIdSearch: '',
                   status: ['completed'],
                   due_date_range: null 
                 }));
@@ -1272,6 +1311,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 // 筛选进行中任务
                 setFilters(prev => ({ 
                   ...prev, 
+                  search: '',
+                  taskIdSearch: '',
                   status: ['in_progress'],
                   due_date_range: null 
                 }));
@@ -1294,6 +1335,8 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 const yesterday = dayjs().subtract(1, 'day');
                 setFilters(prev => ({ 
                   ...prev, 
+                  search: '',
+                  taskIdSearch: '',
                   status: ['todo', 'in_progress'], // 逾期任务应该是未完成的
                   due_date_range: [dayjs('2020-01-01'), yesterday] // 截止日期在昨天之前的
                 }));
@@ -1361,6 +1404,15 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 allowClear
                 size="small"
               />
+              <Input
+                placeholder="任务ID"
+                prefix={<span style={{ color: '#8c8c8c' }}>#</span>}
+                value={filters.taskIdSearch}
+                onChange={(e) => setFilters(prev => ({ ...prev, taskIdSearch: e.target.value }))}
+                style={{ width: 100 }}
+                allowClear
+                size="small"
+              />
               <Select
                 mode="multiple"
                 placeholder="状态"
@@ -1400,12 +1452,13 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   <Badge count={advancedFilters.length} size="small" style={{ marginLeft: 4 }} />
                 )}
               </Button>
-              {(filters.status.length > 0 || filters.due_date_range || advancedFilters.length > 0) && (
+              {(filters.search || filters.taskIdSearch || filters.status.length > 0 || filters.due_date_range || advancedFilters.length > 0) && (
                 <Button 
                   icon={<ClearOutlined />}
                   onClick={() => {
                     setFilters({
                       search: '',
+                      taskIdSearch: '',
                       status: [],
                       assignee_id: undefined,
                       due_date_range: null
@@ -1734,7 +1787,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             }
           }}
           loading={loading}
-          scroll={{ x: 'max-content', y: 600 }}
+          scroll={{ x: 'max-content' }}
           rowClassName={(record: HierarchicalTask) => {
             const level = record.level || 0;
             const classes = [`task-level-${level}`];

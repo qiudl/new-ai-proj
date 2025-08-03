@@ -28,6 +28,11 @@ const isCacheHit = (response: Response): boolean => {
 // 原始fetch的引用
 const originalFetch = window.fetch;
 
+// 检查是否为已知的开发中API（需要静默处理500错误）
+const isAnalysisApi = (url: string): boolean => {
+  return url.includes('/api/v1/analysis/');
+};
+
 // 增强的fetch函数
 const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -50,14 +55,27 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     const responseSize = getResponseSize(response);
     const cacheHit = isCacheHit(response);
     
+    // 对于分析API的500错误，进行静默处理
+    const isKnownAnalysisError = !response.ok && response.status === 500 && isAnalysisApi(url);
+    const errorMessage = response.ok ? undefined : 
+      isKnownAnalysisError ? 'Analysis service unavailable (Node.js environment needed)' :
+      `HTTP ${response.status}: ${response.statusText}`;
+    
     // 结束追踪
     performanceMonitor.endApiCall(
       trackingId,
       response.status,
       responseSize,
       cacheHit,
-      response.ok ? undefined : `HTTP ${response.status}: ${response.statusText}`
+      errorMessage
     );
+    
+    // 对于已知的分析API错误，不在控制台显示错误
+    if (isKnownAnalysisError) {
+      console.debug(`Analysis API temporarily unavailable: ${method} ${url} (Node.js environment needed)`);
+    } else if (!response.ok) {
+      console.error(`API Error: ${method} ${url} - ${response.status} ${response.statusText}`);
+    }
     
     activeApiCalls.delete(requestKey);
     return response;
@@ -65,6 +83,13 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     // 记录错误
     const errorMessage = error instanceof Error ? error.message : 'Network Error';
     performanceMonitor.endApiCall(trackingId, 0, 0, false, errorMessage);
+    
+    // 对于分析API，使用debug级别日志
+    if (isAnalysisApi(url)) {
+      console.debug(`Analysis API network error: ${method} ${url}`, error);
+    } else {
+      console.error(`Network Error: ${method} ${url}`, error);
+    }
     
     activeApiCalls.delete(requestKey);
     throw error;

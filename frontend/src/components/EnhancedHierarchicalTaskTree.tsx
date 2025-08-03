@@ -502,7 +502,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
         title={
           <Space>
             <BranchesOutlined />
-            <span>我的任务</span>
+            <span>任务树</span>
             <Badge count={treeData.length} showZero={false} />
           </Space>
         }

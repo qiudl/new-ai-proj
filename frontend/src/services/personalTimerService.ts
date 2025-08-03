@@ -44,14 +44,14 @@ export interface UserTimerTaskResponse {
 export interface PersonalTimerCurrent {
   is_running: boolean;
   is_paused?: boolean;
-  task_type?: string;
-  task_id?: number;
-  task_title?: string;
+  target_type?: string;
+  target_id?: number;
+  target_title?: string;
   task_color?: string;
-  task_category?: string;
+  category?: string;
   start_time?: string;
   elapsed_seconds: number;
-  formatted_time: string;
+  formatted_time?: string;
 }
 
 export interface PersonalTimerTodayStats {
@@ -104,7 +104,12 @@ export interface PersonalTimerDashboard {
 export interface PersonalTimerStartRequest {
   task_type: 'personal' | 'project';
   task_id: number;
+  title: string;
+  context: string;
   auto_stop_others?: boolean;
+  category?: string;
+  estimated_minutes?: number;
+  metadata?: Record<string, any>;
 }
 
 export interface UserTimerFilter {

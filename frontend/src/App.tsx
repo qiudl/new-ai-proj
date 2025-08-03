@@ -8,7 +8,7 @@ import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import { QueryProvider } from './providers/QueryProvider';
 import FloatingTimer from './components/FloatingTimer';
-import UnifiedDebugPanel from './components/UnifiedDebugPanel';
+// import UnifiedDebugPanel from './components/UnifiedDebugPanel'; // 隐藏调试功能
 import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
 import './App.css';
@@ -54,6 +54,7 @@ const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPa
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
 const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
+const TestCenter = React.lazy(() => import('./pages/TestCenter'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -400,14 +401,21 @@ const AppContent: React.FC = () => {
                 </Layout>
               </PrivateRoute>
             } />
+
+            {/* Test Center route */}
+            <Route path="/test-center" element={
+              <PrivateRoute>
+                <TestCenter />
+              </PrivateRoute>
+            } />
           </Routes>
         </Suspense>
         
         {/* Global Floating Timer - only shows when timer is running */}
         <FloatingTimer />
         
-        {/* Unified Debug Panel - includes timer and JWT debug */}
-        <UnifiedDebugPanel />
+        {/* Unified Debug Panel - includes timer and JWT debug (隐藏调试功能) */}
+        {/* <UnifiedDebugPanel /> */}
       </div>
     );
 };

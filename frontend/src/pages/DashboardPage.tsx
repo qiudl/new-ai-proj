@@ -3,15 +3,12 @@ import { Typography, Button, message, Tooltip } from 'antd';
 import { QuestionCircleOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 // 统一定时器系统
 import { useTimer } from '../contexts/TimerContext';
-import EnhancedTimerCard from '../components/EnhancedTimerCard';
-import DashboardTimerWidget from '../components/DashboardTimerWidget';
+import UniversalTimerWidget from '../components/UniversalTimerWidget';
 import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
-import TimerDataVisualization from '../components/TimerDataVisualization';
 // Phase 4: 交互优化组件
 import ContextMenuProvider, { useContextMenu, createTimerContextMenu, createChartContextMenu } from '../components/ContextMenu';
-import DragDropTaskManager from '../components/DragDropTaskManager';
-import AccessibilityHelper, { voiceAnnouncer } from '../components/AccessibilityHelper';
+// import AccessibilityHelper, { voiceAnnouncer } from '../components/AccessibilityHelper'; // 隐藏调试功能
 import useMobileGestures, { createTimerGestureConfig } from '../hooks/useMobileGestures';
 import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboardShortcuts';
 import '../styles/DashboardSimplified.css';
@@ -31,8 +28,6 @@ const DashboardPage: React.FC = () => {
   const { timerState, startTimer, stopTimer, pauseTimer } = useTimer();
 
   // Phase 4: 交互优化状态
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const timerSectionRef = useRef<HTMLDivElement>(null);
   const analyticsSectionRef = useRef<HTMLDivElement>(null);
@@ -41,48 +36,39 @@ const DashboardPage: React.FC = () => {
   const handleStartTimer = useCallback((task?: any) => {
     if (task) {
       startTimer(task.id, task.title, 'project');
-      voiceAnnouncer.announce(`开始为任务 "${task.title}" 计时`, 'medium');
+      // voiceAnnouncer.announce(`开始为任务 "${task.title}" 计时`, 'medium'); // 隐藏调试功能
       message.success(`开始计时: ${task.title}`);
     } else {
       startTimer();
-      voiceAnnouncer.announce('开始计时', 'medium');
+      // voiceAnnouncer.announce('开始计时', 'medium'); // 隐藏调试功能
     }
   }, [startTimer]);
 
   const handleStopTimer = useCallback(() => {
     stopTimer();
-    voiceAnnouncer.announce('计时已停止', 'medium');
+    // voiceAnnouncer.announce('计时已停止', 'medium'); // 隐藏调试功能
     message.info('计时已停止');
   }, [stopTimer]);
 
   const handlePauseTimer = useCallback(() => {
     pauseTimer();
-    voiceAnnouncer.announce('计时已暂停', 'medium');
+    // voiceAnnouncer.announce('计时已暂停', 'medium'); // 隐藏调试功能
     message.info('计时已暂停');
   }, [pauseTimer]);
 
-  const handleTasksReorder = useCallback((reorderedTasks: any[]) => {
-    setTasks(reorderedTasks);
-    voiceAnnouncer.announce('任务顺序已更新', 'low');
-  }, []);
-
-  const handleTaskClick = useCallback((task: any) => {
-    // 在这里可以导航到任务详情页面或打开任务编辑对话框
-    message.info(`查看任务: ${task.title}`);
-  }, []);
 
   const handleChartRefresh = useCallback(() => {
-    voiceAnnouncer.announce('正在刷新数据分析图表', 'medium');
+    // voiceAnnouncer.announce('正在刷新数据分析图表', 'medium'); // 隐藏调试功能
     message.loading('刷新数据中...', 1);
   }, []);
 
   const handleChartExport = useCallback(() => {
-    voiceAnnouncer.announce('正在导出图表数据', 'medium');
+    // voiceAnnouncer.announce('正在导出图表数据', 'medium'); // 隐藏调试功能
     message.success('图表导出功能开发中');
   }, []);
 
   const handleChartFullscreen = useCallback(() => {
-    voiceAnnouncer.announce('切换图表全屏模式', 'medium');
+    // voiceAnnouncer.announce('切换图表全屏模式', 'medium'); // 隐藏调试功能
     message.info('全屏功能开发中');
   }, []);
 
@@ -138,61 +124,9 @@ const DashboardPage: React.FC = () => {
   const timerMenu = useContextMenu(timerContextMenu);
   const chartMenu = useContextMenu(chartContextMenu);
 
-  // Phase 4: 加载示例任务数据
+  // Dashboard页面加载完成通知
   useEffect(() => {
-    const sampleTasks = [
-      {
-        id: 1,
-        title: 'Phase 4: 交互优化完成测试',
-        status: 'in_progress' as const,
-        priority: 'high' as const,
-        project_name: 'AI项目管理平台MVP',
-        custom_fields: {
-          priority: 'high',
-          estimated_hours: 2,
-          tags: ['phase4', '交互优化', '测试']
-        }
-      },
-      {
-        id: 2,
-        title: '拖拽功能验证',
-        status: 'todo' as const,
-        priority: 'medium' as const,
-        project_name: 'AI项目管理平台MVP',
-        custom_fields: {
-          priority: 'medium',
-          estimated_hours: 1,
-          tags: ['拖拽', '功能测试']
-        }
-      },
-      {
-        id: 3,
-        title: '快捷键系统测试',
-        status: 'todo' as const,
-        priority: 'low' as const,
-        project_name: '个人计时系统',
-        custom_fields: {
-          priority: 'low',
-          estimated_hours: 0.5,
-          tags: ['快捷键', '无障碍']
-        }
-      },
-      {
-        id: 4,
-        title: '移动端手势功能',
-        status: 'completed' as const,
-        priority: 'medium' as const,
-        project_name: '个人计时系统',
-        custom_fields: {
-          priority: 'medium',
-          estimated_hours: 3,
-          tags: ['移动端', '手势', '完成']
-        }
-      }
-    ];
-    
-    setTasks(sampleTasks);
-    voiceAnnouncer.announce('Dashboard页面加载完成，包含拖拽任务管理功能', 'low');
+    // voiceAnnouncer.announce('Dashboard页面加载完成，包含优秀的任务树功能', 'low'); // 隐藏调试功能
   }, []);
   
   // 从localStorage恢复浮动定时器可见性状态
@@ -296,163 +230,95 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 4列布局：任务计时 + 个人计时 + 数据分析 + 我的任务 */}
-      <div className="dashboard-simplified-layout" style={{ 
+      {/* 新布局：第一行 - 统一计时器 + 任务树 */}
+      <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: '1fr 1fr 1.2fr 1fr', // 数据分析区域稍宽
+        gridTemplateColumns: '1fr 1fr',
         gap: '24px',
-        height: 'calc(100vh - 140px)', // 占满剩余空间
         marginBottom: '24px'
       }}>
-        {/* 左侧：任务计时 */}
+        {/* 左侧：统一计时器 */}
         <div 
           ref={timerSectionRef}
-          className="timer-section" 
+          className="unified-timer-section" 
           style={{
             background: '#fafafa',
             border: '1px solid #d9d9d9',
             borderRadius: '12px',
             padding: '24px',
-            display: 'flex',
-            flexDirection: 'column'
+            minHeight: '400px'
           }}
           {...timerMenu.onContextMenu}
           role="region"
-          aria-label="任务计时区域"
+          aria-label="统一计时器区域"
         >
-          <div style={{ 
-            marginBottom: '16px',
-            borderBottom: '1px solid #e8e8e8',
-            paddingBottom: '12px'
-          }}>
-            <Title level={3} style={{ margin: 0, color: '#262626' }}>
-              任务计时
-            </Title>
-          </div>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <TimerErrorBoundary>
-              <EnhancedTimerCard showHistory={true} />
-            </TimerErrorBoundary>
-          </div>
+          <TimerErrorBoundary>
+            <UniversalTimerWidget 
+              size="normal"
+              showSuggestions={true}
+              showHistory={true}
+              allowFullscreen={false}
+              embedded={true}
+              onTimerStart={(data) => {
+                // voiceAnnouncer.announce(`开始计时: ${data.title}`, 'medium'); // 隐藏调试功能
+                message.success(`开始计时: ${data.title}`);
+              }}
+              onTimerStop={(data) => {
+                // voiceAnnouncer.announce(`计时已停止`, 'medium'); // 隐藏调试功能
+                message.info(`计时已停止，本次 ${data.duration || '0分钟'}`);
+              }}
+            />
+          </TimerErrorBoundary>
         </div>
 
-        {/* 中间：个人计时器 */}
-        <div className="personal-timer-section" style={{
-          background: '#f0f9ff',
-          border: '1px solid #91d5ff',
-          borderRadius: '12px',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          <div style={{ 
-            marginBottom: '16px',
-            borderBottom: '1px solid #e8e8e8',
-            paddingBottom: '12px'
-          }}>
-            <Title level={3} style={{ margin: 0, color: '#262626' }}>
-              个人计时
-            </Title>
-          </div>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <TimerErrorBoundary>
-              <DashboardTimerWidget 
-                height="100%"
-                showTaskCreation={true}
-                showQuickStats={true}
-                maxRecentTasks={5}
-              />
-            </TimerErrorBoundary>
-          </div>
-        </div>
-
-        {/* 第三列：数据分析 */}
+        {/* 右侧：任务树（恢复原来优秀的EnhancedHierarchicalTaskTree）*/}
         <div 
-          ref={analyticsSectionRef}
-          className="analytics-section" 
-          style={{
-            background: '#f6ffed',
-            border: '1px solid #b7eb8f',
-            borderRadius: '12px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-          {...chartMenu.onContextMenu}
-          role="region"
-          aria-label="数据分析区域"
-        >
-          <div style={{ 
-            marginBottom: '16px',
-            borderBottom: '1px solid #e8e8e8',
-            paddingBottom: '12px'
-          }}>
-            <Title level={3} style={{ margin: 0, color: '#262626' }}>
-              数据分析
-            </Title>
-          </div>
-          
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <TimerErrorBoundary>
-              <TimerDataVisualization 
-                height="100%"
-                compactMode={true}
-                showTabs={true}
-                autoRefresh={true}
-                refreshInterval={300}
-              />
-            </TimerErrorBoundary>
-          </div>
-        </div>
-
-        {/* 右侧：我的任务 */}
-        <div 
-          className="tasks-section" 
+          className="tasks-tree-section" 
           style={{
             background: '#f9f0ff',
             border: '1px solid #d3adf7',
             borderRadius: '12px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column'
+            overflow: 'hidden'
           }}
           role="region"
-          aria-label="我的任务区域"
+          aria-label="任务树区域"
         >
-          <div style={{ 
-            marginBottom: '16px',
-            borderBottom: '1px solid #e8e8e8',
-            paddingBottom: '12px'
-          }}>
-            <Title level={3} style={{ margin: 0, color: '#262626' }}>
-              我的任务 (拖拽排序)
-            </Title>
-          </div>
-          
-          <div style={{ 
-            flex: 1, 
-            overflow: 'hidden'
-          }}>
-            <TimerErrorBoundary>
-              <DragDropTaskManager
-                tasks={tasks}
-                onTasksReorder={handleTasksReorder}
-                onStartTimer={handleStartTimer}
-                onTaskClick={handleTaskClick}
-                isTimerRunning={timerState.isRunning}
-                currentTimingTaskId={timerState.currentTask?.id}
-                height="100%"
-                enableDropZone={true}
-              />
-            </TimerErrorBoundary>
-          </div>
+          <TimerErrorBoundary>
+            <EnhancedHierarchicalTaskTree
+              height="100%"
+              showProjectInfo={true}
+              compactMode={true}
+            />
+          </TimerErrorBoundary>
         </div>
       </div>
 
-      {/* Phase 4: 无障碍辅助功能 */}
-      <AccessibilityHelper shortcuts={timerShortcuts} />
+      {/* 第二行：后续功能区域 */}
+      <div style={{
+        background: '#f5f5f5',
+        border: '1px dashed #d9d9d9',
+        borderRadius: '12px',
+        padding: '48px',
+        textAlign: 'center',
+        minHeight: '200px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <Title level={3} style={{ color: '#8c8c8c', margin: '0 0 16px 0' }}>
+          📊 第二行功能区域
+        </Title>
+        <Text type="secondary" style={{ fontSize: '16px' }}>
+          数据分析、项目管理等功能将在这里展示
+        </Text>
+        <Text type="secondary" style={{ marginTop: '8px' }}>
+          根据用户测试反馈进行设计和开发
+        </Text>
+      </div>
+
+      {/* Phase 4: 无障碍辅助功能 (隐藏调试功能) */}
+      {/* <AccessibilityHelper shortcuts={timerShortcuts} /> */}
 
       </div>
     </ContextMenuProvider>

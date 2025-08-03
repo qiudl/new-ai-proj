@@ -35,6 +35,7 @@ import {
 // import DocumentSystemShowcase from '../components/DocumentSystemShowcase';
 // import EnterpriseDocumentDemo from '../components/EnterpriseDocumentDemo';
 // import UnifiedDocumentManager from '../components/UnifiedDocumentManager';
+import TaskAnalysisPanel from '../components/TaskAnalysisPanel';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -71,6 +72,13 @@ const TestCenter: React.FC = () => {
       description: '完整的系统架构展示',
       icon: <ThunderboltOutlined style={{ color: '#52c41a' }} />,
       category: 'showcase'
+    },
+    {
+      key: 'task-analysis',
+      name: '任务分析系统',
+      description: '智能任务分析与周报生成',
+      icon: <BulbOutlined style={{ color: '#722ed1' }} />,
+      category: 'ai'
     }
   ];
 
@@ -325,6 +333,22 @@ const TestCenter: React.FC = () => {
                 文档系统展示功能已简化，专注核心业务功能
               </Text>
             </div>
+          </TabPane>
+
+          <TabPane 
+            tab={
+              <Space>
+                <BulbOutlined />
+                任务分析
+              </Space>
+            } 
+            key="task-analysis"
+          >
+            <TaskAnalysisPanel 
+              projectId={1} 
+              taskId={undefined}
+              style={{ marginTop: 16 }}
+            />
           </TabPane>
         </Tabs>
       </Content>

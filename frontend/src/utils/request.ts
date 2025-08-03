@@ -26,8 +26,13 @@ const requestInterceptor = (url: string, options: RequestOptions): RequestOption
   };
 };
 
+// 检查是否为分析API（需要静默处理500错误）
+const isAnalysisApi = (url: string): boolean => {
+  return url.includes('/analysis/');
+};
+
 // 响应拦截器
-const responseInterceptor = async (response: Response): Promise<APIResponse> => {
+const responseInterceptor = async (response: Response, requestUrl: string): Promise<APIResponse> => {
   if (!response.ok) {
     if (response.status === 401) {
       // 未授权，清除token并跳转到登录页
@@ -42,6 +47,16 @@ const responseInterceptor = async (response: Response): Promise<APIResponse> => 
       errorMessage = errorData.message || errorMessage;
     } catch (e) {
       // 忽略JSON解析错误，使用默认错误消息
+    }
+    
+    // 对于分析API的500错误，提供友好的错误消息且不在控制台显示错误
+    if (response.status === 500 && isAnalysisApi(requestUrl)) {
+      console.debug(`Analysis API temporarily unavailable: ${requestUrl} (Node.js environment needed)`);
+      return {
+        success: false,
+        message: '分析服务暂不可用：后端需要Node.js环境来执行分析脚本',
+        code: response.status.toString(),
+      };
     }
     
     return {
@@ -89,7 +104,7 @@ const baseRequest = async (
     });
 
     clearTimeout(timeoutId);
-    return await responseInterceptor(response);
+    return await responseInterceptor(response, url);
   } catch (error) {
     clearTimeout(timeoutId);
     

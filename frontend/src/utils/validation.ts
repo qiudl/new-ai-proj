@@ -116,13 +116,13 @@ export class DataSanitizer {
   }
 
   // 确保正整数
-  static ensurePositiveInteger(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = 1): number {
-    const num = this.ensureNumber(value, defaultValue);
+  static ensurePositiveInteger(value: any, defaultValue = 1): number {
+    const num = typeof value === 'number' ? value : (parseInt(value) || defaultValue);
     return Math.max(1, Math.floor(Math.abs(num)));
   }
 
   // 确保布尔值
-  static ensureBoolean(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = false): boolean {
+  static ensureBoolean(value: any, defaultValue = false): boolean {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'string') {
       return value.toLowerCase() === 'true';

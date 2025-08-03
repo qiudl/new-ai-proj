@@ -72,6 +72,7 @@ type Application struct {
 	aiConfigHandler            *handlers.AIConfigHandler
 	aiTaskGeneratorHandler     *handlers.AITaskGeneratorHandler
 	dashboardHandler           *handlers.DashboardHandler
+	taskAnalysisHandler        *handlers.TaskAnalysisHandler
 	// documentRegistryHandler    *handlers.DocumentRegistryHandler // Disabled - conflicting models
 }
 
@@ -199,6 +200,9 @@ func NewApplication() (*Application, error) {
 	// 仪表板处理器
 	dashboardHandler := handlers.NewDashboardHandler(db)
 
+	// 任务分析处理器
+	taskAnalysisHandler := handlers.NewTaskAnalysisHandler(db)
+
 	// 文档注册表处理器 - Disabled due to conflicting models
 	// documentRegistryService := services.NewDocumentRegistryService(db.DocumentRegistry())
 	// documentRegistryHandler := handlers.NewDocumentRegistryHandler(documentRegistryService)
@@ -239,6 +243,7 @@ func NewApplication() (*Application, error) {
 		aiConfigHandler:             aiConfigHandler,
 		aiTaskGeneratorHandler:      aiTaskGeneratorHandler,
 		dashboardHandler:            dashboardHandler,
+		taskAnalysisHandler:         taskAnalysisHandler,
 		// documentRegistryHandler:     documentRegistryHandler, // Disabled - conflicting models
 	}, nil
 }
@@ -334,6 +339,16 @@ func (app *Application) setupRouter() *gin.Engine {
 				dashboard.GET("/weekly-stats", app.dashboardHandler.GetWeeklyStats)
 			}
 			
+			// Task Analysis routes
+			analysis := authorized.Group("/analysis")
+			{
+				analysis.GET("/tags/statistics", app.taskAnalysisHandler.GetTagStatistics)
+				analysis.POST("/tags/batch-update", app.taskAnalysisHandler.BatchUpdateTags)
+				analysis.POST("/tasks/batch-analyze", app.taskAnalysisHandler.BatchAnalyzeTasks)
+				analysis.POST("/reports/weekly", app.taskAnalysisHandler.GenerateWeeklyReport)
+				analysis.GET("/environment/nodejs", app.taskAnalysisHandler.GetNodejsEnvironmentStatus)
+			}
+			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
 			{
@@ -356,6 +371,10 @@ func (app *Application) setupRouter() *gin.Engine {
 				projects.PUT("/:id/tasks/:taskId/updates/:updateId", app.updateTaskUpdateHandler)
 				projects.DELETE("/:id/tasks/:taskId/updates/:updateId", app.deleteTaskUpdateHandler)
 				projects.GET("/:id/tasks/:taskId/timeline", app.getTaskTimelineHandler)
+				
+				// Task analysis routes
+				projects.GET("/:id/tasks/:taskId/analysis/tags", app.taskAnalysisHandler.AnalyzeTaskTags)
+				projects.PUT("/:id/tasks/:taskId/analysis/tags", app.taskAnalysisHandler.UpdateTaskTags)
 				
 				// Basic tasks routes
 				projects.GET("/:id/tasks", app.getTasksHandler)
