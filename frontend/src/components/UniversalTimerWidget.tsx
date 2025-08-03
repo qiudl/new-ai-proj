@@ -112,27 +112,43 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   const widgetRef = useRef<HTMLDivElement>(null);
 
   // 键盘快捷键
-  useKeyboardShortcuts([
-    {
-      key: 'Space',
-      ctrlKey: true,
-      callback: () => handlePlayPause(),
-      description: '启动/暂停计时器'
+  const timerShortcuts = createTimerShortcuts({
+    startTimer: () => {
+      if (!isRunning) {
+        handleStart();
+      } else if (isPaused) {
+        handleResume();
+      } else {
+        handlePause();
+      }
     },
-    {
-      key: 'Escape',
-      callback: () => {
-        if (isFullscreen) setIsFullscreen(false);
-        if (showQuickStart) setShowQuickStart(false);
-      },
-      description: '退出全屏/关闭弹窗'
+    stopTimer: handleStop,
+    pauseTimer: () => {
+      if (isRunning && !isPaused) {
+        handlePause();
+      } else if (isPaused) {
+        handleResume();
+      }
     },
-    {
-      key: 'F11',
-      callback: () => allowFullscreen && setIsFullscreen(!isFullscreen),
-      description: '切换全屏模式'
-    }
-  ]);
+    showHelp: () => {
+      Modal.info({
+        title: '快捷键帮助',
+        content: (
+          <div>
+            <p><strong>Ctrl/Cmd + S:</strong> 开始/暂停/恢复计时</p>
+            <p><strong>Ctrl/Cmd + E:</strong> 停止计时</p>
+            <p><strong>Ctrl/Cmd + P:</strong> 暂停/恢复计时</p>
+            <p><strong>Shift + ?:</strong> 显示此帮助</p>
+            <p><strong>F11:</strong> 切换全屏模式</p>
+            <p><strong>Escape:</strong> 退出全屏/关闭弹窗</p>
+          </div>
+        )
+      });
+    },
+    toggleFocus: () => allowFullscreen && setIsFullscreen(!isFullscreen)
+  });
+
+  useKeyboardShortcuts(timerShortcuts, { enabled: !embedded });
 
   // 初始化数据
   useEffect(() => {

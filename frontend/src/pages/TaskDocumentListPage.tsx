@@ -151,17 +151,34 @@ const TaskDocumentListPage: React.FC = () => {
     }
   }, [projects]);
 
+  // 检查是否是ID搜索
+  const isIdSearch = (query: string): boolean => {
+    return query.startsWith('#') && /^#\d+$/.test(query);
+  };
+
   // 筛选任务
   const filterTasks = useCallback(() => {
     let filtered = [...tasks];
 
     // 关键词搜索
     if (searchKeyword.trim()) {
-      const keyword = searchKeyword.toLowerCase();
-      filtered = filtered.filter(task =>
-        task.title.toLowerCase().includes(keyword) ||
-        task.description?.toLowerCase().includes(keyword)
-      );
+      const keyword = searchKeyword.trim();
+      
+      if (isIdSearch(keyword)) {
+        // ID搜索 (格式: #123)
+        const id = parseInt(keyword.substring(1));
+        if (!isNaN(id)) {
+          filtered = filtered.filter(task => task.id === id);
+        }
+      } else {
+        // 常规搜索
+        const lowerKeyword = keyword.toLowerCase();
+        filtered = filtered.filter(task =>
+          task.title.toLowerCase().includes(lowerKeyword) ||
+          task.description?.toLowerCase().includes(lowerKeyword) ||
+          task.id.toString().includes(keyword) // 也支持纯数字ID搜索
+        );
+      }
     }
 
     // 项目筛选
@@ -217,10 +234,27 @@ const TaskDocumentListPage: React.FC = () => {
 
   const columns = [
     {
+      title: '任务ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 100,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => a.id - b.id,
+      render: (id: number) => (
+        <Text style={{ 
+          fontFamily: 'monospace', 
+          fontWeight: 'bold',
+          color: '#1890ff'
+        }}>
+          #{id}
+        </Text>
+      ),
+    },
+    {
       title: '任务名称',
       dataIndex: 'title',
       key: 'title',
       width: 300,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => a.title.localeCompare(b.title),
       render: (text: string, record: TaskDocumentInfo) => (
         <div>
           <div style={{ fontWeight: 500, marginBottom: 4 }}>
@@ -237,6 +271,14 @@ const TaskDocumentListPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => a.status.localeCompare(b.status),
+      filters: [
+        { text: '待开始', value: 'todo' },
+        { text: '进行中', value: 'in_progress' },
+        { text: '已完成', value: 'completed' },
+        { text: '已取消', value: 'cancelled' },
+      ],
+      onFilter: (value: any, record: TaskDocumentInfo) => record.status === value,
       render: (status: string) => {
         const config = getStatusConfig(status);
         return (
@@ -250,6 +292,21 @@ const TaskDocumentListPage: React.FC = () => {
       title: '文档状态',
       key: 'documentStatus',
       width: 140,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => {
+        // 有文档的排在前面
+        if (a.documentExists && !b.documentExists) return -1;
+        if (!a.documentExists && b.documentExists) return 1;
+        return 0;
+      },
+      filters: [
+        { text: '有文档', value: 'with-doc' },
+        { text: '无文档', value: 'without-doc' },
+      ],
+      onFilter: (value: any, record: TaskDocumentInfo) => {
+        if (value === 'with-doc') return record.documentExists || false;
+        if (value === 'without-doc') return !record.documentExists;
+        return true;
+      },
       render: (_: unknown, record: TaskDocumentInfo) => (
         <Space direction="vertical" size={2}>
           {record.documentExists ? (
@@ -270,6 +327,8 @@ const TaskDocumentListPage: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
+      sorter: (a: TaskDocumentInfo, b: TaskDocumentInfo) => 
+        dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
@@ -372,11 +431,12 @@ const TaskDocumentListPage: React.FC = () => {
         <Row gutter={16} align="middle">
           <Col flex="300px">
             <Search
-              placeholder="搜索任务名称或描述"
+              placeholder="搜索任务名称、描述或输入#ID搜索..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               allowClear
               prefix={<SearchOutlined />}
+              style={{ width: '100%' }}
             />
           </Col>
           <Col flex="150px">
