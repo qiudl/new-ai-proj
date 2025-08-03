@@ -34,6 +34,7 @@ import {
 import { DocumentFolder } from '../types/document';
 import DocumentFileManager from '../components/DocumentFileManager';
 import DocumentSearch from '../components/DocumentSearch';
+import WorkNotesManager from '../components/WorkNotesManager';
 // Archived components - moved to _archived_document_components/
 // import DocumentRelationsPanel from '../components/DocumentRelationsPanel';
 // import DocumentPermissionPanel from '../components/DocumentPermissionPanel';
@@ -647,14 +648,13 @@ const DocumentManagerPage: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <div style={{ padding: 20, textAlign: 'center' }}>
-                      <Text>文档管理功能正在简化重构中...</Text>
-                      <br />
-                      <Text type="secondary">
-                        当前文件夹ID: {selectedFolderId || '未选择'}
-                      </Text>
-                      {/* TODO: Implement simplified document manager */}
-                    </div>
+                    <WorkNotesManager
+                      selectedFolderId={selectedFolderId}
+                      onDocumentSelect={(doc) => {
+                        setSelectedDocumentId(doc.id);
+                        // 可以在这里添加其他文档选择的处理逻辑
+                      }}
+                    />
                   ),
                 },
                 {
