@@ -36,7 +36,7 @@ import {
   FullscreenExitOutlined
 } from '@ant-design/icons';
 import { useUnifiedTimer } from '../hooks/useUnifiedTimer';
-import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboardShortcuts';
 import type { TimerStatus, TimerSuggestion, TimerTemplate } from '../types/timer';
 
 const { Title, Text } = Typography;
