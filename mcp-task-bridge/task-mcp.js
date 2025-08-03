@@ -79,13 +79,16 @@ export class TaskMCPServer {
                 proxy: false
             });
             const task = response.data.data;
+            // 使用智能字段读取逻辑
+            const priority = task.priority || task.custom_fields?.priority || 'low';
+            
             return {
                 success: true,
                 id: task.id,
                 title: task.title,
                 status: task.status,
-                priority: task.custom_fields?.priority || 'low',
-                message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title}" [状态: ${task.status}, 优先级: ${task.custom_fields?.priority || 'low'}]`
+                priority: priority,
+                message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title}" [状态: ${task.status}, 优先级: ${priority}]`
             };
         }
         catch (error) {
@@ -303,14 +306,17 @@ export class TaskMCPServer {
                 proxy: false
             });
             const subtask = response.data.data;
+            // 使用智能字段读取逻辑
+            const priority = subtask.priority || subtask.custom_fields?.priority || 'low';
+            
             return {
                 success: true,
                 id: subtask.id,
                 title: subtask.title,
                 parent_id: parentId,
                 status: subtask.status,
-                priority: subtask.custom_fields?.priority || 'low',
-                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || 'low'}]`
+                priority: priority,
+                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${priority}]`
             };
         }
         catch (error) {
@@ -407,41 +413,55 @@ export class TaskMCPServer {
         try {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
-            // 验证更新字段
-            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id', 'estimated_hours', 'priority', 'tags', 'total_time_seconds'];
-            const customFields = []; // 暂时移除custom_fields处理，因为大部分字段现在是直接字段
-            const allFields = [...directFields, ...customFields];
+            
+            // 字段分类定义
+            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id', 'total_time_seconds'];
+            const dualStorageFields = ['priority', 'estimated_hours', 'tags']; // 双重存储字段
+            const customOnlyFields = []; // 仅存储在custom_fields中的字段
+            const allFields = [...directFields, ...dualStorageFields, ...customOnlyFields];
+            
             const changedFields = [];
             const updateData = {
-                project_id: task.project_id
+                project_id: task.project_id,
+                custom_fields: { ...task.custom_fields } // 初始化custom_fields
             };
+            
+            // 智能字段处理函数
+            const getFieldValue = (field, task) => {
+                if (dualStorageFields.includes(field)) {
+                    // 对于双重存储字段，直接字段优先
+                    return task[field] || task.custom_fields?.[field];
+                } else {
+                    return task[field];
+                }
+            };
+            
             // 构建更新数据，只包含变更的字段
             for (const [field, value] of Object.entries(updates)) {
                 if (!allFields.includes(field)) {
                     console.error(`[WARNING] 忽略不允许的字段: ${field}`);
                     continue;
                 }
-                let currentValue;
-                let hasChanged = false;
-                if (directFields.includes(field)) {
-                    // 直接字段
-                    currentValue = task[field];
-                    hasChanged = currentValue !== value;
-                    if (hasChanged) {
-                        updateData[field] = value;
-                    }
-                }
-                else if (customFields.includes(field)) {
-                    // custom_fields中的字段
-                    currentValue = task.custom_fields?.[field];
-                    hasChanged = currentValue !== value;
-                    if (hasChanged) {
-                        updateData.custom_fields[field] = value;
-                    }
-                }
+                
+                const currentValue = getFieldValue(field, task);
+                const hasChanged = currentValue !== value;
+                
                 if (hasChanged) {
                     changedFields.push(field);
                     console.error(`[DEBUG] 字段变更: ${field} = "${currentValue}" -> "${value}"`);
+                    
+                    if (directFields.includes(field)) {
+                        // 仅直接字段
+                        updateData[field] = value;
+                    } else if (dualStorageFields.includes(field)) {
+                        // 双重存储字段：同时更新直接字段和custom_fields
+                        updateData[field] = value;
+                        updateData.custom_fields[field] = value;
+                        console.error(`[DEBUG] 双重存储字段 ${field}: 同时更新直接字段和custom_fields`);
+                    } else if (customOnlyFields.includes(field)) {
+                        // 仅custom_fields字段
+                        updateData.custom_fields[field] = value;
+                    }
                 }
             }
             // 保持未更新的直接字段不变
@@ -491,6 +511,14 @@ export class TaskMCPServer {
                 proxy: false
             });
             const updatedTask = updateResponse.data.data;
+            // 使用智能字段读取函数处理返回数据
+            const getDisplayValue = (field, task) => {
+                if (dualStorageFields.includes(field)) {
+                    return task[field] || task.custom_fields?.[field];
+                }
+                return task[field];
+            };
+
             return {
                 success: true,
                 updated_task: {
@@ -498,7 +526,9 @@ export class TaskMCPServer {
                     title: updatedTask.title,
                     description: updatedTask.description,
                     status: updatedTask.status,
-                    priority: updatedTask.custom_fields?.priority,
+                    priority: getDisplayValue('priority', updatedTask),
+                    estimated_hours: getDisplayValue('estimated_hours', updatedTask),
+                    tags: getDisplayValue('tags', updatedTask),
                     due_date: updatedTask.due_date,
                     assignee_id: updatedTask.assignee_id,
                     project_id: updatedTask.project_id,

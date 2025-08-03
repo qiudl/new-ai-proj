@@ -46,7 +46,8 @@ import {
   UploadOutlined,
   EyeOutlined,
   DownloadOutlined,
-  InboxOutlined
+  InboxOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -62,6 +63,7 @@ import TaskSummaryEditor from '../components/TaskSummaryEditor';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
+import TaskGanttChart from '../components/TaskGanttChart';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -1004,6 +1006,27 @@ const TaskDetailPageNew: React.FC = () => {
                           // 不在这里显示成功消息，让TaskDocumentEditor自己处理
                         }}
                         style={{ height: '500px' }}
+                      />
+                    </div>
+                  )
+                },
+                {
+                  key: 'gantt',
+                  label: (
+                    <Space>
+                      <BarChartOutlined />
+                      <span>甘特图</span>
+                      {subtasks.length > 0 && (
+                        <Badge count={subtasks.length} size="small" style={{ backgroundColor: '#722ed1' }} />
+                      )}
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ minHeight: '500px' }}>
+                      <TaskGanttChart
+                        parentTask={task}
+                        projectId={parseInt(projectId || '0')}
+                        style={{ border: 'none', boxShadow: 'none' }}
                       />
                     </div>
                   )
