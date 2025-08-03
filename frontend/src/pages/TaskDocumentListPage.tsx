@@ -81,7 +81,10 @@ const TaskDocumentListPage: React.FC = () => {
       
       for (const project of projects) {
         try {
-          const response = await TaskService.getTasks(project.id);
+          // 加载所有页面的任务，不受分页限制
+          const response = await TaskService.getTasks(project.id, { 
+            page_size: 1000 // 设置大页面大小以获取所有任务
+          });
           // TaskService.getTasks返回分页响应，需要访问data属性
           const projectTasks = response.data || [];
           // 为每个任务添加项目信息
@@ -100,16 +103,34 @@ const TaskDocumentListPage: React.FC = () => {
       const tasksWithDocumentStatus = await Promise.all(
         allTasks.map(async (task) => {
           try {
-            // 使用API服务检查文档状态
-            const response = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/document`, {
-              method: 'HEAD',
+            // 使用统一文档处理器API检查文档状态
+            const response = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents`, {
+              method: 'GET',
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json',
               },
             });
+            
+            // 检查响应状态，200表示文档存在，404表示不存在
+            const documentExists = response.ok;
+            let lastModified = undefined;
+            
+            if (documentExists) {
+              try {
+                const data = await response.json();
+                if (data.success && data.data) {
+                  lastModified = data.data.last_updated;
+                }
+              } catch (e) {
+                // 忽略JSON解析错误，只要HTTP状态正确即可
+              }
+            }
+            
             return {
               ...task,
-              documentExists: response.ok
+              documentExists,
+              lastModified
             };
           } catch (error) {
             return {
@@ -228,13 +249,18 @@ const TaskDocumentListPage: React.FC = () => {
     {
       title: '文档状态',
       key: 'documentStatus',
-      width: 120,
+      width: 140,
       render: (_: any, record: TaskDocumentInfo) => (
-        <Space>
+        <Space direction="vertical" size={2}>
           {record.documentExists ? (
             <Badge status="success" text="有文档" />
           ) : (
             <Badge status="default" text="无文档" />
+          )}
+          {record.lastModified && (
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              更新: {dayjs(record.lastModified).format('MM-DD HH:mm')}
+            </Text>
           )}
         </Space>
       ),
@@ -265,7 +291,15 @@ const TaskDocumentListPage: React.FC = () => {
               type="text"
               size="small"
               icon={<EditOutlined />}
-              onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=document`)}
+              onClick={() => {
+                if (record.documentExists) {
+                  // 如果文档存在，跳转到任务详情页的文档标签
+                  navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=document`);
+                } else {
+                  // 如果文档不存在，跳转到任务详情页创建文档
+                  navigate(`/projects/${record.project_id}/tasks/${record.id}?action=create-document`);
+                }
+              }}
             />
           </Tooltip>
           <Tooltip title="打开项目">
