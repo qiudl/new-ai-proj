@@ -13,19 +13,18 @@ export class TaskMCPServer {
             'Authorization': `Bearer ${this.authToken}`
         };
     }
-    // 辅助方法：通过ID查找任务
+    // 辅助方法：通过ID查找任务 (使用分页查询)
     async findTaskById(id) {
         try {
-            // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
-            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            const tasks1 = response1.data.data?.data || [];
-            const task1 = tasks1.find((t) => t.id === id);
-            if (task1) {
-                return task1;
+            // 首先尝试从项目1获取完整任务列表 (大部分任务都在项目1中)
+            const tasksResult = await this.listTasks(1);
+            if (tasksResult.success) {
+                const task1 = tasksResult.tasks.find((t) => t.id === id);
+                if (task1) {
+                    return task1;
+                }
             }
+            
             // 如果在项目1中没有找到，尝试在其他项目中查找
             const projectsResponse = await axios.get(`${this.apiBase}/projects`, {
                 headers: this.getHeaders(),
@@ -36,14 +35,12 @@ export class TaskMCPServer {
                 if (project.id === 1)
                     continue; // 已经检查过项目1
                 try {
-                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
-                        headers: this.getHeaders(),
-                        proxy: false
-                    });
-                    const tasks = tasksResponse.data.data?.data || [];
-                    const task = tasks.find((t) => t.id === id);
-                    if (task) {
-                        return task;
+                    const projectTasksResult = await this.listTasks(project.id);
+                    if (projectTasksResult.success) {
+                        const task = projectTasksResult.tasks.find((t) => t.id === id);
+                        if (task) {
+                            return task;
+                        }
                     }
                 }
                 catch (projectError) {
@@ -225,26 +222,58 @@ export class TaskMCPServer {
             };
         }
     }
-    // 查看任务列表
+    // 查看任务列表 (支持分页获取所有任务)
     async listTasks(projectId = 1) {
         try {
             console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            const tasks = response.data.data?.data || [];
+            
+            let allTasks = [];
+            let currentPage = 1;
+            let totalPages = 1;
+            
+            // 分页获取所有任务
+            do {
+                const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
+                    headers: this.getHeaders(),
+                    proxy: false,
+                    params: {
+                        page: currentPage,
+                        page_size: 100  // 使用较大的页面大小减少请求次数
+                    }
+                });
+                
+                const responseData = response.data.data;
+                const tasks = responseData?.data || [];
+                const total = responseData?.total || 0;
+                const pageSize = responseData?.page_size || 20;
+                
+                allTasks = allTasks.concat(tasks);
+                totalPages = Math.ceil(total / pageSize);
+                
+                console.error(`[DEBUG] 已获取第 ${currentPage}/${totalPages} 页，本页 ${tasks.length} 个任务`);
+                currentPage++;
+                
+            } while (currentPage <= totalPages);
+            
+            console.error(`[DEBUG] 分页获取完成，总计 ${allTasks.length} 个任务`);
+            
             return {
                 success: true,
-                total: tasks.length,
-                tasks: tasks.map((task) => ({
+                total: allTasks.length,
+                tasks: allTasks.map((task) => ({
                     id: task.id,
                     title: task.title,
+                    description: task.description,
                     status: task.status,
                     created_at: task.created_at,
-                    project_id: task.project_id
+                    updated_at: task.updated_at,
+                    project_id: task.project_id,
+                    parent_id: task.parent_id,
+                    assignee_id: task.assignee_id,
+                    due_date: task.due_date,
+                    custom_fields: task.custom_fields
                 })),
-                message: `📋 共找到 ${tasks.length} 个任务`
+                message: `📋 共找到 ${allTasks.length} 个任务`
             };
         }
         catch (error) {
@@ -379,7 +408,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
             // 验证更新字段
-            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id'];
+            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id'];
             const customFields = ['priority'];
             const allFields = [...directFields, ...customFields];
             const changedFields = [];
