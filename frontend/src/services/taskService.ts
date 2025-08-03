@@ -92,7 +92,7 @@ export class TaskService {
     
     try {
       // Validate input
-      ValidationHelper.validateRequired(task.title, '任务标题');
+      ValidationHelper.validateRequired(task.title as any, '任务标题');
       ValidationHelper.validateLength(task.title, '任务标题', 2, 200);
       
       if (task.description) {
@@ -170,9 +170,9 @@ export class TaskService {
       return response.data!;
     } catch (error: Error | unknown) {
       console.error('TaskService.updateTask - Error details:', {
-        error: error.message,
-        status: error.status,
-        data: error.data,
+        error: (error as any).message,
+        status: (error as any).status,
+        data: (error as any).data,
         projectId,
         taskId,
         requestData: task
@@ -418,13 +418,7 @@ export class TaskService {
       }
       
       // Log successful batch operation
-      logTaskAction('batch_update', {
-        projectId,
-        taskIds,
-        status,
-        updatedCount: response.data?.updated_count || 0,
-        failedCount: response.data?.failed_tasks?.length || 0
-      });
+      logTaskAction('batch_update', taskIds.join(','), projectId);
       
       return response.data!;
     } catch (error) {

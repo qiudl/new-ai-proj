@@ -696,7 +696,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       });
       
       // 提供更详细的错误信息
-      const errorMessage = error?.message || error?.error?.message || '任务创建失败';
+      const errorMessage = (error as any)?.message || (error as any)?.error?.message || '任务创建失败';
       message.error(`任务创建失败: ${errorMessage}`);
     }
   }, [projectId, createForm, loadData]);
@@ -779,7 +779,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     const visibleColumns = columnConfigs.filter(config => config.visible);
     
     return visibleColumns.map(config => {
-      const baseColumn: unknown = {
+      const baseColumn: any = {
         key: config.key,
         title: config.title,
         dataIndex: config.dataIndex,
@@ -805,7 +805,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         case 'title':
           return {
             ...baseColumn,
-            render: (title: string, record: unknown) => {
+            render: (title: string, record: any) => {
               const level = record.level || 0;
               
               return (
@@ -862,7 +862,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         case 'timer_actions':
           return {
             ...baseColumn,
-            render: (_: unknown, record: Task) => {
+            render: (_: any, record: Task) => {
               const isCurrentTask = timerState.taskId === record.id;
               const isRunning = timerState.isRunning && isCurrentTask;
               const isPaused = isRunning && timerState.isPaused;
@@ -962,7 +962,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             ...baseColumn,
             fixed: 'right',
             width: 120,
-            render: (_: unknown, record: Task) => (
+            render: (_: any, record: Task) => (
               <Space size="small">
                 <Tooltip title="查看详情">
                   <Button
@@ -1001,7 +1001,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             
             return {
               ...baseColumn,
-              render: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => {
+              render: (value: any, record: Task) => {
                 if (fieldConfig?.render) {
                   return fieldConfig.render(value, record);
                 }
@@ -1735,7 +1735,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           }}
           loading={loading}
           scroll={{ x: 'max-content', y: 600 }}
-          rowClassName={(record: unknown) => {
+          rowClassName={(record: HierarchicalTask) => {
             const level = record.level || 0;
             const classes = [`task-level-${level}`];
             

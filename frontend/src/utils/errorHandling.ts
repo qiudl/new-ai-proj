@@ -147,7 +147,7 @@ export class ValidationHelper {
     return name.trim().length >= 2 && name.trim().length <= 100;
   }
 
-  static validateRequired(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, fieldName: string): void {
+  static validateRequired(value: any, fieldName: string): void {
     if (value === null || value === undefined || value === '') {
       throw new AppError(`${fieldName}不能为空`, ErrorType.VALIDATION);
     }
@@ -184,17 +184,17 @@ export class BoundaryHelper {
         current = current[key];
       }
       
-      return current !== undefined ? current : defaultValue;
+      return current !== undefined ? (current as T) : defaultValue;
     } catch {
       return defaultValue;
     }
   }
 
   // 确保数组格式
-  static ensureArray<T>(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): T[] {
+  static ensureArray<T>(value: any): T[] {
     if (Array.isArray(value)) return value;
     if (value == null) return [];
-    return [value];
+    return [value as T];
   }
 
   // 数字边界检查

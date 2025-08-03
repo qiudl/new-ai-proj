@@ -142,8 +142,8 @@ export interface User {
   id: ID;
   username: string;
   email: string;
-  role: 'admin' | 'user' | 'guest;
-  status: 'active' | 'inactive' | 'suspended;
+  role: 'admin' | 'user' | 'guest';
+  status: 'active' | 'inactive' | 'suspended';
   profile?: UserProfile;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -163,7 +163,7 @@ export interface Project {
   id: ID;
   name: string;
   description: string;
-  status: 'active' | 'archived' | 'completed;
+  status: 'active' | 'archived' | 'completed';
   ownerId: ID;
   members: ProjectMember[];
   settings: ProjectSettings;
@@ -174,7 +174,7 @@ export interface Project {
 /** 项目成员 */
 export interface ProjectMember {
   userId: ID;
-  role: 'owner' | 'admin' | 'member' | 'viewer;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
   joinedAt: Timestamp;
   permissions: string[];
 }
@@ -209,10 +209,10 @@ export interface Task {
 }
 
 /** 任务状态 */
-export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled;
+export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
 
 /** 任务优先级 */
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent;
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 // ============================================================================
 // 事件类型
@@ -262,7 +262,8 @@ export function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
     typeof value === 'object' &&
     value !== null &&
     'success' in value &&
-    typeof (value as ApiResponse).success === 'boolean;
+    typeof (value as ApiResponse).success === 'boolean'
+  );
 }
 
 /** 检查是否为错误响应 */
@@ -271,7 +272,8 @@ export function isApiError(value: unknown): value is ApiError {
     typeof value === 'object' &&
     value !== null &&
     'code' in value &&
-    'message' in value;
+    'message' in value
+  );
 }
 
 /** 检查是否为有效用户 */
@@ -281,7 +283,8 @@ export function isValidUser(value: unknown): value is User {
     value !== null &&
     'id' in value &&
     'username' in value &&
-    'email' in value;
+    'email' in value
+  );
 }
 
 /** 检查是否为有效任务 */
@@ -291,16 +294,16 @@ export function isValidTask(value: unknown): value is Task {
     value !== null &&
     'id' in value &&
     'title' in value &&
-    'status' in value;
+    'status' in value
+  );
 }
 
 // ============================================================================
 // 导出所有类型
 // ============================================================================
 
-export * from './task;
-export * from './project;
-export * from './user;
-export * from './api;
+export * from './task';
+export * from './project';
+export * from './user';
+export * from './api';
 
-))))

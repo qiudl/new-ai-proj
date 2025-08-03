@@ -250,7 +250,7 @@ class ProjectService {
   async getProjectsForDocumentMetadata(): Promise<ProjectOption[]> {
     try {
       const response = await api.get('/projects/metadata');
-      return response.data.map((project: unknown) => ({
+      return response.data.map((project: any) => ({
         id: project.id,
         name: project.name,
         description: project.description,
