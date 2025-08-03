@@ -429,8 +429,16 @@ export class TaskMCPServer {
             // 智能字段处理函数
             const getFieldValue = (field, task) => {
                 if (dualStorageFields.includes(field)) {
-                    // 对于双重存储字段，直接字段优先
-                    return task[field] || task.custom_fields?.[field];
+                    // 对于双重存储字段，直接字段优先，但要处理空值
+                    const directValue = task[field];
+                    const customValue = task.custom_fields?.[field];
+                    
+                    // 如果直接字段有有效值（非空字符串、非null、非undefined），优先使用
+                    if (directValue !== null && directValue !== undefined && directValue !== '') {
+                        return directValue;
+                    }
+                    // 否则使用custom_fields中的值
+                    return customValue;
                 } else {
                     return task[field];
                 }
@@ -514,7 +522,14 @@ export class TaskMCPServer {
             // 使用智能字段读取函数处理返回数据
             const getDisplayValue = (field, task) => {
                 if (dualStorageFields.includes(field)) {
-                    return task[field] || task.custom_fields?.[field];
+                    // 处理空值：直接字段优先，但要考虑空字符串和null
+                    const directValue = task[field];
+                    const customValue = task.custom_fields?.[field];
+                    
+                    if (directValue !== null && directValue !== undefined && directValue !== '') {
+                        return directValue;
+                    }
+                    return customValue;
                 }
                 return task[field];
             };
