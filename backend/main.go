@@ -1951,56 +1951,82 @@ func (app *Application) updateTaskHandler(c *gin.Context) {
 		existingTask.AssigneeID = req.AssigneeID
 	}
 	
-	if req.ParentID != nil && (existingTask.ParentID == nil || *req.ParentID != *existingTask.ParentID) {
-		// Prevent self-reference
-		if *req.ParentID == taskID {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Task cannot be its own parent", nil)
-			c.JSON(http.StatusBadRequest, response)
-			return
+	// Handle parent_id changes (including clearing parent)
+	// Check if parent_id field was explicitly provided in the request
+	if parentIDField, exists := rawRequest["parent_id"]; exists {
+		var parentIDChanged bool
+		
+		if parentIDField == nil {
+			// Clearing parent task (setting to null)
+			parentIDChanged = existingTask.ParentID != nil
+		} else if req.ParentID != nil {
+			// Setting parent task
+			parentIDChanged = existingTask.ParentID == nil || *req.ParentID != *existingTask.ParentID
 		}
 		
-		// Validate parent task exists and is in the same project
-		parentTask, err := app.db.Tasks().GetByID(c.Request.Context(), *req.ParentID)
-		if err != nil {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Parent task must exist and be in the same project", nil)
-			c.JSON(http.StatusBadRequest, response)
-			return
+		if parentIDChanged {
+			if req.ParentID != nil {
+				// Setting a new parent - perform validations
+				
+				// Prevent self-reference
+				if *req.ParentID == taskID {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, "Task cannot be its own parent", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+				
+				// Validate parent task exists and is in the same project
+				parentTask, err := app.db.Tasks().GetByID(c.Request.Context(), *req.ParentID)
+				if err != nil {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, "Parent task must exist and be in the same project", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+				if parentTask.ProjectID != existingTask.ProjectID {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, "Parent task must be in the same project", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+				
+				// Check for circular reference using comprehensive algorithm
+				hasCircularDep, err := app.db.Tasks().CheckCircularDependency(c.Request.Context(), taskID, *req.ParentID)
+				if err != nil {
+					app.logger.Printf("Error checking circular dependency: %v", err)
+					response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate parent relationship", nil)
+					c.JSON(http.StatusInternalServerError, response)
+					return
+				}
+				if hasCircularDep {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, "Setting this parent would create a circular dependency", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+			}
+			
+			// Update parent and track the change
+			var oldValue, newValue string
+			if existingTask.ParentID != nil {
+				oldValue = fmt.Sprintf("%d", *existingTask.ParentID)
+			} else {
+				oldValue = "none"
+			}
+			
+			if req.ParentID != nil {
+				newValue = fmt.Sprintf("%d", *req.ParentID)
+			} else {
+				newValue = "none"
+			}
+			
+			updates = append(updates, models.TaskUpdate{
+				TaskID:     taskID,
+				UpdateType: "parent",
+				OldValue:   &oldValue,
+				NewValue:   &newValue,
+				UpdatedBy:  nil, // TODO: Get user ID from auth context
+			})
+			
+			existingTask.ParentID = req.ParentID
 		}
-		if parentTask.ProjectID != existingTask.ProjectID {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Parent task must be in the same project", nil)
-			c.JSON(http.StatusBadRequest, response)
-			return
-		}
-		
-		// Check for circular reference using comprehensive algorithm
-		hasCircularDep, err := app.db.Tasks().CheckCircularDependency(c.Request.Context(), taskID, *req.ParentID)
-		if err != nil {
-			app.logger.Printf("Error checking circular dependency: %v", err)
-			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate parent relationship", nil)
-			c.JSON(http.StatusInternalServerError, response)
-			return
-		}
-		if hasCircularDep {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Setting this parent would create a circular dependency", nil)
-			c.JSON(http.StatusBadRequest, response)
-			return
-		}
-		
-		var oldValue, newValue string
-		if existingTask.ParentID != nil {
-			oldValue = fmt.Sprintf("%d", *existingTask.ParentID)
-		} else {
-			oldValue = "none"
-		}
-		newValue = fmt.Sprintf("%d", *req.ParentID)
-		updates = append(updates, models.TaskUpdate{
-			TaskID:     taskID,
-			UpdateType: "parent",
-			OldValue:   &oldValue,
-			NewValue:   &newValue,
-			UpdatedBy:  nil, // TODO: Get user ID from auth context
-		})
-		existingTask.ParentID = req.ParentID
 	}
 	
 	if req.DueDate != nil {

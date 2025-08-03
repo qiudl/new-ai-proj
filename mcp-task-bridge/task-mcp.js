@@ -655,4 +655,154 @@ export class TaskMCPServer {
             };
         }
     }
+
+    // ========================================
+    // 任务文档管理方法
+    // ========================================
+
+    // 创建或更新任务文档
+    async createOrUpdateTaskDocument(taskId, content, title = null) {
+        try {
+            console.error(`[DEBUG] 创建/更新任务文档: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            
+            const documentData = {
+                content: content
+            };
+            
+            if (title) {
+                documentData.title = title;
+            }
+            
+            // 先尝试获取现有文档
+            let hasExistingDoc = false;
+            try {
+                const checkResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+                hasExistingDoc = checkResponse.status === 200;
+            } catch (error) {
+                hasExistingDoc = false;
+            }
+            
+            let response;
+            if (hasExistingDoc) {
+                // 更新现有文档
+                response = await axios.put(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, documentData, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+            } else {
+                // 创建新文档
+                response = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, documentData, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+            }
+            
+            return {
+                success: true,
+                task_id: taskId,
+                operation: hasExistingDoc ? 'updated' : 'created',
+                message: `📄 任务 "${task.title}" 的文档已${hasExistingDoc ? '更新' : '创建'}`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 创建/更新任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `创建/更新任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // 获取任务文档
+    async getTaskDocument(taskId) {
+        try {
+            console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            
+            const response = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            
+            const document = response.data.data;
+            
+            return {
+                success: true,
+                task_id: taskId,
+                document: {
+                    content: document.content,
+                    last_updated: document.last_updated,
+                    size: document.size
+                },
+                message: `📄 获取任务 "${task.title}" 的文档成功`
+            };
+        }
+        catch (error) {
+            if (error.response?.status === 404) {
+                return {
+                    success: false,
+                    task_id: taskId,
+                    error: '任务文档不存在',
+                    has_document: false
+                };
+            }
+            
+            console.error(`[ERROR] 获取任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `获取任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // 检查任务是否有文档
+    async hasTaskDocument(taskId) {
+        try {
+            const result = await this.getTaskDocument(taskId);
+            return {
+                success: true,
+                task_id: taskId,
+                has_document: result.success,
+                message: `任务 ${taskId} ${result.success ? '有' : '没有'}文档`
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                task_id: taskId,
+                has_document: false,
+                error: error.message
+            };
+        }
+    }
+
+    // 删除任务文档
+    async deleteTaskDocument(taskId) {
+        try {
+            console.error(`[DEBUG] 删除任务文档: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            
+            const response = await axios.delete(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            
+            return {
+                success: true,
+                task_id: taskId,
+                message: `🗑️ 任务 "${task.title}" 的文档已删除`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 删除任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `删除任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
 }
