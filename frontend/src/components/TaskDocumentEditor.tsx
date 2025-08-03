@@ -4,9 +4,16 @@ import { SaveOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import api from '../services/api';
 
-// 简化的类型定义 - 直接从API返回的数据结构
+// API返回的数据结构 - 匹配后端统一响应格式
 interface TaskDocumentResponse {
-  content: string;
+  data: {
+    content: string;
+    task_id: number;
+    project_id: number;
+    format: string;
+    size?: number;
+    last_updated?: string;
+  };
 }
 
 interface DocumentRequest {
@@ -46,8 +53,8 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     
     try {
       const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`) as TaskDocumentResponse;
-      if (response && response.content !== undefined) {
-        const documentContent = response.content || '';
+      if (response && response.data && response.data.content !== undefined) {
+        const documentContent = response.data.content || '';
         setContent(documentContent);
         setOriginalContent(documentContent);
         
