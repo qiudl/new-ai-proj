@@ -53,6 +53,22 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  // 检查是否是ID搜索
+  const isIdSearch = (query: string): boolean => {
+    return query.startsWith('#') && /^#\d+$/.test(query);
+  };
+
+  // 通过ID搜索工作笔记
+  const searchById = async (id: number): Promise<WorkNote[]> => {
+    try {
+      const workNote = await workNotesService.getWorkNote(id);
+      return [workNote];
+    } catch (error) {
+      console.warn(`Work note with ID ${id} not found:`, error);
+      return [];
+    }
+  };
+
   // 加载工作笔记
   const loadWorkNotes = async () => {
     try {
@@ -60,7 +76,19 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       let data;
       
       if (searchQuery) {
-        const results = await workNotesService.searchWorkNotes(searchQuery);
+        let results: WorkNote[] = [];
+        
+        if (isIdSearch(searchQuery)) {
+          // ID搜索 (格式: #123)
+          const id = parseInt(searchQuery.substring(1));
+          if (!isNaN(id)) {
+            results = await searchById(id);
+          }
+        } else {
+          // 常规搜索
+          results = await workNotesService.searchWorkNotes(searchQuery);
+        }
+        
         data = { documents: results, total: results.length, page: 1, page_size: 50 };
       } else {
         data = await workNotesService.listWorkNotes(selectedFolderId || undefined);
@@ -222,10 +250,23 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   // 表格列定义
   const columns = [
     {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+      sorter: (a: WorkNote, b: WorkNote) => a.id - b.id,
+      render: (id: number) => (
+        <Text style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+          #{id}
+        </Text>
+      ),
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
+      sorter: (a: WorkNote, b: WorkNote) => a.title.localeCompare(b.title),
       render: (text: string, record: WorkNote) => (
         <Space>
           <Button
@@ -248,6 +289,14 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      sorter: (a: WorkNote, b: WorkNote) => a.status.localeCompare(b.status),
+      filters: [
+        { text: '草稿', value: 'draft' },
+        { text: '已发布', value: 'published' },
+        { text: '已归档', value: 'archived' },
+        { text: '模板', value: 'template' },
+      ],
+      onFilter: (value: any, record: WorkNote) => record.status === value,
       render: (status: string) => (
         <Tag color={getStatusColor(status)}>
           {status === 'published' ? '已发布' :
@@ -262,6 +311,13 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       dataIndex: 'visibility',
       key: 'visibility',
       width: 100,
+      sorter: (a: WorkNote, b: WorkNote) => a.visibility.localeCompare(b.visibility),
+      filters: [
+        { text: '私有', value: 'private' },
+        { text: '团队', value: 'team' },
+        { text: '公开', value: 'public' },
+      ],
+      onFilter: (value: any, record: WorkNote) => record.visibility === value,
       render: (visibility: string) => (
         <Tag color={getVisibilityColor(visibility)}>
           {visibility === 'public' ? '公开' :
@@ -285,6 +341,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 150,
+      sorter: (a: WorkNote, b: WorkNote) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
       render: (date: string) => new Date(date).toLocaleString('zh-CN'),
     },
     {
@@ -361,11 +418,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           
           <Space>
             <Input.Search
-              placeholder="搜索工作笔记..."
+              placeholder="搜索标题、内容、描述或输入#ID搜索..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onSearch={handleSearch}
-              style={{ width: 250 }}
+              style={{ width: 300 }}
               allowClear
             />
           </Space>
@@ -395,9 +452,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 pageSize: 10,
                 showSizeChanger: true,
                 showQuickJumper: true,
-                showTotal: (total) => `共 ${total} 条`,
+                showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                pageSizeOptions: ['10', '20', '50', '100'],
               }}
               size="small"
+              defaultSortField="updated_at"
+              defaultSortOrder="descend"
             />
           )}
         </Spin>
