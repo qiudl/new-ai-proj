@@ -165,9 +165,10 @@ export class DataSanitizer {
 
   // 清理分页参数
   static sanitizePagination(params: unknown): unknown {
+    const typedParams = params as { page?: number; page_size?: number } | null | undefined;
     return {
-      page: this.ensurePositiveInteger(params?.page, 1),
-      page_size: Math.min(100, this.ensurePositiveInteger(params?.page_size, 20)),
+      page: this.ensurePositiveInteger(typedParams?.page, 1),
+      page_size: Math.min(100, this.ensurePositiveInteger(typedParams?.page_size, 20)),
     };
   }
 }

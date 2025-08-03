@@ -5,7 +5,6 @@ package services
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
@@ -89,6 +88,7 @@ type UserBehaviorModel struct {
 	TimePatterns          map[string]map[string]float64  `json:"time_patterns"` // hour -> type -> probability
 	ContextPatterns       map[string]map[string]float64  `json:"context_patterns"` // context -> type -> probability
 	AccuracyByFeature     map[string]float64             `json:"accuracy_by_feature"`
+	AvgDuration           map[string]float64             `json:"avg_duration"` // 各类型平均时长(秒)
 	LastUpdated           time.Time                      `json:"last_updated"`
 	SampleSize            int                            `json:"sample_size"`
 }
@@ -639,6 +639,29 @@ func (e *typeInferenceEngineImpl) calculateCategoryFrequency(ctx context.Context
 	return frequency
 }
 
+func (e *typeInferenceEngineImpl) getEstimatedDuration(timerType string, model *UserBehaviorModel) int {
+	// 先尝试从用户模型获取平均时长
+	if model != nil && model.AvgDuration != nil {
+		if avgSeconds, exists := model.AvgDuration[timerType]; exists && avgSeconds > 0 {
+			return int(avgSeconds / 60) // 转换为分钟
+		}
+	}
+	
+	// 使用默认时长
+	defaultDurations := map[string]int{
+		"pomodoro":      25,
+		"quick_timer":   15,
+		"personal_task": 60,
+		"project_task":  90,
+	}
+	
+	if duration, exists := defaultDurations[timerType]; exists {
+		return duration
+	}
+	
+	return 60 // 默认1小时
+}
+
 func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, userID int) (*UserBehaviorModel, error) {
 	// 先检查缓存
 	if model, exists := e.behaviorModels[userID]; exists {
@@ -656,6 +679,7 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 		TimePatterns:        make(map[string]map[string]float64),
 		ContextPatterns:     make(map[string]map[string]float64),
 		AccuracyByFeature:   make(map[string]float64),
+		AvgDuration:         make(map[string]float64),
 		LastUpdated:         time.Now(),
 	}
 
@@ -666,7 +690,8 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 			EXTRACT(HOUR FROM start_time) as hour,
 			target_metadata->>'context' as context,
 			inference_confidence,
-			user_feedback
+			user_feedback,
+			COALESCE(actual_work_seconds, duration_seconds, 0) as duration
 		FROM unified_timer_logs 
 		WHERE user_id = $1 
 			AND created_at >= NOW() - INTERVAL '90 days'
@@ -688,14 +713,17 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 	contextTypeCount := make(map[string]map[string]int)
 	accuracySum := make(map[string]float64)
 	accuracyCount := make(map[string]int)
+	durationSum := make(map[string]float64)
+	durationCount := make(map[string]int)
 
 	for rows.Next() {
 		var targetType, category, context string
 		var hour int
 		var confidence float64
 		var feedback *int
+		var duration int
 
-		err := rows.Scan(&targetType, &category, &hour, &context, &confidence, &feedback)
+		err := rows.Scan(&targetType, &category, &hour, &context, &confidence, &feedback, &duration)
 		if err != nil {
 			continue
 		}
@@ -705,6 +733,12 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 		
 		if category != "" {
 			categoryCount[category]++
+		}
+
+		// 时长统计
+		if duration > 0 {
+			durationSum[targetType] += float64(duration)
+			durationCount[targetType]++
 		}
 
 		// 时间模式
@@ -777,8 +811,132 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 		}
 	}
 
+	// 平均时长
+	for timerType, sum := range durationSum {
+		if count := durationCount[timerType]; count > 0 {
+			model.AvgDuration[timerType] = sum / float64(count)
+		}
+	}
+
 	// 缓存模型
 	e.behaviorModels[userID] = model
 
 	return model, nil
+}
+
+// GenerateSmartSuggestions 生成智能建议
+func (e *typeInferenceEngineImpl) GenerateSmartSuggestions(ctx context.Context, userID int, context string) ([]*TimerSuggestion, error) {
+	// 获取用户行为模型
+	model, err := e.getUserBehaviorModel(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户行为模型失败: %v", err)
+	}
+
+	var suggestions []*TimerSuggestion
+
+	// 基于上下文生成建议
+	if patterns, exists := model.ContextPatterns[context]; exists {
+		for timerType, probability := range patterns {
+			if probability > 0.1 { // 只推荐概率大于10%的类型
+				suggestion := &TimerSuggestion{
+					Type:              timerType,
+					Title:             fmt.Sprintf("基于%s上下文的%s任务", context, timerType),
+					Confidence:        probability,
+					EstimatedDuration: e.getEstimatedDuration(timerType, model), // 转换为分钟
+					Category:          timerType,
+				}
+				suggestions = append(suggestions, suggestion)
+			}
+		}
+	}
+
+	// 基于时间模式生成建议
+	currentHour := time.Now().Hour()
+	hourStr := fmt.Sprintf("%d", currentHour)
+	if timePatterns, exists := model.TimePatterns[hourStr]; exists {
+		for timerType, probability := range timePatterns {
+			if probability > 0.15 { // 时间模式要求更高的概率
+				suggestion := &TimerSuggestion{
+					Type:              timerType,
+					Title:             fmt.Sprintf("适合当前时间的%s任务", timerType),
+					Confidence:        probability,
+					EstimatedDuration: e.getEstimatedDuration(timerType, model),
+					Category:          timerType,
+					Reason:            fmt.Sprintf("您通常在%d点执行此类任务", currentHour),
+				}
+				suggestions = append(suggestions, suggestion)
+			}
+		}
+	}
+
+	// 如果没有足够的建议，添加默认建议
+	if len(suggestions) == 0 {
+		defaultSuggestions := []*TimerSuggestion{
+			{
+				Type:              "开发",
+				Title:             "开发任务",
+				Confidence:        0.8,
+				EstimatedDuration: 30,
+				Category:          "开发",
+				Reason:            "开发是最常见的任务类型",
+			},
+			{
+				Type:              "学习",
+				Title:             "学习任务",
+				Confidence:        0.6,
+				EstimatedDuration: 25,
+				Category:          "学习",
+				Reason:            "持续学习有助于技能提升",
+			},
+		}
+		suggestions = append(suggestions, defaultSuggestions...)
+	}
+
+	return suggestions, nil
+}
+
+// LearnFromFeedback 从用户反馈中学习
+func (e *typeInferenceEngineImpl) LearnFromFeedback(ctx context.Context, timerID int, userFeedback int) error {
+	// 更新计时器记录的用户反馈
+	query := `
+		UPDATE unified_timer_logs 
+		SET user_feedback = $1, updated_at = NOW()
+		WHERE id = $2
+	`
+	
+	_, err := e.db.ExecContext(ctx, query, userFeedback, timerID)
+	if err != nil {
+		return fmt.Errorf("更新用户反馈失败: %v", err)
+	}
+
+	// 获取计时器记录的用户ID以更新行为模型
+	var userID int
+	err = e.db.QueryRowContext(ctx, 
+		"SELECT user_id FROM unified_timer_logs WHERE id = $1", 
+		timerID).Scan(&userID)
+	if err != nil {
+		return fmt.Errorf("获取用户ID失败: %v", err)
+	}
+
+	// 触发用户行为模型更新
+	err = e.UpdateUserBehaviorModel(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("更新用户行为模型失败: %v", err)
+	}
+
+	return nil
+}
+
+// UpdateUserBehaviorModel 更新用户行为模型
+func (e *typeInferenceEngineImpl) UpdateUserBehaviorModel(ctx context.Context, userID int) error {
+	// 清除缓存，强制重新构建模型
+	delete(e.behaviorModels, userID)
+	
+	// 重新构建用户行为模型
+	_, err := e.getUserBehaviorModel(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("重建用户行为模型失败: %v", err)
+	}
+
+	return nil
 }

@@ -1,285 +1,195 @@
-# AI Project Management Platform - MVP
-
-智能项目开发与管理平台，支持AI驱动的任务批量导入和管理。
-
-## 🚀 快速开始
-
-### 前置要求
-- Docker 20.0+
-- Docker Compose 2.0+
-- Node.js 22.15.0 (本地开发)
-- Go 1.22+ (本地开发)
-
-### 一键启动开发环境
-
-```bash
-# 克隆项目
-git clone git@github.com:qiudl/new-ai-proj.git
-cd new-ai-proj
-
-# 运行开发环境搭建脚本
-./scripts/dev-setup.sh
-
-# 或者手动启动
-docker-compose up -d
-```
-
-### 环境配置
-
-复制环境变量模板：
-```bash
-cp .env.development .env
-```
-
-### 服务访问
-
-- **前端应用**: http://localhost:3000
-- **后端API**: http://localhost:8080
-- **数据库**: localhost:5432 (user/password/main_db)
-- **Nginx代理**: http://localhost:80
-
-## 🏗️ 项目架构
-
-```
-new-ai-proj/
-├── backend/              # Go后端应用
-├── frontend/             # React前端应用
-├── nginx/                # Nginx配置
-├── docker/               # Docker相关配置
-├── scripts/              # 开发脚本
-├── tests/                # 测试文件
-├── docs/                 # 文档
-├── docker-compose.yml    # 主要服务配置
-├── docker-compose.override.yml  # 开发环境配置
-├── init.sql              # 数据库初始化脚本
-└── README.md
-```
-
-## 💻 开发流程
-
-### 后端开发 (Go)
-
-```bash
-# 进入后端容器
-docker-compose exec backend bash
-
-# 初始化Go模块
-go mod init ai-project-backend
-go mod tidy
-
-# 本地开发
-go run main.go
-
-# 运行测试
-go test ./...
-```
-
-### 前端开发 (React)
-
-```bash
-# 进入前端容器
-docker-compose exec frontend sh
-
-# 创建React应用
-npx create-react-app . --template typescript
-
-# 开发模式
-npm start
-
-# 运行测试
-npm test
-```
-
-### 数据库操作
-
-```bash
-# 连接数据库
-docker-compose exec db psql -U user -d main_db
-
-# 查看表结构
-\d users
-\d projects
-\d tasks
-
-# 重置数据库
-docker-compose down -v
-docker-compose up -d db
-```
-
-## 📊 数据库设计
-
-### 核心表结构
-
-- **users**: 用户表 (id, username, password_hash, role)
-- **projects**: 项目表 (id, name, description, owner_id)
-- **tasks**: 任务表 (id, project_id, title, description, status, custom_fields)
-
-### 关键特性
-
-- **JSONB支持**: tasks.custom_fields 支持灵活的自定义字段
-- **GIN索引**: 为JSONB字段优化查询性能
-- **外键约束**: 确保数据一致性
-- **时间戳**: 自动记录创建时间
-
-## 🔧 常用命令
-
-### Docker 操作
-
-```bash
-# 查看服务状态
-docker-compose ps
-
-# 查看日志
-docker-compose logs -f [service_name]
-
-# 重启服务
-docker-compose restart [service_name]
-
-# 停止所有服务
-docker-compose down
-
-# 重建服务
-docker-compose up -d --build
-```
-
-### 开发工具
-
-```bash
-# 代码格式化 (Go)
-docker-compose exec backend go fmt ./...
-
-# 代码检查 (Go)
-docker-compose exec backend go vet ./...
-
-# 依赖管理 (Go)
-docker-compose exec backend go mod tidy
-
-# 前端包管理
-docker-compose exec frontend npm install
-docker-compose exec frontend npm run build
-```
-
-## 🧪 测试
-
-### 运行测试
-
-```bash
-# 后端测试
-docker-compose exec backend go test ./...
-
-# 前端测试
-docker-compose exec frontend npm test
-
-# 集成测试
-docker-compose exec backend go test -tags=integration ./...
-```
-
-### API测试
-
-```bash
-# 健康检查
-curl http://localhost:8080/health
-
-# 用户登录
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"password"}'
-
-# 获取项目列表
-curl -X GET http://localhost:8080/api/projects \
-  -H "Authorization: Bearer YOUR_TOKEN"
-```
-
-## 📚 API文档
-
-### 认证接口
-- `POST /api/auth/login` - 用户登录
-- `POST /api/auth/logout` - 用户登出
-
-### 项目管理
-- `GET /api/projects` - 获取项目列表
-- `POST /api/projects` - 创建项目
-- `GET /api/projects/{id}` - 获取项目详情
-
-### 任务管理
-- `GET /api/projects/{id}/tasks` - 获取任务列表
-- `POST /api/projects/{id}/tasks/bulk-import` - 批量导入任务
-- `GET /api/projects/{id}/tasks/{taskId}` - 获取任务详情
-
-## 🚀 部署
-
-### 生产环境
-
-```bash
-# 使用生产配置
-docker-compose -f docker-compose.prod.yml up -d
-
-# 或者使用环境变量
-cp .env.production .env
-docker-compose up -d
-```
-
-### 环境变量
-
-生产环境需要设置：
-- `JWT_SECRET`: JWT密钥
-- `DB_PASSWORD`: 数据库密码
-- `GIN_MODE`: 设置为 "release"
-
-## 🛠️ 故障排除
-
-### 常见问题
-
-1. **端口冲突**: 修改 `.env` 文件中的端口配置
-2. **数据库连接失败**: 检查数据库是否正常启动
-3. **前端热更新不工作**: 设置 `CHOKIDAR_USEPOLLING=true`
-4. **Go模块下载失败**: 检查网络连接和代理设置
-
-### 日志查看
-
-```bash
-# 查看所有服务日志
-docker-compose logs -f
-
-# 查看特定服务日志
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f db
-```
-
-## 📖 文档
-
-- [MVP开发计划](docs/MVP_DEV_PLAN.md)
-- [测试和验收标准](docs/TESTING_AND_ACCEPTANCE.md)
-- [Claude代码助手指南](CLAUDE.md)
-
-## 🤝 开发规范
-
-### Git提交规范
-
-```
-feat: 新功能
-fix: 修复bug
-docs: 文档更新
-style: 代码格式调整
-refactor: 代码重构
-test: 测试相关
-chore: 构建过程或辅助工具变动
-```
-
-### 代码质量
-
-- Go代码使用 `go fmt` 和 `go vet`
-- React代码使用 TypeScript 和 ESLint
-- 测试覆盖率 > 80%
-- 所有API接口需要有文档
-
-## 📞 技术支持
-
-- 项目文档: [docs/](docs/)
-- 问题反馈: GitHub Issues
-- 技术讨论: 项目群组
-
----
-
-**Happy Coding! 🎉**
+统一文档目录（推荐）
+
+  重新定义目录职责：
+
+  project-root/
+  ├── docs/                          # 📚 统一文档中心
+  │   ├── system/                    # 🔧 系统级文档
+  │   │   ├── development/           # 开发指南
+  │   │   ├── deployment/            # 部署文档
+  │   │   ├── api/                   # API文档
+  │   │   └── architecture/          # 架构设计
+  │   ├── tasks/                     # 📋 任务文档（动态生成）
+  │   │   ├── projects/              # 项目任务文档
+  │   │   │   └── project-1/
+  │   │   │       └── task-184.md
+  │   │   ├── personal/              # 个人任务文档
+  │   │   └── templates/             # 文档模板
+  │   └── user/                      # 👤 用户文档
+  │       ├── guides/                # 使用指南
+  │       └── tutorials/             # 教程
+  └── backend/                       # 后端代码
+      └── docs/                      # 🗂️ 废弃或重新定位
+
+  实施步骤
+
+⏺ Write(/Users/johnqiu/coding/www/projects/new-ai-proj/DOCS_ARCHITECTURE_SOLUTION.md)
+  ⎿  Wrote 197 lines to                                                               
+     /Users/johnqiu/coding/www/projects/new-ai-proj/DOCS_ARCHITECTURE_SOLUTION.md
+     # 文档目录架构统一解决方案
+
+     ## 🎯 问题描述
+
+     当前项目存在两个文档目录，导致文档管理混乱和API访问失败：
+     - **根目录 `docs/`**: 项目级文档和开发指南
+     - **`backend/docs/`**: 任务文档和系统生成内容
+
+     这种分离导致：
+     1. Docker volume映射混乱
+     2. 后端API无法找到任务文档
+     3. 用户无法在前端界面访问文档
+     4. 开发者困惑于文档存放位置
+
+     ## 💡 统一解决方案
+
+     ### 阶段1：立即修复（保持现有架构）
+
+     **目标**: 快速解决用户无法访问任务文档的问题
+
+     **操作**:
+     1. 修改Docker配置，将backend/docs映射到容器
+     2. 更新后端配置路径
+     3. 保持现有目录结构不变
+
+     ```yaml
+     # docker-compose.yml 修改
+     volumes:
+       - ./backend/docs:/app/docs:rw  # 映射backend/docs到容器工作目录
+     ```
+
+     **优点**:
+     - ✅ 立即解决API访问问题
+     - ✅ 不破坏现有文档结构
+     - ✅ 用户可立即看到任务文档
+
+     **缺点**:
+     - ❌ 仍然存在目录分离问题
+     - ❌ 长期维护复杂
+
+     ### 阶段2：长期架构优化（推荐）
+
+     **目标**: 建立清晰的文档架构和管理体系
+
+     #### 新的目录结构
+
+     ```
+     project-root/
+     ├── docs/                          # 📚 统一文档中心
+     │   ├── system/                    # 🔧 系统文档
+     │   │   ├── development/           # 开发指南
+     │   │   │   ├── setup.md
+     │   │   │   ├── api-reference.md
+     │   │   │   └── testing.md
+     │   │   ├── deployment/            # 部署文档
+     │   │   │   ├── docker.md
+     │   │   │   └── production.md
+     │   │   ├── architecture/          # 架构设计
+     │   │   │   ├── overview.md
+     │   │   │   ├── database.md
+     │   │   │   └── microservices.md
+     │   │   └── maintenance/           # 维护文档
+     │   │       ├── backup.md
+     │   │       └── monitoring.md
+     │   │
+     │   ├── tasks/                     # 📋 任务文档（动态）
+     │   │   ├── projects/              # 项目任务文档
+     │   │   │   ├── project-1/
+     │   │   │   │   ├── task-184.md    # 甘特图设计
+     │   │   │   │   ├── task-260.md    # Phase 1
+     │   │   │   │   └── ...
+     │   │   │   └── project-2/
+     │   │   ├── personal/              # 个人任务文档
+     │   │   │   └── user-1/
+     │   │   └── templates/             # 文档模板
+     │   │       ├── technical-design.md
+     │   │       ├── gantt-chart.md
+     │   │       └── feature-spec.md
+     │   │
+     │   ├── user/                      # 👤 用户文档
+     │   │   ├── guides/                # 使用指南
+     │   │   │   ├── getting-started.md
+     │   │   │   ├── task-management.md
+     │   │   │   └── time-tracking.md
+     │   │   ├── tutorials/             # 教程
+     │   │   └── faqs/                  # 常见问题
+     │   │
+     │   └── releases/                  # 📦 发布文档
+     │       ├── changelog.md
+     │       ├── migration-guides/
+     │       └── version-notes/
+     │
+     ├── backend/                       # 后端代码
+     │   ├── docs/                      # 🗂️ 临时存在（迁移中）
+     │   └── ...
+     │
+     └── frontend/                      # 前端代码
+         ├── docs/                      # 前端特定文档
+         └── ...
+     ```
+
+     #### 配置更新
+
+     **Docker配置**:
+     ```yaml
+     # docker-compose.yml
+     services:
+       backend:
+         volumes:
+           - ./docs:/app/docs:rw         # 统一映射根目录docs
+           - ./backend:/app:rw           # 代码目录
+     ```
+
+     **后端配置**:
+     ```go
+     // main.go
+     docsBasePath := "./docs"  // 现在指向统一的docs目录
+     ```
+
+     #### 文档分类和管理规则
+
+     | 目录 | 内容 | 管理方式 | 访问方式 |
+     |------|------|----------|----------|
+     | `docs/system/` | 开发、部署、架构文档 | 手动维护 | Git + 静态网站 |
+     | `docs/tasks/` | 任务技术文档 | 系统自动生成 | 前端API |
+     | `docs/user/` | 用户指南和教程 | 手动维护 | 前端展示 |
+     | `docs/releases/` | 版本发布说明 | CI/CD自动生成 | 公开访问 |
+
+     ### 阶段3：智能文档管理
+
+     **目标**: 建立智能化的文档生成和管理体系
+
+     #### 功能特性
+
+     1. **智能文档生成**
+        - 基于任务类型自动选择模板
+        - AI辅助内容生成
+        - 版本控制集成
+
+     2. **文档状态管理**
+        - 文档生命周期跟踪
+        - 自动更新和同步
+        - 权限控制
+
+     3. **用户界面集成**
+        - 任务详情页直接访问
+        - 在线编辑和预览
+        - 协作编辑功能
+
+     ## 🚀 实施计划
+
+     ### Phase 1: 紧急修复（1小时）
+     - [ ] 修改Docker volume映射
+     - [ ] 重启服务验证API访问
+     - [ ] 测试前端文档显示
+
+     ### Phase 2: 目录重构（4小时）
+     - [ ] 创建新的目录结构
+     - [ ] 迁移现有文档到统一目录
+     - [ ] 更新配置文件
+     - [ ] 测试所有功能
+
+     ### Phase 3: 文档管理增强（8小时）
+     - [ ] 实现文档版本控制
+     - [ ] 添加权限管理
+     - [ ] 优化用户界面
+     - [ ] 完善文档模板系统

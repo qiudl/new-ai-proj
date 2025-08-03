@@ -9,17 +9,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 // UnifiedTimerService 统一计时器服务接口
 type UnifiedTimerService interface {
 	// 核心计时操作
-	StartTimer(ctx context.Context, req *StartTimerRequest) (*TimerResponse, error)
-	PauseTimer(ctx context.Context, userID int) (*TimerResponse, error)
-	ResumeTimer(ctx context.Context, userID int) (*TimerResponse, error)
-	StopTimer(ctx context.Context, userID int, notes string) (*TimerResponse, error)
+	StartTimer(ctx context.Context, req *UnifiedStartTimerRequest) (*UnifiedTimerResponse, error)
+	PauseTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error)
+	ResumeTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error)
+	StopTimer(ctx context.Context, userID int, notes string) (*UnifiedTimerResponse, error)
 	
 	// 状态查询
 	GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error)
@@ -30,8 +28,8 @@ type UnifiedTimerService interface {
 	ProvideInferenceFeedback(ctx context.Context, timerID int, userID int, rating int) error
 }
 
-// StartTimerRequest 启动计时器请求
-type StartTimerRequest struct {
+// UnifiedStartTimerRequest 统一启动计时器请求
+type UnifiedStartTimerRequest struct {
 	UserID           int                    `json:"user_id"`
 	TaskID           *int                   `json:"task_id,omitempty"`
 	Title            string                 `json:"title"`
@@ -43,8 +41,8 @@ type StartTimerRequest struct {
 	TemplateID       *int                   `json:"template_id,omitempty"`
 }
 
-// TimerResponse 计时器操作响应
-type TimerResponse struct {
+// UnifiedTimerResponse 统一计时器操作响应
+type UnifiedTimerResponse struct {
 	Success    bool        `json:"success"`
 	TimerID    int         `json:"timer_id,omitempty"`
 	TimerType  string      `json:"timer_type"` // project_task, personal_task, quick_timer, pomodoro
@@ -146,10 +144,10 @@ func NewUnifiedTimerService(db *sql.DB, inferenceEngine TypeInferenceEngine, not
 }
 
 // StartTimer 启动计时器 - 核心方法
-func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTimerRequest) (*TimerResponse, error) {
+func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedStartTimerRequest) (*UnifiedTimerResponse, error) {
 	// 1. 输入验证
 	if err := s.validateStartRequest(req); err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: fmt.Sprintf("请求参数验证失败: %v", err),
 		}, err
@@ -164,7 +162,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 		Metadata:  req.Metadata,
 	})
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: fmt.Sprintf("智能推断失败: %v", err),
 		}, err
@@ -173,7 +171,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 	// 3. 事务开始
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "数据库事务启动失败",
 		}, err
@@ -183,7 +181,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 	// 4. 停止其他活动计时器 (如果需要)
 	if req.AutoStopOthers {
 		if err := s.stopActiveTimersInTx(ctx, tx, req.UserID); err != nil {
-			return &TimerResponse{
+			return &UnifiedTimerResponse{
 				Success: false,
 				Message: fmt.Sprintf("停止其他计时器失败: %v", err),
 			}, err
@@ -193,7 +191,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 	// 5. 创建新计时记录
 	timerID, err := s.createTimerInTx(ctx, tx, req, inferenceResult)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: fmt.Sprintf("创建计时器失败: %v", err),
 		}, err
@@ -201,7 +199,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 
 	// 6. 更新用户当前计时器状态
 	if err := s.updateUserCurrentTimerInTx(ctx, tx, req.UserID, timerID); err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: fmt.Sprintf("更新用户状态失败: %v", err),
 		}, err
@@ -209,7 +207,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 
 	// 7. 提交事务
 	if err := tx.Commit(); err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "事务提交失败",
 		}, err
@@ -218,7 +216,7 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 	// 8. 发送通知
 	go s.notifyTimerStarted(req.UserID, timerID, inferenceResult.Type, req.Title)
 
-	return &TimerResponse{
+	return &UnifiedTimerResponse{
 		Success:   true,
 		TimerID:   timerID,
 		TimerType: inferenceResult.Type,
@@ -233,24 +231,24 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *StartTime
 }
 
 // PauseTimer 暂停计时器
-func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*TimerResponse, error) {
+func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error) {
 	currentTimer, err := s.GetCurrentTimer(ctx, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "获取当前计时器状态失败",
 		}, err
 	}
 
 	if currentTimer == nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "没有运行中的计时器",
 		}, fmt.Errorf("no active timer found for user %d", userID)
 	}
 
 	if currentTimer.IsPaused {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "计时器已经处于暂停状态",
 		}, fmt.Errorf("timer %d is already paused", currentTimer.ID)
@@ -275,7 +273,7 @@ func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*
 
 	result, err := s.db.ExecContext(ctx, query, string(pauseEventJSON), currentTimer.ID, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "更新计时器状态失败",
 		}, err
@@ -283,7 +281,7 @@ func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "计时器状态更新失败，可能已被其他操作修改",
 		}, fmt.Errorf("no rows affected when pausing timer %d", currentTimer.ID)
@@ -292,7 +290,7 @@ func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*
 	// 发送通知
 	go s.notifyTimerPaused(userID, currentTimer.ID, currentTimer.TargetTitle)
 
-	return &TimerResponse{
+	return &UnifiedTimerResponse{
 		Success: true,
 		TimerID: currentTimer.ID,
 		Message: "计时器已暂停",
@@ -304,24 +302,24 @@ func (s *unifiedTimerServiceImpl) PauseTimer(ctx context.Context, userID int) (*
 }
 
 // ResumeTimer 恢复计时器
-func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (*TimerResponse, error) {
+func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error) {
 	currentTimer, err := s.GetCurrentTimer(ctx, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "获取当前计时器状态失败",
 		}, err
 	}
 
 	if currentTimer == nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "没有可恢复的计时器",
 		}, fmt.Errorf("no timer to resume for user %d", userID)
 	}
 
 	if !currentTimer.IsPaused {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "计时器未处于暂停状态",
 		}, fmt.Errorf("timer %d is not paused", currentTimer.ID)
@@ -364,7 +362,7 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 
 	result, err := s.db.ExecContext(ctx, query, pauseDuration, string(resumeEventJSON), currentTimer.ID, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "更新计时器状态失败",
 		}, err
@@ -372,7 +370,7 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "计时器状态更新失败",
 		}, fmt.Errorf("no rows affected when resuming timer %d", currentTimer.ID)
@@ -381,7 +379,7 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 	// 发送通知
 	go s.notifyTimerResumed(userID, currentTimer.ID, currentTimer.TargetTitle)
 
-	return &TimerResponse{
+	return &UnifiedTimerResponse{
 		Success: true,
 		TimerID: currentTimer.ID,
 		Message: "计时器已恢复",
@@ -394,17 +392,17 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 }
 
 // StopTimer 停止计时器
-func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, notes string) (*TimerResponse, error) {
+func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, notes string) (*UnifiedTimerResponse, error) {
 	currentTimer, err := s.GetCurrentTimer(ctx, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "获取当前计时器状态失败",
 		}, err
 	}
 
 	if currentTimer == nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "没有运行中的计时器",
 		}, fmt.Errorf("no active timer found for user %d", userID)
@@ -449,7 +447,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 
 	result, err := s.db.ExecContext(ctx, updateQuery, now, totalDuration, actualWorkDuration, notes, currentTimer.ID, userID)
 	if err != nil {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "更新计时器状态失败",
 		}, err
@@ -457,7 +455,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return &TimerResponse{
+		return &UnifiedTimerResponse{
 			Success: false,
 			Message: "计时器停止失败，可能已被其他操作修改",
 		}, fmt.Errorf("no rows affected when stopping timer %d", currentTimer.ID)
@@ -473,7 +471,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 	// 发送通知
 	go s.notifyTimerStopped(userID, currentTimer.ID, currentTimer.TargetTitle, actualWorkDuration)
 
-	return &TimerResponse{
+	return &UnifiedTimerResponse{
 		Success: true,
 		TimerID: currentTimer.ID,
 		Message: fmt.Sprintf("计时完成，实际工作时长 %s", s.formatDuration(actualWorkDuration)),
@@ -556,7 +554,7 @@ func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID in
 }
 
 // 辅助方法
-func (s *unifiedTimerServiceImpl) validateStartRequest(req *StartTimerRequest) error {
+func (s *unifiedTimerServiceImpl) validateStartRequest(req *UnifiedStartTimerRequest) error {
 	if req.UserID <= 0 {
 		return fmt.Errorf("用户ID无效")
 	}
@@ -633,7 +631,7 @@ func (s *unifiedTimerServiceImpl) stopActiveTimersInTx(ctx context.Context, tx *
 	return nil
 }
 
-func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.Tx, req *StartTimerRequest, inference *InferenceResult) (int, error) {
+func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.Tx, req *UnifiedStartTimerRequest, inference *InferenceResult) (int, error) {
 	// 处理metadata
 	metadataJSON := "{}"
 	if req.Metadata != nil {
@@ -771,4 +769,229 @@ func (s *unifiedTimerServiceImpl) notifyTimerStopped(userID, timerID int, title 
 			"message":  fmt.Sprintf("计时完成: %s，用时 %s", title, s.formatDuration(duration)),
 		})
 	}
+}
+
+// GetTimerHistory 获取计时历史
+func (s *unifiedTimerServiceImpl) GetTimerHistory(ctx context.Context, userID int, filter *HistoryFilter) (*TimerHistory, error) {
+	if filter == nil {
+		filter = &HistoryFilter{
+			Page:     1,
+			PageSize: 20,
+			OrderBy:  "start_time DESC",
+		}
+	}
+
+	// 构建查询条件
+	var whereConditions []string
+	var args []interface{}
+	argIndex := 1
+
+	whereConditions = append(whereConditions, fmt.Sprintf("user_id = $%d", argIndex))
+	args = append(args, userID)
+	argIndex++
+
+	if filter.StartDate != nil {
+		whereConditions = append(whereConditions, fmt.Sprintf("start_time >= $%d", argIndex))
+		args = append(args, *filter.StartDate)
+		argIndex++
+	}
+
+	if filter.EndDate != nil {
+		whereConditions = append(whereConditions, fmt.Sprintf("start_time <= $%d", argIndex))
+		args = append(args, *filter.EndDate)
+		argIndex++
+	}
+
+	if filter.TargetType != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("target_type = $%d", argIndex))
+		args = append(args, filter.TargetType)
+		argIndex++
+	}
+
+	if filter.Status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("status = $%d", argIndex))
+		args = append(args, filter.Status)
+		argIndex++
+	}
+
+	if filter.SearchQuery != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("(target_title ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex))
+		args = append(args, "%"+filter.SearchQuery+"%")
+		argIndex++
+	}
+
+	whereClause := "WHERE " + strings.Join(whereConditions, " AND ")
+
+	// 查询总数
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM unified_timer_logs %s", whereClause)
+	var total int
+	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	// 查询记录
+	offset := (filter.Page - 1) * filter.PageSize
+	query := fmt.Sprintf(`
+		SELECT id, target_type, target_id, target_title, start_time, end_time,
+			   duration_seconds, actual_work_seconds, status, category, description,
+			   project_id, inference_confidence, user_feedback, created_at
+		FROM unified_timer_logs 
+		%s 
+		ORDER BY %s 
+		LIMIT $%d OFFSET $%d
+	`, whereClause, filter.OrderBy, argIndex, argIndex+1)
+
+	args = append(args, filter.PageSize, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*TimerRecord
+	for rows.Next() {
+		record := &TimerRecord{}
+		var projectID sql.NullInt64
+		var endTime sql.NullTime
+		var userFeedback sql.NullInt64
+
+		err := rows.Scan(
+			&record.ID, &record.TargetType, &record.TargetID, &record.TargetTitle,
+			&record.StartTime, &endTime, &record.DurationSeconds, &record.ActualWorkSeconds,
+			&record.Status, &record.Category, &record.Description,
+			&projectID, &record.InferenceConfidence, &userFeedback, &record.CreatedAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		if endTime.Valid {
+			record.EndTime = &endTime.Time
+		}
+		if projectID.Valid {
+			projectIDInt := int(projectID.Int64)
+			record.ProjectID = &projectIDInt
+		}
+		if userFeedback.Valid {
+			feedback := int(userFeedback.Int64)
+			record.UserFeedback = &feedback
+		}
+
+		records = append(records, record)
+	}
+
+	return &TimerHistory{
+		Records:  records,
+		Total:    total,
+		Page:     filter.Page,
+		PageSize: filter.PageSize,
+		HasMore:  offset+len(records) < total,
+	}, nil
+}
+
+// GetSmartSuggestions 获取智能建议
+func (s *unifiedTimerServiceImpl) GetSmartSuggestions(ctx context.Context, userID int, context string) ([]*TimerSuggestion, error) {
+	// 这是一个简化的实现，实际可以根据用户历史和AI推理引擎提供更智能的建议
+	suggestions := []*TimerSuggestion{}
+
+	// 1. 从用户最近的计时记录中提取常用任务
+	recentQuery := `
+		SELECT DISTINCT target_title, target_type, category, 
+			   AVG(actual_work_seconds) as avg_duration,
+			   COUNT(*) as usage_count,
+			   MAX(start_time) as last_used
+		FROM unified_timer_logs 
+		WHERE user_id = $1 
+			AND start_time > NOW() - INTERVAL '30 days'
+			AND status = 'completed'
+		GROUP BY target_title, target_type, category
+		ORDER BY usage_count DESC, last_used DESC
+		LIMIT 10
+	`
+
+	rows, err := s.db.QueryContext(ctx, recentQuery, userID)
+	if err != nil {
+		return suggestions, nil // 返回空建议而不是错误
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var title, targetType, category string
+		var avgDuration int
+		var usageCount int
+		var lastUsed time.Time
+
+		if err := rows.Scan(&title, &targetType, &category, &avgDuration, &usageCount, &lastUsed); err != nil {
+			continue
+		}
+
+		confidence := float64(usageCount) / 10.0 // 简单的置信度计算
+		if confidence > 1.0 {
+			confidence = 1.0
+		}
+
+		suggestion := &TimerSuggestion{
+			Type:              "recent_task",
+			Title:             title,
+			Category:          category,
+			EstimatedDuration: avgDuration / 60, // 转换为分钟
+			Confidence:        confidence,
+			Reason:            fmt.Sprintf("您在过去30天内使用了%d次", usageCount),
+			LastUsedAt:        &lastUsed,
+		}
+
+		suggestions = append(suggestions, suggestion)
+	}
+
+	// 2. 如果建议不足，添加一些通用建议
+	if len(suggestions) < 5 {
+		commonSuggestions := []*TimerSuggestion{
+			{
+				Type:              "quick_timer",
+				Title:             "快速任务",
+				Category:          "其他",
+				EstimatedDuration: 25,
+				Confidence:        0.6,
+				Reason:            "适合处理零散的小任务",
+			},
+			{
+				Type:              "focus_session",
+				Title:             "专注工作",
+				Category:          "专注",
+				EstimatedDuration: 50,
+				Confidence:        0.7,
+				Reason:            "高效的专注工作时段",
+			},
+			{
+				Type:              "break_timer",
+				Title:             "休息时间",
+				Category:          "休息",
+				EstimatedDuration: 15,
+				Confidence:        0.5,
+				Reason:            "适当的休息有助于提高效率",
+			},
+		}
+
+		for _, suggestion := range commonSuggestions {
+			if len(suggestions) >= 8 {
+				break
+			}
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	return suggestions, nil
+}
+
+// ProvideInferenceFeedback 提供推理反馈
+func (s *unifiedTimerServiceImpl) ProvideInferenceFeedback(ctx context.Context, timerID int, userID int, rating int) error {
+	query := `
+		UPDATE unified_timer_logs 
+		SET user_feedback = $1, updated_at = NOW()
+		WHERE id = $2 AND user_id = $3
+	`
+	
+	_, err := s.db.ExecContext(ctx, query, rating, timerID, userID)
+	return err
 }

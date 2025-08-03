@@ -543,7 +543,7 @@ func (s *dataMigrationServiceImpl) ValidateMigration(ctx context.Context) (*Migr
 	validation.MigratedRecordsCount = migratedCount
 
 	// 数据完整性检查
-	if migratedCount < legacyCount * 0.95 {
+	if migratedCount < int(float64(legacyCount) * 0.95) {
 		validation.DataIntegrityIssues = append(validation.DataIntegrityIssues,
 			fmt.Sprintf("迁移数据量偏少：原始 %d 条，迁移 %d 条", legacyCount, migratedCount))
 	}

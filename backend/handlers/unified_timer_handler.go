@@ -3,9 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/services"
-	"context"
 	"database/sql"
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,14 +12,21 @@ import (
 // UnifiedTimerHandler provides unified timer operations for both personal and project tasks
 type UnifiedTimerHandler struct {
 	db           database.DB
-	timerService *services.TimerService
+	timerService services.UnifiedTimerService
 }
 
 // NewUnifiedTimerHandler creates a new UnifiedTimerHandler
 func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
+	// Get database connection
+	sqlDB := db.GetDB().(*sql.DB)
+	
+	// Create dependencies
+	typeInferenceEngine := services.NewTypeInferenceEngine(sqlDB)
+	notificationService := services.NewNotificationService()
+	
 	return &UnifiedTimerHandler{
 		db:           db,
-		timerService: services.NewTimerService(db),
+		timerService: services.NewUnifiedTimerService(sqlDB, typeInferenceEngine, notificationService),
 	}
 }
 
@@ -34,7 +39,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
-	var req services.StartTimerRequest
+	var req services.UnifiedStartTimerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request format",
@@ -43,28 +48,11 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
-	// Validate or infer task type
-	if req.TaskType == "" {
-		// Infer task type based on task ID
-		taskType, err := h.inferTaskType(c.Request.Context(), req.TaskID)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":   "Invalid task ID",
-				"details": "Cannot find task with ID " + fmt.Sprintf("%d", req.TaskID),
-			})
-			return
-		}
-		req.TaskType = taskType
-	} else if req.TaskType != services.TaskTypePersonal && req.TaskType != services.TaskTypeProject {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid task type",
-			"details": "task_type must be either 'personal' or 'project'",
-		})
-		return
-	}
-
-	// Validate task ID
-	if req.TaskID <= 0 {
+	// Set user ID in request
+	req.UserID = userID.(int)
+	
+	// Validate task ID if provided
+	if req.TaskID != nil && *req.TaskID <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid task ID",
 			"details": "task_id must be a positive integer",
@@ -73,9 +61,8 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	uid := userID.(int)
 
-	response, err := h.timerService.StartTimer(ctx, uid, req)
+	response, err := h.timerService.StartTimer(ctx, &req)
 	if err != nil {
 		// Handle specific error types
 		if err.Error() == "no timer is currently running" {
@@ -115,7 +102,7 @@ func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
 	ctx := c.Request.Context()
 	uid := userID.(int)
 
-	response, err := h.timerService.StopTimer(ctx, uid)
+	response, err := h.timerService.StopTimer(ctx, uid, "User requested stop")
 	if err != nil {
 		if err.Error() == "no timer is currently running" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -237,116 +224,4 @@ func (h *UnifiedTimerHandler) HealthCheck(c *gin.Context) {
 			"resume_timer",
 		},
 	})
-}
-
-// Legacy compatibility methods - these will redirect to the unified methods
-
-// StartPersonalTimer provides backward compatibility for personal timer start
-func (h *UnifiedTimerHandler) StartPersonalTimer(c *gin.Context) {
-	var legacyReq struct {
-		TaskID         int  `json:"task_id"`
-		AutoStopOthers bool `json:"auto_stop_others"`
-	}
-	
-	if err := c.ShouldBindJSON(&legacyReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request format",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Convert to unified request
-	req := services.StartTimerRequest{
-		TaskType:       services.TaskTypePersonal,
-		TaskID:         legacyReq.TaskID,
-		AutoStopOthers: legacyReq.AutoStopOthers,
-	}
-
-	// Set request body for unified handler
-	c.Set("unified_request", req)
-	
-	// Call unified handler
-	h.StartTimer(c)
-}
-
-// StartProjectTimer provides backward compatibility for project timer start
-func (h *UnifiedTimerHandler) StartProjectTimer(c *gin.Context) {
-	var legacyReq struct {
-		TaskID         int  `json:"task_id"`
-		AutoStopOthers bool `json:"auto_stop_others"`
-	}
-	
-	if err := c.ShouldBindJSON(&legacyReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request format", 
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Convert to unified request
-	req := services.StartTimerRequest{
-		TaskType:       services.TaskTypeProject,
-		TaskID:         legacyReq.TaskID,
-		AutoStopOthers: legacyReq.AutoStopOthers,
-	}
-
-	// Set request body for unified handler
-	c.Set("unified_request", req)
-	
-	// Call unified handler  
-	h.StartTimer(c)
-}
-
-// inferTaskType automatically determines if a task is personal or project-based
-func (h *UnifiedTimerHandler) inferTaskType(ctx context.Context, taskID int) (services.TaskType, error) {
-	db := h.db.GetDB().(*sql.DB)
-	
-	// First, check if it's a project task
-	var count int
-	err := db.QueryRowContext(ctx, 
-		"SELECT COUNT(*) FROM tasks WHERE id = $1 AND deleted_at IS NULL", taskID).Scan(&count)
-	if err == nil && count > 0 {
-		return services.TaskTypeProject, nil
-	}
-	
-	// Then, check if it's a personal task
-	err = db.QueryRowContext(ctx, 
-		"SELECT COUNT(*) FROM user_timer_tasks WHERE id = $1 AND deleted_at IS NULL", taskID).Scan(&count)
-	if err == nil && count > 0 {
-		return services.TaskTypePersonal, nil
-	}
-	
-	// Task not found in either table
-	return "", fmt.Errorf("task with ID %d not found", taskID)
-}
-
-// Helper method to handle unified requests from legacy endpoints
-func (h *UnifiedTimerHandler) handleUnifiedRequest(c *gin.Context) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-
-	req, exists := c.Get("unified_request")
-	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal error: missing unified request"})
-		return
-	}
-
-	ctx := c.Request.Context()
-	uid := userID.(int)
-	
-	response, err := h.timerService.StartTimer(ctx, uid, req.(services.StartTimerRequest))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to start timer",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
 }

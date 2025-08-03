@@ -72,6 +72,7 @@ type Application struct {
 	aiConfigHandler            *handlers.AIConfigHandler
 	aiTaskGeneratorHandler     *handlers.AITaskGeneratorHandler
 	dashboardHandler           *handlers.DashboardHandler
+	// documentRegistryHandler    *handlers.DocumentRegistryHandler // Disabled - conflicting models
 }
 
 // NewApplication creates a new application instance
@@ -198,6 +199,10 @@ func NewApplication() (*Application, error) {
 	// 仪表板处理器
 	dashboardHandler := handlers.NewDashboardHandler(db)
 
+	// 文档注册表处理器 - Disabled due to conflicting models
+	// documentRegistryService := services.NewDocumentRegistryService(db.DocumentRegistry())
+	// documentRegistryHandler := handlers.NewDocumentRegistryHandler(documentRegistryService)
+
 	return &Application{
 		config:              cfg,
 		db:                  db,
@@ -234,6 +239,7 @@ func NewApplication() (*Application, error) {
 		aiConfigHandler:             aiConfigHandler,
 		aiTaskGeneratorHandler:      aiTaskGeneratorHandler,
 		dashboardHandler:            dashboardHandler,
+		// documentRegistryHandler:     documentRegistryHandler, // Disabled - conflicting models
 	}, nil
 }
 
@@ -598,6 +604,37 @@ func (app *Application) setupRouter() *gin.Engine {
 				workNotes.POST("/:id/copy", app.simpleDocumentHandler.CopyDocument)
 				workNotes.POST("/:id/toggle-template", app.simpleDocumentHandler.ToggleTemplate)
 			}
+			
+			// 文档注册表路由 (基于文件系统的文档管理) - Disabled due to conflicting models
+			// documentRegistry := authorized.Group("/document-registry")
+			// {
+			//	// 文档CRUD操作
+			//	documentRegistry.POST("", app.documentRegistryHandler.CreateDocument)
+			//	documentRegistry.GET("", app.documentRegistryHandler.ListDocuments)
+			//	documentRegistry.GET("/search", app.documentRegistryHandler.SearchDocuments)
+			//	documentRegistry.GET("/by-path", app.documentRegistryHandler.GetDocumentByPath)
+			//	documentRegistry.GET("/:id", app.documentRegistryHandler.GetDocument)
+			//	documentRegistry.PUT("/:id", app.documentRegistryHandler.UpdateDocument)
+			//	documentRegistry.DELETE("/:id", app.documentRegistryHandler.DeleteDocument)
+			//	
+			//	// 分类和统计
+			//	documentRegistry.GET("/category/:category", app.documentRegistryHandler.GetDocumentsByCategory)
+			//	documentRegistry.GET("/statistics", app.documentRegistryHandler.GetDocumentStatistics)
+			//	documentRegistry.GET("/recent", app.documentRegistryHandler.GetRecentDocuments)
+			//	
+			//	// 文档-任务关联
+			//	documentRegistry.POST("/associations", app.documentRegistryHandler.CreateDocumentTaskAssociation)
+			//	documentRegistry.GET("/tasks/:task_id/documents", app.documentRegistryHandler.GetTaskDocuments)
+			//	documentRegistry.GET("/:document_id/tasks", app.documentRegistryHandler.GetDocumentTasks)
+			//	documentRegistry.DELETE("/:document_id/tasks/:task_id", app.documentRegistryHandler.DeleteDocumentTaskAssociation)
+			//	
+			//	// 高级功能
+			//	documentRegistry.POST("/scan", app.documentRegistryHandler.ScanDocumentsDirectory)
+			//	documentRegistry.POST("/:id/refresh", app.documentRegistryHandler.RefreshDocumentContent)
+			//	documentRegistry.POST("/batch-associate", app.documentRegistryHandler.BatchAssociateDocuments)
+			//	documentRegistry.POST("/tasks/:task_id/auto-associate", app.documentRegistryHandler.AutoAssociateTaskDocuments)
+			//	documentRegistry.GET("/:document_id/suggest-associations", app.documentRegistryHandler.SuggestDocumentAssociations)
+			// }
 
 			// Document Relation routes
 			// documentRelations := authorized.Group("/document-relations") // 临时注释，避免编译错误
@@ -700,8 +737,8 @@ func (app *Application) setupRouter() *gin.Engine {
 					personalTimer.GET("/health", app.unifiedTimerHandler.HealthCheck)
 					
 					// 🔄 Legacy compatibility endpoints (Phase 4: Redirect to unified)
-					personalTimer.POST("/start-personal", app.unifiedTimerHandler.StartPersonalTimer)
-					personalTimer.POST("/start-project", app.unifiedTimerHandler.StartProjectTimer)
+					personalTimer.POST("/start-personal", app.unifiedTimerHandler.StartTimer)
+					personalTimer.POST("/start-project", app.unifiedTimerHandler.StartTimer)
 					
 					// 📊 Statistics and analytics (existing UserTimerHandler)
 					personalTimer.GET("/dashboard", app.userTimerHandler.GetUserTimerDashboard)

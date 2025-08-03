@@ -123,6 +123,11 @@ func (pdb *PostgresDB) DocumentVersions() DocumentVersionRepository {
 	// return NewDocumentVersionRepository(sqlx.NewDb(pdb.db, "postgres"))
 }
 
+// DocumentRegistry disabled - conflicting models
+// func (pdb *PostgresDB) DocumentRegistry() DocumentRegistryRepository {
+//	return NewDocumentRegistryRepository(pdb.db)
+// }
+
 // Timer returns the timer repository
 func (pdb *PostgresDB) Timer() TimerRepository {
 	return NewTimerRepository(pdb.db)

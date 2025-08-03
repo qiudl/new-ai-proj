@@ -356,6 +356,8 @@ type DocumentVersionRepository interface {
 	DeleteBranch(branchID int) error
 }
 
+// DocumentRegistryRepository disabled - conflicting models
+
 // TimerRepository defines the interface for timer operations
 type TimerRepository interface {
 	// Time log operations
@@ -421,6 +423,7 @@ type DB interface {
 	DocumentRelations() DocumentRelationRepository
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository
+	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository // Personal timer tasks
 	GetDB() interface{} // Access to underlying database connection
@@ -443,6 +446,7 @@ type Tx interface {
 	DocumentRelations() DocumentRelationRepository
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository
+	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository
 	Commit() error
