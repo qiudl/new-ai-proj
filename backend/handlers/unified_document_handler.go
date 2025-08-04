@@ -58,6 +58,7 @@ func (h *UnifiedDocumentHandler) CreateDocument(c *gin.Context) {
 		Content    string `json:"content" binding:"required"`
 		Format     string `json:"format,omitempty"`
 		TemplateID string `json:"template_id,omitempty"`
+		Title      string `json:"title,omitempty"` // 支持前端传入的title字段
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {

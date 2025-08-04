@@ -53,6 +53,7 @@ type CreateDocumentRequest struct {
 	Format      string `json:"format" validate:"oneof=markdown text"`
 	UserID      int    `json:"user_id" validate:"required,min=1"`
 	TemplateID  string `json:"template_id,omitempty"`
+	Title       string `json:"title,omitempty"` // 支持前端传入的title字段
 }
 
 // ReadDocumentRequest 读取文档请求
