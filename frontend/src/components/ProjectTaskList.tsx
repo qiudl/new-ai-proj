@@ -60,6 +60,7 @@ import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { Task } from '../types/task';
 import TimerStartButton from './TimerStartButton';
+import TaskDocumentWidget from './TaskDocumentWidget';
 import { useTimer } from '../contexts/TimerContext';
 import dayjs from 'dayjs';
 
@@ -393,7 +394,7 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
     {
       title: '操作',
       key: 'actions',
-      width: 150,
+      width: 200,
       fixed: 'right',
       render: (_, record: HierarchicalTask) => {
         const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
@@ -430,6 +431,12 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
                 type="text"
               />
             )}
+            <TaskDocumentWidget
+              projectId={projectId}
+              taskId={record.id}
+              compact={true}
+              showTitle={false}
+            />
             <Dropdown
               menu={{ items: menuItems }}
               trigger={['click']}

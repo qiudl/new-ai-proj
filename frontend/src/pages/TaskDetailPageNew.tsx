@@ -65,6 +65,7 @@ import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import TaskGanttChart from '../components/TaskGanttChart';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
+import TaskDocumentWidget from '../components/TaskDocumentWidget';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -1047,6 +1048,16 @@ const TaskDetailPageNew: React.FC = () => {
             projectId={projectId ? parseInt(projectId) : undefined}
             style={{ marginBottom: '16px' }}
           />
+          
+          {/* 任务文档小部件 */}
+          <div style={{ marginBottom: '16px' }}>
+            <TaskDocumentWidget
+              projectId={parseInt(projectId || '0')}
+              taskId={task.id}
+              compact={false}
+              showTitle={true}
+            />
+          </div>
           
           {/* 基本信息 */}
           <Card title="基本信息" style={{ marginBottom: '16px' }}>
