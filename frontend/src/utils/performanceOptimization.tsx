@@ -3,7 +3,7 @@
  * Task 307-15: 性能优化和错误处理
  */
 
-import { useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import { debounce, throttle } from 'lodash';
 
 // Request cache implementation with TTL (Time To Live)
