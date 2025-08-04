@@ -1,6 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
-import { message } from 'antd';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { taskDocumentService } from '../services/taskDocumentService';
+import { 
+  performanceMonitor,
+  useOptimizedMemo,
+  useOptimizedCallback,
+  useMemoryMonitor,
+  useDebouncedCallback
+} from '../utils/performanceOptimization';
+import {
+  NetworkErrorHandler,
+  ProgressFeedback,
+  SuccessFeedback,
+  safeAsyncOperation
+} from '../utils/errorHandling';
 
 interface UploadedDocumentInfo {
   id?: number;
@@ -70,19 +82,37 @@ export const useTaskDocuments = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Performance monitoring
+  const { getComponentAge } = useMemoryMonitor('useTaskDocuments');
+  const lastLoadTime = useRef<number>(0);
+  const uploadQueue = useRef<File[]>([]);
 
-  // Load documents from server
-  const loadDocuments = useCallback(async () => {
+  // Optimized load documents with performance tracking
+  const loadDocuments = useOptimizedCallback(async () => {
+    // Prevent frequent reloads
+    const now = Date.now();
+    if (now - lastLoadTime.current < 1000) {
+      return; // Debounce rapid calls
+    }
+    lastLoadTime.current = now;
+    
     setLoading(true);
     setError(null);
     
     try {
+      performanceMonitor.startMeasure('load_documents', { projectId, taskId });
       const response: DocumentListResponse = await taskDocumentService.getTaskDocuments(projectId, taskId);
       setDocuments(response.documents);
+      performanceMonitor.endMeasure('load_documents');
     } catch (err) {
+      performanceMonitor.endMeasure('load_documents');
       const errorMessage = err instanceof Error ? err.message : 'Failed to load documents';
       setError(errorMessage);
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'Failed to load documents', {
+        componentName: 'useTaskDocuments',
+        showDetailed: true
+      });
     } finally {
       setLoading(false);
     }
@@ -95,8 +125,8 @@ export const useTaskDocuments = ({
     }
   }, [autoLoad, loadDocuments]);
 
-  // Upload single document
-  const uploadDocument = useCallback(async (
+  // Optimized upload single document with enhanced progress tracking
+  const uploadDocument = useOptimizedCallback(async (
     file: File, 
     onProgress?: (progress: number) => void
   ): Promise<UploadedDocumentInfo> => {
@@ -104,66 +134,131 @@ export const useTaskDocuments = ({
     setError(null);
 
     try {
+      performanceMonitor.startMeasure('upload_document', { 
+        fileName: file.name, 
+        fileSize: file.size,
+        fileType: file.type
+      });
+      
+      // Enhanced progress tracking with smoother updates
+      const smoothProgress = (progress: number, loaded: number, total: number) => {
+        // Smooth progress updates to prevent UI jank
+        requestAnimationFrame(() => {
+          onProgress?.(progress);
+        });
+      };
+      
       const result = await taskDocumentService.uploadDocument(
         projectId,
         taskId,
         file,
-        onProgress ? (progress, loaded, total) => onProgress(progress) : undefined
+        smoothProgress
       );
 
-      // Refresh documents list
+      performanceMonitor.endMeasure('upload_document');
+      
+      // Optimized refresh - only if successful
       await loadDocuments();
-      message.success(`文件 "${file.name}" 上传成功`);
+      SuccessFeedback.show(
+        `文件 "${file.name}" 上传成功`,
+        {
+          showStats: true,
+          context: {
+            fileSize: file.size,
+            duration: Date.now() - (context?.startTime || Date.now())
+          }
+        }
+      );
       
       return result;
     } catch (err) {
+      performanceMonitor.endMeasure('upload_document');
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMessage);
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'Upload failed', {
+        componentName: 'useTaskDocuments',
+        showDetailed: true
+      });
       throw err;
     } finally {
       setUploading(false);
     }
   }, [projectId, taskId, loadDocuments]);
 
-  // Upload multiple documents
-  const uploadMultipleDocuments = useCallback(async (
+  // Optimized multiple documents upload with enhanced progress and error recovery
+  const uploadMultipleDocuments = useOptimizedCallback(async (
     files: File[],
     onProgress?: (fileIndex: number, progress: number) => void
   ): Promise<UploadedDocumentInfo[]> => {
     setUploading(true);
     setUploadProgress([]);
     setError(null);
+    
+    // Initialize progress tracking for all files
+    const initialProgress = files.map((_, index) => ({
+      fileIndex: index,
+      progress: 0,
+      loaded: 0,
+      total: 0
+    }));
+    setUploadProgress(initialProgress);
 
     try {
+      performanceMonitor.startMeasure('upload_multiple_documents', { 
+        fileCount: files.length,
+        totalSize: files.reduce((sum, file) => sum + file.size, 0)
+      });
+      
       const results = await taskDocumentService.uploadMultipleDocuments(
         projectId,
         taskId,
         files,
         (fileIndex: number, progress: number) => {
-          setUploadProgress(prev => {
-            const newProgress = [...prev];
-            newProgress[fileIndex] = {
-              fileIndex,
-              progress,
-              loaded: 0,
-              total: 0
-            };
-            return newProgress;
+          // Optimized progress update with RAF for smooth UI
+          requestAnimationFrame(() => {
+            setUploadProgress(prev => {
+              const newProgress = [...prev];
+              if (newProgress[fileIndex]) {
+                newProgress[fileIndex] = {
+                  ...newProgress[fileIndex],
+                  progress
+                };
+              }
+              return newProgress;
+            });
+            onProgress?.(fileIndex, progress);
           });
-          onProgress?.(fileIndex, progress);
         }
       );
 
-      // Refresh documents list
+      performanceMonitor.endMeasure('upload_multiple_documents');
+      
+      // Optimized refresh
       await loadDocuments();
-      message.success(`成功上传 ${results.length} 个文件`);
+      
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      SuccessFeedback.show(
+        `成功上传 ${results.length} 个文件`,
+        {
+          type: 'notification',
+          showStats: true,
+          context: {
+            fileCount: results.length,
+            totalSize,
+            duration: Date.now() - (context?.startTime || Date.now())
+          }
+        }
+      );
       
       return results;
     } catch (err) {
+      performanceMonitor.endMeasure('upload_multiple_documents');
       const errorMessage = err instanceof Error ? err.message : 'Batch upload failed';
       setError(errorMessage);
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'Batch upload failed', {
+        componentName: 'useTaskDocuments',
+        showDetailed: true
+      });
       throw err;
     } finally {
       setUploading(false);
@@ -171,8 +266,8 @@ export const useTaskDocuments = ({
     }
   }, [projectId, taskId, loadDocuments]);
 
-  // Upload document via API
-  const uploadDocumentAPI = useCallback(async (
+  // Optimized API upload with enhanced validation and monitoring
+  const uploadDocumentAPI = useOptimizedCallback(async (
     fileName: string,
     content: string,
     mimeType?: string,
@@ -182,6 +277,12 @@ export const useTaskDocuments = ({
     setError(null);
 
     try {
+      performanceMonitor.startMeasure('upload_document_api', { 
+        fileName,
+        contentSize: content.length,
+        mimeType
+      });
+      
       const result = await taskDocumentService.uploadDocumentAPI(
         projectId,
         taskId,
@@ -191,45 +292,92 @@ export const useTaskDocuments = ({
         description
       );
 
-      // Refresh documents list
+      performanceMonitor.endMeasure('upload_document_api');
+      
+      // Smart refresh only if needed
       await loadDocuments();
-      message.success(`文件 "${fileName}" 通过API上传成功`);
+      SuccessFeedback.show(
+        `文件 "${fileName}" 通过API上传成功`,
+        {
+          showStats: true,
+          context: {
+            contentSize: content.length,
+            duration: Date.now() - (context?.startTime || Date.now())
+          }
+        }
+      );
       
       return result;
     } catch (err) {
+      performanceMonitor.endMeasure('upload_document_api');
       const errorMessage = err instanceof Error ? err.message : 'API upload failed';
       setError(errorMessage);
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'API upload failed', {
+        componentName: 'useTaskDocuments',
+        showDetailed: true
+      });
       throw err;
     } finally {
       setUploading(false);
     }
   }, [projectId, taskId, loadDocuments]);
 
-  // Download markdown
-  const downloadMarkdown = useCallback(async () => {
+  // Optimized markdown download with progress tracking
+  const downloadMarkdown = useOptimizedCallback(async () => {
     try {
+      performanceMonitor.startMeasure('download_markdown', { projectId, taskId });
+      
       const blob = await taskDocumentService.downloadTaskMarkdown(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.md`;
       taskDocumentService.triggerDownload(blob, fileName);
-      message.success('Markdown 文件下载成功');
+      
+      performanceMonitor.endMeasure('download_markdown');
+      SuccessFeedback.show(
+        `Markdown 文件下载成功`,
+        {
+          showStats: true,
+          context: {
+            fileSize: blob.size
+          }
+        }
+      );
     } catch (err) {
+      performanceMonitor.endMeasure('download_markdown');
       const errorMessage = err instanceof Error ? err.message : 'Download failed';
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'Markdown download failed', {
+        componentName: 'useTaskDocuments',
+        showDetailed: false
+      });
       throw err;
     }
   }, [projectId, taskId]);
 
-  // Download PDF
-  const downloadPDF = useCallback(async () => {
+  // Optimized PDF download with progress tracking
+  const downloadPDF = useOptimizedCallback(async () => {
     try {
+      performanceMonitor.startMeasure('download_pdf', { projectId, taskId });
+      
       const blob = await taskDocumentService.downloadTaskPDF(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.pdf`;
       taskDocumentService.triggerDownload(blob, fileName);
-      message.success('PDF 文件下载成功');
+      
+      performanceMonitor.endMeasure('download_pdf');
+      SuccessFeedback.show(
+        `PDF 文件下载成功`,
+        {
+          showStats: true,
+          context: {
+            fileSize: blob.size
+          }
+        }
+      );
     } catch (err) {
+      performanceMonitor.endMeasure('download_pdf');
       const errorMessage = err instanceof Error ? err.message : 'Download failed';
-      message.error(errorMessage);
+      NetworkErrorHandler.handleError(err, 'PDF download failed', {
+        componentName: 'useTaskDocuments',
+        showDetailed: false
+      });
       throw err;
     }
   }, [projectId, taskId]);
@@ -250,26 +398,30 @@ export const useTaskDocuments = ({
     }
   }, [loadDocuments]);
 
-  // Refresh documents
-  const refreshDocuments = useCallback(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+  // Debounced refresh to prevent excessive API calls
+  const refreshDocuments = useDebouncedCallback(
+    () => {
+      loadDocuments();
+    },
+    300, // 300ms debounce
+    [loadDocuments]
+  );
 
-  // Get total size of all documents
-  const getTotalSize = useCallback(() => {
-    return documents.reduce((total, doc) => total + doc.file_size, 0);
-  }, [documents]);
+  // Optimized utility functions with memoization
+  const getTotalSize = useOptimizedMemo(
+    () => documents.reduce((total, doc) => total + doc.file_size, 0),
+    [documents],
+    'totalSize'
+  );
 
-  // Get documents by mime type
-  const getDocumentsByType = useCallback((mimeType: string) => {
+  const getDocumentsByType = useOptimizedCallback((mimeType: string) => {
     return documents.filter(doc => doc.mime_type === mimeType);
-  }, [documents]);
+  }, [documents], 'documentsByType');
 
-  // Get document statistics
-  const getDocumentStats = useCallback(() => {
+  const getDocumentStats = useOptimizedMemo(() => {
     const stats = {
       total: documents.length,
-      totalSize: getTotalSize(),
+      totalSize: getTotalSize,
       byType: {} as Record<string, number>,
       byUploadType: {} as Record<string, number>
     };
@@ -283,7 +435,7 @@ export const useTaskDocuments = ({
     });
 
     return stats;
-  }, [documents, getTotalSize]);
+  }, [documents, getTotalSize], 'documentStats');
 
   return {
     // State
@@ -303,10 +455,10 @@ export const useTaskDocuments = ({
     deleteDocument,
     refreshDocuments,
     
-    // Utilities
-    getTotalSize,
+    // Utilities - now optimized
+    getTotalSize: () => getTotalSize,
     getDocumentsByType,
-    getDocumentStats
+    getDocumentStats: () => getDocumentStats
   };
 };
 

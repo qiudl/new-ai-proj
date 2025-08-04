@@ -1,6 +1,7 @@
 import { Task, Project } from '../types/task';
 import { TaskDependency, DependencyType, DependencyStrength } from '../types/dependency';
 import DependencyService from './dependencyService';
+import ResourceManagementService, { Resource, ResourceAllocation, LoadBalancingResult } from './resourceManagementService';
 
 // 调度算法相关类型定义
 export interface ScheduleTask extends Task {
@@ -534,18 +535,199 @@ class SchedulingService {
     result: SchedulingResult, 
     config: SchedulingConfig
   ): Promise<SchedulingResult> {
-    // 资源约束处理的简化实现
-    // 在实际项目中，这里会有复杂的资源分配算法
-    
-    result.warnings.push({
-      type: 'RESOURCE_CONFLICT',
-      message: '资源约束功能还在开发中',
-      taskIds: [],
-      severity: 'LOW',
-      suggestion: '请手动检查资源分配'
-    });
+    try {
+      const resourceService = ResourceManagementService.getInstance();
+      
+      // 获取项目资源信息
+      const resources = await resourceService.getProjectResources(
+        result.tasks[0]?.project_id || 1
+      );
+      
+      if (resources.length === 0) {
+        result.warnings.push({
+          type: 'RESOURCE_CONFLICT',
+          message: '未找到项目资源配置',
+          taskIds: [],
+          severity: 'MEDIUM',
+          suggestion: '请配置项目资源以启用资源感知调度'
+        });
+        return result;
+      }
 
-    return result;
+      // 为每个任务分配资源
+      const allocations: ResourceAllocation[] = [];
+      const resourceUtilization: { [resourceId: string]: number } = {};
+      
+      // 初始化资源利用率
+      resources.forEach(resource => {
+        resourceUtilization[resource.id] = 0;
+      });
+
+      // 按调度顺序处理任务
+      const scheduledTasks = [...result.tasks].sort((a, b) => {
+        const aStart = a.earliestStart?.getTime() || 0;
+        const bStart = b.earliestStart?.getTime() || 0;
+        return aStart - bStart;
+      });
+
+      for (const task of scheduledTasks) {
+        const taskDuration = task.calculatedDuration || 1;
+        const requiredHours = taskDuration * config.workingHoursPerDay;
+        
+        // 获取任务所需技能
+        const requiredSkills = this.extractRequiredSkills(task);
+        
+        // 查找合适的资源
+        const suitableResources = resources.filter(resource => 
+          this.resourceHasRequiredSkills(resource, requiredSkills)
+        );
+
+        if (suitableResources.length === 0) {
+          result.warnings.push({
+            type: 'RESOURCE_CONFLICT',
+            message: `任务"${task.title}"找不到合适的资源`,
+            taskIds: [task.id],
+            severity: 'HIGH',
+            suggestion: '请为任务分配具备相应技能的资源'
+          });
+          continue;
+        }
+
+        // 使用负载均衡算法选择最优资源
+        const selectedResource = await this.selectOptimalResource(
+          suitableResources,
+          requiredHours,
+          resourceUtilization,
+          task.earliestStart || new Date(),
+          task.earliestFinish || new Date()
+        );
+
+        if (!selectedResource) {
+          // 资源容量不足，需要调整任务时间
+          const adjustment = await this.adjustTaskScheduleForResources(
+            task,
+            suitableResources,
+            resourceUtilization,
+            config
+          );
+          
+          if (adjustment.adjusted) {
+            task.earliestStart = adjustment.newStartDate;
+            task.earliestFinish = adjustment.newEndDate;
+            task.latestStart = adjustment.newStartDate;
+            task.latestFinish = adjustment.newEndDate;
+            
+            result.warnings.push({
+              type: 'RESOURCE_CONFLICT',
+              message: `任务"${task.title}"因资源约束被调整`,
+              taskIds: [task.id],
+              severity: 'MEDIUM',
+              suggestion: `任务开始时间调整至${adjustment.newStartDate.toLocaleDateString()}`
+            });
+          } else {
+            result.warnings.push({
+              type: 'RESOURCE_CONFLICT',
+              message: `任务"${task.title}"无法分配足够的资源`,
+              taskIds: [task.id],
+              severity: 'HIGH',
+              suggestion: '考虑增加资源或延长项目时间'
+            });
+            continue;
+          }
+        }
+
+        // 创建资源分配
+        const allocation: ResourceAllocation = {
+          id: `alloc_${task.id}_${selectedResource?.id || 'unassigned'}`,
+          taskId: task.id,
+          resourceId: selectedResource?.id || '',
+          allocatedHours: requiredHours,
+          startDate: task.earliestStart || new Date(),
+          endDate: task.earliestFinish || new Date(),
+          allocationPercentage: selectedResource ? 
+            Math.min(100, (requiredHours / (selectedResource.capacity * config.workingHoursPerDay)) * 100) : 0,
+          status: 'confirmed' as const,
+          priority: this.getTaskPriority(task),
+          skills: requiredSkills,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        allocations.push(allocation);
+
+        // 更新资源利用率
+        if (selectedResource) {
+          resourceUtilization[selectedResource.id] += requiredHours;
+        }
+      }
+
+      // 计算资源利用率统计
+      const utilizationStats: { [resourceId: string]: number } = {};
+      resources.forEach(resource => {
+        const utilized = resourceUtilization[resource.id] || 0;
+        const capacity = resource.capacity * config.workingHoursPerDay * 5; // 假设5天工作制
+        utilizationStats[resource.id] = capacity > 0 ? utilized / capacity : 0;
+      });
+
+      // 检查资源过载
+      const overloadedResources = Object.entries(utilizationStats)
+        .filter(([_, utilization]) => utilization > 1.0);
+
+      if (overloadedResources.length > 0) {
+        const overloadedResourceNames = overloadedResources.map(([resourceId]) => {
+          const resource = resources.find(r => r.id === resourceId);
+          return resource?.name || resourceId;
+        });
+
+        result.warnings.push({
+          type: 'RESOURCE_CONFLICT',
+          message: `资源过载: ${overloadedResourceNames.join(', ')}`,
+          taskIds: [],
+          severity: 'HIGH',
+          suggestion: '建议增加资源容量或重新分配任务'
+        });
+      }
+
+      // 更新调度结果的资源利用率统计
+      result.statistics.resourceUtilization = utilizationStats;
+
+      // 重新计算项目工期（考虑资源约束后的调整）
+      const adjustedProjectEnd = this.recalculateProjectEndDate(result.tasks);
+      if (adjustedProjectEnd.getTime() !== result.projectEndDate.getTime()) {
+        result.projectEndDate = adjustedProjectEnd;
+        result.projectDuration = this.calculateProjectDuration(
+          result.projectStartDate,
+          adjustedProjectEnd,
+          config
+        );
+
+        result.warnings.push({
+          type: 'CONSTRAINT_VIOLATION',
+          message: '项目工期因资源约束延长',
+          taskIds: [],
+          severity: 'MEDIUM',
+          suggestion: `项目完成时间调整至${adjustedProjectEnd.toLocaleDateString()}`
+        });
+      }
+
+      // 存储资源分配信息（如果需要）
+      if (allocations.length > 0) {
+        await resourceService.batchCreateAllocations(allocations);
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('应用资源约束失败:', error);
+      result.warnings.push({
+        type: 'RESOURCE_CONFLICT',
+        message: '资源约束处理失败',
+        taskIds: [],
+        severity: 'HIGH',
+        suggestion: '请检查资源配置或联系管理员'
+      });
+      return result;
+    }
   }
 
   /**

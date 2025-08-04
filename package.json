@@ -1,29 +1,13 @@
 {
-  "name": "task-management-e2e-tests",
+  "name": "ai-proj-mcp-bridge",
   "version": "1.0.0",
-  "description": "End-to-end tests for task management system using Playwright",
-  "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug",
-    "test:create-task": "playwright test tests/create-task.spec.js --headed",
-    "test:video": "playwright test tests/create-task.spec.js --headed --project=chromium",
-    "show-report": "playwright show-report",
-    "install-browsers": "playwright install"
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.40.0"
-  },
-  "keywords": [
-    "playwright",
-    "e2e",
-    "testing",
-    "task-management",
-    "automation"
-  ],
-  "author": "Task Management Team",
-  "license": "MIT",
+  "type": "commonjs",
+  "main": "mcp-claude-code-bridge.js",
   "dependencies": {
-    "jsonwebtoken": "^9.0.2"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.6.0"
+  },
+  "scripts": {
+    "start": "node mcp-claude-code-bridge.js"
   }
 }

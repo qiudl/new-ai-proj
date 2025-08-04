@@ -34,7 +34,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ['title']
                 }
-            }, {
+            },
+            {
                 name: 'start_task',
                 description: '开始执行任务',
                 inputSchema: {
@@ -74,7 +75,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         }
                     }
                 }
-            }, {
+            },
+            {
                 name: 'create_subtask',
                 description: '创建子任务',
                 inputSchema: {
@@ -162,43 +164,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
-                name: 'archive_task',
-                description: '归档任务',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'number',
-                            description: '要归档的任务ID'
-                        },
-                        reason: {
-                            type: 'string',
-                            description: '归档原因（可选）'
-                        },
-                        archive_subtasks: {
-                            type: 'boolean',
-                            description: '是否同时归档子任务',
-                            default: false
-                        }
-                    },
-                    required: ['id']
-                }
-            },
-            {
-                name: 'unarchive_task',
-                description: '恢复已归档的任务',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'number',
-                            description: '要恢复的已归档任务ID'
-                        }
-                    },
-                    required: ['id']
-                }
-            },
-            {
                 name: 'move_task',
                 description: '移动任务到其他项目',
                 inputSchema: {
@@ -214,6 +179,82 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         }
                     },
                     required: ['id', 'targetProjectId']
+                }
+            },
+            {
+                name: 'create_or_update_task_document',
+                description: '创建或更新任务文档',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID'
+                        },
+                        content: {
+                            type: 'string',
+                            description: '文档内容（Markdown格式）'
+                        },
+                        projectId: {
+                            type: 'number',
+                            description: '项目ID（可选，默认为1）'
+                        }
+                    },
+                    required: ['taskId', 'content']
+                }
+            },
+            {
+                name: 'get_task_document',
+                description: '获取任务文档内容',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID'
+                        },
+                        projectId: {
+                            type: 'number',
+                            description: '项目ID（可选，默认为1）'
+                        }
+                    },
+                    required: ['taskId']
+                }
+            },
+            {
+                name: 'has_task_document',
+                description: '检查任务是否有文档',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID'
+                        },
+                        projectId: {
+                            type: 'number',
+                            description: '项目ID（可选，默认为1）'
+                        }
+                    },
+                    required: ['taskId']
+                }
+            },
+            {
+                name: 'delete_task_document',
+                description: '删除任务文档',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID'
+                        },
+                        projectId: {
+                            type: 'number',
+                            description: '项目ID（可选，默认为1）'
+                        }
+                    },
+                    required: ['taskId']
                 }
             }
         ]
@@ -249,14 +290,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'update_task':
                 result = await taskServer.updateTask(args.id, args.updates);
                 break;
-            case 'archive_task':
-                result = await taskServer.archiveTask(args.id, args.reason, args.archive_subtasks);
-                break;
-            case 'unarchive_task':
-                result = await taskServer.unarchiveTask(args.id);
-                break;
             case 'move_task':
                 result = await taskServer.moveTask(args.id, args.targetProjectId);
+                break;
+            case 'create_or_update_task_document':
+                result = await taskServer.createOrUpdateTaskDocument(args.taskId, args.content, args.projectId);
+                break;
+            case 'get_task_document':
+                result = await taskServer.getTaskDocument(args.taskId, args.projectId);
+                break;
+            case 'has_task_document':
+                result = await taskServer.hasTaskDocument(args.taskId, args.projectId);
+                break;
+            case 'delete_task_document':
+                result = await taskServer.deleteTaskDocument(args.taskId, args.projectId);
                 break;
             default:
                 throw new Error(`Unknown tool: ${name}`);

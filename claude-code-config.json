@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "ai-project-manager": {
+      "command": "node",
+      "args": ["/Users/johnqiu/coding/www/projects/new-ai-proj/mcp-claude-code-bridge.js"],
+      "env": {
+        "API_BASE_URL": "http://localhost:8080/api/v1",
+        "AUTH_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ5MjA1NTUsIm5iZiI6MTc1NDMxNTc1NSwiaWF0IjoxNzU0MzE1NzU1fQ.YOuMu0ugHYwDeq2uVKNf0A9LJVrmFknfR3kN38vloew",
+        "NODE_ENV": "development"
+      }
+    }
+  },
+  "settings": {
+    "autoConnect": true,
+    "logLevel": "info"
+  }
+}

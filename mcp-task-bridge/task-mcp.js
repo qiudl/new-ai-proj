@@ -1,65 +1,31 @@
 import axios from 'axios';
-import { TaskContentAnalyzer, createTaskContentAnalyzer } from './TaskContentAnalyzer.js';
-import { AutoDocumentService, createAutoDocumentService } from './AutoDocumentService.js';
-import { HistoricalDataMigrator, createHistoricalDataMigrator } from './HistoricalDataMigrator.js';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    // 智能文档自动化组件
-    contentAnalyzer;
-    autoDocService;
-    migrationTool;
-    autoDocConfig;
-
-    constructor(apiBase = 'http://localhost/api/v1', config = {}) {
+    constructor(apiBase = 'http://localhost:8080/api/v1') {
         this.apiBase = apiBase;
         // 使用系统 JWT token
         this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
-        
-        // 初始化自动文档化组件
-        this.initializeAutoDocComponents(config);
     }
-    /**
-     * 初始化自动文档化组件
-     * @param {Object} config - 配置参数
-     */
-    initializeAutoDocComponents(config = {}) {
-        // 自动文档配置
-        this.autoDocConfig = {
-            enabled: config.autoDocEnabled !== false,
-            triggerOnComplete: config.triggerOnComplete !== false,
-            triggerOnDescriptionChange: config.triggerOnDescriptionChange || false,
-            minConfidenceThreshold: config.minConfidenceThreshold || 0.6,
-            qualityCheckEnabled: config.qualityCheckEnabled !== false,
-            ...config.autoDoc
-        };
-
-        // 初始化组件
-        this.contentAnalyzer = createTaskContentAnalyzer(config.analyzer);
-        this.autoDocService = createAutoDocumentService(this, config.autoDocService);
-        this.migrationTool = createHistoricalDataMigrator(this, config.migration);
-
-        console.log('🤖 智能文档自动化系统已初始化');
-    }
-
     getHeaders() {
         return {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${this.authToken}`
         };
     }
-    // 辅助方法：通过ID查找任务 (使用分页查询)
+    // 辅助方法：通过ID查找任务
     async findTaskById(id) {
         try {
-            // 首先尝试从项目1获取完整任务列表 (大部分任务都在项目1中)
-            const tasksResult = await this.listTasks(1);
-            if (tasksResult.success) {
-                const task1 = tasksResult.tasks.find((t) => t.id === id);
-                if (task1) {
-                    return task1;
-                }
+            // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
+            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const tasks1 = response1.data.data?.data || [];
+            const task1 = tasks1.find((t) => t.id === id);
+            if (task1) {
+                return task1;
             }
-            
             // 如果在项目1中没有找到，尝试在其他项目中查找
             const projectsResponse = await axios.get(`${this.apiBase}/projects`, {
                 headers: this.getHeaders(),
@@ -70,12 +36,14 @@ export class TaskMCPServer {
                 if (project.id === 1)
                     continue; // 已经检查过项目1
                 try {
-                    const projectTasksResult = await this.listTasks(project.id);
-                    if (projectTasksResult.success) {
-                        const task = projectTasksResult.tasks.find((t) => t.id === id);
-                        if (task) {
-                            return task;
-                        }
+                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+                        headers: this.getHeaders(),
+                        proxy: false
+                    });
+                    const tasks = tasksResponse.data.data?.data || [];
+                    const task = tasks.find((t) => t.id === id);
+                    if (task) {
+                        return task;
                     }
                 }
                 catch (projectError) {
@@ -90,10 +58,10 @@ export class TaskMCPServer {
         }
     }
     // 创建任务
-    async createTask(title, projectId = 1, parentId = null) {
+    async createTask(title, projectId = 1) {
         try {
-            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}, 父任务ID: ${parentId}`);
-            const taskData = {
+            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}`);
+            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, {
                 title,
                 project_id: projectId,
                 status: 'todo', // 默认状态改为'todo'（待开始）
@@ -101,29 +69,19 @@ export class TaskMCPServer {
                 custom_fields: {
                     priority: 'low' // 设置默认优先级为'低'
                 }
-            };
-            
-            // 如果指定了父任务ID，添加parent_id字段
-            if (parentId) {
-                taskData.parent_id = parentId;
-            }
-            
-            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, taskData, {
+            }, {
                 headers: this.getHeaders(),
                 timeout: 10000,
                 proxy: false
             });
             const task = response.data.data;
-            // 使用智能字段读取逻辑
-            const priority = task.priority || task.custom_fields?.priority || 'low';
-            
             return {
                 success: true,
                 id: task.id,
                 title: task.title,
                 status: task.status,
-                priority: priority,
-                message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title}" [状态: ${task.status}, 优先级: ${priority}]`
+                priority: task.custom_fields?.priority || 'low',
+                message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title}" [状态: ${task.status}, 优先级: ${task.custom_fields?.priority || 'low'}]`
             };
         }
         catch (error) {
@@ -260,58 +218,26 @@ export class TaskMCPServer {
             };
         }
     }
-    // 查看任务列表 (支持分页获取所有任务)
+    // 查看任务列表
     async listTasks(projectId = 1) {
         try {
             console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-            
-            let allTasks = [];
-            let currentPage = 1;
-            let totalPages = 1;
-            
-            // 分页获取所有任务
-            do {
-                const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
-                    headers: this.getHeaders(),
-                    proxy: false,
-                    params: {
-                        page: currentPage,
-                        page_size: 100  // 使用较大的页面大小减少请求次数
-                    }
-                });
-                
-                const responseData = response.data.data;
-                const tasks = responseData?.data || [];
-                const total = responseData?.total || 0;
-                const pageSize = responseData?.page_size || 20;
-                
-                allTasks = allTasks.concat(tasks);
-                totalPages = Math.ceil(total / pageSize);
-                
-                console.error(`[DEBUG] 已获取第 ${currentPage}/${totalPages} 页，本页 ${tasks.length} 个任务`);
-                currentPage++;
-                
-            } while (currentPage <= totalPages);
-            
-            console.error(`[DEBUG] 分页获取完成，总计 ${allTasks.length} 个任务`);
-            
+            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const tasks = response.data.data?.data || [];
             return {
                 success: true,
-                total: allTasks.length,
-                tasks: allTasks.map((task) => ({
+                total: tasks.length,
+                tasks: tasks.map((task) => ({
                     id: task.id,
                     title: task.title,
-                    description: task.description,
                     status: task.status,
                     created_at: task.created_at,
-                    updated_at: task.updated_at,
-                    project_id: task.project_id,
-                    parent_id: task.parent_id,
-                    assignee_id: task.assignee_id,
-                    due_date: task.due_date,
-                    custom_fields: task.custom_fields
+                    project_id: task.project_id
                 })),
-                message: `📋 共找到 ${allTasks.length} 个任务`
+                message: `📋 共找到 ${tasks.length} 个任务`
             };
         }
         catch (error) {
@@ -341,17 +267,14 @@ export class TaskMCPServer {
                 proxy: false
             });
             const subtask = response.data.data;
-            // 使用智能字段读取逻辑
-            const priority = subtask.priority || subtask.custom_fields?.priority || 'low';
-            
             return {
                 success: true,
                 id: subtask.id,
                 title: subtask.title,
                 parent_id: parentId,
                 status: subtask.status,
-                priority: priority,
-                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${priority}]`
+                priority: subtask.custom_fields?.priority || 'low',
+                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || 'low'}]`
             };
         }
         catch (error) {
@@ -448,63 +371,43 @@ export class TaskMCPServer {
         try {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
-            
-            // 字段分类定义
-            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id', 'total_time_seconds'];
-            const dualStorageFields = ['priority', 'estimated_hours', 'tags']; // 双重存储字段
-            const customOnlyFields = []; // 仅存储在custom_fields中的字段
-            const allFields = [...directFields, ...dualStorageFields, ...customOnlyFields];
-            
+            // 验证更新字段
+            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id'];
+            const customFields = ['priority'];
+            const allFields = [...directFields, ...customFields];
             const changedFields = [];
             const updateData = {
                 project_id: task.project_id,
-                custom_fields: { ...task.custom_fields } // 初始化custom_fields
+                parent_id: task.parent_id,
+                custom_fields: { ...task.custom_fields }
             };
-            
-            // 智能字段处理函数
-            const getFieldValue = (field, task) => {
-                if (dualStorageFields.includes(field)) {
-                    // 对于双重存储字段，直接字段优先，但要处理空值
-                    const directValue = task[field];
-                    const customValue = task.custom_fields?.[field];
-                    
-                    // 如果直接字段有有效值（非空字符串、非null、非undefined），优先使用
-                    if (directValue !== null && directValue !== undefined && directValue !== '') {
-                        return directValue;
-                    }
-                    // 否则使用custom_fields中的值
-                    return customValue;
-                } else {
-                    return task[field];
-                }
-            };
-            
             // 构建更新数据，只包含变更的字段
             for (const [field, value] of Object.entries(updates)) {
                 if (!allFields.includes(field)) {
                     console.error(`[WARNING] 忽略不允许的字段: ${field}`);
                     continue;
                 }
-                
-                const currentValue = getFieldValue(field, task);
-                const hasChanged = currentValue !== value;
-                
+                let currentValue;
+                let hasChanged = false;
+                if (directFields.includes(field)) {
+                    // 直接字段
+                    currentValue = task[field];
+                    hasChanged = currentValue !== value;
+                    if (hasChanged) {
+                        updateData[field] = value;
+                    }
+                }
+                else if (customFields.includes(field)) {
+                    // custom_fields中的字段
+                    currentValue = task.custom_fields?.[field];
+                    hasChanged = currentValue !== value;
+                    if (hasChanged) {
+                        updateData.custom_fields[field] = value;
+                    }
+                }
                 if (hasChanged) {
                     changedFields.push(field);
                     console.error(`[DEBUG] 字段变更: ${field} = "${currentValue}" -> "${value}"`);
-                    
-                    if (directFields.includes(field)) {
-                        // 仅直接字段
-                        updateData[field] = value;
-                    } else if (dualStorageFields.includes(field)) {
-                        // 双重存储字段：同时更新直接字段和custom_fields
-                        updateData[field] = value;
-                        updateData.custom_fields[field] = value;
-                        console.error(`[DEBUG] 双重存储字段 ${field}: 同时更新直接字段和custom_fields`);
-                    } else if (customOnlyFields.includes(field)) {
-                        // 仅custom_fields字段
-                        updateData.custom_fields[field] = value;
-                    }
                 }
             }
             // 保持未更新的直接字段不变
@@ -554,41 +457,14 @@ export class TaskMCPServer {
                 proxy: false
             });
             const updatedTask = updateResponse.data.data;
-            
-            // 自动文档创建逻辑
-            let autoDocResult = null;
-            if (this.autoDocConfig.enabled) {
-                const shouldTrigger = this.shouldTriggerAutoDocCreation(task, updates, changedFields);
-                if (shouldTrigger.should) {
-                    autoDocResult = await this.handleAutoDocumentCreation(updatedTask, shouldTrigger.reason);
-                }
-            }
-            
-            // 使用智能字段读取函数处理返回数据
-            const getDisplayValue = (field, task) => {
-                if (dualStorageFields.includes(field)) {
-                    // 处理空值：直接字段优先，但要考虑空字符串和null
-                    const directValue = task[field];
-                    const customValue = task.custom_fields?.[field];
-                    
-                    if (directValue !== null && directValue !== undefined && directValue !== '') {
-                        return directValue;
-                    }
-                    return customValue;
-                }
-                return task[field];
-            };
-
-            const result = {
+            return {
                 success: true,
                 updated_task: {
                     id: updatedTask.id,
                     title: updatedTask.title,
                     description: updatedTask.description,
                     status: updatedTask.status,
-                    priority: getDisplayValue('priority', updatedTask),
-                    estimated_hours: getDisplayValue('estimated_hours', updatedTask),
-                    tags: getDisplayValue('tags', updatedTask),
+                    priority: updatedTask.custom_fields?.priority,
                     due_date: updatedTask.due_date,
                     assignee_id: updatedTask.assignee_id,
                     project_id: updatedTask.project_id,
@@ -598,25 +474,150 @@ export class TaskMCPServer {
                 changed_fields: changedFields,
                 message: `📝 任务 "${updatedTask.title}" 已更新${changedFields.length > 0 ? ` (${changedFields.join(', ')})` : ''}`
             };
-
-            // 附加自动文档创建结果
-            if (autoDocResult) {
-                result.auto_document_created = autoDocResult.success;
-                result.document_confidence = autoDocResult.confidence;
-                result.auto_doc_message = autoDocResult.message;
-                
-                if (autoDocResult.success) {
-                    result.message += ` 📄 (自动创建任务文档)`;
-                }
-            }
-
-            return result;
         }
         catch (error) {
             console.error(`[ERROR] 更新任务失败:`, error.response?.data || error.message);
             return {
                 success: false,
                 error: `更新任务失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 创建或更新任务文档
+    async createOrUpdateTaskDocument(taskId, content, projectId = 1) {
+        try {
+            console.error(`[DEBUG] 创建/更新任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+            // 验证任务存在
+            const task = await this.findTaskById(taskId);
+            const actualProjectId = task.project_id || projectId;
+            const response = await axios.put(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+                content: content
+            }, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            return {
+                success: true,
+                task_id: taskId,
+                project_id: actualProjectId,
+                content_length: content.length,
+                message: `📄 任务 #${taskId} 文档已保存 (${content.length} 字符)`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 保存任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `保存任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 获取任务文档内容
+    async getTaskDocument(taskId, projectId = 1) {
+        try {
+            console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+            // 验证任务存在
+            const task = await this.findTaskById(taskId);
+            const actualProjectId = task.project_id || projectId;
+            const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const documentData = response.data.data || response.data;
+            return {
+                success: true,
+                task_id: taskId,
+                project_id: actualProjectId,
+                content: documentData.content || '',
+                title: documentData.title || `任务 #${taskId} 文档`,
+                updated_at: documentData.updated_at,
+                message: `📄 任务 #${taskId} 文档内容已获取`
+            };
+        }
+        catch (error) {
+            if (error.response?.status === 404) {
+                return {
+                    success: false,
+                    task_id: taskId,
+                    project_id: projectId,
+                    error: `任务 #${taskId} 暂无文档`,
+                    not_found: true
+                };
+            }
+            console.error(`[ERROR] 获取任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `获取任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 检查任务是否有文档
+    async hasTaskDocument(taskId, projectId = 1) {
+        try {
+            console.error(`[DEBUG] 检查任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+            // 验证任务存在
+            const task = await this.findTaskById(taskId);
+            const actualProjectId = task.project_id || projectId;
+            const response = await axios.head(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            return {
+                success: true,
+                task_id: taskId,
+                project_id: actualProjectId,
+                has_document: true,
+                message: `📄 任务 #${taskId} 有文档`
+            };
+        }
+        catch (error) {
+            if (error.response?.status === 404) {
+                return {
+                    success: true,
+                    task_id: taskId,
+                    project_id: projectId,
+                    has_document: false,
+                    message: `📄 任务 #${taskId} 暂无文档`
+                };
+            }
+            console.error(`[ERROR] 检查任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `检查任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 删除任务文档
+    async deleteTaskDocument(taskId, projectId = 1) {
+        try {
+            console.error(`[DEBUG] 删除任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+            // 验证任务存在
+            const task = await this.findTaskById(taskId);
+            const actualProjectId = task.project_id || projectId;
+            const response = await axios.delete(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            return {
+                success: true,
+                task_id: taskId,
+                project_id: actualProjectId,
+                message: `🗑️ 任务 #${taskId} 文档已删除`
+            };
+        }
+        catch (error) {
+            if (error.response?.status === 404) {
+                return {
+                    success: false,
+                    task_id: taskId,
+                    project_id: projectId,
+                    error: `任务 #${taskId} 暂无文档可删除`
+                };
+            }
+            console.error(`[ERROR] 删除任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `删除任务文档失败: ${error.response?.data?.error || error.message}`
             };
         }
     }
@@ -710,524 +711,6 @@ export class TaskMCPServer {
             return {
                 success: false,
                 error: `移动任务失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // ========================================
-    // 任务文档管理方法
-    // ========================================
-
-    // 创建或更新任务文档
-    async createOrUpdateTaskDocument(taskId, content, title = null) {
-        try {
-            console.error(`[DEBUG] 创建/更新任务文档: 任务ID ${taskId}`);
-            const task = await this.findTaskById(taskId);
-            
-            const documentData = {
-                content: content
-            };
-            
-            if (title) {
-                documentData.title = title;
-            }
-            
-            // 先尝试获取现有文档
-            let hasExistingDoc = false;
-            try {
-                const checkResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
-                    headers: this.getHeaders(),
-                    proxy: false
-                });
-                hasExistingDoc = checkResponse.status === 200;
-            } catch (error) {
-                hasExistingDoc = false;
-            }
-            
-            let response;
-            if (hasExistingDoc) {
-                // 更新现有文档
-                response = await axios.put(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, documentData, {
-                    headers: this.getHeaders(),
-                    proxy: false
-                });
-            } else {
-                // 创建新文档
-                response = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, documentData, {
-                    headers: this.getHeaders(),
-                    proxy: false
-                });
-            }
-            
-            return {
-                success: true,
-                task_id: taskId,
-                operation: hasExistingDoc ? 'updated' : 'created',
-                message: `📄 任务 "${task.title}" 的文档已${hasExistingDoc ? '更新' : '创建'}`
-            };
-        }
-        catch (error) {
-            console.error(`[ERROR] 创建/更新任务文档失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `创建/更新任务文档失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // 获取任务文档
-    async getTaskDocument(taskId) {
-        try {
-            console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}`);
-            const task = await this.findTaskById(taskId);
-            
-            const response = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            
-            const document = response.data.data;
-            
-            return {
-                success: true,
-                task_id: taskId,
-                document: {
-                    content: document.content,
-                    last_updated: document.last_updated,
-                    size: document.size
-                },
-                message: `📄 获取任务 "${task.title}" 的文档成功`
-            };
-        }
-        catch (error) {
-            if (error.response?.status === 404) {
-                return {
-                    success: false,
-                    task_id: taskId,
-                    error: '任务文档不存在',
-                    has_document: false
-                };
-            }
-            
-            console.error(`[ERROR] 获取任务文档失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `获取任务文档失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // 检查任务是否有文档
-    async hasTaskDocument(taskId) {
-        try {
-            const result = await this.getTaskDocument(taskId);
-            return {
-                success: true,
-                task_id: taskId,
-                has_document: result.success,
-                message: `任务 ${taskId} ${result.success ? '有' : '没有'}文档`
-            };
-        }
-        catch (error) {
-            return {
-                success: false,
-                task_id: taskId,
-                has_document: false,
-                error: error.message
-            };
-        }
-    }
-
-    // 删除任务文档
-    async deleteTaskDocument(taskId) {
-        try {
-            console.error(`[DEBUG] 删除任务文档: 任务ID ${taskId}`);
-            const task = await this.findTaskById(taskId);
-            
-            const response = await axios.delete(`${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            
-            return {
-                success: true,
-                task_id: taskId,
-                message: `🗑️ 任务 "${task.title}" 的文档已删除`
-            };
-        }
-        catch (error) {
-            console.error(`[ERROR] 删除任务文档失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `删除任务文档失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // 归档任务
-    async archiveTask(id, reason = null, archiveSubtasks = false) {
-        try {
-            console.error(`[DEBUG] 归档任务: ID ${id}, 原因: ${reason}, 归档子任务: ${archiveSubtasks}`);
-            const task = await this.findTaskById(id);
-            
-            // 检查任务是否已经归档
-            if (task.archived_at) {
-                return {
-                    success: false,
-                    error: `任务 "${task.title}" 已经被归档 (归档时间: ${task.archived_at})`
-                };
-            }
-            
-            // 检查是否有子任务
-            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            const allTasks = childrenResponse.data.data?.data || [];
-            const childTasks = allTasks.filter(t => t.parent_id === id && !t.archived_at);
-            
-            const archivedSubtasks = [];
-            
-            // 如果有子任务且要求归档子任务
-            if (childTasks.length > 0 && archiveSubtasks) {
-                console.error(`[DEBUG] 同时归档 ${childTasks.length} 个子任务`);
-                for (const childTask of childTasks) {
-                    try {
-                        const childArchiveResult = await this.archiveTask(childTask.id, `父任务归档: ${reason || '无'}`, false);
-                        if (childArchiveResult.success) {
-                            archivedSubtasks.push(childTask.id);
-                            console.error(`[DEBUG] 已归档子任务: ID ${childTask.id}`);
-                        } else {
-                            console.error(`[WARNING] 归档子任务 ${childTask.id} 失败: ${childArchiveResult.error}`);
-                        }
-                    } catch (childError) {
-                        console.error(`[WARNING] 归档子任务 ${childTask.id} 失败: ${childError.message}`);
-                    }
-                }
-            } else if (childTasks.length > 0 && !archiveSubtasks) {
-                return {
-                    success: false,
-                    error: `任务有 ${childTasks.length} 个未归档的子任务，请设置 archive_subtasks=true 或先归档子任务`,
-                    child_count: childTasks.length,
-                    children: childTasks.map(t => ({ id: t.id, title: t.title }))
-                };
-            }
-            
-            // 归档主任务 - 使用专门的归档API端点
-            const archiveData = {
-                reason: reason || '通过MCP系统归档'
-            };
-            
-            const archiveResponse = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${id}/archive`, archiveData, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            
-            const archivedTask = archiveResponse.data.data;
-            
-            return {
-                success: true,
-                archived_task_id: id,
-                title: task.title,
-                archived_at: archivedTask.archived_at,
-                archived_subtasks: archivedSubtasks,
-                archive_reason: reason,
-                message: `📦 任务 "${task.title}" 已归档${archivedSubtasks.length > 0 ? `，同时归档了 ${archivedSubtasks.length} 个子任务` : ''}`
-            };
-        }
-        catch (error) {
-            console.error(`[ERROR] 归档任务失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `归档任务失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-    
-    // 恢复已归档的任务
-    async unarchiveTask(id) {
-        try {
-            console.error(`[DEBUG] 恢复归档任务: ID ${id}`);
-            const task = await this.findTaskById(id);
-            
-            // 检查任务是否已归档
-            if (!task.archived_at) {
-                return {
-                    success: false,
-                    error: `任务 "${task.title}" 没有被归档，无需恢复`
-                };
-            }
-            
-            // 恢复任务 - 使用专门的恢复归档API端点
-            const restoreResponse = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${id}/unarchive`, {}, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-            
-            return {
-                success: true,
-                unarchived_task_id: id,
-                title: task.title,
-                restored_at: new Date().toISOString(),
-                original_archive_reason: task.custom_fields?.archive_reason,
-                message: `♻️ 任务 "${task.title}" 已从归档中恢复`
-            };
-        }
-        catch (error) {
-            console.error(`[ERROR] 恢复归档任务失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `恢复归档任务失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // ===== 智能文档自动化相关方法 =====
-
-    /**
-     * 判断是否应该触发自动文档创建
-     * @param {Object} originalTask - 原始任务
-     * @param {Object} updates - 更新的字段
-     * @param {Array} changedFields - 变更的字段列表
-     * @returns {Object} 触发判断结果
-     */
-    shouldTriggerAutoDocCreation(originalTask, updates, changedFields) {
-        if (!this.autoDocConfig.enabled) {
-            return { should: false, reason: '自动文档功能已禁用' };
-        }
-
-        // 1. 任务完成触发
-        if (this.autoDocConfig.triggerOnComplete && 
-            changedFields.includes('status') && 
-            updates.status === 'completed') {
-            return { 
-                should: true, 
-                reason: 'task_completed',
-                message: '任务状态变更为completed' 
-            };
-        }
-
-        // 2. 描述重大变化触发
-        if (this.autoDocConfig.triggerOnDescriptionChange && 
-            changedFields.includes('description')) {
-            const hasSignificantChange = this.hasSignificantDescriptionChange(
-                originalTask.description, 
-                updates.description
-            );
-            
-            if (hasSignificantChange) {
-                return { 
-                    should: true, 
-                    reason: 'description_significant_change',
-                    message: '任务描述发生重大变化' 
-                };
-            }
-        }
-
-        // 3. 其他可配置的状态变更触发
-        if (this.autoDocConfig.otherStatusTriggers && 
-            changedFields.includes('status')) {
-            const triggerStatuses = this.autoDocConfig.otherStatusTriggers;
-            if (triggerStatuses.includes(updates.status)) {
-                return { 
-                    should: true, 
-                    reason: 'status_change',
-                    message: `任务状态变更为${updates.status}` 
-                };
-            }
-        }
-
-        return { should: false, reason: '未满足触发条件' };
-    }
-
-    /**
-     * 检测描述是否有重大变化
-     * @param {string} oldDescription - 原描述
-     * @param {string} newDescription - 新描述
-     * @returns {boolean} 是否有重大变化
-     */
-    hasSignificantDescriptionChange(oldDescription, newDescription) {
-        if (!oldDescription || !newDescription) {
-            return false;
-        }
-
-        const oldLen = oldDescription.length;
-        const newLen = newDescription.length;
-
-        // 长度变化阈值：30%变化或200字符差异
-        const lengthChangeThreshold = 0.3;
-        const absoluteChangeThreshold = 200;
-        
-        const lengthDiff = Math.abs(newLen - oldLen);
-        const relativeChange = lengthDiff / Math.max(oldLen, newLen);
-
-        if (relativeChange >= lengthChangeThreshold || lengthDiff >= absoluteChangeThreshold) {
-            return true;
-        }
-
-        // 内容相似性检查（简化版本）
-        const similarity = this.calculateTextSimilarity(oldDescription, newDescription);
-        return similarity < 0.7; // 70%相似度阈值
-    }
-
-    /**
-     * 计算文本相似度（简化算法）
-     * @param {string} text1 - 文本1
-     * @param {string} text2 - 文本2
-     * @returns {number} 相似度 (0-1)
-     */
-    calculateTextSimilarity(text1, text2) {
-        // 简化的相似度计算：基于共同词汇比例
-        const words1 = new Set(text1.toLowerCase().split(/\s+/));
-        const words2 = new Set(text2.toLowerCase().split(/\s+/));
-        
-        const intersection = new Set([...words1].filter(word => words2.has(word)));
-        const union = new Set([...words1, ...words2]);
-        
-        return intersection.size / union.size;
-    }
-
-    /**
-     * 处理自动文档创建
-     * @param {Object} task - 任务对象
-     * @param {string} reason - 触发原因
-     * @returns {Promise<Object>} 创建结果
-     */
-    async handleAutoDocumentCreation(task, reason) {
-        try {
-            console.log(`🤖 触发自动文档创建: 任务${task.id} (原因: ${reason})`);
-
-            const result = await this.autoDocService.createDocumentFromTask(task, {
-                force: false, // 尊重质量检查
-                duplicateAction: this.autoDocConfig.duplicateAction || 'skip',
-                message: `自动创建 - ${reason} - ${new Date().toLocaleString('zh-CN')}`
-            });
-
-            if (result.success) {
-                console.log(`✅ 任务${task.id}自动文档创建成功，置信度${result.confidence}`);
-            } else {
-                console.log(`⚠️ 任务${task.id}自动文档创建跳过: ${result.message}`);
-            }
-
-            return result;
-
-        } catch (error) {
-            console.error(`❌ 任务${task.id}自动文档创建失败:`, error.message);
-            return {
-                success: false,
-                confidence: 0,
-                message: `自动文档创建失败: ${error.message}`
-            };
-        }
-    }
-
-    /**
-     * 手动触发自动文档创建
-     * @param {number} taskId - 任务ID
-     * @param {Object} options - 创建选项
-     * @returns {Promise<Object>} 创建结果
-     */
-    async triggerAutoDocumentCreation(taskId, options = {}) {
-        try {
-            const task = await this.findTaskById(taskId);
-            
-            return await this.autoDocService.createDocumentFromTask(task, {
-                force: options.force || false,
-                duplicateAction: options.duplicateAction || 'skip',
-                message: options.message || `手动触发自动创建 - ${new Date().toLocaleString('zh-CN')}`
-            });
-
-        } catch (error) {
-            return {
-                success: false,
-                error: `手动触发自动文档创建失败: ${error.message}`
-            };
-        }
-    }
-
-    /**
-     * 批量自动文档创建（历史数据迁移）
-     * @param {Object} options - 迁移选项
-     * @returns {Promise<Object>} 迁移结果
-     */
-    async batchAutoDocumentCreation(options = {}) {
-        try {
-            console.log('🚀 开始批量自动文档创建...');
-
-            // 1. 扫描和筛选任务
-            const scanResult = await this.migrationTool.scanAndFilterTasks(options);
-            
-            if (!scanResult.success) {
-                return {
-                    success: false,
-                    error: '扫描任务失败',
-                    details: scanResult
-                };
-            }
-
-            // 2. 执行迁移
-            const migrationResult = await this.migrationTool.executeMigration(
-                scanResult.tasks.qualified,
-                options
-            );
-
-            console.log(`✅ 批量文档创建完成: ${migrationResult.summary.success}/${migrationResult.summary.total}`);
-
-            return migrationResult;
-
-        } catch (error) {
-            console.error('❌ 批量自动文档创建失败:', error.message);
-            return {
-                success: false,
-                error: `批量创建失败: ${error.message}`
-            };
-        }
-    }
-
-    /**
-     * 获取自动文档统计信息
-     * @returns {Promise<Object>} 统计信息
-     */
-    async getAutoDocumentStatistics() {
-        try {
-            return {
-                config: this.autoDocConfig,
-                analyzer: this.contentAnalyzer.getStatistics(),
-                autoDocService: this.autoDocService.getStatistics(),
-                migrationTool: this.migrationTool.getStatistics(),
-                version: '1.0.0',
-                timestamp: new Date().toISOString()
-            };
-        } catch (error) {
-            return {
-                error: `获取统计信息失败: ${error.message}`
-            };
-        }
-    }
-
-    /**
-     * 更新自动文档配置
-     * @param {Object} newConfig - 新配置
-     * @returns {Object} 更新结果
-     */
-    updateAutoDocumentConfig(newConfig) {
-        try {
-            this.autoDocConfig = {
-                ...this.autoDocConfig,
-                ...newConfig
-            };
-
-            console.log('🔧 自动文档配置已更新');
-
-            return {
-                success: true,
-                config: this.autoDocConfig,
-                message: '配置更新成功'
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: `配置更新失败: ${error.message}`
             };
         }
     }

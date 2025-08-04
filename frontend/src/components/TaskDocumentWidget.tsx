@@ -21,6 +21,12 @@ import {
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
 import { useTaskDocuments } from '../hooks/useTaskDocuments';
+import { 
+  useOptimizedMemo, 
+  useOptimizedCallback,
+  useMemoryMonitor,
+  memoWithPerformance 
+} from '../utils/performanceOptimization';
 
 const { Text } = Typography;
 
@@ -49,48 +55,71 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     getDocumentStats
   } = useTaskDocuments({ projectId, taskId });
 
-  const stats = getDocumentStats();
+  // Use memory monitoring for component lifecycle tracking
+  const { getComponentAge } = useMemoryMonitor('TaskDocumentWidget');
 
-  // Handle quick upload
-  const handleQuickUpload = async (file: File) => {
-    try {
-      await uploadDocument(file);
-      return false; // Prevent default upload behavior
-    } catch (error) {
-      return false;
-    }
-  };
+  // Optimized memoization for document statistics
+  const stats = useOptimizedMemo(
+    () => getDocumentStats(),
+    [documents],
+    'documentStats'
+  );
 
-  // More actions menu
-  const moreActions: MenuProps['items'] = [
-    {
-      key: 'refresh',
-      label: '刷新文档列表',
-      icon: <SyncOutlined />,
-      onClick: refreshDocuments
+  // Handle quick upload with performance tracking
+  const handleQuickUpload = useOptimizedCallback(
+    async (file: File) => {
+      try {
+        await uploadDocument(file);
+        return false; // Prevent default upload behavior
+      } catch (error) {
+        return false;
+      }
     },
-    {
-      key: 'manager',
-      label: '打开文档管理器',
-      icon: <FileTextOutlined />,
-      onClick: () => setManagerVisible(true)
-    },
-    {
-      type: 'divider'
-    },
-    {
-      key: 'download-md',
-      label: '导出 Markdown',
-      icon: <DownloadOutlined />,
-      onClick: downloadMarkdown
-    },
-    {
-      key: 'download-pdf',
-      label: '导出 PDF',
-      icon: <DownloadOutlined />,
-      onClick: downloadPDF
-    }
-  ];
+    [uploadDocument],
+    'quickUpload'
+  );
+
+  // Optimized callback for opening document manager
+  const handleOpenManager = useOptimizedCallback(
+    () => setManagerVisible(true),
+    [],
+    'openManager'
+  );
+
+  // More actions menu with optimized memoization
+  const moreActions: MenuProps['items'] = useOptimizedMemo(
+    () => [
+      {
+        key: 'refresh',
+        label: '刷新文档列表',
+        icon: <SyncOutlined />,
+        onClick: refreshDocuments
+      },
+      {
+        key: 'manager',
+        label: '打开文档管理器',
+        icon: <FileTextOutlined />,
+        onClick: handleOpenManager
+      },
+      {
+        type: 'divider'
+      },
+      {
+        key: 'download-md',
+        label: '导出 Markdown',
+        icon: <DownloadOutlined />,
+        onClick: downloadMarkdown
+      },
+      {
+        key: 'download-pdf',
+        label: '导出 PDF',
+        icon: <DownloadOutlined />,
+        onClick: downloadPDF
+      }
+    ],
+    [refreshDocuments, handleOpenManager, downloadMarkdown, downloadPDF],
+    'moreActions'
+  );
 
   // Compact mode for task cards
   if (compact) {
@@ -98,12 +127,16 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
       <>
         <Space size="small">
           <Badge count={stats.total} size="small" color="#1890ff">
-            <Tooltip title={`${stats.total} 个文档，${stats.totalSize > 0 ? `总大小 ${Math.round(stats.totalSize / 1024)}KB` : '无文档'}`}>
+            <Tooltip title={useOptimizedMemo(
+              () => `${stats.total} 个文档，${stats.totalSize > 0 ? `总大小 ${Math.round(stats.totalSize / 1024)}KB` : '无文档'}`,
+              [stats.total, stats.totalSize],
+              'badgeTooltip'
+            )}>
               <Button
                 type="text"
                 icon={<FileTextOutlined />}
                 size="small"
-                onClick={() => setManagerVisible(true)}
+                onClick={handleOpenManager}
                 loading={loading}
               >
                 文档
@@ -201,20 +234,34 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
               <Text type="secondary">
                 {stats.totalSize > 0 && `总大小 ${Math.round(stats.totalSize / 1024)}KB`}
               </Text>
-              {stats.byType['text/markdown'] && (
-                <Text type="secondary">
-                  MD: {stats.byType['text/markdown']}
-                </Text>
-              )}
-              {stats.byType['application/pdf'] && (
-                <Text type="secondary">
-                  PDF: {stats.byType['application/pdf']}
-                </Text>
-              )}
-              {stats.byType['text/plain'] && (
-                <Text type="secondary">
-                  TXT: {stats.byType['text/plain']}
-                </Text>
+              {useOptimizedMemo(
+                () => {
+                  const typeComponents = [];
+                  if (stats.byType['text/markdown']) {
+                    typeComponents.push(
+                      <Text key="md" type="secondary">
+                        MD: {stats.byType['text/markdown']}
+                      </Text>
+                    );
+                  }
+                  if (stats.byType['application/pdf']) {
+                    typeComponents.push(
+                      <Text key="pdf" type="secondary">
+                        PDF: {stats.byType['application/pdf']}
+                      </Text>
+                    );
+                  }
+                  if (stats.byType['text/plain']) {
+                    typeComponents.push(
+                      <Text key="txt" type="secondary">
+                        TXT: {stats.byType['text/plain']}
+                      </Text>
+                    );
+                  }
+                  return typeComponents;
+                },
+                [stats.byType],
+                'documentTypeStats'
               )}
             </Space>
           )}
@@ -222,7 +269,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
           <Space size="small">
             <Button
               size="small"
-              onClick={() => setManagerVisible(true)}
+              onClick={handleOpenManager}
               icon={<FileTextOutlined />}
             >
               管理文档
@@ -261,4 +308,17 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   );
 };
 
-export default TaskDocumentWidget;
+// Export with performance monitoring memo
+export default memoWithPerformance(
+  TaskDocumentWidget,
+  (prevProps, nextProps) => {
+    // Custom memo comparison - only re-render if essential props change
+    return (
+      prevProps.projectId === nextProps.projectId &&
+      prevProps.taskId === nextProps.taskId &&
+      prevProps.compact === nextProps.compact &&
+      prevProps.showTitle === nextProps.showTitle
+    );
+  },
+  'TaskDocumentWidget'
+);

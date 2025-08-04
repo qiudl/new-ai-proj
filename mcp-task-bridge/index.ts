@@ -43,7 +43,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ['title']
         }
-      },      {
+      },
+      {
         name: 'start_task',
         description: '开始执行任务',
         inputSchema: {
@@ -83,7 +84,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             }
           }
         }
-      },      {
+      },
+      {
         name: 'create_subtask',
         description: '创建子任务',
         inputSchema: {
@@ -187,6 +189,82 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ['id', 'targetProjectId']
         }
+      },
+      {
+        name: 'create_or_update_task_document',
+        description: '创建或更新任务文档',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            content: { 
+              type: 'string', 
+              description: '文档内容（Markdown格式）' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['taskId', 'content']
+        }
+      },
+      {
+        name: 'get_task_document',
+        description: '获取任务文档内容',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
+        name: 'has_task_document',
+        description: '检查任务是否有文档',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
+        name: 'delete_task_document',
+        description: '删除任务文档',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['taskId']
+        }
       }
     ]
   };
@@ -233,6 +311,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'move_task':
         result = await taskServer.moveTask(args.id as number, args.targetProjectId as number);
+        break;
+      
+      case 'create_or_update_task_document':
+        result = await taskServer.createOrUpdateTaskDocument(
+          args.taskId as number, 
+          args.content as string, 
+          args.projectId as number
+        );
+        break;
+      
+      case 'get_task_document':
+        result = await taskServer.getTaskDocument(args.taskId as number, args.projectId as number);
+        break;
+      
+      case 'has_task_document':
+        result = await taskServer.hasTaskDocument(args.taskId as number, args.projectId as number);
+        break;
+      
+      case 'delete_task_document':
+        result = await taskServer.deleteTaskDocument(args.taskId as number, args.projectId as number);
         break;
       
       default:

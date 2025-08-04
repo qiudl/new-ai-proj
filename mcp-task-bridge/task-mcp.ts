@@ -13,7 +13,7 @@ export class TaskMCPServer {
   private apiBase: string;
   private authToken: string;
 
-  constructor(apiBase: string = 'http://localhost/api/v1') {
+  constructor(apiBase: string = 'http://localhost:8080/api/v1') {
     this.apiBase = apiBase;
     // 使用系统 JWT token
     this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
@@ -76,6 +76,7 @@ export class TaskMCPServer {
       throw new Error(`查找任务失败: ${error.message}`);
     }
   }
+  
   // 创建任务
   async createTask(title: string, projectId: number = 1): Promise<any> {
     try {
@@ -146,6 +147,7 @@ export class TaskMCPServer {
       };
     }
   }
+  
   // 完成任务
   async completeTask(id: number): Promise<any> {
     try {
@@ -282,6 +284,7 @@ export class TaskMCPServer {
       };
     }
   }
+  
   // 创建子任务
   async createSubTask(parentId: number, title: string): Promise<any> {
     try {
@@ -544,6 +547,160 @@ export class TaskMCPServer {
       return {
         success: false,
         error: `更新任务失败: ${error.response?.data?.error || error.message}`
+      };
+    }
+  }
+
+  // 创建或更新任务文档
+  async createOrUpdateTaskDocument(taskId: number, content: string, projectId: number = 1): Promise<any> {
+    try {
+      console.error(`[DEBUG] 创建/更新任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+      
+      // 验证任务存在
+      const task = await this.findTaskById(taskId);
+      const actualProjectId = task.project_id || projectId;
+      
+      const response = await axios.put(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+        content: content
+      }, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      return {
+        success: true,
+        task_id: taskId,
+        project_id: actualProjectId,
+        content_length: content.length,
+        message: `📄 任务 #${taskId} 文档已保存 (${content.length} 字符)`
+      };
+    } catch (error: any) {
+      console.error(`[ERROR] 保存任务文档失败:`, error.response?.data || error.message);
+      return {
+        success: false,
+        error: `保存任务文档失败: ${error.response?.data?.error || error.message}`
+      };
+    }
+  }
+
+  // 获取任务文档内容
+  async getTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+    try {
+      console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+      
+      // 验证任务存在
+      const task = await this.findTaskById(taskId);
+      const actualProjectId = task.project_id || projectId;
+      
+      const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      const documentData = response.data.data || response.data;
+      
+      return {
+        success: true,
+        task_id: taskId,
+        project_id: actualProjectId,
+        content: documentData.content || '',
+        title: documentData.title || `任务 #${taskId} 文档`,
+        updated_at: documentData.updated_at,
+        message: `📄 任务 #${taskId} 文档内容已获取`
+      };
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return {
+          success: false,
+          task_id: taskId,
+          project_id: projectId,
+          error: `任务 #${taskId} 暂无文档`,
+          not_found: true
+        };
+      }
+      
+      console.error(`[ERROR] 获取任务文档失败:`, error.response?.data || error.message);
+      return {
+        success: false,
+        error: `获取任务文档失败: ${error.response?.data?.error || error.message}`
+      };
+    }
+  }
+
+  // 检查任务是否有文档
+  async hasTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+    try {
+      console.error(`[DEBUG] 检查任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+      
+      // 验证任务存在
+      const task = await this.findTaskById(taskId);
+      const actualProjectId = task.project_id || projectId;
+      
+      const response = await axios.head(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      return {
+        success: true,
+        task_id: taskId,
+        project_id: actualProjectId,
+        has_document: true,
+        message: `📄 任务 #${taskId} 有文档`
+      };
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return {
+          success: true,
+          task_id: taskId,
+          project_id: projectId,
+          has_document: false,
+          message: `📄 任务 #${taskId} 暂无文档`
+        };
+      }
+      
+      console.error(`[ERROR] 检查任务文档失败:`, error.response?.data || error.message);
+      return {
+        success: false,
+        error: `检查任务文档失败: ${error.response?.data?.error || error.message}`
+      };
+    }
+  }
+
+  // 删除任务文档
+  async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+    try {
+      console.error(`[DEBUG] 删除任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+      
+      // 验证任务存在
+      const task = await this.findTaskById(taskId);
+      const actualProjectId = task.project_id || projectId;
+      
+      const response = await axios.delete(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/document`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      return {
+        success: true,
+        task_id: taskId,
+        project_id: actualProjectId,
+        message: `🗑️ 任务 #${taskId} 文档已删除`
+      };
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return {
+          success: false,
+          task_id: taskId,
+          project_id: projectId,
+          error: `任务 #${taskId} 暂无文档可删除`
+        };
+      }
+      
+      console.error(`[ERROR] 删除任务文档失败:`, error.response?.data || error.message);
+      return {
+        success: false,
+        error: `删除任务文档失败: ${error.response?.data?.error || error.message}`
       };
     }
   }

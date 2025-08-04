@@ -1,5 +1,12 @@
 import api from './api';
 import axios, { AxiosProgressEvent } from 'axios';
+import { 
+  apiCache, 
+  performanceMonitor, 
+  useOptimizedMemo,
+  uploadFileInChunks,
+  ChunkedUploadOptions 
+} from '../utils/performanceOptimization';
 
 interface TaskDocumentResponse {
   content: string;
@@ -109,12 +116,30 @@ interface DocumentRestoreRequest {
 }
 
 export const taskDocumentService = {
-  // 获取任务文档内容
+  // 获取任务文档内容 - 已优化缓存和性能监控
   async get(projectId: number, taskId: number): Promise<TaskDocumentResponse> {
+    const cacheKey = `get_document_${projectId}_${taskId}`;
+    
     try {
+      performanceMonitor.startMeasure('get_task_document', { projectId, taskId });
+      
+      // 尝试从优化缓存获取
+      const cached = apiCache.get<TaskDocumentResponse>(cacheKey);
+      if (cached) {
+        performanceMonitor.endMeasure('get_task_document');
+        return cached;
+      }
+      
       const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
-      return response.data;
+      const result = response.data;
+      
+      // 缓存结果 (3分钟TTL)
+      apiCache.set(cacheKey, result, 3 * 60 * 1000);
+      
+      performanceMonitor.endMeasure('get_task_document');
+      return result;
     } catch (error) {
+      performanceMonitor.endMeasure('get_task_document');
       console.error('获取任务文档失败:', error);
       throw error;
     }
@@ -131,13 +156,30 @@ export const taskDocumentService = {
     }
   },
 
-  // 保存任务文档内容
+  // 保存任务文档内容 - 已优化缓存清理和性能监控
   async save(projectId: number, taskId: number, content: string): Promise<TaskDocumentResponse> {
     try {
+      performanceMonitor.startMeasure('save_task_document', { 
+        projectId, 
+        taskId, 
+        contentLength: content.length 
+      });
+      
       const requestData: DocumentRequest = { content };
       const response = await api.put(`/projects/${projectId}/tasks/${taskId}/document`, requestData);
-      return response.data;
+      const result = response.data;
+      
+      // 清除相关缓存
+      const cacheKey = `get_document_${projectId}_${taskId}`;
+      apiCache.remove(cacheKey);
+      
+      // 更新缓存中的内容
+      apiCache.set(cacheKey, result, 3 * 60 * 1000);
+      
+      performanceMonitor.endMeasure('save_task_document');
+      return result;
     } catch (error) {
+      performanceMonitor.endMeasure('save_task_document');
       console.error('保存任务文档失败:', error);
       throw error;
     }
@@ -167,7 +209,7 @@ export const taskDocumentService = {
   // ===== Task 307: 新增文档上传下载功能 =====
 
   /**
-   * 手工上传文档
+   * 手工上传文档 - 已优化性能监控和分片上传
    */
   async uploadDocument(
     projectId: number,
@@ -176,14 +218,29 @@ export const taskDocumentService = {
     onProgress?: UploadProgressCallback
   ): Promise<UploadedDocumentInfo> {
     try {
+      performanceMonitor.startMeasure('upload_document', {
+        projectId,
+        taskId,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type
+      });
+      
       // 验证文件
       this.validateFile(file);
 
-      // 创建FormData
+      // 大文件使用分片上传 (> 5MB)
+      const chunkThreshold = 5 * 1024 * 1024; // 5MB
+      if (file.size > chunkThreshold) {
+        const result = await this.uploadDocumentChunked(projectId, taskId, file, onProgress);
+        performanceMonitor.endMeasure('upload_document');
+        return result;
+      }
+
+      // 小文件直接上传
       const formData = new FormData();
       formData.append('document', file);
 
-      // 配置请求
       const config = {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -194,9 +251,9 @@ export const taskDocumentService = {
             onProgress(progress, progressEvent.loaded, progressEvent.total);
           }
         },
+        timeout: 120000, // 2分钟超时
       };
 
-      // 发送请求
       const response = await api.post(
         `/projects/${projectId}/tasks/${taskId}/upload`,
         formData,
@@ -204,14 +261,86 @@ export const taskDocumentService = {
       );
 
       if (response.data.success && response.data.data) {
+        // 清除文档列表缓存
+        const listCacheKey = `get_task_documents_${projectId}_${taskId}`;
+        apiCache.remove(listCacheKey);
+        
+        performanceMonitor.endMeasure('upload_document');
         return response.data.data;
       } else {
         throw new Error(response.data.message || 'Upload failed');
       }
     } catch (error) {
+      performanceMonitor.endMeasure('upload_document');
       console.error('上传文档失败:', error);
       throw error;
     }
+  },
+
+  /**
+   * 分片上传大文档 - 性能优化版本
+   */
+  async uploadDocumentChunked(
+    projectId: number,
+    taskId: number,
+    file: File,
+    onProgress?: UploadProgressCallback
+  ): Promise<UploadedDocumentInfo> {
+    const chunkSize = 1024 * 1024; // 1MB chunks
+    const uploadOptions: ChunkedUploadOptions = {
+      file,
+      chunkSize,
+      onProgress: (progress) => {
+        onProgress?.(progress, (progress / 100) * file.size, file.size);
+      },
+      onChunkUploaded: (chunkIndex, totalChunks) => {
+        performanceMonitor.startMeasure(`chunk_uploaded_${chunkIndex}`, {
+          chunkIndex,
+          totalChunks,
+          fileName: file.name
+        });
+        performanceMonitor.endMeasure(`chunk_uploaded_${chunkIndex}`);
+      },
+      uploadChunk: async (chunk: Blob, chunkIndex: number, totalChunks: number) => {
+        const formData = new FormData();
+        formData.append('chunk', chunk);
+        formData.append('chunkIndex', chunkIndex.toString());
+        formData.append('totalChunks', totalChunks.toString());
+        formData.append('fileName', file.name);
+        formData.append('uploadId', `${Date.now()}_${Math.random().toString(36)}`);
+
+        const response = await api.post(
+          `/projects/${projectId}/tasks/${taskId}/upload-chunk`,
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000 // 1分钟每个分片
+          }
+        );
+
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Chunk upload failed');
+        }
+      }
+    };
+
+    await uploadFileInChunks(uploadOptions);
+
+    // 完成上传，获取最终文档信息
+    const completeResponse = await api.post(
+      `/projects/${projectId}/tasks/${taskId}/upload-complete`,
+      { 
+        fileName: file.name, 
+        fileSize: file.size,
+        mimeType: file.type 
+      }
+    );
+
+    if (!completeResponse.data.success || !completeResponse.data.data) {
+      throw new Error(completeResponse.data.message || 'Upload completion failed');
+    }
+
+    return completeResponse.data.data;
   },
 
   /**
@@ -253,18 +382,36 @@ export const taskDocumentService = {
   },
 
   /**
-   * 获取任务的所有上传文档
+   * 获取任务的所有上传文档 - 已优化缓存和性能监控
    */
   async getTaskDocuments(projectId: number, taskId: number): Promise<DocumentListResponse> {
+    const cacheKey = `get_task_documents_${projectId}_${taskId}`;
+    
     try {
+      performanceMonitor.startMeasure('get_task_documents', { projectId, taskId });
+      
+      // 尝试从优化缓存获取
+      const cached = apiCache.get<DocumentListResponse>(cacheKey);
+      if (cached) {
+        performanceMonitor.endMeasure('get_task_documents');
+        return cached;
+      }
+      
       const response = await api.get(`/projects/${projectId}/tasks/${taskId}/uploads`);
 
       if (response.data.success && response.data.data) {
-        return response.data.data;
+        const result = response.data.data;
+        
+        // 缓存结果 (2分钟TTL，文档列表变化较频繁)
+        apiCache.set(cacheKey, result, 2 * 60 * 1000);
+        
+        performanceMonitor.endMeasure('get_task_documents');
+        return result;
       } else {
         throw new Error(response.data.message || 'Failed to get documents');
       }
     } catch (error) {
+      performanceMonitor.endMeasure('get_task_documents');
       console.error('获取任务文档列表失败:', error);
       throw error;
     }
@@ -428,78 +575,7 @@ export const taskDocumentService = {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   },
 
-  // ===== Task 307-09: 服务扩展功能 =====
-
-  /**
-   * 请求缓存管理
-   */
-  _cache: new Map<string, { data: any; timestamp: number; ttl: number }>(),
-  _cacheSettings: {
-    defaultTTL: 5 * 60 * 1000, // 5分钟默认缓存时间
-    maxCacheSize: 100, // 最大缓存条目数
-    enableCache: true,
-  },
-
-  /**
-   * 生成缓存键
-   */
-  _generateCacheKey(method: string, projectId: number, taskId: number, params?: any): string {
-    const baseKey = `${method}:${projectId}:${taskId}`;
-    if (params) {
-      const paramString = JSON.stringify(params);
-      return `${baseKey}:${btoa(paramString)}`;
-    }
-    return baseKey;
-  },
-
-  /**
-   * 获取缓存数据
-   */
-  _getCachedData<T>(key: string): T | null {
-    if (!this._cacheSettings.enableCache) return null;
-
-    const cached = this._cache.get(key);
-    if (!cached) return null;
-
-    // 检查是否过期
-    if (Date.now() - cached.timestamp > cached.ttl) {
-      this._cache.delete(key);
-      return null;
-    }
-
-    return cached.data as T;
-  },
-
-  /**
-   * 设置缓存数据
-   */
-  _setCachedData(key: string, data: any, ttl?: number): void {
-    if (!this._cacheSettings.enableCache) return;
-
-    // 如果缓存已满，删除最旧的条目
-    if (this._cache.size >= this._cacheSettings.maxCacheSize) {
-      const firstKey = this._cache.keys().next().value;
-      this._cache.delete(firstKey);
-    }
-
-    this._cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl: ttl || this._cacheSettings.defaultTTL,
-    });
-  },
-
-  /**
-   * 清除特定模式的缓存
-   */
-  _clearCacheByPattern(pattern: string): void {
-    const keys = Array.from(this._cache.keys());
-    keys.forEach(key => {
-      if (key.includes(pattern)) {
-        this._cache.delete(key);
-      }
-    });
-  },
+  // ===== Task 307-09: 服务扩展功能 - 已优化使用新的性能工具 =====
 
   /**
    * 请求重试机制
@@ -921,58 +997,57 @@ export const taskDocumentService = {
   },
 
   /**
-   * 获取服务统计信息
+   * 获取服务统计信息 - 基于新的性能工具
    */
   getServiceStats() {
+    const cacheStats = apiCache.getStats();
     return {
-      cacheSize: this._cache.size,
-      maxCacheSize: this._cacheSettings.maxCacheSize,
+      cache: cacheStats,
       activeRequests: this._requestQueue.length,
       maxConcurrentRequests: this._maxConcurrentRequests,
-      cacheEnabled: this._cacheSettings.enableCache,
+      performance: {
+        averageResponseTime: performanceMonitor.getAverageTime('get_task_document'),
+        averageUploadTime: performanceMonitor.getAverageTime('upload_document'),
+        averageSaveTime: performanceMonitor.getAverageTime('save_task_document'),
+      }
     };
   },
 
   /**
-   * 配置服务设置
+   * 配置服务设置 - 简化版本
    */
   configure(settings: {
-    enableCache?: boolean;
-    defaultTTL?: number;
-    maxCacheSize?: number;
     maxConcurrentRequests?: number;
   }): void {
-    if (settings.enableCache !== undefined) {
-      this._cacheSettings.enableCache = settings.enableCache;
-    }
-    if (settings.defaultTTL !== undefined) {
-      this._cacheSettings.defaultTTL = settings.defaultTTL;
-    }
-    if (settings.maxCacheSize !== undefined) {
-      this._cacheSettings.maxCacheSize = settings.maxCacheSize;
-    }
     if (settings.maxConcurrentRequests !== undefined) {
       this._maxConcurrentRequests = settings.maxConcurrentRequests;
     }
   },
 
   /**
-   * 清除所有缓存
+   * 清除所有缓存 - 使用新的缓存系统
    */
   clearAllCache(): void {
-    this._cache.clear();
+    apiCache.clear();
   },
 
   /**
-   * 获取文档内容用于预览
+   * 获取文档内容用于预览 - 已优化性能监控和缓存
    */
   async getDocumentContent(projectId: number, taskId: number, documentId: number): Promise<string> {
     const cacheKey = `document_content_${projectId}_${taskId}_${documentId}`;
     
     try {
-      // 尝试从缓存获取
-      const cached = this._getCachedData<string>(cacheKey);
+      performanceMonitor.startMeasure('get_document_content', { 
+        projectId, 
+        taskId, 
+        documentId 
+      });
+      
+      // 尝试从优化缓存获取
+      const cached = apiCache.get<string>(cacheKey);
       if (cached) {
+        performanceMonitor.endMeasure('get_document_content');
         return cached;
       }
 
@@ -982,27 +1057,42 @@ export const taskDocumentService = {
       });
 
       // 缓存结果（30分钟）
-      this._setCachedData(cacheKey, response, 30 * 60 * 1000);
+      apiCache.set(cacheKey, response, 30 * 60 * 1000);
+      
+      performanceMonitor.endMeasure('get_document_content');
       return response;
     } catch (error) {
+      performanceMonitor.endMeasure('get_document_content');
       console.error('获取文档内容失败:', error);
       throw this._enhanceError(error, '获取文档内容');
     }
   },
 
   /**
-   * 删除文档
+   * 删除文档 - 已优化性能监控和缓存清理
    */
   async deleteDocument(projectId: number, taskId: number, documentId: number): Promise<void> {
     try {
+      performanceMonitor.startMeasure('delete_document', { 
+        projectId, 
+        taskId, 
+        documentId 
+      });
+      
       await this._retryRequest(async () => {
         await api.delete(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}`);
       });
 
       // 清除相关缓存
-      this._clearRelatedCache(`document_content_${projectId}_${taskId}_${documentId}`);
-      this._clearRelatedCache(`getTaskDocuments:${projectId}:${taskId}`);
+      const contentCacheKey = `document_content_${projectId}_${taskId}_${documentId}`;
+      const listCacheKey = `get_task_documents_${projectId}_${taskId}`;
+      
+      apiCache.remove(contentCacheKey);
+      apiCache.remove(listCacheKey);
+      
+      performanceMonitor.endMeasure('delete_document');
     } catch (error) {
+      performanceMonitor.endMeasure('delete_document');
       console.error('删除文档失败:', error);
       throw this._enhanceError(error, '删除文档');
     }
@@ -1027,23 +1117,11 @@ export const taskDocumentService = {
     }
   },
 
-  /**
-   * 清除相关缓存
-   */
-  _clearRelatedCache(keyPattern: string): void {
-    const keysToDelete: string[] = [];
-    for (const key of this._cache.keys()) {
-      if (key.includes(keyPattern) || keyPattern.includes(key)) {
-        keysToDelete.push(key);
-      }
-    }
-    keysToDelete.forEach(key => this._cache.delete(key));
-  },
 
   // ===== Task 307-12: 版本历史功能实现 =====
 
   /**
-   * 获取文档版本历史
+   * 获取文档版本历史 - 已优化性能监控和缓存
    */
   async getDocumentVersionHistory(
     projectId: number, 
@@ -1060,10 +1138,20 @@ export const taskDocumentService = {
     const cacheKey = `version_history_${projectId}_${taskId}_${documentId}_${limit}_${offset}_${includeContent}`;
     
     try {
-      // 尝试从缓存获取
+      performanceMonitor.startMeasure('get_version_history', {
+        projectId,
+        taskId,
+        documentId,
+        limit,
+        offset,
+        includeContent
+      });
+      
+      // 尝试从优化缓存获取
       if (useCache) {
-        const cached = this._getCachedData<DocumentVersionHistoryResponse>(cacheKey);
+        const cached = apiCache.get<DocumentVersionHistoryResponse>(cacheKey);
         if (cached) {
+          performanceMonitor.endMeasure('get_version_history');
           return cached;
         }
       }
@@ -1082,18 +1170,20 @@ export const taskDocumentService = {
       
       // 缓存结果（10分钟）
       if (useCache) {
-        this._setCachedData(cacheKey, result, 10 * 60 * 1000);
+        apiCache.set(cacheKey, result, 10 * 60 * 1000);
       }
 
+      performanceMonitor.endMeasure('get_version_history');
       return result;
     } catch (error) {
+      performanceMonitor.endMeasure('get_version_history');
       console.error('获取文档版本历史失败:', error);
       throw this._enhanceError(error, '获取文档版本历史');
     }
   },
 
   /**
-   * 获取特定版本的文档内容
+   * 获取特定版本的文档内容 - 已优化性能监控和缓存
    */
   async getDocumentVersion(
     projectId: number, 
@@ -1105,10 +1195,18 @@ export const taskDocumentService = {
     const cacheKey = `document_version_${projectId}_${taskId}_${documentId}_${versionId}`;
     
     try {
-      // 尝试从缓存获取
+      performanceMonitor.startMeasure('get_document_version', {
+        projectId,
+        taskId,
+        documentId,
+        versionId
+      });
+      
+      // 尝试从优化缓存获取
       if (useCache) {
-        const cached = this._getCachedData<DocumentVersionInfo>(cacheKey);
+        const cached = apiCache.get<DocumentVersionInfo>(cacheKey);
         if (cached) {
+          performanceMonitor.endMeasure('get_document_version');
           return cached;
         }
       }
@@ -1125,18 +1223,20 @@ export const taskDocumentService = {
       
       // 缓存结果（15分钟）
       if (useCache) {
-        this._setCachedData(cacheKey, result, 15 * 60 * 1000);
+        apiCache.set(cacheKey, result, 15 * 60 * 1000);
       }
 
+      performanceMonitor.endMeasure('get_document_version');
       return result;
     } catch (error) {
+      performanceMonitor.endMeasure('get_document_version');
       console.error('获取文档版本失败:', error);
       throw this._enhanceError(error, '获取文档版本');
     }
   },
 
   /**
-   * 比较两个文档版本
+   * 比较两个文档版本 - 已优化性能监控和缓存
    */
   async compareDocumentVersions(
     projectId: number, 
@@ -1148,9 +1248,18 @@ export const taskDocumentService = {
     const cacheKey = `version_comparison_${projectId}_${taskId}_${documentId}_${version1Id}_${version2Id}`;
     
     try {
-      // 尝试从缓存获取
-      const cached = this._getCachedData<DocumentVersionComparisonResult>(cacheKey);
+      performanceMonitor.startMeasure('compare_versions', {
+        projectId,
+        taskId,
+        documentId,
+        version1Id,
+        version2Id
+      });
+      
+      // 尝试从优化缓存获取
+      const cached = apiCache.get<DocumentVersionComparisonResult>(cacheKey);
       if (cached) {
+        performanceMonitor.endMeasure('compare_versions');
         return cached;
       }
 
@@ -1167,10 +1276,12 @@ export const taskDocumentService = {
       const result = response.data.data as DocumentVersionComparisonResult;
       
       // 缓存结果（5分钟）
-      this._setCachedData(cacheKey, result, 5 * 60 * 1000);
+      apiCache.set(cacheKey, result, 5 * 60 * 1000);
 
+      performanceMonitor.endMeasure('compare_versions');
       return result;
     } catch (error) {
+      performanceMonitor.endMeasure('compare_versions');
       console.error('比较文档版本失败:', error);
       throw this._enhanceError(error, '比较文档版本');
     }
@@ -1197,10 +1308,22 @@ export const taskDocumentService = {
         throw new Error(response.data.message || 'Failed to restore version');
       }
 
-      // 清除相关缓存
-      this._clearRelatedCache(`document_version_${projectId}_${taskId}_${documentId}`);
-      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
-      this._clearRelatedCache(`document_content_${projectId}_${taskId}_${documentId}`);
+      // 清除相关缓存 - 使用新的缓存系统
+      const cachePatterns = [
+        `document_version_${projectId}_${taskId}_${documentId}`,
+        `version_history_${projectId}_${taskId}_${documentId}`,
+        `document_content_${projectId}_${taskId}_${documentId}`
+      ];
+      
+      // 手动清除相关缓存键
+      cachePatterns.forEach(pattern => {
+        const stats = apiCache.getStats();
+        stats.entries.forEach(entry => {
+          if (entry.key.includes(pattern)) {
+            apiCache.remove(entry.key);
+          }
+        });
+      });
 
       return response.data.data as DocumentVersionInfo;
     } catch (error) {
@@ -1229,7 +1352,12 @@ export const taskDocumentService = {
       });
 
       // 清除版本历史缓存
-      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
+      const stats = apiCache.getStats();
+      stats.entries.forEach(entry => {
+        if (entry.key.includes(`version_history_${projectId}_${taskId}_${documentId}`)) {
+          apiCache.remove(entry.key);
+        }
+      });
     } catch (error) {
       console.error('创建版本标签失败:', error);
       throw this._enhanceError(error, '创建版本标签');
@@ -1237,7 +1365,7 @@ export const taskDocumentService = {
   },
 
   /**
-   * 获取版本统计信息
+   * 获取版本统计信息 - 已优化性能监控和缓存
    */
   async getVersionStatistics(
     projectId: number, 
@@ -1253,9 +1381,16 @@ export const taskDocumentService = {
     const cacheKey = `version_stats_${projectId}_${taskId}_${documentId}`;
     
     try {
-      // 尝试从缓存获取
-      const cached = this._getCachedData<any>(cacheKey);
+      performanceMonitor.startMeasure('get_version_statistics', {
+        projectId,
+        taskId,
+        documentId
+      });
+      
+      // 尝试从优化缓存获取
+      const cached = apiCache.get<any>(cacheKey);
       if (cached) {
+        performanceMonitor.endMeasure('get_version_statistics');
         return cached;
       }
 
@@ -1270,10 +1405,12 @@ export const taskDocumentService = {
       const result = response.data.data;
       
       // 缓存结果（30分钟）
-      this._setCachedData(cacheKey, result, 30 * 60 * 1000);
+      apiCache.set(cacheKey, result, 30 * 60 * 1000);
 
+      performanceMonitor.endMeasure('get_version_statistics');
       return result;
     } catch (error) {
+      performanceMonitor.endMeasure('get_version_statistics');
       console.error('获取版本统计失败:', error);
       throw this._enhanceError(error, '获取版本统计');
     }
@@ -1325,8 +1462,19 @@ export const taskDocumentService = {
       );
 
       // 清除相关缓存
-      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
-      this._clearRelatedCache(`version_stats_${projectId}_${taskId}_${documentId}`);
+      const cachePatterns = [
+        `version_history_${projectId}_${taskId}_${documentId}`,
+        `version_stats_${projectId}_${taskId}_${documentId}`
+      ];
+      
+      cachePatterns.forEach(pattern => {
+        const stats = apiCache.getStats();
+        stats.entries.forEach(entry => {
+          if (entry.key.includes(pattern)) {
+            apiCache.remove(entry.key);
+          }
+        });
+      });
 
       return results.map(result => ({
         versionId: result.item,
