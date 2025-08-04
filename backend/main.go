@@ -351,6 +351,12 @@ auth := api.Group("/auth")
 				analysis.GET("/environment/nodejs", app.taskAnalysisHandler.GetNodejsEnvironmentStatus)
 			}
 			
+			// File download routes
+			files := authorized.Group("/files")
+			{
+				files.GET("/download", app.fileDownloadHandler)
+			}
+			
 			// Projects routes with permission requirements
 			projects := authorized.Group("/projects")
 			{
@@ -4708,6 +4714,49 @@ func (app *Application) bulkOperationTodayTasksHandler(c *gin.Context) {
 	message := fmt.Sprintf("Bulk operation completed. Updated: %d, Failed: %d", len(updatedTasks), len(failedTasks))
 	response := models.NewSuccessResponse(responseData, message)
 	c.JSON(http.StatusOK, response)
+}
+
+// fileDownloadHandler handles file download requests
+func (app *Application) fileDownloadHandler(c *gin.Context) {
+	filePath := c.Query("path")
+	if filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "文件路径参数缺失",
+			"code":    "MISSING_FILE_PATH",
+		})
+		return
+	}
+
+	// Log the download request for debugging
+	log.Printf("[DOWNLOAD] Requested file path: %s", filePath)
+
+	// Check if the file path looks like a document reference
+	if strings.HasPrefix(filePath, "docs/") || strings.HasPrefix(filePath, "backend/docs/") {
+		// This might be a task document download request
+		c.JSON(http.StatusNotImplemented, gin.H{
+			"success": false,
+			"error":   "文档下载功能尚未完全实现",
+			"code":    "FEATURE_NOT_IMPLEMENTED",
+			"message": "请使用任务文档API获取文档内容",
+			"suggestion": "使用 GET /api/v1/projects/{id}/tasks/{taskId}/documents 获取文档",
+		})
+		return
+	}
+
+	// For other file types, return file not found
+	c.JSON(http.StatusNotFound, gin.H{
+		"success": false,
+		"error":   "请求的资源不存在",
+		"code":    "FILE_NOT_FOUND",
+		"details": map[string]interface{}{
+			"requested_path": filePath,
+			"available_endpoints": []string{
+				"GET /api/v1/projects/{id}/tasks/{taskId}/documents",
+				"GET /api/v1/projects/{id}/tasks/{taskId}/document",
+			},
+		},
+	})
 }
 
 func main() {
