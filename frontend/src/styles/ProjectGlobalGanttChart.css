@@ -1,0 +1,333 @@
+/* ProjectGlobalGanttChart 样式文件 */
+
+.project-global-gantt-chart {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.global-gantt-row {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.global-gantt-row:hover {
+  background-color: #f0f9ff !important;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+}
+
+.task-info-section {
+  flex-shrink: 0;
+  background: white;
+  border-right: 1px solid #e8e8e8;
+  position: relative;
+  overflow: hidden;
+}
+
+.task-info-section:hover {
+  background-color: #fafafa;
+}
+
+.timeline-section {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(24, 144, 255, 0.03) 50%,
+    transparent 100%
+  );
+  border-left: 1px solid #f0f0f0;
+  border-right: 1px solid #f0f0f0;
+}
+
+.gantt-task-bar {
+  transition: all 0.2s ease;
+  backdrop-filter: blur(1px);
+  position: relative;
+  overflow: hidden;
+}
+
+.gantt-task-bar:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
+}
+
+.gantt-task-bar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  z-index: 50 !important;
+}
+
+.gantt-task-bar.critical-path {
+  background: linear-gradient(90deg, #ff4d4f, #ff7875, #ffa39e) !important;
+  border: 2px solid #cf1322;
+  animation: criticalPulse 2s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(255, 77, 79, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(255, 77, 79, 0.5);
+  }
+}
+
+.gantt-task-bar.milestone {
+  border: 2px solid #faad14 !important;
+  border-radius: 8px !important;
+  position: relative;
+}
+
+.gantt-task-bar.milestone:after {
+  content: '💎';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 12px;
+  background: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.date-info-section {
+  flex-shrink: 0;
+  background: white;
+  color: #666;
+  font-family: 'Monaco', 'Menlo', monospace;
+  border-left: 1px solid #e8e8e8;
+}
+
+.gantt-container {
+  position: relative;
+  background: white;
+  overflow: auto;
+}
+
+.gantt-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.gantt-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.gantt-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.gantt-container::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+.gantt-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: white;
+  border-bottom: 2px solid #d9d9d9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.gantt-time-axis {
+  position: relative;
+  background: linear-gradient(
+    to right,
+    #fafafa 0%,
+    #f5f5f5 50%,
+    #fafafa 100%
+  );
+  border-bottom: 2px solid #d9d9d9;
+}
+
+.gantt-time-marker {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-left: 1px solid #d9d9d9;
+  color: #666;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+}
+
+.gantt-time-marker.major {
+  border-left: 2px solid #1890ff;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+.gantt-time-marker.today {
+  border-left: 2px solid #52c41a;
+  color: #52c41a;
+  background: rgba(82, 196, 26, 0.1);
+}
+
+.dependency-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.dependency-line {
+  position: absolute;
+  border: 1px dashed #722ed1;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.gantt-task-bar:hover + .dependency-lines .dependency-line,
+.global-gantt-row:hover .dependency-line {
+  opacity: 1;
+  border-style: solid;
+}
+
+/* 响应式设计 */
+@media (max-width: 1200px) {
+  .task-info-section {
+    width: 280px !important;
+  }
+  
+  .date-info-section {
+    width: 100px !important;
+  }
+  
+  .gantt-task-bar {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .project-global-gantt-chart {
+    font-size: 12px;
+  }
+  
+  .task-info-section {
+    width: 240px !important;
+  }
+  
+  .timeline-section {
+    min-width: 400px !important;
+  }
+  
+  .date-info-section {
+    display: none;
+  }
+  
+  .global-gantt-row {
+    min-height: 35px !important;
+  }
+}
+
+/* 全屏模式优化 */
+.project-global-gantt-chart .ant-card {
+  transition: all 0.3s ease;
+}
+
+.project-global-gantt-chart .ant-card.fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  border-radius: 0;
+  margin: 0;
+}
+
+/* 打印样式 */
+@media print {
+  .project-global-gantt-chart {
+    background: white !important;
+  }
+  
+  .gantt-task-bar {
+    box-shadow: none !important;
+    border: 1px solid #666 !important;
+  }
+  
+  .global-gantt-row:hover {
+    background: white !important;
+  }
+}
+
+/* 无障碍支持 */
+.gantt-task-bar:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+  z-index: 100;
+}
+
+.global-gantt-row[aria-selected="true"] {
+  background-color: #e6f7ff !important;
+  border-left: 3px solid #1890ff;
+}
+
+/* 加载状态优化 */
+.gantt-loading-skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 25%,
+    #e0e0e0 50%,
+    #f0f0f0 75%
+  );
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* 深色主题支持 */
+@media (prefers-color-scheme: dark) {
+  .project-global-gantt-chart {
+    --bg-color: #1f1f1f;
+    --text-color: #ffffff;
+    --border-color: #333333;
+  }
+  
+  .gantt-container {
+    background: var(--bg-color);
+    color: var(--text-color);
+  }
+  
+  .task-info-section,
+  .date-info-section {
+    background: var(--bg-color);
+    border-color: var(--border-color);
+  }
+}

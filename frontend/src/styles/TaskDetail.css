@@ -72,14 +72,103 @@
   margin-top: 8px;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
+/* ========================================
+   统一响应式断点系统 - 基于Ant Design标准
+   ======================================== */
+
+/* XS设备: < 576px (手机竖屏) */
+@media (max-width: 575px) {
   .task-detail-container {
-    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+    padding: 12px !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: relative !important;
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 16px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
   
   .task-status-card {
     margin-bottom: 16px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 12px !important;
+  }
+  
+  .completion-progress {
+    padding: 12px;
+  }
+  
+  .info-panel {
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .quick-actions {
+    padding: 12px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 44px; /* 触摸友好 */
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 44px;
+    width: 100%;
+  }
+}
+
+/* SM设备: 576px - 767px (手机横屏) */
+@media (min-width: 576px) and (max-width: 767px) {
+  .task-detail-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px;
+    padding: 16px !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 20px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: relative !important;
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 20px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 20px !important;
   }
   
   .task-status-card .ant-card-body {
@@ -90,9 +179,160 @@
     padding: 16px;
   }
   
-  .ant-col {
+  .info-panel {
+    padding: 16px;
     margin-bottom: 16px;
   }
+  
+  .quick-actions .ant-btn {
+    height: 40px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 40px;
+    min-width: 120px;
+  }
+}
+
+/* MD设备: 768px - 991px (平板竖屏) */
+@media (min-width: 768px) and (max-width: 991px) {
+  .task-detail-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px;
+    padding: 20px !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px;
+  }
+  
+  .task-detail-container .ant-col {
+    position: relative !important;
+    float: none !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
+    margin-bottom: 24px;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 24px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 20px !important;
+  }
+  
+  .completion-progress {
+    padding: 20px;
+  }
+  
+  .info-panel {
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 40px;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    gap: 12px;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 40px;
+    min-width: 100px;
+  }
+}
+
+/* LG+设备: ≥ 992px (大屏设备) */
+@media (min-width: 992px) {
+  .task-detail-container {
+    display: block !important; /* 让Ant Design Grid正常工作 */
+    padding: 24px !important;
+  }
+  
+  .task-detail-container .ant-row {
+    display: flex !important; /* 恢复Ant Design Row的flex布局 */
+    flex-wrap: wrap !important;
+    margin-left: -12px !important;
+    margin-right: -12px !important;
+  }
+  
+  .task-detail-container .ant-col {
+    position: relative !important;
+    float: none !important; /* 使用flexbox而不是float */
+    display: block !important;
+    margin-bottom: 0 !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  .task-status-card {
+    margin-bottom: 24px !important;
+  }
+  
+  .task-status-card .ant-card-body {
+    padding: 24px !important;
+  }
+  
+  .completion-progress {
+    padding: 24px;
+  }
+  
+  .info-panel {
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  
+  .quick-actions .ant-btn {
+    height: 36px;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+  
+  .action-buttons {
+    gap: 8px;
+    flex-direction: column;
+  }
+  
+  .action-buttons .ant-btn {
+    height: 36px;
+    width: 100%;
+  }
+}
+
+/* 平滑过渡动画 */
+.task-detail-container,
+.task-detail-container .ant-row,
+.task-detail-container .ant-col {
+  transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+/* 确保所有布局元素遵循新的响应式规则 */
+.task-detail-container .ant-col {
+  box-sizing: border-box;
+}
+
+/* 防止内容溢出和水平滚动 */
+.task-detail-container {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+}
+
+.task-detail-container * {
+  box-sizing: border-box;
 }
 
 /* 状态指示器动画 */

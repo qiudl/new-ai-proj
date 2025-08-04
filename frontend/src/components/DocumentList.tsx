@@ -82,7 +82,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
-  const [currentPage, setCurr**Page] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -392,12 +392,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
   // 搜索处理
   const handleSearch = (value: string) => {
     setSearchText(value);
-    setCurr**Page(1); // 重置到第一页
+    setCurrentPage(1); // 重置到第一页
   };
 
   // 过滤器变更处理
   const handleFilterChange = (type: string, value: string) => {
-    setCurr**Page(1); // 重置到第一页
+    setCurrentPage(1); // 重置到第一页
     switch (type) {
       case 'status':
         setStatusFilter(value);
@@ -499,7 +499,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           showTotal: (total, range) => 
             `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
           onChange: (page, size) => {
-            setCurr**Page(page);
+            setCurrentPage(page);
             setPageSize(size);
           }
         }}

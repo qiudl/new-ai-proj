@@ -16,7 +16,7 @@ import {
 import { 
   HistoryOutlined, 
   DownloadOutlined, 
-  RestoreOutlined, 
+  RollbackOutlined, 
   DiffOutlined,
   UserOutlined,
   CalendarOutlined,
@@ -274,7 +274,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                         <Button 
                           type="text" 
                           size="small"
-                          icon={<RestoreOutlined />}
+                          icon={<RollbackOutlined />}
                         />
                       </Tooltip>
                     </Popconfirm>

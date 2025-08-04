@@ -745,7 +745,7 @@ const TaskDetailPageNew: React.FC = () => {
 
       <Row gutter={[24, 24]}>
         {/* 左侧主要内容 */}
-        <Col xs={24} lg={16}>
+        <Col xs={24} sm={24} md={24} lg={16} xl={16}>
           {/* 任务核心信息卡片 */}
           <Card 
             className="task-status-card"
@@ -1039,7 +1039,7 @@ const TaskDetailPageNew: React.FC = () => {
         </Col>
 
         {/* 右侧信息面板 */}
-        <Col xs={24} lg={8}>
+        <Col xs={24} sm={24} md={24} lg={8} xl={8}>
           {/* 任务计时器 */}
           <MVPTaskDetailTimer
             taskId={task.id}

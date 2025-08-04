@@ -56,6 +56,9 @@ const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
 const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
 const TestCenter = React.lazy(() => import('./pages/TestCenter'));
+const HierarchicalGanttTestPage = React.lazy(() => import('./pages/HierarchicalGanttTestPage'));
+const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGanttTestPage'));
+const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -407,6 +410,27 @@ const AppContent: React.FC = () => {
             <Route path="/test-center" element={
               <PrivateRoute>
                 <TestCenter />
+              </PrivateRoute>
+            } />
+            
+            {/* Hierarchical Gantt Test Page */}
+            <Route path="/hierarchical-gantt-test" element={
+              <PrivateRoute>
+                <HierarchicalGanttTestPage />
+              </PrivateRoute>
+            } />
+            
+            {/* Interactive Gantt Test Page */}
+            <Route path="/interactive-gantt-test" element={
+              <PrivateRoute>
+                <InteractiveGanttTestPage />
+              </PrivateRoute>
+            } />
+            
+            {/* Project Global Gantt Test Page */}
+            <Route path="/project-global-gantt-test" element={
+              <PrivateRoute>
+                <ProjectGlobalGanttTestPage />
               </PrivateRoute>
             } />
           </Routes>

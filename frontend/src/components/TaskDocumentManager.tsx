@@ -216,6 +216,18 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     }
   }, [projectId, taskId]);
 
+  // Track user actions for auto-refresh logic
+  const trackUserAction = useCallback(() => {
+    setLastActionTimestamp(Date.now());
+  }, []);
+
+  // Handle refresh - optimized with useCallback
+  const handleRefresh = useCallback(() => {
+    trackUserAction();
+    setRefreshKey(prev => prev + 1);
+    loadDocumentStats();
+  }, [trackUserAction, loadDocumentStats]);
+
   useEffect(() => {
     if (visible) {
       loadDocumentStats();
@@ -318,18 +330,6 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, visible, lastActionTimestamp, loadDocumentStats]);
-
-  // Track user actions for intelligent auto-refresh
-  const trackUserAction = useCallback(() => {
-    setLastActionTimestamp(Date.now());
-  }, []);
-
-  // Handle refresh - optimized with useCallback
-  const handleRefresh = useCallback(() => {
-    trackUserAction();
-    setRefreshKey(prev => prev + 1);
-    loadDocumentStats();
-  }, [trackUserAction]);
 
   // Handle upload success - optimized with useCallback  
   const handleUploadSuccess = useCallback(() => {
@@ -841,7 +841,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   );
 
   // Render statistics - memoized for performance
-  const renderStats = useMemo(() => {
+  const renderStats = useCallback(() => {
     if (loading && !documentStats) {
       return (
         <Card size="small" className="mb-4">
