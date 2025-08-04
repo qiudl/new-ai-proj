@@ -78,6 +78,7 @@ func (h *UnifiedDocumentHandler) CreateDocument(c *gin.Context) {
 		Format:     request.Format,
 		UserID:     userID.(int),
 		TemplateID: request.TemplateID,
+		Title:      request.Title, // 传递title字段到服务层
 	}
 
 	if req.Format == "" {

@@ -133,6 +133,7 @@ func NewApplication() (*Application, error) {
 	// documentVersionLabelHandler := handlers.NewDocumentVersionLabelHandler(db, logger, validate) // 临时注释，避免编译错误
 	// documentVersionCommentHandler := handlers.NewDocumentVersionCommentHandler(db, logger, validate) // 临时注释，避免编译错误
 	timerHandler := handlers.NewTimerHandler(db)
+	// projectStatsHandler := handlers.NewProjectStatsHandler(db) // Using app method instead
 	
 	// 任务文档处理器
 	docsBasePath := "./docs" // 可以通过配置文件配置
@@ -365,6 +366,9 @@ auth := api.Group("/auth")
 				projects.GET("/:id", app.getProjectHandler)
 				projects.PUT("/:id", app.updateProjectHandler)
 				projects.DELETE("/:id", app.deleteProjectHandler)
+				
+				// Project statistics endpoint
+				projects.GET("/:id/stats", app.getProjectStatsHandler)
 
 				// Hierarchical task routes (more specific routes first)
 				projects.GET("/:id/tasks/tree", app.getTaskTreeHandler)
@@ -3270,7 +3274,103 @@ func (app *Application) getUserProfileHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// updateUserProfileHandler updates the current user's profile
+// getProjectStatsHandler handles GET /api/v1/projects/:id/stats
+func (app *Application) getProjectStatsHandler(c *gin.Context) {
+	// Parse project ID from URL parameter
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid project ID",
+		})
+		return
+	}
+
+	// Get database connection
+	dbConn := app.db.GetDB().(*sql.DB)
+
+	// Check if project exists
+	var projectExists bool
+	checkProjectQuery := `SELECT EXISTS(SELECT 1 FROM projects WHERE id = $1 AND deleted_at IS NULL)`
+	err = dbConn.QueryRow(checkProjectQuery, projectID).Scan(&projectExists)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to check project existence",
+		})
+		return
+	}
+
+	if !projectExists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Project not found",
+		})
+		return
+	}
+
+	// Get project statistics
+	stats, err := app.getProjectStatistics(dbConn, projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to get project statistics",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// getProjectStatistics retrieves comprehensive statistics for a project
+func (app *Application) getProjectStatistics(dbConn *sql.DB, projectID int) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+
+	// Get task statistics
+	taskStatsQuery := `
+		SELECT 
+			COUNT(*) as total_tasks,
+			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_tasks
+		FROM tasks 
+		WHERE project_id = $1 AND deleted_at IS NULL`
+
+	var taskCount, completedTaskCount int
+	err := dbConn.QueryRow(taskStatsQuery, projectID).Scan(&taskCount, &completedTaskCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate progress
+	var progress float64
+	if taskCount > 0 {
+		progress = float64(completedTaskCount) / float64(taskCount) * 100
+	} else {
+		progress = 0
+	}
+
+	// Get user count (users assigned to tasks in this project)
+	userCountQuery := `
+		SELECT COUNT(DISTINCT t.assignee_id) 
+		FROM tasks t 
+		WHERE t.project_id = $1 
+			AND t.assignee_id IS NOT NULL 
+			AND t.deleted_at IS NULL`
+
+	var userCount int
+	err = dbConn.QueryRow(userCountQuery, projectID).Scan(&userCount)
+	if err != nil {
+		return nil, err
+	}
+
+	stats["task_count"] = taskCount
+	stats["completed_task_count"] = completedTaskCount
+	stats["user_count"] = userCount
+	stats["progress"] = progress
+
+	return stats, nil
+}
+
 func (app *Application) updateUserProfileHandler(c *gin.Context) {
 	// Extract user ID from context (set by mapUserToCompanyUser middleware)
 	userIDInterface, exists := c.Get("user_id")
