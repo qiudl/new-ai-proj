@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Card,
   Tabs,
@@ -9,19 +9,58 @@ import {
   Typography,
   Divider,
   Alert,
-  Spin
+  Spin,
+  Input,
+  Select,
+  DatePicker,
+  Checkbox,
+  Table,
+  Tag,
+  List,
+  Empty,
+  Progress,
+  Dropdown,
+  Menu,
+  Popconfirm,
+  notification,
+  Skeleton,
+  Result,
+  FloatButton,
+  Tour,
+  TourProps
 } from 'antd';
 import {
   FileTextOutlined,
   CloudUploadOutlined,
   DownloadOutlined,
   InfoCircleOutlined,
-  SyncOutlined
+  SyncOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ClearOutlined,
+  EyeOutlined,
+  DeleteOutlined,
+  MoreOutlined,
+  CheckOutlined,
+  CloseOutlined,
+  SelectOutlined,
+  FolderMoveOutlined,
+  TagOutlined,
+  UndoOutlined,
+  HistoryOutlined,
+  QuestionCircleOutlined,
+  CommandOutlined,
+  BugOutlined,
+  RocketOutlined
 } from '@ant-design/icons';
 import TaskDocumentUploader from './TaskDocumentUploader';
+import DocumentVersionHistory from './DocumentVersionHistory';
 import { taskDocumentService } from '../services/taskDocumentService';
 
 const { Text, Title } = Typography;
+const { Search } = Input;
+const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 interface TaskDocumentManagerProps {
   projectId: number;
@@ -41,6 +80,46 @@ interface DocumentStats {
   mimeTypes: Record<string, number>;
 }
 
+interface DocumentInfo {
+  id?: number;
+  file_name: string;
+  original_name: string;
+  file_size: number;
+  mime_type: string;
+  upload_type: 'manual' | 'api';
+  uploaded_at: string;
+  file_path?: string;
+  content?: string;
+}
+
+interface SearchFilters {
+  searchText: string;
+  fileType: string;
+  uploadType: string;
+  sizeRange: [number, number] | null;
+  dateRange: [string, string] | null;
+  selectedMimeTypes: string[];
+}
+
+interface BatchOperation {
+  id: string;
+  type: 'delete' | 'download' | 'move' | 'tag';
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  progress: number;
+  totalItems: number;
+  completedItems: number;
+  failedItems: number;
+  startTime: Date;
+  endTime?: Date;
+  error?: string;
+  canUndo: boolean;
+}
+
+interface BatchOperationHistory {
+  operations: BatchOperation[];
+  undoStack: BatchOperation[];
+}
+
 const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   projectId,
   taskId,
@@ -52,34 +131,90 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   const [documentStats, setDocumentStats] = useState<DocumentStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [documents, setDocuments] = useState<DocumentInfo[]>([]);
+  
+  // 搜索和过滤状态
+  const [searchFilters, setSearchFilters] = useState<SearchFilters>({
+    searchText: '',
+    fileType: 'all',
+    uploadType: 'all',
+    sizeRange: null,
+    dateRange: null,
+    selectedMimeTypes: [],
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  
+  // 预览和操作状态
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewContent, setPreviewContent] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
+  
+  // 版本历史状态
+  const [versionHistoryVisible, setVersionHistoryVisible] = useState(false);
+  const [currentDocumentId, setCurrentDocumentId] = useState<number>(0);
+  const [currentDocumentVersion, setCurrentDocumentVersion] = useState<number>(1);
+  
+  // 批量操作增强状态
+  const [batchOperationHistory, setBatchOperationHistory] = useState<BatchOperationHistory>({
+    operations: [],
+    undoStack: []
+  });
+  const [currentBatchOperation, setCurrentBatchOperation] = useState<BatchOperation | null>(null);
+  const [batchProgressVisible, setBatchProgressVisible] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Enhanced UX state
+  const [tourOpen, setTourOpen] = useState(false);
+  const [keyboardShortcutsVisible, setKeyboardShortcutsVisible] = useState(false);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+  const [lastActionTimestamp, setLastActionTimestamp] = useState<number>(0);
+  
+  // Refs for tour and keyboard shortcuts
+  const searchRef = useRef<any>(null);
+  const tableRef = useRef<any>(null);
+  const uploadTabRef = useRef<any>(null);
+  const statsTabRef = useRef<any>(null);
 
-  // Load document statistics
-  const loadDocumentStats = async () => {
+  // Load document statistics and documents - with improved error handling
+  const loadDocumentStats = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    
     try {
       const response = await taskDocumentService.getTaskDocuments(projectId, taskId);
-      const documents = response.documents;
+      const docs = response.documents;
+      
+      // 设置文档列表
+      setDocuments(docs);
       
       const stats: DocumentStats = {
-        totalDocuments: documents.length,
-        totalSize: documents.reduce((sum, doc) => sum + doc.file_size, 0),
+        totalDocuments: docs.length,
+        totalSize: docs.reduce((sum, doc) => sum + doc.file_size, 0),
         uploadTypes: {
-          manual: documents.filter(doc => doc.upload_type === 'manual').length,
-          api: documents.filter(doc => doc.upload_type === 'api').length
+          manual: docs.filter(doc => doc.upload_type === 'manual').length,
+          api: docs.filter(doc => doc.upload_type === 'api').length
         },
-        mimeTypes: documents.reduce((acc, doc) => {
+        mimeTypes: docs.reduce((acc, doc) => {
           acc[doc.mime_type] = (acc[doc.mime_type] || 0) + 1;
           return acc;
         }, {} as Record<string, number>)
       };
       
       setDocumentStats(stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load document stats:', error);
+      const errorMessage = error?.message || '加载文档数据失败，请稍后重试';
+      setError(errorMessage);
+      notification.error({
+        message: '加载失败',
+        description: errorMessage,
+        duration: 4.5,
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, taskId]);
 
   useEffect(() => {
     if (visible) {
@@ -87,24 +222,634 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     }
   }, [visible, projectId, taskId, refreshKey]);
 
-  // Handle refresh
-  const handleRefresh = () => {
+  // Enhanced keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle shortcuts when component is visible and not in modal input
+      if (!visible || (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const isCtrlCmd = e.ctrlKey || e.metaKey;
+      
+      switch (e.key) {
+        case 'r':
+          if (isCtrlCmd) {
+            e.preventDefault();
+            handleRefresh();
+            notification.info({ message: '快捷键触发', description: '文档列表已刷新', duration: 2 });
+          }
+          break;
+        case 'f':
+          if (isCtrlCmd) {
+            e.preventDefault();
+            searchRef.current?.focus();
+            notification.info({ message: '快捷键触发', description: '焦点已移至搜索框', duration: 2 });
+          }
+          break;
+        case 'a':
+          if (isCtrlCmd && e.shiftKey) {
+            e.preventDefault();
+            handleSmartSelection('all');
+            notification.info({ message: '快捷键触发', description: '已全选文档', duration: 2 });
+          }
+          break;
+        case 'Escape':
+          if (selectedRowKeys.length > 0) {
+            e.preventDefault();
+            setSelectedRowKeys([]);
+            notification.info({ message: '快捷键触发', description: '已取消选择', duration: 2 });
+          }
+          break;
+        case 'd':
+          if (isCtrlCmd && selectedRowKeys.length > 0) {
+            e.preventDefault();
+            handleBatchDownload();
+          }
+          break;
+        case 'h':
+          if (isCtrlCmd && e.shiftKey) {
+            e.preventDefault();
+            setKeyboardShortcutsVisible(true);
+          }
+          break;
+        case 't':
+          if (isCtrlCmd && e.shiftKey) {
+            e.preventDefault();
+            setTourOpen(true);
+          }
+          break;
+        case '1':
+        case '2':
+        case '3':
+          if (isCtrlCmd) {
+            e.preventDefault();
+            const tabKeys = ['uploader', 'manage', 'stats'];
+            const tabIndex = parseInt(e.key) - 1;
+            if (tabIndex < tabKeys.length) {
+              setActiveTab(tabKeys[tabIndex]);
+              notification.info({ 
+                message: '快捷键触发', 
+                description: `已切换到${tabIndex === 0 ? '文档上传' : tabIndex === 1 ? '文档管理' : '统计信息'}标签`, 
+                duration: 2 
+              });
+            }
+          }
+          break;
+      }
+    };
+
+    if (visible) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [visible, selectedRowKeys, handleRefresh]);
+
+  // Auto-refresh functionality
+  useEffect(() => {
+    if (!autoRefreshEnabled || !visible) return;
+    
+    const interval = setInterval(() => {
+      // Only auto-refresh if no recent user action (within 30 seconds)
+      if (Date.now() - lastActionTimestamp > 30000) {
+        loadDocumentStats();
+      }
+    }, 60000); // Auto-refresh every minute
+    
+    return () => clearInterval(interval);
+  }, [autoRefreshEnabled, visible, lastActionTimestamp, loadDocumentStats]);
+
+  // Track user actions for intelligent auto-refresh
+  const trackUserAction = useCallback(() => {
+    setLastActionTimestamp(Date.now());
+  }, []);
+
+  // Handle refresh - optimized with useCallback
+  const handleRefresh = useCallback(() => {
+    trackUserAction();
     setRefreshKey(prev => prev + 1);
     loadDocumentStats();
-  };
+  }, [trackUserAction]);
 
-  // Handle upload success
-  const handleUploadSuccess = () => {
+  // Handle upload success - optimized with useCallback  
+  const handleUploadSuccess = useCallback(() => {
     handleRefresh();
-  };
+  }, [handleRefresh]);
 
-  // Handle upload error
-  const handleUploadError = (error: string) => {
+  // Handle upload error - optimized with useCallback
+  const handleUploadError = useCallback((error: string) => {
     console.error('Upload error:', error);
+  }, []);
+
+  // 过滤文档列表
+  const filteredDocuments = useMemo(() => {
+    let filtered = [...documents];
+
+    // 文本搜索
+    if (searchFilters.searchText) {
+      const searchText = searchFilters.searchText.toLowerCase();
+      filtered = filtered.filter(doc => 
+        doc.original_name.toLowerCase().includes(searchText) ||
+        doc.file_name.toLowerCase().includes(searchText)
+      );
+    }
+
+    // 文件类型过滤
+    if (searchFilters.fileType !== 'all') {
+      filtered = filtered.filter(doc => {
+        const extension = doc.original_name.toLowerCase().substring(doc.original_name.lastIndexOf('.'));
+        return extension === searchFilters.fileType;
+      });
+    }
+
+    // 上传类型过滤
+    if (searchFilters.uploadType !== 'all') {
+      filtered = filtered.filter(doc => doc.upload_type === searchFilters.uploadType);
+    }
+
+    // MIME类型过滤
+    if (searchFilters.selectedMimeTypes.length > 0) {
+      filtered = filtered.filter(doc => searchFilters.selectedMimeTypes.includes(doc.mime_type));
+    }
+
+    // 文件大小过滤
+    if (searchFilters.sizeRange) {
+      const [minSize, maxSize] = searchFilters.sizeRange;
+      filtered = filtered.filter(doc => doc.file_size >= minSize && doc.file_size <= maxSize);
+    }
+
+    // 日期范围过滤
+    if (searchFilters.dateRange) {
+      const [startDate, endDate] = searchFilters.dateRange;
+      filtered = filtered.filter(doc => {
+        const uploadDate = new Date(doc.uploaded_at);
+        return uploadDate >= new Date(startDate) && uploadDate <= new Date(endDate);
+      });
+    }
+
+    return filtered;
+  }, [documents, searchFilters]);
+
+  // 重置搜索过滤器 - optimized with useCallback
+  const resetFilters = useCallback(() => {
+    trackUserAction();
+    setSearchFilters({
+      searchText: '',
+      fileType: 'all',
+      uploadType: 'all',
+      sizeRange: null,
+      dateRange: null,
+      selectedMimeTypes: [],
+    });
+    setSelectedRowKeys([]);
+  }, [trackUserAction]);
+
+  // 处理预览
+  const handlePreview = async (doc: DocumentInfo) => {
+    if (doc.mime_type === 'application/pdf') {
+      // PDF 文件直接下载
+      if (doc.file_path) {
+        await taskDocumentService.downloadFile(doc.file_path, doc.original_name);
+      }
+      return;
+    }
+
+    setPreviewVisible(true);
+    setPreviewTitle(doc.original_name);
+    
+    try {
+      if (doc.content) {
+        setPreviewContent(doc.content);
+        return;
+      }
+
+      if (doc.id) {
+        const content = await taskDocumentService.getDocumentContent(projectId, taskId, doc.id);
+        setPreviewContent(content);
+        
+        // 缓存内容
+        setDocuments(prev => 
+          prev.map(d => d.id === doc.id ? { ...d, content } : d)
+        );
+      }
+    } catch (error) {
+      console.error('Preview failed:', error);
+      setPreviewVisible(false);
+    }
   };
 
-  // Render statistics
-  const renderStats = () => {
+  // 处理删除
+  const handleDelete = async (doc: DocumentInfo) => {
+    if (!doc.id) return;
+    
+    try {
+      await taskDocumentService.deleteDocument(projectId, taskId, doc.id);
+      loadDocumentStats(); // 重新加载
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  // 处理版本历史
+  const handleVersionHistory = (doc: DocumentInfo) => {
+    if (!doc.id) return;
+    setCurrentDocumentId(doc.id);
+    setCurrentDocumentVersion(1); // Default version, will be updated from API
+    setVersionHistoryVisible(true);
+  };
+
+  // 处理版本恢复
+  const handleVersionRestore = (versionId: number) => {
+    // 版本恢复后刷新文档列表
+    loadDocumentStats();
+    notification.success({
+      message: '版本恢复成功',
+      description: '文档已恢复到指定版本',
+    });
+  };
+
+  // 处理版本删除
+  const handleVersionDelete = (versionId: number) => {
+    notification.success({
+      message: '版本删除成功',
+      description: '指定版本已删除',
+    });
+  };
+
+  // 创建批量操作
+  const createBatchOperation = (type: BatchOperation['type']): BatchOperation => {
+    return {
+      id: `batch_${type}_${Date.now()}`,
+      type,
+      status: 'pending',
+      progress: 0,
+      totalItems: selectedRowKeys.length,
+      completedItems: 0,
+      failedItems: 0,
+      startTime: new Date(),
+      canUndo: type === 'delete' || type === 'move'
+    };
+  };
+
+  // 更新批量操作状态
+  const updateBatchOperation = (
+    operation: BatchOperation,
+    updates: Partial<BatchOperation>
+  ) => {
+    const updatedOperation = { ...operation, ...updates };
+    setCurrentBatchOperation(updatedOperation);
+    
+    setBatchOperationHistory(prev => ({
+      ...prev,
+      operations: prev.operations.map(op => 
+        op.id === operation.id ? updatedOperation : op
+      )
+    }));
+
+    return updatedOperation;
+  };
+
+  // 批量删除增强版
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) return;
+    
+    const operation = createBatchOperation('delete');
+    setBatchOperationHistory(prev => ({
+      ...prev,
+      operations: [...prev.operations, operation]
+    }));
+    
+    setCurrentBatchOperation(operation);
+    setBatchProgressVisible(true);
+    
+    try {
+      let updatedOp = updateBatchOperation(operation, { status: 'running' });
+      
+      const selectedDocuments = documents.filter(doc => selectedRowKeys.includes(doc.id!));
+      
+      // 使用 taskDocumentService 的批量操作功能
+      const results = await taskDocumentService.batchOperation(
+        selectedDocuments,
+        async (doc) => {
+          if (doc.id) {
+            await taskDocumentService.deleteDocument(projectId, taskId, doc.id);
+          }
+        },
+        {
+          concurrency: 3,
+          onProgress: (completed, total) => {
+            const progress = Math.round((completed / total) * 100);
+            updatedOp = updateBatchOperation(updatedOp, { 
+              progress,
+              completedItems: completed 
+            });
+          },
+          stopOnError: false
+        }
+      );
+      
+      const failedCount = results.filter(r => !r.success).length;
+      const completedCount = results.filter(r => r.success).length;
+      
+      updateBatchOperation(updatedOp, {
+        status: failedCount > 0 ? 'failed' : 'completed',
+        progress: 100,
+        completedItems: completedCount,
+        failedItems: failedCount,
+        endTime: new Date(),
+        error: failedCount > 0 ? `${failedCount} 个文档删除失败` : undefined
+      });
+      
+      setSelectedRowKeys([]);
+      loadDocumentStats();
+      
+      notification.success({
+        message: '批量删除完成',
+        description: `成功删除 ${completedCount} 个文档${failedCount > 0 ? `，${failedCount} 个失败` : ''}`,
+        duration: 3
+      });
+      
+    } catch (error) {
+      console.error('Batch delete failed:', error);
+      updateBatchOperation(operation, {
+        status: 'failed',
+        endTime: new Date(),
+        error: error instanceof Error ? error.message : '批量删除失败'
+      });
+      
+      notification.error({
+        message: '批量删除失败',
+        description: error instanceof Error ? error.message : '未知错误',
+        duration: 5
+      });
+    } finally {
+      setTimeout(() => {
+        setBatchProgressVisible(false);
+        setCurrentBatchOperation(null);
+      }, 2000);
+    }
+  };
+
+  // 批量下载
+  const handleBatchDownload = async () => {
+    if (selectedRowKeys.length === 0) return;
+    
+    const operation = createBatchOperation('download');
+    setBatchOperationHistory(prev => ({
+      ...prev,
+      operations: [...prev.operations, operation]
+    }));
+    
+    setCurrentBatchOperation(operation);
+    setBatchProgressVisible(true);
+    
+    try {
+      let updatedOp = updateBatchOperation(operation, { status: 'running' });
+      
+      const selectedDocuments = documents.filter(doc => selectedRowKeys.includes(doc.id!));
+      
+      const results = await taskDocumentService.batchOperation(
+        selectedDocuments,
+        async (doc) => {
+          if (doc.file_path) {
+            await taskDocumentService.downloadFile(doc.file_path, doc.original_name);
+          }
+        },
+        {
+          concurrency: 2, // 下载并发数较少
+          onProgress: (completed, total) => {
+            const progress = Math.round((completed / total) * 100);
+            updatedOp = updateBatchOperation(updatedOp, { 
+              progress,
+              completedItems: completed 
+            });
+          },
+          stopOnError: false
+        }
+      );
+      
+      const failedCount = results.filter(r => !r.success).length;
+      const completedCount = results.filter(r => r.success).length;
+      
+      updateBatchOperation(updatedOp, {
+        status: failedCount > 0 ? 'failed' : 'completed',
+        progress: 100,
+        completedItems: completedCount,
+        failedItems: failedCount,
+        endTime: new Date(),
+        error: failedCount > 0 ? `${failedCount} 个文档下载失败` : undefined
+      });
+      
+      notification.success({
+        message: '批量下载完成',
+        description: `成功下载 ${completedCount} 个文档${failedCount > 0 ? `，${failedCount} 个失败` : ''}`,
+        duration: 3
+      });
+      
+    } catch (error) {
+      console.error('Batch download failed:', error);
+      updateBatchOperation(operation, {
+        status: 'failed',
+        endTime: new Date(),
+        error: error instanceof Error ? error.message : '批量下载失败'
+      });
+      
+      notification.error({
+        message: '批量下载失败',
+        description: error instanceof Error ? error.message : '未知错误',
+        duration: 5
+      });
+    } finally {
+      setTimeout(() => {
+        setBatchProgressVisible(false);
+        setCurrentBatchOperation(null);
+      }, 2000);
+    }
+  };
+
+  // 智能选择功能
+  const handleSmartSelection = (criteria: string) => {
+    trackUserAction();
+    let newSelection: React.Key[] = [];
+    
+    switch (criteria) {
+      case 'all':
+        newSelection = filteredDocuments.map(doc => doc.id!).filter(id => id !== undefined);
+        break;
+      case 'none':
+        newSelection = [];
+        break;
+      case 'pdf':
+        newSelection = filteredDocuments
+          .filter(doc => doc.mime_type === 'application/pdf')
+          .map(doc => doc.id!)
+          .filter(id => id !== undefined);
+        break;
+      case 'markdown':
+        newSelection = filteredDocuments
+          .filter(doc => doc.mime_type === 'text/markdown')
+          .map(doc => doc.id!)
+          .filter(id => id !== undefined);
+        break;
+      case 'large':
+        // 大于1MB的文件
+        newSelection = filteredDocuments
+          .filter(doc => doc.file_size > 1024 * 1024)
+          .map(doc => doc.id!)
+          .filter(id => id !== undefined);
+        break;
+      case 'recent':
+        // 最近7天的文件
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        newSelection = filteredDocuments
+          .filter(doc => new Date(doc.uploaded_at) > sevenDaysAgo)
+          .map(doc => doc.id!)
+          .filter(id => id !== undefined);
+        break;
+      default:
+        break;
+    }
+    
+    setSelectedRowKeys(newSelection);
+  };
+
+  // Tour configuration for new user guidance
+  const tourSteps: TourProps['steps'] = [
+    {
+      title: '欢迎使用文档管理系统',
+      description: '这里是任务文档管理的中心，让我们快速了解主要功能。',
+      target: () => uploadTabRef.current,
+    },
+    {
+      title: '文档上传',
+      description: '在这个标签页可以上传文档文件，支持拖拽上传和多种文件格式。',
+      target: () => uploadTabRef.current,
+    },
+    {
+      title: '搜索功能',
+      description: '使用搜索框快速找到需要的文档，支持文件名搜索和高级过滤。',
+      target: () => searchRef.current,
+    },
+    {
+      title: '文档列表',
+      description: '查看、管理所有上传的文档，支持预览、下载、版本历史等操作。',
+      target: () => tableRef.current,
+    },
+    {
+      title: '统计信息',
+      description: '查看文档统计信息和快捷操作，了解文档使用情况。',
+      target: () => statsTabRef.current,
+    },
+    {
+      title: '键盘快捷键',
+      description: '按 Ctrl+Shift+H 查看所有键盘快捷键，提高操作效率。',
+      target: null,
+    }
+  ];
+
+  // Keyboard shortcuts modal content
+  const renderKeyboardShortcuts = () => (
+    <Modal
+      title={
+        <Space>
+          <CommandOutlined />
+          键盘快捷键
+        </Space>
+      }
+      open={keyboardShortcutsVisible}
+      onCancel={() => setKeyboardShortcutsVisible(false)}
+      footer={[
+        <Button key="close" onClick={() => setKeyboardShortcutsVisible(false)}>
+          关闭
+        </Button>
+      ]}
+      width={600}
+    >
+      <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Alert
+            message="提示"
+            description="快捷键在文档管理页面激活时有效，输入框聚焦时不会触发"
+            type="info"
+            showIcon
+          />
+          
+          <div>
+            <Title level={5}>基础操作</Title>
+            <List
+              size="small"
+              dataSource={[
+                { key: 'Ctrl+R', desc: '刷新文档列表' },
+                { key: 'Ctrl+F', desc: '焦点移至搜索框' },
+                { key: 'Esc', desc: '取消当前选择' },
+                { key: 'Ctrl+Shift+H', desc: '显示快捷键帮助' },
+                { key: 'Ctrl+Shift+T', desc: '开始功能导览' }
+              ]}
+              renderItem={item => (
+                <List.Item>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text code>{item.key}</Text>
+                    <Text>{item.desc}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </div>
+
+          <div>
+            <Title level={5}>选择操作</Title>
+            <List
+              size="small"
+              dataSource={[
+                { key: 'Ctrl+Shift+A', desc: '全选所有文档' },
+                { key: 'Ctrl+D', desc: '批量下载选中文档' }
+              ]}
+              renderItem={item => (
+                <List.Item>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text code>{item.key}</Text>
+                    <Text>{item.desc}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </div>
+
+          <div>
+            <Title level={5}>标签页切换</Title>
+            <List
+              size="small"
+              dataSource={[
+                { key: 'Ctrl+1', desc: '切换到文档上传标签' },
+                { key: 'Ctrl+2', desc: '切换到文档管理标签' },
+                { key: 'Ctrl+3', desc: '切换到统计信息标签' }
+              ]}
+              renderItem={item => (
+                <List.Item>
+                  <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Text code>{item.key}</Text>
+                    <Text>{item.desc}</Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </div>
+        </Space>
+      </div>
+    </Modal>
+  );
+
+  // Render statistics - memoized for performance
+  const renderStats = useMemo(() => {
+    if (loading && !documentStats) {
+      return (
+        <Card size="small" className="mb-4">
+          <Skeleton active paragraph={{ rows: 3 }} />
+        </Card>
+      );
+    }
+    
     if (!documentStats) return null;
 
     return (
@@ -140,7 +885,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         </Space>
       </Card>
     );
-  };
+  }, [documentStats, loading]);
 
   // Render quick actions
   const renderQuickActions = () => (
@@ -159,16 +904,60 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             刷新
           </Button>
         </Tooltip>
+        <Tooltip title={autoRefreshEnabled ? '关闭自动刷新' : '开启自动刷新 (每分钟)'}>
+          <Button
+            icon={<SyncOutlined />}
+            type={autoRefreshEnabled ? 'primary' : 'default'}
+            onClick={() => {
+              setAutoRefreshEnabled(!autoRefreshEnabled);
+              notification.info({
+                message: '自动刷新',
+                description: autoRefreshEnabled ? '已关闭自动刷新' : '已开启自动刷新，将每分钟自动刷新文档列表',
+                duration: 3
+              });
+            }}
+          >
+            {autoRefreshEnabled ? '自动刷新中' : '自动刷新'}
+          </Button>
+        </Tooltip>
+        <Tooltip title="查看键盘快捷键">
+          <Button
+            icon={<CommandOutlined />}
+            onClick={() => setKeyboardShortcutsVisible(true)}
+          >
+            快捷键
+          </Button>
+        </Tooltip>
+        <Tooltip title="功能导览">
+          <Button
+            icon={<QuestionCircleOutlined />}
+            onClick={() => setTourOpen(true)}
+          >
+            使用指南
+          </Button>
+        </Tooltip>
+        <Divider type="vertical" />
         <Tooltip title="下载任务文档的Markdown格式">
           <Button
             icon={<DownloadOutlined />}
             onClick={async () => {
+              trackUserAction();
               try {
                 const blob = await taskDocumentService.downloadTaskMarkdown(projectId, taskId);
                 const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.md`;
                 taskDocumentService.triggerDownload(blob, fileName);
+                notification.success({
+                  message: '导出成功',
+                  description: 'Markdown 文档已开始下载',
+                  duration: 3
+                });
               } catch (error) {
                 console.error('Download failed:', error);
+                notification.error({
+                  message: '导出失败',
+                  description: '请稍后重试或联系管理员',
+                  duration: 5
+                });
               }
             }}
           >
@@ -179,12 +968,23 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           <Button
             icon={<DownloadOutlined />}
             onClick={async () => {
+              trackUserAction();
               try {
                 const blob = await taskDocumentService.downloadTaskPDF(projectId, taskId);
                 const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.pdf`;
                 taskDocumentService.triggerDownload(blob, fileName);
+                notification.success({
+                  message: '导出成功',
+                  description: 'PDF 文档已开始下载',
+                  duration: 3
+                });
               } catch (error) {
                 console.error('Download failed:', error);
+                notification.error({
+                  message: '导出失败',
+                  description: '请稍后重试或联系管理员',
+                  duration: 5
+                });
               }
             }}
           >
@@ -213,13 +1013,365 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     />
   );
 
+  // 渲染搜索和过滤界面
+  const renderSearchAndFilters = () => (
+    <Card size="small" className="mb-4">
+      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+        {/* 基础搜索 */}
+        <div>
+          <Space wrap>
+            <Search
+              ref={searchRef}
+              placeholder="搜索文档名称... (Ctrl+F)"
+              value={searchFilters.searchText}
+              onChange={(e) => {
+                trackUserAction();
+                setSearchFilters(prev => ({ ...prev, searchText: e.target.value }));
+              }}
+              style={{ width: 300 }}
+              allowClear
+            />
+            
+            <Select
+              value={searchFilters.fileType}
+              onChange={(value) => setSearchFilters(prev => ({ ...prev, fileType: value }))}
+              style={{ width: 120 }}
+            >
+              <Option value="all">所有类型</Option>
+              <Option value=".md">Markdown</Option>
+              <Option value=".pdf">PDF</Option>
+              <Option value=".txt">文本</Option>
+            </Select>
+            
+            <Select
+              value={searchFilters.uploadType}
+              onChange={(value) => setSearchFilters(prev => ({ ...prev, uploadType: value }))}
+              style={{ width: 120 }}
+            >
+              <Option value="all">所有上传</Option>
+              <Option value="manual">手工上传</Option>
+              <Option value="api">API上传</Option>
+            </Select>
+            
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              type={showAdvancedFilters ? 'primary' : 'default'}
+            >
+              高级过滤
+            </Button>
+            
+            <Button
+              icon={<ClearOutlined />}
+              onClick={resetFilters}
+            >
+              清除过滤
+            </Button>
+          </Space>
+        </div>
+
+        {/* 高级过滤器 */}
+        {showAdvancedFilters && (
+          <div style={{ padding: '16px', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <div>
+                <Text strong>MIME 类型:</Text>
+                <div style={{ marginTop: 8 }}>
+                  <Checkbox.Group
+                    value={searchFilters.selectedMimeTypes}
+                    onChange={(values) => setSearchFilters(prev => ({ 
+                      ...prev, 
+                      selectedMimeTypes: values as string[] 
+                    }))}
+                  >
+                    <Space wrap>
+                      <Checkbox value="text/markdown">Markdown</Checkbox>
+                      <Checkbox value="application/pdf">PDF</Checkbox>
+                      <Checkbox value="text/plain">纯文本</Checkbox>
+                    </Space>
+                  </Checkbox.Group>
+                </div>
+              </div>
+
+              <div>
+                <Text strong>上传日期范围:</Text>
+                <div style={{ marginTop: 8 }}>
+                  <RangePicker
+                    onChange={(dates, dateStrings) => {
+                      setSearchFilters(prev => ({ 
+                        ...prev, 
+                        dateRange: dates ? [dateStrings[0], dateStrings[1]] : null 
+                      }));
+                    }}
+                    style={{ width: 300 }}
+                  />
+                </div>
+              </div>
+            </Space>
+          </div>
+        )}
+
+        {/* 搜索结果统计和批量操作 */}
+        <div>
+          <Space wrap>
+            <Text type="secondary">
+              显示 {filteredDocuments.length} / {documents.length} 个文档
+            </Text>
+            
+            {/* 智能选择菜单 */}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'all', label: '全选', icon: <CheckOutlined /> },
+                  { key: 'none', label: '取消选择', icon: <CloseOutlined /> },
+                  { type: 'divider' },
+                  { key: 'pdf', label: '选择 PDF 文档', icon: <FileTextOutlined /> },
+                  { key: 'markdown', label: '选择 Markdown 文档', icon: <FileTextOutlined /> },
+                  { key: 'large', label: '选择大文件 (>1MB)', icon: <FileTextOutlined /> },
+                  { key: 'recent', label: '选择最近文档 (7天)', icon: <FileTextOutlined /> },
+                ],
+                onClick: ({ key }) => handleSmartSelection(key)
+              }}
+              trigger={['click']}
+            >
+              <Button icon={<SelectOutlined />} size="small">
+                智能选择
+              </Button>
+            </Dropdown>
+
+            {selectedRowKeys.length > 0 && (
+              <>
+                <Divider type="vertical" />
+                <Text type="secondary">
+                  已选择 {selectedRowKeys.length} 个文档
+                </Text>
+                
+                {/* 批量操作菜单 */}
+                <Dropdown
+                  menu={{
+                    items: [
+                      {
+                        key: 'download',
+                        label: '批量下载',
+                        icon: <DownloadOutlined />,
+                        onClick: handleBatchDownload
+                      },
+                      { type: 'divider' },
+                      {
+                        key: 'delete',
+                        label: '批量删除',
+                        icon: <DeleteOutlined />,
+                        danger: true
+                      }
+                    ],
+                    onClick: ({ key }) => {
+                      if (key === 'delete') {
+                        Modal.confirm({
+                          title: '确认批量删除',
+                          content: `您确定要删除选中的 ${selectedRowKeys.length} 个文档吗？这个操作不可撤销。`,
+                          okText: '确认删除',
+                          okType: 'danger',
+                          cancelText: '取消',
+                          onOk: handleBatchDelete,
+                        });
+                      }
+                    }
+                  }}
+                  trigger={['click']}
+                >
+                  <Button type="primary" size="small" icon={<MoreOutlined />}>
+                    批量操作
+                  </Button>
+                </Dropdown>
+              </>
+            )}
+
+            {/* 批量操作历史 */}
+            {batchOperationHistory.operations.length > 0 && (
+              <Dropdown
+                menu={{
+                  items: batchOperationHistory.operations.slice(-5).map(op => ({
+                    key: op.id,
+                    label: (
+                      <Space>
+                        <span>{op.type === 'delete' ? '删除' : op.type === 'download' ? '下载' : op.type}</span>
+                        <span>{op.totalItems}个文档</span>
+                        <Tag color={
+                          op.status === 'completed' ? 'green' : 
+                          op.status === 'failed' ? 'red' : 
+                          op.status === 'running' ? 'blue' : 'default'
+                        }>
+                          {op.status === 'completed' ? '完成' : 
+                           op.status === 'failed' ? '失败' : 
+                           op.status === 'running' ? '运行中' : '等待'}
+                        </Tag>
+                      </Space>
+                    ),
+                    disabled: true
+                  }))
+                }}
+                trigger={['click']}
+              >
+                <Button size="small" icon={<HistoryOutlined />}>
+                  操作历史
+                </Button>
+              </Dropdown>
+            )}
+          </Space>
+        </div>
+      </Space>
+    </Card>
+  );
+
+  // 渲染文档表格
+  const renderDocumentTable = () => {
+    const columns = [
+      {
+        title: '文档名称',
+        dataIndex: 'original_name',
+        key: 'original_name',
+        ellipsis: true,
+        render: (text: string, record: DocumentInfo) => (
+          <Space>
+            {record.mime_type === 'text/markdown' && <FileTextOutlined style={{ color: '#1890ff' }} />}
+            {record.mime_type === 'application/pdf' && <FileTextOutlined style={{ color: '#ff4d4f' }} />}
+            {record.mime_type === 'text/plain' && <FileTextOutlined style={{ color: '#52c41a' }} />}
+            <Text strong>{text}</Text>
+          </Space>
+        ),
+      },
+      {
+        title: '大小',
+        dataIndex: 'file_size',
+        key: 'file_size',
+        width: 100,
+        render: (size: number) => taskDocumentService.formatFileSize(size),
+        sorter: (a: DocumentInfo, b: DocumentInfo) => a.file_size - b.file_size,
+      },
+      {
+        title: '类型',
+        dataIndex: 'upload_type',
+        key: 'upload_type',
+        width: 100,
+        render: (type: string) => (
+          <Tag color={type === 'manual' ? 'blue' : 'green'}>
+            {type === 'manual' ? '手工' : 'API'}
+          </Tag>
+        ),
+      },
+      {
+        title: '上传时间',
+        dataIndex: 'uploaded_at',
+        key: 'uploaded_at',
+        width: 160,
+        render: (date: string) => new Date(date).toLocaleString(),
+        sorter: (a: DocumentInfo, b: DocumentInfo) => 
+          new Date(a.uploaded_at).getTime() - new Date(b.uploaded_at).getTime(),
+      },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 180,
+        render: (_, record: DocumentInfo) => (
+          <Space size="small">
+            <Tooltip title="预览">
+              <Button
+                type="text"
+                size="small"
+                icon={<EyeOutlined />}
+                onClick={() => handlePreview(record)}
+                disabled={record.mime_type === 'application/pdf'}
+                aria-label={`预览文档 ${record.original_name}`}
+              />
+            </Tooltip>
+            <Tooltip title="下载">
+              <Button
+                type="text"
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => {
+                  if (record.file_path) {
+                    taskDocumentService.downloadFile(record.file_path, record.original_name);
+                  }
+                }}
+                aria-label={`下载文档 ${record.original_name}`}
+              />
+            </Tooltip>
+            <Tooltip title="版本历史">
+              <Button
+                type="text"
+                size="small"
+                icon={<HistoryOutlined />}
+                onClick={() => handleVersionHistory(record)}
+                disabled={!record.id}
+                aria-label={`查看文档 ${record.original_name} 的版本历史`}
+              />
+            </Tooltip>
+            <Tooltip title="删除">
+              <Button
+                type="text"
+                size="small"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => handleDelete(record)}
+                aria-label={`删除文档 ${record.original_name}`}
+              />
+            </Tooltip>
+          </Space>
+        ),
+      },
+    ];
+
+    const rowSelection = {
+      selectedRowKeys,
+      onChange: setSelectedRowKeys,
+      getCheckboxProps: (record: DocumentInfo) => ({
+        disabled: !record.id,
+      }),
+    };
+
+    return (
+      <div ref={tableRef}>
+        <Table
+          columns={columns}
+          dataSource={filteredDocuments}
+          rowKey="id"
+          rowSelection={{
+            ...rowSelection,
+            onChange: (selectedKeys) => {
+              trackUserAction();
+              setSelectedRowKeys(selectedKeys);
+            }
+          }}
+          pagination={{
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} / ${total} 条`,
+            onChange: (page, pageSize) => {
+              trackUserAction();
+            },
+            onShowSizeChange: (current, size) => {
+              trackUserAction();
+            }
+          }}
+          loading={loading}
+          size="small"
+          scroll={{ x: 800 }}
+          onChange={(pagination, filters, sorter) => {
+            trackUserAction();
+          }}
+        />
+      </div>
+    );
+  };
+
   // Tab items
   const tabItems = [
     {
       key: 'uploader',
       label: (
-        <span>
-          <FileTextOutlined />
+        <span ref={uploadTabRef}>
+          <CloudUploadOutlined />
           文档上传
         </span>
       ),
@@ -233,9 +1385,48 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       )
     },
     {
-      key: 'stats',
+      key: 'manage',
       label: (
         <span>
+          <FileTextOutlined />
+          文档管理
+        </span>
+      ),
+      children: (
+        <Spin spinning={loading}>
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            {error ? (
+              <Result
+                status="error"
+                title="加载失败"
+                subTitle={error}
+                extra={
+                  <Button type="primary" onClick={loadDocumentStats}>
+                    重试
+                  </Button>
+                }
+              />
+            ) : (
+              <>
+                {renderSearchAndFilters()}
+                {filteredDocuments.length > 0 ? (
+                  renderDocumentTable()
+                ) : (
+                  <Empty 
+                    description={loading ? "正在加载..." : "暂无文档数据"} 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                )}
+              </>
+            )}
+          </Space>
+        </Spin>
+      )
+    },
+    {
+      key: 'stats',
+      label: (
+        <span ref={statsTabRef}>
           <InfoCircleOutlined />
           统计信息
         </span>
@@ -269,7 +1460,10 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
 
       <Tabs
         activeKey={activeTab}
-        onChange={setActiveTab}
+        onChange={(key) => {
+          trackUserAction();
+          setActiveTab(key);
+        }}
         items={tabItems}
         size="large"
       />
@@ -293,7 +1487,198 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   }
 
   // Embedded mode
-  return renderContent();
+  return (
+    <>
+      {renderContent()}
+      
+      {/* Document Preview Modal */}
+      <Modal
+        title={`预览文档: ${previewTitle}`}
+        open={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setPreviewVisible(false)}>
+            关闭
+          </Button>
+        ]}
+        width={800}
+        className="document-preview-modal"
+      >
+        <div className="document-preview-content">
+          {previewContent.includes('```') || previewContent.includes('#') ? (
+            // Markdown 格式预览
+            <div style={{ 
+              backgroundColor: '#f5f5f5', 
+              padding: '16px', 
+              borderRadius: '4px', 
+              border: '1px solid #d9d9d9'
+            }}>
+              <pre 
+                style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'Monaco, Consolas, monospace', 
+                  fontSize: '14px',
+                  maxHeight: '500px', 
+                  overflow: 'auto',
+                  margin: 0
+                }}
+              >
+                {previewContent}
+              </pre>
+            </div>
+          ) : (
+            // 纯文本预览
+            <div style={{ 
+              backgroundColor: '#fff', 
+              padding: '16px', 
+              border: '1px solid #d9d9d9', 
+              borderRadius: '4px' 
+            }}>
+              <Text style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {previewContent}
+              </Text>
+            </div>
+          )}
+          
+          {/* 预览统计信息 */}
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
+            <Space split={<Divider type="vertical" />}>
+              <Text type="secondary" size="small">
+                字符数: {previewContent.length}
+              </Text>
+              <Text type="secondary" size="small">
+                行数: {previewContent.split('\n').length}
+              </Text>
+              <Text type="secondary" size="small">
+                字数: {previewContent.replace(/\s+/g, '').length}
+              </Text>
+            </Space>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Batch Operation Progress Modal */}
+      <Modal
+        title="批量操作进度"
+        open={batchProgressVisible}
+        footer={null}
+        closable={false}
+        width={500}
+        centered
+      >
+        {currentBatchOperation && (
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <div>
+              <Text strong>
+                {currentBatchOperation.type === 'delete' ? '批量删除' : 
+                 currentBatchOperation.type === 'download' ? '批量下载' : 
+                 '批量操作'} ({currentBatchOperation.totalItems} 个文档)
+              </Text>
+            </div>
+            
+            <Progress
+              percent={currentBatchOperation.progress}
+              status={currentBatchOperation.status === 'failed' ? 'exception' : 'active'}
+              strokeColor={
+                currentBatchOperation.status === 'completed' ? '#52c41a' :
+                currentBatchOperation.status === 'failed' ? '#ff4d4f' :
+                '#1890ff'
+              }
+            />
+            
+            <Space split={<Divider type="vertical" />}>
+              <Text type="secondary">
+                已完成: {currentBatchOperation.completedItems}
+              </Text>
+              {currentBatchOperation.failedItems > 0 && (
+                <Text type="danger">
+                  失败: {currentBatchOperation.failedItems}
+                </Text>
+              )}
+              <Text type="secondary">
+                总计: {currentBatchOperation.totalItems}
+              </Text>
+            </Space>
+            
+            {currentBatchOperation.status === 'completed' && (
+              <Alert
+                message="操作完成"
+                description={`成功处理 ${currentBatchOperation.completedItems} 个文档${
+                  currentBatchOperation.failedItems > 0 ? 
+                  `，${currentBatchOperation.failedItems} 个失败` : ''
+                }`}
+                type="success"
+                showIcon
+              />
+            )}
+            
+            {currentBatchOperation.status === 'failed' && currentBatchOperation.error && (
+              <Alert
+                message="操作失败"
+                description={currentBatchOperation.error}
+                type="error"
+                showIcon
+              />
+            )}
+          </Space>
+        )}
+      </Modal>
+
+      {/* Document Version History Modal */}
+      <DocumentVersionHistory
+        visible={versionHistoryVisible}
+        documentId={currentDocumentId}
+        projectId={projectId}
+        taskId={taskId}
+        currentVersion={currentDocumentVersion}
+        onClose={() => setVersionHistoryVisible(false)}
+        onVersionRestore={handleVersionRestore}
+        onVersionDelete={handleVersionDelete}
+      />
+
+      {/* Enhanced UI Components */}
+      {renderKeyboardShortcuts()}
+      
+      {/* Tour Guide */}
+      <Tour
+        open={tourOpen}
+        onClose={() => setTourOpen(false)}
+        steps={tourSteps}
+        type="primary"
+      />
+
+      {/* Float Button Group for Quick Access */}
+      <FloatButton.Group
+        trigger="hover"
+        type="primary"
+        style={{ right: 24 }}
+        icon={<RocketOutlined />}
+      >
+        <FloatButton 
+          icon={<QuestionCircleOutlined />} 
+          tooltip="使用指南"
+          onClick={() => setTourOpen(true)}
+        />
+        <FloatButton 
+          icon={<KeyboardOutlined />} 
+          tooltip="快捷键"
+          onClick={() => setKeyboardShortcutsVisible(true)}
+        />
+        <FloatButton 
+          icon={<SyncOutlined />} 
+          tooltip="刷新"
+          onClick={handleRefresh}
+        />
+        {selectedRowKeys.length > 0 && (
+          <FloatButton 
+            icon={<DownloadOutlined />} 
+            tooltip={`批量下载 (${selectedRowKeys.length})`}
+            onClick={handleBatchDownload}
+          />
+        )}
+      </FloatButton.Group>
+    </>
+  );
 };
 
 export default TaskDocumentManager;
