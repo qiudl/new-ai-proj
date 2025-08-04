@@ -256,6 +256,99 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ['taskId']
                 }
+            },
+            {
+                name: 'pause_task',
+                description: '暂停任务',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'number',
+                            description: '任务ID'
+                        }
+                    },
+                    required: ['id']
+                }
+            },
+            {
+                name: 'list_projects',
+                description: '查看项目列表',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
+            },
+            {
+                name: 'create_project',
+                description: '创建新项目',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        name: {
+                            type: 'string',
+                            description: '项目名称'
+                        },
+                        description: {
+                            type: 'string',
+                            description: '项目描述（可选）'
+                        }
+                    },
+                    required: ['name']
+                }
+            },
+            {
+                name: 'get_task_children',
+                description: '获取任务的子任务',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        parentId: {
+                            type: 'number',
+                            description: '父任务ID'
+                        }
+                    },
+                    required: ['parentId']
+                }
+            },
+            {
+                name: 'start_timer',
+                description: '开始任务计时',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID'
+                        },
+                        description: {
+                            type: 'string',
+                            description: '计时描述（可选）'
+                        }
+                    },
+                    required: ['taskId']
+                }
+            },
+            {
+                name: 'stop_timer',
+                description: '停止当前计时',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskId: {
+                            type: 'number',
+                            description: '任务ID（可选，不指定则停止所有计时）'
+                        }
+                    }
+                }
+            },
+            {
+                name: 'get_current_timer',
+                description: '获取当前计时状态',
+                inputSchema: {
+                    type: 'object',
+                    properties: {}
+                }
             }
         ]
     };
@@ -304,6 +397,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'delete_task_document':
                 result = await taskServer.deleteTaskDocument(args.taskId, args.projectId);
+                break;
+            case 'pause_task':
+                result = await taskServer.pauseTask(args.id);
+                break;
+            case 'list_projects':
+                result = await taskServer.listProjects();
+                break;
+            case 'create_project':
+                result = await taskServer.createProject(args.name, args.description);
+                break;
+            case 'get_task_children':
+                result = await taskServer.getTaskChildren(args.parentId);
+                break;
+            case 'start_timer':
+                result = await taskServer.startTimer(args.taskId, args.description);
+                break;
+            case 'stop_timer':
+                result = await taskServer.stopTimer(args.taskId);
+                break;
+            case 'get_current_timer':
+                result = await taskServer.getCurrentTimer();
                 break;
             default:
                 throw new Error(`Unknown tool: ${name}`);

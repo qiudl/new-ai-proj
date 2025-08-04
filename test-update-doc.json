@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "update_task_document",
+    "arguments": {
+      "projectId": 1,
+      "taskId": 365,
+      "content": "# 任务#365 - MCP配置连接AI项目管理平台\n\n## 任务状态\n✅ **已完成** - 2025年8月4日\n\n## 完成内容\n\n### 1. 配置文件设置\n- ✅ 配置文件已放置在 `~/.claude-code/config.json`\n- ✅ Claude Code可以检测到MCP服务器配置\n- ✅ API地址设置为 `http://localhost:8080/api/v1`\n- ✅ JWT认证token已正确配置\n\n### 2. MCP桥接服务器实现\n- ✅ 修复了SDK兼容性问题\n- ✅ 实现了完整的15个核心接口\n- ✅ 使用正确的API路径映射\n- ✅ 支持JSON-RPC 2.0协议\n\n### 3. 15个核心接口实现清单\n\n**任务管理接口 (4个)**\n- create_task → POST /api/v1/tasks\n- get_tasks → GET /api/v1/tasks\n- update_task → PUT /api/v1/tasks/{id}\n- delete_task → DELETE /api/v1/tasks/{id}\n\n**项目管理接口 (2个)**\n- get_project_tasks → GET /api/v1/projects/{id}/tasks\n- move_task_to_project → POST /api/v1/projects/{id}/tasks/{taskId}/move\n\n**任务层级管理接口 (3个)**\n- create_subtask → POST /api/v1/subtasks\n- archive_task → POST /api/v1/projects/{projectId}/tasks/{taskId}/archive\n- unarchive_task → POST /api/v1/projects/{projectId}/tasks/{taskId}/unarchive\n\n**任务文档管理接口 (2个)**\n- get_task_document → GET /api/v1/projects/{projectId}/tasks/{taskId}/document\n- update_task_document → PUT /api/v1/projects/{projectId}/tasks/{taskId}/document\n\n**计时器管理接口 (3个)**\n- start_timer → POST /api/v1/timers/start\n- stop_timer → POST /api/v1/timers/stop\n- get_active_timer → GET /api/v1/timers/active\n\n**文档管理接口 (1个)**\n- get_work_notes → GET /api/v1/work-notes\n\n### 4. 测试验证\n- ✅ MCP服务器成功启动\n- ✅ 工具列表正确注册15个接口\n- ✅ JSON-RPC协议响应正常\n- ✅ 配置文件Claude Code可正常检测\n\n## 使用方法\nClaude Code现在可以通过自然语言与AI项目管理平台交互：\n- \"查看我的任务列表\"\n- \"创建任务：新功能开发\"\n- \"获取项目1的任务\"\n- \"开始计时任务5\"\n- \"更新任务文档\"\n\n## 技术实现\n- **桥接服务器**: `mcp-bridge-correct.js`\n- **配置文件**: `~/.claude-code/config.json`\n- **协议**: JSON-RPC 2.0\n- **认证**: JWT Bearer Token\n\n---\n**任务完成时间**: 2025年8月4日  \n**通过MCP接口更新**: ✅"
+    }
+  }
+}

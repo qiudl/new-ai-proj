@@ -714,4 +714,325 @@ export class TaskMCPServer {
             };
         }
     }
+    // ========== Phase 1 新增接口 ==========
+    // 1. 暂停任务
+    async pauseTask(id) {
+        try {
+            console.error(`[DEBUG] 暂停任务: ID ${id}`);
+            const task = await this.findTaskById(id);
+            // 检查当前状态
+            if (task.status === 'completed') {
+                return {
+                    success: false,
+                    error: `任务 "${task.title}" 已完成，无法暂停`
+                };
+            }
+            if (task.status === 'cancelled') {
+                return {
+                    success: false,
+                    error: `任务 "${task.title}" 已取消，无法暂停`
+                };
+            }
+            // 更新状态为暂停 (使用pending状态表示暂停)
+            const updateResponse = await axios.put(`${this.apiBase}/projects/${task.project_id}/tasks/${id}`, {
+                title: task.title,
+                project_id: task.project_id,
+                status: 'pending',
+                description: task.description,
+                parent_id: task.parent_id,
+                custom_fields: task.custom_fields
+            }, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            return {
+                success: true,
+                id,
+                title: task.title,
+                status: 'pending',
+                message: `⏸️ 任务 "${task.title}" 已暂停`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 暂停任务失败:`, error.message);
+            return {
+                success: false,
+                error: `暂停任务失败: ${error.message}`
+            };
+        }
+    }
+    // 2. 查看项目列表
+    async listProjects() {
+        try {
+            console.error(`[DEBUG] 获取项目列表`);
+            const response = await axios.get(`${this.apiBase}/projects`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const projects = response.data.data?.data || [];
+            return {
+                success: true,
+                total: projects.length,
+                projects: projects.map((project) => ({
+                    id: project.id,
+                    name: project.name,
+                    description: project.description,
+                    created_at: project.created_at,
+                    updated_at: project.updated_at,
+                    status: project.status
+                })),
+                message: `📁 共找到 ${projects.length} 个项目`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 获取项目列表失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `获取项目列表失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 3. 创建新项目
+    async createProject(name, description) {
+        try {
+            console.error(`[DEBUG] 创建新项目: ${name}`);
+            const response = await axios.post(`${this.apiBase}/projects`, {
+                name,
+                description: description || `通过Claude Code创建：${name}`,
+                status: 'active'
+            }, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const project = response.data.data;
+            return {
+                success: true,
+                id: project.id,
+                name: project.name,
+                description: project.description,
+                status: project.status,
+                message: `✅ 项目 "${name}" 已创建 (ID: ${project.id})`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 创建项目失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `创建项目失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 4. 获取任务的子任务
+    async getTaskChildren(parentId) {
+        try {
+            console.error(`[DEBUG] 获取任务子任务: 父任务ID ${parentId}`);
+            const parentTask = await this.findTaskById(parentId);
+            // 获取父任务所在项目的所有任务
+            const response = await axios.get(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const allTasks = response.data.data?.data || [];
+            const childTasks = allTasks.filter((task) => task.parent_id === parentId);
+            return {
+                success: true,
+                parent_id: parentId,
+                parent_title: parentTask.title,
+                total: childTasks.length,
+                children: childTasks.map((task) => ({
+                    id: task.id,
+                    title: task.title,
+                    status: task.status,
+                    created_at: task.created_at,
+                    priority: task.custom_fields?.priority || 'low'
+                })),
+                message: `🌳 任务 "${parentTask.title}" 有 ${childTasks.length} 个子任务`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 获取子任务失败:`, error.message);
+            return {
+                success: false,
+                error: `获取子任务失败: ${error.message}`
+            };
+        }
+    }
+    // 5. 开始任务计时
+    async startTimer(taskId, description) {
+        try {
+            console.error(`[DEBUG] 开始任务计时: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            // 检查任务状态 - 只有待开始或进行中的任务可以计时
+            if (!['todo', 'pending', 'in_progress'].includes(task.status)) {
+                return {
+                    success: false,
+                    error: `任务 "${task.title}" 状态为 "${task.status}"，无法开始计时`
+                };
+            }
+            // 调用统一计时API - 使用正确的端点和参数
+            const response = await axios.post(`${this.apiBase}/user/timer/start`, {
+                task_id: taskId,
+                title: description || `Claude Code 开始计时：${task.title}`,
+                category: 'development',
+                estimated_minutes: 30 // 默认估算30分钟
+            }, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const timerData = response.data.data;
+            // 如果任务还未开始，自动将其状态更新为进行中
+            if (task.status !== 'in_progress') {
+                await this.startTask(taskId);
+            }
+            return {
+                success: true,
+                task_id: taskId,
+                task_title: task.title,
+                timer_id: timerData.id,
+                started_at: timerData.started_at,
+                description: timerData.description,
+                message: `⏱️ 任务 "${task.title}" 开始计时`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 开始计时失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `开始计时失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 6. 停止当前计时
+    async stopTimer(taskId) {
+        try {
+            console.error(`[DEBUG] 停止计时: ${taskId ? `任务ID ${taskId}` : '当前所有计时'}`);
+            // 使用统一计时API停止计时（不需要taskId参数，会停止当前活动的计时）
+            const response = await axios.post(`${this.apiBase}/user/timer/stop`, {}, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const timerData = response.data.data;
+            if (taskId) {
+                // 如果指定了taskId，尝试获取任务信息
+                try {
+                    const task = await this.findTaskById(taskId);
+                    return {
+                        success: true,
+                        task_id: taskId,
+                        task_title: task.title,
+                        timer_id: timerData.id,
+                        duration_seconds: timerData.duration_seconds,
+                        duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
+                        stopped_at: timerData.stopped_at,
+                        message: `⏹️ 任务 "${task.title}" 停止计时，耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+                    };
+                }
+                catch (taskError) {
+                    return {
+                        success: true,
+                        task_id: taskId,
+                        task_title: '未知任务',
+                        timer_id: timerData.id,
+                        duration_seconds: timerData.duration_seconds,
+                        duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
+                        stopped_at: timerData.stopped_at,
+                        message: `⏹️ 计时已停止，耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+                    };
+                }
+            }
+            else {
+                return {
+                    success: true,
+                    stopped_count: 1,
+                    duration_seconds: timerData.duration_seconds,
+                    duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
+                    message: `⏹️ 已停止计时，总耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+                };
+            }
+        }
+        catch (error) {
+            console.error(`[ERROR] 停止计时失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `停止计时失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 7. 获取当前计时状态
+    async getCurrentTimer() {
+        try {
+            console.error(`[DEBUG] 获取当前计时状态`);
+            // 使用统一计时API获取当前计时状态
+            const response = await axios.get(`${this.apiBase}/user/timer/current`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const timerData = response.data.data;
+            if (!timerData || !timerData.task_id) {
+                return {
+                    success: true,
+                    active_timers: [],
+                    total: 0,
+                    message: `⏱️ 当前没有活动的计时`
+                };
+            }
+            // 获取任务信息
+            try {
+                const task = await this.findTaskById(timerData.task_id);
+                const currentDuration = this.calculateCurrentDuration(timerData.started_at);
+                const timerInfo = {
+                    timer_id: timerData.id,
+                    task_id: timerData.task_id,
+                    task_title: task.title,
+                    started_at: timerData.started_at,
+                    current_duration_seconds: currentDuration,
+                    current_duration_formatted: this.formatDuration(currentDuration),
+                    description: timerData.description
+                };
+                return {
+                    success: true,
+                    active_timers: [timerInfo],
+                    total: 1,
+                    message: `⏱️ 当前正在计时任务: "${task.title}" - ${this.formatDuration(currentDuration)}`
+                };
+            }
+            catch (taskError) {
+                return {
+                    success: true,
+                    active_timers: [{
+                            timer_id: timerData.id,
+                            task_id: timerData.task_id,
+                            task_title: '未知任务',
+                            started_at: timerData.started_at,
+                            current_duration_seconds: 0,
+                            current_duration_formatted: '00:00:00',
+                            description: timerData.description,
+                            error: '无法获取任务信息'
+                        }],
+                    total: 1,
+                    message: `⏱️ 当前有 1 个活动计时（任务信息获取失败）`
+                };
+            }
+        }
+        catch (error) {
+            console.error(`[ERROR] 获取当前计时状态失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `获取当前计时状态失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    // 辅助方法：格式化时长
+    formatDuration(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    // 辅助方法：计算当前时长
+    calculateCurrentDuration(startedAt) {
+        const startTime = new Date(startedAt).getTime();
+        const currentTime = new Date().getTime();
+        return Math.floor((currentTime - startTime) / 1000);
+    }
 }

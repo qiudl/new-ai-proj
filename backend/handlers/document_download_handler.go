@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"archive/zip"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -713,7 +712,7 @@ type StorageAdapter interface {
 	Exists(ctx context.Context, path string) (bool, error)
 }
 
-// Document 文档模型
+// Document 文档模型 (DocumentDownloadHandler specific)
 type Document struct {
 	ID             int64     `gorm:"primaryKey" json:"id"`
 	Title          string    `gorm:"not null" json:"title"`
@@ -738,7 +737,7 @@ type Document struct {
 	DeletedAt      *time.Time `gorm:"index" json:"deleted_at"`
 }
 
-// DocumentVersion 文档版本模型
+// DocumentVersion 文档版本模型 (DocumentDownloadHandler specific)
 type DocumentVersion struct {
 	ID            int64     `gorm:"primaryKey" json:"id"`
 	DocumentID    int64     `gorm:"not null;index" json:"document_id"`
@@ -754,7 +753,7 @@ type DocumentVersion struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-// DocumentOperation 文档操作记录模型
+// DocumentOperation 文档操作记录模型 (DocumentDownloadHandler specific)
 type DocumentOperation struct {
 	ID            int64     `gorm:"primaryKey" json:"id"`
 	DocumentID    int64     `gorm:"not null;index" json:"document_id"`
@@ -767,10 +766,3 @@ type DocumentOperation struct {
 	CreatedAt     time.Time `json:"created_at"`
 }
 
-// min 辅助函数
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
