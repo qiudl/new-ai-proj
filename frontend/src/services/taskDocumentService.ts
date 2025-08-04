@@ -63,6 +63,51 @@ interface DocumentRequest {
   content: string;
 }
 
+// Task 307-12: 版本历史功能接口定义
+interface DocumentVersionInfo {
+  id: number;
+  document_id: number;
+  version_number: number;
+  content: string;
+  content_hash: string;
+  created_at: string;
+  created_by: number;
+  creator_name: string;
+  change_summary?: string;
+  file_size: number;
+  change_type: 'create' | 'update' | 'delete' | 'restore';
+  metadata?: Record<string, any>;
+}
+
+interface DocumentVersionHistoryResponse {
+  document_id: number;
+  current_version: number;
+  total_versions: number;
+  versions: DocumentVersionInfo[];
+  document_info: UploadedDocumentInfo;
+}
+
+interface DocumentVersionComparisonResult {
+  version1: DocumentVersionInfo;
+  version2: DocumentVersionInfo;
+  differences: {
+    additions: string[];
+    deletions: string[];
+    modifications: string[];
+    statistics: {
+      added_lines: number;
+      deleted_lines: number;
+      modified_lines: number;
+      unchanged_lines: number;
+    };
+  };
+}
+
+interface DocumentRestoreRequest {
+  version_id: number;
+  restore_reason?: string;
+}
+
 export const taskDocumentService = {
   // 获取任务文档内容
   async get(projectId: number, taskId: number): Promise<TaskDocumentResponse> {
@@ -510,8 +555,8 @@ export const taskDocumentService = {
   /**
    * 网络请求队列管理
    */
-  _requestQueue: Promise<any>[] = [],
-  _maxConcurrentRequests: number = 5,
+  _requestQueue: [] as Promise<any>[],
+  _maxConcurrentRequests: 5,
 
   /**
    * 执行带队列管理的请求
@@ -926,33 +971,22 @@ export const taskDocumentService = {
     
     try {
       // 尝试从缓存获取
-      const cached = this._getFromCache(cacheKey);
+      const cached = this._getCachedData<string>(cacheKey);
       if (cached) {
         return cached;
       }
 
       const response = await this._retryRequest(async () => {
-        const res = await fetch(`${this.baseURL}/projects/${projectId}/tasks/${taskId}/documents/${documentId}/content`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${this.getAuthToken()}`,
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!res.ok) {
-          throw new Error(`获取文档内容失败: ${res.status} ${res.statusText}`);
-        }
-
-        return res.text(); // 返回文本内容
+        const result = await api.get(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}/content`);
+        return result.data.content || result.data || '';
       });
 
       // 缓存结果（30分钟）
-      this._setCache(cacheKey, response, 30 * 60 * 1000);
+      this._setCachedData(cacheKey, response, 30 * 60 * 1000);
       return response;
     } catch (error) {
       console.error('获取文档内容失败:', error);
-      throw this._enhanceError(error, '获取文档内容', 'getDocumentContent');
+      throw this._enhanceError(error, '获取文档内容');
     }
   },
 
@@ -962,26 +996,15 @@ export const taskDocumentService = {
   async deleteDocument(projectId: number, taskId: number, documentId: number): Promise<void> {
     try {
       await this._retryRequest(async () => {
-        const response = await fetch(`${this.baseURL}/projects/${projectId}/tasks/${taskId}/documents/${documentId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${this.getAuthToken()}`,
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `删除文档失败: ${response.status} ${response.statusText}`);
-        }
+        await api.delete(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}`);
       });
 
       // 清除相关缓存
       this._clearRelatedCache(`document_content_${projectId}_${taskId}_${documentId}`);
-      this._clearRelatedCache(`task_documents_${projectId}_${taskId}`);
+      this._clearRelatedCache(`getTaskDocuments:${projectId}:${taskId}`);
     } catch (error) {
       console.error('删除文档失败:', error);
-      throw this._enhanceError(error, '删除文档', 'deleteDocument');
+      throw this._enhanceError(error, '删除文档');
     }
   },
 
@@ -991,25 +1014,16 @@ export const taskDocumentService = {
   async downloadFile(filePath: string, fileName: string): Promise<void> {
     try {
       const response = await this._retryRequest(async () => {
-        const res = await fetch(`${this.baseURL}/files/download?path=${encodeURIComponent(filePath)}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${this.getAuthToken()}`,
-          }
+        return api.get(`/files/download`, {
+          params: { path: filePath },
+          responseType: 'blob',
         });
-
-        if (!res.ok) {
-          throw new Error(`下载文件失败: ${res.status} ${res.statusText}`);
-        }
-
-        return res;
       });
 
-      const blob = await response.blob();
-      this.triggerDownload(blob, fileName);
+      this.triggerDownload(response.data, fileName);
     } catch (error) {
       console.error('下载文件失败:', error);
-      throw this._enhanceError(error, '下载文件', 'downloadFile');
+      throw this._enhanceError(error, '下载文件');
     }
   },
 
@@ -1024,6 +1038,332 @@ export const taskDocumentService = {
       }
     }
     keysToDelete.forEach(key => this._cache.delete(key));
+  },
+
+  // ===== Task 307-12: 版本历史功能实现 =====
+
+  /**
+   * 获取文档版本历史
+   */
+  async getDocumentVersionHistory(
+    projectId: number, 
+    taskId: number, 
+    documentId: number,
+    options: {
+      limit?: number;
+      offset?: number;
+      includeContent?: boolean;
+      useCache?: boolean;
+    } = {}
+  ): Promise<DocumentVersionHistoryResponse> {
+    const { limit = 20, offset = 0, includeContent = false, useCache = true } = options;
+    const cacheKey = `version_history_${projectId}_${taskId}_${documentId}_${limit}_${offset}_${includeContent}`;
+    
+    try {
+      // 尝试从缓存获取
+      if (useCache) {
+        const cached = this._getCachedData<DocumentVersionHistoryResponse>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
+
+      const response = await this._retryRequest(async () => {
+        return api.get(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions`, {
+          params: { limit, offset, include_content: includeContent }
+        });
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get version history');
+      }
+
+      const result = response.data.data as DocumentVersionHistoryResponse;
+      
+      // 缓存结果（10分钟）
+      if (useCache) {
+        this._setCachedData(cacheKey, result, 10 * 60 * 1000);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('获取文档版本历史失败:', error);
+      throw this._enhanceError(error, '获取文档版本历史');
+    }
+  },
+
+  /**
+   * 获取特定版本的文档内容
+   */
+  async getDocumentVersion(
+    projectId: number, 
+    taskId: number, 
+    documentId: number, 
+    versionId: number,
+    useCache: boolean = true
+  ): Promise<DocumentVersionInfo> {
+    const cacheKey = `document_version_${projectId}_${taskId}_${documentId}_${versionId}`;
+    
+    try {
+      // 尝试从缓存获取
+      if (useCache) {
+        const cached = this._getCachedData<DocumentVersionInfo>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
+
+      const response = await this._retryRequest(async () => {
+        return api.get(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}`);
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get document version');
+      }
+
+      const result = response.data.data as DocumentVersionInfo;
+      
+      // 缓存结果（15分钟）
+      if (useCache) {
+        this._setCachedData(cacheKey, result, 15 * 60 * 1000);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('获取文档版本失败:', error);
+      throw this._enhanceError(error, '获取文档版本');
+    }
+  },
+
+  /**
+   * 比较两个文档版本
+   */
+  async compareDocumentVersions(
+    projectId: number, 
+    taskId: number, 
+    documentId: number, 
+    version1Id: number, 
+    version2Id: number
+  ): Promise<DocumentVersionComparisonResult> {
+    const cacheKey = `version_comparison_${projectId}_${taskId}_${documentId}_${version1Id}_${version2Id}`;
+    
+    try {
+      // 尝试从缓存获取
+      const cached = this._getCachedData<DocumentVersionComparisonResult>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const response = await this._retryRequest(async () => {
+        return api.get(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/compare`, {
+          params: { version1: version1Id, version2: version2Id }
+        });
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to compare versions');
+      }
+
+      const result = response.data.data as DocumentVersionComparisonResult;
+      
+      // 缓存结果（5分钟）
+      this._setCachedData(cacheKey, result, 5 * 60 * 1000);
+
+      return result;
+    } catch (error) {
+      console.error('比较文档版本失败:', error);
+      throw this._enhanceError(error, '比较文档版本');
+    }
+  },
+
+  /**
+   * 恢复到特定版本
+   */
+  async restoreDocumentVersion(
+    projectId: number, 
+    taskId: number, 
+    documentId: number, 
+    restoreRequest: DocumentRestoreRequest
+  ): Promise<DocumentVersionInfo> {
+    try {
+      const response = await this._retryRequest(async () => {
+        return api.post(
+          `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/restore`,
+          restoreRequest
+        );
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to restore version');
+      }
+
+      // 清除相关缓存
+      this._clearRelatedCache(`document_version_${projectId}_${taskId}_${documentId}`);
+      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
+      this._clearRelatedCache(`document_content_${projectId}_${taskId}_${documentId}`);
+
+      return response.data.data as DocumentVersionInfo;
+    } catch (error) {
+      console.error('恢复文档版本失败:', error);
+      throw this._enhanceError(error, '恢复文档版本');
+    }
+  },
+
+  /**
+   * 创建版本标签/注释
+   */
+  async createVersionTag(
+    projectId: number, 
+    taskId: number, 
+    documentId: number, 
+    versionId: number, 
+    tag: string,
+    description?: string
+  ): Promise<void> {
+    try {
+      await this._retryRequest(async () => {
+        return api.post(
+          `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}/tags`,
+          { tag, description }
+        );
+      });
+
+      // 清除版本历史缓存
+      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
+    } catch (error) {
+      console.error('创建版本标签失败:', error);
+      throw this._enhanceError(error, '创建版本标签');
+    }
+  },
+
+  /**
+   * 获取版本统计信息
+   */
+  async getVersionStatistics(
+    projectId: number, 
+    taskId: number, 
+    documentId: number
+  ): Promise<{
+    total_versions: number;
+    total_size_changes: number;
+    most_active_contributor: string;
+    version_frequency: Record<string, number>; // 按日期分组的版本数量
+    change_types: Record<string, number>;
+  }> {
+    const cacheKey = `version_stats_${projectId}_${taskId}_${documentId}`;
+    
+    try {
+      // 尝试从缓存获取
+      const cached = this._getCachedData<any>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const response = await this._retryRequest(async () => {
+        return api.get(`/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/statistics`);
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get version statistics');
+      }
+
+      const result = response.data.data;
+      
+      // 缓存结果（30分钟）
+      this._setCachedData(cacheKey, result, 30 * 60 * 1000);
+
+      return result;
+    } catch (error) {
+      console.error('获取版本统计失败:', error);
+      throw this._enhanceError(error, '获取版本统计');
+    }
+  },
+
+  /**
+   * 批量操作版本（删除、标记等）
+   */
+  async batchVersionOperation(
+    projectId: number, 
+    taskId: number, 
+    documentId: number,
+    versionIds: number[],
+    operation: 'delete' | 'tag' | 'export',
+    operationData?: any
+  ): Promise<Array<{ versionId: number; success: boolean; error?: string }>> {
+    try {
+      const results = await this.batchOperation(
+        versionIds,
+        async (versionId) => {
+          switch (operation) {
+            case 'delete':
+              await api.delete(
+                `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}`
+              );
+              break;
+            case 'tag':
+              await api.post(
+                `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}/tags`,
+                operationData
+              );
+              break;
+            case 'export':
+              const response = await api.get(
+                `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/${versionId}/export`,
+                { responseType: 'blob' }
+              );
+              const fileName = `document_${documentId}_v${versionId}.md`;
+              this.triggerDownload(response.data, fileName);
+              break;
+            default:
+              throw new Error(`Unsupported operation: ${operation}`);
+          }
+        },
+        {
+          concurrency: 2,
+          stopOnError: false
+        }
+      );
+
+      // 清除相关缓存
+      this._clearRelatedCache(`version_history_${projectId}_${taskId}_${documentId}`);
+      this._clearRelatedCache(`version_stats_${projectId}_${taskId}_${documentId}`);
+
+      return results.map(result => ({
+        versionId: result.item,
+        success: result.success,
+        error: result.error?.message
+      }));
+    } catch (error) {
+      console.error('批量版本操作失败:', error);
+      throw this._enhanceError(error, '批量版本操作');
+    }
+  },
+
+  /**
+   * 导出版本历史报告
+   */
+  async exportVersionHistory(
+    projectId: number, 
+    taskId: number, 
+    documentId: number,
+    format: 'json' | 'csv' | 'pdf' = 'json'
+  ): Promise<Blob> {
+    try {
+      const response = await this._retryRequest(async () => {
+        return api.get(
+          `/projects/${projectId}/tasks/${taskId}/documents/${documentId}/versions/export`,
+          {
+            params: { format },
+            responseType: 'blob'
+          }
+        );
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error('导出版本历史失败:', error);
+      throw this._enhanceError(error, '导出版本历史');
+    }
   }
 };
 

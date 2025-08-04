@@ -49,7 +49,7 @@ import {
   UndoOutlined,
   HistoryOutlined,
   QuestionCircleOutlined,
-  CommandOutlined,
+  ControlOutlined,
   BugOutlined,
   RocketOutlined
 } from '@ant-design/icons';
@@ -753,7 +753,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     <Modal
       title={
         <Space>
-          <CommandOutlined />
+          <ControlOutlined />
           键盘快捷键
         </Space>
       }
@@ -922,7 +922,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         </Tooltip>
         <Tooltip title="查看键盘快捷键">
           <Button
-            icon={<CommandOutlined />}
+            icon={<ControlOutlined />}
             onClick={() => setKeyboardShortcutsVisible(true)}
           >
             快捷键
