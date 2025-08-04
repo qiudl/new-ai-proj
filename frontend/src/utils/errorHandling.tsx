@@ -556,5 +556,4 @@ export const safeAsyncOperation = async <T>(
   }
 };
 
-// Export enhanced utilities
-export { ProgressFeedback, SuccessFeedback };
+// Enhanced utilities are already exported above with their class declarations
