@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button } from 'antd';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
@@ -25,6 +25,8 @@ import {
   FolderOutlined,
   ClockCircleOutlined,
   BarChartOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -42,6 +44,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const saved = localStorage.getItem('sidebar-collapsed');
     return saved ? JSON.parse(saved) : false;
   });
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const handleMenuClick = (key: string) => {
     navigate(key);
@@ -58,6 +61,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // 保存用户偏好到localStorage
     localStorage.setItem('sidebar-collapsed', JSON.stringify(newCollapsed));
   };
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch((err) => {
+        console.error('进入全屏失败:', err);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch((err) => {
+        console.error('退出全屏失败:', err);
+      });
+    }
+  };
+
+  // 监听全屏状态变化
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -299,12 +330,30 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
         <div className="user-info">
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Space>
-              <Avatar icon={<UserOutlined />} />
-              <span>{currentUser?.username || '加载中...'}</span>
-            </Space>
-          </Dropdown>
+          <Space size="middle">
+            <Tooltip title={isFullscreen ? '退出全屏' : '进入全屏'}>
+              <Button
+                type="text"
+                icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                onClick={toggleFullscreen}
+                style={{
+                  fontSize: '16px',
+                  width: 32,
+                  height: 32,
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              />
+            </Tooltip>
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <Space>
+                <Avatar icon={<UserOutlined />} />
+                <span>{currentUser?.username || '加载中...'}</span>
+              </Space>
+            </Dropdown>
+          </Space>
         </div>
       </Header>
       <AntLayout>

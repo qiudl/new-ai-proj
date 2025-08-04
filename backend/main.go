@@ -162,8 +162,8 @@ func NewApplication() (*Application, error) {
 	// 归档处理器
 	archiveHandler := handlers.NewArchiveHandler(db)
 	
-	// 传统任务文档处理器 (向后兼容)
-	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath)
+	// 传统任务文档处理器 (向后兼容) - 更新支持Task 307功能
+	taskDocumentHandler := handlers.NewTaskDocumentHandler(docsBasePath, db.GetDB())
 	
 	// 创建智能模板服务和处理器
 	smartTemplateService := services.NewSmartTemplateService(db.GetDB().(*sql.DB))
@@ -421,6 +421,21 @@ func (app *Application) setupRouter() *gin.Engine {
 				// projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
 				// projects.PATCH("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.UpdateTaskDocumentAdvanced)
 				// projects.DELETE("/:id/tasks/:taskId/document", app.unifiedTaskDocumentHandler.DeleteTaskDocument)
+				
+				// Task 307: 新增文档上传下载功能 
+				uploadDownload := projects.Group("/:id/tasks/:taskId")
+				{
+					// 手工上传文档
+					uploadDownload.POST("/upload", app.taskDocumentHandler.ManualUploadDocument)
+					// API上传文档
+					uploadDownload.POST("/upload-api", app.taskDocumentHandler.APIUploadDocument)
+					// 获取任务的所有上传文档
+					uploadDownload.GET("/uploads", app.taskDocumentHandler.GetTaskDocuments)
+					// 下载任务的Markdown格式
+					uploadDownload.GET("/download/md", app.taskDocumentHandler.DownloadTaskMarkdown)
+					// 下载任务的PDF格式
+					uploadDownload.GET("/download/pdf", app.taskDocumentHandler.DownloadTaskPDF)
+				}
 				
 				// 智能模板系统 - 暂时注释，保持MVP简洁
 				// projects.GET("/:id/tasks/:taskId/templates/recommendations", app.smartTemplateHandler.GetRecommendedTemplates)

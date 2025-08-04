@@ -19,7 +19,9 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   ClockCircleOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  FullscreenOutlined,
+  FullscreenExitOutlined
 } from '@ant-design/icons';
 import { Task } from '../types/task';
 import { TaskService } from '../services/taskService';
@@ -94,6 +96,7 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [ganttTasks, setGanttTasks] = useState<GanttTask[]>([]);
+  const [isGanttFullscreen, setIsGanttFullscreen] = useState(false);
 
   // 加载子任务数据
   const loadSubtasks = async () => {
@@ -107,6 +110,11 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // 甘特图全屏切换
+  const toggleGanttFullscreen = () => {
+    setIsGanttFullscreen(!isGanttFullscreen);
   };
 
   // 转换任务数据为甘特图格式
@@ -394,9 +402,32 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
           <Button size="small" icon={<ReloadOutlined />} onClick={loadSubtasks}>
             刷新
           </Button>
+          <Tooltip title={isGanttFullscreen ? '退出全屏' : '全屏查看甘特图'}>
+            <Button 
+              size="small" 
+              icon={isGanttFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} 
+              onClick={toggleGanttFullscreen}
+            >
+              {isGanttFullscreen ? '退出全屏' : '全屏'}
+            </Button>
+          </Tooltip>
         </Space>
       }
-      style={style}
+      style={{
+        ...style,
+        ...(isGanttFullscreen ? {
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          margin: 0,
+          borderRadius: 0,
+          height: '100vh',
+          overflow: 'auto'
+        } : {})
+      }}
     >
       {/* 统计数据 */}
       <div style={{

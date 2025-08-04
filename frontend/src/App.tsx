@@ -13,6 +13,7 @@ import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
 import './App.css';
 import './styles/task-hierarchy.css';
+import './styles/TaskDocuments.css';
 
 // 💡 在开发环境中加载调试工具
 if (process.env.NODE_ENV === 'development') {
