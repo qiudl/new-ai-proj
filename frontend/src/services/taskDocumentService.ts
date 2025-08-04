@@ -916,6 +916,114 @@ export const taskDocumentService = {
    */
   clearAllCache(): void {
     this._cache.clear();
+  },
+
+  /**
+   * 获取文档内容用于预览
+   */
+  async getDocumentContent(projectId: number, taskId: number, documentId: number): Promise<string> {
+    const cacheKey = `document_content_${projectId}_${taskId}_${documentId}`;
+    
+    try {
+      // 尝试从缓存获取
+      const cached = this._getFromCache(cacheKey);
+      if (cached) {
+        return cached;
+      }
+
+      const response = await this._retryRequest(async () => {
+        const res = await fetch(`${this.baseURL}/projects/${projectId}/tasks/${taskId}/documents/${documentId}/content`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.getAuthToken()}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`获取文档内容失败: ${res.status} ${res.statusText}`);
+        }
+
+        return res.text(); // 返回文本内容
+      });
+
+      // 缓存结果（30分钟）
+      this._setCache(cacheKey, response, 30 * 60 * 1000);
+      return response;
+    } catch (error) {
+      console.error('获取文档内容失败:', error);
+      throw this._enhanceError(error, '获取文档内容', 'getDocumentContent');
+    }
+  },
+
+  /**
+   * 删除文档
+   */
+  async deleteDocument(projectId: number, taskId: number, documentId: number): Promise<void> {
+    try {
+      await this._retryRequest(async () => {
+        const response = await fetch(`${this.baseURL}/projects/${projectId}/tasks/${taskId}/documents/${documentId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${this.getAuthToken()}`,
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `删除文档失败: ${response.status} ${response.statusText}`);
+        }
+      });
+
+      // 清除相关缓存
+      this._clearRelatedCache(`document_content_${projectId}_${taskId}_${documentId}`);
+      this._clearRelatedCache(`task_documents_${projectId}_${taskId}`);
+    } catch (error) {
+      console.error('删除文档失败:', error);
+      throw this._enhanceError(error, '删除文档', 'deleteDocument');
+    }
+  },
+
+  /**
+   * 下载单个文件
+   */
+  async downloadFile(filePath: string, fileName: string): Promise<void> {
+    try {
+      const response = await this._retryRequest(async () => {
+        const res = await fetch(`${this.baseURL}/files/download?path=${encodeURIComponent(filePath)}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.getAuthToken()}`,
+          }
+        });
+
+        if (!res.ok) {
+          throw new Error(`下载文件失败: ${res.status} ${res.statusText}`);
+        }
+
+        return res;
+      });
+
+      const blob = await response.blob();
+      this.triggerDownload(blob, fileName);
+    } catch (error) {
+      console.error('下载文件失败:', error);
+      throw this._enhanceError(error, '下载文件', 'downloadFile');
+    }
+  },
+
+  /**
+   * 清除相关缓存
+   */
+  _clearRelatedCache(keyPattern: string): void {
+    const keysToDelete: string[] = [];
+    for (const key of this._cache.keys()) {
+      if (key.includes(keyPattern) || keyPattern.includes(key)) {
+        keysToDelete.push(key);
+      }
+    }
+    keysToDelete.forEach(key => this._cache.delete(key));
   }
 };
 
