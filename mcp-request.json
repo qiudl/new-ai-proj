@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","method":"tools/call","params":{"name":"create_task","arguments":{"title":"MCP桥接器项目收尾工作","description":"完成MCP桥接器全面集成项目的收尾工作，包括文档更新、Git提交和任务状态更新。主要内容：撰写完整的项目过程总结文档、通过MCP接口更新任务文档、提交最终的Git更改、更新相关任务状态为已完成。该任务标志着从性能优化任务307-15到MCP桥接器完整集成的项目周期圆满结束。","projectId":1}},"id":2}

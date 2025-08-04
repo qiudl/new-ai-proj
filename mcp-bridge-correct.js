@@ -2,14 +2,34 @@
 
 const readline = require('readline');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// 尝试直接从配置文件读取token
+let configToken = 'your-auth-token-here';
+try {
+  const configPath = path.join(os.homedir(), '.claude-code', 'config.json');
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const aiProjectManager = config.mcpServers?.['ai-project-manager'];
+    if (aiProjectManager?.env?.AUTH_TOKEN) {
+      configToken = aiProjectManager.env.AUTH_TOKEN;
+    }
+  }
+} catch (error) {
+  console.error(`[MCP Bridge] 读取配置文件失败: ${error.message}`);
+}
 
 // AI项目管理平台API配置
 const API_BASE = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
-const AUTH_TOKEN = process.env.AUTH_TOKEN || 'your-auth-token-here';
+const AUTH_TOKEN = process.env.AUTH_TOKEN || configToken;
 
 console.error(`[MCP Bridge] 正确版本启动`);
 console.error(`[MCP Bridge] API_BASE: ${API_BASE}`);
 console.error(`[MCP Bridge] Token configured: ${AUTH_TOKEN ? 'Yes' : 'No'}`);
+console.error(`[MCP Bridge] Token length: ${AUTH_TOKEN ? AUTH_TOKEN.length : 0}`);
+console.error(`[MCP Bridge] Token prefix: ${AUTH_TOKEN ? AUTH_TOKEN.substring(0, 20) + '...' : 'N/A'}`);
 
 class AIProjectAPIClient {
   constructor() {
@@ -19,7 +39,8 @@ class AIProjectAPIClient {
         'Authorization': `Bearer ${AUTH_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      timeout: 15000
+      timeout: 15000,
+      proxy: false  // 绕过代理设置
     });
   }
 

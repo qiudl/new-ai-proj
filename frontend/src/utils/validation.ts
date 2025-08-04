@@ -151,15 +151,16 @@ export class DataSanitizer {
 
   // 清理任务数据
   static sanitizeTask(task: unknown): unknown {
+    const taskData = task as any; // Type assertion to handle unknown type
     return {
-      ...task,
-      title: this.sanitizeString(task.title),
-      description: this.sanitizeString(task.description),
-      status: task.status || 'todo',
-      project_id: this.ensurePositiveInteger(task.project_id),
-      assignee_id: task.assignee_id ? this.ensurePositiveInteger(task.assignee_id) : null,
-      parent_id: task.parent_id ? this.ensurePositiveInteger(task.parent_id) : null,
-      sort_order: this.ensureNumber(task.sort_order, 0),
+      ...taskData,
+      title: this.sanitizeString(taskData.title),
+      description: this.sanitizeString(taskData.description),
+      status: taskData.status || 'todo',
+      project_id: this.ensurePositiveInteger(taskData.project_id),
+      assignee_id: taskData.assignee_id ? this.ensurePositiveInteger(taskData.assignee_id) : null,
+      parent_id: taskData.parent_id ? this.ensurePositiveInteger(taskData.parent_id) : null,
+      sort_order: this.ensureNumber(taskData.sort_order, 0),
     };
   }
 

@@ -65,6 +65,44 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     'documentStats'
   );
 
+  // Badge tooltip memoization (moved to top level)
+  const badgeTooltip = useOptimizedMemo(
+    () => `${stats.total} 个文档，${stats.totalSize > 0 ? `总大小 ${Math.round(stats.totalSize / 1024)}KB` : '无文档'}`,
+    [stats.total, stats.totalSize],
+    'badgeTooltip'
+  );
+
+  // Document type stats memoization (moved to top level)
+  const documentTypeStats = useOptimizedMemo(
+    () => {
+      const typeComponents = [];
+      if (stats.byType['text/markdown']) {
+        typeComponents.push(
+          <Text key="md" type="secondary">
+            MD: {stats.byType['text/markdown']}
+          </Text>
+        );
+      }
+      if (stats.byType['application/pdf']) {
+        typeComponents.push(
+          <Text key="pdf" type="secondary">
+            PDF: {stats.byType['application/pdf']}
+          </Text>
+        );
+      }
+      if (stats.byType['text/plain']) {
+        typeComponents.push(
+          <Text key="txt" type="secondary">
+            TXT: {stats.byType['text/plain']}
+          </Text>
+        );
+      }
+      return typeComponents;
+    },
+    [stats.byType],
+    'documentTypeStats'
+  );
+
   // Handle quick upload with performance tracking
   const handleQuickUpload = useOptimizedCallback(
     async (file: File) => {
@@ -127,11 +165,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
       <>
         <Space size="small">
           <Badge count={stats.total} size="small" color="#1890ff">
-            <Tooltip title={useOptimizedMemo(
-              () => `${stats.total} 个文档，${stats.totalSize > 0 ? `总大小 ${Math.round(stats.totalSize / 1024)}KB` : '无文档'}`,
-              [stats.total, stats.totalSize],
-              'badgeTooltip'
-            )}>
+            <Tooltip title={badgeTooltip}>
               <Button
                 type="text"
                 icon={<FileTextOutlined />}
@@ -234,35 +268,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
               <Text type="secondary">
                 {stats.totalSize > 0 && `总大小 ${Math.round(stats.totalSize / 1024)}KB`}
               </Text>
-              {useOptimizedMemo(
-                () => {
-                  const typeComponents = [];
-                  if (stats.byType['text/markdown']) {
-                    typeComponents.push(
-                      <Text key="md" type="secondary">
-                        MD: {stats.byType['text/markdown']}
-                      </Text>
-                    );
-                  }
-                  if (stats.byType['application/pdf']) {
-                    typeComponents.push(
-                      <Text key="pdf" type="secondary">
-                        PDF: {stats.byType['application/pdf']}
-                      </Text>
-                    );
-                  }
-                  if (stats.byType['text/plain']) {
-                    typeComponents.push(
-                      <Text key="txt" type="secondary">
-                        TXT: {stats.byType['text/plain']}
-                      </Text>
-                    );
-                  }
-                  return typeComponents;
-                },
-                [stats.byType],
-                'documentTypeStats'
-              )}
+              {documentTypeStats}
             </Space>
           )}
           
