@@ -864,6 +864,124 @@ export class TaskMCPServer {
         }
     }
 
+    // 归档任务
+    async archiveTask(id, reason = null, archiveSubtasks = false) {
+        try {
+            console.error(`[DEBUG] 归档任务: ID ${id}, 原因: ${reason}, 归档子任务: ${archiveSubtasks}`);
+            const task = await this.findTaskById(id);
+            
+            // 检查任务是否已经归档
+            if (task.archived_at) {
+                return {
+                    success: false,
+                    error: `任务 "${task.title}" 已经被归档 (归档时间: ${task.archived_at})`
+                };
+            }
+            
+            // 检查是否有子任务
+            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const allTasks = childrenResponse.data.data?.data || [];
+            const childTasks = allTasks.filter(t => t.parent_id === id && !t.archived_at);
+            
+            const archivedSubtasks = [];
+            
+            // 如果有子任务且要求归档子任务
+            if (childTasks.length > 0 && archiveSubtasks) {
+                console.error(`[DEBUG] 同时归档 ${childTasks.length} 个子任务`);
+                for (const childTask of childTasks) {
+                    try {
+                        const childArchiveResult = await this.archiveTask(childTask.id, `父任务归档: ${reason || '无'}`, false);
+                        if (childArchiveResult.success) {
+                            archivedSubtasks.push(childTask.id);
+                            console.error(`[DEBUG] 已归档子任务: ID ${childTask.id}`);
+                        } else {
+                            console.error(`[WARNING] 归档子任务 ${childTask.id} 失败: ${childArchiveResult.error}`);
+                        }
+                    } catch (childError) {
+                        console.error(`[WARNING] 归档子任务 ${childTask.id} 失败: ${childError.message}`);
+                    }
+                }
+            } else if (childTasks.length > 0 && !archiveSubtasks) {
+                return {
+                    success: false,
+                    error: `任务有 ${childTasks.length} 个未归档的子任务，请设置 archive_subtasks=true 或先归档子任务`,
+                    child_count: childTasks.length,
+                    children: childTasks.map(t => ({ id: t.id, title: t.title }))
+                };
+            }
+            
+            // 归档主任务 - 使用专门的归档API端点
+            const archiveData = {
+                reason: reason || '通过MCP系统归档'
+            };
+            
+            const archiveResponse = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${id}/archive`, archiveData, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            
+            const archivedTask = archiveResponse.data.data;
+            
+            return {
+                success: true,
+                archived_task_id: id,
+                title: task.title,
+                archived_at: archivedTask.archived_at,
+                archived_subtasks: archivedSubtasks,
+                archive_reason: reason,
+                message: `📦 任务 "${task.title}" 已归档${archivedSubtasks.length > 0 ? `，同时归档了 ${archivedSubtasks.length} 个子任务` : ''}`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 归档任务失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `归档任务失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+    
+    // 恢复已归档的任务
+    async unarchiveTask(id) {
+        try {
+            console.error(`[DEBUG] 恢复归档任务: ID ${id}`);
+            const task = await this.findTaskById(id);
+            
+            // 检查任务是否已归档
+            if (!task.archived_at) {
+                return {
+                    success: false,
+                    error: `任务 "${task.title}" 没有被归档，无需恢复`
+                };
+            }
+            
+            // 恢复任务 - 使用专门的恢复归档API端点
+            const restoreResponse = await axios.post(`${this.apiBase}/projects/${task.project_id}/tasks/${id}/unarchive`, {}, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            
+            return {
+                success: true,
+                unarchived_task_id: id,
+                title: task.title,
+                restored_at: new Date().toISOString(),
+                original_archive_reason: task.custom_fields?.archive_reason,
+                message: `♻️ 任务 "${task.title}" 已从归档中恢复`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 恢复归档任务失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `恢复归档任务失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
     // ===== 智能文档自动化相关方法 =====
 
     /**

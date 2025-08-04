@@ -162,6 +162,43 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
+                name: 'archive_task',
+                description: '归档任务',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'number',
+                            description: '要归档的任务ID'
+                        },
+                        reason: {
+                            type: 'string',
+                            description: '归档原因（可选）'
+                        },
+                        archive_subtasks: {
+                            type: 'boolean',
+                            description: '是否同时归档子任务',
+                            default: false
+                        }
+                    },
+                    required: ['id']
+                }
+            },
+            {
+                name: 'unarchive_task',
+                description: '恢复已归档的任务',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'number',
+                            description: '要恢复的已归档任务ID'
+                        }
+                    },
+                    required: ['id']
+                }
+            },
+            {
                 name: 'move_task',
                 description: '移动任务到其他项目',
                 inputSchema: {
@@ -211,6 +248,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'update_task':
                 result = await taskServer.updateTask(args.id, args.updates);
+                break;
+            case 'archive_task':
+                result = await taskServer.archiveTask(args.id, args.reason, args.archive_subtasks);
+                break;
+            case 'unarchive_task':
+                result = await taskServer.unarchiveTask(args.id);
                 break;
             case 'move_task':
                 result = await taskServer.moveTask(args.id, args.targetProjectId);
