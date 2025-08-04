@@ -5,8 +5,8 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const axios = require('axios');
 
 // AI项目管理平台API配置
-const API_BASE = 'http://localhost:8080/api/v1';
-const AUTH_TOKEN = process.env.AUTH_TOKEN || 'your-auth-token-here';
+const API_BASE = process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
+let AUTH_TOKEN = process.env.AUTH_TOKEN || 'your-auth-token-here';
 
 class AIProjectManagerMCP {
   constructor() {

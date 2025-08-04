@@ -94,7 +94,7 @@ type Document struct {
 	// 关联字段
 	OwnerName   *string `json:"owner_name,omitempty" db:"owner_name"`
 	FolderName  *string `json:"folder_name,omitempty" db:"folder_name"`
-	Relations   []DocumentRelation `json:"relations,omitempty"`
+	// Relations   []DocumentRelation `json:"relations,omitempty"` // Moved to document_relation.go
 }
 
 // CreateDocumentRequest 创建文档请求
@@ -165,8 +165,9 @@ type DocumentResponse struct {
 	FolderName    *string              `json:"folder_name,omitempty"`
 	OwnerName     *string              `json:"owner_name,omitempty"`
 	CreatorName   *string              `json:"creator_name,omitempty"`
-	Relations     []DocumentRelation   `json:"relations,omitempty"`
-	Collaborators []CollaboratorInfo   `json:"collaborators,omitempty"`
+	// Relations and Collaborators are imported from document_relation.go
+	// Relations     []DocumentRelation   `json:"relations,omitempty"`
+	// Collaborators []CollaboratorInfo   `json:"collaborators,omitempty"`
 	CanEdit       bool                 `json:"can_edit"`
 	CanDelete     bool                 `json:"can_delete"`
 	CanShare      bool                 `json:"can_share"`
@@ -267,8 +268,9 @@ func IsValidVisibility(visibility string) bool {
 func (d *Document) ToResponse() DocumentResponse {
 	return DocumentResponse{
 		Document:      *d,
-		Relations:     []DocumentRelation{},
-		Collaborators: []CollaboratorInfo{},
+		// Relations and Collaborators will be populated separately
+		// Relations:     []DocumentRelation{},
+		// Collaborators: []CollaboratorInfo{},
 	}
 }
 
@@ -285,5 +287,22 @@ type DocumentFilter struct {
 	Order      string  `json:"order,omitempty"`
 	Page       int     `json:"page,omitempty"`
 	Limit      int     `json:"limit,omitempty"`
+}
+
+// Note: DocumentRelation and CollaboratorInfo are now defined in document_relation.go
+// to avoid duplication and provide more comprehensive implementations
+
+// DocumentOperation represents a document operation log entry
+type DocumentOperation struct {
+	ID            int64     `json:"id" db:"id"`
+	DocumentID    uint64    `json:"document_id" db:"document_id"`
+	OperationType string    `json:"operation_type" db:"operation_type"`
+	Description   string    `json:"description" db:"description"`
+	UserID        uint64    `json:"user_id" db:"user_id"`
+	Success       bool      `json:"success" db:"success"`
+	IPAddress     string    `json:"ip_address" db:"ip_address"`
+	UserAgent     string    `json:"user_agent" db:"user_agent"`
+	Details       map[string]interface{} `json:"details" db:"details"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }
 
