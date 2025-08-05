@@ -1186,7 +1186,14 @@ func (h *AITaskGeneratorHandler) executeAIBulkImport(
 			// 创建任务
 			createdTask, err := h.taskRepo.Create(ctx, task)
 			if err != nil {
-				log.Printf("创建任务失败: %v", err)
+				// Check if it's a duplicate title error
+				if strings.Contains(err.Error(), "已存在") {
+					log.Printf("任务标题重复: %v", err)
+					// Add additional info to the generated task for better error reporting
+					generatedTask.Tags = append(generatedTask.Tags, "title_duplicate")
+				} else {
+					log.Printf("创建任务失败: %v", err)
+				}
 				failedTasks = append(failedTasks, generatedTask)
 				continue
 			}

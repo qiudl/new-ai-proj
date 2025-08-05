@@ -27,7 +27,7 @@ import { Company, CompanyRequest } from '../types/company';
 import companyService from '../services/companyService';
 import CompanyForm from '../components/CompanyForm';
 import dayjs from 'dayjs';
-import { AppError, ErrorType } from '../utils/errorHandling';
+import { AppError, ErrorType } from '../utils/errorTypes';
 
 const { Title } = Typography;
 

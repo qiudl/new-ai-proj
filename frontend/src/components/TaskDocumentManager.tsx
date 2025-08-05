@@ -27,7 +27,8 @@ import {
   Result,
   FloatButton,
   Tour,
-  TourProps
+  TourProps,
+  Grid
 } from 'antd';
 import {
   FileTextOutlined,
@@ -127,6 +128,10 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   onClose,
   mode = 'embedded'
 }) => {
+  // 响应式检测
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md; // md以下认为是移动端 (< 768px)
+  
   const [activeTab, setActiveTab] = useState('uploader');
   const [documentStats, setDocumentStats] = useState<DocumentStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -764,7 +769,9 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           关闭
         </Button>
       ]}
-      width={600}
+      width={isMobile ? '95vw' : 600}
+      style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
+      styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
     >
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -1478,7 +1485,18 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         open={visible}
         onCancel={onClose}
         footer={null}
-        width={900}
+        width={isMobile ? '95vw' : 900}
+        style={isMobile ? {
+          top: 20,
+          paddingBottom: 0,
+          margin: 'auto'
+        } : undefined}
+        styles={isMobile ? {
+          body: {
+            maxHeight: 'calc(100vh - 120px)',
+            overflow: 'auto'
+          }
+        } : undefined}
         destroyOnClose
       >
         {renderContent()}
@@ -1501,7 +1519,19 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             关闭
           </Button>
         ]}
-        width={800}
+        width={isMobile ? '95vw' : 800}
+        style={isMobile ? {
+          top: 20,
+          paddingBottom: 0,
+          margin: 'auto'
+        } : undefined}
+        styles={isMobile ? {
+          body: {
+            maxHeight: 'calc(100vh - 150px)',
+            overflow: 'auto',
+            padding: '12px'
+          }
+        } : undefined}
         className="document-preview-modal"
       >
         <div className="document-preview-content">
@@ -1563,8 +1593,17 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         open={batchProgressVisible}
         footer={null}
         closable={false}
-        width={500}
-        centered
+        width={isMobile ? '90vw' : 500}
+        centered={!isMobile}
+        style={isMobile ? {
+          top: 50,
+          paddingBottom: 0
+        } : undefined}
+        styles={isMobile ? {
+          body: {
+            padding: '16px 12px'
+          }
+        } : undefined}
       >
         {currentBatchOperation && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -1660,7 +1699,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           onClick={() => setTourOpen(true)}
         />
         <FloatButton 
-          icon={<KeyboardOutlined />} 
+          icon={<ControlOutlined />} 
           tooltip="快捷键"
           onClick={() => setKeyboardShortcutsVisible(true)}
         />

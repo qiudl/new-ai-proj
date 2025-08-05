@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>响应式布局修复验证</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: #f5f5f5;
+        }
+        
+        .test-header {
+            background: #1890ff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .test-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            z-index: 9999;
+            font-size: 12px;
+        }
+        
+        .test-section {
+            margin: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .original-link {
+            display: inline-block;
+            background: #52c41a;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 10px 5px;
+            font-weight: 500;
+        }
+        
+        .original-link:hover {
+            background: #73d13d;
+            color: white;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        
+        .status-card {
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .status-fixed {
+            background: #f6ffed;
+            border: 2px solid #52c41a;
+            color: #389e0d;
+        }
+        
+        .status-issue {
+            background: #fff2f0;
+            border: 2px solid #ff4d4f;
+            color: #cf1322;
+        }
+        
+        .breakpoint-demo {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #d9d9d9;
+            border-radius: 8px;
+        }
+        
+        /* 展示不同断点的行为 */
+        @media (max-width: 575px) {
+            .breakpoint-demo {
+                background: #fff2f0;
+                border-color: #ff4d4f;
+            }
+            .breakpoint-demo::before {
+                content: "XS设备 (<576px): 单列布局 - 应该无浮层";
+                display: block;
+                font-weight: bold;
+                color: #cf1322;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (min-width: 576px) and (max-width: 767px) {
+            .breakpoint-demo {
+                background: #fff7e6;
+                border-color: #fa8c16;
+            }
+            .breakpoint-demo::before {
+                content: "SM设备 (576-767px): 单列布局 - 应该无浮层";
+                display: block;
+                font-weight: bold;
+                color: #d46b08;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (min-width: 768px) and (max-width: 991px) {
+            .breakpoint-demo {
+                background: #fff1f0;
+                border-color: #ff7875;
+            }
+            .breakpoint-demo::before {
+                content: "MD设备 (768-991px): 单列布局 - 关键修复区域";
+                display: block;
+                font-weight: bold;
+                color: #cf1322;
+                margin-bottom: 10px;
+            }
+        }
+        
+        @media (min-width: 992px) {
+            .breakpoint-demo {
+                background: #f6ffed;
+                border-color: #52c41a;
+            }
+            .breakpoint-demo::before {
+                content: "LG+设备 (≥992px): 双列布局 - 正常显示";
+                display: block;
+                font-weight: bold;
+                color: #389e0d;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="test-info">
+        <div>窗口宽度: <span id="width"></span>px</div>
+        <div>断点: <span id="breakpoint"></span></div>
+        <div>布局: <span id="layout"></span></div>
+    </div>
+
+    <div class="test-header">
+        <h1>🎉 任务详情页响应式布局修复验证</h1>
+        <p>验证浮层遮盖问题是否已解决</p>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 修复问题总结</h2>
+        <p><strong>问题</strong>：在小屏幕设备上，右侧信息区域以浮层形式出现，遮盖主页面内容</p>
+        <p><strong>根本原因</strong>：CSS响应式断点与Ant Design Grid组件断点不匹配</p>
+        <p><strong>解决方案</strong>：统一断点系统，确保CSS强制单列布局的断点与组件双列布局的断点完全对齐</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 测试链接</h2>
+        <p>点击以下链接测试修复后的任务详情页：</p>
+        <a href="/projects/1/tasks/408" class="original-link" target="_blank">任务408 - 响应式布局优化</a>
+        <a href="/projects/1/tasks/424" class="original-link" target="_blank">任务424 - Modal响应式修复</a>
+        <a href="/projects/1/tasks/397" class="original-link" target="_blank">任务397 - 32周系统优化</a>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 修复状态</h2>
+        <div class="status-grid">
+            <div class="status-card status-fixed">
+                <h3>✅ CSS断点对齐</h3>
+                <p>CSS响应式断点与Ant Design Grid断点统一</p>
+            </div>
+            <div class="status-card status-fixed">
+                <h3>✅ 浮层问题修复</h3>
+                <p>小屏幕下右侧信息区不再浮层遮盖</p>
+            </div>
+            <div class="status-card status-fixed">
+                <h3>✅ 自然文档流</h3>
+                <p>所有元素使用position: static，避免绝对定位</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 技术细节</h2>
+        <div class="breakpoint-demo">
+            <p><strong>当前断点行为：</strong></p>
+            <ul>
+                <li><strong>XS (0-575px)</strong>: 单列布局，右侧信息区在主内容下方</li>
+                <li><strong>SM (576-767px)</strong>: 单列布局，右侧信息区在主内容下方</li>
+                <li><strong>MD (768-991px)</strong>: 单列布局，关键修复区域</li>
+                <li><strong>LG+ (≥992px)</strong>: 双列布局，正常显示</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 验收标准</h2>
+        <ol>
+            <li><strong>小屏幕测试</strong>：窗口宽度 < 992px 时，应该看到单列布局</li>
+            <li><strong>无浮层验证</strong>：右侧信息区应该在主内容下方，不遮盖任何内容</li>
+            <li><strong>功能完整性</strong>：所有功能（计时器、文档、操作按钮）正常可用</li>
+            <li><strong>视觉协调</strong>：布局美观，符合用户直觉</li>
+            <li><strong>性能表现</strong>：布局切换流畅，无明显卡顿</li>
+        </ol>
+    </div>
+
+    <script>
+        function updateInfo() {
+            const width = window.innerWidth;
+            let breakpoint = 'XL (≥1200px)';
+            let layout = '双列布局';
+            
+            if (width < 576) {
+                breakpoint = 'XS (<576px)';
+                layout = '单列布局';
+            } else if (width < 768) {
+                breakpoint = 'SM (576-767px)';
+                layout = '单列布局';
+            } else if (width < 992) {
+                breakpoint = 'MD (768-991px)';
+                layout = '单列布局 (关键修复)';
+            } else if (width < 1200) {
+                breakpoint = 'LG (992-1199px)';
+                layout = '双列布局';
+            }
+            
+            document.getElementById('width').textContent = width;
+            document.getElementById('breakpoint').textContent = breakpoint;
+            document.getElementById('layout').textContent = layout;
+        }
+        
+        updateInfo();
+        window.addEventListener('resize', updateInfo);
+    </script>
+</body>
+</html>

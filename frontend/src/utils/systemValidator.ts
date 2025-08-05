@@ -4,6 +4,7 @@ import { performanceMonitor } from '../services/performanceMonitor';
 import { exportToExcel, exportToPDF, exportToCSV } from '../services/exportService';
 import type { Task } from '../types/task';
 import type { Project } from '../types/project';
+import type { TaskDashboardFilters } from '../hooks/useUrlState';
 
 // 验证结果类型
 export interface ValidationResult {
@@ -308,13 +309,15 @@ class SystemValidator {
         try {
           const { saveFiltersToLocal, loadFiltersFromLocal } = await import('../hooks/useUrlState');
           
-          const testFilters = {
+          const testFilters: TaskDashboardFilters = {
+            selectedWeek: dayjs(),
             selectedProject: 1,
             selectedStatus: 'completed',
+            searchText: '',
             viewMode: 'list' as const,
           };
           
-          saveFiltersToLocal(testFilters as unknown, 'test-filters');
+          saveFiltersToLocal(testFilters, 'test-filters');
           const loaded = loadFiltersFromLocal('test-filters');
           
           return loaded.selectedProject === 1 && loaded.selectedStatus === 'completed';

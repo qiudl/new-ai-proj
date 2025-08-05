@@ -15,7 +15,7 @@ import { TaskService } from '../services/taskService';
 import TimerService from '../services/timerService';
 import { TaskOption } from '../types/timer';
 import { projectService } from '../services/projectService';
-import { AppError, ErrorType } from '../utils/errorHandling';
+import { AppError, ErrorType } from '../utils/errorTypes';
 
 const { Option } = Select;
 const { Text } = Typography;

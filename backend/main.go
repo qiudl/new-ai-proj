@@ -330,6 +330,7 @@ auth := api.Group("/auth")
 			authorized.POST("/tasks/today/bulk", app.bulkOperationTodayTasksHandler)
 			authorized.POST("/tasks/:id/complete", app.markTodayTaskCompletedHandler)
 			authorized.POST("/tasks/:id/postpone", app.postponeTodayTaskHandler)
+			authorized.POST("/tasks/validate-parent", app.validateParentHandler)
 			
 			// Statistics routes
 			authorized.GET("/statistics/today-stats", func(c *gin.Context) {
@@ -1775,6 +1776,26 @@ func (app *Application) createTaskHandler(c *gin.Context) {
 		}
 	}
 
+	// Check for duplicate task title in the same project
+	var existingTaskID int
+	checkQuery := `SELECT id FROM tasks WHERE title = $1 AND project_id = $2 AND deleted_at IS NULL LIMIT 1`
+	db := app.db.GetDB().(*sql.DB)
+	err = db.QueryRowContext(c.Request.Context(), checkQuery, req.Title, projectID).Scan(&existingTaskID)
+	
+	if err != sql.ErrNoRows {
+		if err != nil {
+			app.logger.Printf("Error checking task title duplication: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "检查任务标题重复性失败", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+		// If we found a duplicate task, return error
+		response := models.NewErrorResponse(models.ErrCodeConflict, 
+			fmt.Sprintf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用。", req.Title, existingTaskID), nil)
+		c.JSON(http.StatusConflict, response)
+		return
+	}
+
 	// Create task model
 	task := &models.Task{
 		ProjectID:    projectID,
@@ -1878,6 +1899,12 @@ func (app *Application) bulkImportTasksHandler(c *gin.Context) {
 	createdTasks, err := app.db.Tasks().BulkCreate(c.Request.Context(), tasks)
 	if err != nil {
 		app.logger.Printf("Error bulk creating tasks: %v", err)
+		// Check if it's a duplicate title error
+		if strings.Contains(err.Error(), "已存在") {
+			response := models.NewErrorResponse(models.ErrCodeConflict, err.Error(), nil)
+			c.JSON(http.StatusConflict, response)
+			return
+		}
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create tasks", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
@@ -3660,6 +3687,43 @@ func (app *Application) validateNoCircularReference(ctx context.Context, parentI
 	}
 	
 	return nil
+}
+
+// validateParentHandler validates parent task selection for circular dependency
+func (app *Application) validateParentHandler(c *gin.Context) {
+	var req struct {
+		TaskID   int `json:"taskId" binding:"required"`
+		ParentID int `json:"parentId" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", map[string]interface{}{
+			"error": err.Error(),
+		})
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Check for circular dependency using existing validation function
+	err := app.validateNoCircularReference(ctx, req.ParentID, req.TaskID)
+	
+	if err != nil {
+		// Circular dependency detected
+		response := models.NewSuccessResponse(map[string]interface{}{
+			"hasCircularDependency": true,
+			"error": err.Error(),
+		}, "Parent validation completed")
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// No circular dependency
+	response := models.NewSuccessResponse(map[string]interface{}{
+		"hasCircularDependency": false,
+	}, "Parent validation completed")
+	c.JSON(http.StatusOK, response)
 }
 
 // AI Configuration handlers

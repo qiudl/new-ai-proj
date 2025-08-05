@@ -12,6 +12,7 @@ import {
   Tag,
   Tooltip,
   Spin,
+  Grid,
 } from 'antd';
 import { EditOutlined, FolderOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
@@ -54,6 +55,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const [parentSelectorVisible, setParentSelectorVisible] = useState(false);
   const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(null);
   const [loadingParentTask, setLoadingParentTask] = useState(false);
+
+  // 响应式检测
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md; // md以下认为是移动端 (< 768px)
 
   // Load parent task information when we have parent_id but no parent_title
   const loadParentTaskInfo = async (parentId: number) => {
@@ -329,7 +334,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
       open={visible}
       footer={renderFooter()}
       onCancel={handleCancel}
-      width={600}
+      width={isMobile ? '95vw' : 600}
+      style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
+      styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
       destroyOnHidden
     >
       <Form

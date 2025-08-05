@@ -95,7 +95,7 @@ export class PerformanceMonitor {
     const endTime = performance.now();
     const duration = endTime - startTime;
     
-    }ms`);
+    console.log(`Performance measure "${name}": ${duration}ms`);
     return duration;
   }
   

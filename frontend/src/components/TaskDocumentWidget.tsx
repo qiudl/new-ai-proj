@@ -24,8 +24,7 @@ import { useTaskDocuments } from '../hooks/useTaskDocuments';
 import { 
   useOptimizedMemo, 
   useOptimizedCallback,
-  useMemoryMonitor,
-  memoWithPerformance 
+  useMemoryMonitor
 } from '../utils/performanceOptimization';
 
 const { Text } = Typography;
@@ -314,17 +313,13 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   );
 };
 
-// Export with performance monitoring memo
-export default memoWithPerformance(
-  TaskDocumentWidget,
-  (prevProps, nextProps) => {
-    // Custom memo comparison - only re-render if essential props change
-    return (
-      prevProps.projectId === nextProps.projectId &&
-      prevProps.taskId === nextProps.taskId &&
-      prevProps.compact === nextProps.compact &&
-      prevProps.showTitle === nextProps.showTitle
-    );
-  },
-  'TaskDocumentWidget'
-);
+// Export with React memo
+export default React.memo(TaskDocumentWidget, (prevProps, nextProps) => {
+  // Custom memo comparison - only re-render if essential props change
+  return (
+    prevProps.projectId === nextProps.projectId &&
+    prevProps.taskId === nextProps.taskId &&
+    prevProps.compact === nextProps.compact &&
+    prevProps.showTitle === nextProps.showTitle
+  );
+});

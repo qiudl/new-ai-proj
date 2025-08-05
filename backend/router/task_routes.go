@@ -182,6 +182,24 @@ func (tr *TaskRoutes) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 检查任务标题是否在同一项目中重复
+	var existingTaskID int
+	err := tr.db.QueryRow(`
+		SELECT id FROM tasks 
+		WHERE title = ? AND project_id = ? AND deleted_at IS NULL
+		LIMIT 1
+	`, task.Title, task.ProjectID).Scan(&existingTaskID)
+	
+	if err != sql.ErrNoRows {
+		if err != nil {
+			http.Error(w, fmt.Sprintf("检查任务标题重复性失败: %v", err), http.StatusInternalServerError)
+			return
+		}
+		// 如果找到了重复的任务，返回错误
+		http.Error(w, fmt.Sprintf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用。", task.Title, existingTaskID), http.StatusConflict)
+		return
+	}
+
 	// 序列化自定义字段
 	var customFieldsJSON []byte
 	var err error
@@ -390,6 +408,24 @@ func (tr *TaskRoutes) createSubTask(w http.ResponseWriter, r *http.Request) {
 
 	// 子任务继承父任务的项目ID
 	task.ProjectID = parentProjectID
+
+	// 检查任务标题是否在同一项目中重复
+	var existingTaskID int
+	err = tr.db.QueryRow(`
+		SELECT id FROM tasks 
+		WHERE title = ? AND project_id = ? AND deleted_at IS NULL
+		LIMIT 1
+	`, task.Title, task.ProjectID).Scan(&existingTaskID)
+	
+	if err != sql.ErrNoRows {
+		if err != nil {
+			http.Error(w, fmt.Sprintf("检查任务标题重复性失败: %v", err), http.StatusInternalServerError)
+			return
+		}
+		// 如果找到了重复的任务，返回错误
+		http.Error(w, fmt.Sprintf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用。", task.Title, existingTaskID), http.StatusConflict)
+		return
+	}
 
 	// 序列化自定义字段
 	var customFieldsJSON []byte

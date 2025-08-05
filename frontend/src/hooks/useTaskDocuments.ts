@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { message } from 'antd';
 import { taskDocumentService } from '../services/taskDocumentService';
 import { 
   performanceMonitor,
@@ -12,7 +13,7 @@ import {
   ProgressFeedback,
   SuccessFeedback,
   safeAsyncOperation
-} from '../utils/errorHandling';
+} from '../utils/errorTypes';
 
 interface UploadedDocumentInfo {
   id?: number;
@@ -84,7 +85,7 @@ export const useTaskDocuments = ({
   const [error, setError] = useState<string | null>(null);
   
   // Performance monitoring
-  const { getComponentAge } = useMemoryMonitor('useTaskDocuments');
+  useMemoryMonitor('useTaskDocuments');
   const lastLoadTime = useRef<number>(0);
   const uploadQueue = useRef<File[]>([]);
 
@@ -101,12 +102,11 @@ export const useTaskDocuments = ({
     setError(null);
     
     try {
-      performanceMonitor.startMeasure('load_documents', { projectId, taskId });
+      const stopTimer = performanceMonitor.startTimer('load_documents');
       const response: DocumentListResponse = await taskDocumentService.getTaskDocuments(projectId, taskId);
       setDocuments(response.documents);
-      performanceMonitor.endMeasure('load_documents');
+      stopTimer();
     } catch (err) {
-      performanceMonitor.endMeasure('load_documents');
       const errorMessage = err instanceof Error ? err.message : 'Failed to load documents';
       setError(errorMessage);
       NetworkErrorHandler.handleError(err, 'Failed to load documents', {
@@ -134,11 +134,7 @@ export const useTaskDocuments = ({
     setError(null);
 
     try {
-      performanceMonitor.startMeasure('upload_document', { 
-        fileName: file.name, 
-        fileSize: file.size,
-        fileType: file.type
-      });
+      const stopTimer = performanceMonitor.startTimer('upload_document');
       
       // Enhanced progress tracking with smoother updates
       const smoothProgress = (progress: number, loaded: number, total: number) => {
@@ -155,7 +151,7 @@ export const useTaskDocuments = ({
         smoothProgress
       );
 
-      performanceMonitor.endMeasure('upload_document');
+      stopTimer();
       
       // Optimized refresh - only if successful
       await loadDocuments();
@@ -165,14 +161,13 @@ export const useTaskDocuments = ({
           showStats: true,
           context: {
             fileSize: file.size,
-            duration: Date.now() - (context?.startTime || Date.now())
+            duration: Date.now()
           }
         }
       );
       
       return result;
     } catch (err) {
-      performanceMonitor.endMeasure('upload_document');
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMessage);
       NetworkErrorHandler.handleError(err, 'Upload failed', {
@@ -204,10 +199,7 @@ export const useTaskDocuments = ({
     setUploadProgress(initialProgress);
 
     try {
-      performanceMonitor.startMeasure('upload_multiple_documents', { 
-        fileCount: files.length,
-        totalSize: files.reduce((sum, file) => sum + file.size, 0)
-      });
+      const stopTimer = performanceMonitor.startTimer('upload_multiple_documents');
       
       const results = await taskDocumentService.uploadMultipleDocuments(
         projectId,
@@ -231,7 +223,7 @@ export const useTaskDocuments = ({
         }
       );
 
-      performanceMonitor.endMeasure('upload_multiple_documents');
+      stopTimer();
       
       // Optimized refresh
       await loadDocuments();
@@ -245,14 +237,13 @@ export const useTaskDocuments = ({
           context: {
             fileCount: results.length,
             totalSize,
-            duration: Date.now() - (context?.startTime || Date.now())
+            duration: Date.now()
           }
         }
       );
       
       return results;
     } catch (err) {
-      performanceMonitor.endMeasure('upload_multiple_documents');
       const errorMessage = err instanceof Error ? err.message : 'Batch upload failed';
       setError(errorMessage);
       NetworkErrorHandler.handleError(err, 'Batch upload failed', {
@@ -277,11 +268,7 @@ export const useTaskDocuments = ({
     setError(null);
 
     try {
-      performanceMonitor.startMeasure('upload_document_api', { 
-        fileName,
-        contentSize: content.length,
-        mimeType
-      });
+      const stopTimer = performanceMonitor.startTimer('upload_document_api');
       
       const result = await taskDocumentService.uploadDocumentAPI(
         projectId,
@@ -292,7 +279,7 @@ export const useTaskDocuments = ({
         description
       );
 
-      performanceMonitor.endMeasure('upload_document_api');
+      stopTimer();
       
       // Smart refresh only if needed
       await loadDocuments();
@@ -302,14 +289,13 @@ export const useTaskDocuments = ({
           showStats: true,
           context: {
             contentSize: content.length,
-            duration: Date.now() - (context?.startTime || Date.now())
+            duration: Date.now()
           }
         }
       );
       
       return result;
     } catch (err) {
-      performanceMonitor.endMeasure('upload_document_api');
       const errorMessage = err instanceof Error ? err.message : 'API upload failed';
       setError(errorMessage);
       NetworkErrorHandler.handleError(err, 'API upload failed', {
@@ -325,13 +311,13 @@ export const useTaskDocuments = ({
   // Optimized markdown download with progress tracking
   const downloadMarkdown = useOptimizedCallback(async () => {
     try {
-      performanceMonitor.startMeasure('download_markdown', { projectId, taskId });
+      const stopTimer = performanceMonitor.startTimer('download_markdown');
       
       const blob = await taskDocumentService.downloadTaskMarkdown(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.md`;
       taskDocumentService.triggerDownload(blob, fileName);
       
-      performanceMonitor.endMeasure('download_markdown');
+      stopTimer();
       SuccessFeedback.show(
         `Markdown 文件下载成功`,
         {
@@ -342,7 +328,6 @@ export const useTaskDocuments = ({
         }
       );
     } catch (err) {
-      performanceMonitor.endMeasure('download_markdown');
       const errorMessage = err instanceof Error ? err.message : 'Download failed';
       NetworkErrorHandler.handleError(err, 'Markdown download failed', {
         componentName: 'useTaskDocuments',
@@ -355,13 +340,13 @@ export const useTaskDocuments = ({
   // Optimized PDF download with progress tracking
   const downloadPDF = useOptimizedCallback(async () => {
     try {
-      performanceMonitor.startMeasure('download_pdf', { projectId, taskId });
+      const stopTimer = performanceMonitor.startTimer('download_pdf');
       
       const blob = await taskDocumentService.downloadTaskPDF(projectId, taskId);
       const fileName = `task-${taskId}-${new Date().toISOString().split('T')[0]}.pdf`;
       taskDocumentService.triggerDownload(blob, fileName);
       
-      performanceMonitor.endMeasure('download_pdf');
+      stopTimer();
       SuccessFeedback.show(
         `PDF 文件下载成功`,
         {
@@ -372,7 +357,6 @@ export const useTaskDocuments = ({
         }
       );
     } catch (err) {
-      performanceMonitor.endMeasure('download_pdf');
       const errorMessage = err instanceof Error ? err.message : 'Download failed';
       NetworkErrorHandler.handleError(err, 'PDF download failed', {
         componentName: 'useTaskDocuments',

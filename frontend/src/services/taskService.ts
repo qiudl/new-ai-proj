@@ -1,5 +1,5 @@
 import api from './api';
-import { ValidationHelper } from '../utils/errorHandling';
+import { ValidationHelper } from '../utils/errorTypes';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
 import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
 import {
@@ -114,11 +114,23 @@ export class TaskService {
       );
       
       if (!response.success) {
-        const error = new Error(response.error?.message || 'Failed to create task');
+        let errorMessage = response.error?.message || 'Failed to create task';
+        
+        // Check for duplicate title error and provide user-friendly message
+        if (response.error?.code === 'CONFLICT' || errorMessage.includes('已存在') || errorMessage.includes('重复')) {
+          // Extract task ID from backend error message if available
+          const taskIdMatch = errorMessage.match(/任务ID:\s*(\d+)/);
+          const existingTaskId = taskIdMatch ? taskIdMatch[1] : '';
+          
+          errorMessage = `任务创建失败：标题 "${task.title}" 已存在于当前项目中${existingTaskId ? `（已存在任务ID: ${existingTaskId}）` : ''}。\n\n建议解决方案：\n1. 修改任务标题，使其更具体或添加编号\n2. 检查已存在的任务是否可以复用\n3. 如需要，可以将其作为已存在任务的子任务`;
+        }
+        
+        const error = new Error(errorMessage);
         logApiError('Task creation failed', error, { 
           projectId, 
           taskTitle: task.title,
-          endpoint: `/projects/${projectId}/tasks`
+          endpoint: `/projects/${projectId}/tasks`,
+          isDuplicate: errorMessage.includes('已存在')
         });
         throw error;
       }

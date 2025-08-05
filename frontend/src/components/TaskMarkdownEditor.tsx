@@ -14,6 +14,7 @@ interface TaskMarkdownEditorProps {
   placeholder?: string;
   disabled?: boolean;
   rows?: number;
+  style?: React.CSSProperties;
 }
 
 const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
@@ -22,6 +23,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
   placeholder = '请输入任务描述（支持Markdown格式）',
   disabled = false,
   rows = 4,
+  style = {},
 }) => {
   const [mode, setMode] = useState<'edit' | 'preview'>('preview');
 
@@ -119,17 +121,28 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             fontFamily: 'Monaco, Consolas, "Courier New", monospace',
             fontSize: '14px',
             lineHeight: '1.6',
+            // 当外层有flex: 1时，让TextArea也占满空间
+            ...(style?.flex === 1 ? {
+              height: '100%',
+              minHeight: '400px',
+              resize: 'none'
+            } : {})
           }}
         />
       ) : (
         <div
           style={{
-            minHeight: `${rows * 22}px`,
+            minHeight: style?.flex === 1 ? '400px' : `${rows * 22}px`,
             border: '1px solid #d9d9d9',
             borderRadius: '6px',
             padding: '8px 12px',
             backgroundColor: '#fafafa',
             overflow: 'auto',
+            // 全屏时让预览区域也占满空间
+            ...(style?.flex === 1 ? {
+              height: '100%',
+              flex: 1
+            } : {})
           }}
         >
           {value ? (
@@ -252,7 +265,11 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
     </div>
   );
 
-  return renderEditor();
+  return (
+    <div style={style}>
+      {renderEditor()}
+    </div>
+  );
 };
 
 export default TaskMarkdownEditor;

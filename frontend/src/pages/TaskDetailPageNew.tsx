@@ -47,7 +47,9 @@ import {
   EyeOutlined,
   DownloadOutlined,
   InboxOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  DownOutlined,
+  UpOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -130,6 +132,10 @@ const TaskDetailPageNew: React.FC = () => {
     todoSubtasks: 0,
     completionRate: 0
   });
+  
+  // 任务列表展开状态
+  const [expandedSubtasks, setExpandedSubtasks] = useState(false);
+  const [expandedSiblings, setExpandedSiblings] = useState(false);
   
   // 其他数据
   const [taskUpdates, setTaskUpdates] = useState<TaskUpdate[]>([]);
@@ -356,6 +362,7 @@ const TaskDetailPageNew: React.FC = () => {
     setRelatedTasksPage(page);
     loadRelatedTasks(page);
   }, [loadRelatedTasks]);
+
 
   useEffect(() => {
     if (projectId && taskId) {
@@ -743,7 +750,8 @@ const TaskDetailPageNew: React.FC = () => {
         ]}
       />
 
-      <Row gutter={[24, 24]}>
+
+      <Row gutter={[24, 24]} style={{ position: 'relative' }}>
         {/* 左侧主要内容 */}
         <Col xs={24} sm={24} md={24} lg={16} xl={16}>
           {/* 任务核心信息卡片 */}
@@ -997,16 +1005,22 @@ const TaskDetailPageNew: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <div style={{ minHeight: '500px' }}>
+                    <div style={{ minHeight: '400px' }}>
                       <TaskDocumentEditor
                         taskId={task.id}
                         projectId={parseInt(projectId || '0')}
+                        className="task-document-editor-responsive"
                         onSave={(content) => {
                           // 文档保存成功后更新状态
                           setDocumentExists(true);
                           // 不在这里显示成功消息，让TaskDocumentEditor自己处理
                         }}
-                        style={{ height: '500px' }}
+                        style={{ 
+                          minHeight: '400px',
+                          height: 'auto',
+                          maxHeight: '80vh',
+                          overflow: 'auto'
+                        }}
                       />
                     </div>
                   )
@@ -1038,8 +1052,8 @@ const TaskDetailPageNew: React.FC = () => {
 
         </Col>
 
-        {/* 右侧信息面板 */}
-        <Col xs={24} sm={24} md={24} lg={8} xl={8}>
+        {/* 右侧信息卡片 */}
+        <Col xs={24} sm={24} md={24} lg={8} xl={8} className="info-sidebar">
           {/* 任务计时器 */}
           <MVPTaskDetailTimer
             taskId={task.id}
@@ -1264,7 +1278,7 @@ const TaskDetailPageNew: React.FC = () => {
                     )}
                   </div>
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    {subtasks.slice(0, 3).map((subtask) => (
+                    {(expandedSubtasks ? subtasks : subtasks.slice(0, 3)).map((subtask) => (
                       <Button 
                         key={subtask.id}
                         type="link" 
@@ -1289,9 +1303,32 @@ const TaskDetailPageNew: React.FC = () => {
                       </Button>
                     ))}
                     {subtasks.length > 3 && (
-                      <Text type="secondary" style={{ fontSize: '12px', paddingLeft: '8px' }}>
-                        还有 {subtasks.length - 3} 个子任务...
-                      </Text>
+                      <Button 
+                        type="link" 
+                        size="small"
+                        onClick={() => setExpandedSubtasks(!expandedSubtasks)}
+                        style={{ 
+                          padding: '0 8px', 
+                          fontSize: '12px', 
+                          height: 'auto',
+                          color: '#8c8c8c',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {expandedSubtasks ? (
+                          <>
+                            收起
+                            <UpOutlined style={{ fontSize: '10px' }} />
+                          </>
+                        ) : (
+                          <>
+                            还有 {subtasks.length - 3} 个子任务...
+                            <DownOutlined style={{ fontSize: '10px' }} />
+                          </>
+                        )}
+                      </Button>
                     )}
                   </Space>
                 </div>
@@ -1312,7 +1349,7 @@ const TaskDetailPageNew: React.FC = () => {
                     </Text>
                   </div>
                   <Space direction="vertical" style={{ width: '100%' }}>
-                    {siblingTasks.slice(0, 3).map((sibling) => (
+                    {(expandedSiblings ? siblingTasks : siblingTasks.slice(0, 3)).map((sibling) => (
                       <Button 
                         key={sibling.id}
                         type="link" 
@@ -1337,9 +1374,32 @@ const TaskDetailPageNew: React.FC = () => {
                       </Button>
                     ))}
                     {siblingTasks.length > 3 && (
-                      <Text type="secondary" style={{ fontSize: '12px', paddingLeft: '8px' }}>
-                        还有 {siblingTasks.length - 3} 个同级任务...
-                      </Text>
+                      <Button 
+                        type="link" 
+                        size="small"
+                        onClick={() => setExpandedSiblings(!expandedSiblings)}
+                        style={{ 
+                          padding: '0 8px', 
+                          fontSize: '12px', 
+                          height: 'auto',
+                          color: '#8c8c8c',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {expandedSiblings ? (
+                          <>
+                            收起
+                            <UpOutlined style={{ fontSize: '10px' }} />
+                          </>
+                        ) : (
+                          <>
+                            还有 {siblingTasks.length - 3} 个同级任务...
+                            <DownOutlined style={{ fontSize: '10px' }} />
+                          </>
+                        )}
+                      </Button>
                     )}
                   </Space>
                 </div>

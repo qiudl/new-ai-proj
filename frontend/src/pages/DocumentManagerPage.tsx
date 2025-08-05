@@ -16,8 +16,10 @@ import {
   FileOutlined, 
   CloudUploadOutlined,
   HistoryOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  FileMarkdownOutlined
 } from '@ant-design/icons';
+import WorkNotesManager from '../components/WorkNotesManager';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentList from '../components/DocumentList';
 import DocumentViewer from '../components/DocumentViewer';
@@ -62,14 +64,34 @@ export interface DocumentDetail {
 }
 
 export interface DocumentManagerPageProps {
-  projectId: number;
-  taskId: number;
+  projectId?: number;
+  taskId?: number;
 }
 
 const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
   projectId,
   taskId
 }) => {
+  // 如果没有提供projectId和taskId，则显示工作笔记管理
+  if (!projectId || !taskId) {
+    return (
+      <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+        <Content style={{ margin: '24px', background: '#fff', padding: '24px', borderRadius: '8px' }}>
+          <div style={{ marginBottom: '24px' }}>
+            <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
+              <FileMarkdownOutlined style={{ marginRight: '8px' }} />
+              工作笔记管理
+            </Title>
+            <div style={{ color: '#666', marginTop: '8px' }}>
+              管理和编辑您的工作笔记文档
+            </div>
+          </div>
+          <WorkNotesManager />
+        </Content>
+      </Layout>
+    );
+  }
+
   const [activeTab, setActiveTab] = useState('list');
   const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
   const [viewerVisible, setViewerVisible] = useState(false);

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorHandling';
+import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorTypes';
 
 // API Base Configuration  
 const API_BASE_URL = '/api/v1';

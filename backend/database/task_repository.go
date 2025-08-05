@@ -24,6 +24,21 @@ func (r *PostgresTaskRepository) getExecer() execer {
 
 // Create creates a new task
 func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) (*models.Task, error) {
+	exec := r.getExecer()
+
+	// Check for duplicate task title in the same project
+	var existingTaskID int
+	checkQuery := `SELECT id FROM tasks WHERE title = $1 AND project_id = $2 AND deleted_at IS NULL LIMIT 1`
+	err := exec.QueryRowContext(ctx, checkQuery, task.Title, task.ProjectID).Scan(&existingTaskID)
+	
+	if err != sql.ErrNoRows {
+		if err != nil {
+			return nil, fmt.Errorf("failed to check task title duplication: %w", err)
+		}
+		// If we found a duplicate task, return error
+		return nil, fmt.Errorf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用", task.Title, existingTaskID)
+	}
+
 	customFieldsJSON, err := json.Marshal(task.CustomFields)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal custom fields: %w", err)
@@ -34,7 +49,6 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, task_level`
 
-	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		task.ProjectID, task.Title, task.Description, task.Status,
 		task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder)
@@ -416,12 +430,27 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 		return tasks, nil
 	}
 
+	exec := r.getExecer()
+
+	// Check for duplicate titles before creating any task
+	for i, task := range tasks {
+		var existingTaskID int
+		checkQuery := `SELECT id FROM tasks WHERE title = $1 AND project_id = $2 AND deleted_at IS NULL LIMIT 1`
+		err := exec.QueryRowContext(ctx, checkQuery, task.Title, task.ProjectID).Scan(&existingTaskID)
+		
+		if err != sql.ErrNoRows {
+			if err != nil {
+				return nil, fmt.Errorf("failed to check task title duplication for task %d: %w", i, err)
+			}
+			// If we found a duplicate task, return error
+			return nil, fmt.Errorf("任务标题重复：'%s' 已存在于当前项目中（任务ID: %d）。请修改任务标题后重试，或者查看已存在的任务是否可以复用", task.Title, existingTaskID)
+		}
+	}
+
 	query := `
 		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at`
-
-	exec := r.getExecer()
 
 	for i, task := range tasks {
 		customFieldsJSON, err := json.Marshal(task.CustomFields)

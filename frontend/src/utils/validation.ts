@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppError, ErrorType } from './errorHandling';
+import { AppError, ErrorType } from './errorTypes';
 
 // 数据验证装饰器
 export function validate<T extends any[]>(
@@ -104,13 +104,13 @@ export const Validators = {
 // 数据清理和标准化
 export class DataSanitizer {
   // 清理字符串
-  static sanitizeString(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string {
+  static sanitizeString(value: any): string {
     if (typeof value !== 'string') return '';
     return value.trim().replace(/\s+/g, ' ');
   }
 
   // 确保数字
-  static ensureNumber(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, defaultValue = 0): number {
+  static ensureNumber(value: any, defaultValue = 0): number {
     const num = Number(value);
     return isNaN(num) ? defaultValue : num;
   }
@@ -177,13 +177,13 @@ export class DataSanitizer {
 // 表单验证Hook
 export function useFormValidation<T extends Record<string, any>>(
   initialValues: T,
-  validationRules: Record<keyof T, Array<(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => void>>
+  validationRules: Record<keyof T, Array<(value: any) => void>>
 ) {
   const [values, setValues] = React.useState<T>(initialValues);
   const [errors, setErrors] = React.useState<Partial<Record<keyof T, string>>>({});
   const [touched, setTouched] = React.useState<Partial<Record<keyof T, boolean>>>({});
 
-  const validateField = (fieldName: keyof T, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string | null => {
+  const validateField = (fieldName: keyof T, value: any): string | null => {
     const rules = validationRules[fieldName];
     if (!rules) return null;
 
@@ -200,7 +200,7 @@ export function useFormValidation<T extends Record<string, any>>(
     }
   };
 
-  const setValue = (fieldName: keyof T, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const setValue = (fieldName: keyof T, value: any) => {
     setValues(prev => ({ ...prev, [fieldName]: value }));
     
     // 如果字段已被触摸过，立即验证

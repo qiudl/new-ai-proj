@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Modal, Form, Input, message, Space, Button, Typography, Alert } from 'antd';
+import { Modal, Form, Input, message, Space, Button, Typography, Alert, Grid } from 'antd';
 import { InboxOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { archiveTask, archiveTasks } from '../services/archiveService';
 
@@ -28,6 +28,10 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  // 响应式检测
+  const screens = Grid.useBreakpoint();
+  const isMobile = !screens.md; // md以下认为是移动端 (< 768px)
 
   const handleArchive = async (values: { reason?: string }) => {
     try {
@@ -67,7 +71,9 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
       open={visible}
       onCancel={handleCancel}
       footer={null}
-      width={600}
+      width={isMobile ? '95vw' : 600}
+      style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
+      styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
       destroyOnHidden
     >
       <div style={{ marginBottom: '16px' }}>

@@ -86,9 +86,25 @@ export class TaskMCPServer {
         }
         catch (error) {
             console.error(`[ERROR] 创建任务失败:`, error.response?.data || error.message);
+            
+            // 更好的错误处理：提取用户友好的错误信息
+            let userFriendlyError = error.message;
+            if (error.response?.data) {
+                const responseData = error.response.data;
+                if (responseData.error?.message) {
+                    // 后端返回的结构化错误信息
+                    userFriendlyError = responseData.error.message;
+                } else if (responseData.message) {
+                    // 简单的错误信息
+                    userFriendlyError = responseData.message;
+                } else if (typeof responseData === 'string') {
+                    userFriendlyError = responseData;
+                }
+            }
+            
             return {
                 success: false,
-                error: `创建任务失败: ${error.response?.data?.error || error.message}`
+                error: userFriendlyError
             };
         }
     }
@@ -248,24 +264,53 @@ export class TaskMCPServer {
             };
         }
     }
-    // 创建子任务
-    async createSubTask(parentId, title) {
+    // 创建子任务 - 支持详细参数
+    async createSubTask(parentId, taskData) {
         try {
+            // 如果taskData是字符串，表示只传入了title（保持向后兼容）
+            if (typeof taskData === 'string') {
+                taskData = { title: taskData };
+            }
+            
+            const { 
+                title, 
+                description, 
+                priority = 'medium', 
+                estimated_hours = null,
+                status = 'todo',
+                tags = []
+            } = taskData;
+            
             console.error(`[DEBUG] 创建子任务: ${title}, 父任务ID: ${parentId}`);
             const parentTask = await this.findTaskById(parentId);
-            const response = await axios.post(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, {
+            
+            // 构建任务数据
+            const taskPayload = {
                 title,
                 project_id: parentTask.project_id,
                 parent_id: parentId,
-                status: 'todo', // 默认状态改为'todo'（待开始）
-                description: `通过Claude Code创建的子任务：${title}`,
+                status: status,
+                description: description || `通过Claude Code创建的子任务：${title}`,
                 custom_fields: {
-                    priority: 'low' // 设置默认优先级为'低'
+                    priority: priority
                 }
-            }, {
+            };
+            
+            // 添加预估工时
+            if (estimated_hours) {
+                taskPayload.custom_fields.estimated_hours = estimated_hours;
+            }
+            
+            // 添加标签
+            if (tags && tags.length > 0) {
+                taskPayload.custom_fields.tags = tags;
+            }
+            
+            const response = await axios.post(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, taskPayload, {
                 headers: this.getHeaders(),
                 proxy: false
             });
+            
             const subtask = response.data.data;
             return {
                 success: true,
@@ -273,8 +318,9 @@ export class TaskMCPServer {
                 title: subtask.title,
                 parent_id: parentId,
                 status: subtask.status,
-                priority: subtask.custom_fields?.priority || 'low',
-                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || 'low'}]`
+                priority: subtask.custom_fields?.priority || priority,
+                estimated_hours: subtask.custom_fields?.estimated_hours || estimated_hours,
+                message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || priority}${estimated_hours ? `, 预估: ${estimated_hours}小时` : ''}]`
             };
         }
         catch (error) {
@@ -282,6 +328,51 @@ export class TaskMCPServer {
             return {
                 success: false,
                 error: `创建子任务失败: ${error.message}`
+            };
+        }
+    }
+    
+    // 创建兄弟任务 - 与指定任务同级的任务
+    async createSiblingTask(siblingId, title, description, status = 'todo', priority = 'medium') {
+        try {
+            console.error(`[DEBUG] 创建兄弟任务: ${title}, 兄弟任务ID: ${siblingId}`);
+            const siblingTask = await this.findTaskById(siblingId);
+            
+            // 构建任务数据 - 兄弟任务具有相同的parent_id和project_id
+            const taskPayload = {
+                title,
+                project_id: siblingTask.project_id,
+                parent_id: siblingTask.parent_id, // 关键：使用兄弟任务的parent_id
+                status: status,
+                description: description || `通过Claude Code创建的兄弟任务：${title}`,
+                custom_fields: {
+                    priority: priority
+                }
+            };
+            
+            const response = await axios.post(`${this.apiBase}/projects/${siblingTask.project_id}/tasks`, taskPayload, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            
+            const newSibling = response.data.data;
+            return {
+                success: true,
+                id: newSibling.id,
+                title: newSibling.title,
+                parent_id: newSibling.parent_id,
+                sibling_id: siblingId,
+                status: newSibling.status,
+                priority: newSibling.custom_fields?.priority || priority,
+                estimated_hours: newSibling.custom_fields?.estimated_hours || null,
+                message: `✅ 兄弟任务已创建 (ID: ${newSibling.id}) - "${newSibling.title}" [同级于任务 ${siblingId}, 状态: ${newSibling.status}, 优先级: ${newSibling.custom_fields?.priority || priority}]`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 创建兄弟任务失败:`, error.message);
+            return {
+                success: false,
+                error: `创建兄弟任务失败: ${error.message}`
             };
         }
     }
