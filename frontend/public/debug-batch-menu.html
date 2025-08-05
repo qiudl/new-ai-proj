@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量操作菜单调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .alert {
+            padding: 16px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+        .alert-info { background: #f0f9ff; border: 1px solid #91d5ff; color: #1890ff; }
+        .alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #52c41a; }
+        .alert-error { background: #fff2f0; border: 1px solid #ffccc7; color: #ff4d4f; }
+        .alert-warning { background: #fff7e6; border: 1px solid #ffd591; color: #fa8c16; }
+        .code {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 4px;
+        }
+        .result {
+            margin: 16px 0;
+            padding: 12px;
+            background: #f6f8fa;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 批量操作菜单调试工具</h1>
+        <p>专门用于调试批量操作下拉菜单中"更改父任务"选项缺失问题</p>
+
+        <div class="alert alert-info">
+            <h4>🎯 问题描述</h4>
+            <p>用户反馈：只看到批量删除按钮，没看到批量操作按钮</p>
+            <p><strong>预期行为</strong>：应该显示带下拉菜单的"批量操作"按钮，包含"更改父任务"和"批量删除"两个选项</p>
+        </div>
+
+        <!-- 快速访问 -->
+        <div class="alert alert-info">
+            <h4>🔗 快速访问</h4>
+            <button class="btn" onclick="window.open('http://localhost/projects/1', '_blank')">
+                打开项目任务列表
+            </button>
+            <button class="btn" onclick="runMenuDebug()">
+                开始菜单调试
+            </button>
+        </div>
+
+        <!-- 调试步骤 -->
+        <div class="alert alert-warning">
+            <h4>📋 调试步骤</h4>
+            <ol>
+                <li>首先在新标签页打开项目任务列表</li>
+                <li>选择一个或多个任务（勾选复选框）</li>
+                <li>返回这个页面，点击"开始菜单调试"</li>
+                <li>查看调试结果，找出问题原因</li>
+            </ol>
+        </div>
+
+        <!-- 调试结果 -->
+        <div id="debugResults" style="display: none;">
+            <h3>🔧 调试结果</h3>
+            <div id="resultsContent"></div>
+        </div>
+
+        <!-- 修复建议 -->
+        <div id="fixSuggestions" style="display: none;">
+            <h3>🛠️ 修复建议</h3>
+            <div id="suggestionsContent"></div>
+        </div>
+
+        <!-- 手动检查代码 -->
+        <div class="alert alert-info">
+            <h4>🧪 手动检查代码</h4>
+            <p>请在项目任务列表页面的Console中运行以下代码：</p>
+            <pre id="debugCode">
+// 1. 检查是否有任务被选中
+const selectedCheckboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+console.log('选中的任务数量:', selectedCheckboxes.length);
+
+// 2. 查找批量操作相关元素
+const batchButton = Array.from(document.querySelectorAll('button')).find(btn => 
+    btn.textContent.includes('批量操作')
+);
+console.log('批量操作按钮:', batchButton);
+
+// 3. 检查下拉菜单
+const dropdownTrigger = document.querySelector('.ant-dropdown-trigger');
+console.log('下拉菜单触发器:', dropdownTrigger);
+
+// 4. 如果找到批量操作按钮，点击它查看菜单
+if (batchButton) {
+    console.log('找到批量操作按钮，尝试点击...');
+    batchButton.click();
+    
+    // 等待菜单出现
+    setTimeout(() => {
+        const menuItems = document.querySelectorAll('.ant-dropdown-menu-item');
+        console.log('菜单项数量:', menuItems.length);
+        console.log('菜单项内容:');
+        menuItems.forEach((item, index) => {
+            console.log(`  ${index + 1}. ${item.textContent}`);
+        });
+        
+        // 查找"更改父任务"选项
+        const changeParentItem = Array.from(menuItems).find(item => 
+            item.textContent.includes('更改父任务')
+        );
+        console.log('更改父任务选项:', changeParentItem ? '✅ 找到' : '❌ 未找到');
+        
+        // 再次点击关闭菜单
+        batchButton.click();
+    }, 500);
+} else {
+    console.log('❌ 未找到批量操作按钮');
+    
+    // 检查是否有其他批量操作相关按钮
+    const allButtons = Array.from(document.querySelectorAll('button'));
+    const batchRelatedButtons = allButtons.filter(btn => 
+        btn.textContent.includes('批量') || 
+        btn.textContent.includes('删除') ||
+        btn.textContent.includes('选择')
+    );
+    
+    console.log('批量相关按钮:');
+    batchRelatedButtons.forEach(btn => {
+        console.log(`  - "${btn.textContent}" (类名: ${btn.className})`);
+    });
+}
+
+// 5. 检查React组件props (需要React DevTools)
+if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+    console.log('React DevTools可用，可以检查组件props');
+} else {
+    console.log('React DevTools不可用');
+}
+            </pre>
+            <button class="btn" onclick="copyDebugCode()">复制调试代码</button>
+        </div>
+    </div>
+
+    <script>
+        function runMenuDebug() {
+            const resultsDiv = document.getElementById('debugResults');
+            const suggestionsDiv = document.getElementById('fixSuggestions');
+            const resultsContent = document.getElementById('resultsContent');
+            const suggestionsContent = document.getElementById('suggestionsContent');
+
+            let html = '<h4>菜单调试分析:</h4>';
+            
+            // 基于用户反馈分析问题
+            html += '<div class="alert alert-warning">';
+            html += '<h5>🔍 问题分析</h5>';
+            html += '<p><strong>用户反馈</strong>: "只看到批量删除按钮，没看到批量操作按钮"</p>';
+            html += '<p><strong>代码期望</strong>: 应该显示"批量操作"下拉按钮，包含两个选项：</p>';
+            html += '<ul>';
+            html += '<li>🔗 更改父任务 (changeParent)</li>';
+            html += '<li>🗑️ 批量删除 (delete)</li>';
+            html += '</ul>';
+            html += '</div>';
+
+            html += '<div class="alert alert-error">';
+            html += '<h5>❌ 可能的问题原因</h5>';
+            html += '<ul>';
+            html += '<li><strong>UI渲染问题</strong>: Dropdown组件没有正确渲染</li>';
+            html += '<li><strong>样式问题</strong>: 菜单被CSS隐藏或覆盖</li>';
+            html += '<li><strong>JavaScript错误</strong>: 组件渲染时出现错误</li>';
+            html += '<li><strong>版本不匹配</strong>: Ant Design版本问题</li>';
+            html += '<li><strong>导入问题</strong>: NodeIndexOutlined图标导入失败</li>';
+            html += '</ul>';
+            html += '</div>';
+
+            html += '<div class="alert alert-info">';
+            html += '<h5>🔧 调试建议</h5>';
+            html += '<ol>';
+            html += '<li>在项目页面按F12打开开发者工具</li>';
+            html += '<li>选择一些任务（勾选复选框）</li>';
+            html += '<li>在Console中运行上面的调试代码</li>';
+            html += '<li>查看Console输出，确认菜单结构</li>';
+            html += '<li>检查是否有JavaScript错误</li>';
+            html += '</ol>';
+            html += '</div>';
+
+            resultsContent.innerHTML = html;
+            resultsDiv.style.display = 'block';
+
+            // 修复建议
+            let suggestions = '<h4>修复建议:</h4>';
+            
+            suggestions += '<div class="alert alert-success">';
+            suggestions += '<h5>✅ 临时解决方案</h5>';
+            suggestions += '<p>如果菜单确实有问题，您可以使用MCP接口进行批量父任务更改：</p>';
+            suggestions += '<div class="code">';
+            suggestions += 'mcp task batch_update_parent --task_ids "123,124,125" --parent_id 100<br>';
+            suggestions += '# 或设为根任务<br>';
+            suggestions += 'mcp task batch_update_parent --task_ids "123,124,125" --parent_id null';
+            suggestions += '</div>';
+            suggestions += '</div>';
+
+            suggestions += '<div class="alert alert-info">';
+            suggestions += '<h5>🔧 前端修复</h5>';
+            suggestions += '<p>如果确认是前端问题，可能需要：</p>';
+            suggestions += '<ul>';
+            suggestions += '<li>检查Ant Design Dropdown组件配置</li>';
+            suggestions += '<li>验证menu.items数组结构</li>';
+            suggestions += '<li>确认onClick事件处理函数</li>';
+            suggestions += '<li>检查CSS样式冲突</li>';
+            suggestions += '</ul>';
+            suggestions += '</div>';
+
+            suggestions += '<div class="alert alert-warning">';
+            suggestions += '<h5>⚠️ 需要进一步信息</h5>';
+            suggestions += '<p>请运行调试代码后，告诉我：</p>';
+            suggestions += '<ul>';
+            suggestions += '<li>Console中显示的菜单项数量</li>';
+            suggestions += '<li>每个菜单项的具体内容</li>';
+            suggestions += '<li>是否有JavaScript错误</li>';
+            suggestions += '<li>批量操作按钮的具体表现</li>';
+            suggestions += '</ul>';
+            suggestions += '</div>';
+
+            suggestionsContent.innerHTML = suggestions;
+            suggestionsDiv.style.display = 'block';
+        }
+
+        function copyDebugCode() {
+            const code = document.getElementById('debugCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('调试代码已复制到剪贴板！\n请在项目任务列表页面的Console中粘贴运行。');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                alert('复制失败，请手动复制代码');
+            });
+        }
+
+        // 页面加载完成后显示初始指导
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('批量操作菜单调试工具已加载');
+        });
+    </script>
+</body>
+</html>

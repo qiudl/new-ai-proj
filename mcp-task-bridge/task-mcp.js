@@ -58,18 +58,28 @@ export class TaskMCPServer {
         }
     }
     // 创建任务
-    async createTask(title, projectId = 1) {
+    async createTask(title, projectId = 1, options = {}) {
         try {
-            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}`);
-            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, {
+            console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}${options.parent_id ? `, 父任务ID: ${options.parent_id}` : ''}`);
+            
+            // 构建任务数据，支持parent_id等选项
+            const taskData = {
                 title,
                 project_id: projectId,
-                status: 'todo', // 默认状态改为'todo'（待开始）
-                description: `通过Claude Code创建：${title}`,
+                status: options.status || 'todo', // 默认状态改为'todo'（待开始）
+                description: options.description || `通过Claude Code创建：${title}`,
                 custom_fields: {
-                    priority: 'low' // 设置默认优先级为'低'
+                    priority: options.priority || 'low', // 设置默认优先级为'低'
+                    ...options.custom_fields
                 }
-            }, {
+            };
+            
+            // 如果有parent_id，添加到请求中
+            if (options.parent_id) {
+                taskData.parent_id = options.parent_id;
+            }
+            
+            const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, taskData, {
                 headers: this.getHeaders(),
                 timeout: 10000,
                 proxy: false

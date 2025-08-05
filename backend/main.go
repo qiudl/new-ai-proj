@@ -3117,12 +3117,12 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 		excludeTaskID = &excludeID
 	}
 
-	// Parse max level (default to 2 to prevent 4th level tasks)
-	maxLevel := 2
+	// Parse max level (default to 3 to allow 4th level tasks)
+	maxLevel := 3
 	if maxLevelStr != "" {
 		maxLevel, err = strconv.Atoi(maxLevelStr)
-		if err != nil || maxLevel < 0 || maxLevel > 2 {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid max_level (must be 0-2)", nil)
+		if err != nil || maxLevel < 0 || maxLevel > 3 {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid max_level (must be 0-3)", nil)
 			c.JSON(http.StatusBadRequest, response)
 			return
 		}

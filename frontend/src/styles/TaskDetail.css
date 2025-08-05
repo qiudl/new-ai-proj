@@ -589,7 +589,6 @@
   
   .ant-modal-body {
     padding: 16px !important;
-    max-height: calc(100vh - 120px) !important;
     overflow-y: auto !important;
   }
   
@@ -700,7 +699,6 @@
   .task-detail-container .info-sidebar {
     position: sticky;
     top: 24px;
-    max-height: calc(100vh - 48px);
     overflow-y: auto;
   }
 }
@@ -713,14 +711,12 @@
 @media (max-width: 991px) {
   /* 文档编辑器容器 */
   .ant-tabs-tabpane [style*="minHeight"] {
-    min-height: 300px !important;
+    height: auto !important;
   }
   
   /* TaskDocumentEditor组件精确控制 */
   .task-document-editor-responsive {
     height: auto !important;
-    min-height: 300px !important;
-    max-height: 70vh !important;
     overflow: visible !important;
     position: static !important;
     z-index: auto !important;
@@ -732,8 +728,7 @@
   }
   
   .task-document-editor-responsive textarea {
-    min-height: 200px !important;
-    max-height: 60vh !important;
+    height: auto !important;
     font-size: 16px !important;
     position: static !important;
   }
@@ -753,21 +748,21 @@
 /* 中等屏幕优化 */
 @media (min-width: 576px) and (max-width: 991px) {
   .ant-tabs-tabpane [style*="minHeight"] {
-    min-height: 350px !important;
+    height: auto !important;
   }
   
   .ant-tabs-tabpane textarea {
-    min-height: 250px !important;
+    height: auto !important;
   }
 }
 
-/* 大屏幕保持原有行为 */
+/* 大屏幕保持原有行为 - 移除高度限制 */
 @media (min-width: 992px) {
   .ant-tabs-tabpane [style*="minHeight"] {
-    min-height: 400px !important;
+    height: auto !important;
   }
   
   .ant-tabs-tabpane textarea {
-    min-height: 300px !important;
+    height: auto !important;
   }
 }

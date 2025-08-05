@@ -119,7 +119,7 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       const searchParams = {
         keyword: params.keyword || '',
         exclude_task_id: params.excludeTaskId,
-        max_level: params.maxLevel || 2,
+        max_level: params.maxLevel || 3,
         page: Math.floor((params.offset || 0) / (params.limit || 20)) + 1,
         page_size: params.limit || 20,
       };

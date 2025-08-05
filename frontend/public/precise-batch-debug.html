@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>精确批量操作按钮调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .alert {
+            padding: 16px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+        .alert-info { background: #f0f9ff; border: 1px solid #91d5ff; color: #1890ff; }
+        .alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #52c41a; }
+        .alert-error { background: #fff2f0; border: 1px solid #ffccc7; color: #ff4d4f; }
+        .alert-warning { background: #fff7e6; border: 1px solid #ffd591; color: #fa8c16; }
+        .code {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            margin: 8px 0;
+            white-space: pre-wrap;
+        }
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 4px;
+        }
+        .step {
+            background: white;
+            border: 1px solid #e6f7ff;
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 6px;
+            border-left: 4px solid #1890ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 精确批量操作按钮调试</h1>
+        <p>根据前面的调试结果，批量操作按钮确实没有显示。让我们进行更精确的分析。</p>
+
+        <div class="alert alert-error">
+            <h4>❌ 确认的问题</h4>
+            <p>调试代码确认：未找到批量操作按钮，只找到了任务标题中包含"批量"关键词的任务链接。</p>
+        </div>
+
+        <div class="step">
+            <h4>🔍 Step 1: 检查任务选择状态</h4>
+            <p>批量操作按钮只在选择任务后显示。首先检查是否有任务被选中：</p>
+            <button class="btn" onclick="checkTaskSelection()">检查任务选择状态</button>
+            <div id="selectionResult" class="code" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h4>✅ Step 2: 手动选择任务并检查</h4>
+            <p>如果没有任务被选中，我们手动选择一些任务：</p>
+            <button class="btn" onclick="selectTasksAndCheck()">手动选择任务并检查按钮</button>
+            <div id="manualSelectionResult" class="code" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h4>🧪 Step 3: 深度DOM检查</h4>
+            <p>检查批量操作相关的DOM元素是否存在：</p>
+            <button class="btn" onclick="deepDOMCheck()">执行深度DOM检查</button>
+            <div id="domCheckResult" class="code" style="display: none;"></div>
+        </div>
+
+        <div class="step">
+            <h4>🔧 Step 4: React组件状态检查</h4>
+            <p>使用React DevTools检查组件状态：</p>
+            <button class="btn" onclick="checkReactState()">检查React组件状态</button>
+            <div id="reactStateResult" class="code" style="display: none;"></div>
+        </div>
+
+        <div class="alert alert-info">
+            <h4>💡 解决方案建议</h4>
+            <p>如果所有检查都确认问题存在，可以尝试以下解决方案：</p>
+            <ol>
+                <li><strong>页面刷新</strong>：Ctrl+F5 强制刷新页面</li>
+                <li><strong>清除缓存</strong>：清除浏览器缓存和localStorage</li>
+                <li><strong>不同浏览器</strong>：尝试使用不同的浏览器</li>
+                <li><strong>检查网络</strong>：确认API请求正常</li>
+                <li><strong>使用MCP工具</strong>：作为临时替代方案</li>
+            </ol>
+        </div>
+
+        <div class="alert alert-warning">
+            <h4>🚨 临时解决方案 - 使用MCP工具</h4>
+            <p>如果UI问题暂时无法解决，您可以使用MCP命令行工具进行批量父任务更改：</p>
+            <div class="code"># 示例：将任务123,124,125的父任务改为任务100
+mcp task batch_update_parent --task_ids "123,124,125" --parent_id 100
+
+# 示例：将任务设为根任务（无父任务）
+mcp task batch_update_parent --task_ids "123,124,125" --parent_id null</div>
+        </div>
+    </div>
+
+    <script>
+        function checkTaskSelection() {
+            const result = document.getElementById('selectionResult');
+            result.style.display = 'block';
+            
+            let output = '=== 任务选择状态检查 ===\n';
+            
+            // 检查表格复选框
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            output += `总复选框数量: ${checkboxes.length}\n`;
+            
+            const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            output += `选中的复选框数量: ${checkedBoxes.length}\n`;
+            
+            // 检查表格行
+            const tableRows = document.querySelectorAll('.ant-table-tbody tr');
+            output += `表格行数: ${tableRows.length}\n`;
+            
+            // 检查选中的行
+            const selectedRows = document.querySelectorAll('.ant-table-tbody tr.ant-table-row-selected');
+            output += `选中的表格行数: ${selectedRows.length}\n`;
+            
+            // 检查"已选择X项"文本
+            const selectedText = Array.from(document.querySelectorAll('*')).find(el => 
+                el.textContent && el.textContent.includes('已选择') && el.textContent.includes('项')
+            );
+            output += `"已选择X项"文本: ${selectedText ? '✅ 找到: ' + selectedText.textContent : '❌ 未找到'}\n`;
+            
+            if (checkedBoxes.length === 0) {
+                output += '\n❌ 没有任务被选中，这就是批量操作按钮不显示的原因！\n';
+                output += '解决方案：请勾选任务列表中的复选框\n';
+            } else {
+                output += '\n✅ 有任务被选中，批量操作按钮应该显示\n';
+            }
+            
+            result.textContent = output;
+        }
+
+        function selectTasksAndCheck() {
+            const result = document.getElementById('manualSelectionResult');
+            result.style.display = 'block';
+            
+            let output = '=== 手动选择任务并检查 ===\n';
+            
+            // 查找并点击第一个任务复选框（跳过全选复选框）
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            output += `找到 ${checkboxes.length} 个复选框\n`;
+            
+            if (checkboxes.length > 1) {
+                // 点击第二个复选框（第一个通常是全选）
+                const taskCheckbox = checkboxes[1];
+                taskCheckbox.click();
+                output += '✅ 已点击第一个任务复选框\n';
+                
+                // 等待一下让React状态更新
+                setTimeout(() => {
+                    // 重新检查批量操作按钮
+                    const batchButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                        btn.textContent.includes('批量操作')
+                    );
+                    
+                    if (batchButton) {
+                        output += '🎉 批量操作按钮现在显示了！\n';
+                        output += `按钮文本: "${batchButton.textContent}"\n`;
+                        output += `按钮类名: ${batchButton.className}\n`;
+                        
+                        // 检查下拉菜单
+                        output += '\n点击按钮查看菜单...\n';
+                        batchButton.click();
+                        
+                        setTimeout(() => {
+                            const menuItems = document.querySelectorAll('.ant-dropdown-menu-item');
+                            output += `菜单项数量: ${menuItems.length}\n`;
+                            menuItems.forEach((item, index) => {
+                                output += `  ${index + 1}. ${item.textContent}\n`;
+                            });
+                            
+                            // 关闭菜单
+                            batchButton.click();
+                            result.textContent = output;
+                        }, 500);
+                    } else {
+                        output += '❌ 即使选中任务后，批量操作按钮仍然不显示\n';
+                        output += '这可能是React组件状态管理问题\n';
+                        result.textContent = output;
+                    }
+                }, 100);
+            } else {
+                output += '❌ 没有找到可以点击的任务复选框\n';
+                result.textContent = output;
+            }
+        }
+
+        function deepDOMCheck() {
+            const result = document.getElementById('domCheckResult');
+            result.style.display = 'block';
+            
+            let output = '=== 深度DOM结构检查 ===\n';
+            
+            // 检查批量操作相关的CSS类
+            const batchToolbarElements = document.querySelectorAll('[class*="batch"], [data-testid*="batch"]');
+            output += `包含"batch"的元素: ${batchToolbarElements.length}\n`;
+            
+            // 检查Ant Design下拉菜单相关元素
+            const dropdownElements = document.querySelectorAll('.ant-dropdown, .ant-dropdown-trigger');
+            output += `下拉菜单相关元素: ${dropdownElements.length}\n`;
+            
+            // 检查Space组件
+            const spaceElements = document.querySelectorAll('.ant-space');
+            output += `Ant Design Space组件: ${spaceElements.length}\n`;
+            
+            // 检查按钮容器
+            const buttonContainers = document.querySelectorAll('.ant-col:last-child');
+            output += `表格工具栏右侧列: ${buttonContainers.length}\n`;
+            
+            if (buttonContainers.length > 0) {
+                const lastCol = buttonContainers[buttonContainers.length - 1];
+                output += `最后一列的HTML结构:\n${lastCol.innerHTML}\n`;
+            }
+            
+            // 检查是否有隐藏的元素
+            const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]');
+            output += `隐藏的元素数量: ${hiddenElements.length}\n`;
+            
+            result.textContent = output;
+        }
+
+        function checkReactState() {
+            const result = document.getElementById('reactStateResult');
+            result.style.display = 'block';
+            
+            let output = '=== React组件状态检查 ===\n';
+            
+            if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+                output += '✅ React DevTools可用\n';
+                output += '请在React DevTools中查找ProjectTaskList组件:\n';
+                output += '1. 打开React DevTools (F12 → Components标签)\n';
+                output += '2. 搜索"ProjectTaskList"组件\n';
+                output += '3. 查看props和state中的以下值:\n';
+                output += '   - selectedRowKeys (应该是数组)\n';
+                output += '   - selectedRowKeys.length (应该 > 0 才显示按钮)\n';
+                output += '   - loading (应该为false)\n';
+                output += '   - tasks (应该有数据)\n';
+                
+                // 尝试获取React fiber信息
+                const tableElement = document.querySelector('.ant-table');
+                if (tableElement && tableElement._reactInternalFiber) {
+                    output += '\n找到React内部fiber信息，可以深入调试\n';
+                } else {
+                    output += '\n无法直接访问React fiber信息\n';
+                }
+            } else {
+                output += '❌ React DevTools不可用\n';
+                output += '请安装React DevTools浏览器扩展\n';
+            }
+            
+            // 检查全局React错误
+            if (window.console && window.console.error) {
+                output += '\n请检查Console面板是否有React相关错误\n';
+            }
+            
+            result.textContent = output;
+        }
+
+        // 页面加载完成后的初始提示
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('精确批量操作按钮调试工具已加载');
+            console.log('请按步骤执行调试');
+        });
+    </script>
+</body>
+</html>

@@ -13,17 +13,26 @@ export class AppError extends Error {
   public readonly type: ErrorType;
   public readonly timestamp: Date;
   public readonly context?: Record<string, any>;
+  public readonly status?: number;
 
   constructor(
     message: string,
     type: ErrorType = ErrorType.UNKNOWN,
+    statusOrContext?: number | Record<string, any>,
     context?: Record<string, any>
   ) {
     super(message);
     this.name = 'AppError';
     this.type = type;
     this.timestamp = new Date();
-    this.context = context;
+    
+    // Handle both old and new constructor signatures
+    if (typeof statusOrContext === 'number') {
+      this.status = statusOrContext;
+      this.context = context;
+    } else {
+      this.context = statusOrContext;
+    }
 
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {

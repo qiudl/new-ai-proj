@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量操作按钮诊断工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .status-card {
+            background: #f0f9ff;
+            border: 1px solid #91d5ff;
+            padding: 16px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+        .success { background: #f6ffed; border-color: #b7eb8f; color: #52c41a; }
+        .error { background: #fff2f0; border-color: #ffccc7; color: #ff4d4f; }
+        .warning { background: #fff7e6; border-color: #ffd591; color: #fa8c16; }
+        .code {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+        .step {
+            background: white;
+            border: 1px solid #e6f7ff;
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 6px;
+            border-left: 4px solid #1890ff;
+        }
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 4px;
+        }
+        .result {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 批量操作按钮系统诊断工具</h1>
+        <p>这个工具将帮助您系统性地诊断批量操作按钮不显示的具体原因</p>
+
+        <!-- 快速访问区域 -->
+        <div class="status-card">
+            <h3>🔗 快速访问</h3>
+            <button class="btn" onclick="window.open('http://localhost/projects/1', '_blank')">
+                打开项目1任务列表
+            </button>
+            <button class="btn" onclick="openDevConsole()">
+                打开开发者控制台
+            </button>
+            <button class="btn" onclick="runFullDiagnosis()">
+                开始完整诊断
+            </button>
+        </div>
+
+        <!-- 诊断步骤 -->
+        <div class="step">
+            <h4>📋 Step 1: 基础环境检查</h4>
+            <button class="btn" onclick="checkBasicEnvironment()">执行检查</button>
+            <div id="basicEnvResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h4>🌐 Step 2: 页面和数据加载检查</h4>
+            <button class="btn" onclick="checkPageLoad()">执行检查</button>
+            <div id="pageLoadResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h4>📊 Step 3: 任务数据验证</h4>
+            <button class="btn" onclick="checkTaskData()">执行检查</button>
+            <div id="taskDataResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h4>✅ Step 4: 组件状态检查</h4>
+            <button class="btn" onclick="checkComponentState()">执行检查</button>
+            <div id="componentStateResult" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h4>🎯 Step 5: 批量操作按钮逻辑检查</h4>
+            <button class="btn" onclick="checkBatchButtonLogic()">执行检查</button>
+            <div id="batchButtonResult" class="result"></div>
+        </div>
+
+        <!-- 综合诊断结果 -->
+        <div class="status-card" id="diagnosisResults" style="display: none;">
+            <h3>🎯 诊断结果汇总</h3>
+            <div id="resultsContent"></div>
+        </div>
+
+        <!-- 修复建议 -->
+        <div class="status-card" id="fixSuggestions" style="display: none;">
+            <h3>🛠️ 修复建议</h3>
+            <div id="suggestionsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let diagnosisResults = {
+            basicEnv: null,
+            pageLoad: null,
+            taskData: null,
+            componentState: null,
+            batchButton: null
+        };
+
+        function openDevConsole() {
+            alert('请按 F12 键打开开发者工具\n然后切换到 Console 标签页');
+        }
+
+        function checkBasicEnvironment() {
+            const result = document.getElementById('basicEnvResult');
+            result.innerHTML = '<div style="color: #1890ff;">正在检查基础环境...</div>';
+            
+            const checks = {
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                localStorage: typeof(Storage) !== "undefined",
+                console: typeof(console) !== "undefined",
+                jquery: typeof($) !== "undefined",
+                react: window.React !== undefined,
+                antd: window.antd !== undefined
+            };
+            
+            let html = '<h5>基础环境检查结果:</h5>';
+            html += '<pre>' + JSON.stringify(checks, null, 2) + '</pre>';
+            
+            const isHealthy = checks.localStorage && checks.console;
+            diagnosisResults.basicEnv = { healthy: isHealthy, details: checks };
+            
+            if (isHealthy) {
+                html += '<div class="success">✅ 基础环境正常</div>';
+            } else {
+                html += '<div class="error">❌ 基础环境存在问题</div>';
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function checkPageLoad() {
+            const result = document.getElementById('pageLoadResult');
+            result.innerHTML = '<div style="color: #1890ff;">正在检查页面加载状态...</div>';
+            
+            // 检查是否在正确的页面
+            const currentUrl = window.location.href;
+            const isProjectPage = currentUrl.includes('/projects/');
+            const hasProjectId = /\/projects\/\d+/.test(currentUrl);
+            
+            let html = '<h5>页面加载检查结果:</h5>';
+            html += `<p>当前URL: <code>${currentUrl}</code></p>`;
+            html += `<p>是否在项目页面: ${isProjectPage ? '✅ 是' : '❌ 否'}</p>`;
+            html += `<p>包含项目ID: ${hasProjectId ? '✅ 是' : '❌ 否'}</p>`;
+            
+            if (!isProjectPage || !hasProjectId) {
+                html += '<div class="error">❌ 请访问正确的项目任务列表页面，如: http://localhost/projects/1</div>';
+                diagnosisResults.pageLoad = { healthy: false, url: currentUrl };
+            } else {
+                html += '<div class="success">✅ 页面路径正确</div>';
+                diagnosisResults.pageLoad = { healthy: true, url: currentUrl };
+            }
+            
+            result.innerHTML = html;
+        }
+
+        async function checkTaskData() {
+            const result = document.getElementById('taskDataResult');
+            result.innerHTML = '<div style="color: #1890ff;">正在检查任务数据...</div>';
+            
+            let html = '<h5>任务数据检查结果:</h5>';
+            
+            try {
+                // 尝试从当前页面检查任务数据
+                const taskRows = document.querySelectorAll('.ant-table-tbody tr');
+                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                const loadingIndicators = document.querySelectorAll('.ant-spin');
+                
+                html += `<p>表格行数: ${taskRows.length}</p>`;
+                html += `<p>复选框数量: ${checkboxes.length}</p>`;
+                html += `<p>加载指示器: ${loadingIndicators.length}</p>`;
+                
+                if (taskRows.length === 0) {
+                    html += '<div class="error">❌ 没有找到任务数据，请确认：</div>';
+                    html += '<ul>';
+                    html += '<li>项目中是否存在任务</li>';
+                    html += '<li>是否有权限查看任务</li>';
+                    html += '<li>网络连接是否正常</li>';
+                    html += '</ul>';
+                    diagnosisResults.taskData = { healthy: false, rowCount: 0 };
+                } else if (checkboxes.length === 0) {
+                    html += '<div class="warning">⚠️ 找到任务数据但没有复选框，可能是权限问题</div>';
+                    diagnosisResults.taskData = { healthy: false, rowCount: taskRows.length, noCheckboxes: true };
+                } else {
+                    html += '<div class="success">✅ 任务数据和复选框都正常</div>';
+                    diagnosisResults.taskData = { healthy: true, rowCount: taskRows.length, checkboxCount: checkboxes.length };
+                }
+                
+            } catch (error) {
+                html += `<div class="error">❌ 检查过程中出错: ${error.message}</div>`;
+                diagnosisResults.taskData = { healthy: false, error: error.message };
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function checkComponentState() {
+            const result = document.getElementById('componentStateResult');
+            result.innerHTML = '<div style="color: #1890ff;">正在检查React组件状态...</div>';
+            
+            let html = '<h5>组件状态检查结果:</h5>';
+            
+            // 检查React DevTools是否可用
+            const hasReactDevTools = window.__REACT_DEVTOOLS_GLOBAL_HOOK__ !== undefined;
+            html += `<p>React DevTools: ${hasReactDevTools ? '✅ 可用' : '❌ 不可用'}</p>`;
+            
+            // 尝试检查selectedRowKeys状态
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+            html += `<p>当前选中的复选框: ${checkboxes.length} 个</p>`;
+            
+            // 检查批量操作相关元素
+            const batchElements = document.querySelectorAll('[data-testid="batch-toolbar"], .ant-dropdown-trigger');
+            html += `<p>批量操作相关元素: ${batchElements.length} 个</p>`;
+            
+            // 检查是否有JavaScript错误
+            const errors = window.console.error || [];
+            html += `<p>控制台错误: 请检查开发者工具Console</p>`;
+            
+            if (checkboxes.length > 0) {
+                html += '<div class="success">✅ 有任务被选中，应该显示批量操作按钮</div>';
+                diagnosisResults.componentState = { healthy: true, selectedCount: checkboxes.length };
+            } else {
+                html += '<div class="warning">⚠️ 没有任务被选中，批量操作按钮不会显示</div>';
+                html += '<div class="code">请尝试勾选任务列表中的复选框</div>';
+                diagnosisResults.componentState = { healthy: false, selectedCount: 0 };
+            }
+            
+            result.innerHTML = html;
+        }
+
+        function checkBatchButtonLogic() {
+            const result = document.getElementById('batchButtonResult');
+            result.innerHTML = '<div style="color: #1890ff;">正在检查批量操作按钮逻辑...</div>';
+            
+            let html = '<h5>批量操作按钮逻辑检查:</h5>';
+            
+            // 查找批量操作按钮
+            const batchButton = document.querySelector('button:contains("批量操作")') || 
+                               Array.from(document.querySelectorAll('button')).find(btn => btn.textContent.includes('批量操作'));
+            
+            // 查找"已选择"文本
+            const selectedText = Array.from(document.querySelectorAll('*')).find(el => 
+                el.textContent && el.textContent.includes('已选择') && el.textContent.includes('项')
+            );
+            
+            // 查找取消选择按钮
+            const cancelButton = Array.from(document.querySelectorAll('button')).find(btn => 
+                btn.textContent.includes('取消选择')
+            );
+            
+            html += `<p>批量操作按钮: ${batchButton ? '✅ 找到' : '❌ 未找到'}</p>`;
+            html += `<p>"已选择X项"文本: ${selectedText ? '✅ 找到' : '❌ 未找到'}</p>`;
+            html += `<p>取消选择按钮: ${cancelButton ? '✅ 找到' : '❌ 未找到'}</p>`;
+            
+            if (batchButton && selectedText && cancelButton) {
+                html += '<div class="success">✅ 批量操作UI元素都存在</div>';
+                diagnosisResults.batchButton = { healthy: true, hasButton: true };
+            } else if (selectedText || cancelButton) {
+                html += '<div class="warning">⚠️ 部分批量操作UI元素存在，可能存在样式或渲染问题</div>';
+                diagnosisResults.batchButton = { healthy: false, partial: true };
+            } else {
+                html += '<div class="error">❌ 批量操作UI元素都不存在</div>';
+                html += '<div class="code">这通常说明 selectedRowKeys.length === 0，请先选择任务</div>';
+                diagnosisResults.batchButton = { healthy: false, hasButton: false };
+            }
+            
+            // 提供调试代码
+            html += '<h6>调试代码 (在Console中运行):</h6>';
+            html += '<pre>';
+            html += '// 检查所有复选框\n';
+            html += 'const checkboxes = document.querySelectorAll(\'input[type="checkbox"]\');\n';
+            html += 'console.log("复选框总数:", checkboxes.length);\n';
+            html += 'console.log("选中的复选框:", document.querySelectorAll(\'input[type="checkbox"]:checked\').length);\n\n';
+            html += '// 手动选中第一个复选框\n';
+            html += 'if(checkboxes.length > 1) {\n';
+            html += '  checkboxes[1].click(); // 跳过全选复选框\n';
+            html += '  console.log("已点击第一个任务复选框");\n';
+            html += '}\n';
+            html += '</pre>';
+            
+            result.innerHTML = html;
+        }
+
+        function runFullDiagnosis() {
+            console.log('开始完整诊断...');
+            
+            // 按顺序执行所有检查
+            checkBasicEnvironment();
+            setTimeout(() => {
+                checkPageLoad();
+                setTimeout(() => {
+                    checkTaskData();
+                    setTimeout(() => {
+                        checkComponentState();
+                        setTimeout(() => {
+                            checkBatchButtonLogic();
+                            setTimeout(showDiagnosisResults, 1000);
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            }, 1000);
+        }
+
+        function showDiagnosisResults() {
+            const resultsDiv = document.getElementById('diagnosisResults');
+            const suggestionsDiv = document.getElementById('fixSuggestions');
+            const resultsContent = document.getElementById('resultsContent');
+            const suggestionsContent = document.getElementById('suggestionsContent');
+
+            // 汇总结果
+            let html = '<h4>总体健康状况:</h4>';
+            const healthyChecks = Object.values(diagnosisResults).filter(r => r && r.healthy).length;
+            const totalChecks = Object.values(diagnosisResults).filter(r => r !== null).length;
+            
+            html += `<p>通过检查: ${healthyChecks}/${totalChecks}</p>`;
+            
+            if (healthyChecks === totalChecks) {
+                html += '<div class="success">✅ 所有检查都通过，系统状态良好</div>';
+            } else {
+                html += '<div class="error">❌ 存在问题，需要修复</div>';
+            }
+
+            resultsContent.innerHTML = html;
+            resultsDiv.style.display = 'block';
+
+            // 生成修复建议
+            let suggestions = '<h4>修复建议:</h4>';
+            
+            if (!diagnosisResults.pageLoad?.healthy) {
+                suggestions += '<div class="step">🔗 请访问正确的项目任务列表页面: <a href="http://localhost/projects/1" target="_blank">http://localhost/projects/1</a></div>';
+            }
+            
+            if (!diagnosisResults.taskData?.healthy) {
+                suggestions += '<div class="step">📊 任务数据问题: 确保项目中有任务数据，检查网络连接和权限</div>';
+            }
+            
+            if (!diagnosisResults.componentState?.healthy) {
+                suggestions += '<div class="step">✅ 选择任务: 请勾选任务列表中的复选框来激活批量操作按钮</div>';
+            }
+            
+            if (!diagnosisResults.batchButton?.healthy) {
+                suggestions += '<div class="step">🎯 批量操作按钮: 确保选中了任务后，按钮应该会自动出现在表格上方</div>';
+            }
+
+            if (healthyChecks === totalChecks) {
+                suggestions += '<div class="success">✅ 系统运行正常，如果仍有问题，请检查浏览器兼容性或清除缓存</div>';
+            }
+
+            suggestionsContent.innerHTML = suggestions;
+            suggestionsDiv.style.display = 'block';
+        }
+
+        // 页面加载完成后的提示
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('批量操作诊断工具已加载');
+            console.log('点击"开始完整诊断"按钮进行全面检查');
+        });
+    </script>
+</body>
+</html>

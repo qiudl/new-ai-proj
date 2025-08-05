@@ -73,7 +73,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
     const scoredTasks = tasks
       .filter(task => 
         task.id !== currentTaskId && 
-        task.task_level <= 2 && // Only allow up to level 2 as parent
+        task.task_level <= 3 && // Only allow up to level 3 as parent
         task.status !== 'cancelled'
       )
       .map(task => {
@@ -151,7 +151,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         projectId,
         keyword: '',
         excludeTaskId: currentTaskId,
-        maxLevel: 2,
+        maxLevel: 3,
         limit: 20,
         offset: 0,
       });
@@ -187,7 +187,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         projectId,
         keyword,
         excludeTaskId: currentTaskId,
-        maxLevel: 2,
+        maxLevel: 3,
         limit: 20,
         offset: 0,
       });
@@ -401,7 +401,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
                   onLoadMore={loadMore}
                   hasMore={searchResults.hasMore}
                   showLevelFilter={true}
-                  maxDisplayLevel={2}
+                  maxDisplayLevel={3}
                   emptyText={searchKeyword ? '未找到匹配的任务' : '暂无可选的父任务'}
                   className="modal-task-list"
                   searchKeyword={searchKeyword}

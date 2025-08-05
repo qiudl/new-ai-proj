@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手动测试 - 批量操作修复验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 { 
+            color: #722ed1; 
+            text-align: center; 
+            margin-bottom: 30px;
+        }
+        .step {
+            background: #f0f9ff;
+            border: 2px solid #91d5ff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .command {
+            background: #1f1f1f;
+            color: #f0f0f0;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            cursor: pointer;
+            position: relative;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .command:hover { background: #2f2f2f; }
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: #52c41a;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .link-btn {
+            display: inline-block;
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(24, 144, 255, 0.3);
+        }
+        .link-btn:hover {
+            background: linear-gradient(135deg, #096dd9 0%, #0050b3 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(24, 144, 255, 0.5);
+        }
+        .expected {
+            background: #f6ffed;
+            border: 2px solid #b7eb8f;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .warning {
+            background: #fff2f0;
+            border: 2px solid #ffccc7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step-number {
+            background: #722ed1;
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .highlight {
+            background: #fffbe6;
+            padding: 2px 6px;
+            border-radius: 3px;
+            border: 1px solid #fff566;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 手动测试 - 批量操作修复验证</h1>
+        
+        <div class="warning">
+            <h3>⚠️ CSP限制说明</h3>
+            <p>由于Content Security Policy限制，我们采用手动复制粘贴的方式进行测试。</p>
+            <p><strong>不要担心，这种方式同样有效且更安全！</strong></p>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">1</span><strong>打开项目页面</strong></p>
+            <a href="http://localhost/projects/1" target="_blank" class="link-btn">🚀 打开项目页面</a>
+            <p>在新标签页中打开项目页面，然后继续下面的步骤。</p>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">2</span><strong>选择任务</strong></p>
+            <p>在项目页面的任务列表中，勾选任意一个任务的复选框。勾选后，批量操作区域将出现。</p>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">3</span><strong>打开浏览器控制台</strong></p>
+            <p>在项目页面按 <span class="highlight">F12</span> 打开开发者工具，点击 <span class="highlight">Console</span> 标签。</p>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">4</span><strong>运行测试脚本 A - 基础检查</strong></p>
+            <p>复制下面的脚本，粘贴到控制台中按回车运行：</p>
+            
+            <div class="command" onclick="copyToClipboard(this)">
+console.log('🔧 === 批量操作按钮基础检查 ===');
+
+// 查找批量操作按钮
+const batchButton = Array.from(document.querySelectorAll('button')).find(btn => 
+    btn.textContent && btn.textContent.trim() === '批量操作'
+);
+
+if (batchButton) {
+    console.log('✅ 找到批量操作按钮!');
+    console.log('   按钮文本:', '"' + batchButton.textContent + '"');
+    console.log('   按钮尺寸:', batchButton.offsetWidth + 'x' + batchButton.offsetHeight + 'px');
+    console.log('   按钮可见:', batchButton.offsetParent !== null);
+    
+    // 检查是否有下拉箭头
+    const hasDownIcon = batchButton.innerHTML.includes('down') || 
+                       batchButton.innerHTML.includes('Down') || 
+                       batchButton.innerHTML.includes('anticon');
+    console.log('   包含下拉箭头:', hasDownIcon ? '✅ 是' : '❌ 否');
+    
+    console.log('🎯 基础检查通过！请继续运行脚本B');
+    
+} else {
+    console.log('❌ 未找到"批量操作"按钮');
+    
+    // 检查是否还有分离的按钮
+    const separateButtons = Array.from(document.querySelectorAll('button')).filter(btn => {
+        const text = btn.textContent || '';
+        return text.includes('批量更新状态') || text.includes('批量设置优先级') || text.includes('批量删除');
+    });
+    
+    if (separateButtons.length > 0) {
+        console.log('❌ 发现分离的批量操作按钮 - 修复未生效:');
+        separateButtons.forEach((btn, index) => {
+            console.log('  ' + (index + 1) + '. "' + btn.textContent + '" (' + btn.offsetWidth + 'x' + btn.offsetHeight + 'px)');
+        });
+        console.log('💡 修复可能未正确应用');
+    } else {
+        console.log('🔍 显示所有可见按钮:');
+        const allButtons = Array.from(document.querySelectorAll('button'));
+        const visibleButtons = allButtons.filter(btn => btn.offsetParent !== null);
+        console.log('页面共有' + visibleButtons.length + '个可见按钮');
+        visibleButtons.slice(0, 10).forEach((btn, index) => {
+            const text = btn.textContent ? btn.textContent.trim() : '[无文本]';
+            console.log('  ' + (index + 1) + '. "' + text + '"');
+        });
+    }
+}
+                <button class="copy-btn">复制</button>
+            </div>
+        </div>
+        
+        <div class="step">
+            <p><span class="step-number">5</span><strong>运行测试脚本 B - 功能测试</strong></p>
+            <p>如果脚本A显示找到了批量操作按钮，请运行这个脚本测试点击功能：</p>
+            
+            <div class="command" onclick="copyToClipboard(this)">
+console.log('🖱️ === 批量操作按钮功能测试 ===');
+
+// 重新获取按钮引用
+const batchButton = Array.from(document.querySelectorAll('button')).find(btn => 
+    btn.textContent && btn.textContent.trim() === '批量操作'
+);
+
+if (batchButton) {
+    console.log('🎯 开始点击测试...');
+    
+    // 点击按钮
+    batchButton.click();
+    
+    // 等待下拉菜单出现
+    setTimeout(() => {
+        const dropdown = document.querySelector('.ant-dropdown:not(.ant-dropdown-hidden)');
+        if (dropdown) {
+            console.log('✅ 下拉菜单成功出现!');
+            
+            const menuItems = dropdown.querySelectorAll('.ant-dropdown-menu-item');
+            console.log('   菜单项数量:', menuItems.length);
+            
+            console.log('   菜单项列表:');
+            menuItems.forEach((item, index) => {
+                console.log('     ' + (index + 1) + '. ' + item.textContent.trim());
+            });
+            
+            // 验证预期菜单项
+            const expectedItems = ['批量更新状态', '批量设置优先级', '更改父任务', '批量删除'];
+            const actualItems = Array.from(menuItems).map(item => item.textContent.trim());
+            
+            console.log('\\n📋 菜单项验证:');
+            let allFound = true;
+            expectedItems.forEach(expected => {
+                const found = actualItems.some(actual => actual.includes(expected));
+                console.log('   ' + expected + ':', found ? '✅ 存在' : '❌ 缺失');
+                if (!found) allFound = false;
+            });
+            
+            // 关闭菜单
+            document.body.click();
+            
+            // 最终结果
+            console.log('\\n🎉 === 最终测试结果 ===');
+            if (allFound && menuItems.length >= 4) {
+                console.log('🎊 批量操作按钮修复完全成功！');
+                console.log('✅ 单一下拉按钮: 正常工作');
+                console.log('✅ 菜单功能: 完整可用');
+                console.log('✅ 所有菜单项: 全部存在');
+            } else {
+                console.log('⚠️ 修复部分成功，存在细节问题');
+                console.log('菜单完整性:', allFound ? '✅' : '❌');
+                console.log('菜单项数量:', menuItems.length + '/4');
+            }
+            
+        } else {
+            console.log('❌ 下拉菜单未出现');
+            console.log('🔍 检查页面其他dropdown元素...');
+            const allDropdowns = document.querySelectorAll('.ant-dropdown');
+            console.log('找到' + allDropdowns.length + '个dropdown元素');
+            console.log('💡 可能的问题: 点击事件处理或菜单定位异常');
+        }
+    }, 800);
+    
+} else {
+    console.log('❌ 未找到批量操作按钮，无法进行功能测试');
+    console.log('💡 请先运行脚本A确认按钮存在');
+}
+                <button class="copy-btn">复制</button>
+            </div>
+        </div>
+        
+        <div class="expected">
+            <h3>✅ 修复成功的标志</h3>
+            <ul>
+                <li>🎯 <strong>脚本A显示找到"批量操作"按钮</strong> - 不是3个分离的按钮</li>
+                <li>⬇️ <strong>按钮包含下拉箭头</strong> - 控制台显示"包含下拉箭头: ✅ 是"</li>
+                <li>🖱️ <strong>脚本B显示下拉菜单出现</strong> - "下拉菜单成功出现!"</li>
+                <li>📋 <strong>菜单包含4个项目</strong> - 批量更新状态、批量设置优先级、更改父任务、批量删除</li>
+                <li>🎊 <strong>最终显示"修复完全成功"</strong> - 所有验证都通过</li>
+            </ul>
+        </div>
+        
+        <div class="warning">
+            <h3>❌ 如果仍有问题</h3>
+            <p>如果测试结果显示：</p>
+            <ul>
+                <li>🔍 <strong>"未找到批量操作按钮"</strong> - 代码修复可能未生效</li>
+                <li>💥 <strong>"发现分离的批量操作按钮"</strong> - 仍显示为3个独立按钮</li>
+                <li>⚠️ <strong>"下拉菜单未出现"</strong> - 按钮存在但功能异常</li>
+                <li>📱 <strong>"菜单项缺失"</strong> - 菜单结构不完整</li>
+            </ul>
+            <p><strong>请将完整的控制台输出结果复制粘贴给我，我将提供进一步的解决方案。</strong></p>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0; padding: 20px; background: #e6f7ff; border-radius: 8px;">
+            <h3>📝 测试完成后请反馈</h3>
+            <p style="font-size: 16px;">
+                运行上述两个测试脚本后，请将控制台的完整输出内容告诉我：<br>
+                特别是最后显示的"最终测试结果"部分！
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(element) {
+            const text = element.textContent.replace('复制', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = element.querySelector('.copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.style.background = '#52c41a';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = '#52c41a';
+                }, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                // 备用方案：选中文本
+                const range = document.createRange();
+                range.selectNodeContents(element);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            });
+        }
+    </script>
+</body>
+</html>

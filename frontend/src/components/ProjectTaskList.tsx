@@ -10,6 +10,7 @@ import {
   Button,
   Space,
   Dropdown,
+  Menu,
   Checkbox,
   Tooltip,
   Tag,
@@ -55,7 +56,8 @@ import {
   ExclamationCircleOutlined,
   FilterFilled,
   ClearOutlined,
-  NodeIndexOutlined
+  NodeIndexOutlined,
+  DownOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -623,6 +625,92 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
           setBatchPreviewLoading(false);
         });
         break;
+      case 'updateStatus':
+        Modal.confirm({
+          title: '批量更新状态',
+          content: (
+            <div>
+              <p>为选中的 {selectedRowKeys.length} 个任务设置新状态：</p>
+              <Select
+                placeholder="选择新状态"
+                style={{ width: '100%', marginTop: 8 }}
+                onChange={(value: string) => {
+                  (window as any).batchStatusValue = value;
+                }}
+                options={[
+                  { value: 'todo', label: '待开始' },
+                  { value: 'in_progress', label: '进行中' },
+                  { value: 'completed', label: '已完成' },
+                  { value: 'blocked', label: '已阻塞' }
+                ]}
+              />
+            </div>
+          ),
+          okText: '确认更新',
+          cancelText: '取消',
+          onOk: async () => {
+            const newStatus = (window as any).batchStatusValue;
+            if (!newStatus) {
+              message.warning('请选择新状态');
+              return;
+            }
+            try {
+              await Promise.all(selectedRowKeys.map(id => 
+                TaskService.updateTask(projectId, Number(id), { status: newStatus })
+              ));
+              message.success('批量更新状态成功');
+              setSelectedRowKeys([]);
+              loadTasks();
+            } catch (error) {
+              message.error('批量更新状态失败');
+            }
+          }
+        });
+        break;
+      case 'setPriority':
+        Modal.confirm({
+          title: '批量设置优先级',
+          content: (
+            <div>
+              <p>为选中的 {selectedRowKeys.length} 个任务设置优先级：</p>
+              <Select
+                placeholder="选择优先级"
+                style={{ width: '100%', marginTop: 8 }}
+                onChange={(value: string) => {
+                  (window as any).batchPriorityValue = value;
+                }}
+                options={[
+                  { value: 'low', label: '低' },
+                  { value: 'medium', label: '中' },
+                  { value: 'high', label: '高' },
+                  { value: 'urgent', label: '紧急' }
+                ]}
+              />
+            </div>
+          ),
+          okText: '确认设置',
+          cancelText: '取消',
+          onOk: async () => {
+            const newPriority = (window as any).batchPriorityValue;
+            if (!newPriority) {
+              message.warning('请选择优先级');
+              return;
+            }
+            try {
+              await Promise.all(selectedRowKeys.map(id => 
+                TaskService.updateTask(projectId, Number(id), { 
+                  custom_fields: { priority: newPriority } 
+                })
+              ));
+              message.success('批量设置优先级成功');
+              setSelectedRowKeys([]);
+              loadTasks();
+            } catch (error) {
+              message.error('批量设置优先级失败');
+            }
+          }
+        });
+        break;
       default:
         message.info(`批量${action}功能开发中`);
     }
@@ -755,16 +843,30 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
                     取消选择
                   </Button>
                   <Dropdown
-                    menu={{
-                      items: [
-                        { key: 'changeParent', label: '更改父任务', icon: <NodeIndexOutlined /> },
-                        { type: 'divider' },
-                        { key: 'delete', label: '批量删除', icon: <DeleteOutlined />, danger: true }
-                      ],
-                      onClick: ({ key }) => handleBatchAction(key)
-                    }}
+                    overlay={
+                      <Menu onClick={({ key }) => handleBatchAction(key)}>
+                        <Menu.Item key="updateStatus" icon={<EditOutlined />}>
+                          批量更新状态
+                        </Menu.Item>
+                        <Menu.Item key="setPriority" icon={<ExclamationCircleOutlined />}>
+                          批量设置优先级
+                        </Menu.Item>
+                        <Menu.Divider />
+                        <Menu.Item key="changeParent" icon={<NodeIndexOutlined />}>
+                          更改父任务
+                        </Menu.Item>
+                        <Menu.Divider />
+                        <Menu.Item key="delete" icon={<DeleteOutlined />} danger>
+                          批量删除
+                        </Menu.Item>
+                      </Menu>
+                    }
+                    trigger={['click']}
+                    placement="bottomLeft"
                   >
-                    <Button size="small">批量操作</Button>
+                    <Button size="small">
+                      批量操作 <DownOutlined />
+                    </Button>
                   </Dropdown>
                 </Space>
               )}
