@@ -209,7 +209,7 @@ func NewApplication() (*Application, error) {
 
 	// Google日历集成服务和处理器
 	googleCalendarService := services.NewGoogleCalendarService()
-	googleAuthHandler := handlers.NewGoogleAuthHandler(googleCalendarService, db.Users())
+	googleAuthHandler := handlers.NewGoogleAuthHandler(googleCalendarService, db.Users(), db.GoogleAuth())
 
 	// 文档注册表处理器 - Disabled due to conflicting models
 	// documentRegistryService := services.NewDocumentRegistryService(db.DocumentRegistry())

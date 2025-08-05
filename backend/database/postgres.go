@@ -138,6 +138,11 @@ func (pdb *PostgresDB) UserTimer() UserTimerRepository {
 	return NewUserTimerRepository(pdb.db)
 }
 
+// GoogleAuth returns the Google authentication repository
+func (pdb *PostgresDB) GoogleAuth() GoogleAuthRepository {
+	return NewGoogleAuthRepository(pdb.db)
+}
+
 // GetDB returns the underlying database connection
 func (pdb *PostgresDB) GetDB() interface{} {
 	return pdb.db

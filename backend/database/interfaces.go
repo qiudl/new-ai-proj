@@ -426,6 +426,7 @@ type DB interface {
 	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository // Personal timer tasks
+	GoogleAuth() GoogleAuthRepository // Google Calendar integration
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
