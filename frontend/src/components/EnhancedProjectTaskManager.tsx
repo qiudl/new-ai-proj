@@ -5,6 +5,7 @@ import {
   Button,
   Space,
   Dropdown,
+  Menu,
   Checkbox,
   Tooltip,
   Tag,
@@ -52,7 +53,9 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   SyncOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  ExclamationCircleOutlined,
+  NodeIndexOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -60,6 +63,7 @@ import { Task, TaskStatus, TaskRequest, HierarchicalTask as APIHierarchicalTask 
 import { logUserAction, logApiError } from '../utils/logger';
 import { useTimer } from '../contexts/TimerContext';
 import AllFieldsTableGuide from './AllFieldsTableGuide';
+import { TaskParentSelectorModal } from './TaskParentSelectorModal';
 import dayjs from 'dayjs';
 import '../styles/AllFieldsTaskList.css';
 import '../styles/EnhancedProjectTaskManager.css';
@@ -200,6 +204,9 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const [batchOperationVisible, setBatchOperationVisible] = useState(false);
   const [batchStatus, setBatchStatus] = useState<string>('');
   const [batchLoading, setBatchLoading] = useState(false);
+  
+  // 批量父任务选择状态
+  const [parentSelectorVisible, setParentSelectorVisible] = useState(false);
   
   // 层级管理状态
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<number>>(new Set());
@@ -1169,6 +1176,44 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
     });
   }, [selectedRowKeys, projectId, tasks, loadData]);
 
+  const handleBatchChangeParent = useCallback(() => {
+    if (selectedRowKeys.length === 0) return;
+    setParentSelectorVisible(true);
+  }, [selectedRowKeys]);
+
+  const handleBatchParentSelect = useCallback(async (parentId: number | null, parentTask?: Task | null) => {
+    setParentSelectorVisible(false);
+    
+    if (selectedRowKeys.length === 0) return;
+
+    const parentName = parentTask ? parentTask.title : '无父任务';
+    Modal.confirm({
+      title: '批量更改父任务',
+      content: `确定要将选中的 ${selectedRowKeys.length} 个任务的父任务设置为 "${parentName}" 吗？`,
+      onOk: async () => {
+        try {
+          setBatchLoading(true);
+          
+          // 并行更新所有选中的任务
+          const updatePromises = selectedRowKeys.map(taskId => 
+            TaskService.updateTask(projectId, Number(taskId), { parent_id: parentId })
+          );
+          
+          await Promise.all(updatePromises);
+          message.success(`成功更改了 ${selectedRowKeys.length} 个任务的父任务`);
+          setSelectedRowKeys([]);
+          loadData();
+        } catch (error: Error | unknown) {
+          console.error('Error in batch parent change:', error);
+          const errorMessage = error?.message || error?.error?.message || '批量更改父任务失败';
+          message.error(`批量更改父任务失败: ${errorMessage}`);
+        } finally {
+          setBatchLoading(false);
+        }
+      }
+    });
+  }, [selectedRowKeys, projectId, loadData]);
+
   const handleBatchDelete = useCallback(async () => {
     if (selectedRowKeys.length === 0) return;
 
@@ -1205,6 +1250,21 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       }
     });
   }, [selectedRowKeys, projectId, loadData]);
+
+  // 统一的批量操作处理函数
+  const handleBatchAction = useCallback(async (key: string) => {
+    if (key.startsWith('status-')) {
+      const status = key.replace('status-', '');
+      await handleBatchUpdateStatus(status);
+    } else if (key.startsWith('priority-')) {
+      const priority = key.replace('priority-', '');
+      await handleBatchUpdatePriority(priority);
+    } else if (key === 'changeParent') {
+      handleBatchChangeParent();
+    } else if (key === 'delete') {
+      await handleBatchDelete();
+    }
+  }, [handleBatchUpdateStatus, handleBatchUpdatePriority, handleBatchChangeParent, handleBatchDelete]);
 
   // 行选择配置
   const rowSelection = {
@@ -1680,76 +1740,54 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             <Col>
               <Space>
                 <Dropdown
-                  menu={{
-                    items: [
-                      {
-                        key: 'todo',
-                        label: '设为待开始',
-                        icon: <ClockCircleOutlined />
-                      },
-                      {
-                        key: 'in_progress',
-                        label: '设为进行中',
-                        icon: <SyncOutlined />
-                      },
-                      {
-                        key: 'completed',
-                        label: '设为已完成',
-                        icon: <CheckCircleOutlined />
-                      },
-                      {
-                        key: 'cancelled',
-                        label: '设为已取消',
-                        icon: <MinusCircleOutlined />
-                      }
-                    ],
-                    onClick: ({ key }) => handleBatchUpdateStatus(key)
-                  }}
+                  overlay={
+                    <Menu onClick={({ key }) => handleBatchAction(key)}>
+                      <Menu.SubMenu key="updateStatus" title="批量更新状态" icon={<EditOutlined />}>
+                        <Menu.Item key="status-todo" icon={<ClockCircleOutlined />}>
+                          设为待开始
+                        </Menu.Item>
+                        <Menu.Item key="status-in_progress" icon={<SyncOutlined />}>
+                          设为进行中
+                        </Menu.Item>
+                        <Menu.Item key="status-completed" icon={<CheckCircleOutlined />}>
+                          设为已完成
+                        </Menu.Item>
+                        <Menu.Item key="status-cancelled" icon={<MinusCircleOutlined />}>
+                          设为已取消
+                        </Menu.Item>
+                      </Menu.SubMenu>
+                      <Menu.SubMenu key="setPriority" title="批量设置优先级" icon={<ExclamationCircleOutlined />}>
+                        <Menu.Item key="priority-low" icon={<Tag color="green">低</Tag>}>
+                          低优先级
+                        </Menu.Item>
+                        <Menu.Item key="priority-medium" icon={<Tag color="orange">中</Tag>}>
+                          中优先级
+                        </Menu.Item>
+                        <Menu.Item key="priority-high" icon={<Tag color="red">高</Tag>}>
+                          高优先级
+                        </Menu.Item>
+                        <Menu.Item key="priority-urgent" icon={<Tag color="purple">紧急</Tag>}>
+                          紧急
+                        </Menu.Item>
+                      </Menu.SubMenu>
+                      <Menu.Divider />
+                      <Menu.Item key="changeParent" icon={<NodeIndexOutlined />}>
+                        更改父任务
+                      </Menu.Item>
+                      <Menu.Divider />
+                      <Menu.Item key="delete" icon={<DeleteOutlined />} danger>
+                        批量删除
+                      </Menu.Item>
+                    </Menu>
+                  }
+                  trigger={['click']}
+                  placement="bottomLeft"
                   disabled={batchLoading}
                 >
                   <Button size="small" loading={batchLoading}>
-                    批量更新状态 <CaretDownOutlined />
+                    批量操作 <CaretDownOutlined />
                   </Button>
                 </Dropdown>
-                <Dropdown
-                  menu={{
-                    items: [
-                      {
-                        key: 'low',
-                        label: '低优先级',
-                        icon: <Tag color="green">低</Tag>
-                      },
-                      {
-                        key: 'medium',
-                        label: '中优先级',
-                        icon: <Tag color="orange">中</Tag>
-                      },
-                      {
-                        key: 'high',
-                        label: '高优先级',
-                        icon: <Tag color="red">高</Tag>
-                      },
-                      {
-                        key: 'urgent',
-                        label: '紧急',
-                        icon: <Tag color="purple">紧急</Tag>
-                      }
-                    ],
-                    onClick: ({ key }) => handleBatchUpdatePriority(key)
-                  }}
-                >
-                  <Button size="small">
-                    批量设置优先级 <CaretDownOutlined />
-                  </Button>
-                </Dropdown>
-                <Button
-                  size="small"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={handleBatchDelete}
-                >
-                  批量删除
-                </Button>
               </Space>
             </Col>
           </Row>
@@ -1926,6 +1964,19 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           </Row>
         </Form>
       </Modal>
+
+      {/* 批量父任务选择模态框 */}
+      <TaskParentSelectorModal
+        visible={parentSelectorVisible}
+        projectId={projectId}
+        onOk={handleBatchParentSelect}
+        onCancel={() => setParentSelectorVisible(false)}
+        title="批量更改父任务"
+        okText="确定更改"
+        cancelText="取消"
+        showValidation={true}
+        allowClear={true}
+      />
     </div>
   );
 };
