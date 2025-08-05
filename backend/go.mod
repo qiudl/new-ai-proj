@@ -12,6 +12,8 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/crypto v0.40.0
+	golang.org/x/oauth2 v0.23.0
+	google.golang.org/api v0.203.0
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.1
