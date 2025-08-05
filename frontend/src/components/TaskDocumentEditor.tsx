@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Space, message, Spin } from 'antd';
-import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined } from '@ant-design/icons';
+import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlined } from '@ant-design/icons';
 import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
 import '../styles/TaskDocumentEditor.css';
+import html2pdf from 'html2pdf.js';
 
 // API返回的数据结构 - 匹配后端统一响应格式
 interface TaskDocumentResponse {
@@ -45,6 +46,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // 加载文档内容
   const loadDocument = useCallback(async () => {
@@ -114,6 +116,180 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(!isFullscreen);
   }, [isFullscreen]);
+
+  // PDF导出功能
+  const exportToPdf = useCallback(async () => {
+    if (!content.trim()) {
+      message.warning('文档内容为空，无法导出PDF');
+      return;
+    }
+
+    setIsExportingPdf(true);
+    
+    try {
+      // 创建用于PDF渲染的HTML内容
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+          <meta charset="UTF-8">
+          <title>任务文档 - Task ${taskId}</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 40px 20px;
+              background: white;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              color: #262626;
+              margin-top: 24px;
+              margin-bottom: 16px;
+              font-weight: 600;
+            }
+            h1 { font-size: 24px; border-bottom: 2px solid #1890ff; padding-bottom: 8px; }
+            h2 { font-size: 20px; }
+            h3 { font-size: 18px; }
+            p { margin: 12px 0; }
+            pre {
+              background: #f6f8fa;
+              border: 1px solid #e1e4e8;
+              border-radius: 6px;
+              padding: 16px;
+              overflow-x: auto;
+              font-family: 'Courier New', Consolas, monospace;
+              font-size: 14px;
+            }
+            code {
+              background: #f1f3f4;
+              padding: 2px 4px;
+              border-radius: 3px;
+              font-family: 'Courier New', Consolas, monospace;
+              font-size: 14px;
+            }
+            blockquote {
+              border-left: 4px solid #1890ff;
+              margin: 16px 0;
+              padding: 8px 16px;
+              background: #f9f9f9;
+              color: #666;
+            }
+            ul, ol { padding-left: 24px; margin: 12px 0; }
+            li { margin: 4px 0; }
+            table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 16px 0;
+            }
+            th, td {
+              border: 1px solid #d0d7de;
+              padding: 8px 12px;
+              text-align: left;
+            }
+            th { background: #f6f8fa; font-weight: 600; }
+            .document-header {
+              text-align: center;
+              margin-bottom: 40px;
+              padding-bottom: 20px;
+              border-bottom: 1px solid #e1e4e8;
+            }
+            .document-meta {
+              color: #666;
+              font-size: 14px;
+              margin-top: 10px;
+            }
+            @media print {
+              body { margin: 0; padding: 20px; }
+              .document-header { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="document-header">
+            <h1>任务文档</h1>
+            <div class="document-meta">
+              任务ID: ${taskId} | 项目ID: ${projectId} | 导出时间: ${new Date().toLocaleString('zh-CN')}
+            </div>
+          </div>
+          <div class="document-content">
+            ${await convertMarkdownToHtml(content)}
+          </div>
+        </body>
+        </html>
+      `;
+
+      // 创建临时DOM元素用于渲染
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = htmlContent;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '-9999px';
+      document.body.appendChild(tempDiv);
+
+      // PDF配置选项
+      const opt = {
+        margin: [15, 15, 15, 15],
+        filename: `task-${taskId}-document-${new Date().toISOString().split('T')[0]}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff'
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait',
+          compress: true
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      // 生成并下载PDF
+      await html2pdf().set(opt).from(tempDiv.querySelector('.document-content')).save();
+      
+      message.success('PDF导出成功！');
+      
+      // 清理临时DOM元素
+      document.body.removeChild(tempDiv);
+
+    } catch (error) {
+      console.error('PDF导出失败:', error);
+      message.error('PDF导出失败，请重试');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  }, [content, taskId, projectId]);
+
+  // 将Markdown转换为HTML的辅助函数
+  const convertMarkdownToHtml = useCallback(async (markdown: string): Promise<string> => {
+    // 简单的Markdown到HTML转换（实际项目中可能需要更完善的转换）
+    return markdown
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*)\*/gim, '<em>$1</em>')
+      .replace(/!\[([^\]]*)\]\(([^\)]*)\)/gim, '<img alt="$1" src="$2" style="max-width: 100%; height: auto;" />')
+      .replace(/\[([^\]]*)\]\(([^\)]*)\)/gim, '<a href="$2">$1</a>')
+      .replace(/`([^`]*)`/gim, '<code>$1</code>')
+      .replace(/```([^```]*)```/gim, '<pre><code>$1</code></pre>')
+      .replace(/^- (.*$)/gim, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>')
+      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gims, '<ol>$1</ol>')
+      .replace(/\n\n/gim, '</p><p>')
+      .replace(/^(.*)$/gim, '<p>$1</p>')
+      .replace(/<p><\/p>/gim, '')
+      .replace(/<p>(<h[1-6]>.*<\/h[1-6]>)<\/p>/gim, '$1')
+      .replace(/<p>(<ul>.*<\/ul>)<\/p>/gims, '$1')
+      .replace(/<p>(<ol>.*<\/ol>)<\/p>/gims, '$1')
+      .replace(/<p>(<pre>.*<\/pre>)<\/p>/gims, '$1');
+  }, []);
 
   // 键盘快捷键
   useEffect(() => {
@@ -287,6 +463,16 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
               title={isFullscreen ? '退出全屏 (ESC / F11)' : '全屏编辑 (F11 / Ctrl+Shift+F)'}
             >
               {isFullscreen ? '退出全屏' : '全屏'}
+            </Button>
+            <Button
+              type="default"
+              icon={<FilePdfOutlined />}
+              loading={isExportingPdf}
+              onClick={exportToPdf}
+              disabled={!content.trim()}
+              title="导出为PDF文件"
+            >
+              导出PDF
             </Button>
           </Space>
           
