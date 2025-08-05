@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	mathrand "math/rand"
+	"os"
 	"strings"
 )
 
@@ -213,4 +214,145 @@ func GetProviderName(provider string) string {
 	default:
 		return "AI Provider"
 	}
+}
+
+// Global encryption functions for Google tokens
+
+// Encrypt 使用AES-256-GCM加密字符串
+func Encrypt(plaintext string) (string, error) {
+	if plaintext == "" {
+		return "", nil
+	}
+
+	// 从环境变量获取加密密钥
+	key := os.Getenv("ENCRYPTION_KEY")
+	if key == "" {
+		return "", errors.New("ENCRYPTION_KEY environment variable is not set")
+	}
+
+	// 如果密钥是十六进制字符串，需要解码
+	var keyBytes []byte
+	var err error
+	if len(key) == 64 { // 32字节的十六进制表示
+		keyBytes, err = hex.DecodeString(key)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode hex key: %w", err)
+		}
+	} else {
+		// 对密钥进行SHA256哈希以获得固定长度的密钥
+		hash := sha256.Sum256([]byte(key))
+		keyBytes = hash[:]
+	}
+
+	// 创建AES cipher
+	block, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	// 创建GCM
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	// 生成随机nonce
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", fmt.Errorf("failed to generate nonce: %w", err)
+	}
+
+	// 加密
+	ciphertext := gcm.Seal(nonce, nonce, []byte(plaintext), nil)
+
+	// 返回Base64编码的结果
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// Decrypt 使用AES-256-GCM解密字符串
+func Decrypt(ciphertext string) (string, error) {
+	if ciphertext == "" {
+		return "", nil
+	}
+
+	// 从环境变量获取加密密钥
+	key := os.Getenv("ENCRYPTION_KEY")
+	if key == "" {
+		return "", errors.New("ENCRYPTION_KEY environment variable is not set")
+	}
+
+	// 如果密钥是十六进制字符串，需要解码
+	var keyBytes []byte
+	var err error
+	if len(key) == 64 { // 32字节的十六进制表示
+		keyBytes, err = hex.DecodeString(key)
+		if err != nil {
+			return "", fmt.Errorf("failed to decode hex key: %w", err)
+		}
+	} else {
+		// 对密钥进行SHA256哈希以获得固定长度的密钥
+		hash := sha256.Sum256([]byte(key))
+		keyBytes = hash[:]
+	}
+
+	// Base64解码
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	// 创建AES cipher
+	block, err := aes.NewCipher(keyBytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cipher: %w", err)
+	}
+
+	// 创建GCM
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", fmt.Errorf("failed to create GCM: %w", err)
+	}
+
+	// 检查数据长度
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return "", errors.New("ciphertext too short")
+	}
+
+	// 分离nonce和密文
+	nonce, cipherData := data[:nonceSize], data[nonceSize:]
+
+	// 解密
+	plaintext, err := gcm.Open(nil, nonce, cipherData, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt: %w", err)
+	}
+
+	return string(plaintext), nil
+}
+
+// GenerateRandomString 生成指定长度的随机字符串
+func GenerateRandomString(length int) (string, error) {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+	
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+	
+	for i, b := range bytes {
+		bytes[i] = charset[b%byte(len(charset))]
+	}
+	
+	return string(bytes), nil
+}
+
+// GenerateSecureRandomString 生成用于OAuth state的安全随机字符串
+func GenerateSecureRandomString(length int) (string, error) {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate secure random bytes: %w", err)
+	}
+	
+	return base64.URLEncoding.EncodeToString(bytes), nil
 }

@@ -64,6 +64,7 @@ type Application struct {
 	// taskDocumentHandler        *handlers.TaskDocumentHandler // Temporarily disabled due to model conflicts
 	taskDocumentFileHandler    *handlers.TaskDocumentFileHandler
 	unifiedDocumentHandler     *handlers.UnifiedDocumentHandler  // 新的统一文档处理器
+	googleAuthHandler          *handlers.GoogleAuthHandler       // Google认证处理器
 	// 归档的复杂处理器 - MVP版本不需要
 	// unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
 	// upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
@@ -206,6 +207,10 @@ func NewApplication() (*Application, error) {
 	// 任务分析处理器
 	taskAnalysisHandler := handlers.NewTaskAnalysisHandler(db)
 
+	// Google日历集成服务和处理器
+	googleCalendarService := services.NewGoogleCalendarService()
+	googleAuthHandler := handlers.NewGoogleAuthHandler(googleCalendarService, db.Users())
+
 	// 文档注册表处理器 - Disabled due to conflicting models
 	// documentRegistryService := services.NewDocumentRegistryService(db.DocumentRegistry())
 	// documentRegistryHandler := handlers.NewDocumentRegistryHandler(documentRegistryService)
@@ -247,6 +252,7 @@ func NewApplication() (*Application, error) {
 		aiTaskGeneratorHandler:      aiTaskGeneratorHandler,
 		dashboardHandler:            dashboardHandler,
 		taskAnalysisHandler:         taskAnalysisHandler,
+		googleAuthHandler:           googleAuthHandler,
 		// documentRegistryHandler:     documentRegistryHandler, // Disabled - conflicting models
 	}, nil
 }
@@ -313,6 +319,10 @@ auth := api.Group("/auth")
 			auth.POST("/login", app.loginHandler)
 			auth.POST("/logout", app.logoutHandler)
 			auth.POST("/refresh", handlers.RefreshTokenHandler(app.jwtManager))
+			
+			// Google认证路由
+			auth.GET("/google", app.googleAuthHandler.InitiateGoogleAuth)
+			auth.GET("/google/callback", app.googleAuthHandler.HandleGoogleCallback)
 		}
 
 		// Protected routes (with user type access control)
@@ -562,6 +572,10 @@ auth := api.Group("/auth")
 				users.GET("/profile", app.getUserProfileHandler) // No permission needed for own profile
 				users.PUT("/profile", app.updateUserProfileHandler) // No permission needed for own profile
 				users.PUT("/password", app.changePasswordHandler) // No permission needed for own password
+				
+				// Google日历集成管理
+				users.GET("/google-connection", app.googleAuthHandler.GetGoogleConnectionStatus)
+				users.DELETE("/google-connection", app.googleAuthHandler.DisconnectGoogle)
 			}
 
 			// Customer management routes (deprecated, use companies instead)
