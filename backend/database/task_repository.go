@@ -564,7 +564,7 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 	return tasks, total, nil
 }
 // SearchParentTasks searches for potential parent tasks with filtering
-func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskID *int, maxLevel int, limit, offset int) ([]*models.Task, int, error) {
+func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error) {
 	// Build the WHERE clause conditions
 	var conditions []string
 	var args []interface{}
@@ -582,11 +582,16 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 	args = append(args, maxLevel)
 	argIndex++
 
-	// Exclude specific task
-	if excludeTaskID != nil {
-		conditions = append(conditions, fmt.Sprintf("id != $%d", argIndex))
-		args = append(args, *excludeTaskID)
-		argIndex++
+	// Exclude specific tasks
+	if len(excludeTaskIDs) > 0 {
+		// 创建占位符字符串如 "$3, $4, $5"
+		placeholders := make([]string, len(excludeTaskIDs))
+		for i, excludeID := range excludeTaskIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, excludeID)
+			argIndex++
+		}
+		conditions = append(conditions, fmt.Sprintf("id NOT IN (%s)", strings.Join(placeholders, ", ")))
 	}
 
 	// Keyword search

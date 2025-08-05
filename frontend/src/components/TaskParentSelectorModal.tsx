@@ -19,6 +19,7 @@ export interface TaskParentSelectorModalProps {
   visible: boolean;
   projectId: number;
   currentTaskId?: number;
+  excludeTaskIds?: number[]; // 批量操作时排除的任务ID列表
   currentParentId?: number | null;
   onOk?: (parentId: number | null, parentTask?: Task | null) => void;
   onCancel?: () => void;
@@ -37,6 +38,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
   visible,
   projectId,
   currentTaskId,
+  excludeTaskIds = [],
   currentParentId,
   onOk,
   onCancel,
@@ -146,17 +148,23 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
   // Initialize search when modal opens
   useEffect(() => {
     if (visible && projectId) {
+      // 合并单个任务ID和批量任务IDs
+      const allExcludeIds = [...excludeTaskIds];
+      if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
+        allExcludeIds.push(currentTaskId);
+      }
+      
       // Initial search
       searchParentTasks({
         projectId,
         keyword: '',
-        excludeTaskId: currentTaskId,
+        excludeTaskIds: allExcludeIds,
         maxLevel: 3,
         limit: 20,
         offset: 0,
       });
     }
-  }, [visible, projectId, currentTaskId]);
+  }, [visible, projectId, currentTaskId, excludeTaskIds]);
 
   // Set current parent as selected when search results are available
   useEffect(() => {
@@ -183,16 +191,22 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
     debounce(async (keyword: string) => {
       if (!projectId || !visible) return;
 
+      // 合并单个任务ID和批量任务IDs
+      const allExcludeIds = [...excludeTaskIds];
+      if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
+        allExcludeIds.push(currentTaskId);
+      }
+
       await searchParentTasks({
         projectId,
         keyword,
-        excludeTaskId: currentTaskId,
+        excludeTaskIds: allExcludeIds,
         maxLevel: 3,
         limit: 20,
         offset: 0,
       });
     }, 300),
-    [projectId, currentTaskId, visible, searchParentTasks]
+    [projectId, currentTaskId, excludeTaskIds, visible, searchParentTasks]
   );
 
   // Handle search input change
@@ -212,9 +226,18 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
       try {
         // Client-side validations only for now (skip server-side validation)
         
-        // 1. Prevent self-reference
-        if (currentTaskId && currentTaskId === task.id) {
-          setValidationError('任务不能将自己设为父任务');
+        // 1. Prevent self-reference and batch task reference
+        const allExcludeIds = [...excludeTaskIds];
+        if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
+          allExcludeIds.push(currentTaskId);
+        }
+        
+        if (allExcludeIds.includes(task.id)) {
+          if (excludeTaskIds.length > 1) {
+            setValidationError('不能选择被操作的任务作为父任务');
+          } else {
+            setValidationError('任务不能将自己设为父任务');
+          }
           return;
         }
 
@@ -396,7 +419,13 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
                   loading={searchResults.loading}
                   error={searchResults.error}
                   selectedTaskId={selectedTask?.id}
-                  disabledTaskIds={currentTaskId ? [currentTaskId] : []}
+                  disabledTaskIds={(() => {
+                    const allExcludeIds = [...excludeTaskIds];
+                    if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
+                      allExcludeIds.push(currentTaskId);
+                    }
+                    return allExcludeIds;
+                  })()}
                   onTaskSelect={handleTaskSelect}
                   onLoadMore={loadMore}
                   hasMore={searchResults.hasMore}

@@ -39,6 +39,11 @@ services:
       - JWT_EXPIRATION=168h
       - GIN_MODE=${GIN_MODE:-debug}
       - LOG_LEVEL=${LOG_LEVEL:-debug}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
+      - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL}
+      - GOOGLE_CALENDAR_SCOPES=${GOOGLE_CALENDAR_SCOPES}
       - GOPROXY=https://goproxy.cn,direct
     volumes:
       - ./backend:/app:delegated

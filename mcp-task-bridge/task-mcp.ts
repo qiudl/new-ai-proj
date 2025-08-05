@@ -1,12 +1,78 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
+// 类型定义
 interface Task {
   id: number;
   title: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  project_id?: number;
+  status: 'todo' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  project_id: number;
+  parent_id?: number | null;
   description?: string;
-  created_at?: string;
+  created_at: string;
+  updated_at: string;
+  due_date?: string | null;
+  assignee_id?: number | null;
+  custom_fields?: {
+    priority?: 'low' | 'medium' | 'high';
+    estimated_hours?: number;
+    tags?: string[];
+    [key: string]: any;
+  };
+}
+
+interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  status: 'active' | 'inactive' | 'archived';
+  created_at: string;
+  updated_at: string;
+}
+
+interface CreateTaskOptions {
+  status?: Task['status'];
+  description?: string;
+  priority?: 'low' | 'medium' | 'high';
+  parent_id?: number;
+  estimated_hours?: number;
+  tags?: string[];
+  custom_fields?: Record<string, any>;
+}
+
+interface SubTaskData {
+  title: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high';
+  estimated_hours?: number | null;
+  status?: Task['status'];
+  tags?: string[];
+}
+
+interface UpdateTaskData {
+  title?: string;
+  description?: string;
+  status?: Task['status'];
+  due_date?: string | null;
+  assignee_id?: number | null;
+  priority?: 'low' | 'medium' | 'high';
+  parent_id?: number | null;
+}
+
+interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string | { message: string; code?: string };
+  message?: string;
+  [key: string]: any;
+}
+
+interface TimerData {
+  id: number;
+  task_id: number;
+  started_at: string;
+  stopped_at?: string;
+  duration_seconds?: number;
+  description?: string;
 }
 
 export class TaskMCPServer {
@@ -19,7 +85,7 @@ export class TaskMCPServer {
     this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
   }
 
-  private getHeaders() {
+  private getHeaders(): Record<string, string> {
     return {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${this.authToken}`
@@ -27,7 +93,7 @@ export class TaskMCPServer {
   }
 
   // 辅助方法：通过ID查找任务
-  private async findTaskById(id: number): Promise<any> {
+  async findTaskById(id: number): Promise<Task> {
     try {
       // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
       const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
@@ -36,7 +102,7 @@ export class TaskMCPServer {
       });
       
       const tasks1 = response1.data.data?.data || [];
-      const task1 = tasks1.find((t: any) => t.id === id);
+      const task1 = tasks1.find((t: Task) => t.id === id);
       
       if (task1) {
         return task1;
@@ -60,7 +126,7 @@ export class TaskMCPServer {
           });
           
           const tasks = tasksResponse.data.data?.data || [];
-          const task = tasks.find((t: any) => t.id === id);
+          const task = tasks.find((t: Task) => t.id === id);
           
           if (task) {
             return task;
@@ -76,29 +142,49 @@ export class TaskMCPServer {
       throw new Error(`查找任务失败: ${error.message}`);
     }
   }
-  
+
   // 创建任务
-  async createTask(title: string, projectId: number = 1): Promise<any> {
+  async createTask(title: string, projectId: number = 1, options: CreateTaskOptions = {}): Promise<ApiResponse<Task>> {
     try {
-      console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}`);
+      console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}${options.parent_id ? `, 父任务ID: ${options.parent_id}` : ''}`);
       
-      const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, {
+      // 构建任务数据，支持parent_id等选项
+      const taskData: any = {
         title,
         project_id: projectId,
-        status: 'todo',  // 默认状态改为'todo'（待开始）
-        description: `通过Claude Code创建：${title}`,
+        status: options.status || 'todo', // 默认状态改为'todo'（待开始）
+        description: options.description || `通过Claude Code创建：${title}`,
         custom_fields: {
-          priority: 'low'  // 设置默认优先级为'低'
+          priority: options.priority || 'low', // 设置默认优先级为'低'
+          ...options.custom_fields
         }
-      }, {
+      };
+      
+      // 如果有parent_id，添加到请求中
+      if (options.parent_id) {
+        taskData.parent_id = options.parent_id;
+      }
+      
+      // 添加预估工时
+      if (options.estimated_hours) {
+        taskData.custom_fields.estimated_hours = options.estimated_hours;
+      }
+      
+      // 添加标签
+      if (options.tags && options.tags.length > 0) {
+        taskData.custom_fields.tags = options.tags;
+      }
+      
+      const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, taskData, {
         headers: this.getHeaders(),
         timeout: 10000,
         proxy: false
       });
-
+      
       const task = response.data.data;
       return {
         success: true,
+        data: task,
         id: task.id,
         title: task.title,
         status: task.status,
@@ -107,18 +193,33 @@ export class TaskMCPServer {
       };
     } catch (error: any) {
       console.error(`[ERROR] 创建任务失败:`, error.response?.data || error.message);
+      
+      // 更好的错误处理：提取用户友好的错误信息
+      let userFriendlyError = error.message;
+      if (error.response?.data) {
+        const responseData = error.response.data;
+        if (responseData.error?.message) {
+          // 后端返回的结构化错误信息
+          userFriendlyError = responseData.error.message;
+        } else if (responseData.message) {
+          // 简单的错误信息
+          userFriendlyError = responseData.message;
+        } else if (typeof responseData === 'string') {
+          userFriendlyError = responseData;
+        }
+      }
+      
       return {
         success: false,
-        error: `创建任务失败: ${error.response?.data?.error || error.message}`
+        error: userFriendlyError
       };
     }
   }
 
   // 开始任务
-  async startTask(id: number): Promise<any> {
+  async startTask(id: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 开始任务: ID ${id}`);
-      
       const task = await this.findTaskById(id);
       
       // 更新状态为进行中
@@ -126,12 +227,13 @@ export class TaskMCPServer {
         title: task.title,
         project_id: task.project_id,
         status: 'in_progress',
-        description: task.description
+        description: task.description,
+        parent_id: task.parent_id
       }, {
         headers: this.getHeaders(),
         proxy: false
       });
-
+      
       return {
         success: true,
         id,
@@ -147,12 +249,11 @@ export class TaskMCPServer {
       };
     }
   }
-  
+
   // 完成任务
-  async completeTask(id: number): Promise<any> {
+  async completeTask(id: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 完成任务: ID ${id}`);
-      
       const task = await this.findTaskById(id);
       
       // 更新状态为已完成
@@ -160,12 +261,13 @@ export class TaskMCPServer {
         title: task.title,
         project_id: task.project_id,
         status: 'completed',
-        description: task.description
+        description: task.description,
+        parent_id: task.parent_id
       }, {
         headers: this.getHeaders(),
         proxy: false
       });
-
+      
       return {
         success: true,
         id,
@@ -183,10 +285,9 @@ export class TaskMCPServer {
   }
 
   // 更新任务标题
-  async updateTaskTitle(id: number, newTitle: string): Promise<any> {
+  async updateTaskTitle(id: number, newTitle: string): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 更新任务标题: ID ${id}, 新标题: ${newTitle}`);
-      
       const task = await this.findTaskById(id);
       
       // 更新任务标题
@@ -200,7 +301,7 @@ export class TaskMCPServer {
         headers: this.getHeaders(),
         proxy: false
       });
-
+      
       return {
         success: true,
         id,
@@ -218,10 +319,9 @@ export class TaskMCPServer {
   }
 
   // 更新任务描述
-  async updateTaskDescription(id: number, newDescription: string): Promise<any> {
+  async updateTaskDescription(id: number, newDescription: string): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 更新任务描述: ID ${id}`);
-      
       const task = await this.findTaskById(id);
       
       // 更新任务描述
@@ -235,7 +335,7 @@ export class TaskMCPServer {
         headers: this.getHeaders(),
         proxy: false
       });
-
+      
       return {
         success: true,
         id,
@@ -253,10 +353,9 @@ export class TaskMCPServer {
   }
 
   // 查看任务列表
-  async listTasks(projectId: number = 1): Promise<any> {
+  async listTasks(projectId?: number): Promise<ApiResponse<{ tasks: Task[]; total: number }>> {
     try {
       console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-      
       const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
         headers: this.getHeaders(),
         proxy: false
@@ -267,12 +366,14 @@ export class TaskMCPServer {
       return {
         success: true,
         total: tasks.length,
-        tasks: tasks.map((task: any) => ({
+        tasks: tasks.map((task: Task) => ({
           id: task.id,
           title: task.title,
           status: task.status,
           created_at: task.created_at,
-          project_id: task.project_id
+          project_id: task.project_id,
+          parent_id: task.parent_id,
+          custom_fields: task.custom_fields
         })),
         message: `📋 共找到 ${tasks.length} 个任务`
       };
@@ -284,24 +385,50 @@ export class TaskMCPServer {
       };
     }
   }
-  
-  // 创建子任务
-  async createSubTask(parentId: number, title: string): Promise<any> {
+
+  // 创建子任务 - 支持详细参数
+  async createSubTask(parentId: number, taskData: SubTaskData | string): Promise<ApiResponse> {
     try {
-      console.error(`[DEBUG] 创建子任务: ${title}, 父任务ID: ${parentId}`);
+      // 如果taskData是字符串，表示只传入了title（保持向后兼容）
+      if (typeof taskData === 'string') {
+        taskData = { title: taskData };
+      }
       
+      const { 
+        title, 
+        description, 
+        priority = 'medium', 
+        estimated_hours = null,
+        status = 'todo',
+        tags = []
+      } = taskData;
+      
+      console.error(`[DEBUG] 创建子任务: ${title}, 父任务ID: ${parentId}`);
       const parentTask = await this.findTaskById(parentId);
       
-      const response = await axios.post(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, {
+      // 构建任务数据
+      const taskPayload: any = {
         title,
         project_id: parentTask.project_id,
         parent_id: parentId,
-        status: 'todo',  // 默认状态改为'todo'（待开始）
-        description: `通过Claude Code创建的子任务：${title}`,
+        status: status,
+        description: description || `通过Claude Code创建的子任务：${title}`,
         custom_fields: {
-          priority: 'low'  // 设置默认优先级为'低'
+          priority: priority
         }
-      }, {
+      };
+      
+      // 添加预估工时
+      if (estimated_hours) {
+        taskPayload.custom_fields.estimated_hours = estimated_hours;
+      }
+      
+      // 添加标签
+      if (tags && tags.length > 0) {
+        taskPayload.custom_fields.tags = tags;
+      }
+      
+      const response = await axios.post(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, taskPayload, {
         headers: this.getHeaders(),
         proxy: false
       });
@@ -313,8 +440,9 @@ export class TaskMCPServer {
         title: subtask.title,
         parent_id: parentId,
         status: subtask.status,
-        priority: subtask.custom_fields?.priority || 'low',
-        message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || 'low'}]`
+        priority: subtask.custom_fields?.priority || priority,
+        estimated_hours: subtask.custom_fields?.estimated_hours || estimated_hours,
+        message: `✅ 子任务已创建 (ID: ${subtask.id}) - "${subtask.title}" [状态: ${subtask.status}, 优先级: ${subtask.custom_fields?.priority || priority}${estimated_hours ? `, 预估: ${estimated_hours}小时` : ''}]`
       };
     } catch (error: any) {
       console.error(`[ERROR] 创建子任务失败:`, error.message);
@@ -325,16 +453,65 @@ export class TaskMCPServer {
     }
   }
 
+  // 创建兄弟任务 - 与指定任务同级的任务
+  async createSiblingTask(
+    siblingId: number, 
+    title: string, 
+    description?: string, 
+    status: Task['status'] = 'todo', 
+    priority: 'low' | 'medium' | 'high' = 'medium'
+  ): Promise<ApiResponse> {
+    try {
+      console.error(`[DEBUG] 创建兄弟任务: ${title}, 兄弟任务ID: ${siblingId}`);
+      const siblingTask = await this.findTaskById(siblingId);
+      
+      // 构建任务数据 - 兄弟任务具有相同的parent_id和project_id
+      const taskPayload = {
+        title,
+        project_id: siblingTask.project_id,
+        parent_id: siblingTask.parent_id, // 关键：使用兄弟任务的parent_id
+        status: status,
+        description: description || `通过Claude Code创建的兄弟任务：${title}`,
+        custom_fields: {
+          priority: priority
+        }
+      };
+      
+      const response = await axios.post(`${this.apiBase}/projects/${siblingTask.project_id}/tasks`, taskPayload, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      
+      const newSibling = response.data.data;
+      return {
+        success: true,
+        id: newSibling.id,
+        title: newSibling.title,
+        parent_id: newSibling.parent_id,
+        sibling_id: siblingId,
+        status: newSibling.status,
+        priority: newSibling.custom_fields?.priority || priority,
+        estimated_hours: newSibling.custom_fields?.estimated_hours || null,
+        message: `✅ 兄弟任务已创建 (ID: ${newSibling.id}) - "${newSibling.title}" [同级于任务 ${siblingId}, 状态: ${newSibling.status}, 优先级: ${newSibling.custom_fields?.priority || priority}]`
+      };
+    } catch (error: any) {
+      console.error(`[ERROR] 创建兄弟任务失败:`, error.message);
+      return {
+        success: false,
+        error: `创建兄弟任务失败: ${error.message}`
+      };
+    }
+  }
+
   // 根据名称搜索任务
-  async findTaskByName(titlePattern: string): Promise<any> {
+  async findTaskByName(titlePattern: string): Promise<ApiResponse<{ tasks: Task[] }>> {
     try {
       const listResult = await this.listTasks();
-      
       if (!listResult.success) {
         return listResult;
       }
 
-      const matchingTasks = listResult.tasks.filter((task: any) => 
+      const matchingTasks = listResult.tasks!.filter((task: Task) => 
         task.title.toLowerCase().includes(titlePattern.toLowerCase())
       );
 
@@ -353,10 +530,9 @@ export class TaskMCPServer {
   }
 
   // 删除任务
-  async deleteTask(id: number, force: boolean = false): Promise<any> {
+  async deleteTask(id: number, force: boolean = false): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 删除任务: ID ${id}, 强制删除: ${force}`);
-      
       const task = await this.findTaskById(id);
       
       // 检查是否有子任务
@@ -366,14 +542,14 @@ export class TaskMCPServer {
       });
       
       const allTasks = childrenResponse.data.data?.data || [];
-      const childTasks = allTasks.filter((t: any) => t.parent_id === id);
+      const childTasks = allTasks.filter((t: Task) => t.parent_id === id);
       
       if (childTasks.length > 0 && !force) {
         return {
           success: false,
           error: `任务有 ${childTasks.length} 个子任务，请使用 force=true 强制删除或先删除子任务`,
           child_count: childTasks.length,
-          children: childTasks.map((t: any) => ({ id: t.id, title: t.title }))
+          children: childTasks.map((t: Task) => ({ id: t.id, title: t.title }))
         };
       }
 
@@ -421,14 +597,13 @@ export class TaskMCPServer {
   }
 
   // 更新任务信息
-  async updateTask(id: number, updates: any): Promise<any> {
+  async updateTask(id: number, updates: UpdateTaskData): Promise<ApiResponse<Task>> {
     try {
       console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
-      
       const task = await this.findTaskById(id);
       
-      // 验证更新字段
-      const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id'];
+      // 验证更新字段 - 现在包含parent_id
+      const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id'];
       const customFields = ['priority'];
       const allFields = [...directFields, ...customFields];
       const changedFields: string[] = [];
@@ -451,7 +626,7 @@ export class TaskMCPServer {
 
         if (directFields.includes(field)) {
           // 直接字段
-          currentValue = task[field];
+          currentValue = (task as any)[field];
           hasChanged = currentValue !== value;
           if (hasChanged) {
             updateData[field] = value;
@@ -474,17 +649,17 @@ export class TaskMCPServer {
       // 保持未更新的直接字段不变
       directFields.forEach(field => {
         if (!(field in updateData)) {
-          updateData[field] = task[field];
+          updateData[field] = (task as any)[field];
         }
       });
 
       if (changedFields.length === 0) {
         return {
           success: true,
-          updated_task: {
+          data: {
             ...task,
             priority: task.custom_fields?.priority
-          },
+          } as any,
           changed_fields: [],
           message: `📝 任务 "${task.title}" 无变更`
         };
@@ -527,6 +702,7 @@ export class TaskMCPServer {
 
       return {
         success: true,
+        data: updatedTask,
         updated_task: {
           id: updatedTask.id,
           title: updatedTask.title,
@@ -536,6 +712,7 @@ export class TaskMCPServer {
           due_date: updatedTask.due_date,
           assignee_id: updatedTask.assignee_id,
           project_id: updatedTask.project_id,
+          parent_id: updatedTask.parent_id,
           updated_at: updatedTask.updated_at,
           custom_fields: updatedTask.custom_fields
         },
@@ -552,7 +729,7 @@ export class TaskMCPServer {
   }
 
   // 创建或更新任务文档
-  async createOrUpdateTaskDocument(taskId: number, content: string, projectId: number = 1): Promise<any> {
+  async createOrUpdateTaskDocument(taskId: number, content: string, projectId: number = 1): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 创建/更新任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
       
@@ -584,7 +761,7 @@ export class TaskMCPServer {
   }
 
   // 获取任务文档内容
-  async getTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+  async getTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
       
@@ -628,7 +805,7 @@ export class TaskMCPServer {
   }
 
   // 检查任务是否有文档
-  async hasTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+  async hasTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 检查任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
       
@@ -668,7 +845,7 @@ export class TaskMCPServer {
   }
 
   // 删除任务文档
-  async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<any> {
+  async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 删除任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
       
@@ -706,10 +883,9 @@ export class TaskMCPServer {
   }
 
   // 移动任务到其他项目
-  async moveTask(id: number, targetProjectId: number): Promise<any> {
+  async moveTask(id: number, targetProjectId: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 移动任务: ID ${id} 到项目 ${targetProjectId}`);
-      
       const task = await this.findTaskById(id);
       
       // 验证目标项目存在
@@ -747,14 +923,14 @@ export class TaskMCPServer {
       });
       
       const allTasks = childrenResponse.data.data?.data || [];
-      const childTasks = allTasks.filter((t: any) => t.parent_id === id);
+      const childTasks = allTasks.filter((t: Task) => t.parent_id === id);
       
       if (childTasks.length > 0) {
         return {
           success: false,
           error: `任务有 ${childTasks.length} 个子任务，暂不支持移动有子任务的任务`,
           child_count: childTasks.length,
-          children: childTasks.map((t: any) => ({ id: t.id, title: t.title }))
+          children: childTasks.map((t: Task) => ({ id: t.id, title: t.title }))
         };
       }
 
@@ -813,10 +989,9 @@ export class TaskMCPServer {
   // ========== Phase 1 新增接口 ==========
 
   // 1. 暂停任务
-  async pauseTask(id: number): Promise<any> {
+  async pauseTask(id: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 暂停任务: ID ${id}`);
-      
       const task = await this.findTaskById(id);
       
       // 检查当前状态
@@ -864,10 +1039,9 @@ export class TaskMCPServer {
   }
 
   // 2. 查看项目列表
-  async listProjects(): Promise<any> {
+  async listProjects(): Promise<ApiResponse<{ projects: Project[] }>> {
     try {
       console.error(`[DEBUG] 获取项目列表`);
-      
       const response = await axios.get(`${this.apiBase}/projects`, {
         headers: this.getHeaders(),
         proxy: false
@@ -878,7 +1052,7 @@ export class TaskMCPServer {
       return {
         success: true,
         total: projects.length,
-        projects: projects.map((project: any) => ({
+        projects: projects.map((project: Project) => ({
           id: project.id,
           name: project.name,
           description: project.description,
@@ -898,10 +1072,9 @@ export class TaskMCPServer {
   }
 
   // 3. 创建新项目
-  async createProject(name: string, description?: string): Promise<any> {
+  async createProject(name: string, description?: string): Promise<ApiResponse<Project>> {
     try {
       console.error(`[DEBUG] 创建新项目: ${name}`);
-      
       const response = await axios.post(`${this.apiBase}/projects`, {
         name,
         description: description || `通过Claude Code创建：${name}`,
@@ -915,6 +1088,7 @@ export class TaskMCPServer {
       
       return {
         success: true,
+        data: project,
         id: project.id,
         name: project.name,
         description: project.description,
@@ -931,10 +1105,9 @@ export class TaskMCPServer {
   }
 
   // 4. 获取任务的子任务
-  async getTaskChildren(parentId: number): Promise<any> {
+  async getTaskChildren(parentId: number): Promise<ApiResponse<{ children: Task[] }>> {
     try {
       console.error(`[DEBUG] 获取任务子任务: 父任务ID ${parentId}`);
-      
       const parentTask = await this.findTaskById(parentId);
       
       // 获取父任务所在项目的所有任务
@@ -944,20 +1117,20 @@ export class TaskMCPServer {
       });
       
       const allTasks = response.data.data?.data || [];
-      const childTasks = allTasks.filter((task: any) => task.parent_id === parentId);
+      const childTasks = allTasks.filter((task: Task) => task.parent_id === parentId);
       
       return {
         success: true,
         parent_id: parentId,
         parent_title: parentTask.title,
         total: childTasks.length,
-        children: childTasks.map((task: any) => ({
+        children: childTasks.map((task: Task) => ({
           id: task.id,
           title: task.title,
           status: task.status,
           created_at: task.created_at,
           priority: task.custom_fields?.priority || 'low'
-        })),
+        } as any)),
         message: `🌳 任务 "${parentTask.title}" 有 ${childTasks.length} 个子任务`
       };
     } catch (error: any) {
@@ -970,10 +1143,9 @@ export class TaskMCPServer {
   }
 
   // 5. 开始任务计时
-  async startTimer(taskId: number, description?: string): Promise<any> {
+  async startTimer(taskId: number, description?: string): Promise<ApiResponse<TimerData>> {
     try {
       console.error(`[DEBUG] 开始任务计时: 任务ID ${taskId}`);
-      
       const task = await this.findTaskById(taskId);
       
       // 检查任务状态 - 只有待开始或进行中的任务可以计时
@@ -1004,6 +1176,7 @@ export class TaskMCPServer {
       
       return {
         success: true,
+        data: timerData,
         task_id: taskId,
         task_title: task.title,
         timer_id: timerData.id,
@@ -1021,7 +1194,7 @@ export class TaskMCPServer {
   }
 
   // 6. 停止当前计时
-  async stopTimer(taskId?: number): Promise<any> {
+  async stopTimer(taskId?: number): Promise<ApiResponse<TimerData>> {
     try {
       console.error(`[DEBUG] 停止计时: ${taskId ? `任务ID ${taskId}` : '当前所有计时'}`);
       
@@ -1039,6 +1212,7 @@ export class TaskMCPServer {
           const task = await this.findTaskById(taskId);
           return {
             success: true,
+            data: timerData,
             task_id: taskId,
             task_title: task.title,
             timer_id: timerData.id,
@@ -1050,6 +1224,7 @@ export class TaskMCPServer {
         } catch (taskError) {
           return {
             success: true,
+            data: timerData,
             task_id: taskId,
             task_title: '未知任务',
             timer_id: timerData.id,
@@ -1062,6 +1237,7 @@ export class TaskMCPServer {
       } else {
         return {
           success: true,
+          data: timerData,
           stopped_count: 1,
           duration_seconds: timerData.duration_seconds,
           duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
@@ -1078,7 +1254,7 @@ export class TaskMCPServer {
   }
 
   // 7. 获取当前计时状态
-  async getCurrentTimer(): Promise<any> {
+  async getCurrentTimer(): Promise<ApiResponse<{ active_timers: TimerData[] }>> {
     try {
       console.error(`[DEBUG] 获取当前计时状态`);
       
@@ -1093,6 +1269,7 @@ export class TaskMCPServer {
       if (!timerData || !timerData.task_id) {
         return {
           success: true,
+          data: { active_timers: [] },
           active_timers: [],
           total: 0,
           message: `⏱️ 当前没有活动的计时`
@@ -1112,27 +1289,31 @@ export class TaskMCPServer {
           current_duration_seconds: currentDuration,
           current_duration_formatted: this.formatDuration(currentDuration),
           description: timerData.description
-        };
+        } as any;
         
         return {
           success: true,
+          data: { active_timers: [timerInfo] },
           active_timers: [timerInfo],
           total: 1,
           message: `⏱️ 当前正在计时任务: "${task.title}" - ${this.formatDuration(currentDuration)}`
         };
       } catch (taskError) {
+        const timerInfo = {
+          timer_id: timerData.id,
+          task_id: timerData.task_id,
+          task_title: '未知任务',
+          started_at: timerData.started_at,
+          current_duration_seconds: 0,
+          current_duration_formatted: '00:00:00',
+          description: timerData.description,
+          error: '无法获取任务信息'
+        } as any;
+        
         return {
           success: true,
-          active_timers: [{
-            timer_id: timerData.id,
-            task_id: timerData.task_id,
-            task_title: '未知任务',
-            started_at: timerData.started_at,
-            current_duration_seconds: 0,
-            current_duration_formatted: '00:00:00',
-            description: timerData.description,
-            error: '无法获取任务信息'
-          }],
+          data: { active_timers: [timerInfo] },
+          active_timers: [timerInfo],
           total: 1,
           message: `⏱️ 当前有 1 个活动计时（任务信息获取失败）`
         };

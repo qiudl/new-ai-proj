@@ -6,7 +6,8 @@ import { logApiError } from '../utils/logger';
 export interface ParentSearchParams {
   projectId: number;
   keyword?: string;
-  excludeTaskId?: number;
+  excludeTaskId?: number; // 兼容性保留
+  excludeTaskIds?: number[]; // 新的批量排除参数
   maxLevel?: number;
   limit?: number;
   offset?: number;
@@ -62,10 +63,16 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
 
   // Generate cache key for search params
   const getCacheKey = useCallback((params: ParentSearchParams): string => {
+    // 合并单个和批量排除的任务IDs
+    const allExcludeIds = [...(params.excludeTaskIds || [])];
+    if (params.excludeTaskId && !allExcludeIds.includes(params.excludeTaskId)) {
+      allExcludeIds.push(params.excludeTaskId);
+    }
+    
     return JSON.stringify({
       projectId: params.projectId,
       keyword: params.keyword || '',
-      excludeTaskId: params.excludeTaskId,
+      excludeTaskIds: allExcludeIds.sort(), // 排序确保缓存键的一致性
       maxLevel: params.maxLevel,
       limit: params.limit,
       offset: params.offset,
@@ -116,9 +123,15 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       abortControllerRef.current = new AbortController();
       setCurrentParams(params);
 
+      // 合并单个和批量排除的任务IDs
+      const allExcludeIds = [...(params.excludeTaskIds || [])];
+      if (params.excludeTaskId && !allExcludeIds.includes(params.excludeTaskId)) {
+        allExcludeIds.push(params.excludeTaskId);
+      }
+      
       const searchParams = {
         keyword: params.keyword || '',
-        exclude_task_id: params.excludeTaskId,
+        exclude_task_ids: allExcludeIds.length > 0 ? allExcludeIds.join(',') : undefined,
         max_level: params.maxLevel || 3,
         page: Math.floor((params.offset || 0) / (params.limit || 20)) + 1,
         page_size: params.limit || 20,

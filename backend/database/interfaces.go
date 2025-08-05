@@ -70,7 +70,7 @@ type TaskRepository interface {
 	GetChildren(ctx context.Context, parentID int) ([]*models.Task, error)
 	GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error)
 	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
-	SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskID *int, maxLevel int, limit, offset int) ([]*models.Task, int, error)
+	SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error)
 	CheckCircularDependency(ctx context.Context, taskID int, potentialParentID int) (bool, error)
 	
 	// Task update history

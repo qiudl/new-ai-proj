@@ -1969,6 +1969,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       <TaskParentSelectorModal
         visible={parentSelectorVisible}
         projectId={projectId}
+        excludeTaskIds={selectedRowKeys.map(id => Number(id))} // 排除选中的任务
         onOk={handleBatchParentSelect}
         onCancel={() => setParentSelectorVisible(false)}
         title="批量更改父任务"

@@ -65,6 +65,7 @@ type Application struct {
 	taskDocumentFileHandler    *handlers.TaskDocumentFileHandler
 	unifiedDocumentHandler     *handlers.UnifiedDocumentHandler  // 新的统一文档处理器
 	googleAuthHandler          *handlers.GoogleAuthHandler       // Google认证处理器
+	calendarSyncHandler        *handlers.CalendarSyncHandler     // 日历同步处理器
 	// 归档的复杂处理器 - MVP版本不需要
 	// unifiedTaskDocumentHandler *handlers.UnifiedTaskDocumentHandler
 	// upgradedTaskDocumentHandler *handlers.UpgradedTaskDocumentHandler
@@ -210,6 +211,11 @@ func NewApplication() (*Application, error) {
 	// Google日历集成服务和处理器
 	googleCalendarService := services.NewGoogleCalendarService()
 	googleAuthHandler := handlers.NewGoogleAuthHandler(googleCalendarService, db.Users(), db.GoogleAuth())
+	
+	// 日历同步服务和处理器
+	calendarSyncRepo := database.NewCalendarSyncRepository(sqlxDB)
+	calendarSyncService := services.NewCalendarSyncService(googleCalendarService, db.Tasks(), db.Users(), calendarSyncRepo)
+	calendarSyncHandler := handlers.NewCalendarSyncHandler(calendarSyncService, calendarSyncRepo)
 
 	// 文档注册表处理器 - Disabled due to conflicting models
 	// documentRegistryService := services.NewDocumentRegistryService(db.DocumentRegistry())
@@ -253,6 +259,7 @@ func NewApplication() (*Application, error) {
 		dashboardHandler:            dashboardHandler,
 		taskAnalysisHandler:         taskAnalysisHandler,
 		googleAuthHandler:           googleAuthHandler,
+		calendarSyncHandler:         calendarSyncHandler,
 		// documentRegistryHandler:     documentRegistryHandler, // Disabled - conflicting models
 	}, nil
 }
@@ -309,6 +316,12 @@ func (app *Application) setupRouter() *gin.Engine {
 	router.GET("/health", app.healthHandler)
 	router.GET("/version", app.versionHandler)
 	router.GET("/documents/health", app.unifiedDocumentHandler.HealthCheck)
+
+	// Webhook endpoints (public access)
+	webhooks := router.Group("/api/v1/webhooks")
+	{
+		webhooks.POST("/google-calendar", app.calendarSyncHandler.GoogleCalendarWebhook)
+	}
 
 	// API routes
 	api := router.Group("/api/v1")
@@ -416,6 +429,17 @@ auth := api.Group("/auth")
 				projects.POST("/:id/tasks/:taskId/archive", app.archiveHandler.ArchiveTask)
 				projects.POST("/:id/tasks/:taskId/unarchive", app.archiveHandler.UnarchiveTask)
 				projects.GET("/:id/archive/stats", app.archiveHandler.GetArchiveStatistics)
+				
+				// Calendar sync routes
+				calendarSync := projects.Group("/:id/tasks/:taskId/calendar-sync")
+				{
+					calendarSync.POST("/enable", app.calendarSyncHandler.EnableTaskCalendarSync)
+					calendarSync.POST("/disable", app.calendarSyncHandler.DisableTaskCalendarSync)
+					calendarSync.PUT("", app.calendarSyncHandler.UpdateTaskSyncSettings)
+					calendarSync.GET("/status", app.calendarSyncHandler.GetTaskSyncStatus)
+					calendarSync.POST("/trigger", app.calendarSyncHandler.TriggerTaskSync)
+					calendarSync.GET("/logs", app.calendarSyncHandler.GetSyncLogs)
+				}
 				
 				// 统一文档管理API (新架构)
 				documents := projects.Group("/:id/tasks/:taskId/documents")
@@ -882,6 +906,14 @@ auth := api.Group("/auth")
 					companyUsers.PUT("/:id", app.companyUserHandler.UpdateCompanyUser)
 					companyUsers.PUT("/:id/status", app.companyUserHandler.UpdateCompanyUserStatus)
 					companyUsers.DELETE("/:id", app.companyUserHandler.DeleteCompanyUser)
+				}
+
+				// Calendar sync management (admin only)
+				calendarSyncAdmin := admin.Group("/calendar-sync")
+				calendarSyncAdmin.Use(middleware.RoleBasedAccessMiddleware("admin"))
+				{
+					calendarSyncAdmin.POST("/process-queue", app.calendarSyncHandler.ProcessSyncQueue)
+					calendarSyncAdmin.GET("/queue-status", app.calendarSyncHandler.GetSyncQueueStatus)
 				}
 			}
 		}
@@ -2408,6 +2440,12 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 			continue
 		}
 
+		// Ensure Title field is not empty before update (防止批量更新时title验证错误)
+		if existingTask.Title == "" {
+			app.logger.Printf("Warning: Task %d has empty title, using placeholder", taskID)
+			existingTask.Title = fmt.Sprintf("Task #%d", taskID)
+		}
+
 		_, err = app.db.Tasks().Update(ctx, existingTask)
 		if err != nil {
 			failedTasks = append(failedTasks, models.BatchTaskError{
@@ -3100,7 +3138,8 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 
 	// Get query parameters
 	keyword := c.Query("keyword")
-	excludeTaskIDStr := c.Query("exclude_task_id")
+	excludeTaskIDStr := c.Query("exclude_task_id")        // 兼容单个任务排除
+	excludeTaskIDsStr := c.Query("exclude_task_ids")      // 新的批量任务排除 (逗号分隔)
 	maxLevelStr := c.Query("max_level")
 	
 	// Parse pagination parameters
@@ -3119,8 +3158,10 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 		pagination.PageSize = 20
 	}
 
-	// Parse exclude task ID
-	var excludeTaskID *int
+	// Parse exclude task IDs (支持单个和批量)
+	var excludeTaskIDs []int
+	
+	// 处理单个exclude_task_id (兼容性)
 	if excludeTaskIDStr != "" {
 		excludeID, err := strconv.Atoi(excludeTaskIDStr)
 		if err != nil {
@@ -3128,7 +3169,34 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, response)
 			return
 		}
-		excludeTaskID = &excludeID
+		excludeTaskIDs = append(excludeTaskIDs, excludeID)
+	}
+	
+	// 处理批量exclude_task_ids (逗号分隔)
+	if excludeTaskIDsStr != "" {
+		idStrings := strings.Split(excludeTaskIDsStr, ",")
+		for _, idStr := range idStrings {
+			idStr = strings.TrimSpace(idStr)
+			if idStr != "" {
+				excludeID, err := strconv.Atoi(idStr)
+				if err != nil {
+					response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid exclude_task_ids format", nil)
+					c.JSON(http.StatusBadRequest, response)
+					return
+				}
+				// 避免重复添加
+				found := false
+				for _, existingID := range excludeTaskIDs {
+					if existingID == excludeID {
+						found = true
+						break
+					}
+				}
+				if !found {
+					excludeTaskIDs = append(excludeTaskIDs, excludeID)
+				}
+			}
+		}
 	}
 
 	// Parse max level (default to 3 to allow 4th level tasks)
@@ -3144,7 +3212,7 @@ func (app *Application) searchParentTasksHandler(c *gin.Context) {
 
 	// Call the task repository to search for parent tasks
 	offset := (pagination.Page - 1) * pagination.PageSize
-	tasks, total, err := app.db.Tasks().SearchParentTasks(c.Request.Context(), projectID, keyword, excludeTaskID, maxLevel, pagination.PageSize, offset)
+	tasks, total, err := app.db.Tasks().SearchParentTasks(c.Request.Context(), projectID, keyword, excludeTaskIDs, maxLevel, pagination.PageSize, offset)
 	if err != nil {
 		app.logger.Printf("Error searching parent tasks: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to search parent tasks", nil)

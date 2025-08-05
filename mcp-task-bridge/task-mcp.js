@@ -473,7 +473,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
             // 验证更新字段
-            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id'];
+            const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id'];
             const customFields = ['priority'];
             const allFields = [...directFields, ...customFields];
             const changedFields = [];

@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { userService } from '../services/userService';
 import { User, UserProfileUpdateRequest, PasswordChangeRequest } from '../types/user';
+import GoogleCalendarIntegration from '../components/GoogleCalendarIntegration';
 
 const { Title, Text } = Typography;
 
@@ -222,6 +223,11 @@ const UserProfilePage: React.FC = () => {
                 </Form.Item>
               </Form>
             </Card>
+
+            <Divider />
+
+            {/* Google Calendar Integration */}
+            <GoogleCalendarIntegration />
 
             <Divider />
 
