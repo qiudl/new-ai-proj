@@ -57,7 +57,6 @@ import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company }
 import { useTimer } from '../contexts/TimerContext';
 // 🎯 移除：不再需要SimplifiedTimerProvider，使用统一定时器系统
 // import DocumentList from '../components/DocumentList'; // 已归档，保持MVP简洁
-import ProjectTaskList from '../components/ProjectTaskList';
 import EnhancedProjectTaskManager from '../components/EnhancedProjectTaskManager';
 import '../styles/timer-components.css';
 
