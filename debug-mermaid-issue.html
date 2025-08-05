@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid库诊断测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .test-header {
+            background: #ff4d4f;
+            color: white;
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .test-content {
+            padding: 24px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+        .status.pass { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .status.fail { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffb3b3; }
+        .status.pending { background: #f0f8ff; color: #1890ff; border: 1px solid #b3d9ff; }
+        
+        .result-box {
+            background: #fafafa;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 12px;
+        }
+        
+        .mermaid-test {
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 16px 0;
+            text-align: center;
+            background: #fafafa;
+        }
+        
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        .btn:hover {
+            background: #40a9ff;
+        }
+        .btn.danger {
+            background: #ff4d4f;
+        }
+        .btn.danger:hover {
+            background: #ff7875;
+        }
+    </style>
+    
+    <!-- 尝试不同的CDN源 -->
+    <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <!-- 备用CDN -->
+    <script>
+        // 如果第一个CDN失败，尝试备用CDN
+        window.addEventListener('load', function() {
+            if (typeof window.mermaid === 'undefined') {
+                console.log('Primary CDN failed, trying backup...');
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js';
+                script.onload = function() {
+                    console.log('Backup CDN loaded successfully');
+                    runDiagnostics();
+                };
+                script.onerror = function() {
+                    console.error('All CDN sources failed');
+                    runDiagnostics();
+                };
+                document.head.appendChild(script);
+            } else {
+                console.log('Primary CDN loaded successfully');
+                runDiagnostics();
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            🚨 Mermaid库倒退问题诊断
+            <span class="status pending" id="overall-status">诊断中...</span>
+        </div>
+        <div class="test-content">
+            <p><strong>问题描述：</strong>编辑器中的Mermaid图原来能显示，现在都显示不了了。PDF导出也是一片空白。</p>
+            <p><strong>诊断时间：</strong><span id="test-time"></span></p>
+            <p><strong>诊断目标：</strong>查明Mermaid功能倒退的根本原因</p>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            1. CDN库加载状态检查
+            <span class="status pending" id="cdn-status">检查中...</span>
+        </div>
+        <div class="test-content">
+            <div class="result-box" id="cdn-result">正在检查CDN库加载状态...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            2. 浏览器环境兼容性检查
+            <span class="status pending" id="browser-status">检查中...</span>
+        </div>
+        <div class="test-content">
+            <div class="result-box" id="browser-result">正在检查浏览器环境...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            3. 网络连接测试
+            <span class="status pending" id="network-status">检查中...</span>
+        </div>
+        <div class="test-content">
+            <div class="result-box" id="network-result">正在检查网络连接...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            4. Mermaid基础渲染测试
+            <span class="status pending" id="render-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p>如果Mermaid库可用，下面应该显示一个简单的流程图：</p>
+            <div class="mermaid-test" id="basic-test">
+                <div id="mermaid-container">正在渲染测试图表...</div>
+            </div>
+            <div class="result-box" id="render-result">等待渲染测试结果...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            5. 问题修复建议
+            <span class="status pending" id="fix-status">分析中...</span>
+        </div>
+        <div class="test-content">
+            <div id="fix-suggestions">正在分析问题并生成修复建议...</div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="retryAllTests()">重新运行所有测试</button>
+                <button class="btn danger" onclick="switchToLocalLibs()">切换到本地库</button>
+                <button class="btn" onclick="location.href='http://localhost/'">返回应用</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 设置测试时间
+        document.getElementById('test-time').textContent = new Date().toLocaleString('zh-CN');
+        
+        let diagnosticResults = {
+            cdn: false,
+            browser: false,
+            network: false,
+            render: false
+        };
+
+        function updateStatus(elementId, status, text) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${status}`;
+            element.textContent = text;
+        }
+
+        function checkCDNStatus() {
+            const resultDiv = document.getElementById('cdn-result');
+            let result = '';
+            
+            // 检查Mermaid库
+            if (typeof window.mermaid !== 'undefined') {
+                diagnosticResults.cdn = true;
+                result += '✅ Mermaid库已加载\n';
+                result += `   版本: ${window.mermaid.version || '未知'}\n`;
+                result += `   类型: ${typeof window.mermaid}\n`;
+                result += `   可用方法: ${Object.keys(window.mermaid).slice(0, 5).join(', ')}...\n`;
+                updateStatus('cdn-status', 'pass', '✅ 正常');
+            } else {
+                diagnosticResults.cdn = false;
+                result += '❌ Mermaid库未加载\n';
+                result += '   可能原因: CDN服务不可用、网络问题、域名解析失败\n';
+                updateStatus('cdn-status', 'fail', '❌ 失败');
+            }
+            
+            // 检查html2pdf库
+            if (typeof window.html2pdf !== 'undefined') {
+                result += '✅ html2pdf库已加载\n';
+            } else {
+                result += '❌ html2pdf库未加载\n';
+            }
+            
+            resultDiv.textContent = result;
+        }
+
+        function checkBrowserCompatibility() {
+            const resultDiv = document.getElementById('browser-result');
+            let result = '';
+            let compatible = true;
+            
+            result += `浏览器: ${navigator.userAgent}\n`;
+            result += `用户代理: ${navigator.appName} ${navigator.appVersion}\n`;
+            
+            // 检查关键Web API支持
+            const requiredAPIs = [
+                'Promise',
+                'fetch',
+                'DOMParser',
+                'SVGElement'
+            ];
+            
+            requiredAPIs.forEach(api => {
+                if (window[api]) {
+                    result += `✅ ${api} 支持\n`;
+                } else {
+                    result += `❌ ${api} 不支持\n`;
+                    compatible = false;
+                }
+            });
+            
+            // 检查CSP
+            const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+            if (cspMeta) {
+                result += `⚠️ 检测到CSP策略: ${cspMeta.content}\n`;
+            } else {
+                result += '✅ 未检测到CSP限制\n';
+            }
+            
+            diagnosticResults.browser = compatible;
+            updateStatus('browser-status', compatible ? 'pass' : 'fail', compatible ? '✅ 兼容' : '❌ 不兼容');
+            resultDiv.textContent = result;
+        }
+
+        function checkNetworkConnectivity() {
+            const resultDiv = document.getElementById('network-result');
+            let result = '';
+            
+            // 测试不同CDN的连通性
+            const cdnTests = [
+                'https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js',
+                'https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js'
+            ];
+            
+            result += '测试CDN连通性...\n';
+            
+            let successCount = 0;
+            let testCount = 0;
+            
+            cdnTests.forEach((url, index) => {
+                fetch(url, { method: 'HEAD', mode: 'no-cors' })
+                    .then(() => {
+                        result += `✅ CDN ${index + 1}: 可访问\n`;
+                        successCount++;
+                    })
+                    .catch(() => {
+                        result += `❌ CDN ${index + 1}: 不可访问\n`;
+                    })
+                    .finally(() => {
+                        testCount++;
+                        if (testCount === cdnTests.length) {
+                            diagnosticResults.network = successCount > 0;
+                            updateStatus('network-status', 
+                                successCount > 0 ? 'pass' : 'fail', 
+                                successCount > 0 ? `✅ ${successCount}/${cdnTests.length}可用` : '❌ 全部失败');
+                            resultDiv.textContent = result;
+                        }
+                    });
+            });
+        }
+
+        async function testMermaidRendering() {
+            const container = document.getElementById('mermaid-container');
+            const resultDiv = document.getElementById('render-result');
+            
+            if (!window.mermaid) {
+                diagnosticResults.render = false;
+                updateStatus('render-status', 'fail', '❌ 库未加载');
+                container.innerHTML = '❌ Mermaid库未加载，无法进行渲染测试';
+                resultDiv.textContent = '渲染测试失败：Mermaid库不可用';
+                return;
+            }
+            
+            try {
+                // 初始化Mermaid
+                window.mermaid.initialize({ 
+                    startOnLoad: false, 
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    htmlLabels: true
+                });
+                
+                const testChart = `
+                flowchart TD
+                    A[诊断开始] --> B{Mermaid库可用?}
+                    B -->|是| C[渲染测试图表]
+                    B -->|否| D[显示错误信息]
+                    C --> E[测试成功]
+                    D --> F[提供修复建议]
+                `;
+                
+                const diagramId = `diagnostic-test-${Date.now()}`;
+                const { svg } = await window.mermaid.render(diagramId, testChart);
+                
+                container.innerHTML = svg;
+                diagnosticResults.render = true;
+                updateStatus('render-status', 'pass', '✅ 渲染成功');
+                resultDiv.textContent = '✅ Mermaid渲染测试成功！\n图表长度: ' + svg.length + ' 字符\n这说明Mermaid库本身工作正常。';
+                
+            } catch (error) {
+                diagnosticResults.render = false;
+                updateStatus('render-status', 'fail', '❌ 渲染失败');
+                container.innerHTML = `❌ 渲染失败: ${error.message}`;
+                resultDiv.textContent = `渲染测试失败:\n错误信息: ${error.message}\n堆栈跟踪: ${error.stack}`;
+            }
+        }
+
+        function generateFixSuggestions() {
+            const fixDiv = document.getElementById('fix-suggestions');
+            const results = diagnosticResults;
+            let suggestions = '';
+            
+            if (!results.cdn) {
+                suggestions += `
+                <div style="background: #fff2f0; border: 1px solid #ff4d4f; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                    <h4 style="color: #ff4d4f; margin: 0 0 8px 0;">🚨 CDN加载失败</h4>
+                    <p><strong>立即修复方案：</strong></p>
+                    <ol>
+                        <li>切换到本地npm包：<code>npm install mermaid html2pdf.js</code></li>
+                        <li>或更换CDN源到 jsdelivr 或 cdnjs</li>
+                        <li>检查网络防火墙或DNS设置</li>
+                    </ol>
+                </div>`;
+            }
+            
+            if (!results.browser) {
+                suggestions += `
+                <div style="background: #fff7e6; border: 1px solid #ffa940; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                    <h4 style="color: #fa8c16; margin: 0 0 8px 0;">⚠️ 浏览器兼容性问题</h4>
+                    <p>当前浏览器可能不支持某些关键API。建议升级浏览器或使用Chrome/Firefox最新版本。</p>
+                </div>`;
+            }
+            
+            if (!results.network) {
+                suggestions += `
+                <div style="background: #fff7e6; border: 1px solid #ffa940; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                    <h4 style="color: #fa8c16; margin: 0 0 8px 0;">🌐 网络连接问题</h4>
+                    <p>无法访问外部CDN。这可能是网络环境、代理设置或防火墙导致的。</p>
+                </div>`;
+            }
+            
+            if (results.cdn && results.browser && !results.render) {
+                suggestions += `
+                <div style="background: #fff2f0; border: 1px solid #ff4d4f; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                    <h4 style="color: #ff4d4f; margin: 0 0 8px 0;">🔧 渲染逻辑问题</h4>
+                    <p>库加载正常但渲染失败。可能是React组件的初始化时序问题或异步处理错误。</p>
+                    <p><strong>建议检查：</strong></p>
+                    <ul>
+                        <li>MermaidDiagram组件的useEffect依赖</li>
+                        <li>window.mermaid的初始化时机</li>
+                        <li>异步渲染的错误处理</li>
+                    </ul>
+                </div>`;
+            }
+            
+            if (results.cdn && results.browser && results.render) {
+                suggestions += `
+                <div style="background: #f6ffed; border: 1px solid #52c41a; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                    <h4 style="color: #389e0d; margin: 0 0 8px 0;">✅ 基础功能正常</h4>
+                    <p>Mermaid库工作正常！问题可能在React应用的集成层面：</p>
+                    <ul>
+                        <li>检查TaskMarkdownEditor组件的渲染逻辑</li>
+                        <li>确认MermaidDiagram组件的props传递</li>
+                        <li>查看浏览器控制台是否有React相关错误</li>
+                        <li>验证markdown解析是否正确识别mermaid语言块</li>
+                    </ul>
+                </div>`;
+            }
+            
+            // 总是提供通用建议
+            suggestions += `
+            <div style="background: #e6f7ff; border: 1px solid #1890ff; border-radius: 6px; padding: 16px; margin: 8px 0;">
+                <h4 style="color: #1890ff; margin: 0 0 8px 0;">💡 通用修复建议</h4>
+                <ol>
+                    <li><strong>本地化依赖：</strong>使用npm安装而非CDN，避免网络依赖</li>
+                    <li><strong>添加调试日志：</strong>在MermaidDiagram组件中添加console.log</li>
+                    <li><strong>错误边界：</strong>添加React Error Boundary捕获渲染错误</li>
+                    <li><strong>降级方案：</strong>渲染失败时显示代码块而非空白</li>
+                </ol>
+            </div>`;
+            
+            fixDiv.innerHTML = suggestions;
+            
+            const allPassed = Object.values(results).every(r => r);
+            updateStatus('fix-status', allPassed ? 'pass' : 'fail', allPassed ? '✅ 建议已生成' : '❌ 需要修复');
+            
+            const overallStatus = allPassed ? 'pass' : 'fail';
+            updateStatus('overall-status', overallStatus, allPassed ? '✅ 基础正常' : '❌ 发现问题');
+        }
+
+        function retryAllTests() {
+            location.reload();
+        }
+
+        function switchToLocalLibs() {
+            alert('建议在项目根目录运行以下命令：\n\nnpm install mermaid html2pdf.js\n\n然后修改代码使用import而非CDN。');
+        }
+
+        async function runDiagnostics() {
+            console.log('🔍 开始运行Mermaid倒退问题诊断...');
+            
+            // 1. CDN状态检查
+            checkCDNStatus();
+            
+            // 2. 浏览器兼容性检查
+            checkBrowserCompatibility();
+            
+            // 3. 网络连通性检查
+            checkNetworkConnectivity();
+            
+            // 4. 渲染测试（等待一秒确保前面的检查完成）
+            setTimeout(testMermaidRendering, 1000);
+            
+            // 5. 生成修复建议（等待2秒确保所有测试完成）
+            setTimeout(generateFixSuggestions, 2000);
+        }
+
+        // 页面加载完成后自动运行（但会被上面的load事件处理）
+        document.addEventListener('DOMContentLoaded', function() {
+            // 如果Mermaid已经可用（同步加载），立即运行
+            if (typeof window.mermaid !== 'undefined') {
+                runDiagnostics();
+            }
+            // 否则等待load事件中的异步处理
+        });
+    </script>
+</body>
+</html>

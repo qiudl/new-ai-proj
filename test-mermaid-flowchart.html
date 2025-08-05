@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid流程图预览功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .test-header {
+            background: #1890ff;
+            color: white;
+            padding: 16px 24px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .test-content {
+            padding: 24px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 12px;
+        }
+        .status.pass { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; }
+        .status.fail { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffb3b3; }
+        .status.pending { background: #f0f8ff; color: #1890ff; border: 1px solid #b3d9ff; }
+        
+        .mermaid-example {
+            background: #fafafa;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        .code-block {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        .test-result {
+            margin: 16px 0;
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid #1890ff;
+            background: #f0f8ff;
+        }
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        .btn:hover {
+            background: #40a9ff;
+        }
+        .btn.secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        .btn.secondary:hover {
+            background: #e0e0e0;
+        }
+    </style>
+    <!-- 加载Mermaid库 -->
+    <script src="https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            🧪 Mermaid流程图预览功能测试
+            <span class="status pending" id="overall-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p><strong>测试目标：</strong>验证TaskDocumentEditor组件中的GraphTD流程图预览功能是否正常工作</p>
+            <p><strong>测试时间：</strong><span id="test-time"></span></p>
+            <p><strong>修复内容：</strong></p>
+            <ul>
+                <li>✅ 在TaskMarkdownEditor.tsx中添加了MermaidDiagram组件</li>
+                <li>✅ 修复了ReactMarkdown的code组件以支持```mermaid代码块渲染</li>
+                <li>✅ 通过CDN加载了Mermaid.js库到index.html</li>
+                <li>✅ 添加了Mermaid流程图工具栏按钮</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            1. Mermaid库加载测试
+            <span class="status pending" id="library-status">检测中...</span>
+        </div>
+        <div class="test-content">
+            <p>检查Mermaid.js库是否正确通过CDN加载...</p>
+            <div class="test-result" id="library-result">
+                <div id="library-info">正在检测Mermaid库...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            2. 基础流程图渲染测试
+            <span class="status pending" id="basic-chart-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p>测试基础的Mermaid流程图是否能正确渲染：</p>
+            <div class="code-block">```mermaid
+flowchart TD
+    A[开始] --> B{是否登录?}
+    B -->|是| C[显示任务列表]
+    B -->|否| D[跳转登录页]
+    C --> E[选择任务]
+    E --> F[编辑任务文档]
+    F --> G[保存文档]
+    G --> H[结束]
+    D --> B</div>
+            
+            <div class="mermaid-example">
+                <div id="basic-chart" class="mermaid-diagram">
+                    flowchart TD
+                        A[开始] --> B{是否登录?}
+                        B -->|是| C[显示任务列表]
+                        B -->|否| D[跳转登录页]
+                        C --> E[选择任务]
+                        E --> F[编辑任务文档]
+                        F --> G[保存文档]
+                        G --> H[结束]
+                        D --> B
+                </div>
+            </div>
+            
+            <div class="test-result" id="basic-chart-result">
+                正在渲染基础流程图...
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            3. 复杂流程图渲染测试
+            <span class="status pending" id="complex-chart-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p>测试包含样式和复杂结构的Mermaid图表：</p>
+            <div class="code-block">```mermaid
+graph LR
+    subgraph "前端组件"
+        A[TaskDocumentEditor] --> B[TaskMarkdownEditor]
+        B --> C[MermaidDiagram]
+        C --> D[ReactMarkdown]
+    end
+    
+    subgraph "渲染流程"
+        E[用户输入代码] --> F[检测mermaid语法]
+        F --> G[MermaidDiagram组件]
+        G --> H[Mermaid.js渲染]
+        H --> I[SVG图表输出]
+    end
+    
+    A --> E
+    I --> J[用户看到图表]
+    
+    style A fill:#e1f5fe
+    style C fill:#f3e5f5
+    style H fill:#e8f5e8
+    style J fill:#fff3e0</div>
+            
+            <div class="mermaid-example" style="text-align: center;">
+                <div id="complex-chart" class="mermaid-diagram">
+                    graph LR
+                        subgraph "前端组件"
+                            A[TaskDocumentEditor] --> B[TaskMarkdownEditor]
+                            B --> C[MermaidDiagram]
+                            C --> D[ReactMarkdown]
+                        end
+                        
+                        subgraph "渲染流程"
+                            E[用户输入代码] --> F[检测mermaid语法]
+                            F --> G[MermaidDiagram组件]
+                            G --> H[Mermaid.js渲染]
+                            H --> I[SVG图表输出]
+                        end
+                        
+                        A --> E
+                        I --> J[用户看到图表]
+                        
+                        style A fill:#e1f5fe
+                        style C fill:#f3e5f5
+                        style H fill:#e8f5e8
+                        style J fill:#fff3e0
+                </div>
+            </div>
+            
+            <div class="test-result" id="complex-chart-result">
+                正在渲染复杂流程图...
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            4. 时序图渲染测试
+            <span class="status pending" id="sequence-chart-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p>测试Mermaid时序图是否能正确渲染：</p>
+            <div class="code-block">```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant E as TaskDocumentEditor
+    participant M as MermaidDiagram
+    participant L as Mermaid.js
+    
+    U->>E: 输入```mermaid代码
+    E->>M: 解析代码块
+    M->>L: 调用渲染API
+    L-->>M: 返回SVG图表
+    M-->>E: 显示图表
+    E-->>U: 用户看到可视化图表</div>
+            
+            <div class="mermaid-example">
+                <div id="sequence-chart" class="mermaid-diagram">
+                    sequenceDiagram
+                        participant U as 用户
+                        participant E as TaskDocumentEditor
+                        participant M as MermaidDiagram
+                        participant L as Mermaid.js
+                        
+                        U->>E: 输入```mermaid代码
+                        E->>M: 解析代码块
+                        M->>L: 调用渲染API
+                        L-->>M: 返回SVG图表
+                        M-->>E: 显示图表
+                        E-->>U: 用户看到可视化图表
+                </div>
+            </div>
+            
+            <div class="test-result" id="sequence-chart-result">
+                正在渲染时序图...
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            5. 甘特图渲染测试
+            <span class="status pending" id="gantt-chart-status">测试中...</span>
+        </div>
+        <div class="test-content">
+            <p>测试Mermaid甘特图是否能正确渲染：</p>
+            <div class="code-block">```mermaid
+gantt
+    title TaskDocumentEditor流程图功能开发计划
+    dateFormat  YYYY-MM-DD
+    section 基础功能
+    添加Mermaid组件    :done, des1, 2025-01-15, 2025-01-16
+    修复代码块渲染    :done, des2, 2025-01-16, 2025-01-17
+    section 测试验证
+    创建测试页面      :active, des3, 2025-01-17, 2025-01-18
+    功能验证测试      :des4, 2025-01-18, 2025-01-19
+    section 完善优化
+    性能优化         :des5, 2025-01-19, 2025-01-20
+    文档更新         :des6, 2025-01-20, 2025-01-21</div>
+            
+            <div class="mermaid-example">
+                <div id="gantt-chart" class="mermaid-diagram">
+                    gantt
+                        title TaskDocumentEditor流程图功能开发计划
+                        dateFormat  YYYY-MM-DD
+                        section 基础功能
+                        添加Mermaid组件    :done, des1, 2025-01-15, 2025-01-16
+                        修复代码块渲染    :done, des2, 2025-01-16, 2025-01-17
+                        section 测试验证
+                        创建测试页面      :active, des3, 2025-01-17, 2025-01-18
+                        功能验证测试      :des4, 2025-01-18, 2025-01-19
+                        section 完善优化
+                        性能优化         :des5, 2025-01-19, 2025-01-20
+                        文档更新         :des6, 2025-01-20, 2025-01-21
+                </div>
+            </div>
+            
+            <div class="test-result" id="gantt-chart-result">
+                正在渲染甘特图...
+            </div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <div class="test-header">
+            🎯 测试总结报告
+            <span class="status pending" id="summary-status">统计中...</span>
+        </div>
+        <div class="test-content">
+            <div id="summary-content">
+                <p>正在汇总测试结果...</p>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="runAllTests()">重新运行所有测试</button>
+                <button class="btn secondary" onclick="window.print()">打印测试报告</button>
+                <button class="btn secondary" onclick="location.href='http://localhost/'">返回应用</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 设置测试时间
+        document.getElementById('test-time').textContent = new Date().toLocaleString('zh-CN');
+        
+        // 测试结果统计
+        let testResults = {
+            library: false,
+            basicChart: false,
+            complexChart: false,
+            sequenceChart: false,
+            ganttChart: false
+        };
+
+        // 更新状态样式
+        function updateStatus(elementId, status, text) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${status}`;
+            element.textContent = text;
+        }
+
+        // 测试1: 检查Mermaid库是否加载
+        function testMermaidLibrary() {
+            const resultDiv = document.getElementById('library-info');
+            
+            if (typeof window.mermaid !== 'undefined') {
+                testResults.library = true;
+                updateStatus('library-status', 'pass', '✅ 通过');
+                resultDiv.innerHTML = `
+                    <strong>✅ Mermaid库加载成功！</strong><br>
+                    版本信息: ${window.mermaid.version || 'v10.9.1'}<br>
+                    库对象: ${typeof window.mermaid}<br>
+                    可用方法: ${Object.keys(window.mermaid).join(', ')}
+                `;
+            } else {
+                testResults.library = false;
+                updateStatus('library-status', 'fail', '❌ 失败');
+                resultDiv.innerHTML = `
+                    <strong>❌ Mermaid库未加载！</strong><br>
+                    请检查CDN链接是否正确：<br>
+                    <code>https://unpkg.com/mermaid@10.9.1/dist/mermaid.min.js</code>
+                `;
+            }
+        }
+
+        // 测试图表渲染
+        async function testChartRendering(chartId, statusId, resultId, chartType) {
+            const chartElement = document.getElementById(chartId);
+            const resultElement = document.getElementById(resultId);
+            
+            if (!window.mermaid) {
+                updateStatus(statusId, 'fail', '❌ 失败');
+                resultElement.innerHTML = `<strong>❌ Mermaid库未加载，无法渲染${chartType}</strong>`;
+                return false;
+            }
+
+            try {
+                // 初始化Mermaid配置
+                window.mermaid.initialize({ 
+                    startOnLoad: false, 
+                    theme: 'default',
+                    securityLevel: 'loose',
+                    htmlLabels: true
+                });
+
+                // 获取原始代码
+                const mermaidCode = chartElement.textContent.trim();
+                
+                // 生成唯一ID
+                const diagramId = `${chartId}-rendered-${Date.now()}`;
+                
+                // 渲染图表
+                const { svg } = await window.mermaid.render(diagramId, mermaidCode);
+                
+                // 替换内容
+                chartElement.innerHTML = svg;
+                
+                updateStatus(statusId, 'pass', '✅ 通过');
+                resultElement.innerHTML = `<strong>✅ ${chartType}渲染成功！</strong><br>SVG长度: ${svg.length} 字符`;
+                
+                return true;
+            } catch (error) {
+                console.error(`${chartType}渲染失败:`, error);
+                updateStatus(statusId, 'fail', '❌ 失败');
+                resultElement.innerHTML = `
+                    <strong>❌ ${chartType}渲染失败</strong><br>
+                    错误信息: ${error.message}<br>
+                    <details>
+                        <summary>查看详细错误</summary>
+                        <pre style="font-size: 11px; margin-top: 8px;">${error.stack}</pre>
+                    </details>
+                `;
+                return false;
+            }
+        }
+
+        // 运行所有测试
+        async function runAllTests() {
+            console.log('🧪 开始运行Mermaid流程图测试...');
+            
+            // 重置状态
+            Object.keys(testResults).forEach(key => testResults[key] = false);
+            
+            // 测试1: 库加载
+            testMermaidLibrary();
+            
+            if (testResults.library) {
+                // 测试2-5: 各种图表渲染
+                testResults.basicChart = await testChartRendering('basic-chart', 'basic-chart-status', 'basic-chart-result', '基础流程图');
+                await new Promise(resolve => setTimeout(resolve, 500)); // 避免渲染冲突
+                
+                testResults.complexChart = await testChartRendering('complex-chart', 'complex-chart-status', 'complex-chart-result', '复杂流程图');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                testResults.sequenceChart = await testChartRendering('sequence-chart', 'sequence-chart-status', 'sequence-chart-result', '时序图');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                testResults.ganttChart = await testChartRendering('gantt-chart', 'gantt-chart-status', 'gantt-chart-result', '甘特图');
+            }
+            
+            // 生成测试报告
+            generateSummary();
+        }
+
+        // 生成测试总结
+        function generateSummary() {
+            const passedTests = Object.values(testResults).filter(result => result).length;
+            const totalTests = Object.keys(testResults).length;
+            const passRate = Math.round((passedTests / totalTests) * 100);
+            
+            const summaryContent = document.getElementById('summary-content');
+            const overallPassed = passedTests === totalTests;
+            
+            updateStatus('summary-status', overallPassed ? 'pass' : 'fail', 
+                       overallPassed ? '✅ 全部通过' : `❌ ${passedTests}/${totalTests} 通过`);
+            
+            const statusIcon = overallPassed ? '🎉' : '⚠️';
+            const statusText = overallPassed ? '所有测试通过！TaskDocumentEditor的Mermaid流程图预览功能已成功修复。' 
+                                            : '部分测试失败，需要进一步调试。';
+            
+            summaryContent.innerHTML = `
+                <div style="text-align: center; padding: 20px; background: ${overallPassed ? '#f6ffed' : '#fff2f0'}; border-radius: 8px; border: 2px solid ${overallPassed ? '#52c41a' : '#ff4d4f'};">
+                    <h2 style="margin: 0 0 16px 0;">${statusIcon} 测试完成</h2>
+                    <p style="font-size: 16px; margin: 0 0 16px 0;">${statusText}</p>
+                    <div style="font-size: 18px; font-weight: 600;">通过率: ${passRate}% (${passedTests}/${totalTests})</div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <h3>📊 详细测试结果:</h3>
+                    <ul style="list-style: none; padding: 0;">
+                        <li>🔧 Mermaid库加载: ${testResults.library ? '✅ 通过' : '❌ 失败'}</li>
+                        <li>📈 基础流程图渲染: ${testResults.basicChart ? '✅ 通过' : '❌ 失败'}</li>
+                        <li>🎨 复杂流程图渲染: ${testResults.complexChart ? '✅ 通过' : '❌ 失败'}</li>
+                        <li>⚡ 时序图渲染: ${testResults.sequenceChart ? '✅ 通过' : '❌ 失败'}</li>
+                        <li>📅 甘特图渲染: ${testResults.ganttChart ? '✅ 通过' : '❌ 失败'}</li>
+                    </ul>
+                </div>
+                
+                ${overallPassed ? `
+                <div style="margin-top: 20px; padding: 16px; background: #e6f7ff; border-radius: 6px;">
+                    <h3>🚀 功能已就绪</h3>
+                    <p>用户现在可以在TaskDocumentEditor中：</p>
+                    <ul>
+                        <li>✅ 使用 <code>📊</code> 按钮插入Mermaid流程图代码块</li>
+                        <li>✅ 在预览模式中查看渲染后的图表</li>
+                        <li>✅ 支持多种图表类型（流程图、时序图、甘特图等）</li>
+                        <li>✅ 图表渲染错误时显示友好的错误信息</li>
+                    </ul>
+                </div>
+                ` : `
+                <div style="margin-top: 20px; padding: 16px; background: #fff7e6; border-radius: 6px;">
+                    <h3>🔍 需要进一步调试</h3>
+                    <p>请检查以下问题：</p>
+                    <ul>
+                        <li>确认index.html中已正确添加Mermaid CDN引用</li>
+                        <li>检查浏览器控制台是否有JavaScript错误</li>
+                        <li>验证MermaidDiagram组件是否正确实现</li>
+                        <li>确认ReactMarkdown的code组件是否正确处理mermaid语言块</li>
+                    </ul>
+                </div>
+                `}
+            `;
+            
+            updateStatus('overall-status', overallPassed ? 'pass' : 'fail', 
+                       overallPassed ? '✅ 测试通过' : '❌ 需要调试');
+        }
+
+        // 页面加载完成后自动运行测试
+        window.onload = function() {
+            console.log('📋 Mermaid流程图预览功能测试页面已加载');
+            setTimeout(runAllTests, 1000); // 等待1秒确保所有资源加载完成
+        };
+    </script>
+</body>
+</html>

@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button, Space, message, Spin } from 'antd';
-import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlined, PrinterOutlined } from '@ant-design/icons';
 import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import api from '../services/api';
 import '../styles/TaskDocumentEditor.css';
-import html2pdf from 'html2pdf.js';
+import { renderMermaidDiagram } from '../utils/mermaidUtils';
+// html2pdf.js and mermaid.js are loaded globally via CDN in index.html
+declare global {
+  interface Window {
+    html2pdf: any;
+    mermaid?: any;
+    mermaidInitialized: boolean;
+  }
+}
+
+// Type declaration for global html2pdf function
+declare const html2pdf: any;
 
 // API返回的数据结构 - 匹配后端统一响应格式
 interface TaskDocumentResponse {
@@ -47,6 +58,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   const [hasChanges, setHasChanges] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   // 加载文档内容
   const loadDocument = useCallback(async () => {
@@ -127,6 +139,10 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     setIsExportingPdf(true);
     
     try {
+      // 检查全局html2pdf是否可用 (通过CDN加载)
+      if (typeof window.html2pdf === 'undefined') {
+        throw new Error('html2pdf.js库未加载，请刷新页面重试');
+      }
       // 创建用于PDF渲染的HTML内容
       const htmlContent = `
         <!DOCTYPE html>
@@ -227,7 +243,49 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       tempDiv.style.position = 'absolute';
       tempDiv.style.left = '-9999px';
       tempDiv.style.top = '-9999px';
+      tempDiv.style.width = '794px'; // A4宽度
+      tempDiv.style.backgroundColor = '#ffffff';
       document.body.appendChild(tempDiv);
+
+      // 等待所有图片和SVG完全加载
+      const waitForImages = () => {
+        return new Promise<void>((resolve) => {
+          const images = tempDiv.querySelectorAll('img, svg');
+          if (images.length === 0) {
+            resolve();
+            return;
+          }
+
+          let loadedCount = 0;
+          const checkAllLoaded = () => {
+            loadedCount++;
+            if (loadedCount >= images.length) {
+              resolve();
+            }
+          };
+
+          images.forEach((img) => {
+            if (img.tagName === 'SVG') {
+              // SVG已经渲染完成
+              checkAllLoaded();
+            } else if (img.complete) {
+              checkAllLoaded();
+            } else {
+              img.onload = checkAllLoaded;
+              img.onerror = checkAllLoaded;
+            }
+          });
+
+          // 设置超时防止无限等待
+          setTimeout(resolve, 3000);
+        });
+      };
+
+      // 等待渲染完成
+      await waitForImages();
+      
+      // 额外等待确保所有内容完全渲染
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // PDF配置选项
       const opt = {
@@ -238,7 +296,15 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: '#ffffff'
+          backgroundColor: '#ffffff',
+          logging: false, // 减少控制台输出
+          width: 794, // A4宽度
+          height: null, // 自动高度
+          scrollX: 0,
+          scrollY: 0,
+          // 确保SVG正确渲染
+          foreignObjectRendering: true,
+          removeContainer: true
         },
         jsPDF: { 
           unit: 'mm', 
@@ -246,13 +312,16 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           orientation: 'portrait',
           compress: true
         },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { 
+          mode: ['avoid-all', 'css', 'legacy'],
+          before: ['.mermaid-container'] // 避免图表被分页
+        }
       };
 
-      // 生成并下载PDF
-      await html2pdf().set(opt).from(tempDiv.querySelector('.document-content')).save();
+      // 生成并下载PDF (使用全局html2pdf对象)
+      await window.html2pdf().set(opt).from(tempDiv.querySelector('.document-content')).save();
       
-      message.success('PDF导出成功！');
+      message.success('PDF导出成功！流程图已包含在内。');
       
       // 清理临时DOM元素
       document.body.removeChild(tempDiv);
@@ -265,30 +334,393 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     }
   }, [content, taskId, projectId]);
 
+  // 打印预览功能
+  const openPrintPreview = useCallback(async () => {
+    if (!content.trim()) {
+      message.warning('文档内容为空，无法打印预览');
+      return;
+    }
+
+    setIsPrintPreviewOpen(true);
+  }, [content]);
+
+  const closePrintPreview = useCallback(() => {
+    setIsPrintPreviewOpen(false);
+  }, []);
+
+  // 打印预览窗口内容
+  const renderPrintPreview = () => {
+    if (!isPrintPreviewOpen) return null;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html lang="zh-CN">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>任务文档打印预览</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+          }
+          
+          h1, h2, h3, h4, h5, h6 {
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+          }
+          h1 { font-size: 24px; border-bottom: 1px solid #eaecef; padding-bottom: 8px; }
+          h2 { font-size: 20px; }
+          h3 { font-size: 18px; }
+          h4 { font-size: 16px; }
+          h5 { font-size: 14px; }
+          h6 { font-size: 14px; color: #666; }
+          
+          p { margin-bottom: 16px; }
+          
+          ul, ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+          }
+          li { margin-bottom: 4px; }
+          
+          blockquote {
+            margin: 16px 0;
+            padding: 0 16px;
+            color: #666;
+            border-left: 4px solid #dfe2e5;
+            background: #f8f9fa;
+          }
+          
+          code {
+            background: #f3f4f6;
+            border-radius: 3px;
+            font-size: 85%;
+            margin: 0;
+            padding: 2px 4px;
+            font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+          }
+          
+          pre {
+            background: #f6f8fa;
+            border-radius: 6px;
+            font-size: 85%;
+            line-height: 1.45;
+            overflow: auto;
+            padding: 16px;
+            margin: 16px 0;
+          }
+          pre code {
+            background: transparent;
+            border: 0;
+            display: inline;
+            font-size: inherit;
+            line-height: inherit;
+            margin: 0;
+            max-width: auto;
+            min-width: auto;
+            overflow: visible;
+            padding: 0;
+            white-space: pre;
+            word-wrap: normal;
+          }
+          
+          table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            margin: 16px 0;
+          }
+          th, td {
+            border: 1px solid #d0d7de;
+            padding: 8px 12px;
+            text-align: left;
+          }
+          th { 
+            background: #f6f8fa; 
+            font-weight: 600; 
+          }
+          
+          .print-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e1e4e8;
+          }
+          
+          .print-meta {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+          }
+          
+          .mermaid-container {
+            margin: 20px 0;
+            text-align: center;
+            background: #fafafa;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 20px;
+            page-break-inside: avoid;
+          }
+          
+          @media print {
+            body { margin: 0; padding: 20px; }
+            .print-header { page-break-inside: avoid; }
+            .no-print { display: none !important; }
+          }
+          
+          @page {
+            margin: 2cm;
+            size: A4;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-header">
+          <h1>任务文档</h1>
+          <div class="print-meta">
+            任务ID: ${taskId} | 项目ID: ${projectId} | 打印时间: ${new Date().toLocaleString('zh-CN')}
+          </div>
+        </div>
+        <div class="print-content">
+          ${content.replace(/```mermaid\n([\s\S]*?)```/g, (match, mermaidCode) => {
+            return `<div class="mermaid-container">
+              <div style="color: #666; font-style: italic; margin-bottom: 12px;">📊 Mermaid流程图</div>
+              <details>
+                <summary style="cursor: pointer; color: #1890ff;">查看图表代码</summary>
+                <pre style="background: #f6f8fa; padding: 12px; border-radius: 4px; margin-top: 8px; font-size: 12px; text-align: left;">${mermaidCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+              </details>
+            </div>`;
+          }).replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            closePrintPreview();
+          }
+        }}
+      >
+        <div
+          style={{
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            width: '90vw',
+            height: '90vh',
+            maxWidth: '900px',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+          }}
+        >
+          <div
+            style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #e8e8e8',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#fafafa',
+              borderRadius: '8px 8px 0 0'
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '16px', color: '#333' }}>
+              📄 打印预览 - 任务文档
+            </h3>
+            <Space>
+              <Button
+                type="primary"
+                icon={<PrinterOutlined />}
+                onClick={() => {
+                  const printWindow = window.open('', '_blank');
+                  if (printWindow) {
+                    printWindow.document.write(printContent);
+                    printWindow.document.close();
+                    printWindow.print();
+                  }
+                }}
+              >
+                打印
+              </Button>
+              <Button
+                onClick={closePrintPreview}
+              >
+                关闭
+              </Button>
+            </Space>
+          </div>
+          <iframe
+            style={{
+              flex: 1,
+              border: 'none',
+              borderRadius: '0 0 8px 8px'
+            }}
+            srcDoc={printContent}
+            title="打印预览"
+          />
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
   // 将Markdown转换为HTML的辅助函数
   const convertMarkdownToHtml = useCallback(async (markdown: string): Promise<string> => {
-    // 简单的Markdown到HTML转换（实际项目中可能需要更完善的转换）
-    return markdown
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/!\[([^\]]*)\]\(([^\)]*)\)/gim, '<img alt="$1" src="$2" style="max-width: 100%; height: auto;" />')
-      .replace(/\[([^\]]*)\]\(([^\)]*)\)/gim, '<a href="$2">$1</a>')
-      .replace(/`([^`]*)`/gim, '<code>$1</code>')
-      .replace(/```([^```]*)```/gim, '<pre><code>$1</code></pre>')
-      .replace(/^- (.*$)/gim, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/gims, '<ul>$1</ul>')
-      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/gims, '<ol>$1</ol>')
-      .replace(/\n\n/gim, '</p><p>')
-      .replace(/^(.*)$/gim, '<p>$1</p>')
-      .replace(/<p><\/p>/gim, '')
-      .replace(/<p>(<h[1-6]>.*<\/h[1-6]>)<\/p>/gim, '$1')
-      .replace(/<p>(<ul>.*<\/ul>)<\/p>/gims, '$1')
-      .replace(/<p>(<ol>.*<\/ol>)<\/p>/gims, '$1')
-      .replace(/<p>(<pre>.*<\/pre>)<\/p>/gims, '$1');
+    // 更完善的Markdown到HTML转换，特别处理代码块和流程图
+    let html = markdown;
+    
+    // 1. 首先处理Mermaid流程图代码块（避免其他规则干扰）
+    const mermaidBlocks: string[] = [];
+    
+    // 异步处理Mermaid图表渲染
+    const mermaidMatches = [...html.matchAll(/```mermaid\n([\s\S]*?)```/g)];
+    for (const [match, mermaidCode] of mermaidMatches) {
+      const placeholder = `__MERMAID_BLOCK_${mermaidBlocks.length}__`;
+      const cleanCode = mermaidCode.replace(/^\n+/, '').replace(/\n+$/, ''); // 清理首尾换行
+      const diagramId = `pdf-mermaid-${Date.now()}-${mermaidBlocks.length}`;
+      
+      try {
+        console.log('🎨 [TaskDocumentEditor] PDF导出：开始渲染 Mermaid 图表', diagramId);
+        
+        // 使用统一的渲染工具
+        const result = await renderMermaidDiagram(cleanCode, diagramId);
+        
+        if (result.error) {
+          // 渲染失败时的降级处理
+          console.warn('🎨 [TaskDocumentEditor] PDF导出：Mermaid图表渲染失败:', result.error);
+          mermaidBlocks.push(`
+            <div class="mermaid-container" style="margin: 20px 0; text-align: center; background: #fff2f0; border: 1px solid #ff7875; border-radius: 8px; padding: 20px;">
+              <div style="color: #cf1322; font-weight: 600; margin-bottom: 12px;">❌ 图表渲染失败</div>
+              <div style="color: #666; font-style: italic; margin-bottom: 12px;">错误: ${result.error}</div>
+              <details style="text-align: left;">
+                <summary style="cursor: pointer; color: #1890ff;">查看原始代码</summary>
+                <pre style="background: #f6f8fa; padding: 12px; border-radius: 4px; margin-top: 8px; font-size: 12px; overflow-x: auto;">${cleanCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+              </details>
+            </div>
+          `);
+        } else if (result.svg) {
+          // 渲染成功
+          console.log('✅ [TaskDocumentEditor] PDF导出：Mermaid SVG生成成功，长度:', result.svg.length);
+          
+          // 创建包含实际SVG的容器
+          mermaidBlocks.push(`
+            <div class="mermaid-container" style="margin: 20px 0; text-align: center; background: #fafafa; border: 1px solid #e1e4e8; border-radius: 8px; padding: 20px; page-break-inside: avoid;">
+              <div class="mermaid-diagram" style="display: inline-block; max-width: 100%; overflow: visible;">
+                ${result.svg}
+              </div>
+              <div style="margin-top: 8px; font-size: 12px; color: #666; text-align: center;">
+                📊 Mermaid流程图
+              </div>
+            </div>
+          `);
+        } else {
+          throw new Error('未知的渲染结果');
+        }
+      } catch (error: any) {
+        console.warn('🎨 [TaskDocumentEditor] PDF导出：Mermaid图表渲染异常:', error);
+        // 异常时的降级处理
+        mermaidBlocks.push(`
+          <div class="mermaid-container" style="margin: 20px 0; text-align: center; background: #fff7e6; border: 1px solid #ffd666; border-radius: 8px; padding: 20px;">
+            <div style="color: #d46b08; font-weight: 600; margin-bottom: 12px;">⚠️ Mermaid图表</div>
+            <div style="color: #666; font-style: italic; margin-bottom: 12px;">图表渲染需要加载Mermaid库</div>
+            <details style="text-align: left;">
+              <summary style="cursor: pointer; color: #1890ff;">查看原始代码</summary>
+              <pre style="background: #f6f8fa; padding: 12px; border-radius: 4px; margin-top: 8px; font-size: 12px; overflow-x: auto;">${cleanCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+            </details>
+          </div>
+        `);
+      }
+      
+      // 替换原始的markdown代码块
+      html = html.replace(match, placeholder);
+    }
+    
+    // 2. 处理其他代码块（避免其他规则干扰代码内容）
+    const codeBlocks: string[] = [];
+    html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+      const placeholder = `__CODE_BLOCK_${codeBlocks.length}__`;
+      const lang = language || 'text';
+      const cleanCode = code.replace(/^\n+/, '').replace(/\n+$/, ''); // 清理首尾换行
+      codeBlocks.push(`<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; overflow-x: auto; font-family: 'Courier New', Consolas, monospace; font-size: 14px; color: #333; white-space: pre-wrap; word-wrap: break-word;"><code class="language-${lang}">${cleanCode.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`);
+      return placeholder;
+    });
+    
+    // 2. 处理行内代码
+    html = html.replace(/`([^`]+)`/g, '<code style="background: #f1f3f4; padding: 2px 4px; border-radius: 3px; font-family: \'Courier New\', Consolas, monospace; font-size: 14px; color: #d73a49;">$1</code>');
+    
+    // 3. 处理标题
+    html = html.replace(/^### (.*$)/gim, '<h3 style="font-size: 18px; margin-top: 24px; margin-bottom: 16px; color: #262626; font-weight: 600;">$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2 style="font-size: 20px; margin-top: 24px; margin-bottom: 16px; color: #262626; font-weight: 600;">$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1 style="font-size: 24px; margin-top: 24px; margin-bottom: 16px; color: #262626; font-weight: 600; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">$1</h1>');
+    
+    // 4. 处理文本样式
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="font-weight: 600;">$1</strong>');
+    html = html.replace(/\*(.*?)\*/g, '<em style="font-style: italic;">$1</em>');
+    
+    // 5. 处理链接和图片
+    html = html.replace(/!\[([^\]]*)\]\(([^\)]*)\)/g, '<img alt="$1" src="$2" style="max-width: 100%; height: auto; border-radius: 4px; margin: 8px 0;" />');
+    html = html.replace(/\[([^\]]*)\]\(([^\)]*)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;">$1</a>');
+    
+    // 6. 处理引用
+    html = html.replace(/^> (.*$)/gim, '<blockquote style="border-left: 4px solid #1890ff; margin: 16px 0; padding: 8px 16px; background: #f9f9f9; color: #666;">$1</blockquote>');
+    
+    // 7. 处理列表
+    html = html.replace(/^- (.*$)/gim, '<li style="margin: 4px 0;">$1</li>');
+    html = html.replace(/^\d+\. (.*$)/gim, '<li style="margin: 4px 0;">$1</li>');
+    
+    // 8. 将连续的li包装在ul或ol中
+    html = html.replace(/((?:<li[^>]*>.*?<\/li>\s*)+)/gims, (match) => {
+      return `<ul style="padding-left: 24px; margin: 12px 0;">${match}</ul>`;
+    });
+    
+    // 9. 处理段落 - 将双换行符转换为段落分隔
+    html = html.replace(/\n\n/g, '__PARAGRAPH_BREAK__');
+    html = html.replace(/\n/g, '<br>');
+    html = html.replace(/__PARAGRAPH_BREAK__/g, '</p><p style="margin: 12px 0; line-height: 1.6;">');
+    html = `<p style="margin: 12px 0; line-height: 1.6;">${html}</p>`;
+    
+    // 10. 清理空段落和修复嵌套
+    html = html.replace(/<p[^>]*><\/p>/g, '');
+    html = html.replace(/<p[^>]*>(<h[1-6][^>]*>.*?<\/h[1-6]>)<\/p>/g, '$1');
+    html = html.replace(/<p[^>]*>(<ul[^>]*>.*?<\/ul>)<\/p>/gims, '$1');
+    html = html.replace(/<p[^>]*>(<blockquote[^>]*>.*?<\/blockquote>)<\/p>/gims, '$1');
+    
+    // 11. 还原Mermaid图表
+    mermaidBlocks.forEach((mermaidBlock, index) => {
+      html = html.replace(`__MERMAID_BLOCK_${index}__`, mermaidBlock);
+    });
+    
+    // 12. 还原代码块
+    codeBlocks.forEach((codeBlock, index) => {
+      html = html.replace(`__CODE_BLOCK_${index}__`, codeBlock);
+    });
+    
+    return html;
   }, []);
 
   // 键盘快捷键
@@ -429,7 +861,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     margin: 0,
     border: 'none',
     outline: 'none',
-    overflow: 'hidden' // 防止内容溢出
+    overflow: 'auto' // 修复: 允许容器滚动
   };
 
   const containerStyle: React.CSSProperties = isFullscreen 
@@ -495,7 +927,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         flex: isFullscreen ? 1 : 'none', 
         display: 'flex', 
         flexDirection: 'column',
-        overflow: 'hidden', // 防止编辑器溢出
+        overflow: 'auto', // 修复: 允许编辑器区域滚动
         minHeight: isFullscreen ? 0 : 'auto' // 全屏时允许弹性高度
       }}>
         <TaskMarkdownEditor

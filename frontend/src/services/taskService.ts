@@ -398,12 +398,15 @@ export class TaskService {
   }
 
   /**
-   * Batch update tasks status
+   * Batch update tasks status and/or parent
    */
   static async batchUpdateTasks(
     projectId: number,
     taskIds: number[],
-    status: string
+    updates: {
+      status?: string;
+      parent_id?: number | null;
+    }
   ): Promise<{
     updated_count: number;
     failed_tasks?: Array<{ task_id: number; error: string }>;
@@ -412,7 +415,8 @@ export class TaskService {
     try {
       const requestData = {
         task_ids: taskIds,
-        status: status,
+        status: updates.status || undefined,
+        parent_id: updates.parent_id !== undefined ? (updates.parent_id || 0) : undefined,
         updated_by: 1 // TODO: Get from auth context
       };
 
@@ -430,12 +434,106 @@ export class TaskService {
       }
       
       // Log successful batch operation
-      logTaskAction('batch_update', taskIds.join(','), projectId);
+      const updateType = updates.status && updates.parent_id !== undefined ? 'batch_update_status_parent' : 
+                        updates.status ? 'batch_update_status' : 'batch_update_parent';
+      logTaskAction(updateType, taskIds.join(','), projectId);
       
       return response.data!;
     } catch (error) {
       logApiError('batchUpdateTasks', error);
       throw error;
+    }
+  }
+
+  /**
+   * Batch update parent task for multiple tasks
+   */
+  static async batchUpdateParentTask(
+    projectId: number,
+    taskIds: number[],
+    parentId: number | null
+  ): Promise<{
+    updated_count: number;
+    failed_tasks?: Array<{ task_id: number; error: string }>;
+    message: string;
+  }> {
+    return this.batchUpdateTasks(projectId, taskIds, { parent_id: parentId });
+  }
+
+  /**
+   * Get batch update preview for validation before executing the operation
+   */
+  static async getBatchUpdatePreview(
+    projectId: number,
+    taskIds: number[],
+    parentId?: number | null
+  ): Promise<{
+    total_tasks: number;
+    valid_tasks: number[];
+    invalid_tasks: Array<{
+      task_id: number;
+      error: string;
+      code: string;
+    }>;
+    warnings: string[];
+    new_parent_info?: {
+      task_id: number;
+      current_depth: number;
+      parent_id?: number;
+      parent_title?: string;
+      children_count: number;
+      max_child_depth: number;
+    };
+  }> {
+    try {
+      const requestData = {
+        task_ids: taskIds,
+        parent_id: parentId !== undefined ? (parentId || undefined) : undefined
+      };
+
+      const response: APIResponse<{
+        total_tasks: number;
+        valid_tasks: number[];
+        invalid_tasks: Array<{
+          task_id: number;
+          error: string;
+          code: string;
+        }>;
+        warnings: string[];
+        new_parent_info?: {
+          task_id: number;
+          current_depth: number;
+          parent_id?: number;
+          parent_title?: string;
+          children_count: number;
+          max_child_depth: number;
+        };
+      }> = await api.post(
+        `/projects/${projectId}/tasks/batch/preview`,
+        requestData
+      );
+      
+      if (!response || !response.success) {
+        throw new Error(response?.error?.message || 'Failed to get batch update preview');
+      }
+      
+      return response.data!;
+    } catch (error) {
+      logApiError('getBatchUpdatePreview', error);
+      console.error('TaskService.getBatchUpdatePreview error:', error);
+      
+      // Return error state instead of throwing to allow graceful degradation
+      return {
+        total_tasks: taskIds.length,
+        valid_tasks: [],
+        invalid_tasks: taskIds.map(taskId => ({
+          task_id: taskId,
+          error: 'Unable to validate task due to API error',
+          code: 'API_ERROR'
+        })),
+        warnings: ['无法连接到验证服务，请稍后重试'],
+        new_parent_info: undefined
+      };
     }
   }
 

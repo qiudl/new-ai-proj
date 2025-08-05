@@ -1,8 +1,17 @@
-import React from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Task } from '../types/task';
 import { TaskTreeNode } from './TaskTreeNode';
 import { Empty, Spin, Alert } from 'antd';
 import { LoadingOutlined } from '@ant-design/icons';
+
+// Tree node interface for hierarchical structure
+interface TreeNode {
+  task: Task;
+  level: number;
+  children: TreeNode[];
+  isExpanded: boolean;
+  hasChildren: boolean;
+}
 
 export interface TaskTreeListProps {
   tasks: Task[];
@@ -41,14 +50,17 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
   emptyText = '暂无可选的父任务',
   searchKeyword = '',
 }) => {
+  // State for tracking expanded nodes
+  const [expandedNodes, setExpandedNodes] = useState<Set<number>>(new Set());
+
   // Ensure tasks is always an array
-  const safeTasks = React.useMemo(() => {
+  const safeTasks = useMemo(() => {
     const result = Array.isArray(tasks) ? tasks : [];
     return result;
   }, [tasks]);
 
   // Filter tasks by level if specified
-  const filteredTasks = React.useMemo(() => {
+  const filteredTasks = useMemo(() => {
     let result;
     if (!showLevelFilter || maxDisplayLevel === undefined) {
       result = safeTasks;
@@ -58,18 +70,54 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
     return result;
   }, [safeTasks, showLevelFilter, maxDisplayLevel]);
 
-  // Group tasks by level for better display
-  const tasksByLevel = React.useMemo(() => {
-    const groups: { [level: number]: Task[] } = {};
+  // Build hierarchical tree structure
+  const treeNodes = useMemo(() => {
+    // Create a map of tasks by their ID for quick lookup
+    const taskMap = new Map<number, Task>();
     filteredTasks.forEach(task => {
-      const level = task.task_level || 0;
-      if (!groups[level]) {
-        groups[level] = [];
-      }
-      groups[level].push(task);
+      taskMap.set(task.id, task);
     });
-    return groups;
-  }, [filteredTasks]);
+
+    // Build tree structure
+    const buildTree = (parentId: number | null = null, level: number = 0): TreeNode[] => {
+      const children = filteredTasks
+        .filter(task => task.parent_id === parentId)
+        .sort((a, b) => a.title.localeCompare(b.title))
+        .map(task => {
+          const hasChildren = filteredTasks.some(t => t.parent_id === task.id);
+          const node: TreeNode = {
+            task,
+            level,
+            children: [],
+            isExpanded: expandedNodes.has(task.id),
+            hasChildren,
+          };
+          
+          // Recursively build children if node is expanded or if searching
+          if (node.isExpanded || searchKeyword) {
+            node.children = buildTree(task.id, level + 1);
+          }
+          
+          return node;
+        });
+      return children;
+    };
+
+    return buildTree();
+  }, [filteredTasks, expandedNodes, searchKeyword]);
+
+  // Handle node expand/collapse
+  const handleNodeToggle = useCallback((taskId: number) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  }, []);
 
   const handleTaskClick = (task: Task) => {
     if (onTaskSelect && !disabledTaskIds.includes(task.id)) {
@@ -81,6 +129,36 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
     if (onLoadMore && hasMore && !loading) {
       onLoadMore();
     }
+  };
+
+  // Recursive function to render tree nodes
+  const renderTreeNode = (node: TreeNode): React.ReactNode => {
+    const { task, level, children, isExpanded, hasChildren } = node;
+    
+    return (
+      <div key={task.id} className="tree-node-container">
+        <TaskTreeNode
+          task={task}
+          level={level}
+          isSelected={selectedTaskId === task.id}
+          isDisabled={disabledTaskIds.includes(task.id)}
+          showDetails={showDetails}
+          onClick={handleTaskClick}
+          onToggle={hasChildren ? () => handleNodeToggle(task.id) : undefined}
+          isExpanded={isExpanded}
+          hasChildren={hasChildren}
+          className="task-tree-item"
+          searchKeyword={searchKeyword}
+        />
+        
+        {/* Render children if expanded */}
+        {isExpanded && children.length > 0 && (
+          <div className="tree-children">
+            {children.map(childNode => renderTreeNode(childNode))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderTasks = () => {
@@ -104,48 +182,10 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
         />
       );
     }
-
-    // Render tasks in level order
-    const sortedLevels = Object.keys(tasksByLevel)
-      .map(Number)
-      .sort((a, b) => a - b);
     
     return (
       <div className="task-tree-content">
-        {sortedLevels.map(level => {
-          const levelTasks = tasksByLevel[level];
-          return (
-            <div key={level} className="task-level-group">
-              {showLevelFilter && level > 0 && (
-                <div className={`level-separator level-${level}`}>
-                  <div className="level-line"></div>
-                  <span className={`level-label level-${level}`}>
-                    {'└'.repeat(level)} 第{level + 1}级任务 ({tasksByLevel[level].length}个)
-                  </span>
-                  <div className="level-line"></div>
-                </div>
-              )}
-              
-              {tasksByLevel[level]
-                .sort((a, b) => a.title.localeCompare(b.title))
-                .map(task => {
-                  return (
-                    <TaskTreeNode
-                      key={task.id}
-                      task={task}
-                      level={level}
-                      isSelected={selectedTaskId === task.id}
-                      isDisabled={disabledTaskIds.includes(task.id)}
-                      showDetails={showDetails}
-                      onClick={handleTaskClick}
-                      className="task-tree-item"
-                      searchKeyword={searchKeyword}
-                    />
-                  );
-                })}
-            </div>
-          );
-        })}
+        {treeNodes.map(node => renderTreeNode(node))}
 
         {/* Load more button */}
         {hasMore && (
@@ -275,6 +315,24 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
 
         .task-tree-item {
           margin-bottom: 2px;
+        }
+
+        .tree-node-container {
+          position: relative;
+        }
+
+        .tree-children {
+          position: relative;
+        }
+
+        .tree-children::before {
+          content: '';
+          position: absolute;
+          left: 8px;
+          top: 0;
+          bottom: 0;
+          width: 1px;
+          background-color: #d9d9d9;
         }
 
         .task-tree-load-more {

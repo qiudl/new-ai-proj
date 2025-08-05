@@ -11,6 +11,7 @@ import (
 	"ai-project-backend/utils"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -394,6 +395,7 @@ auth := api.Group("/auth")
 				projects.POST("/:id/tasks", app.createTaskHandler)
 				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
 				projects.PATCH("/:id/tasks/batch", app.batchUpdateTasksHandler)
+				projects.POST("/:id/tasks/batch/preview", app.batchValidateTasksPreviewHandler)
 				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
 				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
 				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
@@ -2268,24 +2270,63 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 		return
 	}
 
-	if req.Status == "" {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Status is required", nil)
+	// Validate that at least one of Status or ParentID is provided
+	if req.Status == nil && req.ParentID == nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "At least one of 'status' or 'parent_id' must be provided", nil)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	// Validate status value
-	validStatuses := map[string]bool{
-		"todo":        true,
-		"in_progress": true,
-		"completed":   true,
-		"cancelled":   true,
+	// Validate status value if provided
+	if req.Status != nil {
+		validStatuses := map[string]bool{
+			"todo":        true,
+			"in_progress": true,
+			"completed":   true,
+			"cancelled":   true,
+		}
+		if !validStatuses[*req.Status] {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+				"Invalid status. Must be one of: todo, in_progress, completed, cancelled", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
 	}
-	if !validStatuses[req.Status] {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, 
-			"Invalid status. Must be one of: todo, in_progress, completed, cancelled", nil)
-		c.JSON(http.StatusBadRequest, response)
-		return
+
+	// *** ADDED: TaskValidationService integration for parent task updates ***
+	if req.ParentID != nil {
+		// Create TaskValidationService instance
+		validationService := services.NewTaskValidationService(app.db.GetDB().(*sql.DB))
+		
+		// Handle parent ID of 0 (root task) vs actual parent ID
+		parentIDForValidation := 0
+		if *req.ParentID != 0 {
+			parentIDForValidation = *req.ParentID
+		}
+		
+		// Perform comprehensive hierarchy validation
+		if err := validationService.ValidateCompleteHierarchy(req.TaskIDs, parentIDForValidation, projectID); err != nil {
+			app.logger.Printf("Batch parent update validation failed: %v", err)
+			
+			// Check if it's a ValidationError with specific error details
+			var validationErr services.ValidationError
+			if errors.As(err, &validationErr) {
+				response := models.NewErrorResponse(models.ErrCodeBadRequest, validationErr.Message, map[string]interface{}{
+					"task_id": validationErr.TaskID,
+					"code":    validationErr.Code,
+				})
+				c.JSON(http.StatusBadRequest, response)
+				return
+			}
+			
+			// General validation error
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+				fmt.Sprintf("批量父任务更新验证失败: %v", err), nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+		
+		app.logger.Printf("Batch parent update validation passed for %d tasks", len(req.TaskIDs))
 	}
 
 	// Perform batch update with transaction
@@ -2322,13 +2363,36 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 			continue
 		}
 
-		// Skip if status is already the same
-		if existingTask.Status == req.Status {
+		// Check if any update is needed
+		needsUpdate := false
+		
+		// Update status if provided and different
+		if req.Status != nil && existingTask.Status != *req.Status {
+			existingTask.Status = *req.Status
+			needsUpdate = true
+		}
+		
+		// Update parent_id if provided and different
+		if req.ParentID != nil {
+			// Handle case where ParentID is 0 (meaning remove parent, set to nil)
+			if *req.ParentID == 0 {
+				if existingTask.ParentID != nil {
+					existingTask.ParentID = nil
+					needsUpdate = true
+				}
+			} else {
+				// Set new parent ID
+				if existingTask.ParentID == nil || *existingTask.ParentID != *req.ParentID {
+					existingTask.ParentID = req.ParentID
+					needsUpdate = true
+				}
+			}
+		}
+		
+		// Skip if no updates needed
+		if !needsUpdate {
 			continue
 		}
-
-		// Update task status
-		existingTask.Status = req.Status
 
 		_, err = app.db.Tasks().Update(ctx, existingTask)
 		if err != nil {
@@ -2353,11 +2417,25 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 		return
 	}
 
+	// Prepare response message based on what was updated
+	var updateMessage string
+	if req.Status != nil && req.ParentID != nil {
+		updateMessage = fmt.Sprintf("Successfully updated %d tasks (status and parent)", updatedCount)
+	} else if req.Status != nil {
+		updateMessage = fmt.Sprintf("Successfully updated %d tasks to status '%s'", updatedCount, *req.Status)
+	} else if req.ParentID != nil {
+		if *req.ParentID == 0 {
+			updateMessage = fmt.Sprintf("Successfully updated %d tasks (removed parent)", updatedCount)
+		} else {
+			updateMessage = fmt.Sprintf("Successfully updated %d tasks (set parent to %d)", updatedCount, *req.ParentID)
+		}
+	}
+
 	// Prepare response
 	batchResponse := models.BatchUpdateTasksResponse{
 		UpdatedCount: updatedCount,
 		FailedTasks:  failedTasks,
-		Message:      fmt.Sprintf("Successfully updated %d tasks to status '%s'", updatedCount, req.Status),
+		Message:      updateMessage,
 	}
 
 	if len(failedTasks) > 0 {
@@ -2365,6 +2443,62 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 	}
 
 	response := models.NewSuccessResponse(batchResponse, "Batch update completed")
+	c.JSON(http.StatusOK, response)
+}
+
+// batchValidateTasksPreviewHandler provides preview validation for batch parent task updates
+func (app *Application) batchValidateTasksPreviewHandler(c *gin.Context) {
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Define request structure for batch validation preview
+	var req struct {
+		TaskIDs  []int `json:"task_ids" validate:"required,min=1"`
+		ParentID *int  `json:"parent_id,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate request
+	if len(req.TaskIDs) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "At least one task ID is required", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Create TaskValidationService instance
+	validationService := services.NewTaskValidationService(app.db.GetDB().(*sql.DB))
+	
+	// Handle parent ID of 0 (root task) vs actual parent ID
+	parentIDForValidation := 0
+	if req.ParentID != nil && *req.ParentID != 0 {
+		parentIDForValidation = *req.ParentID
+	}
+	
+	// Get batch update preview with comprehensive validation
+	preview, err := validationService.GetBatchUpdatePreview(req.TaskIDs, parentIDForValidation, projectID)
+	if err != nil {
+		app.logger.Printf("Batch validation preview failed: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, 
+			fmt.Sprintf("Failed to generate validation preview: %v", err), nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	app.logger.Printf("Generated batch validation preview for %d tasks: %d valid, %d invalid, %d warnings", 
+		preview.TotalTasks, len(preview.ValidTasks), len(preview.InvalidTasks), len(preview.Warnings))
+
+	// Return the validation preview
+	response := models.NewSuccessResponse(preview, "Batch validation preview generated successfully")
 	c.JSON(http.StatusOK, response)
 }
 

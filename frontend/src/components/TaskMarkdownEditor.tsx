@@ -1,10 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Input } from 'antd';
 import { EyeOutlined, EditOutlined } from '@ant-design/icons';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+import { renderMermaidDiagram, createErrorContainer, createLoadingContainer } from '../utils/mermaidUtils';
+
+// Mermaid图表组件
+interface MermaidDiagramProps {
+  chart: string;
+  id?: string;
+}
+
+const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const renderingRef = useRef(false); // 防止重复渲染
+
+  useEffect(() => {
+    const renderMermaid = async () => {
+      if (!ref.current || renderingRef.current) return;
+      
+      setIsLoading(true);
+      setError(null);
+      renderingRef.current = true;
+      
+      try {
+        console.log('🎨 [TaskMarkdownEditor] 开始渲染 Mermaid 图表...');
+        
+        // 使用统一的渲染工具
+        const result = await renderMermaidDiagram(chart, id);
+        
+        if (result.error) {
+          // 渲染失败
+          setError(result.error);
+          if (ref.current) {
+            ref.current.innerHTML = createErrorContainer(result.error, chart);
+          }
+        } else if (result.svg && ref.current) {
+          // 渲染成功
+          ref.current.innerHTML = result.svg;
+          setError(null);
+          console.log('✅ [TaskMarkdownEditor] Mermaid 图表渲染成功');
+        } else {
+          throw new Error('未知的渲染结果');
+        }
+      } catch (err: any) {
+        const errorMessage = err.message || '图表渲染失败';
+        console.error('❌ [TaskMarkdownEditor] Mermaid 渲染错误:', errorMessage);
+        setError(errorMessage);
+        
+        if (ref.current) {
+          ref.current.innerHTML = createErrorContainer(errorMessage, chart);
+        }
+      } finally {
+        setIsLoading(false);
+        renderingRef.current = false;
+      }
+    };
+
+    renderMermaid();
+  }, [chart, id]);
+
+  if (isLoading) {
+    return (
+      <div 
+        dangerouslySetInnerHTML={{ __html: createLoadingContainer() }}
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <div 
+        dangerouslySetInnerHTML={{ __html: createErrorContainer(error, chart) }}
+      />
+    );
+  }
+
+  return (
+    <div 
+      ref={ref} 
+      style={{
+        textAlign: 'center',
+        margin: '16px 0',
+        padding: '10px',
+        border: '1px solid #e8e8e8',
+        borderRadius: '6px',
+        background: '#fafafa',
+        minHeight: '100px' // 确保有最小高度显示内容
+      }}
+    />
+  );
+};
 
 const { TextArea } = Input;
 
@@ -104,6 +194,12 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             >
               {'</>'}
             </Button>
+            <Button
+              onClick={() => handleInsertMarkdown('```mermaid\n', '\n```')}
+              title="Mermaid流程图"
+            >
+              📊
+            </Button>
           </Button.Group>
         )}
       </div>
@@ -125,7 +221,8 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             ...(style?.flex === 1 ? {
               height: '100%',
               minHeight: '400px',
-              resize: 'none'
+              resize: 'none',
+              overflow: 'auto' // 确保TextArea有滚动条
             } : {})
           }}
         />
@@ -151,10 +248,24 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
               components={{
                 code: ({ node, inline, className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '');
+                  const language = match ? match[1] : '';
+                  
+                  // 处理Mermaid图表
+                  if (!inline && language === 'mermaid') {
+                    const chartCode = String(children).replace(/\n$/, '');
+                    return (
+                      <MermaidDiagram 
+                        chart={chartCode} 
+                        id={`preview-mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`}
+                      />
+                    );
+                  }
+                  
+                  // 处理其他代码块
                   return !inline && match ? (
                     <SyntaxHighlighter
                       style={tomorrow}
-                      language={match[1]}
+                      language={language}
                       PreTag="div"
                       customStyle={{ fontSize: '12px', margin: '8px 0' }}
                       {...props}

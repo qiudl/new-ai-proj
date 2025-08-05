@@ -17,6 +17,9 @@ export interface TaskTreeNodeProps {
   isDisabled?: boolean;
   showDetails?: boolean;
   onClick?: (task: Task) => void;
+  onToggle?: () => void;
+  isExpanded?: boolean;
+  hasChildren?: boolean;
   className?: string;
   searchKeyword?: string;
 }
@@ -33,12 +36,22 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
   isDisabled = false,
   showDetails = true,
   onClick,
+  onToggle,
+  isExpanded = false,
+  hasChildren = false,
   className = '',
   searchKeyword = '',
 }) => {
   const handleClick = () => {
     if (!isDisabled && onClick) {
       onClick(task);
+    }
+  };
+
+  const handleToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (hasChildren && onToggle) {
+      onToggle();
     }
   };
 
@@ -68,17 +81,20 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
     }
   };
 
-  const getLevelIcon = (level: number, hasChildren: boolean = false) => {
+  const getLevelIcon = (level: number, hasChildren: boolean = false, isExpanded: boolean = false) => {
     const color = getLevelColor(level);
-    switch (level) {
-      case 0:
-        return hasChildren ? <FolderOpenOutlined style={{ color }} /> : <FolderOutlined style={{ color }} />;
-      case 1:
-        return <FileTextOutlined style={{ color }} />;
-      case 2:
-        return <FileTextOutlined style={{ color }} />;
-      default:
-        return <FileTextOutlined style={{ color }} />;
+    
+    if (hasChildren) {
+      switch (level) {
+        case 0:
+          return isExpanded ? <FolderOpenOutlined style={{ color }} /> : <FolderOutlined style={{ color }} />;
+        case 1:
+        case 2:
+        default:
+          return isExpanded ? <FolderOpenOutlined style={{ color }} /> : <FolderOutlined style={{ color }} />;
+      }
+    } else {
+      return <FileTextOutlined style={{ color }} />;
     }
   };
 
@@ -150,70 +166,48 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
       }}
     >
       <div className="task-tree-node-content">
-        {/* Level indicator and icon */}
-        <div className="task-tree-node-icon">
-          {getLevelIcon(level, (task as unknown).children_count > 0)}
-        </div>
-
-        {/* Task title and basic info */}
-        <div className="task-tree-node-main">
-          <div className="task-tree-node-title">
-            {/* Enhanced level badge */}
-            <span className={`task-level-badge level-${level}`}>
-              {level === 0 ? '根任务' : `L${level + 1}`}
+        {/* Expand/collapse button */}
+        {hasChildren && (
+          <div className="expand-toggle" onClick={handleToggle}>
+            <span className={`toggle-icon ${isExpanded ? 'expanded' : ''}`}>
+              ▶
             </span>
-            <Tooltip title={task.description || task.title}>
-              <span className="task-title">
-                {highlightText(task.title, searchKeyword)}
-              </span>
-            </Tooltip>
           </div>
-
-          {showDetails && (
-            <div className="task-tree-node-details">
-              {/* Status tag */}
-              <Tag color={statusInfo.color}>
-                {statusInfo.text}
-              </Tag>
-
-              {/* Due date */}
-              {task.due_date && (
-                <Tooltip title="截止日期">
-                  <span className="task-detail-item">
-                    <CalendarOutlined />
-                    {formatDate(task.due_date)}
-                  </span>
-                </Tooltip>
-              )}
-
-              {/* Assignee */}
-              {task.assignee_id && (
-                <Tooltip title="负责人">
-                  <span className="task-detail-item">
-                    <UserOutlined />
-                    {(task as unknown).assignee_name || `用户${task.assignee_id}`}
-                  </span>
-                </Tooltip>
-              )}
-
-              {/* Children count */}
-              {(task as unknown).children_count > 0 && (
-                <span className="task-children-count">
-                  ({(task as unknown).children_count}个子任务)
-                </span>
-              )}
-            </div>
-          )}
+        )}
+        
+        {/* Task icon */}
+        <div className="task-tree-node-icon">
+          {getLevelIcon(level, hasChildren, isExpanded)}
         </div>
+        
+        {/* Level badge */}
+        <span className={`task-level-badge level-${level}`}>
+          {level === 0 ? '根任务' : `L${level + 1}`}
+        </span>
+        
+        {/* Task title with tooltip */}
+        <Tooltip title={task.description || task.title}>
+          <span className="task-title">
+            {highlightText(task.title, searchKeyword)}
+          </span>
+        </Tooltip>
+        
+        {/* Status tag - compact inline version */}
+        <span className={`task-status-inline status-${task.status}`}>
+          {statusInfo.text}
+        </span>
       </div>
 
       <style dangerouslySetInnerHTML={{
         __html: `
         .task-tree-node {
-          padding: 8px 0;
+          height: 36px;
+          padding: 0 8px;
           border-radius: 4px;
           transition: all 0.2s ease;
           border: 1px solid transparent;
+          display: flex;
+          align-items: center;
         }
 
         .task-tree-node.clickable {
@@ -237,27 +231,48 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
 
         .task-tree-node-content {
           display: flex;
-          align-items: flex-start;
+          align-items: center;
           gap: 8px;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .expand-toggle {
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          border-radius: 2px;
+          transition: background-color 0.2s;
+          flex-shrink: 0;
+        }
+
+        .expand-toggle:hover {
+          background-color: #f0f0f0;
+        }
+
+        .toggle-icon {
+          font-size: 10px;
+          color: #8c8c8c;
+          transition: transform 0.2s ease;
+          user-select: none;
+        }
+
+        .toggle-icon.expanded {
+          transform: rotate(90deg);
         }
 
         .task-tree-node-icon {
           flex-shrink: 0;
           color: #8c8c8c;
           font-size: 14px;
-          line-height: 22px;
-        }
-
-        .task-tree-node-main {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .task-tree-node-title {
+          width: 16px;
+          height: 16px;
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 4px;
+          justify-content: center;
         }
 
         .task-title {
@@ -267,6 +282,7 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           text-overflow: ellipsis;
           white-space: nowrap;
           flex: 1;
+          font-size: 14px;
         }
 
         .task-level-badge {
@@ -275,7 +291,6 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           font-size: 10px;
           font-weight: 500;
           flex-shrink: 0;
-          margin-right: 4px;
         }
 
         .task-level-badge.level-0 {
@@ -302,35 +317,32 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           border: 1px solid #d3adf7;
         }
 
-        .task-level-indicator {
-          background-color: #f0f0f0;
-          color: #8c8c8c;
-          padding: 0 4px;
-          border-radius: 2px;
+        .task-status-inline {
+          padding: 2px 6px;
+          border-radius: 8px;
           font-size: 10px;
-          font-weight: normal;
+          font-weight: 500;
           flex-shrink: 0;
         }
 
-        .task-tree-node-details {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-wrap: wrap;
+        .task-status-inline.status-todo {
+          background-color: #f6ffed;
+          color: #52c41a;
         }
 
-        .task-detail-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-size: 12px;
+        .task-status-inline.status-in_progress {
+          background-color: #e6f7ff;
+          color: #1890ff;
+        }
+
+        .task-status-inline.status-completed {
+          background-color: #f0f0f0;
           color: #8c8c8c;
         }
 
-        .task-children-count {
-          font-size: 12px;
-          color: #8c8c8c;
-          font-style: italic;
+        .task-status-inline.status-cancelled {
+          background-color: #fff2f0;
+          color: #ff4d4f;
         }
 
         .highlight-keyword {
@@ -343,17 +355,21 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
 
         @media (max-width: 768px) {
           .task-tree-node {
-            padding: 6px 0;
+            height: 32px;
+            padding: 0 6px;
           }
 
-          .task-tree-node-details {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 4px;
+          .task-tree-node-content {
+            gap: 6px;
           }
 
-          .task-detail-item {
-            font-size: 11px;
+          .task-title {
+            font-size: 13px;
+          }
+
+          .task-level-badge,
+          .task-status-inline {
+            font-size: 9px;
           }
         }
         `

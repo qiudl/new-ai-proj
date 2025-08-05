@@ -209,9 +209,10 @@ type TaskFilter struct {
 
 // BatchUpdateTasksRequest represents a batch update request for multiple tasks
 type BatchUpdateTasksRequest struct {
-	TaskIDs   []int  `json:"task_ids" validate:"required,min=1"`
-	Status    string `json:"status" validate:"required,oneof=todo in_progress completed cancelled"`
-	UpdatedBy *int   `json:"updated_by,omitempty"`
+	TaskIDs   []int   `json:"task_ids" validate:"required,min=1"`
+	Status    *string `json:"status,omitempty" validate:"omitempty,oneof=todo in_progress completed cancelled"`
+	ParentID  *int    `json:"parent_id,omitempty"`
+	UpdatedBy *int    `json:"updated_by,omitempty"`
 }
 
 // BatchUpdateTasksResponse represents the response for batch update operation

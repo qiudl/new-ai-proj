@@ -54,13 +54,15 @@ import {
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   FilterFilled,
-  ClearOutlined
+  ClearOutlined,
+  NodeIndexOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { Task } from '../types/task';
 import TimerStartButton from './TimerStartButton';
 import TaskDocumentWidget from './TaskDocumentWidget';
+import BatchOperationPreview from './BatchOperationPreview';
 import { useTimer } from '../contexts/TimerContext';
 import dayjs from 'dayjs';
 
@@ -102,6 +104,22 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
   // UI状态
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'hierarchy'>('hierarchy');
+  const [showBatchParentModal, setShowBatchParentModal] = useState(false);
+  const [batchParentLoading, setBatchParentLoading] = useState(false);
+  
+  // 批量更改父任务的增强状态
+  const [selectedParentTask, setSelectedParentTask] = useState<Task | null>(null);
+  const [batchPreviewData, setBatchPreviewData] = useState<{
+    selectedTasks: Task[];
+    warnings: string[];
+    validationResult?: {
+      valid: boolean;
+      errors: string[];
+      warnings: string[];
+    };
+  } | null>(null);
+  const [batchPreviewLoading, setBatchPreviewLoading] = useState(false);
+  const [batchPreviewError, setBatchPreviewError] = useState<string | null>(null);
   
   // 分页状态
   const [pagination, setPagination] = useState({
@@ -470,6 +488,95 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
     });
   };
 
+  // 准备批量预览数据 - 使用后端API验证
+  const prepareBatchPreviewData = useCallback(async (targetParent: Task | null) => {
+    const selectedTasks = tasks.filter(task => selectedRowKeys.includes(task.id));
+    
+    // 基础验证
+    if (selectedTasks.length === 0) {
+      message.warning('请先选择任务');
+      return null;
+    }
+    
+    try {
+      // 调用后端API进行全面验证
+      const taskIds = selectedRowKeys.map(Number);
+      const parentId = targetParent ? targetParent.id : null;
+      
+      const apiValidationResult = await TaskService.getBatchUpdatePreview(
+        projectId,
+        taskIds,
+        parentId
+      );
+      
+      // 构建本地警告消息（基于API返回的警告）
+      const localWarnings: string[] = [...apiValidationResult.warnings];
+      
+      // 添加一些用户友好的本地警告
+      const completedTasks = selectedTasks.filter(task => task.status === 'completed');
+      if (completedTasks.length > 0) {
+        localWarnings.push(`包含 ${completedTasks.length} 个已完成任务，更改父任务后可能影响项目进度统计`);
+      }
+      
+      // 检查是否有父子关系的任务被同时选中
+      const taskIds_set = new Set(selectedRowKeys.map(Number));
+      const hasParentChildConflict = selectedTasks.some(task => 
+        task.parent_id && taskIds_set.has(task.parent_id)
+      );
+      
+      if (hasParentChildConflict) {
+        localWarnings.push('选中的任务中包含父子关系的任务，请检查是否需要调整选择');
+      }
+      
+      return {
+        selectedTasks,
+        warnings: localWarnings,
+        validationResult: {
+          valid: apiValidationResult.invalid_tasks.length === 0,
+          errors: apiValidationResult.invalid_tasks.map(invalid => 
+            `任务#${invalid.task_id}: ${invalid.error}`
+          ),
+          warnings: localWarnings,
+          apiResult: apiValidationResult // 保留完整的API响应用于更详细的展示
+        }
+      };
+    } catch (error) {
+      console.error('批量验证API调用失败:', error);
+      message.error('验证失败，请稍后重试');
+      
+      // 降级到基础本地验证作为fallback
+      const localWarnings: string[] = [];
+      
+      // 检查任务状态
+      const completedTasks = selectedTasks.filter(task => task.status === 'completed');
+      if (completedTasks.length > 0) {
+        localWarnings.push(`包含 ${completedTasks.length} 个已完成任务，更改父任务后可能影响项目进度统计`);
+      }
+      
+      // 检查是否有父子关系的任务被同时选中
+      const taskIds_set = new Set(selectedRowKeys.map(Number));
+      const hasParentChildConflict = selectedTasks.some(task => 
+        task.parent_id && taskIds_set.has(task.parent_id)
+      );
+      
+      if (hasParentChildConflict) {
+        localWarnings.push('选中的任务中包含父子关系的任务，请检查是否需要调整选择');
+      }
+      
+      localWarnings.push('无法连接到验证服务，部分验证可能不准确');
+      
+      return {
+        selectedTasks,
+        warnings: localWarnings,
+        validationResult: {
+          valid: false,
+          errors: ['验证服务暂时不可用，请稍后重试'],
+          warnings: localWarnings
+        }
+      };
+    }
+  }, [tasks, selectedRowKeys, projectId]);
+
   // 批量操作
   const handleBatchAction = (action: string) => {
     if (selectedRowKeys.length === 0) {
@@ -497,8 +604,69 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
           }
         });
         break;
+      case 'changeParent':
+        // 准备预览数据并打开增强版Modal
+        setShowBatchParentModal(true);
+        setSelectedParentTask(null);
+        setBatchPreviewData(null); // 先清空，显示loading
+        setBatchPreviewLoading(true);
+        setBatchPreviewError(null);
+        
+        prepareBatchPreviewData(null).then(previewData => {
+          if (previewData) {
+            setBatchPreviewData(previewData);
+          }
+          setBatchPreviewLoading(false);
+        }).catch(error => {
+          console.error('Failed to prepare batch preview data:', error);
+          setBatchPreviewError('准备批量操作预览失败，请稍后重试');
+          setBatchPreviewLoading(false);
+        });
+        break;
       default:
         message.info(`批量${action}功能开发中`);
+    }
+  };
+
+  // 批量更改父任务
+  const handleBatchParentUpdate = async (parentId: number | null) => {
+    setBatchParentLoading(true);
+    
+    try {
+      const result = await TaskService.batchUpdateTasks(projectId, selectedRowKeys as number[], {
+        parent_id: parentId
+      });
+      
+      message.success(`成功更新 ${result.updated_count} 个任务的父任务`);
+      
+      if (result.failed_tasks && result.failed_tasks.length > 0) {
+        Modal.warning({
+          title: '部分任务更新失败',
+          content: (
+            <div>
+              <p>以下任务更新失败：</p>
+              <ul>
+                {result.failed_tasks.map(failed => (
+                  <li key={failed.task_id}>
+                    任务 #{failed.task_id}: {failed.error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        });
+      }
+      
+      // 刷新任务列表
+      await loadTasks();
+      setSelectedRowKeys([]);
+      
+    } catch (error) {
+      console.error('批量更新父任务失败:', error);
+      message.error('批量更新父任务失败，请重试');
+    } finally {
+      setBatchParentLoading(false);
+      setShowBatchParentModal(false);
     }
   };
 
@@ -589,6 +757,8 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
                   <Dropdown
                     menu={{
                       items: [
+                        { key: 'changeParent', label: '更改父任务', icon: <NodeIndexOutlined /> },
+                        { type: 'divider' },
                         { key: 'delete', label: '批量删除', icon: <DeleteOutlined />, danger: true }
                       ],
                       onClick: ({ key }) => handleBatchAction(key)
@@ -723,6 +893,137 @@ const ProjectTaskList: React.FC<ProjectTaskListProps> = ({ projectId, style }) =
             )
           }}
         />
+        
+        {/* 批量更改父任务Modal - 增强版 */}
+        <Modal
+          title={(
+            <Space>
+              <NodeIndexOutlined />
+              <span>批量更改父任务</span>
+              <Badge count={selectedRowKeys.length} showZero />
+            </Space>
+          )}
+          open={showBatchParentModal}
+          onCancel={() => {
+            setShowBatchParentModal(false);
+            setSelectedParentTask(null);
+            setBatchPreviewData(null);
+          }}
+          width={800}
+          footer={[
+            <Button 
+              key="cancel" 
+              onClick={() => {
+                setShowBatchParentModal(false);
+                setSelectedParentTask(null);
+                setBatchPreviewData(null);
+              }}
+            >
+              取消
+            </Button>,
+            <Button 
+              key="confirm" 
+              type="primary" 
+              loading={batchParentLoading}
+              disabled={batchPreviewData?.validationResult && !batchPreviewData.validationResult.valid}
+              onClick={() => {
+                const parentId = selectedParentTask ? selectedParentTask.id : null;
+                handleBatchParentUpdate(parentId);
+              }}
+            >
+              {selectedParentTask ? `设置父任务为: ${selectedParentTask.title}` : '设置为根任务'}
+            </Button>,
+          ]}
+        >
+          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            {/* 父任务选择器 */}
+            <Card size="small" style={{ marginBottom: 16 }}>
+              <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
+                选择目标父任务
+              </Title>
+              
+              <Space wrap>
+                <Button
+                  type={selectedParentTask === null ? 'primary' : 'default'}
+                  icon={<NodeIndexOutlined />}
+                  onClick={async () => {
+                    setSelectedParentTask(null);
+                    setBatchPreviewData(null); // 先清空，显示loading
+                    try {
+                      const previewData = await prepareBatchPreviewData(null);
+                      setBatchPreviewData(previewData);
+                    } catch (error) {
+                      console.error('Failed to prepare batch preview data:', error);
+                      // setBatchPreviewData保持为null，显示错误状态
+                    }
+                  }}
+                >
+                  设为根任务
+                </Button>
+                
+                <Select
+                  placeholder="选择父任务"
+                  style={{ width: 300 }}
+                  value={selectedParentTask?.id}
+                  onChange={async (parentId) => {
+                    const parent = tasks.find(t => t.id === parentId) || null;
+                    setSelectedParentTask(parent);
+                    setBatchPreviewData(null); // 先清空，显示loading
+                    try {
+                      const previewData = await prepareBatchPreviewData(parent);
+                      setBatchPreviewData(previewData);
+                    } catch (error) {
+                      console.error('Failed to prepare batch preview data:', error);
+                      // setBatchPreviewData保持为null，显示错误状态
+                    }
+                  }}
+                  filterOption={(input, option) => {
+                    const task = tasks.find(t => t.id === option?.value);
+                    return task?.title.toLowerCase().includes(input.toLowerCase()) || false;
+                  }}
+                  showSearch
+                >
+                  {tasks
+                    .filter(task => !selectedRowKeys.includes(task.id)) // 排除选中的任务
+                    .map(task => (
+                      <Option key={task.id} value={task.id}>
+                        <Space>
+                          <Text code>#{task.id}</Text>
+                          <Text>{task.title}</Text>
+                          {task.parent_id && (
+                            <Tag size="small" color="blue">子任务</Tag>
+                          )}
+                        </Space>
+                      </Option>
+                    ))
+                  }
+                </Select>
+              </Space>
+              
+              {selectedParentTask && (
+                <div style={{ marginTop: 12, padding: 12, backgroundColor: '#f5f5f5', borderRadius: 4 }}>
+                  <Space>
+                    <Text strong>已选父任务:</Text>
+                    <Text code>#{selectedParentTask.id}</Text>
+                    <Text>{selectedParentTask.title}</Text>
+                    <Tag color="blue">层级 {selectedParentTask.task_level || 0}</Tag>
+                  </Space>
+                </div>
+              )}
+            </Card>
+
+            {/* 批量操作预览 */}
+            {batchPreviewData && (
+              <BatchOperationPreview
+                selectedTasks={batchPreviewData.selectedTasks}
+                targetParent={selectedParentTask}
+                operation="changeParent"
+                warnings={batchPreviewData.warnings}
+                validationResult={batchPreviewData.validationResult}
+              />
+            )}
+          </div>
+        </Modal>
       </Card>
     </div>
   );

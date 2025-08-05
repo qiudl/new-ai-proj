@@ -271,31 +271,23 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
     }
 
     return (
-      <div className="selected-task-info">
-        <div className="selected-task-header">
-          <FolderOutlined />
-          <Text strong>已选择父任务</Text>
-          {allowClear && (
-            <Button
-              type="link"
-              size="small"
-              onClick={handleClear}
-            >
-              清除选择
-            </Button>
-          )}
-        </div>
-        <div className="selected-task-details">
-          <Text className="task-title">{selectedTask.title}</Text>
-          <Text type="secondary" className="task-level">
-            第{selectedTask.task_level + 1}级任务
-          </Text>
-          {selectedTask.description && (
-            <Text type="secondary" className="task-description">
-              {selectedTask.description}
-            </Text>
-          )}
-        </div>
+      <div className="selected-task-info-inline">
+        <FolderOutlined />
+        <Text strong>已选择：</Text>
+        <span className={`task-level-badge level-${selectedTask.task_level}`}>
+          {selectedTask.task_level === 0 ? '根任务' : `L${selectedTask.task_level + 1}`}
+        </span>
+        <Text className="selected-task-title">{selectedTask.title}</Text>
+        {allowClear && (
+          <Button
+            type="link"
+            size="small"
+            onClick={handleClear}
+            style={{ marginLeft: 'auto', padding: '0 4px' }}
+          >
+            清除
+          </Button>
+        )}
       </div>
     );
   };
@@ -329,21 +321,10 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
             className="parent-search"
           />
           
-          <div className="help-info">
-            <InfoCircleOutlined />
-            <Text type="secondary">
-              {searchKeyword 
-                ? `正在搜索 "${searchKeyword}"，找到 ${searchResults.total} 个匹配的任务`
-                : "只能选择前3级任务作为父任务。选择父任务后，当前任务将成为其子任务。"
-              }
-            </Text>
-          </div>
-
-          {/* Search suggestions */}
-          {!searchKeyword && searchResults.tasks.length > 0 && recommendations.length === 0 && (
-            <div className="search-suggestions">
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                💡 快速搜索提示: 试试搜索 "文档"、"任务" 或状态关键词
+          {searchKeyword && (
+            <div className="search-info">
+              <Text type="secondary" style={{ fontSize: '13px' }}>
+                找到 {searchResults.total} 个匹配的任务
               </Text>
             </div>
           )}
@@ -449,22 +430,9 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           margin-bottom: 8px;
         }
 
-        .help-info {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          background-color: #f6ffed;
-          border: 1px solid #b7eb8f;
-          border-radius: 6px;
-        }
-
-        .search-suggestions {
+        .search-info {
           margin-top: 8px;
           padding: 6px 12px;
-          background-color: #f0f8ff;
-          border: 1px solid #d1e7ff;
-          border-radius: 4px;
           text-align: center;
         }
 
@@ -488,6 +456,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           flex-direction: column;
           gap: 6px;
         }
+
 
         .recommendation-item {
           display: flex;
@@ -606,37 +575,17 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
           color: #8c8c8c;
         }
 
-        .selected-task-info {
-          
-        }
-
-        .selected-task-header {
+        .selected-task-info-inline {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          margin-bottom: 8px;
           gap: 8px;
+          min-width: 0;
         }
 
-        .selected-task-details {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .task-title {
+        .selected-task-title {
           font-size: 14px;
           font-weight: 500;
-        }
-
-        .task-level {
-          font-size: 12px;
-        }
-
-        .task-description {
-          font-size: 12px;
-          line-height: 1.4;
-          max-width: 100%;
+          flex: 1;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -663,8 +612,12 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         }
 
         .modal-task-list {
-          height: 300px;
+          height: 350px;
           border: 1px solid #f0f0f0;
+        }
+
+        .modal-task-list .task-tree-list {
+          height: 100%;
         }
 
         @media (max-width: 768px) {

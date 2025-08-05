@@ -67,3 +67,20 @@ body.fullscreen-editor-active .ant-input {
 body.fullscreen-editor-active [data-fullscreen-editor="true"] * {
   box-sizing: border-box;
 }
+
+/* 确保全屏模式下的TextArea可以滚动 */
+body.fullscreen-editor-active .ant-input {
+  overflow: auto !important;
+}
+
+/* 确保TaskMarkdownEditor在全屏时能正确滚动 */
+body.fullscreen-editor-active .task-markdown-textarea {
+  overflow: auto !important;
+  height: 100% !important;
+}
+
+/* 确保预览区域在全屏时也能滚动 */
+body.fullscreen-editor-active .task-markdown-preview {
+  overflow: auto !important;
+  height: 100% !important;
+}
