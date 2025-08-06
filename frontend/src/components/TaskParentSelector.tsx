@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Tag, Tooltip, Alert, Spin } from 'antd';
+import { Button, Input, Select, Tag, Tooltip, Alert, Spin, Modal, Space, Typography } from 'antd';
 import {
   SearchOutlined,
   ClearOutlined,
@@ -99,11 +99,9 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
 
       setSelectedTask(task);
       setValidationError(null);
-      setIsOpen(false);
+      // Don't close modal immediately in modal mode - let user confirm with OK button
+      // setIsOpen(false);
 
-      if (onChange) {
-        onChange(task.id, task);
-      }
     } catch (error) {
       console.error('Error selecting parent task:', error);
       setValidationError('选择父任务时发生错误，请重试');
@@ -193,62 +191,123 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
     );
   };
 
-  const renderDropdown = () => {
-    if (!isOpen) return null;
-
+  const renderModal = () => {
     return (
-      <div className="parent-selector-dropdown">
-        {/* Search input */}
-        <div className="search-section">
-          <Search
-            placeholder="搜索父任务..."
-            value={searchKeyword}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            allowClear
-            className="parent-search"
-            autoFocus
-          />
-        </div>
-
-        {/* Validation error */}
-        {validationError && (
-          <Alert
-            message={validationError}
-            type="error"
-            showIcon
-            className="validation-error"
-          />
-        )}
-
-        {/* Help text with improved UX */}
-        <div className="help-text">
-          <InfoCircleOutlined />
-          <span>只能选择前3级任务作为父任务，选择后将创建层级关系</span>
-        </div>
-
-        {/* Validation loading */}
-        {isValidating && (
-          <div className="validation-loading">
-            <Spin size="small" />
-            <span>正在验证选择...</span>
+      <Modal
+        title="选择父任务"
+        open={isOpen}
+        onOk={() => {
+          if (selectedTask && !validationError && !isValidating) {
+            setIsOpen(false);
+            if (onChange) {
+              onChange(selectedTask.id, selectedTask);
+            }
+          } else if (!selectedTask && allowClear) {
+            // Allow clearing selection
+            setIsOpen(false);
+            if (onChange) {
+              onChange(null, null);
+            }
+          }
+        }}
+        onCancel={() => {
+          setIsOpen(false);
+          setValidationError(null);
+        }}
+        okText={selectedTask ? "确定选择" : (allowClear ? "清除父任务" : "确定")}
+        cancelText="取消"
+        width={600}
+        bodyStyle={{ maxHeight: '450px', overflow: 'hidden' }}
+        okButtonProps={{
+          disabled: validationError !== null || isValidating || (!selectedTask && !allowClear),
+          loading: isValidating,
+        }}
+        destroyOnClose={false}
+      >
+        <div className="parent-selector-modal-content">
+          {/* Search input */}
+          <div className="search-section">
+            <Search
+              placeholder="搜索父任务..."
+              value={searchKeyword}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              allowClear
+              className="parent-search"
+              autoFocus
+            />
           </div>
-        )}
 
-        {/* Task list */}
-        <TaskTreeList
-          tasks={searchResults.tasks}
-          loading={searchResults.loading}
-          error={searchResults.error}
-          selectedTaskId={selectedTask?.id}
-          disabledTaskIds={currentTaskId ? [currentTaskId] : []}
-          onTaskSelect={handleTaskSelect}
-          onLoadMore={loadMore}
-          hasMore={searchResults.hasMore}
-          showLevelFilter={true}
-          maxDisplayLevel={2}
-          emptyText={searchKeyword ? '未找到匹配的任务' : '请输入关键词搜索任务'}
-        />
-      </div>
+          {/* Selected task info */}
+          {selectedTask && (
+            <div className="selected-section">
+              <div className="selected-task-info-inline">
+                <FolderOutlined />
+                <Typography.Text strong>已选择：</Typography.Text>
+                <span className={`task-level-badge level-${selectedTask.task_level}`}>
+                  {selectedTask.task_level === 0 ? '根任务' : `L${selectedTask.task_level + 1}`}
+                </span>
+                <Typography.Text className="selected-task-title">{selectedTask.title}</Typography.Text>
+                {allowClear && (
+                  <Button
+                    type="link"
+                    size="small"
+                    onClick={() => {
+                      setSelectedTask(null);
+                      setValidationError(null);
+                    }}
+                    style={{ marginLeft: 'auto', padding: '0 4px' }}
+                  >
+                    清除
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Validation error */}
+          {validationError && (
+            <Alert
+              message="选择验证失败"
+              description={validationError}
+              type="error"
+              showIcon
+              className="validation-error"
+            />
+          )}
+
+          {/* Help text with improved UX */}
+          <div className="help-text">
+            <InfoCircleOutlined />
+            <span>只能选择前3级任务作为父任务，选择后将创建层级关系</span>
+          </div>
+
+          {/* Validation loading */}
+          {isValidating && (
+            <div className="validation-loading">
+              <Spin size="small" />
+              <span>正在验证选择...</span>
+            </div>
+          )}
+
+          {/* Task list */}
+          <div className="task-list-container">
+            <TaskTreeList
+              tasks={searchResults.tasks}
+              loading={searchResults.loading}
+              error={searchResults.error}
+              selectedTaskId={selectedTask?.id}
+              disabledTaskIds={currentTaskId ? [currentTaskId] : []}
+              onTaskSelect={handleTaskSelect}
+              onLoadMore={loadMore}
+              hasMore={searchResults.hasMore}
+              showLevelFilter={true}
+              maxDisplayLevel={2}
+              emptyText={searchKeyword ? '未找到匹配的任务' : '请输入关键词搜索任务'}
+              className="modal-task-list"
+            />
+          </div>
+        </div>
+      </Modal>
     );
   };
 
@@ -262,7 +321,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
         <EditOutlined className="edit-icon" />
       </div>
 
-      {renderDropdown()}
+      {renderModal()}
 
       <style dangerouslySetInnerHTML={{
         __html: `
@@ -339,30 +398,73 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           color: #8c8c8c !important;
         }
 
-        .parent-selector-dropdown {
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          z-index: 1050;
-          background: #fff;
-          border: 1px solid #d9d9d9;
-          border-radius: 6px;
-          box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08),
-                      0 3px 6px -4px rgba(0, 0, 0, 0.12),
-                      0 9px 28px 8px rgba(0, 0, 0, 0.05);
-          margin-top: 4px;
-          max-height: 400px;
-          overflow: hidden;
+        .parent-selector-modal-content {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          height: 100%;
         }
 
         .search-section {
+          flex-shrink: 0;
+        }
+
+        .parent-search {
+          margin-bottom: 8px;
+        }
+
+        .selected-section {
+          flex-shrink: 0;
           padding: 12px;
-          border-bottom: 1px solid #f0f0f0;
+          background-color: #fafafa;
+          border: 1px solid #f0f0f0;
+          border-radius: 6px;
+        }
+
+        .selected-task-info-inline {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+
+        .selected-task-title {
+          font-size: 14px;
+          font-weight: 500;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .task-level-badge {
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 500;
+          flex-shrink: 0;
+        }
+
+        .task-level-badge.level-0 {
+          background-color: #e6f7ff;
+          color: #1890ff;
+          border: 1px solid #91d5ff;
+        }
+
+        .task-level-badge.level-1 {
+          background-color: #f6ffed;
+          color: #52c41a;
+          border: 1px solid #b7eb8f;
+        }
+
+        .task-level-badge.level-2 {
+          background-color: #fff7e6;
+          color: #faad14;
+          border: 1px solid #ffd591;
         }
 
         .validation-error {
-          margin: 8px 12px;
+          flex-shrink: 0;
         }
 
         .help-text {
@@ -371,9 +473,11 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           gap: 6px;
           padding: 8px 12px;
           background-color: #f6ffed;
-          border-bottom: 1px solid #f0f0f0;
+          border: 1px solid #b7eb8f;
+          border-radius: 6px;
           font-size: 12px;
           color: #52c41a;
+          flex-shrink: 0;
         }
 
         .validation-loading {
@@ -382,20 +486,25 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           gap: 8px;
           padding: 8px 12px;
           background-color: #f0f9ff;
-          border-bottom: 1px solid #f0f0f0;
+          border: 1px solid #91d5ff;
+          border-radius: 6px;
           font-size: 12px;
           color: #1890ff;
+          flex-shrink: 0;
         }
 
-        @media (max-width: 768px) {
-          .parent-selector-dropdown {
-            position: fixed;
-            top: 50%;
-            left: 10px;
-            right: 10px;
-            transform: translateY(-50%);
-            max-height: 80vh;
-          }
+        .task-list-container {
+          flex: 1;
+          min-height: 0;
+        }
+
+        .modal-task-list {
+          height: 280px;
+          border: 1px solid #f0f0f0;
+        }
+
+        .modal-task-list .task-tree-list {
+          height: 100%;
         }
         `
       }} />

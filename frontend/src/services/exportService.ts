@@ -311,6 +311,11 @@ export const exportToExcel = async (data: ExportData, options: Partial<ExportOpt
 
 // PDF导出
 export const exportToPDF = async (data: ExportData, options: Partial<ExportOptions> = {}) => {
+  // 检查jsPDF可用性
+  if (typeof window === 'undefined' || !window.jsPDF) {
+    throw new Error('PDF导出库未加载，请检查网络连接或重新刷新页面');
+  }
+  
   const config = { ...DEFAULT_OPTIONS, ...options };
   const t = i18n[config.language];
   
@@ -322,8 +327,10 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
     const pdf = new jsPDF('p', 'mm', 'a4');
     let yPosition = 20;
 
-    // 设置中文字体（需要先加载字体文件）
-    pdf.setFont('helvetica');
+    // 设置支持中文的字体
+    // 使用可以显示中文的默认字体
+    pdf.setFont('times', 'normal');
+    pdf.setFontSize(12);
 
     // 标题
     pdf.setFontSize(18);
@@ -405,12 +412,22 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
       });
     }
 
+    // 验证PDF内容
+    const pdfOutput = pdf.output('blob');
+    if (!pdfOutput || pdfOutput.size === 0) {
+      throw new Error('PDF内容为空，导出失败');
+    }
+
     // 保存PDF
     pdf.save(config.filename);
     return true;
   } catch (error) {
     console.error('PDF export failed:', error);
-    throw new Error('PDF导出失败');
+    // 提供更详细的错误信息
+    if (error.message?.includes('undefined')) {
+      throw new Error('PDF导出库加载失败，请检查网络连接');
+    }
+    throw new Error(`PDF导出失败: ${error.message}`);
   }
 };
 
