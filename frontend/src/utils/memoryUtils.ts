@@ -154,7 +154,7 @@ export const MemoryUtils = {
    */
   getCurrentMemoryUsage(): { used: number; total: number; limit: number } | null {
     if ('memory' in performance) {
-      const memory = (performance as unknown).memory;
+      const memory = (performance as any).memory;
       return {
         used: memory.usedJSHeapSize,
         total: memory.totalJSHeapSize,
@@ -196,7 +196,7 @@ export const MemoryUtils = {
    */
   forceGarbageCollection(): void {
     if ('gc' in window) {
-      (window as unknown).gc();
+      (window as any).gc();
     }
   }
 };

@@ -1,0 +1,113 @@
+# 测试环境 Docker Compose 配置
+# 用于集成测试和功能验证
+
+services:
+  # PostgreSQL Database - 测试环境
+  db:
+    image: postgres:16
+    container_name: postgres_db_test
+    environment:
+      POSTGRES_USER: ${DB_USER:-test_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test_password}
+      POSTGRES_DB: ${DB_NAME:-test_db}
+    ports:
+      - "5433:5432"  # 使用不同端口避免冲突
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./test-data:/docker-entrypoint-initdb.d/test-data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-test_user} -d ${DB_NAME:-test_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Go Backend API - 测试环境
+  backend:
+    image: golang:1.24-alpine
+    container_name: go_backend_test
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_SOURCE=postgresql://${DB_USER:-test_user}:${DB_PASSWORD:-test_password}@db:5432/${DB_NAME:-test_db}?sslmode=disable
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-test_user}
+      - DB_PASSWORD=${DB_PASSWORD:-test_password}
+      - DB_NAME=${DB_NAME:-test_db}
+      - JWT_SECRET=${JWT_SECRET:-test-secret-key}
+      - JWT_EXPIRATION=24h
+      - GIN_MODE=${GIN_MODE:-test}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RESET_DB_ON_START=${RESET_DB_ON_START:-true}
+      - TEST_DATA_SEED=${TEST_DATA_SEED:-true}
+      - GOPROXY=https://goproxy.cn,direct
+    volumes:
+      - ./backend:/app:delegated
+      - go_mod_cache_test:/go/pkg/mod
+      - ./backend/docs:/app/docs:rw
+    working_dir: /app
+    command: sh -c "go mod download && go run main.go"
+    ports:
+      - "8081:8080"  # 使用不同端口
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # React Frontend - 测试环境
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+      target: testing
+    container_name: react_frontend_test
+    ports:
+      - "${FRONTEND_PORT:-3001}:3000"
+    environment:
+      - REACT_APP_API_URL=/api/v1
+      - REACT_APP_ENV=testing
+      - REACT_APP_ENVIRONMENT=testing
+      - REACT_APP_ENABLE_MOCK=${REACT_APP_ENABLE_MOCK:-true}
+      - GENERATE_SOURCEMAP=false
+      - TSC_COMPILE_ON_ERROR=false
+    volumes:
+      - ./frontend:/app:cached
+      - frontend_node_modules_test:/app/node_modules
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy - 测试环境
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_proxy_test
+    ports:
+      - "${NGINX_PORT:-81}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/testing.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_test_data:
+  go_mod_cache_test:
+  frontend_node_modules_test:

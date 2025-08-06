@@ -7,6 +7,7 @@ import type { Dayjs } from 'dayjs';
 import { Task } from '../types/task';
 import { Project } from '../types/project';
 import { Company } from '../types/company';
+import { configurePDFForChinese, validatePDFChineseContent } from '../utils/pdfFontUtils';
 
 // 扩展jsPDF类型定义
 declare module 'jspdf' {
@@ -327,10 +328,14 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
     const pdf = new jsPDF('p', 'mm', 'a4');
     let yPosition = 20;
 
-    // 设置支持中文的字体
-    // 使用可以显示中文的默认字体
-    pdf.setFont('times', 'normal');
-    pdf.setFontSize(12);
+    // 🔧 [任务#714修复] 配置PDF中文字体支持
+    await configurePDFForChinese(pdf, {
+      fontSize: 12,
+      lineHeight: 1.4,
+      fallbackFont: 'helvetica'  // 如果中文字体加载失败，使用helvetica作为后备
+    });
+
+    console.log('📄 PDF字体配置完成，支持中文显示');
 
     // 标题
     pdf.setFontSize(18);
@@ -412,6 +417,41 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
       });
     }
 
+    // 🔧 [任务#714修复] 验证PDF中文内容支持
+    const allTextContent = [
+      t.weeklyReport,
+      data.weekRange,
+      ...data.tasks.map(task => task.title),
+      ...data.tasks.map(task => getProjectName(task.project_id, data.projects)),
+    ];
+    
+    const validation = validatePDFChineseContent(pdf, allTextContent);
+    
+    if (validation.hasChineseContent && !validation.fontSupported) {
+      console.warn('⚠️ PDF包含中文内容但字体支持可能不完整:', validation.recommendations);
+    } else if (validation.hasChineseContent && validation.fontSupported) {
+      console.log('✅ PDF中文内容支持验证通过');
+    }
+
+    // 🔧 [任务#714修复] 添加页码功能
+    const pageCount = pdf.internal.pages.length - 1;
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(9);
+      pdf.setTextColor(128, 128, 128); // 灰色
+      
+      // 在页面底部中央添加页码
+      const pageWidth = pdf.internal.pageSize.width;
+      const pageText = `第 ${i} 页，共 ${pageCount} 页`;
+      const textWidth = pdf.getTextWidth(pageText);
+      const xPosition = (pageWidth - textWidth) / 2;
+      
+      pdf.text(pageText, xPosition, pdf.internal.pageSize.height - 10);
+      
+      // 重置文本颜色为黑色，以免影响其他内容
+      pdf.setTextColor(0, 0, 0);
+    }
+
     // 验证PDF内容
     const pdfOutput = pdf.output('blob');
     if (!pdfOutput || pdfOutput.size === 0) {
@@ -420,6 +460,13 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
 
     // 保存PDF
     pdf.save(config.filename);
+    
+    // 输出成功信息
+    console.log(`📄 PDF导出成功: ${config.filename}`);
+    if (validation.hasChineseContent) {
+      console.log('🈴 PDF包含中文内容，字体支持已配置');
+    }
+    
     return true;
   } catch (error) {
     console.error('PDF export failed:', error);

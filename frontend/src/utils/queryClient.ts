@@ -18,8 +18,11 @@ const queryClientOptions = {
       // 重试次数
       retry: (failureCount: number, error: Error | unknown) => {
         // HTTP 4xx 错误不重试
-        if (error?.status >= 400 && error?.status < 500) {
-          return false;
+        if (error && typeof error === 'object' && 'status' in error) {
+          const httpError = error as { status: number };
+          if (httpError.status >= 400 && httpError.status < 500) {
+            return false;
+          }
         }
         // 最多重试2次
         return failureCount < 2;
@@ -177,7 +180,8 @@ export const handleQueryError = (error: Error | unknown, context?: string) => {
 // 成功处理
 export const handleQuerySuccess = (data: Record<string, unknown>, context?: string) => {
   if (context) {
-    }
+    console.log(`Query success in ${context}:`, data);
+  }
   
   return data;
 };

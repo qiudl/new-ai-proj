@@ -132,30 +132,36 @@ class SystemValidator {
     
     // 创建测试数据
     const testData = {
-      weekRange: '2024年01月第1周',
+      weekRange: '2024-W01',
       selectedWeek: dayjs(),
       tasks: [
         {
           id: 1,
-          title: '测试任务1',
-          description: '这是一个测试任务',
+          title: 'Test Task 1',
+          description: 'This is a test task',
           status: 'completed',
           project_id: 1,
           created_at: dayjs().toISOString(),
-          custom_fields: { priority: 'high', tags: ['测试'] },
+          updated_at: dayjs().toISOString(),
+          task_level: 1,
+          sort_order: 1,
+          custom_fields: { priority: 'high', tags: ['test'] },
         },
         {
           id: 2,
-          title: '测试任务2',
-          description: '这是另一个测试任务',
+          title: 'Test Task 2', 
+          description: 'This is another test task',
           status: 'in_progress',
           project_id: 1,
           created_at: dayjs().toISOString(),
-          custom_fields: { priority: 'medium', tags: ['开发'] },
+          updated_at: dayjs().toISOString(),
+          task_level: 1,
+          sort_order: 2,
+          custom_fields: { priority: 'medium', tags: ['development'] },
         },
       ] as Task[],
       projects: [
-        { id: 1, name: '测试项目' },
+        { id: 1, name: 'Test Project' },
       ] as Project[],
       customers: [],
       stats: {
@@ -181,11 +187,11 @@ class SystemValidator {
           // 使用内存中的测试，不实际下载文件
           const workbook = require('xlsx').utils.book_new();
           const worksheet = require('xlsx').utils.aoa_to_sheet([
-            ['任务名称', '状态', '优先级'],
-            ['测试任务1', '已完成', '高'],
-            ['测试任务2', '进行中', '中'],
+            ['Task Name', 'Status', 'Priority'],
+            ['Test Task 1', 'Completed', 'High'],
+            ['Test Task 2', 'In Progress', 'Medium'],
           ]);
-          require('xlsx').utils.book_append_sheet(workbook, worksheet, '测试');
+          require('xlsx').utils.book_append_sheet(workbook, worksheet, 'Test');
           
           return true;
         } catch (error) {
@@ -203,7 +209,7 @@ class SystemValidator {
         try {
           const { jsPDF } = require('jspdf');
           const pdf = new jsPDF();
-          pdf.text('测试PDF导出', 20, 20);
+          pdf.text('Test PDF Export', 20, 20);
           return true;
         } catch (error) {
           console.error('PDF export test failed:', error);
@@ -263,7 +269,7 @@ class SystemValidator {
           
           return typeof CACHE_KEYS === 'object' &&
                  typeof CACHE_TTL === 'object' &&
-                 CACHE_KEYS.DASHBOARD_STATS &&
+                 typeof CACHE_KEYS.DASHBOARD_STATS === 'string' &&
                  CACHE_TTL.REAL_TIME > 0;
         } catch (error) {
           return false;

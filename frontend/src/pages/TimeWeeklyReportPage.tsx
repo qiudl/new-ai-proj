@@ -59,6 +59,10 @@ import weeklyReportService, {
   TaskTimeEntry, 
   ProjectTimeStats 
 } from '../services/weeklyReportService';
+// 🔧 [任务#714] 导入PDF导出和打印预览功能
+import { exportToPDF, exportToExcel, ExportData, ExportOptions } from '../services/exportService';
+import PrintPreview from '../components/PrintPreview';
+import { Task } from '../types/task';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -90,6 +94,10 @@ const TimeWeeklyReportPage: React.FC = () => {
   const [taskTimeEntries, setTaskTimeEntries] = useState<TaskTimeEntry[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
   const [projectStats, setProjectStats] = useState<ProjectTimeStats[]>([]);
+  
+  // 🔧 [任务#714] PrintPreview相关状态
+  const [printPreviewVisible, setPrintPreviewVisible] = useState(false);
+  const [exportData, setExportData] = useState<ExportData | null>(null);
 
   // 计算周统计
   const weekSummary = useMemo(() => {
@@ -163,35 +171,97 @@ const TimeWeeklyReportPage: React.FC = () => {
     return <Tag color={config.color}>{config.text}</Tag>;
   };
 
-  // 导出报告
+  // 🔧 [任务#714] 导出报告 - 支持PDF和Excel格式
   const handleExportReport = async () => {
     try {
       const startDate = selectedDateRange[0].format('YYYY-MM-DD');
       const endDate = selectedDateRange[1].format('YYYY-MM-DD');
       
-      const jsonData = await weeklyReportService.exportWeeklyReportJSON(startDate, endDate);
+      // 准备导出数据
+      const exportData: ExportData = {
+        weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
+        selectedWeek: selectedDateRange[0],
+        tasks: taskTimeEntries.map(entry => ({
+          id: Math.random(), // 临时ID
+          title: entry.taskTitle,
+          description: '',
+          status: entry.status,
+          project_id: 1, // 默认项目ID
+          created_at: new Date().toISOString(),
+          due_date: null,
+          custom_fields: {
+            priority: entry.priority
+          }
+        } as Task)),
+        stats: {
+          totalTasks: weeklyStats.totalTasks,
+          completedTasks: weeklyStats.completedTasks,
+          inProgressTasks: weeklyStats.totalTasks - weeklyStats.completedTasks,
+          todoTasks: 0,
+          overdueTasks: 0,
+          completionRate: weekSummary.completionRate
+        },
+        filters: {
+          selectedStatus: 'all',
+          searchText: ''
+        }
+      };
       
-      // 创建下载链接
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `weekly-report-${startDate}-to-${endDate}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      // 直接导出PDF
+      await exportToPDF(exportData, {
+        filename: `任务周报_${selectedDateRange[0].format('YYYY年第ww周')}_${dayjs().format('MMDD')}.pdf`
+      });
       
-      message.success('报告导出成功！');
+      message.success('PDF报告导出成功！');
     } catch (error) {
       console.error('导出报告失败:', error);
-      message.error('导出报告失败，请稍后重试');
+      message.error(`导出报告失败: ${error.message}`);
     }
   };
 
-  // 打印报告
+  // 🔧 [任务#714] 打印报告 - 打开打印预览
   const handlePrintReport = () => {
-    window.print();
+    try {
+      const startDate = selectedDateRange[0].format('YYYY-MM-DD');
+      const endDate = selectedDateRange[1].format('YYYY-MM-DD');
+      
+      // 准备打印预览数据
+      const previewData: ExportData = {
+        weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
+        selectedWeek: selectedDateRange[0],
+        tasks: taskTimeEntries.map(entry => ({
+          id: Math.random(), // 临时ID
+          title: entry.taskTitle,
+          description: '',
+          status: entry.status,
+          project_id: 1, // 默认项目ID
+          created_at: new Date().toISOString(),
+          due_date: null,
+          custom_fields: {
+            priority: entry.priority
+          }
+        } as Task)),
+        stats: {
+          totalTasks: weeklyStats.totalTasks,
+          completedTasks: weeklyStats.completedTasks,
+          inProgressTasks: weeklyStats.totalTasks - weeklyStats.completedTasks,
+          todoTasks: 0,
+          overdueTasks: 0,
+          completionRate: weekSummary.completionRate
+        },
+        filters: {
+          selectedStatus: 'all',
+          searchText: ''
+        }
+      };
+      
+      // 设置打印预览数据并显示模态框
+      setExportData(previewData);
+      setPrintPreviewVisible(true);
+    } catch (error) {
+      console.error('打印预览失败:', error);
+      message.error('打印预览失败，请稍后重试');
+    }
   };
 
   // 刷新数据
@@ -497,6 +567,19 @@ const TimeWeeklyReportPage: React.FC = () => {
           </TabPane>
         </Tabs>
       </Card>
+
+      {/* 🔧 [任务#714] 打印预览模态框 */}
+      {exportData && (
+        <PrintPreview
+          visible={printPreviewVisible}
+          data={exportData}
+          onCancel={() => setPrintPreviewVisible(false)}
+          onExport={async (data, options) => {
+            await exportToPDF(data, options);
+            setPrintPreviewVisible(false);
+          }}
+        />
+      )}
     </div>
   );
 };

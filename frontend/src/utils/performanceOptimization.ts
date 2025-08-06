@@ -186,7 +186,7 @@ export async function measureAsync<T>(
 /**
  * 延迟加载工具
  */
-export function createLazyLoader<T>(
+export function createLazyLoader<T extends React.ComponentType<any>>(
   loader: () => Promise<{ default: T }>,
   fallback?: React.ComponentType
 ): React.LazyExoticComponent<T> {

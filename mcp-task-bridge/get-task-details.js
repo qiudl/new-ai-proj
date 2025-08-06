@@ -8,7 +8,12 @@ async function getTaskDetails(taskIds) {
     
     for (const taskId of taskIds) {
       try {
-        const task = await taskServer.getTask(1, taskId);
+        const task = await taskServer.findTaskById(taskId);
+        
+        if (!task) {
+          console.log(`❌ 未找到任务 ID: ${taskId}`);
+          continue;
+        }
         
         console.log(`\n📋 任务 ID: ${task.id}`);
         console.log(`   标题: ${task.title}`);
@@ -32,13 +37,16 @@ async function getTaskDetails(taskIds) {
         }
         
         // 获取子任务
-        const allTasks = await taskServer.listTasks(1);
-        const childTasks = allTasks.tasks.filter(t => t.parent_task_id === taskId);
-        if (childTasks.length > 0) {
-          console.log(`   子任务 (${childTasks.length}个):`);
-          childTasks.forEach(child => {
-            console.log(`     - ID: ${child.id}, 标题: ${child.title}, 状态: ${child.status}`);
-          });
+        try {
+          const childTasks = await taskServer.getTaskChildren(taskId);
+          if (childTasks && childTasks.length > 0) {
+            console.log(`   子任务 (${childTasks.length}个):`);
+            childTasks.forEach(child => {
+              console.log(`     - ID: ${child.id}, 标题: ${child.title}, 状态: ${child.status}`);
+            });
+          }
+        } catch (childError) {
+          console.log(`   子任务: 获取失败 - ${childError.message}`);
         }
         
       } catch (error) {
@@ -51,14 +59,7 @@ async function getTaskDetails(taskIds) {
   }
 }
 
-// 重点关注的任务ID
-const importantTaskIds = [
-  617, // 进行中的任务归档数据库模型设计
-  633, // MCP环境检测技术实现
-  630, // MCP环境检测解决方案
-  620, // 任务归档功能集成测试
-  619, // 任务归档管理前端界面开发
-  618  // 任务归档管理后端API开发
-];
+// 查找任务ID #489的详细信息
+const targetTaskIds = [489];
 
-getTaskDetails(importantTaskIds);
+getTaskDetails(targetTaskIds);
