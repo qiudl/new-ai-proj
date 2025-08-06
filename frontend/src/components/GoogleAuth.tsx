@@ -223,7 +223,7 @@ export const GoogleAuth: React.FC = () => {
             >
               断开连接
             </Button>
-          </div>
+          </Space>
         </div>
       ) : (
         <div>

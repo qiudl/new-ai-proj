@@ -17,14 +17,18 @@ import {
   CloudUploadOutlined,
   HistoryOutlined,
   BarChartOutlined,
-  FileMarkdownOutlined
+  FileMarkdownOutlined,
+  ImportOutlined,
+  ExportOutlined
 } from '@ant-design/icons';
 import WorkNotesManager from '../components/WorkNotesManager';
 import DocumentUpload from '../components/DocumentUpload';
 import DocumentList from '../components/DocumentList';
 import DocumentViewer from '../components/DocumentViewer';
 import DocumentVersionHistory from '../components/DocumentVersionHistory';
+import DocumentImportExportModal from '../components/DocumentImportExportModal';
 import type { Document } from '../components/DocumentList';
+import type { ImportResult } from '../utils/documentImportExport';
 
 const { Content } = Layout;
 const { Title } = Typography;
@@ -86,7 +90,7 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
               管理和编辑您的工作笔记文档
             </div>
           </div>
-          <WorkNotesManager />
+          <WorkNotesManager showImportExport={true} />
         </Content>
       </Layout>
     );
@@ -99,6 +103,11 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
   const [historyDocumentId, setHistoryDocumentId] = useState<number>(0);
   const [uploadMode, setUploadMode] = useState<'manual' | 'api'>('manual');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // 导入导出状态
+  const [importExportVisible, setImportExportVisible] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 
   // 统计数据状态
   const [stats, setStats] = useState({
@@ -175,6 +184,24 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
     message.success('版本删除成功');
   };
 
+  // 处理导入成功
+  const handleImportSuccess = (result: ImportResult) => {
+    setRefreshTrigger(prev => prev + 1); // 触发列表刷新
+    message.success(`成功导入 ${result.success} 个文档`);
+    setImportExportVisible(false);
+  };
+
+  // 处理导出完成
+  const handleExportComplete = () => {
+    message.success('文档导出完成');
+    setImportExportVisible(false);
+  };
+
+  // 打开导入导出模态框
+  const handleOpenImportExport = () => {
+    setImportExportVisible(true);
+  };
+
   return (
     <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
       <Content style={{ padding: '24px' }}>
@@ -233,24 +260,45 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
               onChange={setActiveTab}
               tabBarStyle={{ marginBottom: 24 }}
               tabBarExtraContent={
-                activeTab === 'upload' ? (
-                  <Space>
-                    <Button 
-                      type={uploadMode === 'manual' ? 'primary' : 'default'}
-                      size="small"
-                      onClick={() => setUploadMode('manual')}
-                    >
-                      文件上传
-                    </Button>
-                    <Button 
-                      type={uploadMode === 'api' ? 'primary' : 'default'}
-                      size="small"
-                      onClick={() => setUploadMode('api')}
-                    >
-                      内容创建
-                    </Button>
-                  </Space>
-                ) : null
+                <Space>
+                  {activeTab === 'upload' && (
+                    <>
+                      <Button 
+                        type={uploadMode === 'manual' ? 'primary' : 'default'}
+                        size="small"
+                        onClick={() => setUploadMode('manual')}
+                      >
+                        文件上传
+                      </Button>
+                      <Button 
+                        type={uploadMode === 'api' ? 'primary' : 'default'}
+                        size="small"
+                        onClick={() => setUploadMode('api')}
+                      >
+                        内容创建
+                      </Button>
+                    </>
+                  )}
+                  {activeTab === 'list' && (
+                    <>
+                      <Button 
+                        icon={<ImportOutlined />}
+                        size="small"
+                        onClick={handleOpenImportExport}
+                      >
+                        导入文档
+                      </Button>
+                      <Button 
+                        icon={<ExportOutlined />}
+                        size="small"
+                        onClick={handleOpenImportExport}
+                        disabled={documents.length === 0}
+                      >
+                        导出文档
+                      </Button>
+                    </>
+                  )}
+                </Space>
               }
             >
               <TabPane 
@@ -269,6 +317,8 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
                   onEdit={handleEditDocument}
                   onDelete={handleDeleteDocument}
                   onDownload={handleDownloadDocument}
+                  onDocumentsChange={setDocuments}
+                  onSelectionChange={setSelectedDocuments}
                   key={refreshTrigger} // 使用key来触发重新渲染
                 />
               </TabPane>
@@ -326,6 +376,16 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
           }}
           onVersionRestore={handleVersionRestore}
           onVersionDelete={handleVersionDelete}
+        />
+
+        {/* 文档导入导出 */}
+        <DocumentImportExportModal
+          visible={importExportVisible}
+          onCancel={() => setImportExportVisible(false)}
+          documents={documents}
+          selectedDocuments={selectedDocuments}
+          onImportSuccess={handleImportSuccess}
+          onExportComplete={handleExportComplete}
         />
       </Content>
     </Layout>

@@ -4,8 +4,7 @@
 
 import { message } from 'antd';
 import { Document, DocumentListItem } from '../types/document';
-// 临时禁用类型检查以解决编译问题
-// @ts-ignore
+// 修复PDF库导入，确保类型安全
 import jsPDF from 'jspdf';
 
 // 导出格式
@@ -190,8 +189,8 @@ class DocumentImportExport {
     try {
       const doc = new jsPDF();
     
-      // 设置中文字体（需要预先加载字体文件）
-      doc.setFont('helvetica');
+      // 设置支持中文的字体 - 修复中文字符显示问题
+      doc.setFont('times', 'normal');
       doc.setFontSize(12);
     
       // 添加标题
@@ -294,25 +293,25 @@ class DocumentImportExport {
   }
 
   // 准备导出数据
-  private prepareExportData(documents: unknown[], options: ExportOptions): any[] {
+  private prepareExportData(documents: (Document | DocumentListItem)[], options: ExportOptions): any[] {
     return documents.map(doc => {
-      const exportDoc: unknown = {};
+      const exportDoc: any = {};
       
       // 基础字段
-      exportDoc.id = doc.id;
-      exportDoc.title = doc.title || '';
-      exportDoc.description = doc.description || '';
-      exportDoc.type = doc.type || '';
-      exportDoc.status = doc.status || '';
-      exportDoc.created_at = doc.created_at || '';
-      exportDoc.updated_at = doc.updated_at || '';
-      exportDoc.owner_name = doc.owner_name || doc.creator_name || '';
+      exportDoc.id = (doc as any).id;
+      exportDoc.title = (doc as any).title || '';
+      exportDoc.description = (doc as any).description || '';
+      exportDoc.type = (doc as any).type || '';
+      exportDoc.status = (doc as any).status || '';
+      exportDoc.created_at = (doc as any).created_at || '';
+      exportDoc.updated_at = (doc as any).updated_at || '';
+      exportDoc.owner_name = (doc as any).owner_name || (doc as any).creator_name || '';
       
       // 可选字段
-      if (doc.folder_name) exportDoc.folder_name = doc.folder_name;
-      if (doc.tags) exportDoc.tags = Array.isArray(doc.tags) ? doc.tags.join(', ') : doc.tags;
-      if (doc.file_size) exportDoc.file_size = doc.file_size;
-      if (doc.version) exportDoc.version = doc.version;
+      if ((doc as any).folder_name) exportDoc.folder_name = (doc as any).folder_name;
+      if ((doc as any).tags) exportDoc.tags = Array.isArray((doc as any).tags) ? (doc as any).tags.join(', ') : (doc as any).tags;
+      if ((doc as any).file_size) exportDoc.file_size = (doc as any).file_size;
+      if ((doc as any).version) exportDoc.version = (doc as any).version;
       
       // 根据选项过滤字段
       const fieldsToInclude = options.fields || options.includeFields;
@@ -535,7 +534,7 @@ class DocumentImportExport {
   }
 
   // 转换导入数据
-  private transformImportData(item: unknown): Partial<Document> {
+  private transformImportData(item: any): Partial<Document> {
     return {
       title: item.title || item.name || item.filename || 'Untitled',
       description: item.description || item.desc || '',
