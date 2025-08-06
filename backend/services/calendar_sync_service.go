@@ -2,21 +2,17 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	"ai-project-backend/database"
-	"github.com/gin-gonic/gin"
-	"google.golang.org/api/calendar/v3"
 )
 
 type CalendarSyncService struct {
 	googleCalendarService *GoogleCalendarService
-	taskService          *TaskService
-	userService          *UserService
 	calendarSyncRepo     *database.CalendarSyncRepository
+	googleAuthRepo       database.GoogleAuthRepository
 }
 
 // SyncDirection represents the direction of synchronization
@@ -89,12 +85,11 @@ type TaskSyncData struct {
 	UserID               int                `json:"user_id"`
 }
 
-func NewCalendarSyncService(googleCalendarService *GoogleCalendarService, taskService *TaskService, userService *UserService, calendarSyncRepo *database.CalendarSyncRepository) *CalendarSyncService {
+func NewCalendarSyncService(googleCalendarService *GoogleCalendarService, calendarSyncRepo *database.CalendarSyncRepository, googleAuthRepo database.GoogleAuthRepository) *CalendarSyncService {
 	return &CalendarSyncService{
 		googleCalendarService: googleCalendarService,
-		taskService:           taskService,
-		userService:           userService,
 		calendarSyncRepo:     calendarSyncRepo,
+		googleAuthRepo:       googleAuthRepo,
 	}
 }
 
@@ -248,71 +243,69 @@ func (s *CalendarSyncService) executeCalendarToTaskSync(ctx context.Context, ite
 
 // createGoogleCalendarEvent creates a new Google Calendar event
 func (s *CalendarSyncService) createGoogleCalendarEvent(ctx context.Context, userID int, taskData *TaskSyncData) (string, error) {
-	// Convert task to calendar event
-	event := &calendar.Event{
+	// Convert task to GoogleCalendarEvent format
+	event := &GoogleCalendarEvent{
 		Summary:     taskData.Title,
 		Description: taskData.Description,
 	}
 
 	// Set event time based on due date
 	if taskData.DueDate != nil {
-		event.Start = &calendar.EventDateTime{
-			DateTime: taskData.DueDate.Format(time.RFC3339),
-			TimeZone: "Asia/Shanghai",
-		}
-		event.End = &calendar.EventDateTime{
-			DateTime: taskData.DueDate.Add(time.Hour).Format(time.RFC3339), // 1 hour duration
-			TimeZone: "Asia/Shanghai",
-		}
+		event.StartTime = *taskData.DueDate
+		event.EndTime = taskData.DueDate.Add(time.Hour) // 1 hour duration
+		event.IsAllDay = false
 	}
 
-	// Add reminder
-	if taskData.CalendarReminderMins > 0 {
-		event.Reminders = &calendar.EventReminders{
-			UseDefault: false,
-			Overrides: []*calendar.EventReminder{
-				{
-					Method:  "popup",
-					Minutes: int64(taskData.CalendarReminderMins),
-				},
-			},
-		}
-	}
+	// Set status and visibility
+	event.Status = "confirmed"
+	event.Visibility = "default"
 
+	// Get user's Google access token
+	accessToken, err := s.getUserAccessToken(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("获取用户访问令牌失败: %v", err)
+	}
+	
 	// Create event via Google Calendar service
-	createdEvent, err := s.googleCalendarService.CreateEvent(ctx, userID, "primary", event)
+	createdEvent, err := s.googleCalendarService.CreateEvent(ctx, accessToken, "primary", event)
 	if err != nil {
 		return "", err
 	}
 
-	return createdEvent.Id, nil
+	return createdEvent.ID, nil
 }
 
 // updateGoogleCalendarEvent updates an existing Google Calendar event
 func (s *CalendarSyncService) updateGoogleCalendarEvent(ctx context.Context, userID int, taskData *TaskSyncData) (string, error) {
-	// Similar to create but using update API
-	event := &calendar.Event{
+	// Convert task to GoogleCalendarEvent format
+	event := &GoogleCalendarEvent{
 		Summary:     taskData.Title,
 		Description: taskData.Description,
 	}
 
+	// Set event time based on due date
 	if taskData.DueDate != nil {
-		event.Start = &calendar.EventDateTime{
-			DateTime: taskData.DueDate.Format(time.RFC3339),
-			TimeZone: "Asia/Shanghai",
-		}
-		event.End = &calendar.EventDateTime{
-			DateTime: taskData.DueDate.Add(time.Hour).Format(time.RFC3339),
-			TimeZone: "Asia/Shanghai",
-		}
+		event.StartTime = *taskData.DueDate
+		event.EndTime = taskData.DueDate.Add(time.Hour)
+		event.IsAllDay = false
 	}
 
-	updatedEvent, err := s.googleCalendarService.UpdateEvent(ctx, userID, "primary", taskData.GoogleCalendarEventID, event)
+	// Set status and visibility
+	event.Status = "confirmed"
+	event.Visibility = "default"
+
+	// Get user's Google access token
+	accessToken, err := s.getUserAccessToken(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("获取用户访问令牌失败: %v", err)
+	}
+
+	updatedEvent, err := s.googleCalendarService.UpdateEvent(ctx, accessToken, "primary", taskData.GoogleCalendarEventID, event)
 	if err != nil {
 		return "", err
 	}
 
-	return updatedEvent.Id, nil
+	return updatedEvent.ID, nil
 }
 
 // Helper methods for database operations
@@ -428,13 +421,91 @@ func (s *CalendarSyncService) findTaskByGoogleEventID(eventID string) (int, erro
 	return s.calendarSyncRepo.FindTaskByGoogleEventID(eventID)
 }
 
-func (s *CalendarSyncService) getGoogleCalendarEvent(ctx context.Context, userID int, eventID string) (*calendar.Event, error) {
-	return s.googleCalendarService.GetEvent(ctx, userID, "primary", eventID)
+func (s *CalendarSyncService) getGoogleCalendarEvent(ctx context.Context, userID int, eventID string) (*GoogleCalendarEvent, error) {
+	// Get user's Google access token
+	accessToken, err := s.getUserAccessToken(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("获取用户访问令牌失败: %v", err)
+	}
+	
+	return s.googleCalendarService.GetEvent(ctx, accessToken, "primary", eventID)
 }
 
-func (s *CalendarSyncService) updateTaskFromCalendarEvent(taskID int, event *calendar.Event) error {
+func (s *CalendarSyncService) updateTaskFromCalendarEvent(taskID int, event *GoogleCalendarEvent) error {
 	log.Printf("从日历事件更新任务 %d: %s", taskID, event.Summary)
-	return nil // Placeholder implementation
+	
+	// Get current task data
+	taskData, err := s.getTaskSyncData(taskID)
+	if err != nil {
+		return fmt.Errorf("获取任务数据失败: %v", err)
+	}
+	
+	// Prepare update fields based on calendar event changes
+	updateFields := make(map[string]interface{})
+	
+	// Update title if different
+	if event.Summary != "" && event.Summary != taskData.Title {
+		updateFields["title"] = event.Summary
+		log.Printf("更新任务标题: %s -> %s", taskData.Title, event.Summary)
+	}
+	
+	// Update description if different
+	if event.Description != "" && event.Description != taskData.Description {
+		updateFields["description"] = event.Description
+		log.Printf("更新任务描述")
+	}
+	
+	// Update due date based on event start time
+	if !event.StartTime.IsZero() {
+		newDueDate := event.StartTime
+		if taskData.DueDate == nil || !taskData.DueDate.Equal(newDueDate) {
+			updateFields["due_date"] = newDueDate
+			log.Printf("更新任务截止时间: %v", newDueDate)
+		}
+	}
+	
+	// Update task status based on event status
+	if event.Status != "" {
+		var newStatus string
+		switch event.Status {
+		case "confirmed":
+			if taskData.Status == "completed" {
+				// Keep completed status
+				newStatus = "completed"
+			} else {
+				newStatus = "in_progress"
+			}
+		case "cancelled":
+			newStatus = "cancelled"
+		case "tentative":
+			newStatus = "todo"
+		default:
+			newStatus = taskData.Status // Keep current status
+		}
+		
+		if newStatus != taskData.Status {
+			updateFields["status"] = newStatus
+			log.Printf("更新任务状态: %s -> %s", taskData.Status, newStatus)
+		}
+	}
+	
+	// Only update if there are changes
+	if len(updateFields) == 0 {
+		log.Printf("任务 %d 无需更新", taskID)
+		return nil
+	}
+	
+	// Update last calendar sync timestamp
+	updateFields["last_calendar_sync"] = time.Now()
+	
+	// Perform the database update
+	err = s.calendarSyncRepo.UpdateTaskFromCalendarSync(taskID, updateFields)
+	if err != nil {
+		return fmt.Errorf("更新任务失败: %v", err)
+	}
+	
+	log.Printf("任务 %d 已根据日历事件成功更新", taskID)
+	return nil
 }
 
 // EnableTaskCalendarSync enables calendar sync for a task
@@ -467,4 +538,16 @@ func (s *CalendarSyncService) DisableTaskCalendarSync(ctx context.Context, taskI
 
 func (s *CalendarSyncService) updateTaskSyncSettings(taskID int, syncEnabled bool, direction SyncDirection, reminderMins int) error {
 	return s.calendarSyncRepo.UpdateTaskSyncSettings(taskID, syncEnabled, string(direction), reminderMins)
+}
+
+// getUserAccessToken retrieves and decrypts user's Google access token
+func (s *CalendarSyncService) getUserAccessToken(ctx context.Context, userID int) (string, error) {
+	token, err := s.googleAuthRepo.GetGoogleToken(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get google token: %v", err)
+	}
+	
+	// The GoogleAuthRepository.GetGoogleToken method already decrypts the token
+	// and populates the AccessToken field, so we can directly return it
+	return token.AccessToken, nil
 }

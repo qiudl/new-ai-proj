@@ -325,8 +325,71 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               height: 32,
             }}
           />
-          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            AI项目管理平台
+          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>AI项目管理平台</span>
+{/* 临时调试代码 - 输出环境变量 */}
+{(() => {
+  console.log('🔍 环境变量调试信息:');
+  console.log('REACT_APP_ENV:', process.env.REACT_APP_ENV);
+  console.log('REACT_APP_ENVIRONMENT:', process.env.REACT_APP_ENVIRONMENT);
+  console.log('REACT_APP_LOCAL_DEV:', process.env.REACT_APP_LOCAL_DEV);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('条件1 (REACT_APP_LOCAL_DEV === "true"):', process.env.REACT_APP_LOCAL_DEV === 'true');
+  console.log('条件2a (REACT_APP_ENV === "development"):', process.env.REACT_APP_ENV === 'development');
+  console.log('条件2b (REACT_APP_ENVIRONMENT === "development"):', process.env.REACT_APP_ENVIRONMENT === 'development');
+  console.log('条件2c (REACT_APP_LOCAL_DEV !== "true"):', process.env.REACT_APP_LOCAL_DEV !== 'true');
+  console.log('条件2整体:', (process.env.REACT_APP_ENV === 'development' && process.env.REACT_APP_ENVIRONMENT === 'development' && process.env.REACT_APP_LOCAL_DEV !== 'true'));
+  return null;
+})()}
+{/* 环境标志显示 */}
+            {process.env.REACT_APP_LOCAL_DEV === 'true' && (
+              <span style={{
+                padding: '2px 8px',
+                backgroundColor: '#52c41a',
+                color: 'white',
+                fontSize: '12px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                开发环境
+              </span>
+            )}
+            {(process.env.REACT_APP_ENV === 'development' && process.env.REACT_APP_ENVIRONMENT === 'development' && process.env.REACT_APP_LOCAL_DEV !== 'true') && (
+              <span style={{
+                padding: '2px 8px',
+                backgroundColor: '#1890ff',
+                color: 'white',
+                fontSize: '12px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                测试版本
+              </span>
+            )}
+            {(process.env.REACT_APP_ENV === 'staging' || process.env.REACT_APP_ENVIRONMENT === 'staging') && (
+              <span style={{
+                padding: '2px 8px',
+                backgroundColor: '#fa8c16',
+                color: 'white',
+                fontSize: '12px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                预发布
+              </span>
+            )}
+            {(process.env.REACT_APP_ENV === 'production' || process.env.REACT_APP_ENVIRONMENT === 'production') && (
+              <span style={{
+                padding: '2px 8px',
+                backgroundColor: '#f5222d',
+                color: 'white',
+                fontSize: '12px',
+                borderRadius: '4px',
+                fontWeight: 'bold'
+              }}>
+                生产环境
+              </span>
+            )}
           </div>
         </div>
         <div className="user-info">

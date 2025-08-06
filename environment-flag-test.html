@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环境标志测试验证</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+        }
+        .test-item { 
+            margin: 15px 0; 
+            padding: 15px; 
+            border-radius: 5px; 
+            border-left: 4px solid #007bff; 
+            background: #f8f9fa;
+        }
+        .success { background-color: #d4edda; border-color: #28a745; }
+        .error { background-color: #f8d7da; border-color: #dc3545; }
+        .warning { background-color: #fff3cd; border-color: #ffc107; }
+        h1 { color: #333; text-align: center; }
+        .badge { 
+            display: inline-block; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin-left: 8px;
+        }
+        .badge-dev { background-color: #52c41a; color: white; }
+        .badge-test { background-color: #1890ff; color: white; }
+        .expected { color: #28a745; font-weight: bold; }
+        .actual { color: #007bff; font-weight: bold; }
+        .iframe-container {
+            width: 100%;
+            height: 300px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏷️ 环境标志测试验证</h1>
+        <p><strong>测试目标:</strong> 验证容器化环境下是否正确显示蓝色"测试版本"标志</p>
+        <hr>
+
+        <div class="test-item">
+            <h3>📊 环境变量检测结果</h3>
+            <div id="env-check">
+                <p><strong>当前访问方式:</strong> <span id="access-method"></span></p>
+                <p><strong>预期环境标志:</strong> <span id="expected-flag"></span></p>
+                <p><strong>配置状态:</strong> <span id="config-status"></span></p>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <h3>🔍 Layout.tsx 环境逻辑分析</h3>
+            <div id="logic-analysis">
+                <p><strong>条件1:</strong> REACT_APP_LOCAL_DEV === 'true' 
+                   → <span class="badge badge-dev">开发环境</span> (绿色)</p>
+                <p><strong>条件2:</strong> REACT_APP_ENV === 'development' && 
+                   REACT_APP_ENVIRONMENT === 'development' && 
+                   REACT_APP_LOCAL_DEV !== 'true' 
+                   → <span class="badge badge-test">测试版本</span> (蓝色)</p>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <h3>🎯 实际环境标志验证</h3>
+            <p>加载主应用以检查环境标志显示：</p>
+            <div class="iframe-container">
+                <iframe id="main-app" src="http://localhost/"></iframe>
+            </div>
+            <div id="flag-detection">
+                <p><strong>检测结果:</strong> 正在加载...</p>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <h3>📋 详细诊断信息</h3>
+            <div id="debug-info">
+                <p><strong>浏览器信息:</strong> <span id="browser-info"></span></p>
+                <p><strong>访问协议:</strong> <span id="protocol"></span></p>
+                <p><strong>主机名:</strong> <span id="hostname"></span></p>
+                <p><strong>端口:</strong> <span id="port"></span></p>
+                <p><strong>完整URL:</strong> <span id="full-url"></span></p>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <h3>🛠️ 修复建议</h3>
+            <div id="fix-suggestions">
+                <p><strong>如果仍显示绿色"开发环境"：</strong></p>
+                <ul>
+                    <li>清除浏览器缓存 (Ctrl+F5 或 Cmd+Shift+R)</li>
+                    <li>确认通过 http://localhost 访问，而不是 localhost:3001</li>
+                    <li>检查容器环境变量是否正确加载</li>
+                    <li>等待前端完全重新编译</li>
+                </ul>
+                <p><strong>正确配置应该显示：</strong> 蓝色<span class="badge badge-test">测试版本</span></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 填充诊断信息
+        document.getElementById('browser-info').textContent = navigator.userAgent.split(' ').pop();
+        document.getElementById('protocol').textContent = window.location.protocol;
+        document.getElementById('hostname').textContent = window.location.hostname;
+        document.getElementById('port').textContent = window.location.port || '80';
+        document.getElementById('full-url').textContent = window.location.href;
+
+        // 分析访问方式和预期标志
+        const isDirectPort = window.location.port === '3001';
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isNginxProxy = window.location.port === '' || window.location.port === '80';
+
+        let accessMethod, expectedFlag, configStatus;
+
+        if (isDirectPort) {
+            accessMethod = '直接访问前端容器 (localhost:3001)';
+            expectedFlag = '可能不显示环境标志或显示错误';
+            configStatus = '⚠️ 建议通过 localhost:80 (nginx代理) 访问';
+        } else if (isLocalhost && isNginxProxy) {
+            accessMethod = '通过nginx代理访问 (localhost:80)';
+            expectedFlag = '蓝色"测试版本"';
+            configStatus = '✅ 正确的访问方式';
+        } else {
+            accessMethod = '未知访问方式';
+            expectedFlag = '不确定';
+            configStatus = '❓ 需要分析';
+        }
+
+        document.getElementById('access-method').textContent = accessMethod;
+        document.getElementById('expected-flag').innerHTML = '<span class="expected">' + expectedFlag + '</span>';
+        document.getElementById('config-status').textContent = configStatus;
+
+        // 尝试检测iframe中的环境标志（跨域限制可能会阻止这个功能）
+        setTimeout(() => {
+            try {
+                const iframe = document.getElementById('main-app');
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                // 查找环境标志元素
+                const flagElements = iframeDoc.querySelectorAll('span');
+                let flagFound = false;
+                
+                for (let element of flagElements) {
+                    const text = element.textContent.trim();
+                    if (text === '开发环境' || text === '测试版本' || text === '预发布' || text === '生产环境') {
+                        const style = window.getComputedStyle(element);
+                        const bgColor = style.backgroundColor;
+                        
+                        document.getElementById('flag-detection').innerHTML = 
+                            '<p><strong>检测结果:</strong> 发现环境标志 "' + text + '" (背景色: ' + bgColor + ')</p>';
+                        
+                        flagFound = true;
+                        break;
+                    }
+                }
+                
+                if (!flagFound) {
+                    document.getElementById('flag-detection').innerHTML = 
+                        '<p><strong>检测结果:</strong> ❌ 未检测到环境标志，或者由于跨域限制无法读取</p>';
+                }
+            } catch (error) {
+                document.getElementById('flag-detection').innerHTML = 
+                    '<p><strong>检测结果:</strong> ⚠️ 由于同源策略限制，无法自动检测。请手动查看iframe中的环境标志。</p>';
+            }
+        }, 5000);
+
+        console.log('🧪 环境标志测试页面加载完成');
+        console.log('📊 访问信息:', {
+            hostname: window.location.hostname,
+            port: window.location.port,
+            protocol: window.location.protocol,
+            accessMethod: accessMethod,
+            expectedFlag: expectedFlag
+        });
+    </script>
+</body>
+</html>

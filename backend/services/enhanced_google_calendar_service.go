@@ -125,7 +125,7 @@ func (g *EnhancedGoogleCalendarService) ExchangeCodeForToken(ctx context.Context
 	var err error
 	
 	// 使用重试机制执行令牌交换
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*oauth2.Token, error) {
+	_, retryErr := utils.ExecuteWithResult[*oauth2.Token](ctx, g.retryExecutor, func() (*oauth2.Token, error) {
 		token, err = g.config.Exchange(ctx, code)
 		return token, err
 	})
@@ -171,7 +171,7 @@ func (g *EnhancedGoogleCalendarService) RefreshToken(ctx context.Context, refres
 	var err error
 	
 	// 使用重试机制刷新令牌
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*oauth2.Token, error) {
+	_, retryErr := utils.ExecuteWithResult[*oauth2.Token](ctx, g.retryExecutor, func() (*oauth2.Token, error) {
 		newToken, err = tokenSource.Token()
 		return newToken, err
 	})
@@ -218,7 +218,7 @@ func (g *EnhancedGoogleCalendarService) GetCalendarService(ctx context.Context, 
 	var err error
 	
 	// 使用重试机制创建服务
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.Service, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.Service](ctx, g.retryExecutor, func() (*calendar.Service, error) {
 		service, err = calendar.NewService(ctx, option.WithHTTPClient(client))
 		return service, err
 	})
@@ -291,7 +291,7 @@ func (g *EnhancedGoogleCalendarService) GetUserCalendars(ctx context.Context, ac
 	var err error
 	
 	// 使用重试机制获取日历列表
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.CalendarList, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.CalendarList](ctx, g.retryExecutor, func() (*calendar.CalendarList, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
@@ -337,7 +337,7 @@ func (g *EnhancedGoogleCalendarService) CreateEvent(ctx context.Context, accessT
 	var err error
 	
 	// 使用重试机制创建事件
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.Event, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
@@ -382,7 +382,7 @@ func (g *EnhancedGoogleCalendarService) UpdateEvent(ctx context.Context, accessT
 	var err error
 	
 	// 使用重试机制更新事件
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.Event, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
@@ -466,7 +466,7 @@ func (g *EnhancedGoogleCalendarService) GetEvent(ctx context.Context, accessToke
 	var err error
 	
 	// 使用重试机制获取事件
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.Event, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
@@ -510,7 +510,7 @@ func (g *EnhancedGoogleCalendarService) ListEvents(ctx context.Context, accessTo
 	var err error
 	
 	// 使用重试机制获取事件列表
-	_, retryErr := g.retryExecutor.ExecuteWithResult(ctx, func() (*calendar.Events, error) {
+	_, retryErr := utils.ExecuteWithResult[*calendar.Events](ctx, g.retryExecutor, func() (*calendar.Events, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
@@ -557,8 +557,6 @@ func (g *EnhancedGoogleCalendarService) RevokeToken(ctx context.Context, accessT
 		Method:    "POST",
 		Endpoint:  "oauth2/revoke",
 	}
-	
-	var err error
 	
 	// 使用重试机制撤销令牌
 	retryErr := g.retryExecutor.Execute(ctx, func() error {

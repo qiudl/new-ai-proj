@@ -1194,15 +1194,50 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         try {
           setBatchLoading(true);
           
-          // 并行更新所有选中的任务
-          const updatePromises = selectedRowKeys.map(taskId => 
-            TaskService.updateTask(projectId, Number(taskId), { parent_id: parentId })
-          );
+          // 使用批量更新API，避免title验证问题
+          const taskIds = selectedRowKeys.map(id => Number(id));
+          const result = await TaskService.batchUpdateTasks(projectId, taskIds, { parent_id: parentId });
           
-          await Promise.all(updatePromises);
-          message.success(`成功更改了 ${selectedRowKeys.length} 个任务的父任务`);
-          setSelectedRowKeys([]);
-          loadData();
+          // 处理结果
+          if (result.failed_tasks && result.failed_tasks.length > 0) {
+            const successCount = result.updated_count;
+            const failureCount = result.failed_tasks.length;
+            
+            // 显示详细的成功/失败信息
+            Modal.info({
+              title: '批量更改父任务结果',
+              content: (
+                <div>
+                  <p>✅ 成功更改: {successCount} 个任务</p>
+                  <p>❌ 更改失败: {failureCount} 个任务</p>
+                  {failureCount <= 3 && (
+                    <div style={{ marginTop: '8px' }}>
+                      <p><strong>失败详情:</strong></p>
+                      {result.failed_tasks.slice(0, 3).map(failed => (
+                        <p key={failed.task_id} style={{ fontSize: '12px', color: '#ff4d4f' }}>
+                          任务ID {failed.task_id}: {failed.error}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {failureCount > 3 && (
+                    <p style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                      还有 {failureCount - 3} 个任务更改失败...
+                    </p>
+                  )}
+                </div>
+              ),
+              width: 450,
+              onOk: () => {
+                setSelectedRowKeys([]);
+                loadData();
+              }
+            });
+          } else {
+            message.success(`成功更改了 ${result.updated_count} 个任务的父任务`);
+            setSelectedRowKeys([]);
+            loadData();
+          }
         } catch (error: Error | unknown) {
           console.error('Error in batch parent change:', error);
           const errorMessage = error?.message || error?.error?.message || '批量更改父任务失败';

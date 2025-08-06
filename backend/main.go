@@ -214,7 +214,7 @@ func NewApplication() (*Application, error) {
 	
 	// 日历同步服务和处理器
 	calendarSyncRepo := database.NewCalendarSyncRepository(sqlxDB)
-	calendarSyncService := services.NewCalendarSyncService(googleCalendarService, db.Tasks(), db.Users(), calendarSyncRepo)
+	calendarSyncService := services.NewCalendarSyncService(googleCalendarService, calendarSyncRepo, db.GoogleAuth())
 	calendarSyncHandler := handlers.NewCalendarSyncHandler(calendarSyncService, calendarSyncRepo)
 
 	// 文档注册表处理器 - Disabled due to conflicting models

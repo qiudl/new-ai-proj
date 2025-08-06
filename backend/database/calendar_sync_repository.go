@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -377,6 +378,56 @@ func (r *CalendarSyncRepository) GetTasksRequiringSync(limit int) ([]*TaskSyncIn
 	}
 
 	return tasks, nil
+}
+
+// UpdateTaskFromCalendarSync updates task fields based on calendar event changes
+func (r *CalendarSyncRepository) UpdateTaskFromCalendarSync(taskID int, updateFields map[string]interface{}) error {
+	if len(updateFields) == 0 {
+		return nil // 无需更新
+	}
+
+	// 构建动态SQL更新语句
+	setParts := make([]string, 0, len(updateFields))
+	args := make([]interface{}, 0, len(updateFields)+1)
+	argIndex := 1
+
+	for field, value := range updateFields {
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", field, argIndex))
+		args = append(args, value)
+		argIndex++
+	}
+
+	// 构建完整的更新查询
+	query := fmt.Sprintf(`
+		UPDATE tasks 
+		SET %s, updated_at = NOW()
+		WHERE id = $%d AND deleted_at IS NULL
+	`, strings.Join(setParts, ", "), argIndex)
+	
+	args = append(args, taskID)
+
+	result, err := r.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("更新任务字段失败: %v", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取影响行数失败: %v", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("任务 %d 不存在或已被删除", taskID)
+	}
+
+	// 记录更新的字段
+	updatedFields := make([]string, 0, len(updateFields))
+	for field := range updateFields {
+		updatedFields = append(updatedFields, field)
+	}
+
+	log.Printf("已更新任务 %d 的字段: %s", taskID, strings.Join(updatedFields, ", "))
+	return nil
 }
 
 // CleanupCompletedSyncItems removes old completed sync queue items

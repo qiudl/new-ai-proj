@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环境标志修复最终测试</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .success { border-color: #28a745; background: #d4edda; }
+        .error { border-color: #dc3545; background: #f8d7da; }
+        .warning { border-color: #ffc107; background: #fff3cd; }
+        
+        .badge { 
+            display: inline-block; 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            margin: 0 5px;
+        }
+        .badge-dev { background-color: #52c41a; color: white; }
+        .badge-test { background-color: #1890ff; color: white; }
+        
+        .iframe-section {
+            margin: 20px 0;
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .iframe-header {
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            font-weight: bold;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+            display: block;
+        }
+        
+        .debug-output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        .test-button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 环境标志修复最终测试</h1>
+        <p><strong>测试目标：</strong>验证容器化环境下是否正确显示蓝色"测试版本"标志</p>
+        
+        <div class="test-section">
+            <h3>🎯 预期结果</h3>
+            <p>基于当前容器配置，应该显示：<span class="badge badge-test">测试版本</span></p>
+            <p><strong>配置状态：</strong></p>
+            <ul>
+                <li>REACT_APP_ENV = "development" ✅</li>
+                <li>REACT_APP_ENVIRONMENT = "development" ✅</li>
+                <li>REACT_APP_LOCAL_DEV = undefined (非 "true") ✅</li>
+            </ul>
+            <p>条件2应该匹配：<code>development && development && (undefined !== 'true')</code> = <strong>TRUE</strong></p>
+        </div>
+
+        <div class="iframe-section">
+            <div class="iframe-header">
+                📱 主应用实时显示 (http://localhost/)
+            </div>
+            <iframe src="http://localhost/" id="main-app"></iframe>
+        </div>
+
+        <div class="test-section">
+            <h3>🔍 实时调试控制台</h3>
+            <button class="test-button" onclick="runDebugTest()">🧪 运行环境变量调试</button>
+            <button class="test-button" onclick="clearDebugOutput()">🗑️ 清除输出</button>
+            <button class="test-button" onclick="reloadIframe()">🔄 刷新应用</button>
+            
+            <div id="debug-console" class="debug-output">
+准备运行调试测试...
+点击上方按钮开始调试。
+            </div>
+        </div>
+
+        <div class="test-section" id="result-section" style="display: none;">
+            <h3>📊 测试结果</h3>
+            <div id="test-result"></div>
+        </div>
+    </div>
+
+    <script>
+        let debugOutput = '';
+        
+        // 拦截console.log
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            const message = args.join(' ');
+            debugOutput += '[' + new Date().toLocaleTimeString() + '] ' + message + '\n';
+            updateDebugConsole();
+            originalConsoleLog.apply(console, args);
+        };
+
+        function updateDebugConsole() {
+            const consoleDiv = document.getElementById('debug-console');
+            consoleDiv.textContent = debugOutput;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        function clearDebugOutput() {
+            debugOutput = '调试输出已清除\n';
+            updateDebugConsole();
+        }
+
+        function reloadIframe() {
+            const iframe = document.getElementById('main-app');
+            iframe.src = iframe.src + '?t=' + Date.now();
+            console.log('🔄 重新加载主应用iframe');
+        }
+
+        async function runDebugTest() {
+            console.log('🚀 开始环境变量调试测试...');
+            console.log('测试时间:', new Date().toLocaleString());
+            
+            try {
+                // 加载调试脚本
+                const script = document.createElement('script');
+                script.src = '/inject-env-debug.js?t=' + Date.now();
+                script.onload = () => {
+                    console.log('✅ 环境变量调试脚本加载完成');
+                    
+                    setTimeout(() => {
+                        if (window.debugEnvVars) {
+                            const envData = window.debugEnvVars();
+                            console.log('📊 调试数据:', envData);
+                            
+                            showTestResult(envData);
+                        } else {
+                            console.log('❌ 调试函数未找到');
+                        }
+                    }, 1000);
+                };
+                script.onerror = () => {
+                    console.log('❌ 调试脚本加载失败');
+                };
+                
+                document.head.appendChild(script);
+                
+            } catch (error) {
+                console.log('❌ 调试测试失败:', error.message);
+            }
+        }
+
+        function showTestResult(envData) {
+            const resultSection = document.getElementById('result-section');
+            const resultDiv = document.getElementById('test-result');
+            
+            let resultClass = '';
+            let resultText = '';
+            
+            if (envData.expectedFlag === '🔵 测试版本') {
+                resultClass = 'success';
+                resultText = '✅ 预期显示蓝色"测试版本"';
+            } else if (envData.expectedFlag === '🟢 开发环境') {
+                resultClass = 'warning';
+                resultText = '⚠️ 预期显示绿色"开发环境"';
+            } else {
+                resultClass = 'error';
+                resultText = '❌ 预期无环境标志显示';
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="test-section ${resultClass}">
+                    <h4>${resultText}</h4>
+                    <p><strong>环境变量值:</strong></p>
+                    <ul>
+                        <li>REACT_APP_ENV: ${envData.REACT_APP_ENV || 'undefined'}</li>
+                        <li>REACT_APP_ENVIRONMENT: ${envData.REACT_APP_ENVIRONMENT || 'undefined'}</li>
+                        <li>REACT_APP_LOCAL_DEV: ${envData.REACT_APP_LOCAL_DEV || 'undefined'}</li>
+                        <li>NODE_ENV: ${envData.NODE_ENV || 'undefined'}</li>
+                    </ul>
+                    <p><strong>条件2匹配:</strong> ${envData.condition2 ? '✅ TRUE' : '❌ FALSE'}</p>
+                    <p><strong>预期标志:</strong> ${envData.expectedFlag}</p>
+                </div>
+            `;
+            
+            resultSection.style.display = 'block';
+        }
+
+        // 页面加载完成后的初始化
+        console.log('📱 环境标志修复测试页面已加载');
+        console.log('请点击"运行环境变量调试"按钮开始测试');
+        console.log('同时观察上方iframe中的实际环境标志显示');
+    </script>
+</body>
+</html>

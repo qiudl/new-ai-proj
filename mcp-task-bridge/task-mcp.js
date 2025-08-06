@@ -17,7 +17,7 @@ export class TaskMCPServer {
     async findTaskById(id) {
         try {
             // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
-            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
+            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks?page_size=1000`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -36,7 +36,7 @@ export class TaskMCPServer {
                 if (project.id === 1)
                     continue; // 已经检查过项目1
                 try {
-                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks?page_size=1000`, {
                         headers: this.getHeaders(),
                         proxy: false
                     });
@@ -248,7 +248,7 @@ export class TaskMCPServer {
     async listTasks(projectId = 1) {
         try {
             console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
+            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks?page_size=1000`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -261,7 +261,8 @@ export class TaskMCPServer {
                     title: task.title,
                     status: task.status,
                     created_at: task.created_at,
-                    project_id: task.project_id
+                    project_id: task.project_id,
+                    parent_id: task.parent_id
                 })),
                 message: `📋 共找到 ${tasks.length} 个任务`
             };
@@ -414,7 +415,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 删除任务: ID ${id}, 强制删除: ${force}`);
             const task = await this.findTaskById(id);
             // 检查是否有子任务
-            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
+            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks?page_size=1000`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -754,7 +755,7 @@ export class TaskMCPServer {
                 };
             }
             // 检查任务是否有子任务
-            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
+            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks?page_size=1000`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -929,7 +930,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 获取任务子任务: 父任务ID ${parentId}`);
             const parentTask = await this.findTaskById(parentId);
             // 获取父任务所在项目的所有任务
-            const response = await axios.get(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, {
+            const response = await axios.get(`${this.apiBase}/projects/${parentTask.project_id}/tasks?page_size=1000`, {
                 headers: this.getHeaders(),
                 proxy: false
             });

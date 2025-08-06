@@ -143,9 +143,29 @@ export function createErrorContainer(error: string, code: string): string {
       color: #ff4d4f;
       background: #fff2f0;
       margin: 16px 0;
+      position: relative;
     ">
       <div style="font-weight: 600; margin-bottom: 8px;">⚠️ Mermaid 渲染失败</div>
       <div style="font-size: 12px; color: #666; margin-bottom: 12px;">${error}</div>
+      
+      <!-- 常见解决方案提示 -->
+      <div style="
+        background: #fffbe6;
+        border: 1px solid #ffe58f;
+        border-radius: 4px;
+        padding: 8px;
+        margin: 12px 0;
+        text-align: left;
+        font-size: 11px;
+        color: #d89614;
+      ">
+        <strong>💡 可能的解决方案：</strong><br>
+        • 检查图表语法是否正确<br>
+        • 刷新页面重新加载 Mermaid 库<br>
+        • 检查网络连接是否正常<br>
+        • 尝试使用更简单的图表语法
+      </div>
+      
       <details style="text-align: left; font-size: 12px;">
         <summary style="cursor: pointer; color: #1890ff;">查看原始代码</summary>
         <pre style="
@@ -155,8 +175,28 @@ export function createErrorContainer(error: string, code: string): string {
           margin-top: 8px;
           font-size: 11px;
           overflow-x: auto;
+          border: 1px solid #d9d9d9;
         ">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
       </details>
+      
+      <!-- 手动重试按钮 -->
+      <button 
+        onclick="window.location.reload();" 
+        style="
+          background: #1890ff;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          font-size: 11px;
+          margin-top: 8px;
+        "
+        onmouseover="this.style.background='#40a9ff'"
+        onmouseout="this.style.background='#1890ff'"
+      >
+        🔄 刷新页面重试
+      </button>
     </div>
   `;
 }
