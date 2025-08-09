@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/lib/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -15,12 +15,7 @@ import './App.css';
 import './styles/task-hierarchy.css';
 import './styles/TaskDocuments.css';
 
-// 💡 在开发环境中加载调试工具
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/timerDiagnostics.js').catch(error => {
-    console.warn('Failed to load timer diagnostics:', error);
-  });
-}
+// 开发环境调试工具将在 AppContent 中按路由条件加载
 
 // Lazy load pages for code splitting
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
@@ -79,11 +74,23 @@ const PageLoading = () => (
 // 内部App组件用于访问useNavigate
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // 设置全局导航函数
   useEffect(() => {
     setNavigateFunction(navigate);
     }, [navigate]);
+
+  const isLoginRoute = location.pathname === '/login';
+
+  // 开发环境按需加载定时器诊断工具（登录页不加载）
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && !isLoginRoute) {
+      import('./utils/timerDiagnostics.js').catch(error => {
+        console.warn('Failed to load timer diagnostics:', error);
+      });
+    }
+  }, [isLoginRoute]);
 
   return (
     <div className="App">
@@ -434,10 +441,14 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
           </Routes>
-        </Suspense>
+      </Suspense>
         
-        {/* Global Floating Timer - only shows when timer is running */}
-        <FloatingTimer />
+        {/* 在非登录页挂载 TimerProvider 与悬浮计时器；登录页完全不挂载计时相关组件 */}
+        {!isLoginRoute ? (
+          <TimerProvider>
+            <FloatingTimer />
+          </TimerProvider>
+        ) : null}
         
         {/* Unified Debug Panel - includes timer and JWT debug (隐藏调试功能) */}
         {/* <UnifiedDebugPanel /> */}
@@ -455,20 +466,21 @@ function App() {
     };
   }, []);
 
+  // 我们需要根据路由决定是否挂载 TimerProvider，但这里拿不到 location
+  // 解决：将 Router 提到外层，TimerProvider 放到 AppContent 中按需包裹
   return (
     <QueryProvider>
       <ConfigProvider locale={zhCN}>
         <ErrorBoundary>
-          <TimerProvider>
-            <Router 
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}
-            >
-              <AppContent />
-            </Router>
-          </TimerProvider>
+          <Router 
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
+            {/* 在 AppContent 内部按路由条件挂载 TimerProvider */}
+            <AppContent />
+          </Router>
         </ErrorBoundary>
       </ConfigProvider>
     </QueryProvider>

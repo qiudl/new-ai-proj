@@ -122,8 +122,9 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         console.warn('JWT Token已过期或无效，已清除本地token');
         
-        // 显示友好提示
-        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+        // 在登录页禁止弹窗提示，避免打扰
+        const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+        if (!isOnLoginPage && typeof window !== 'undefined' && typeof window.alert === 'function') {
           setTimeout(() => {
             alert('登录已过期，即将跳转到登录页面');
           }, 100);
@@ -133,12 +134,14 @@ api.interceptors.response.use(
         if (navigateFunction && typeof navigateFunction === 'function') {
           const nav = navigateFunction; // 确保类型安全
           setTimeout(() => {
-            nav('/login');
+            if (!isOnLoginPage) {
+              nav('/login');
+            }
           }, 1000);
         } else {
           // 备用方案：延迟执行页面跳转
           setTimeout(() => {
-            if (window.location.pathname !== '/login') {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
               window.location.href = '/login';
             }
           }, 1500);

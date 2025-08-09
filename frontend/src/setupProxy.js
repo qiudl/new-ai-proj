@@ -6,9 +6,10 @@ module.exports = function(app) {
   const isInDocker = require('fs').existsSync('/.dockerenv') || 
                      require('os').hostname().length === 12; // Docker containers typically have 12-char hostnames
   
+  // In local development, backend listens on 8081
   const backendUrl = isInDocker 
     ? 'http://backend:8080'    // Docker container name when running in container
-    : 'http://localhost:8080'; // Host machine when running locally
+    : 'http://localhost:8081'; // Host machine when running locally
   
   console.log(`[PROXY] Backend URL: ${backendUrl}`);
   

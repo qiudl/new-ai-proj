@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#1890ff" />
-    <meta name="description" content="AI Project Management Platform - Smart project and task management with AI-powered bulk import" />
+    <meta name="description" content="AI上下文任务系统 - 面向企业的智能上下文任务管理与批量导入能力" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <title>AI Project Management Platform</title>
+    <title>AI上下文任务系统</title>
     
     <!-- PDF导出功能依赖 -->
     <script src="https://unpkg.com/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js"></script>
@@ -20,8 +20,9 @@
     
     <!-- 开发环境调试工具 -->
     <script>
-      // 只在开发环境加载调试工具
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // 只在开发环境加载调试工具，且在登录页不加载
+      if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        && window.location.pathname !== '/login') {
         const script = document.createElement('script');
         script.src = '/debug-timer.js';
         script.onload = function() {

@@ -70,7 +70,7 @@ const LoginPage: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1 className="login-title">AI项目管理平台</h1>
+        <h1 className="login-title">AI上下文任务系统</h1>
         <Form
           name="login"
           onFinish={onFinish}
