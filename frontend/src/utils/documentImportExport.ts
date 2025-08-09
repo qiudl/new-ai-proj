@@ -418,7 +418,7 @@ class DocumentImportExport {
             continue;
           }
           
-          const rowData: unknown = {};
+          const rowData: any = {};
           headers.forEach((header, index) => {
             rowData[header] = values[index];
           });
@@ -637,7 +637,7 @@ export const importDocuments = (
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as unknown).documentImportExport = documentImportExport;
+  (window as any).documentImportExport = documentImportExport;
 }
 
 export default DocumentImportExport;
