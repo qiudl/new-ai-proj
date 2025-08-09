@@ -179,6 +179,36 @@ SELECT * FROM tasks WHERE deleted_at IS NOT NULL;
 - Low priority preload strategy initiated in useSmartPreload.ts
 - Console error: Query data cannot be undefined for query key ["dashboard","weekly",34,"2025-08-03","2025-08-09",null]
 
+## 项目访问地址
+
+### 开发环境访问 (docker-compose up -d 启动后)
+- **主入口 (推荐)**: http://localhost - nginx统一代理入口
+- **前端开发服务器**: http://localhost:3000 - React开发服务器 (仅开发时)
+- **后端API**: http://localhost:8081 - Go后端API服务 (Docker环境)
+- **数据库**: localhost:5433 - PostgreSQL数据库 (Docker环境)
+
+### 本地开发环境 (直接运行服务)
+- **前端**: http://localhost:3001 - React开发服务器
+- **后端API**: http://localhost:8080 - Go后端API服务
+- **数据库**: localhost:5432 - PostgreSQL数据库
+
+### 服务端口说明
+```
+80   -> nginx反向代理 (Docker环境统一入口)
+3000 -> React开发服务器 (Docker环境热重载)
+3001 -> React开发服务器 (本地环境)
+8080 -> Go后端API (本地环境)
+8081 -> Go后端API (Docker环境)
+5432 -> PostgreSQL数据库 (本地环境)
+5433 -> PostgreSQL数据库 (Docker环境)
+```
+
+**🔧 端口分配策略 (支持同时运行):**
+- **PostgreSQL**: 本地5432 vs Docker5433 (端口分离)
+- **前端**: 本地3001 vs Docker3000 (nginx代理到80)  
+- **后端**: 本地8080 vs Docker8081 (完全分离)
+- **nginx**: Docker独有80端口
+
 ## 开发环境配置
 
 ### 必要的环境变量

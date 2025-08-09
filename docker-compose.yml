@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: ${DB_NAME:-main_db}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5433:5432"  # 映射到5433端口避免与本机PostgreSQL@16(5432)冲突
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -52,7 +52,7 @@ services:
     working_dir: /app
     command: sh -c "go mod download && go run main.go"
     ports:
-      - "8080:8080"
+      - "8081:8080"  # 映射到8081端口避免与本地Go后端(8080)冲突
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 30s
