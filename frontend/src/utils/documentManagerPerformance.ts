@@ -301,7 +301,7 @@ export const documentManagerPerf = new DocumentManagerPerformance();
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as unknown).documentManagerPerf = documentManagerPerf;
+  (window as any).documentManagerPerf = documentManagerPerf;
 }
 
 // 便捷函数

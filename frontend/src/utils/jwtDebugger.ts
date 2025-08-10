@@ -285,10 +285,10 @@ export const getJWTReport = () => jwtDebugger.generateDebugReport();
 
 // 在开发环境下将调试器挂载到window对象
 if (process.env.NODE_ENV === 'development') {
-  (window as unknown).jwtDebugger = jwtDebugger;
-  (window as unknown).checkJWT = checkJWT;
-  (window as unknown).testJWT = testJWT;
-  (window as unknown).getJWTReport = getJWTReport;
+  (window as any).jwtDebugger = jwtDebugger;
+  (window as any).checkJWT = checkJWT;
+  (window as any).testJWT = testJWT;
+  (window as any).getJWTReport = getJWTReport;
 }
 
 export default jwtDebugger;
