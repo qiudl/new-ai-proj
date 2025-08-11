@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: ${DB_NAME:-main_db}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -28,23 +28,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - ./backend/.env.docker
     environment:
-      - DB_SOURCE=postgresql://${DB_USER:-user}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-main_db}?sslmode=disable
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_USER=${DB_USER:-user}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
-      - DB_NAME=${DB_NAME:-main_db}
-      - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
-      - JWT_EXPIRATION=168h
-      - GIN_MODE=${GIN_MODE:-debug}
-      - LOG_LEVEL=${LOG_LEVEL:-debug}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_PROJECT_ID=${GOOGLE_PROJECT_ID}
-      - GOOGLE_REDIRECT_URL=${GOOGLE_REDIRECT_URL}
-      - GOOGLE_CALENDAR_SCOPES=${GOOGLE_CALENDAR_SCOPES}
-      - GOPROXY=https://goproxy.cn,direct
+      ENV: staging
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: user
+      DB_PASSWORD: password
+      DB_NAME: main_db
+      DB_SOURCE: postgresql://user:password@db:5432/main_db?sslmode=disable
     volumes:
       - ./backend:/app:delegated
       - go_mod_cache:/go/pkg/mod
@@ -70,12 +63,14 @@ services:
 
     container_name: react_frontend
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "3000:3000"
     environment:
       - REACT_APP_API_URL=/api/v1
       - REACT_APP_ENV=staging
       - REACT_APP_ENVIRONMENT=staging
       - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+      - PORT=3000
       - WDS_SOCKET_HOST=localhost
       - WDS_SOCKET_PORT=80
       - WDS_SOCKET_PATH=/ws
