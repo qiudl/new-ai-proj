@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import { Form, Input, Button, message, Tag } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,6 +11,23 @@ interface LoginForm {
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // 获取环境信息
+  const isLocalDev = process.env.REACT_APP_LOCAL_DEV === 'true';
+  const environment = process.env.REACT_APP_ENV || 'production';
+  
+  // 根据环境确定标识
+  const getEnvironmentLabel = () => {
+    if (isLocalDev && environment === 'development') {
+      return { text: '本地开发环境', color: '#52c41a', port: '3001' };
+    } else if (environment === 'test') {
+      return { text: '测试环境', color: '#1890ff', port: '80' };
+    } else {
+      return { text: '生产环境', color: '#fa541c', port: '80' };
+    }
+  };
+
+  const envInfo = getEnvironmentLabel();
 
   const onFinish = async (values: LoginForm) => {
     setLoading(true);
@@ -70,6 +87,22 @@ const LoginPage: React.FC = () => {
   return (
     <div className="login-container">
       <div className="login-box">
+        {/* 环境标识 */}
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <Tag 
+            color={envInfo.color} 
+            style={{ 
+              fontSize: '14px', 
+              fontWeight: 'bold',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: 'none'
+            }}
+          >
+            {envInfo.text} (端口:{envInfo.port})
+          </Tag>
+        </div>
+        
         <h1 className="login-title">AI上下文任务系统</h1>
         <Form
           name="login"

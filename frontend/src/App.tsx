@@ -94,14 +94,11 @@ const AppContent: React.FC = () => {
 
   return (
     <div className="App">
-      <Suspense fallback={<PageLoading />}>
-        <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<LoginPage />} />
-
-         
-            
-            {/* Private routes */}
+      {!isLoginRoute ? (
+        <TimerProvider>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
+            {/* Private routes - all wrapped with TimerProvider */}
             <Route path="/" element={
               <PrivateRoute>
                 <Layout>
@@ -441,14 +438,19 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
           </Routes>
-      </Suspense>
-        
-        {/* 在非登录页挂载 TimerProvider 与悬浮计时器；登录页完全不挂载计时相关组件 */}
-        {!isLoginRoute ? (
-          <TimerProvider>
-            <FloatingTimer />
-          </TimerProvider>
-        ) : null}
+          </Suspense>
+          
+          {/* 悬浮计时器 */}
+          <FloatingTimer />
+          
+        </TimerProvider>
+      ) : (
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+          </Routes>
+        </Suspense>
+      )}
         
         {/* Unified Debug Panel - includes timer and JWT debug (隐藏调试功能) */}
         {/* <UnifiedDebugPanel /> */}
