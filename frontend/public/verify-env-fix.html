@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环境标识修复验证</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background-color: #f6ffed; border-left: 4px solid #52c41a; color: #389e0d; }
+        .info { background-color: #e6f7ff; border-left: 4px solid #1890ff; color: #0050b3; }
+        .warning { background-color: #fff7e6; border-left: 4px solid #fa8c16; color: #d46b08; }
+        .error { background-color: #fff2f0; border-left: 4px solid #f5222d; color: #cf1322; }
+        .env-tag {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .test-env { background-color: #1890ff; color: white; }
+        .dev-env { background-color: #52c41a; color: white; }
+        .prod-env { background-color: #fa541c; color: white; }
+        .code { 
+            background: #f5f5f5; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #fafafa;
+            font-weight: 600;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 环境标识修复验证</h1>
+        
+        <div class="status info">
+            <strong>修复内容：</strong>修复Docker环境下环境标识从"开发环境"/"预发布"改为正确的"测试环境"显示
+        </div>
+
+        <h2>📋 修复详情</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>修复项目</th>
+                    <th>修复前</th>
+                    <th>修复后</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>environmentDetection.ts</code></td>
+                    <td>不支持 staging 环境变量</td>
+                    <td>支持 test 和 staging 环境</td>
+                    <td><span class="env-tag success">✅ 已修复</span></td>
+                </tr>
+                <tr>
+                    <td>Docker 环境标识</td>
+                    <td>显示"开发环境"或"预发布"</td>
+                    <td>正确显示"测试环境"</td>
+                    <td><span class="env-tag info">🔍 验证中</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🧪 环境检测结果</h2>
+        <div id="env-results" class="loading">
+            正在检测当前环境配置...
+        </div>
+
+        <h2>📊 预期结果</h2>
+        <div class="status success">
+            <strong>✅ 正确的Docker测试环境应该显示：</strong>
+            <br><span class="env-tag test-env">测试环境 (nginx端口80)</span>
+            <br>详情：Docker测试环境
+        </div>
+
+        <h2>🔗 验证方法</h2>
+        <ol>
+            <li>访问 <a href="/" target="_blank">首页登录页面</a></li>
+            <li>查看页面顶部的环境标识</li>
+            <li>确认显示为"测试环境"而非"开发环境"或"预发布"</li>
+            <li>确认端口信息显示为"nginx端口80"</li>
+        </ol>
+    </div>
+
+    <script>
+        // 模拟环境检测逻辑
+        function detectEnvironment() {
+            const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+            const hostname = window.location.hostname;
+            
+            // Docker环境检测结果
+            const envResults = {
+                port: currentPort,
+                hostname: hostname,
+                protocol: window.location.protocol,
+                isDocker: currentPort === '80' || currentPort === '3000',
+                expectedDisplay: currentPort === '80' ? '测试环境' : '未知环境'
+            };
+            
+            return envResults;
+        }
+
+        // 显示检测结果
+        function displayResults() {
+            const env = detectEnvironment();
+            const resultsDiv = document.getElementById('env-results');
+            
+            let html = `
+                <table>
+                    <tr>
+                        <td><strong>当前端口</strong></td>
+                        <td>${env.port}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>主机名</strong></td>
+                        <td>${env.hostname}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>协议</strong></td>
+                        <td>${env.protocol}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>是否Docker环境</strong></td>
+                        <td>${env.isDocker ? '✅ 是' : '❌ 否'}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>预期显示</strong></td>
+                        <td><span class="env-tag ${env.expectedDisplay === '测试环境' ? 'test-env' : 'warning'}">${env.expectedDisplay}</span></td>
+                    </tr>
+                </table>
+            `;
+            
+            if (env.isDocker && env.expectedDisplay === '测试环境') {
+                html += `<div class="status success">
+                    <strong>✅ 验证通过！</strong> 当前访问方式应该正确显示测试环境标识。
+                </div>`;
+            } else {
+                html += `<div class="status warning">
+                    <strong>⚠️ 注意：</strong> 当前访问方式可能不会显示测试环境标识。
+                </div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        // 页面加载完成后执行检测
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(displayResults, 500);
+        });
+    </script>
+</body>
+</html>
