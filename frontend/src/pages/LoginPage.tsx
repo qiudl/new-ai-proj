@@ -19,11 +19,11 @@ const LoginPage: React.FC = () => {
   // 根据环境确定标识
   const getEnvironmentLabel = () => {
     if (isLocalDev && environment === 'development') {
-      return { text: '本地开发环境', color: '#52c41a', port: '3001' };
+      return { text: '本地开发环境', color: '#52c41a', port: '3001', detail: '本机PostgreSQL端口5433' };
     } else if (environment === 'test') {
-      return { text: '测试环境', color: '#1890ff', port: '80' };
+      return { text: '测试环境', color: '#1890ff', port: 'nginx端口80', detail: 'Docker Compose架构' };
     } else {
-      return { text: '生产环境', color: '#fa541c', port: '80' };
+      return { text: '生产环境', color: '#fa541c', port: '80', detail: '' };
     }
   };
 
@@ -88,19 +88,29 @@ const LoginPage: React.FC = () => {
     <div className="login-container">
       <div className="login-box">
         {/* 环境标识 */}
-        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <Tag 
             color={envInfo.color} 
             style={{ 
-              fontSize: '14px', 
+              fontSize: '16px', 
               fontWeight: 'bold',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              border: 'none'
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              marginBottom: '8px'
             }}
           >
-            {envInfo.text} (端口:{envInfo.port})
+            {envInfo.text} ({envInfo.port})
           </Tag>
+          {envInfo.detail && (
+            <div style={{ 
+              fontSize: '12px', 
+              color: '#8c8c8c', 
+              marginTop: '4px' 
+            }}>
+              {envInfo.detail}
+            </div>
+          )}
         </div>
         
         <h1 className="login-title">AI上下文任务系统</h1>
