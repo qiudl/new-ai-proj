@@ -466,11 +466,11 @@ pg_ctl -D /usr/local/var/postgres start
 
 # 3. 启动本机开发服务
 cd backend && go run main.go              # 后端端口8081
-cd frontend && npm start                  # 前端端口3000
+cd frontend && npm start                  # 前端端口3001
 
 # 4. 验证切换成功
 curl http://localhost:8081/health         # 本机后端
-curl http://localhost:3000                # 本机前端
+curl http://localhost:3001                # 本机前端
 ```
 
 #### 环境配置对照表
