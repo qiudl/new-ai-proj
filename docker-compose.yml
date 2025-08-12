@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-main_db}"]
+      test: ["CMD-SHELL", "pg_isready -U test_user -d main_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,10 +34,10 @@ services:
       ENV: staging
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: user
-      DB_PASSWORD: password
+      DB_USER: test_user
+      DB_PASSWORD: test_password
       DB_NAME: main_db
-      DB_SOURCE: postgresql://user:password@db:5432/main_db?sslmode=disable
+      DB_SOURCE: postgresql://test_user:test_password@db:5432/main_db?sslmode=disable
     volumes:
       - ./backend:/app:delegated
       - go_mod_cache:/go/pkg/mod
