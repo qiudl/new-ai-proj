@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Context错误测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei';
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 16px;
+            border: 1px solid #d9d9d9;
+            border-radius: 6px;
+        }
+        .success { border-left: 4px solid #52c41a; background-color: #f6ffed; }
+        .error { border-left: 4px solid #ff4d4f; background-color: #fff2f0; }
+        .info { border-left: 4px solid #1890ff; background-color: #e6f7ff; }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .btn {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        .btn:hover { background-color: #40a9ff; }
+        .iframe-container {
+            margin-top: 20px;
+            border: 2px solid #d9d9d9;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 400px;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Timer Context错误复现测试</h1>
+        <p>Docker测试环境下首页报错的详细检查</p>
+        
+        <div class="test-section info">
+            <h3>📊 当前环境信息</h3>
+            <div class="code" id="env-info">正在检测环境...</div>
+        </div>
+        
+        <div class="test-section" id="access-test">
+            <h3>🌐 页面访问测试</h3>
+            <button class="btn" onclick="testHomepage()">测试首页访问</button>
+            <button class="btn" onclick="testDashboard()">测试Dashboard页面</button>
+            <button class="btn" onclick="testLogin()">测试登录页面</button>
+            <div class="code" id="access-results">等待测试...</div>
+        </div>
+        
+        <div class="test-section" id="error-check">
+            <h3>❌ 错误检查</h3>
+            <button class="btn" onclick="checkForErrors()">检查控制台错误</button>
+            <button class="btn" onclick="testTimerContext()">测试Timer Context</button>
+            <div class="code" id="error-results">等待检查...</div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🖼️ 首页实时预览</h3>
+            <button class="btn" onclick="loadHomepage()">加载首页</button>
+            <button class="btn" onclick="reloadHomepage()">重新加载</button>
+            <div class="iframe-container">
+                <iframe id="homepage-frame" src="about:blank"></iframe>
+            </div>
+        </div>
+        
+        <div class="test-section" id="debug-info">
+            <h3>🛠️ 调试信息</h3>
+            <button class="btn" onclick="collectDebugInfo()">收集调试信息</button>
+            <div class="code" id="debug-results">等待收集...</div>
+        </div>
+    </div>
+
+    <script>
+        // 环境检测
+        function detectEnvironment() {
+            const port = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+            const hostname = window.location.hostname;
+            const protocol = window.location.protocol;
+            
+            document.getElementById('env-info').innerHTML = `
+当前环境信息:
+- 端口: ${port}
+- 主机: ${hostname}
+- 协议: ${protocol}
+- 用户代理: ${navigator.userAgent.substring(0, 100)}...
+- 时间戳: ${new Date().toLocaleString()}
+
+判断规则:
+- 端口80 + hostname=localhost = Docker测试环境
+- 端口3001 = 本地开发环境
+- 其他 = 未知环境`;
+        }
+        
+        // 页面访问测试
+        async function testHomepage() {
+            log('access-results', '测试首页访问...', 'info');
+            try {
+                const response = await fetch('/');
+                const status = response.status;
+                const text = await response.text();
+                
+                log('access-results', `首页访问: ${status} ${response.statusText}`, 
+                    status === 200 ? 'success' : 'error');
+                
+                // 检查响应内容
+                if (text.includes('useTimer must be used within a TimerProvider')) {
+                    log('access-results', '⚠️ 发现Timer Context错误！', 'error');
+                } else if (text.includes('root')) {
+                    log('access-results', '✅ 首页内容正常，包含React根元素', 'success');
+                } else {
+                    log('access-results', '❓ 首页内容异常，可能有其他问题', 'error');
+                }
+            } catch (error) {
+                log('access-results', `首页访问失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testDashboard() {
+            log('access-results', '测试Dashboard页面...', 'info');
+            try {
+                const response = await fetch('/dashboard');
+                log('access-results', `Dashboard: ${response.status} ${response.statusText}`, 
+                    response.status === 200 ? 'success' : 'error');
+            } catch (error) {
+                log('access-results', `Dashboard访问失败: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testLogin() {
+            log('access-results', '测试登录页面...', 'info');
+            try {
+                const response = await fetch('/login');
+                log('access-results', `Login: ${response.status} ${response.statusText}`, 
+                    response.status === 200 ? 'success' : 'error');
+            } catch (error) {
+                log('access-results', `登录页访问失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 错误检查
+        function checkForErrors() {
+            log('error-results', '开始监听控制台错误...', 'info');
+            
+            // 重写console.error来捕获错误
+            const originalError = console.error;
+            let errorCount = 0;
+            
+            console.error = function(...args) {
+                errorCount++;
+                log('error-results', `Console Error #${errorCount}: ${args.join(' ')}`, 'error');
+                originalError.apply(console, args);
+            };
+            
+            // 监听运行时错误
+            window.onerror = function(message, source, lineno, colno, error) {
+                log('error-results', `Runtime Error: ${message} at ${source}:${lineno}:${colno}`, 'error');
+                return false;
+            };
+            
+            // 监听Promise拒绝
+            window.addEventListener('unhandledrejection', event => {
+                log('error-results', `Unhandled Promise Rejection: ${event.reason}`, 'error');
+            });
+            
+            log('error-results', '✅ 错误监听器已安装', 'success');
+        }
+        
+        function testTimerContext() {
+            log('error-results', '测试Timer Context可用性...', 'info');
+            
+            // 检查window对象中是否有React相关的东西
+            if (typeof window.React !== 'undefined') {
+                log('error-results', '✅ React已加载', 'success');
+            } else {
+                log('error-results', '❌ React未检测到', 'error');
+            }
+            
+            // 检查是否有React DevTools
+            if (window.__REACT_DEVTOOLS_GLOBAL_HOOK__) {
+                log('error-results', '✅ React DevTools钩子存在', 'success');
+            } else {
+                log('error-results', '⚠️ React DevTools钩子不存在', 'error');
+            }
+        }
+        
+        // 首页加载
+        function loadHomepage() {
+            const iframe = document.getElementById('homepage-frame');
+            iframe.src = '/';
+            
+            iframe.onload = function() {
+                try {
+                    // 尝试访问iframe内容（可能受同源策略限制）
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        log('debug-results', '✅ 首页在iframe中加载成功', 'success');
+                    }
+                } catch (error) {
+                    log('debug-results', `Iframe访问限制: ${error.message}`, 'info');
+                }
+            };
+            
+            iframe.onerror = function() {
+                log('debug-results', '❌ 首页在iframe中加载失败', 'error');
+            };
+        }
+        
+        function reloadHomepage() {
+            const iframe = document.getElementById('homepage-frame');
+            iframe.src = iframe.src + '?t=' + Date.now();
+        }
+        
+        // 调试信息收集
+        function collectDebugInfo() {
+            log('debug-results', '收集系统调试信息...', 'info');
+            
+            const debugInfo = {
+                timestamp: new Date().toISOString(),
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                onlineStatus: navigator.onLine,
+                localStorageSupport: typeof(Storage) !== 'undefined',
+                localStorageItems: Object.keys(localStorage).length,
+                sessionStorageItems: Object.keys(sessionStorage).length,
+                screenResolution: `${screen.width}x${screen.height}`,
+                windowSize: `${window.innerWidth}x${window.innerHeight}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+            };
+            
+            log('debug-results', JSON.stringify(debugInfo, null, 2), 'info');
+        }
+        
+        // 日志函数
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': '#1890ff',
+                'success': '#52c41a', 
+                'error': '#ff4d4f',
+                'warning': '#faad14'
+            };
+            
+            element.innerHTML += `<div style="color: ${colors[type]};">[${timestamp}] ${message}</div>`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        // 页面加载时自动执行
+        window.onload = function() {
+            detectEnvironment();
+            checkForErrors();
+            setTimeout(() => {
+                testHomepage();
+                testLogin();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
