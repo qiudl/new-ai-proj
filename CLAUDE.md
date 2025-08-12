@@ -78,7 +78,7 @@ cd mcp-task-bridge && node test-mcp.js
 ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
 │   Frontend      │  │   Backend       │  │   Database      │
 │   React 18      │◄─┤   Go 1.24       │◄─┤   PostgreSQL    │
-│   Port 3000     │  │   Port 8081     │  │   Port 5433     │
+│   Port 3001     │  │   Port 8081     │  │   Port 5433     │
 │   TypeScript    │  │   Gin Framework │  │   本机数据库    │
 │   Ant Design    │  │   JWT Auth      │  │                 │
 └─────────────────┘  └─────────────────┘  └─────────────────┘
@@ -87,7 +87,7 @@ cd mcp-task-bridge && node test-mcp.js
 ┌─────────────────┐  
 │   MCP Bridge    │  
 │   Task Mgmt     │  
-│   Port 3001     │  
+│   Port 3100     │  
 └─────────────────┘  
 
 注意: 本机开发环境无nginx代理，前端直连后端API
@@ -112,7 +112,7 @@ cd mcp-task-bridge && node test-mcp.js
 ┌─────────────────┐                     └─────────────────┘
 │   MCP Bridge    │  
 │   Task Mgmt     │  
-│   Port 3001     │  
+│   Port 3100     │  
 └─────────────────┘  
 
 注意: Docker测试环境使用完整的nginx反向代理架构
@@ -247,7 +247,7 @@ psql -h localhost -p 5433 -U user -d main_db -f backend/migrations/xxx.sql
 services:
   - db: PostgreSQL 16 本机数据库 (端口5433)
   - backend: Go 1.24 API服务 (端口8081)
-  - frontend: React 18 前端应用 (端口3000)
+  - frontend: React 18 前端应用 (端口3001)
   - 无nginx代理: 前端直连后端API
 ```
 
@@ -279,7 +279,7 @@ pg_ctl -D /usr/local/var/postgres start
 # 启动后端 (端口8081)
 cd backend && go run main.go
 
-# 启动前端 (端口3000，API指向8081)
+# 启动前端 (端口3001，API指向8081)
 cd frontend && npm start
 
 # 健康检查
@@ -479,7 +479,7 @@ curl http://localhost:3000                # 本机前端
 |-------|-------------|---------------|
 | 数据库端口 | 5433 | 5432 |
 | 后端API端口 | 8081 | 8080 |
-| 前端端口 | 3000 | 3000 |
+| 前端端口 | 3001 | 3000 |
 | nginx代理 | 无 | 80端口 |
 | API访问方式 | 直连 | nginx代理 |
 | 数据库连接 | 本机PostgreSQL | Docker容器 |
