@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Form, Input, Button, message, Tag } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { detectEnvironment, createEnvironmentTagProps } from '../utils/environmentDetection';
 
 interface LoginForm {
   username: string;
@@ -12,22 +13,9 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // 获取环境信息
-  const isLocalDev = process.env.REACT_APP_LOCAL_DEV === 'true';
-  const environment = process.env.REACT_APP_ENV || 'production';
-  
-  // 根据环境确定标识
-  const getEnvironmentLabel = () => {
-    if (isLocalDev && environment === 'development') {
-      return { text: '本地开发环境', color: '#52c41a', port: '3001', detail: '本机PostgreSQL端口5433' };
-    } else if (environment === 'test') {
-      return { text: '测试环境', color: '#1890ff', port: 'nginx端口80', detail: 'Docker Compose架构' };
-    } else {
-      return { text: '生产环境', color: '#fa541c', port: '80', detail: '' };
-    }
-  };
-
-  const envInfo = getEnvironmentLabel();
+  // 使用统一的环境检测工具
+  const envInfo = detectEnvironment();
+  const envTagProps = createEnvironmentTagProps('normal');
 
   const onFinish = async (values: LoginForm) => {
     setLoading(true);
@@ -90,15 +78,7 @@ const LoginPage: React.FC = () => {
         {/* 环境标识 */}
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <Tag 
-            color={envInfo.color} 
-            style={{ 
-              fontSize: '16px', 
-              fontWeight: 'bold',
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              marginBottom: '8px'
-            }}
+            {...envTagProps}
           >
             {envInfo.text} ({envInfo.port})
           </Tag>

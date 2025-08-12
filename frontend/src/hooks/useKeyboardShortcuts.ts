@@ -1,4 +1,4 @@
-// 键盘快捷键Hook - Timer System 2.0
+// 键盘快捷键Hook - Timer System 2.0 (Docker环境兼容版)
 import { useEffect, useCallback, useRef } from 'react';
 import { message } from 'antd';
 
@@ -41,39 +41,54 @@ const useKeyboardShortcuts = (
     enabledRef.current = enabled;
   }, [enabled]);
 
-  // 键盘事件处理器
+  // 键盘事件处理器 (Docker环境兼容版)
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!enabledRef.current) return;
-
-    // 忽略在输入框中的按键
-    const target = event.target as HTMLElement;
-    if (
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.isContentEditable ||
-      target.closest('.ant-select') ||
-      target.closest('.ant-modal') ||
-      target.closest('.ant-drawer')
-    ) {
+    // 安全检查: 确保必要的对象和方法存在
+    if (!enabledRef?.current || !event || !shortcutsRef?.current) {
       return;
     }
 
-    // 查找匹配的快捷键
-    const matchedShortcut = shortcutsRef.current.find(shortcut => {
-      const keyMatch = shortcut.key.toLowerCase() === event.key.toLowerCase();
-      const metaMatch = !!shortcut.metaKey === (event.metaKey || event.ctrlKey);
-      const ctrlMatch = shortcut.ctrlKey === undefined || !!shortcut.ctrlKey === event.ctrlKey;
-      const altMatch = shortcut.altKey === undefined || !!shortcut.altKey === event.altKey;
-      const shiftMatch = shortcut.shiftKey === undefined || !!shortcut.shiftKey === event.shiftKey;
+    // 忽略在输入框中的按键
+    const target = event.target as HTMLElement;
+    if (target && (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable ||
+      (typeof target.closest === 'function' && (
+        target.closest('.ant-select') ||
+        target.closest('.ant-modal') ||
+        target.closest('.ant-drawer')
+      ))
+    )) {
+      return;
+    }
 
-      return keyMatch && metaMatch && ctrlMatch && altMatch && shiftMatch;
-    });
+    // 安全的快捷键查找 - 使用try-catch保护
+    let matchedShortcut;
+    try {
+      matchedShortcut = shortcutsRef.current.find(shortcut => {
+        if (!shortcut || typeof shortcut.key !== 'string') {
+          return false;
+        }
+        
+        const keyMatch = shortcut.key.toLowerCase() === event.key?.toLowerCase();
+        const metaMatch = !!shortcut.metaKey === (event.metaKey || event.ctrlKey);
+        const ctrlMatch = shortcut.ctrlKey === undefined || !!shortcut.ctrlKey === event.ctrlKey;
+        const altMatch = shortcut.altKey === undefined || !!shortcut.altKey === event.altKey;
+        const shiftMatch = shortcut.shiftKey === undefined || !!shortcut.shiftKey === event.shiftKey;
 
-    if (matchedShortcut) {
-      if (preventDefault) {
+        return keyMatch && metaMatch && ctrlMatch && altMatch && shiftMatch;
+      });
+    } catch (error) {
+      console.warn('快捷键匹配过程中发生错误:', error);
+      return;
+    }
+
+    if (matchedShortcut && typeof matchedShortcut.action === 'function') {
+      if (preventDefault && typeof event.preventDefault === 'function') {
         event.preventDefault();
       }
-      if (stopPropagation) {
+      if (stopPropagation && typeof event.stopPropagation === 'function') {
         event.stopPropagation();
       }
 
@@ -81,18 +96,28 @@ const useKeyboardShortcuts = (
         matchedShortcut.action();
       } catch (error) {
         console.error('快捷键执行错误:', error);
-        message.error('快捷键执行失败');
+        // 使用安全的消息提示
+        if (message && typeof message.error === 'function') {
+          message.error('快捷键执行失败');
+        }
       }
     }
   }, [preventDefault, stopPropagation]);
 
-  // 注册键盘事件监听器
+  // 注册键盘事件监听器 (Docker环境兼容版)
   useEffect(() => {
-    if (enabled) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
+    if (enabled && typeof document !== 'undefined' && document.addEventListener) {
+      // 安全检查: 确保addEventListener方法存在
+      try {
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+          if (document.removeEventListener) {
+            document.removeEventListener('keydown', handleKeyDown);
+          }
+        };
+      } catch (error) {
+        console.warn('键盘事件监听器注册失败:', error);
+      }
     }
   }, [enabled, handleKeyDown]);
 
