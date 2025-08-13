@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Context 诊断页面</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status {
+            padding: 16px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+        .success { background-color: #f6ffed; border-left-color: #52c41a; }
+        .error { background-color: #fff2f0; border-left-color: #ff4d4f; }
+        .info { background-color: #e6f7ff; border-left-color: #1890ff; }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, Inconsolata, 'Roboto Mono', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        .btn {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        .btn:hover { background-color: #40a9ff; }
+        .timestamp { color: #8c8c8c; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Timer Context 诊断页面</h1>
+        <p>本页面用于诊断Docker测试环境下的Timer Context问题</p>
+        
+        <div id="diagnostics">
+            <div class="info">
+                <strong>📊 正在诊断...</strong>
+                <div class="timestamp">检查时间: <span id="timestamp"></span></div>
+            </div>
+        </div>
+        
+        <h3>📋 诊断步骤</h3>
+        <button class="btn" onclick="checkBrowserConsole()">1. 检查浏览器控制台错误</button>
+        <button class="btn" onclick="checkNetworkRequests()">2. 检查网络请求</button>
+        <button class="btn" onclick="checkReactDevTools()">3. 检查React组件树</button>
+        <button class="btn" onclick="refreshDiagnostics()">🔄 重新诊断</button>
+        
+        <div id="console-logs" class="code" style="height: 200px; overflow-y: auto; margin-top: 20px;">
+            <div style="color: #52c41a;">✅ 等待诊断结果...</div>
+        </div>
+        
+        <h3>🛠️ 解决步骤建议</h3>
+        <div class="info">
+            <p><strong>如果看到 "useTimer must be used within a TimerProvider" 错误：</strong></p>
+            <ol>
+                <li>检查App.tsx中TimerProvider的包装结构</li>
+                <li>确认DashboardPage是否在TimerProvider的children范围内</li>
+                <li>检查环境变量和构建过程是否正确</li>
+                <li>尝试重启Docker前端容器</li>
+            </ol>
+        </div>
+        
+        <h3>🔧 快速修复操作</h3>
+        <button class="btn" onclick="simulateLogin()">模拟登录</button>
+        <button class="btn" onclick="testDirectAPI()">测试API连接</button>
+        <button class="btn" onclick="inspectLocalStorage()">检查Local Storage</button>
+    </div>
+
+    <script>
+        // 更新时间戳
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        
+        // 日志输出函数
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('console-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': '#1890ff',
+                'success': '#52c41a', 
+                'error': '#ff4d4f',
+                'warning': '#faad14'
+            };
+            
+            logContainer.innerHTML += `<div style="color: ${colors[type]};">[${timestamp}] ${message}</div>`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 诊断函数
+        function checkBrowserConsole() {
+            log('🔍 检查浏览器控制台...', 'info');
+            
+            // 捕获控制台错误
+            const originalError = console.error;
+            console.error = function(...args) {
+                log(`❌ Console Error: ${args.join(' ')}`, 'error');
+                originalError.apply(console, args);
+            };
+            
+            // 检查React错误边界
+            window.addEventListener('error', (event) => {
+                log(`❌ Runtime Error: ${event.error.message}`, 'error');
+                if (event.error.stack) {
+                    log(`Stack: ${event.error.stack.substring(0, 200)}...`, 'error');
+                }
+            });
+            
+            log('✅ 错误监听器已安装', 'success');
+        }
+        
+        function checkNetworkRequests() {
+            log('🌐 检查网络请求...', 'info');
+            
+            // 测试API连接
+            fetch('/api/v1/health')
+                .then(response => {
+                    if (response.ok) {
+                        log('✅ 后端API连接正常', 'success');
+                        return response.json();
+                    } else {
+                        log(`❌ 后端API响应异常: ${response.status}`, 'error');
+                    }
+                })
+                .then(data => {
+                    if (data) {
+                        log(`API响应: ${JSON.stringify(data)}`, 'info');
+                    }
+                })
+                .catch(error => {
+                    log(`❌ API连接失败: ${error.message}`, 'error');
+                });
+        }
+        
+        function checkReactDevTools() {
+            log('⚛️ 检查React组件结构...', 'info');
+            
+            // 检查React是否加载
+            if (typeof window.React !== 'undefined') {
+                log('✅ React已加载', 'success');
+            } else {
+                log('❌ React未加载或不可访问', 'error');
+            }
+            
+            // 检查是否有React根元素
+            const rootElement = document.getElementById('root');
+            if (rootElement) {
+                log('✅ React根元素存在', 'success');
+                log(`根元素内容长度: ${rootElement.innerHTML.length}`, 'info');
+            } else {
+                log('❌ 未找到React根元素', 'error');
+            }
+        }
+        
+        function simulateLogin() {
+            log('🔐 模拟登录流程...', 'info');
+            
+            const loginData = {
+                username: 'admin',
+                password: 'password123'
+            };
+            
+            fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(loginData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    log('✅ 模拟登录成功', 'success');
+                    localStorage.setItem('token', data.data.token);
+                    log('Token已保存到localStorage', 'info');
+                } else {
+                    log(`❌ 登录失败: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                log(`❌ 登录请求失败: ${error.message}`, 'error');
+            });
+        }
+        
+        function testDirectAPI() {
+            log('🧪 测试Timer API...', 'info');
+            
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ 未找到认证token，请先模拟登录', 'warning');
+                return;
+            }
+            
+            fetch('/api/v1/user/timer/current', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                log('✅ Timer API响应成功', 'success');
+                log(`Timer状态: ${JSON.stringify(data, null, 2)}`, 'info');
+            })
+            .catch(error => {
+                log(`❌ Timer API请求失败: ${error.message}`, 'error');
+            });
+        }
+        
+        function inspectLocalStorage() {
+            log('🗄️ 检查Local Storage...', 'info');
+            
+            const keys = Object.keys(localStorage);
+            log(`LocalStorage包含 ${keys.length} 个项目`, 'info');
+            
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                log(`${key}: ${value ? value.substring(0, 100) : 'null'}`, 'info');
+            });
+        }
+        
+        function refreshDiagnostics() {
+            document.getElementById('console-logs').innerHTML = '<div style="color: #52c41a;">✅ 诊断重置，等待新的检查...</div>';
+            log('🔄 诊断系统已重置', 'info');
+        }
+        
+        // 页面加载时自动开始诊断
+        window.onload = function() {
+            setTimeout(() => {
+                checkBrowserConsole();
+                checkNetworkRequests();
+                checkReactDevTools();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
