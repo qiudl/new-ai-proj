@@ -385,5 +385,146 @@ type TaskDocumentStats struct {
 	RecentlyUpdated int `json:"recently_updated"`
 }
 
+// TaskRelationship represents a relationship between tasks for parallel development
+type TaskRelationship struct {
+	ID                 int          `json:"id" db:"id"`
+	SourceTaskID       int          `json:"source_task_id" db:"source_task_id"`
+	TargetTaskID       int          `json:"target_task_id" db:"target_task_id"`
+	RelationshipType   string       `json:"relationship_type" db:"relationship_type"`
+	RelationshipStatus string       `json:"relationship_status" db:"relationship_status"`
+	CreatedBy          int          `json:"created_by" db:"created_by"`
+	Metadata           CustomFields `json:"metadata" db:"metadata"`
+	CreatedAt          time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at" db:"updated_at"`
+	DeletedAt          *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
+	
+	// Related task information (populated in queries)
+	SourceTaskTitle    string `json:"source_task_title,omitempty" db:"source_task_title"`
+	TargetTaskTitle    string `json:"target_task_title,omitempty" db:"target_task_title"`
+	CreatedByUsername  string `json:"created_by_username,omitempty" db:"created_by_username"`
+}
+
+// TaskStatusHistory represents the history of task status changes
+type TaskStatusHistory struct {
+	ID                 int       `json:"id" db:"id"`
+	TaskID             int       `json:"task_id" db:"task_id"`
+	OldStatus          *string   `json:"old_status" db:"old_status"`
+	NewStatus          string    `json:"new_status" db:"new_status"`
+	ChangeReason       *string   `json:"change_reason" db:"change_reason"`
+	ChangeType         string    `json:"change_type" db:"change_type"`
+	ChangedBy          int       `json:"changed_by" db:"changed_by"`
+	RelatedTaskIDs     []int     `json:"related_task_ids" db:"related_task_ids"`
+	WorkflowStage      *string   `json:"workflow_stage" db:"workflow_stage"`
+	ParallelGroupID    *string   `json:"parallel_group_id" db:"parallel_group_id"`
+	DependencyResolved bool      `json:"dependency_resolved" db:"dependency_resolved"`
+	Metadata           CustomFields `json:"metadata" db:"metadata"`
+	ChangeTimestamp    time.Time    `json:"change_timestamp" db:"change_timestamp"`
+	CreatedAt          time.Time    `json:"created_at" db:"created_at"`
+	
+	// Related information (populated in queries)
+	TaskTitle          string `json:"task_title,omitempty" db:"task_title"`
+	ChangedByUsername  string `json:"changed_by_username,omitempty" db:"changed_by_username"`
+}
+
+// RelationshipTypes defines valid task relationship types
+var RelationshipTypes = []string{
+	"depends_on",     // 依赖关系（A依赖于B）
+	"blocks",         // 阻塞关系（A阻塞B）  
+	"parallel_with",  // 并行关系（A与B并行）
+	"follows",        // 顺序关系（A跟随B）
+	"related_to",     // 相关关系（A与B相关）
+	"child_of",       // 子任务关系（A是B的子任务）
+	"parent_of",      // 父任务关系（A是B的父任务）
+	"sibling_of",     // 兄弟关系（A与B是兄弟任务）
+}
+
+// ChangeTypes defines valid status change types
+var ChangeTypes = []string{
+	"manual",              // 手动更改
+	"automatic",           // 自动更改
+	"dependency_resolved", // 依赖解决触发
+	"parallel_sync",       // 并行同步触发
+	"workflow_transition", // 工作流转换
+	"bulk_update",         // 批量更新
+	"system_migration",    // 系统迁移
+}
+
+// TaskRelationshipRequest represents a request to create/update task relationships
+type TaskRelationshipRequest struct {
+	SourceTaskID       int          `json:"source_task_id" validate:"required"`
+	TargetTaskID       int          `json:"target_task_id" validate:"required"`
+	RelationshipType   string       `json:"relationship_type" validate:"required,oneof=depends_on blocks parallel_with follows related_to child_of parent_of sibling_of"`
+	RelationshipStatus string       `json:"relationship_status" validate:"omitempty,oneof=active inactive completed cancelled"`
+	Metadata           CustomFields `json:"metadata"`
+}
+
+// TaskWithRelationships extends Task with relationship information
+type TaskWithRelationships struct {
+	Task
+	Dependencies      []TaskRelationship `json:"dependencies,omitempty"`
+	Dependents        []TaskRelationship `json:"dependents,omitempty"`
+	ParallelTasks     []TaskRelationship `json:"parallel_tasks,omitempty"`
+	RelatedTasks      []TaskRelationship `json:"related_tasks,omitempty"`
+	BlockedBy         []TaskRelationship `json:"blocked_by,omitempty"`
+	Blocking          []TaskRelationship `json:"blocking,omitempty"`
+	StatusHistory     []TaskStatusHistory `json:"status_history,omitempty"`
+}
+
+// ParallelDevelopmentGroup represents a group of tasks that can be developed in parallel
+type ParallelDevelopmentGroup struct {
+	GroupID           string      `json:"group_id"`
+	GroupName         string      `json:"group_name"`
+	Tasks             []Task      `json:"tasks"`
+	TotalTasks        int         `json:"total_tasks"`
+	CompletedTasks    int         `json:"completed_tasks"`
+	InProgressTasks   int         `json:"in_progress_tasks"`
+	TodoTasks         int         `json:"todo_tasks"`
+	CompletionPercent float64     `json:"completion_percent"`
+	LastUpdate        time.Time   `json:"last_update"`
+	CanStartParallel  bool        `json:"can_start_parallel"`
+	Dependencies      []int       `json:"dependencies,omitempty"`
+}
+
+// WorkflowStage represents a stage in the parallel development workflow
+type WorkflowStage struct {
+	StageID           string    `json:"stage_id"`
+	StageName         string    `json:"stage_name"`
+	StageDescription  string    `json:"stage_description"`
+	CanRunInParallel  bool      `json:"can_run_in_parallel"`
+	Dependencies      []string  `json:"dependencies,omitempty"`
+	EstimatedHours    float64   `json:"estimated_hours"`
+	Tasks             []int     `json:"tasks,omitempty"`
+}
+
+// TaskDependencyGraph represents the dependency graph for visualization
+type TaskDependencyGraph struct {
+	Nodes []GraphNode `json:"nodes"`
+	Edges []GraphEdge `json:"edges"`
+}
+
+// GraphNode represents a task node in the dependency graph
+type GraphNode struct {
+	ID          int     `json:"id"`
+	Title       string  `json:"title"`
+	Status      string  `json:"status"`
+	NodeType    string  `json:"node_type"` // task, milestone, group
+	Level       int     `json:"level"`
+	CanStart    bool    `json:"can_start"`
+	IsBlocked   bool    `json:"is_blocked"`
+	Coordinates struct {
+		X int `json:"x"`
+		Y int `json:"y"`
+	} `json:"coordinates"`
+}
+
+// GraphEdge represents a relationship edge in the dependency graph
+type GraphEdge struct {
+	Source           int    `json:"source"`
+	Target           int    `json:"target"`
+	RelationshipType string `json:"relationship_type"`
+	EdgeStyle        string `json:"edge_style"` // solid, dashed, dotted
+	Weight           int    `json:"weight"`
+}
+
 // 删除任务文档默认模板功能 - 防止意外覆盖用户数据
 // GetTaskDocumentDefaultTemplate 功能已删除，避免模板覆盖用户内容

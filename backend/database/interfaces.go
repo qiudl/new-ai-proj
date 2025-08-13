@@ -112,6 +112,33 @@ type CustomerRepository interface {
 	GetUpcomingContacts(ctx context.Context, userID int, days int) ([]*models.CustomerContact, error)
 }
 
+// APIKeyRepository defines the interface for API key operations
+type APIKeyRepository interface {
+	// Basic CRUD operations
+	CreateAPIKey(ctx context.Context, apiKey *models.APIKey) (*models.APIKey, error)
+	GetAPIKeyByID(ctx context.Context, id int64) (*models.APIKey, error)
+	GetAPIKeyByHash(ctx context.Context, keyHash string) (*models.APIKey, error)
+	GetAPIKeyByPrefix(ctx context.Context, keyPrefix string) (*models.APIKey, error)
+	UpdateAPIKey(ctx context.Context, id int64, updates *models.APIKeyUpdateRequest, updatedBy int) (*models.APIKey, error)
+	DeleteAPIKey(ctx context.Context, id int64, deletedBy int) error
+	
+	// Listing and querying
+	ListAPIKeys(ctx context.Context, params *models.APIKeyListParams) ([]models.APIKey, int, error)
+	GetActiveAPIKeys(ctx context.Context) ([]models.APIKey, error)
+	
+	// Usage tracking
+	UpdateLastUsed(ctx context.Context, id int64) error
+	UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64) error
+	
+	// Usage logging
+	CreateUsageLog(ctx context.Context, log *models.APIUsageLog) error
+	CreateAPIUsageLog(ctx context.Context, log *models.APIUsageLog) error
+	
+	// Statistics and analytics
+	GetUsageStats(ctx context.Context, apiKeyID int64, days int) (*models.APIQuotaStats, error)
+	CheckRateLimit(ctx context.Context, apiKeyID int64, window models.RateLimitType, limit int) (bool, error)
+}
+
 // AuditRepository defines the interface for audit log operations
 type AuditRepository interface {
 	// Audit log operations
@@ -418,6 +445,7 @@ type DB interface {
 	Permissions() PermissionRepository // Enterprise permission management
 	System() SystemRepository
 	Audit() AuditRepository
+	APIKeys() APIKeyRepository // API key management
 	Documents() DocumentRepository
 	DocumentFolders() DocumentFolderRepository
 	DocumentRelations() DocumentRelationRepository
@@ -442,6 +470,7 @@ type Tx interface {
 	Companies() CompanyRepository
 	Permissions() PermissionRepository
 	Audit() AuditRepository
+	APIKeys() APIKeyRepository
 	Documents() DocumentRepository
 	DocumentFolders() DocumentFolderRepository
 	DocumentRelations() DocumentRelationRepository

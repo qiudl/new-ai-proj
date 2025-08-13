@@ -593,3 +593,70 @@ func (r *APIKeyRepository) CheckRateLimit(ctx context.Context, apiKeyID int64, w
 
 	return count >= limit, nil
 }
+
+// GetAPIKeyByPrefix retrieves an API key by its prefix
+func (r *APIKeyRepository) GetAPIKeyByPrefix(ctx context.Context, keyPrefix string) (*models.APIKey, error) {
+	query := `
+		SELECT 
+			id, name, description, key_hash, key_prefix, secret_hash,
+			permissions, scope_projects, scope_users,
+			rate_limit_count, rate_limit_window, daily_quota, monthly_quota,
+			is_active, expires_at, last_used_at, usage_count,
+			allowed_ips, allowed_domains, user_agent_pattern,
+			created_by, created_at, updated_by, updated_at, deleted_at,
+			metadata, tags
+		FROM api_keys
+		WHERE key_prefix = $1 AND deleted_at IS NULL`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, keyPrefix)
+
+	apiKey := &models.APIKey{}
+	err := row.Scan(
+		&apiKey.ID, &apiKey.Name, &apiKey.Description, &apiKey.KeyHash, &apiKey.KeyPrefix, &apiKey.SecretHash,
+		&apiKey.Permissions, &apiKey.ScopeProjects, &apiKey.ScopeUsers,
+		&apiKey.RateLimitCount, &apiKey.RateLimitWindow, &apiKey.DailyQuota, &apiKey.MonthlyQuota,
+		&apiKey.IsActive, &apiKey.ExpiresAt, &apiKey.LastUsedAt, &apiKey.UsageCount,
+		&apiKey.AllowedIPs, &apiKey.AllowedDomains, &apiKey.UserAgentPattern,
+		&apiKey.CreatedBy, &apiKey.CreatedAt, &apiKey.UpdatedBy, &apiKey.UpdatedAt, &apiKey.DeletedAt,
+		&apiKey.Metadata, &apiKey.Tags)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("API key not found")
+		}
+		return nil, fmt.Errorf("failed to get API key by prefix: %w", err)
+	}
+
+	return apiKey, nil
+}
+
+// UpdateAPIKeyUsage updates the API key usage statistics
+func (r *APIKeyRepository) UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64) error {
+	query := `
+		UPDATE api_keys 
+		SET last_used_at = NOW(), usage_count = usage_count + 1, updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, apiKeyID)
+	if err != nil {
+		return fmt.Errorf("failed to update API key usage: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("API key not found or already deleted")
+	}
+
+	return nil
+}
+
+// CreateAPIUsageLog creates an API usage log entry
+func (r *APIKeyRepository) CreateAPIUsageLog(ctx context.Context, log *models.APIUsageLog) error {
+	return r.CreateUsageLog(ctx, log)
+}

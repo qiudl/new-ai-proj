@@ -343,6 +343,35 @@ auth := api.Group("/auth")
 			auth.GET("/google/callback", app.googleAuthHandler.HandleGoogleCallback)
 		}
 
+		// API Key authenticated routes (alternative to JWT)
+		apiKeyAuth := api.Group("/")
+		// Apply API Key authentication middleware
+		apiKeyAuth.Use(middleware.APIKeyAuthRequired(&middleware.APIKeyAuthConfig{
+			DB:                    app.db,
+			EnableHMACValidation:  false, // Disable for basic implementation
+			EnableTimestamp:       false, // Disable for basic implementation
+			EnableRateLimit:       true,  // Enable rate limiting
+			EnableIPWhitelist:     true,  // Enable IP whitelist
+			RequireHTTPS:          false, // Allow HTTP for development
+		}))
+		{
+			// Task management for API consumers
+			apiTasks := apiKeyAuth.Group("/tasks")
+			apiTasks.Use(middleware.RequirePermission(models.PermissionTasksRead))
+			{
+				apiTasks.GET("", app.getAllTasksHandler)
+				apiTasks.GET("/:id", app.getTaskByIDHandler)
+			}
+			
+			// Project management for API consumers
+			apiProjects := apiKeyAuth.Group("/projects")
+			apiProjects.Use(middleware.RequirePermission(models.PermissionProjectsRead))
+			{
+				apiProjects.GET("", app.getProjectsHandler)
+				apiProjects.GET("/:id", app.getProjectByIDHandler)
+			}
+		}
+
 		// Protected routes (with user type access control)
 		authorized := api.Group("/")
 		// Apply JWT authentication middleware first
