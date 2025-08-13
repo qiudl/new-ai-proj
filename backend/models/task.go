@@ -526,5 +526,133 @@ type GraphEdge struct {
 	Weight           int    `json:"weight"`
 }
 
+// ParallelExecutionRequest represents a request to initiate parallel task execution
+type ParallelExecutionRequest struct {
+	TaskIDs         []int        `json:"task_ids" validate:"required,min=1"`
+	ParallelGroupID string       `json:"parallel_group_id"`
+	InitiatedBy     int          `json:"initiated_by" validate:"required"`
+	ExecutionMode   string       `json:"execution_mode" validate:"oneof=async sync"`
+	MaxConcurrency  int          `json:"max_concurrency" validate:"min=1,max=10"`
+	Metadata        CustomFields `json:"metadata"`
+}
+
+// ParallelExecutionStatus represents the status of parallel task execution
+type ParallelExecutionStatus struct {
+	ExecutionID      string       `json:"execution_id"`
+	ParallelGroupID  string       `json:"parallel_group_id"`
+	TaskIDs          []int        `json:"task_ids"`
+	Status           string       `json:"status"` // running, completed, failed, partial_failure, blocked
+	StartTime        time.Time    `json:"start_time"`
+	LastUpdate       time.Time    `json:"last_update"`
+	CompletionTime   *time.Time   `json:"completion_time,omitempty"`
+	InitiatedBy      int          `json:"initiated_by"`
+	TotalTasks       int          `json:"total_tasks"`
+	CompletedTasks   int          `json:"completed_tasks"`
+	InProgressTasks  int          `json:"in_progress_tasks"`
+	FailedTasks      int          `json:"failed_tasks"`
+	BlockedTasks     []int        `json:"blocked_tasks,omitempty"`
+	Message          string       `json:"message,omitempty"`
+	ExecutionMetrics CustomFields `json:"execution_metrics,omitempty"`
+}
+
+// ParallelSyncResult represents the result of parallel task synchronization
+type ParallelSyncResult struct {
+	ParallelGroupID string                 `json:"parallel_group_id"`
+	SyncedTasks     []ParallelTaskSyncInfo `json:"synced_tasks"`
+	SyncIssues      []ParallelSyncIssue    `json:"sync_issues"`
+	TotalTasks      int                    `json:"total_tasks"`
+	IssuesFound     int                    `json:"issues_found"`
+	SyncTimestamp   time.Time              `json:"sync_timestamp"`
+	SyncStatus      string                 `json:"sync_status"` // synchronized, partial, failed
+	Resolution      []string               `json:"resolution,omitempty"`
+}
+
+// ParallelTaskSyncInfo represents synchronization info for a single task
+type ParallelTaskSyncInfo struct {
+	TaskID     int       `json:"task_id"`
+	TaskTitle  string    `json:"task_title"`
+	Status     string    `json:"status"`
+	LastUpdate time.Time `json:"last_update"`
+	SyncStatus string    `json:"sync_status"`
+}
+
+// ParallelSyncIssue represents an issue found during parallel task synchronization
+type ParallelSyncIssue struct {
+	IssueType   string `json:"issue_type"` // dependency_conflict, status_mismatch, timing_issue
+	TaskID      int    `json:"task_id"`
+	TaskTitle   string `json:"task_title"`
+	Description string `json:"description"`
+	Severity    string `json:"severity"` // low, medium, high, critical
+	Suggestion  string `json:"suggestion,omitempty"`
+}
+
+// CycleAnalysisResult represents the result of dependency cycle analysis
+type CycleAnalysisResult struct {
+	HasCycles       bool                     `json:"has_cycles"`
+	CycleCount      int                      `json:"cycle_count"`
+	DetectedCycles  []DependencyCycle        `json:"detected_cycles"`
+	AffectedTasks   []int                    `json:"affected_tasks"`
+	AnalysisTime    time.Time                `json:"analysis_time"`
+	Recommendations []CycleResolutionAdvice  `json:"recommendations"`
+}
+
+// DependencyCycle represents a detected dependency cycle
+type DependencyCycle struct {
+	CycleID     string `json:"cycle_id"`
+	TaskPath    []int  `json:"task_path"`
+	TaskTitles  []string `json:"task_titles"`
+	CycleLength int    `json:"cycle_length"`
+	Severity    string `json:"severity"`
+}
+
+// CycleResolutionAdvice provides advice for resolving dependency cycles
+type CycleResolutionAdvice struct {
+	CycleID     string `json:"cycle_id"`
+	Action      string `json:"action"` // remove_dependency, change_relationship, split_task
+	TaskID      int    `json:"task_id"`
+	Description string `json:"description"`
+	Priority    string `json:"priority"`
+}
+
+// CriticalPathResult represents the result of critical path analysis
+type CriticalPathResult struct {
+	CriticalPath        []CriticalPathTask `json:"critical_path"`
+	TotalDuration       float64           `json:"total_duration_hours"`
+	StartTask           int               `json:"start_task"`
+	EndTask             int               `json:"end_task"`
+	AnalysisTime        time.Time         `json:"analysis_time"`
+	AlternativePaths    []AlternativePath `json:"alternative_paths,omitempty"`
+	BottleneckTasks     []int             `json:"bottleneck_tasks"`
+	OptimizationAdvice  []string          `json:"optimization_advice"`
+}
+
+// CriticalPathTask represents a task in the critical path
+type CriticalPathTask struct {
+	TaskID            int     `json:"task_id"`
+	TaskTitle         string  `json:"task_title"`
+	EstimatedHours    float64 `json:"estimated_hours"`
+	EarliestStart     time.Time `json:"earliest_start"`
+	LatestFinish      time.Time `json:"latest_finish"`
+	Slack             float64 `json:"slack_hours"`
+	IsCritical        bool    `json:"is_critical"`
+	DependencyCount   int     `json:"dependency_count"`
+}
+
+// AlternativePath represents an alternative path in project timeline
+type AlternativePath struct {
+	PathID       string             `json:"path_id"`
+	Tasks        []CriticalPathTask `json:"tasks"`
+	Duration     float64           `json:"duration_hours"`
+	Probability  float64           `json:"probability"`
+	RiskLevel    string            `json:"risk_level"`
+}
+
+// DocumentRelation represents a relationship between documents
+type DocumentRelation struct {
+	RelationType string `json:"relation_type"`
+	RelatedID    int    `json:"related_id"`
+	RelatedTitle string `json:"related_title"`
+}
+
 // 删除任务文档默认模板功能 - 防止意外覆盖用户数据
 // GetTaskDocumentDefaultTemplate 功能已删除，避免模板覆盖用户内容
