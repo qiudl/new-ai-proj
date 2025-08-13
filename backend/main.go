@@ -77,6 +77,7 @@ type Application struct {
 	aiTaskGeneratorHandler     *handlers.AITaskGeneratorHandler
 	dashboardHandler           *handlers.DashboardHandler
 	taskAnalysisHandler        *handlers.TaskAnalysisHandler
+	apiKeyHandler              *handlers.APIKeyHandler
 	// documentRegistryHandler    *handlers.DocumentRegistryHandler // Disabled - conflicting models
 }
 
@@ -208,6 +209,9 @@ func NewApplication() (*Application, error) {
 	// 任务分析处理器
 	taskAnalysisHandler := handlers.NewTaskAnalysisHandler(db)
 
+	// API密钥管理处理器
+	apiKeyHandler := handlers.NewAPIKeyHandler(db.GetDB())
+
 	// Google日历集成服务和处理器
 	googleCalendarService := services.NewGoogleCalendarService()
 	googleAuthHandler := handlers.NewGoogleAuthHandler(googleCalendarService, db.Users(), db.GoogleAuth())
@@ -258,6 +262,7 @@ func NewApplication() (*Application, error) {
 		aiTaskGeneratorHandler:      aiTaskGeneratorHandler,
 		dashboardHandler:            dashboardHandler,
 		taskAnalysisHandler:         taskAnalysisHandler,
+		apiKeyHandler:               apiKeyHandler,
 		googleAuthHandler:           googleAuthHandler,
 		calendarSyncHandler:         calendarSyncHandler,
 		// documentRegistryHandler:     documentRegistryHandler, // Disabled - conflicting models
@@ -336,6 +341,35 @@ auth := api.Group("/auth")
 			// Google认证路由
 			auth.GET("/google", app.googleAuthHandler.InitiateGoogleAuth)
 			auth.GET("/google/callback", app.googleAuthHandler.HandleGoogleCallback)
+		}
+
+		// API Key authenticated routes (alternative to JWT)
+		apiKeyAuth := api.Group("/")
+		// Apply API Key authentication middleware
+		apiKeyAuth.Use(middleware.APIKeyAuthRequired(&middleware.APIKeyAuthConfig{
+			DB:                    app.db,
+			EnableHMACValidation:  false, // Disable for basic implementation
+			EnableTimestamp:       false, // Disable for basic implementation
+			EnableRateLimit:       true,  // Enable rate limiting
+			EnableIPWhitelist:     true,  // Enable IP whitelist
+			RequireHTTPS:          false, // Allow HTTP for development
+		}))
+		{
+			// Task management for API consumers
+			apiTasks := apiKeyAuth.Group("/tasks")
+			apiTasks.Use(middleware.RequirePermission(models.PermissionTasksRead))
+			{
+				apiTasks.GET("", app.getAllTasksHandler)
+				apiTasks.GET("/:id", app.getTaskByIDHandler)
+			}
+			
+			// Project management for API consumers
+			apiProjects := apiKeyAuth.Group("/projects")
+			apiProjects.Use(middleware.RequirePermission(models.PermissionProjectsRead))
+			{
+				apiProjects.GET("", app.getProjectsHandler)
+				apiProjects.GET("/:id", app.getProjectByIDHandler)
+			}
 		}
 
 		// Protected routes (with user type access control)
@@ -586,6 +620,21 @@ auth := api.Group("/auth")
 					
 					// Batch optimization routes
 					aiTasks.POST("/batch/optimize", app.aiTaskGeneratorHandler.BatchOptimizeTasks)
+				}
+
+				// API Key management routes (system users only)
+				apiKeys := system.Group("/api-keys")
+				{
+					apiKeys.GET("", app.apiKeyHandler.ListAPIKeys)
+					apiKeys.POST("", app.apiKeyHandler.CreateAPIKey)
+					apiKeys.GET("/active", app.apiKeyHandler.GetActiveAPIKeys)
+					apiKeys.GET("/:id", app.apiKeyHandler.GetAPIKey)
+					apiKeys.PUT("/:id", app.apiKeyHandler.UpdateAPIKey)
+					apiKeys.DELETE("/:id", app.apiKeyHandler.DeleteAPIKey)
+					apiKeys.GET("/:id/stats", app.apiKeyHandler.GetAPIKeyUsageStats)
+					apiKeys.POST("/:id/rotate", app.apiKeyHandler.RotateAPIKey)
+					apiKeys.POST("/validate", app.apiKeyHandler.ValidateAPIKey)
+					apiKeys.POST("/verify-permission", app.apiKeyHandler.VerifyPermission)
 				}
 
 			}

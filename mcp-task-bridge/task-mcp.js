@@ -2,10 +2,10 @@ import axios from 'axios';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    constructor(apiBase = 'http://localhost:8080/api/v1') {
+    constructor(apiBase = 'http://localhost:8081/api/v1') {
         this.apiBase = apiBase;
-        // 使用系统 JWT token
-        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
+        // 使用系统 JWT token (更新于 2025-08-13 00:40)
+        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTU2NTA0MTAsIm5iZiI6MTc1NTA0NTYxMCwiaWF0IjoxNzU1MDQ1NjEwfQ.qcjPK54y7jNzt5V-LZKBjfjOvrAIaasYbotfN98dKMk';
     }
     getHeaders() {
         return {

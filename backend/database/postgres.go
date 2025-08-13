@@ -88,6 +88,11 @@ func (pdb *PostgresDB) Audit() AuditRepository {
 	return NewAuditRepository(pdb.db)
 }
 
+// APIKeys returns the API key repository
+func (pdb *PostgresDB) APIKeys() APIKeyRepository {
+	return NewAPIKeyRepository(pdb.db)
+}
+
 // Documents returns the document repository
 func (pdb *PostgresDB) Documents() DocumentRepository {
 	// TODO: Fix DocumentRepository implementation issues
