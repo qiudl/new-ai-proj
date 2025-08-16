@@ -171,7 +171,7 @@ func (gr *GlobalRoutes) calculateTaskDepthRecursive(taskID int, taskMap map[int]
 		return 0
 	}
 
-	parentTask, parentExists := taskMap[*task.ParentID]
+	_, parentExists := taskMap[*task.ParentID]
 	if !parentExists {
 		return 0
 	}

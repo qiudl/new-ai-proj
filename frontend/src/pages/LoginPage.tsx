@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Form, Input, Button, message, Tag } from 'antd';
+import { Form, Input, Button, message, Tag, Divider, Space } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { detectEnvironment, createEnvironmentTagProps } from '../utils/environmentDetection';
+import { detectEnvironment, createEnvironmentTagProps, getEnvironmentConfig } from '../utils/environmentDetection';
 
 interface LoginForm {
   username: string;
@@ -11,6 +11,7 @@ interface LoginForm {
 
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [quickLoadingUser, setQuickLoadingUser] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // 使用统一的环境检测工具
@@ -72,6 +73,44 @@ const LoginPage: React.FC = () => {
     }
   };
 
+  // 开发环境快速登录
+  const handleQuickLogin = async (username: 'admin' | 'qiudl') => {
+    const { apiBaseURL, isLocal } = getEnvironmentConfig();
+    if (!isLocal) {
+      message.warning('快速登录仅在本地开发环境可用');
+      return;
+    }
+    try {
+      setQuickLoadingUser(username);
+      const resp = await fetch(`${apiBaseURL}/auth/dev-quick-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      if (!resp.ok) {
+        const text = await resp.text();
+        throw new Error(text || `HTTP ${resp.status}`);
+      }
+      const data = await resp.json();
+      if (data.success && data.data) {
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('currentUser', JSON.stringify({
+          id: data.data.user.id,
+          username: data.data.user.username,
+          role: data.data.user.role
+        }));
+        message.success(`已使用 ${username} 快速登录`);
+        navigate('/');
+      } else {
+        message.error(data.message || '快速登录失败');
+      }
+    } catch (e: any) {
+      message.error(e?.message || '快速登录失败');
+    } finally {
+      setQuickLoadingUser(null);
+    }
+  };
+
   return (
     <div className="login-container">
       <div className="login-box">
@@ -120,7 +159,7 @@ const LoginPage: React.FC = () => {
             />
           </Form.Item>
 
-          <Form.Item>
+        <Form.Item>
             <Button
               type="primary"
               htmlType="submit"
@@ -131,6 +170,42 @@ const LoginPage: React.FC = () => {
             </Button>
           </Form.Item>
         </Form>
+        
+        {/* 本地开发环境下显示快速登录区块 */}
+        {envInfo.text.includes('本地开发') && (
+          <div style={{ marginTop: 16 }}>
+            <Divider plain>开发便捷登录</Divider>
+            <div style={{
+              background: '#fafafa',
+              border: '1px dashed #d9d9d9',
+              borderRadius: 8,
+              padding: 12,
+            }}>
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 8 }}>
+                本地开发仅：支持免密快速登录以下两个账号
+              </div>
+              <Space style={{ width: '100%', justifyContent: 'center' }} wrap>
+                <Button
+                  onClick={() => handleQuickLogin('admin')}
+                  loading={quickLoadingUser === 'admin'}
+                >
+                  快速登录：admin
+                </Button>
+                <Button
+                  onClick={() => handleQuickLogin('qiudl')}
+                  loading={quickLoadingUser === 'qiudl'}
+                >
+                  快速登录：qiudl
+                </Button>
+              </Space>
+              <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 8, textAlign: 'center' }}>
+                或手动输入：
+                <span style={{ marginLeft: 6 }}>admin / 任意密码</span>
+                <span style={{ marginLeft: 12 }}>qiudl / 任意密码</span>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div style={{ textAlign: 'center', marginTop: '16px', color: '#8c8c8c' }}>
           <p>请使用正确的用户名和密码登录</p>

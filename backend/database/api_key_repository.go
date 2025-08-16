@@ -9,18 +9,18 @@ import (
 	"time"
 )
 
-// APIKeyRepository handles API key data access operations
-type APIKeyRepository struct {
+// APIKeyRepositoryImpl handles API key data access operations
+type APIKeyRepositoryImpl struct {
 	db interface{}
 }
 
 // NewAPIKeyRepository creates a new API key repository
-func NewAPIKeyRepository(db interface{}) *APIKeyRepository {
-	return &APIKeyRepository{db: db}
+func NewAPIKeyRepository(db interface{}) *APIKeyRepositoryImpl {
+	return &APIKeyRepositoryImpl{db: db}
 }
 
 // getExecer returns the appropriate execer (DB or Tx)
-func (r *APIKeyRepository) getExecer() execer {
+func (r *APIKeyRepositoryImpl) getExecer() execer {
 	if tx, ok := r.db.(*sql.Tx); ok {
 		return tx
 	}
@@ -28,7 +28,7 @@ func (r *APIKeyRepository) getExecer() execer {
 }
 
 // CreateAPIKey creates a new API key
-func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, apiKey *models.APIKey) (*models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) CreateAPIKey(ctx context.Context, apiKey *models.APIKey) (*models.APIKey, error) {
 	query := `
 		INSERT INTO api_keys (
 			name, description, key_hash, key_prefix, secret_hash,
@@ -61,7 +61,7 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, apiKey *models.APIK
 }
 
 // GetAPIKeyByID retrieves an API key by ID
-func (r *APIKeyRepository) GetAPIKeyByID(ctx context.Context, id int64) (*models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) GetAPIKeyByID(ctx context.Context, id int64) (*models.APIKey, error) {
 	query := `
 		SELECT 
 			id, name, description, key_hash, key_prefix, secret_hash,
@@ -98,7 +98,7 @@ func (r *APIKeyRepository) GetAPIKeyByID(ctx context.Context, id int64) (*models
 }
 
 // GetAPIKeyByHash retrieves an API key by its hash
-func (r *APIKeyRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) (*models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) GetAPIKeyByHash(ctx context.Context, keyHash string) (*models.APIKey, error) {
 	query := `
 		SELECT 
 			id, name, description, key_hash, key_prefix, secret_hash,
@@ -135,7 +135,7 @@ func (r *APIKeyRepository) GetAPIKeyByHash(ctx context.Context, keyHash string) 
 }
 
 // UpdateAPIKey updates an existing API key
-func (r *APIKeyRepository) UpdateAPIKey(ctx context.Context, id int64, updates *models.APIKeyUpdateRequest, updatedBy int) (*models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) UpdateAPIKey(ctx context.Context, id int64, updates *models.APIKeyUpdateRequest, updatedBy int) (*models.APIKey, error) {
 	setParts := []string{}
 	args := []interface{}{}
 	argIndex := 1
@@ -263,7 +263,7 @@ func (r *APIKeyRepository) UpdateAPIKey(ctx context.Context, id int64, updates *
 }
 
 // DeleteAPIKey soft deletes an API key
-func (r *APIKeyRepository) DeleteAPIKey(ctx context.Context, id int64, deletedBy int) error {
+func (r *APIKeyRepositoryImpl) DeleteAPIKey(ctx context.Context, id int64, deletedBy int) error {
 	query := `
 		UPDATE api_keys 
 		SET deleted_at = NOW(), updated_by = $1, updated_at = NOW()
@@ -288,7 +288,7 @@ func (r *APIKeyRepository) DeleteAPIKey(ctx context.Context, id int64, deletedBy
 }
 
 // ListAPIKeys retrieves a paginated list of API keys
-func (r *APIKeyRepository) ListAPIKeys(ctx context.Context, params *models.APIKeyListParams) ([]models.APIKey, int, error) {
+func (r *APIKeyRepositoryImpl) ListAPIKeys(ctx context.Context, params *models.APIKeyListParams) ([]models.APIKey, int, error) {
 	// Build WHERE clause
 	whereParts := []string{"deleted_at IS NULL"}
 	args := []interface{}{}
@@ -405,7 +405,7 @@ func (r *APIKeyRepository) ListAPIKeys(ctx context.Context, params *models.APIKe
 }
 
 // UpdateLastUsed updates the last used timestamp and increments usage count
-func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, id int64) error {
+func (r *APIKeyRepositoryImpl) UpdateLastUsed(ctx context.Context, id int64) error {
 	query := `
 		UPDATE api_keys 
 		SET last_used_at = NOW(), usage_count = usage_count + 1, updated_at = NOW()
@@ -430,7 +430,7 @@ func (r *APIKeyRepository) UpdateLastUsed(ctx context.Context, id int64) error {
 }
 
 // GetActiveAPIKeys retrieves all active API keys
-func (r *APIKeyRepository) GetActiveAPIKeys(ctx context.Context) ([]models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) GetActiveAPIKeys(ctx context.Context) ([]models.APIKey, error) {
 	query := `
 		SELECT 
 			id, name, description, key_hash, key_prefix, secret_hash,
@@ -478,7 +478,7 @@ func (r *APIKeyRepository) GetActiveAPIKeys(ctx context.Context) ([]models.APIKe
 }
 
 // CreateUsageLog creates an API usage log entry
-func (r *APIKeyRepository) CreateUsageLog(ctx context.Context, log *models.APIUsageLog) error {
+func (r *APIKeyRepositoryImpl) CreateUsageLog(ctx context.Context, log *models.APIUsageLog) error {
 	query := `
 		INSERT INTO api_usage_logs (
 			api_key_id, user_id, endpoint, method, request_size, response_size,
@@ -523,7 +523,7 @@ func (r *APIKeyRepository) CreateUsageLog(ctx context.Context, log *models.APIUs
 }
 
 // GetUsageStats retrieves usage statistics for an API key
-func (r *APIKeyRepository) GetUsageStats(ctx context.Context, apiKeyID int64, days int) (*models.APIQuotaStats, error) {
+func (r *APIKeyRepositoryImpl) GetUsageStats(ctx context.Context, apiKeyID int64, days int) (*models.APIQuotaStats, error) {
 	query := `
 		SELECT 
 			COUNT(*) as request_count,
@@ -561,7 +561,7 @@ func (r *APIKeyRepository) GetUsageStats(ctx context.Context, apiKeyID int64, da
 }
 
 // CheckRateLimit checks if an API key has exceeded its rate limit
-func (r *APIKeyRepository) CheckRateLimit(ctx context.Context, apiKeyID int64, window models.RateLimitType, limit int) (bool, error) {
+func (r *APIKeyRepositoryImpl) CheckRateLimit(ctx context.Context, apiKeyID int64, window models.RateLimitType, limit int) (bool, error) {
 	var windowStart time.Time
 	now := time.Now()
 
@@ -595,7 +595,7 @@ func (r *APIKeyRepository) CheckRateLimit(ctx context.Context, apiKeyID int64, w
 }
 
 // GetAPIKeyByPrefix retrieves an API key by its prefix
-func (r *APIKeyRepository) GetAPIKeyByPrefix(ctx context.Context, keyPrefix string) (*models.APIKey, error) {
+func (r *APIKeyRepositoryImpl) GetAPIKeyByPrefix(ctx context.Context, keyPrefix string) (*models.APIKey, error) {
 	query := `
 		SELECT 
 			id, name, description, key_hash, key_prefix, secret_hash,
@@ -632,7 +632,7 @@ func (r *APIKeyRepository) GetAPIKeyByPrefix(ctx context.Context, keyPrefix stri
 }
 
 // UpdateAPIKeyUsage updates the API key usage statistics
-func (r *APIKeyRepository) UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64) error {
+func (r *APIKeyRepositoryImpl) UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64) error {
 	query := `
 		UPDATE api_keys 
 		SET last_used_at = NOW(), usage_count = usage_count + 1, updated_at = NOW()
@@ -657,6 +657,6 @@ func (r *APIKeyRepository) UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64
 }
 
 // CreateAPIUsageLog creates an API usage log entry
-func (r *APIKeyRepository) CreateAPIUsageLog(ctx context.Context, log *models.APIUsageLog) error {
+func (r *APIKeyRepositoryImpl) CreateAPIUsageLog(ctx context.Context, log *models.APIUsageLog) error {
 	return r.CreateUsageLog(ctx, log)
 }

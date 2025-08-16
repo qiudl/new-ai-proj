@@ -213,6 +213,11 @@ func (ptx *PostgresTx) Audit() AuditRepository {
 	return NewAuditRepository(ptx.tx)
 }
 
+// APIKeys returns the API key repository for transaction
+func (ptx *PostgresTx) APIKeys() APIKeyRepository {
+	return NewAPIKeyRepository(ptx.tx)
+}
+
 // Documents returns the document repository for transaction
 func (ptx *PostgresTx) Documents() DocumentRepository {
 	// TODO: Fix DocumentRepository implementation

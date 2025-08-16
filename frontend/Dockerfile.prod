@@ -1,4 +1,4 @@
-# AI项目管理平台 - 前端生产环境Dockerfile
+# AI上下文任务系统 - 前端生产环境Dockerfile
 # 用于腾讯云生产环境部署
 
 # 第一阶段：构建React应用

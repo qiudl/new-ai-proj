@@ -11,6 +11,7 @@ import (
 type RateLimitWindow string
 
 const (
+	WindowPerSecond RateLimitWindow = "per_second"
 	WindowPerMinute RateLimitWindow = "per_minute"
 	WindowPerHour   RateLimitWindow = "per_hour"  
 	WindowPerDay    RateLimitWindow = "per_day"
@@ -178,6 +179,8 @@ type RateLimitCheck struct {
 // getWindowDuration converts RateLimitWindow to time.Duration
 func (rl *RateLimiter) getWindowDuration(window RateLimitWindow) time.Duration {
 	switch window {
+	case WindowPerSecond:
+		return time.Second
 	case WindowPerMinute:
 		return time.Minute
 	case WindowPerHour:

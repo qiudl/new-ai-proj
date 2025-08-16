@@ -25,26 +25,7 @@ func NewRedisRateLimiter(client *redis.Client, defaultLimit int, defaultWindow t
 	}
 }
 
-// RateLimitResult contains the result of a rate limit check
-type RateLimitResult struct {
-	Allowed        bool          `json:"allowed"`
-	CurrentCount   int           `json:"current_count"`
-	Limit          int           `json:"limit"`
-	RemainingCount int           `json:"remaining_count"`
-	ResetTime      time.Time     `json:"reset_time"`
-	RetryAfter     time.Duration `json:"retry_after"`
-	Window         RateLimitWindow `json:"window"`
-}
-
-// RateLimitWindow defines different time windows for rate limiting
-type RateLimitWindow string
-
-const (
-	WindowPerSecond RateLimitWindow = "per_second"
-	WindowPerMinute RateLimitWindow = "per_minute"
-	WindowPerHour   RateLimitWindow = "per_hour"
-	WindowPerDay    RateLimitWindow = "per_day"
-)
+// Note: RateLimitResult and RateLimitWindow are defined in rate_limiter.go to avoid duplication
 
 // CheckRateLimitByAPIKey checks rate limit for a specific API key using sliding window algorithm
 func (r *RedisRateLimiter) CheckRateLimitByAPIKey(apiKeyID int64, limit int, window RateLimitWindow) RateLimitResult {

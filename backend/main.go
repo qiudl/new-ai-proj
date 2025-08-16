@@ -5,8 +5,8 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/handlers"
 	"ai-project-backend/interfaces"
-	"ai-project-backend/middleware"
 	"ai-project-backend/models"
+	"ai-project-backend/routes"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	"context"
@@ -16,6 +16,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,6 +88,13 @@ func NewApplication() (*Application, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %v", err)
+	}
+
+	// Log effective DB config in development for debugging
+	if cfg.IsDevelopment() {
+		log.Printf("Effective DB config: host=%s port=%s db=%s user=%s sslmode=%s",
+			cfg.Database.Host, cfg.Database.Port, cfg.Database.Name, cfg.Database.User, cfg.Database.SSLMode,
+		)
 	}
 
 	// Initialize database
@@ -185,23 +193,29 @@ func NewApplication() (*Application, error) {
 	// 审计处理器
 	auditHandler := handlers.NewAuditHandler(db, logger, validate)
 	
-	// AI配置处理器
-	// 创建sqlx.DB实例用于AI配置仓库
+	// AI配置处理器（可通过环境变量禁用以便本地开发）
+	// 设置 AI_CONFIG_ENABLED=false 可跳过AI配置初始化
 	sqlxDB := sqlx.NewDb(db.GetDB().(*sql.DB), "postgres")
-	aiConfigRepo, err := database.NewAIConfigRepository(sqlxDB)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create AI config repository: %w", err)
-	}
-	aiConfigHandler := handlers.NewAIConfigHandler(aiConfigRepo)
+	var aiConfigHandler *handlers.AIConfigHandler
+	var aiTaskGeneratorHandler *handlers.AITaskGeneratorHandler
+	if enabled := strings.ToLower(strings.TrimSpace(os.Getenv("AI_CONFIG_ENABLED"))); enabled == "" || enabled == "true" || enabled == "1" {
+		aiConfigRepo, err := database.NewAIConfigRepository(sqlxDB)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create AI config repository: %w", err)
+		}
+		aiConfigHandler = handlers.NewAIConfigHandler(aiConfigRepo)
 
-	// AI任务生成处理器
-	historyRepo := database.NewAIGenerationHistoryRepository(sqlxDB)
-	aiTaskGeneratorHandler := handlers.NewAITaskGeneratorHandler(
-		aiConfigRepo,
-		db.Tasks(),
-		db.Projects(),
-		historyRepo,
-	)
+		// AI任务生成处理器
+		historyRepo := database.NewAIGenerationHistoryRepository(sqlxDB)
+		aiTaskGeneratorHandler = handlers.NewAITaskGeneratorHandler(
+			aiConfigRepo,
+			db.Tasks(),
+			db.Projects(),
+			historyRepo,
+		)
+	} else {
+		logger.Printf("AI configuration subsystem disabled by AI_CONFIG_ENABLED=%q", os.Getenv("AI_CONFIG_ENABLED"))
+	}
 
 	// 仪表板处理器
 	dashboardHandler := handlers.NewDashboardHandler(db)
@@ -290,721 +304,6 @@ func initDB(cfg *config.Config) (database.DB, error) {
 	return db, nil
 }
 
-// setupRouter sets up Gin router with routes
-func (app *Application) setupRouter() *gin.Engine {
-	gin.SetMode(func() string {
-		if app.config.IsProduction() {
-			return gin.ReleaseMode
-		}
-		return gin.DebugMode
-	}())
-
-	router := gin.New()
-	
-	// Middleware
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	router.Use(app.corsMiddleware())
-	
-	// 审计中间件
-	auditMiddleware := middleware.NewAuditMiddleware(&middleware.AuditConfig{
-		DB:                 app.db,
-		LogRequestBody:     true,
-		LogResponseBody:    false, // 避免敏感数据泄露
-		MaxBodySize:        1024 * 1024, // 1MB
-		ExcludePaths:       []string{"/health", "/version", "/metrics", "/documents/health"},
-		ExcludeMethods:     []string{"OPTIONS"},
-	})
-	router.Use(auditMiddleware.Middleware())
-
-	// Health check endpoint
-	router.GET("/health", app.healthHandler)
-	router.GET("/version", app.versionHandler)
-	router.GET("/documents/health", app.unifiedDocumentHandler.HealthCheck)
-
-	// Webhook endpoints (public access)
-	webhooks := router.Group("/api/v1/webhooks")
-	{
-		webhooks.POST("/google-calendar", app.calendarSyncHandler.GoogleCalendarWebhook)
-	}
-
-	// API routes
-	api := router.Group("/api/v1")
-	{
-		// Auth routes
-auth := api.Group("/auth")
-		{
-			auth.POST("/login", app.loginHandler)
-			auth.POST("/logout", app.logoutHandler)
-			auth.POST("/refresh", handlers.RefreshTokenHandler(app.jwtManager))
-			
-			// Google认证路由
-			auth.GET("/google", app.googleAuthHandler.InitiateGoogleAuth)
-			auth.GET("/google/callback", app.googleAuthHandler.HandleGoogleCallback)
-		}
-
-		// API Key authenticated routes (alternative to JWT)
-		apiKeyAuth := api.Group("/")
-		// Apply API Key authentication middleware
-		apiKeyAuth.Use(middleware.APIKeyAuthRequired(&middleware.APIKeyAuthConfig{
-			DB:                    app.db,
-			EnableHMACValidation:  false, // Disable for basic implementation
-			EnableTimestamp:       false, // Disable for basic implementation
-			EnableRateLimit:       true,  // Enable rate limiting
-			EnableIPWhitelist:     true,  // Enable IP whitelist
-			RequireHTTPS:          false, // Allow HTTP for development
-		}))
-		{
-			// Task management for API consumers
-			apiTasks := apiKeyAuth.Group("/tasks")
-			apiTasks.Use(middleware.RequirePermission(models.PermissionTasksRead))
-			{
-				apiTasks.GET("", app.getAllTasksHandler)
-				apiTasks.GET("/:id", app.getTaskByIDHandler)
-			}
-			
-			// Project management for API consumers
-			apiProjects := apiKeyAuth.Group("/projects")
-			apiProjects.Use(middleware.RequirePermission(models.PermissionProjectsRead))
-			{
-				apiProjects.GET("", app.getProjectsHandler)
-				apiProjects.GET("/:id", app.getProjectByIDHandler)
-			}
-		}
-
-		// Protected routes (with user type access control)
-		authorized := api.Group("/")
-		// Apply JWT authentication middleware first
-		authorized.Use(middleware.AuthMiddleware(app.jwtManager))
-		// Apply user type access control middleware
-		authorized.Use(middleware.UserTypeAccessMiddleware())
-		authorized.Use(middleware.CompanyAccessMiddleware())
-		authorized.Use(app.mapUserToCompanyUser()) // Map authenticated user to company user
-		{
-			// Global tasks routes (all projects) - for compatibility
-			authorized.GET("/tasks", app.getAllTasksHandler)
-			authorized.GET("/tasks/today", app.getTodayTasksHandler)
-			authorized.GET("/tasks/today/stats", app.getTodayTasksStatsHandler)
-			authorized.POST("/tasks/today/bulk", app.bulkOperationTodayTasksHandler)
-			authorized.POST("/tasks/:id/complete", app.markTodayTaskCompletedHandler)
-			authorized.POST("/tasks/:id/postpone", app.postponeTodayTaskHandler)
-			authorized.POST("/tasks/validate-parent", app.validateParentHandler)
-			
-			// Statistics routes
-			authorized.GET("/statistics/today-stats", func(c *gin.Context) {
-				app.statisticsHandler.HandleTodayStats(c.Writer, c.Request)
-			})
-			
-			// Dashboard routes
-			dashboard := authorized.Group("/dashboard")
-			{
-				dashboard.GET("/weekly-stats", app.dashboardHandler.GetWeeklyStats)
-			}
-			
-			// Task Analysis routes
-			analysis := authorized.Group("/analysis")
-			{
-				analysis.GET("/tags/statistics", app.taskAnalysisHandler.GetTagStatistics)
-				analysis.POST("/tags/batch-update", app.taskAnalysisHandler.BatchUpdateTags)
-				analysis.POST("/tasks/batch-analyze", app.taskAnalysisHandler.BatchAnalyzeTasks)
-				analysis.POST("/reports/weekly", app.taskAnalysisHandler.GenerateWeeklyReport)
-				analysis.GET("/environment/nodejs", app.taskAnalysisHandler.GetNodejsEnvironmentStatus)
-			}
-			
-			// File download routes
-			files := authorized.Group("/files")
-			{
-				files.GET("/download", app.fileDownloadHandler)
-			}
-			
-			// Projects routes with permission requirements
-			projects := authorized.Group("/projects")
-			{
-				projects.GET("", app.getProjectsHandler)
-				projects.POST("", app.createProjectHandler)
-				projects.GET("/:id", app.getProjectHandler)
-				projects.PUT("/:id", app.updateProjectHandler)
-				projects.DELETE("/:id", app.deleteProjectHandler)
-				
-				// Project statistics endpoint
-				projects.GET("/:id/stats", app.getProjectStatsHandler)
-
-				// Hierarchical task routes (more specific routes first)
-				projects.GET("/:id/tasks/tree", app.getTaskTreeHandler)
-				projects.GET("/:id/tasks/root", app.getRootTasksHandler)
-				projects.GET("/:id/tasks/search-parents", app.searchParentTasksHandler)
-				projects.POST("/:id/tasks/bulk-import", app.bulkImportTasksHandler)
-				projects.POST("/:id/tasks/ai-bulk-import", app.aiTaskGeneratorHandler.BulkImport)
-				
-				// Task-specific hierarchical routes
-				projects.GET("/:id/tasks/:taskId/children", app.getTaskChildrenHandler)
-				projects.GET("/:id/tasks/:taskId/updates", app.getTaskUpdatesHandler)
-				projects.PUT("/:id/tasks/:taskId/updates/:updateId", app.updateTaskUpdateHandler)
-				projects.DELETE("/:id/tasks/:taskId/updates/:updateId", app.deleteTaskUpdateHandler)
-				projects.GET("/:id/tasks/:taskId/timeline", app.getTaskTimelineHandler)
-				
-				// Task analysis routes
-				projects.GET("/:id/tasks/:taskId/analysis/tags", app.taskAnalysisHandler.AnalyzeTaskTags)
-				projects.PUT("/:id/tasks/:taskId/analysis/tags", app.taskAnalysisHandler.UpdateTaskTags)
-				
-				// Basic tasks routes
-				projects.GET("/:id/tasks", app.getTasksHandler)
-				projects.POST("/:id/tasks", app.createTaskHandler)
-				projects.DELETE("/:id/tasks", app.bulkDeleteTasksHandler)
-				projects.PATCH("/:id/tasks/batch", app.batchUpdateTasksHandler)
-				projects.POST("/:id/tasks/batch/preview", app.batchValidateTasksPreviewHandler)
-				projects.GET("/:id/tasks/:taskId", app.getTaskHandler)
-				projects.PUT("/:id/tasks/:taskId", app.updateTaskHandler)
-				projects.DELETE("/:id/tasks/:taskId", app.deleteTaskHandler)
-				
-				// Archive routes
-				projects.GET("/:id/tasks/archived", app.archiveHandler.GetArchivedTasks)
-				projects.POST("/:id/tasks/archive/bulk", app.archiveHandler.BulkArchiveTasks)
-				projects.POST("/:id/tasks/:taskId/archive", app.archiveHandler.ArchiveTask)
-				projects.POST("/:id/tasks/:taskId/unarchive", app.archiveHandler.UnarchiveTask)
-				projects.GET("/:id/archive/stats", app.archiveHandler.GetArchiveStatistics)
-				
-				// Calendar sync routes
-				calendarSync := projects.Group("/:id/tasks/:taskId/calendar-sync")
-				{
-					calendarSync.POST("/enable", app.calendarSyncHandler.EnableTaskCalendarSync)
-					calendarSync.POST("/disable", app.calendarSyncHandler.DisableTaskCalendarSync)
-					calendarSync.PUT("", app.calendarSyncHandler.UpdateTaskSyncSettings)
-					calendarSync.GET("/status", app.calendarSyncHandler.GetTaskSyncStatus)
-					calendarSync.POST("/trigger", app.calendarSyncHandler.TriggerTaskSync)
-					calendarSync.GET("/logs", app.calendarSyncHandler.GetSyncLogs)
-				}
-				
-				// 统一文档管理API (新架构)
-				documents := projects.Group("/:id/tasks/:taskId/documents")
-				{
-					documents.GET("", app.unifiedDocumentHandler.GetDocument)
-					documents.POST("", app.unifiedDocumentHandler.CreateDocument)
-					documents.PUT("", app.unifiedDocumentHandler.UpdateDocument)
-					documents.DELETE("", app.unifiedDocumentHandler.DeleteDocument)
-					documents.GET("/history", app.unifiedDocumentHandler.GetDocumentHistory)
-					documents.POST("/archive", app.unifiedDocumentHandler.ArchiveDocument)
-					documents.POST("/migrate", app.unifiedDocumentHandler.MigrateDocument)
-				}
-				
-				// 向后兼容的文档API
-				projects.GET("/:id/tasks/:taskId/document", app.unifiedDocumentHandler.GetTaskDocument)
-				projects.PUT("/:id/tasks/:taskId/document", app.unifiedDocumentHandler.SaveTaskDocument)
-				projects.HEAD("/:id/tasks/:taskId/document", app.unifiedDocumentHandler.CheckTaskDocument)
-				
-				// 基于文件的任务文档管理API (向后兼容)
-				projects.GET("/:id/tasks/:taskId/document/file", app.taskDocumentFileHandler.GetTaskDocument)
-				projects.PUT("/:id/tasks/:taskId/document/file", app.taskDocumentFileHandler.UpdateTaskDocument)
-				projects.POST("/:id/tasks/:taskId/document/create", app.taskDocumentFileHandler.CreateTaskDocumentFromTask)
-				projects.POST("/:id/tasks/:taskId/document/archive", app.taskDocumentFileHandler.ArchiveTaskDocument)
-				projects.GET("/:id/tasks/:taskId/document/history", app.taskDocumentFileHandler.GetDocumentHistory)
-				projects.GET("/:id/tasks/:taskId/document/compare", app.taskDocumentFileHandler.CompareDocumentVersions)
-				
-				// 删除增强版API路由 - 保持MVP简洁
-				// projects.GET("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.GetTaskDocumentAdvanced)
-				// projects.PATCH("/:id/tasks/:taskId/document/advanced", app.unifiedTaskDocumentHandler.UpdateTaskDocumentAdvanced)
-				// projects.DELETE("/:id/tasks/:taskId/document", app.unifiedTaskDocumentHandler.DeleteTaskDocument)
-				
-				// Task 307: 新增文档上传下载功能 - 暂时禁用由于模型冲突
-				// uploadDownload := projects.Group("/:id/tasks/:taskId")
-				// {
-				// 	// 手工上传文档
-				// 	uploadDownload.POST("/upload", app.taskDocumentHandler.ManualUploadDocument)
-				// 	// API上传文档
-				// 	uploadDownload.POST("/upload-api", app.taskDocumentHandler.APIUploadDocument)
-				// 	// 获取任务的所有上传文档
-				// 	uploadDownload.GET("/uploads", app.taskDocumentHandler.GetTaskDocuments)
-				// 	// 下载任务的Markdown格式
-				// 	uploadDownload.GET("/download/md", app.taskDocumentHandler.DownloadTaskMarkdown)
-				// 	// 下载任务的PDF格式
-				// 	uploadDownload.GET("/download/pdf", app.taskDocumentHandler.DownloadTaskPDF)
-				// }
-				
-				// 智能模板系统 - 暂时注释，保持MVP简洁
-				// projects.GET("/:id/tasks/:taskId/templates/recommendations", app.smartTemplateHandler.GetRecommendedTemplates)
-				
-				// 文档协作功能
-				collaboration := projects.Group("/:id/documents")
-				{
-					collaboration.POST("/:docId/comments", app.collaborationHandler.AddComment)
-					collaboration.GET("/:docId/comments", app.collaborationHandler.GetComments)
-					collaboration.POST("/:docId/collaborators", app.collaborationHandler.AddCollaborator)
-					collaboration.GET("/:docId/collaborators", app.collaborationHandler.GetCollaborators)
-					collaboration.PUT("/:docId/collaborators/:userId", app.collaborationHandler.UpdateCollaborator)
-					collaboration.DELETE("/:docId/collaborators/:userId", app.collaborationHandler.RemoveCollaborator)
-					collaboration.GET("/:docId/history", app.collaborationHandler.GetChangeHistory)
-					collaboration.POST("/:docId/collaboration/start", app.collaborationHandler.StartCollaborationSession)
-					collaboration.GET("/:docId/collaboration/active", app.collaborationHandler.GetActiveCollaborators)
-					collaboration.GET("/:docId/collaboration/stats", app.collaborationHandler.GetCollaborationStats)
-				}
-				
-				// Project timeline
-				projects.GET("/:id/timeline", app.getProjectTimelineHandler)
-				
-				// Project user management
-				projects.GET("/:id/users", app.getProjectUsersHandler)
-				projects.POST("/:id/users", app.addProjectUserHandler)
-				projects.DELETE("/:id/users/:userId", app.removeProjectUserHandler)
-				
-				// Document management routes
-				// projects.GET("/:id/documents", app.documentHandler.GetProjectDocuments) // 临时注释，避免编译错误
-				// projects.POST("/:id/documents", app.documentHandler.CreateDocument) // 临时注释，避免编译错误
-			}
-
-			// System management routes (system users only)
-			system := authorized.Group("/system")
-			// Apply system user only middleware
-			system.Use(middleware.SystemUserOnlyMiddleware())
-			{
-				// Recycle bin routes
-				recycle := system.Group("/recycle")
-				{
-					recycle.GET("/projects", app.getRecycledProjectsHandler)
-					recycle.POST("/projects/:id/restore", app.restoreProjectHandler)
-					recycle.DELETE("/projects/:id", app.hardDeleteProjectHandler)
-					
-					recycle.GET("/tasks", app.getRecycledTasksHandler)
-					recycle.POST("/tasks/:id/restore", app.restoreTaskHandler)
-					recycle.DELETE("/tasks/:id", app.hardDeleteTaskHandler)
-				}
-
-				// Audit log routes
-				audit := system.Group("/audit")
-				{
-					audit.GET("/logs", app.getAuditLogsHandler)
-					audit.GET("/logs/:id", app.getAuditLogHandler)
-					audit.GET("/stats", app.getAuditStatsHandler)
-					audit.GET("/export", app.exportAuditLogsHandler)
-				}
-
-				// AI configuration routes
-				aiConfigs := system.Group("/ai-configs")
-				{
-					aiConfigs.GET("", app.aiConfigHandler.GetAllConfigs)
-					aiConfigs.POST("", app.aiConfigHandler.CreateConfig)
-					aiConfigs.GET("/:provider", app.aiConfigHandler.GetConfig)
-					aiConfigs.PUT("/:provider", app.aiConfigHandler.UpdateConfig)
-					aiConfigs.DELETE("/:provider", app.aiConfigHandler.DeleteConfig)
-					aiConfigs.POST("/test", app.aiConfigHandler.TestConnection)
-					aiConfigs.POST("/generate", app.aiConfigHandler.GenerateCompletion) // 新增：AI生成端点
-					aiConfigs.PATCH("/:provider/toggle", app.aiConfigHandler.ToggleConfig)
-					aiConfigs.GET("/enabled", app.aiConfigHandler.GetEnabledConfig)
-					aiConfigs.GET("/stats", app.aiConfigHandler.GetConfigStats)
-					// 暂时保留未实现的路由
-					aiConfigs.POST("/batch", app.batchUpdateAIConfigsHandler)
-					aiConfigs.GET("/export", app.exportAIConfigsHandler)
-				}
-
-				// AI task generation routes
-				aiTasks := system.Group("/ai-tasks")
-				{
-					aiTasks.POST("/generate", app.aiTaskGeneratorHandler.GenerateTasks)
-					aiTasks.POST("/validate", app.aiTaskGeneratorHandler.ValidateTasks)
-					aiTasks.POST("/optimize", app.aiTaskGeneratorHandler.OptimizeTasks)
-					aiTasks.GET("/models/status", app.aiTaskGeneratorHandler.GetModelStatus)
-					aiTasks.GET("/history", app.aiTaskGeneratorHandler.GetGenerationHistory)
-					aiTasks.POST("/usage/stats", app.aiTaskGeneratorHandler.GetUsageStats)
-					aiTasks.GET("/templates/popular", app.aiTaskGeneratorHandler.GetPopularTemplates)
-					
-					// Cost tracking and budget management routes
-					aiTasks.GET("/cost/summary", app.aiTaskGeneratorHandler.GetCostSummary)
-					aiTasks.GET("/budget/status", app.aiTaskGeneratorHandler.CheckBudgetStatus)
-					aiTasks.POST("/budget/limit", app.aiTaskGeneratorHandler.SetBudgetLimit)
-					aiTasks.GET("/budget/alerts", app.aiTaskGeneratorHandler.GetBudgetAlerts)
-					
-					// Template management routes
-					aiTasks.POST("/templates", app.aiTaskGeneratorHandler.CreateTemplate)
-					aiTasks.GET("/templates", app.aiTaskGeneratorHandler.GetTemplates)
-					aiTasks.GET("/templates/:id", app.aiTaskGeneratorHandler.GetTemplate)
-					aiTasks.POST("/templates/generate", app.aiTaskGeneratorHandler.GenerateFromTemplate)
-					
-					// Batch optimization routes
-					aiTasks.POST("/batch/optimize", app.aiTaskGeneratorHandler.BatchOptimizeTasks)
-				}
-
-				// API Key management routes (system users only)
-				apiKeys := system.Group("/api-keys")
-				{
-					apiKeys.GET("", app.apiKeyHandler.ListAPIKeys)
-					apiKeys.POST("", app.apiKeyHandler.CreateAPIKey)
-					apiKeys.GET("/active", app.apiKeyHandler.GetActiveAPIKeys)
-					apiKeys.GET("/:id", app.apiKeyHandler.GetAPIKey)
-					apiKeys.PUT("/:id", app.apiKeyHandler.UpdateAPIKey)
-					apiKeys.DELETE("/:id", app.apiKeyHandler.DeleteAPIKey)
-					apiKeys.GET("/:id/stats", app.apiKeyHandler.GetAPIKeyUsageStats)
-					apiKeys.POST("/:id/rotate", app.apiKeyHandler.RotateAPIKey)
-					apiKeys.POST("/validate", app.apiKeyHandler.ValidateAPIKey)
-					apiKeys.POST("/verify-permission", app.apiKeyHandler.VerifyPermission)
-				}
-
-			}
-
-			// User management routes
-			users := authorized.Group("/users")
-			{
-				users.GET("/profile", app.getUserProfileHandler) // No permission needed for own profile
-				users.PUT("/profile", app.updateUserProfileHandler) // No permission needed for own profile
-				users.PUT("/password", app.changePasswordHandler) // No permission needed for own password
-				
-				// Google日历集成管理
-				users.GET("/google-connection", app.googleAuthHandler.GetGoogleConnectionStatus)
-				users.DELETE("/google-connection", app.googleAuthHandler.DisconnectGoogle)
-			}
-
-			// Customer management routes (deprecated, use companies instead)
-			customers := authorized.Group("/customers")
-			{
-				customers.GET("", app.customerHandler.GetCustomers)
-				customers.POST("", app.customerHandler.CreateCustomer)
-				customers.GET("/stats", app.customerHandler.GetCustomerStats)
-				customers.GET("/:id", app.customerHandler.GetCustomer)
-				customers.PUT("/:id", app.customerHandler.UpdateCustomer)
-				customers.DELETE("/:id", app.customerHandler.DeleteCustomer)
-
-				// Customer user association routes
-				customers.POST("/:id/users", app.customerHandler.AddCustomerUser)
-				customers.DELETE("/:id/users/:userId", app.customerHandler.RemoveCustomerUser)
-
-				// Customer contact routes
-				customers.GET("/:id/contacts", app.customerHandler.GetCustomerContacts)
-				customers.POST("/:id/contacts", app.customerHandler.CreateContact)
-			}
-
-			// Company management routes (new enterprise customer model)
-			companies := authorized.Group("/companies")
-			{
-				companies.GET("", app.companyHandler.GetCompanies)
-				companies.POST("", app.companyHandler.CreateCompany)
-				companies.GET("/stats", app.companyHandler.GetCompanyStats)
-				companies.GET("/:id", app.companyHandler.GetCompany)
-				companies.PUT("/:id", app.companyHandler.UpdateCompany)
-				companies.DELETE("/:id", app.companyHandler.DeleteCompany)
-
-				// Company user management routes
-				companies.GET("/:id/users", app.companyHandler.GetCompanyUsers)
-				companies.POST("/:id/users", app.companyHandler.CreateCompanyUser)
-				companies.GET("/:id/users/:userId", app.companyHandler.GetCompanyUser)
-				companies.PUT("/:id/users/:userId", app.companyHandler.UpdateCompanyUser)
-				companies.DELETE("/:id/users/:userId", app.companyHandler.DeleteCompanyUser)
-				
-				// Company user role and permission management routes
-				companies.POST("/:id/users/:userId/role", app.companyHandler.AssignUserRole)
-				companies.GET("/:id/users/:userId/permissions", app.companyHandler.GetUserPermissions)
-				companies.PUT("/:id/users/:userId/permissions", app.companyHandler.UpdateUserPermissions)
-
-				// Company contact routes
-				companies.GET("/:id/contacts", app.companyHandler.GetCompanyContacts)
-				companies.POST("/:id/contacts", app.companyHandler.CreateCompanyContact)
-			}
-
-			// 数据库版文档管理路由 - 已删除，只保留文档管理器功能
-			
-			// Document CRUD routes (direct access by document ID)
-			authorized.GET("/documents", app.hybridDocumentHandler.GetDocuments)
-			authorized.POST("/documents", app.hybridDocumentHandler.CreateDocument)
-			authorized.GET("/documents/:id", app.hybridDocumentHandler.GetDocument)
-			authorized.PUT("/documents/:id", app.hybridDocumentHandler.UpdateDocument)
-			authorized.DELETE("/documents/:id", app.hybridDocumentHandler.DeleteDocument)
-			authorized.POST("/documents/:id/copy", app.hybridDocumentHandler.CopyDocument)
-			authorized.POST("/documents/:id/toggle-template", app.hybridDocumentHandler.ToggleTemplate)
-			
-			// Document metadata APIs for frontend dropdowns
-			authorized.GET("/document-metadata/projects", app.getDocumentProjectsHandler)
-			authorized.GET("/document-metadata/customers", app.getDocumentCustomersHandler)
-			authorized.GET("/document-metadata/categories", app.getDocumentCategoriesHandler)
-
-			// 数据库版文档文件夹路由
-			documentFolders := authorized.Group("/document-folders")
-			{
-				documentFolders.POST("", app.hybridDocumentFolderHandler.CreateFolder)
-				documentFolders.GET("", app.hybridDocumentFolderHandler.ListFolders)
-				documentFolders.GET("/tree", app.hybridDocumentFolderHandler.GetFolderTree)
-				documentFolders.GET("/:id", app.hybridDocumentFolderHandler.GetFolder)
-				documentFolders.PUT("/:id", app.hybridDocumentFolderHandler.UpdateFolder)
-				documentFolders.DELETE("/:id", app.hybridDocumentFolderHandler.DeleteFolder)
-				documentFolders.POST("/:id/move", app.hybridDocumentFolderHandler.MoveFolder)
-				documentFolders.POST("/batch-update", app.hybridDocumentFolderHandler.BatchUpdateFolders)
-				// 获取文件夹下的文档
-				documentFolders.GET("/:id/documents", app.simpleDocumentHandler.GetFolderDocuments)
-			}
-
-			// 简单文档管理路由 (工作笔记)
-			workNotes := authorized.Group("/work-notes")
-			{
-				workNotes.POST("", app.simpleDocumentHandler.CreateDocument)
-				workNotes.GET("", app.simpleDocumentHandler.GetDocuments)
-				workNotes.GET("/search", app.simpleDocumentHandler.SearchDocuments)
-				workNotes.GET("/:id", app.simpleDocumentHandler.GetDocument)
-				workNotes.PUT("/:id", app.simpleDocumentHandler.UpdateDocument)
-				workNotes.DELETE("/:id", app.simpleDocumentHandler.DeleteDocument)
-				workNotes.POST("/:id/copy", app.simpleDocumentHandler.CopyDocument)
-				workNotes.POST("/:id/toggle-template", app.simpleDocumentHandler.ToggleTemplate)
-			}
-			
-			// 文档注册表路由 (基于文件系统的文档管理) - Disabled due to conflicting models
-			// documentRegistry := authorized.Group("/document-registry")
-			// {
-			//	// 文档CRUD操作
-			//	documentRegistry.POST("", app.documentRegistryHandler.CreateDocument)
-			//	documentRegistry.GET("", app.documentRegistryHandler.ListDocuments)
-			//	documentRegistry.GET("/search", app.documentRegistryHandler.SearchDocuments)
-			//	documentRegistry.GET("/by-path", app.documentRegistryHandler.GetDocumentByPath)
-			//	documentRegistry.GET("/:id", app.documentRegistryHandler.GetDocument)
-			//	documentRegistry.PUT("/:id", app.documentRegistryHandler.UpdateDocument)
-			//	documentRegistry.DELETE("/:id", app.documentRegistryHandler.DeleteDocument)
-			//	
-			//	// 分类和统计
-			//	documentRegistry.GET("/category/:category", app.documentRegistryHandler.GetDocumentsByCategory)
-			//	documentRegistry.GET("/statistics", app.documentRegistryHandler.GetDocumentStatistics)
-			//	documentRegistry.GET("/recent", app.documentRegistryHandler.GetRecentDocuments)
-			//	
-			//	// 文档-任务关联
-			//	documentRegistry.POST("/associations", app.documentRegistryHandler.CreateDocumentTaskAssociation)
-			//	documentRegistry.GET("/tasks/:task_id/documents", app.documentRegistryHandler.GetTaskDocuments)
-			//	documentRegistry.GET("/:document_id/tasks", app.documentRegistryHandler.GetDocumentTasks)
-			//	documentRegistry.DELETE("/:document_id/tasks/:task_id", app.documentRegistryHandler.DeleteDocumentTaskAssociation)
-			//	
-			//	// 高级功能
-			//	documentRegistry.POST("/scan", app.documentRegistryHandler.ScanDocumentsDirectory)
-			//	documentRegistry.POST("/:id/refresh", app.documentRegistryHandler.RefreshDocumentContent)
-			//	documentRegistry.POST("/batch-associate", app.documentRegistryHandler.BatchAssociateDocuments)
-			//	documentRegistry.POST("/tasks/:task_id/auto-associate", app.documentRegistryHandler.AutoAssociateTaskDocuments)
-			//	documentRegistry.GET("/:document_id/suggest-associations", app.documentRegistryHandler.SuggestDocumentAssociations)
-			// }
-
-			// Document Relation routes
-			// documentRelations := authorized.Group("/document-relations") // 临时注释，避免编译错误
-			{
-				// Create relations
-// 				documentRelations.POST("/customer", app.documentRelationHandler.CreateCustomerRelation) // 临时注释，避免编译错误
-// 				documentRelations.POST("/project", app.documentRelationHandler.CreateProjectRelation) // 临时注释，避免编译错误
-// 				documentRelations.POST("/task", app.documentRelationHandler.CreateTaskRelation) // 临时注释，避免编译错误
-				
-				// Get relations
-// 				documentRelations.GET("/document/:documentId", app.documentRelationHandler.GetDocumentRelations) // 临时注释，避免编译错误
-// 				documentRelations.GET("/:entityType/:entityId", app.documentRelationHandler.GetEntityRelations) // 临时注释，避免编译错误
-				
-				// Update relations
-// 				documentRelations.PUT("/customer/:id", app.documentRelationHandler.UpdateCustomerRelation) // 临时注释，避免编译错误
-// 				documentRelations.PUT("/project/:id", app.documentRelationHandler.UpdateProjectRelation) // 临时注释，避免编译错误
-// 				documentRelations.PUT("/task/:id", app.documentRelationHandler.UpdateTaskRelation) // 临时注释，避免编译错误
-				
-				// Delete relations 
-// 				documentRelations.DELETE("/:entityType/:id", app.documentRelationHandler.DeleteRelation) // 临时注释，避免编译错误
-				
-				// Statistics and bulk operations
-// 				documentRelations.GET("/stats", app.documentRelationHandler.GetRelationStats) // 临时注释，避免编译错误
-// 				documentRelations.POST("/bulk", app.documentRelationHandler.BulkCreateRelations) // 临时注释，避免编译错误
-			}
-
-			// Document Version Management routes
-			// Document Versions
-// 			authorized.POST("/document-versions", app.documentVersionHandler.CreateVersion) // 临时注释，避免编译错误
-// 			authorized.GET("/document-versions/:id", app.documentVersionHandler.GetVersion) // 临时注释，避免编译错误
-// 			authorized.PUT("/document-versions/:id", app.documentVersionHandler.UpdateVersion) // 临时注释，避免编译错误
-// 			authorized.DELETE("/document-versions/:id", app.documentVersionHandler.DeleteVersion) // 临时注释，避免编译错误
-// 			authorized.POST("/document-versions/compare", app.documentVersionHandler.CompareVersions) // 临时注释，避免编译错误
-			
-			// Document version by document and version number
-// 			authorized.GET("/documents/:document_id/versions", app.documentVersionHandler.GetVersionHistory) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/versions/:version_number", app.documentVersionHandler.GetVersionByNumber) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/version-history", app.documentVersionHandler.GetFullVersionHistory) // 临时注释，避免编译错误
-// 			authorized.POST("/documents/:document_id/restore", app.documentVersionHandler.RestoreVersion) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/version-stats", app.documentVersionHandler.GetVersionStats) // 临时注释，避免编译错误
-
-			// Version Labels
-// 			authorized.POST("/document-version-labels", app.documentVersionLabelHandler.CreateLabel) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/versions/:version_number/labels", app.documentVersionLabelHandler.GetVersionLabels) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/labels", app.documentVersionLabelHandler.GetDocumentLabels) // 临时注释，避免编译错误
-// 			authorized.PUT("/document-version-labels/:id", app.documentVersionLabelHandler.UpdateLabel) // 临时注释，避免编译错误
-// 			authorized.DELETE("/document-version-labels/:id", app.documentVersionLabelHandler.DeleteLabel) // 临时注释，避免编译错误
-// 			authorized.GET("/document-version-labels/by-color/:color", app.documentVersionLabelHandler.GetLabelsByColor) // 临时注释，避免编译错误
-// 			authorized.GET("/document-version-labels/search", app.documentVersionLabelHandler.SearchLabels) // 临时注释，避免编译错误
-
-			// Version Comments
-// 			authorized.POST("/document-version-comments", app.documentVersionCommentHandler.CreateComment) // 临时注释，避免编译错误
-// 			authorized.GET("/document-version-comments/:id", app.documentVersionCommentHandler.GetComment) // 临时注释，避免编译错误
-// 			authorized.PUT("/document-version-comments/:id", app.documentVersionCommentHandler.UpdateComment) // 临时注释，避免编译错误
-// 			authorized.DELETE("/document-version-comments/:id", app.documentVersionCommentHandler.DeleteComment) // 临时注释，避免编译错误
-// 			authorized.PATCH("/document-version-comments/:id/resolve", app.documentVersionCommentHandler.ResolveComment) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/versions/:version_number/comments", app.documentVersionCommentHandler.GetVersionComments) // 临时注释，避免编译错误
-// 			authorized.GET("/documents/:document_id/comments", app.documentVersionCommentHandler.GetDocumentComments) // 临时注释，避免编译错误
-// 			authorized.GET("/document-version-comments/:id/replies", app.documentVersionCommentHandler.GetCommentReplies) // 临时注释，避免编译错误
-
-			// Timer routes (Phase 4: Legacy - kept for backward compatibility)
-			// NOTE: These routes use the old TimerHandler and will be deprecated in Phase 5
-			timer := authorized.Group("/timer")
-			{
-				timer.POST("/start", app.timerHandler.StartTimer)         // Legacy project timer
-				timer.POST("/stop", app.timerHandler.StopTimer)           // Legacy project timer  
-				timer.GET("/current", app.timerHandler.GetCurrentTimer)   // Legacy project timer
-				timer.GET("/stats", app.timerHandler.GetTimerStats)       // Legacy statistics
-				timer.GET("/recent-tasks", app.timerHandler.GetTimerRecentTasks) // Legacy data
-				timer.GET("/weekly", app.timerHandler.GetWeeklyReport)    // Legacy reports
-			}
-
-			// Personal Timer routes (Timer 2.0)
-			user := authorized.Group("/user")
-			{
-				// Personal timer task management
-				timerTasks := user.Group("/timer-tasks")
-				{
-					timerTasks.POST("", app.userTimerHandler.CreateUserTimerTask)
-					timerTasks.GET("", app.userTimerHandler.GetUserTimerTasks)
-					timerTasks.GET("/:id", app.userTimerHandler.GetUserTimerTask)
-					timerTasks.PUT("/:id", app.userTimerHandler.UpdateUserTimerTask)
-					timerTasks.DELETE("/:id", app.userTimerHandler.DeleteUserTimerTask)
-					timerTasks.POST("/:id/favorite", app.userTimerHandler.ToggleFavoriteUserTimerTask)
-					
-					// 个人任务文档管理API
-					timerTasks.GET("/:id/document", app.taskDocumentFileHandler.GetPersonalTaskDocument)
-					timerTasks.PUT("/:id/document", app.taskDocumentFileHandler.UpdatePersonalTaskDocument)
-				}
-
-				// Personal timer operations
-				personalTimer := user.Group("/timer")
-				{
-					// 🆕 Unified Timer API (Phase 4: Primary Architecture)
-					personalTimer.POST("/start", app.unifiedTimerHandler.StartTimer)
-					personalTimer.POST("/pause", app.unifiedTimerHandler.PauseTimer)   // Phase 3: Implemented
-					personalTimer.POST("/resume", app.unifiedTimerHandler.ResumeTimer) // Phase 3: Implemented
-					personalTimer.POST("/stop", app.unifiedTimerHandler.StopTimer)     // Phase 2: Unified implementation
-					personalTimer.GET("/current", app.unifiedTimerHandler.GetCurrentTimer) // Phase 2: Unified implementation
-					personalTimer.GET("/health", app.unifiedTimerHandler.HealthCheck)
-					
-					// 🔄 Legacy compatibility endpoints (Phase 4: Redirect to unified)
-					personalTimer.POST("/start-personal", app.unifiedTimerHandler.StartTimer)
-					personalTimer.POST("/start-project", app.unifiedTimerHandler.StartTimer)
-					
-					// 📊 Statistics and analytics (existing UserTimerHandler)
-					personalTimer.GET("/dashboard", app.userTimerHandler.GetUserTimerDashboard)
-					personalTimer.GET("/stats", app.userTimerHandler.GetUserTimerStats)
-					personalTimer.GET("/history", app.userTimerHandler.GetUserTimerHistory)
-					personalTimer.GET("/analytics", app.userTimerHandler.GetUserTimerAnalytics)
-				}
-			}
-
-			// Permission management routes (system users with appropriate roles)
-			permissions := authorized.Group("/permissions")
-			// Most permission operations require system user access
-			permissions.Use(middleware.SystemUserOnlyMiddleware())
-			{
-				// Role management (require admin permissions)
-				permissions.GET("/roles", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetRoles)
-				permissions.POST("/roles", middleware.AdminOnlyMiddleware(), app.permissionHandler.CreateRole)
-				permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.UpdateRole)
-				permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.DeleteRole)
-				
-				// Role permissions
-				permissions.GET("/roles/:id/permissions", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetRolePermissions)
-				permissions.POST("/roles/:id/permissions", middleware.AdminOnlyMiddleware(), app.permissionHandler.SetRolePermissions)
-				
-				// Permissions (read-only for most users)
-				permissions.GET("", app.permissionHandler.GetPermissions) // Basic read access for UI
-				
-				// User permissions (admin and project managers can view, admin can update)
-				permissions.GET("/users/:id", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetUserPermissions)
-				permissions.PUT("/users/:id", middleware.AdminOnlyMiddleware(), app.permissionHandler.UpdateUserPermissions)
-				
-				// Permission checking (any authenticated user can check own permissions)
-				permissions.POST("/check", app.permissionHandler.CheckUserPermission)
-				
-				// Audit logs (admin only)
-				permissions.GET("/audit-logs", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetPermissionAuditLogs)
-				
-				// Permission inheritance and override management (admin only)
-				permissions.GET("/users/:id/trace", middleware.AdminOnlyMiddleware(), app.permissionHandler.GetPermissionTrace)
-				permissions.POST("/users/:id/overrides", middleware.AdminOnlyMiddleware(), app.permissionHandler.SetPermissionOverride)
-				permissions.GET("/users/:id/overrides", middleware.RoleBasedAccessMiddleware("admin", "project_manager"), app.permissionHandler.GetPermissionOverrides)
-				permissions.DELETE("/users/:id/overrides/:permissionCode", middleware.AdminOnlyMiddleware(), app.permissionHandler.RemovePermissionOverride)
-				permissions.GET("/users/:id/conflicts", middleware.AdminOnlyMiddleware(), app.permissionHandler.AnalyzePermissionConflicts)
-			}
-
-			// Admin user management routes (admin only - system users with admin role)
-			admin := authorized.Group("/admin")
-			// Apply system user only middleware and admin role restriction
-			admin.Use(middleware.SystemUserOnlyMiddleware())
-			admin.Use(middleware.AdminOnlyMiddleware())
-			{
-				// User management (admin only)
-				adminUsers := admin.Group("/users")
-				// Additional role-based access control for user management operations
-				adminUsers.Use(middleware.RoleBasedAccessMiddleware("admin"))
-				{
-					adminUsers.GET("", app.userManagementHandler.GetUserList)
-					adminUsers.POST("", app.userManagementHandler.CreateUser)
-					adminUsers.GET("/stats", app.userManagementHandler.GetUserStats)
-					adminUsers.GET("/export", app.userManagementHandler.ExportUsers)
-					adminUsers.POST("/batch", app.userManagementHandler.BatchUpdateUsers)
-					adminUsers.GET("/:id", app.userManagementHandler.GetUser)
-					adminUsers.PUT("/:id", app.userManagementHandler.UpdateUser)
-					adminUsers.DELETE("/:id", app.userManagementHandler.DeleteUser)
-					adminUsers.POST("/:id/reset-password", app.userManagementHandler.ResetUserPassword)
-					adminUsers.PUT("/:id/status", app.userManagementHandler.UpdateUserStatus)
-				}
-
-				// Company user management (admin only)
-				companyUsers := admin.Group("/company-users")
-				companyUsers.Use(middleware.RoleBasedAccessMiddleware("admin"))
-				{
-					companyUsers.GET("", app.companyUserHandler.GetCompanyUserList)
-					companyUsers.POST("", app.companyUserHandler.CreateCompanyUser)
-					companyUsers.GET("/stats", app.companyUserHandler.GetCompanyUserStats)
-					companyUsers.POST("/batch", app.companyUserHandler.BatchUpdateCompanyUsers)
-					companyUsers.GET("/:id", app.companyUserHandler.GetCompanyUser)
-					companyUsers.PUT("/:id", app.companyUserHandler.UpdateCompanyUser)
-					companyUsers.PUT("/:id/status", app.companyUserHandler.UpdateCompanyUserStatus)
-					companyUsers.DELETE("/:id", app.companyUserHandler.DeleteCompanyUser)
-				}
-
-				// Calendar sync management (admin only)
-				calendarSyncAdmin := admin.Group("/calendar-sync")
-				calendarSyncAdmin.Use(middleware.RoleBasedAccessMiddleware("admin"))
-				{
-					calendarSyncAdmin.POST("/process-queue", app.calendarSyncHandler.ProcessSyncQueue)
-					calendarSyncAdmin.GET("/queue-status", app.calendarSyncHandler.GetSyncQueueStatus)
-				}
-			}
-		}
-		
-		// 全局模板管理路由
-		templates := authorized.Group("/templates")
-		{
-			templates.GET("", app.smartTemplateHandler.GetTemplates)
-			templates.POST("", app.smartTemplateHandler.CreateTemplate)
-			templates.GET("/stats", app.smartTemplateHandler.GetTemplateStats)
-			templates.GET("/:id", app.smartTemplateHandler.GetTemplateByID)
-			templates.POST("/:id/generate", app.smartTemplateHandler.GenerateFromTemplate)
-		}
-		
-		// 全局文档协作路由
-		collaboration := authorized.Group("/collaboration")
-		{
-			collaboration.GET("/dashboard", app.collaborationHandler.GetUserCollaborationDashboard)
-		}
-		
-		// 评论管理路由
-		comments := authorized.Group("/comments")
-		{
-			comments.PUT("/:id", app.collaborationHandler.UpdateComment)
-			comments.DELETE("/:id", app.collaborationHandler.DeleteComment)
-			comments.PATCH("/:id/resolve", app.collaborationHandler.ResolveComment)
-		}
-		
-		// 任务文档管理路由 - 暂时注释，保持MVP简洁
-		// taskDocuments := authorized.Group("/task-documents")
-		// {
-		//     // 归档复杂的任务文档列表功能
-		//     // taskDocuments.GET("", app.unifiedTaskDocumentHandler.GetTaskDocumentList)
-		//     // taskDocuments.GET("/stats", app.unifiedTaskDocumentHandler.GetTaskDocumentStats)
-		// }
-		
-		// 迁移管理路由已移至上面的system组中
-	}
-
-
-	return router
-}
 
 // corsMiddleware adds CORS headers
 func (app *Application) corsMiddleware() gin.HandlerFunc {
@@ -1021,6 +320,49 @@ func (app *Application) corsMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// Exported getters to align with routes.ApplicationInterface
+func (app *Application) GetHealthHandler() gin.HandlerFunc { return app.healthHandler }
+func (app *Application) GetVersionHandler() gin.HandlerFunc { return app.versionHandler }
+func (app *Application) GetLoginHandler() gin.HandlerFunc { return app.loginHandler }
+func (app *Application) GetLogoutHandler() gin.HandlerFunc { return app.logoutHandler }
+func (app *Application) GetAllTasksHandler() gin.HandlerFunc { return app.getAllTasksHandler }
+func (app *Application) GetTasksHandler() gin.HandlerFunc { return app.getTasksHandler }
+func (app *Application) GetTaskHandler() gin.HandlerFunc { return app.getTaskHandler }
+func (app *Application) CreateTaskHandler() gin.HandlerFunc { return app.createTaskHandler }
+func (app *Application) UpdateTaskHandler() gin.HandlerFunc { return app.updateTaskHandler }
+func (app *Application) DeleteTaskHandler() gin.HandlerFunc { return app.deleteTaskHandler }
+func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc { return app.bulkDeleteTasksHandler() }
+func (app *Application) BatchValidateTasksPreviewHandler() gin.HandlerFunc { return app.batchValidateTasksPreviewHandler() }
+func (app *Application) GetTaskTreeHandler() gin.HandlerFunc { return app.getTaskTreeHandler }
+func (app *Application) GetRootTasksHandler() gin.HandlerFunc { return app.getRootTasksHandler }
+func (app *Application) SearchParentTasksHandler() gin.HandlerFunc { return app.searchParentTasksHandler }
+func (app *Application) BulkImportTasksHandler() gin.HandlerFunc { return app.bulkImportTasksHandler }
+func (app *Application) GetTaskChildrenHandler() gin.HandlerFunc { return app.getTaskChildrenHandler }
+func (app *Application) GetTaskUpdatesHandler() gin.HandlerFunc { return app.getTaskUpdatesHandler }
+func (app *Application) UpdateTaskUpdateHandler() gin.HandlerFunc { return app.updateTaskUpdateHandler }
+func (app *Application) DeleteTaskUpdateHandler() gin.HandlerFunc { return app.deleteTaskUpdateHandler }
+func (app *Application) GetTaskTimelineHandler() gin.HandlerFunc { return app.getTaskTimelineHandler }
+func (app *Application) GetProjectsHandler() gin.HandlerFunc { return app.getProjectsHandler }
+func (app *Application) CreateProjectHandler() gin.HandlerFunc { return app.createProjectHandler }
+func (app *Application) GetProjectHandler() gin.HandlerFunc { return app.getProjectHandler }
+func (app *Application) UpdateProjectHandler() gin.HandlerFunc { return app.updateProjectHandler }
+func (app *Application) DeleteProjectHandler() gin.HandlerFunc { return app.deleteProjectHandler }
+func (app *Application) GetProjectStatsHandler() gin.HandlerFunc { return app.getProjectStatsHandler }
+func (app *Application) FileDownloadHandler() gin.HandlerFunc { return app.fileDownloadHandler }
+func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc { return app.getDocumentProjectsHandler }
+func (app *Application) GetDocumentCustomersHandler() gin.HandlerFunc { return app.getDocumentCustomersHandler }
+func (app *Application) GetDocumentCategoriesHandler() gin.HandlerFunc { return app.getDocumentCategoriesHandler }
+func (app *Application) MapUserToCompanyUser() gin.HandlerFunc { return app.mapUserToCompanyUser() }
+func (app *Application) GetTodayTasksHandler() gin.HandlerFunc { return app.getTodayTasksHandler }
+func (app *Application) GetTodayTasksStatsHandler() gin.HandlerFunc { return app.getTodayTasksStatsHandler }
+func (app *Application) BulkOperationTodayTasksHandler() gin.HandlerFunc { return app.bulkOperationTodayTasksHandler }
+func (app *Application) MarkTodayTaskCompletedHandler() gin.HandlerFunc { return app.markTodayTaskCompletedHandler }
+func (app *Application) PostponeTodayTaskHandler() gin.HandlerFunc { return app.postponeTodayTaskHandler }
+func (app *Application) ValidateParentHandler() gin.HandlerFunc { return app.validateParentHandler }
+// Dev login helpers (development only)
+func (app *Application) GetDevAccountsHandler() gin.HandlerFunc { return app.getDevAccountsHandler }
+func (app *Application) DevQuickLoginHandler() gin.HandlerFunc { return app.devQuickLoginHandler }
 
 // Health check handler
 func (app *Application) healthHandler(c *gin.Context) {
@@ -1060,6 +402,244 @@ func (app *Application) versionHandler(c *gin.Context) {
 
 	response := models.NewSuccessResponse(data, "Version information")
 	c.JSON(http.StatusOK, response)
+}
+
+// Handler getter methods for ApplicationInterface
+func (app *Application) GetAIConfigHandler() *handlers.AIConfigHandler {
+	return app.aiConfigHandler
+}
+
+func (app *Application) GetAITaskGeneratorHandler() *handlers.AITaskGeneratorHandler {
+	return app.aiTaskGeneratorHandler
+}
+
+func (app *Application) GetDashboardHandler() *handlers.DashboardHandler {
+	return app.dashboardHandler
+}
+
+func (app *Application) GetTaskAnalysisHandler() *handlers.TaskAnalysisHandler {
+	return app.taskAnalysisHandler
+}
+
+func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
+	return app.apiKeyHandler
+}
+
+// ApplicationInterface basic getter methods
+func (app *Application) GetConfig() *config.Config {
+	return app.config
+}
+
+func (app *Application) GetDB() database.DB {
+	return app.db
+}
+
+func (app *Application) GetJWTManager() *utils.JWTManager {
+	return app.jwtManager
+}
+
+func (app *Application) GetStatisticsHandler() *handlers.StatisticsHandlers {
+	return app.statisticsHandler
+}
+
+func (app *Application) GetAuditHandler() *handlers.AuditHandler {
+	return app.auditHandler
+}
+
+func (app *Application) GetSmartTemplateHandler() *handlers.SmartTemplateHandler {
+	return app.smartTemplateHandler
+}
+
+func (app *Application) GetCollaborationHandler() *handlers.DocumentCollaborationHandler {
+	return app.collaborationHandler
+}
+
+func (app *Application) GetArchiveHandler() *handlers.ArchiveHandler {
+	return app.archiveHandler
+}
+
+// 各模块处理器 getter methods
+func (app *Application) GetCustomerHandler() *handlers.CustomerHandler {
+	return app.customerHandler
+}
+
+func (app *Application) GetCompanyHandler() *handlers.CompanyHandler {
+	return app.companyHandler
+}
+
+func (app *Application) GetPermissionHandler() *handlers.PermissionHandler {
+	return app.permissionHandler
+}
+
+func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
+	return app.userManagementHandler
+}
+
+func (app *Application) GetCompanyUserHandler() *handlers.CompanyUserHandler {
+	return app.companyUserHandler
+}
+
+// 文档管理处理器 getter methods
+func (app *Application) GetHybridDocumentHandler() *handlers.HybridDocumentHandler {
+	return app.hybridDocumentHandler
+}
+
+func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
+	return app.hybridDocumentFolderHandler
+}
+
+func (app *Application) GetSimpleDocumentHandler() *handlers.SimpleDocumentHandler {
+	return app.simpleDocumentHandler
+}
+
+func (app *Application) GetUnifiedDocumentHandler() *handlers.UnifiedDocumentHandler {
+	return app.unifiedDocumentHandler
+}
+
+// 计时器处理器 getter methods
+func (app *Application) GetTimerHandler() *handlers.TimerHandler {
+	return app.timerHandler
+}
+
+func (app *Application) GetUserTimerHandler() *handlers.UserTimerHandler {
+	return app.userTimerHandler
+}
+
+func (app *Application) GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler {
+	return app.unifiedTimerHandler
+}
+
+// 其他处理器 getter methods
+func (app *Application) GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler {
+	return app.taskDocumentFileHandler
+}
+
+func (app *Application) GetGoogleAuthHandler() *handlers.GoogleAuthHandler {
+	return app.googleAuthHandler
+}
+
+func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
+	return app.calendarSyncHandler
+}
+
+// Audit log handler methods
+func (app *Application) GetAuditLogHandler() gin.HandlerFunc {
+	return app.getAuditLogHandler
+}
+
+func (app *Application) GetAuditLogsHandler() gin.HandlerFunc {
+	return app.getAuditLogsHandler
+}
+
+func (app *Application) GetAuditStatsHandler() gin.HandlerFunc {
+	return app.getAuditStatsHandler
+}
+
+// Recycle bin handler methods
+func (app *Application) GetRecycledProjectsHandler() gin.HandlerFunc {
+	return app.getRecycledProjectsHandler
+}
+
+func (app *Application) GetRecycledTasksHandler() gin.HandlerFunc {
+	return app.getRecycledTasksHandler
+}
+
+func (app *Application) GetRecycledDocumentsHandler() gin.HandlerFunc {
+	// TODO: Implement getRecycledDocumentsHandler method
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "getRecycledDocumentsHandler not implemented"})
+	}
+}
+
+func (app *Application) RestoreProjectHandler() gin.HandlerFunc {
+	return app.restoreProjectHandler
+}
+
+func (app *Application) RestoreTaskHandler() gin.HandlerFunc {
+	return app.restoreTaskHandler
+}
+
+func (app *Application) RestoreDocumentHandler() gin.HandlerFunc {
+	// TODO: Implement restoreDocumentHandler method
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "restoreDocumentHandler not implemented"})
+	}
+}
+
+// Development-only: return preset dev accounts to show on login page
+func (app *Application) getDevAccountsHandler(c *gin.Context) {
+	if !app.config.IsDevelopment() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "dev endpoints are only available in development"})
+		return
+	}
+	accounts := []map[string]string{
+		{"username": "admin", "role": "admin"},
+		{"username": "qiudl", "role": "developer"},
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"message":  "Development accounts",
+		"accounts": accounts,
+		"hint":     "本机开发环境可使用“快速登录”按钮免密登录，或使用任意密码尝试标准登录（如已预置）",
+	})
+}
+
+// Development-only quick login: use existing user to issue JWT (no DB writes)
+func (app *Application) devQuickLoginHandler(c *gin.Context) {
+	app.logger.Printf("devQuickLoginHandler: invoked")
+	if !app.config.IsDevelopment() {
+		c.JSON(http.StatusForbidden, gin.H{"error": "dev endpoints are only available in development"})
+		return
+	}
+	var req struct{ Username string `json:"username" binding:"required"` }
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username is required"})
+		return
+	}
+	uname := strings.ToLower(strings.TrimSpace(req.Username))
+	if uname != "admin" && uname != "qiudl" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "username must be one of: admin, qiudl"})
+		return
+	}
+	// Fetch existing user
+user, err := app.db.Users().GetByUsername(c.Request.Context(), uname)
+	if err != nil {
+		app.logger.Printf("devQuickLoginHandler: repo lookup failed for %s: %v", uname, err)
+		// Fallback: direct SQL by username (schema-flexible)
+		db := app.db.GetDB().(*sql.DB)
+		var (
+			id int
+			username, role, userType sql.NullString
+		)
+		err2 := db.QueryRowContext(
+			c.Request.Context(),
+			"SELECT id, username, COALESCE(role, 'developer') as role, COALESCE(user_type, 'system') as user_type FROM users WHERE LOWER(username)=LOWER($1) LIMIT 1",
+			uname,
+		).Scan(&id, &username, &role, &userType)
+if err2 != nil {
+			app.logger.Printf("devQuickLoginHandler: direct SQL lookup failed for %s on %s:%s/%s: %v",
+				uname, app.config.Database.Host, app.config.Database.Port, app.config.Database.Name, err2,
+			)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error":   "dev user not found in current database",
+				"details": gin.H{
+					"db_host": app.config.Database.Host,
+					"db_port": app.config.Database.Port,
+					"db_name": app.config.Database.Name,
+					"username": uname,
+				},
+			})
+			return
+		}
+		user = &models.User{ID: id, Username: username.String, Role: role.String, UserType: userType.String}
+	}
+	// Generate JWT with DB user info
+	token, err := app.jwtManager.GenerateToken(user.ID, user.Username, user.Role, user.UserType)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+	c.JSON(http.StatusOK, models.NewSuccessResponse(models.LoginResponse{Token: token, User: *user}, "Quick login successful"))
 }
 
 // Placeholder handlers - to be implemented in upcoming tasks
@@ -2342,7 +1922,8 @@ func (app *Application) deleteTaskHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
+func (app *Application) BatchUpdateTasksHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
@@ -2545,10 +2126,12 @@ func (app *Application) batchUpdateTasksHandler(c *gin.Context) {
 
 	response := models.NewSuccessResponse(batchResponse, "Batch update completed")
 	c.JSON(http.StatusOK, response)
+	}
 }
 
 // batchValidateTasksPreviewHandler provides preview validation for batch parent task updates
-func (app *Application) batchValidateTasksPreviewHandler(c *gin.Context) {
+func (app *Application) batchValidateTasksPreviewHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
@@ -2601,9 +2184,11 @@ func (app *Application) batchValidateTasksPreviewHandler(c *gin.Context) {
 	// Return the validation preview
 	response := models.NewSuccessResponse(preview, "Batch validation preview generated successfully")
 	c.JSON(http.StatusOK, response)
+	}
 }
 
-func (app *Application) bulkDeleteTasksHandler(c *gin.Context) {
+func (app *Application) bulkDeleteTasksHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 	var request struct {
 		TaskIDs []int `json:"task_ids" binding:"required"`
 	}
@@ -2638,6 +2223,7 @@ func (app *Application) bulkDeleteTasksHandler(c *gin.Context) {
 		"message":       fmt.Sprintf("Successfully deleted %d tasks and their children", len(request.TaskIDs)),
 	}, "Tasks deleted successfully")
 	c.JSON(http.StatusOK, response)
+	}
 }
 
 // System Management Handlers
@@ -2996,8 +2582,9 @@ func (app *Application) getAuditStatsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// exportAuditLogsHandler exports audit logs as CSV or Excel
-func (app *Application) exportAuditLogsHandler(c *gin.Context) {
+// ExportAuditLogsHandler exports audit logs as CSV or Excel
+func (app *Application) ExportAuditLogsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
 	format := c.DefaultQuery("format", "csv")
 	if format != "csv" && format != "excel" {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid format. Supported formats: csv, excel", nil)
@@ -3049,6 +2636,7 @@ func (app *Application) exportAuditLogsHandler(c *gin.Context) {
 		app.exportAuditLogsAsCSV(c, logs)
 	} else {
 		app.exportAuditLogsAsExcel(c, logs)
+	}
 	}
 }
 
@@ -3862,7 +3450,7 @@ func (app *Application) extractValidationErrors(err error) map[string]string {
 
 // Run starts the application server
 func (app *Application) Run() error {
-	router := app.setupRouter()
+	router := routes.SetupRouter(app)
 
 	log.Printf("Starting %s server on %s", app.config.App.Name, app.config.GetServerAddress())
 	log.Printf("Version: %s, Build Time: %s, Git Commit: %s", Version, BuildTime, GitCommit)

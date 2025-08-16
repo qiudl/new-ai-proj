@@ -304,7 +304,7 @@ export class UnifiedTimerService {
           category: '开发',
           total_seconds: 3600,
           last_timed_at: '2025-01-20T10:30:00Z',
-          project_name: 'AI项目管理平台'
+          project_name: 'AI上下文任务系统'
         },
         {
           id: 2,
@@ -329,7 +329,7 @@ export class UnifiedTimerService {
           category: '文档',
           total_seconds: 2700,
           last_timed_at: '2025-01-19T14:20:00Z',
-          project_name: 'AI项目管理平台'
+          project_name: 'AI上下文任务系统'
         },
         {
           id: 5,
@@ -338,7 +338,7 @@ export class UnifiedTimerService {
           category: '开发',
           total_seconds: 7200,
           last_timed_at: '2025-01-19T11:00:00Z',
-          project_name: 'AI项目管理平台'
+          project_name: 'AI上下文任务系统'
         }
       ];
 

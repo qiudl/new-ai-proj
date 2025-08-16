@@ -290,7 +290,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
               fontSize: '14px',
               fontWeight: 'bold'
             }}>
-              {collapsed ? 'LOGO' : 'AI项目管理平台'}
+              {collapsed ? 'LOGO' : 'AI上下文任务系统'}
             </div>
             
             <Menu

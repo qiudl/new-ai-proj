@@ -316,7 +316,7 @@ const TodayTasksDashboard: React.FC = () => {
               value={selectedProject}
               onChange={setSelectedProject}
             >
-              <Option value={1}>AI项目管理平台</Option>
+              <Option value={1}>AI上下文任务系统</Option>
               <Option value={2}>供应链出海平台</Option>
               <Option value={3}>酷采3.0</Option>
             </Select>

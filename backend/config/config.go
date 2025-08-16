@@ -56,9 +56,21 @@ type AppConfig struct {
 
 // LoadConfig loads configuration from environment variables
 func LoadConfig() (*Config, error) {
-	// Load .env file if it exists
-	if err := godotenv.Load(); err != nil {
-		log.Println("Warning: .env file not found, using system environment variables")
+	// Environment-aware .env loading with clear precedence
+	// Final precedence: .env -> .env.local -> .env.<env> -> .env.<env>.local (last wins)
+	env := os.Getenv("APP_ENV")
+	candidates := []string{".env", ".env.local"}
+	if env != "" {
+		candidates = append(candidates, fmt.Sprintf(".env.%s", env))
+		candidates = append(candidates, fmt.Sprintf(".env.%s.local", env))
+	}
+	for _, f := range candidates {
+		if _, err := os.Stat(f); err == nil {
+			// Use Overload to ensure later files override earlier ones
+			if err := godotenv.Overload(f); err == nil {
+				log.Printf("Loaded %s", f)
+			}
+		}
 	}
 
 	config := &Config{
@@ -85,9 +97,9 @@ func LoadConfig() (*Config, error) {
 			Expiration: getDurationEnv("JWT_EXPIRATION", 24*time.Hour),
 		},
 		App: AppConfig{
-			Name:        getEnv("APP_NAME", "AI Project Management Backend"),
+			Name:        getEnv("APP_NAME", "AI Context Task System Backend"),
 			Version:     getEnv("APP_VERSION", "1.0.0"),
-			Environment: getEnv("APP_ENV", "development"),
+			Environment: getEnv("APP_ENV", "test"),
 			LogLevel:    getEnv("LOG_LEVEL", "debug"),
 		},
 	}

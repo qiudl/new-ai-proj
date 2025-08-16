@@ -322,7 +322,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
             name={['meta', 'title']}
             tooltip="页面的标题，用于浏览器标签页和SEO"
           >
-            <Input placeholder="例如: 用户管理 - AI项目管理平台" />
+            <Input placeholder="例如: 用户管理 - AI上下文任务系统" />
           </Form.Item>
 
           <Form.Item
