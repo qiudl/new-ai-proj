@@ -13,15 +13,15 @@ CREATE TABLE IF NOT EXISTS ai_task_generation_history (
     error_message TEXT,
     imported_task_ids JSONB DEFAULT '[]',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    -- 索引
-    INDEX idx_ai_generation_history_user_id (user_id),
-    INDEX idx_ai_generation_history_project_id (project_id),
-    INDEX idx_ai_generation_history_provider (provider),
-    INDEX idx_ai_generation_history_created_at (created_at DESC),
-    INDEX idx_ai_generation_history_success (success)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 为AI任务生成历史表创建索引
+CREATE INDEX IF NOT EXISTS idx_ai_generation_history_user_id ON ai_task_generation_history (user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_history_project_id ON ai_task_generation_history (project_id);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_history_provider ON ai_task_generation_history (provider);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_history_created_at ON ai_task_generation_history (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_generation_history_success ON ai_task_generation_history (success);
 
 -- AI使用统计表
 CREATE TABLE IF NOT EXISTS ai_usage_stats (
@@ -40,15 +40,15 @@ CREATE TABLE IF NOT EXISTS ai_usage_stats (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
     -- 唯一约束：每个用户每天每个提供商每种操作类型只有一条记录
-    UNIQUE(user_id, project_id, provider, operation_type, usage_date),
-    
-    -- 索引
-    INDEX idx_ai_usage_stats_user_id (user_id),
-    INDEX idx_ai_usage_stats_project_id (project_id),
-    INDEX idx_ai_usage_stats_provider (provider),
-    INDEX idx_ai_usage_stats_usage_date (usage_date DESC),
-    INDEX idx_ai_usage_stats_composite (user_id, provider, usage_date)
+    UNIQUE(user_id, project_id, provider, operation_type, usage_date)
 );
+
+-- 为AI使用统计表创建索引
+CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_user_id ON ai_usage_stats (user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_project_id ON ai_usage_stats (project_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_provider ON ai_usage_stats (provider);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_usage_date ON ai_usage_stats (usage_date DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_composite ON ai_usage_stats (user_id, provider, usage_date);
 
 -- AI成本预算表
 CREATE TABLE IF NOT EXISTS ai_cost_budgets (
@@ -65,13 +65,13 @@ CREATE TABLE IF NOT EXISTS ai_cost_budgets (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
     -- 唯一约束
-    UNIQUE(user_id, project_id, provider, budget_type),
-    
-    -- 索引
-    INDEX idx_ai_cost_budgets_user_id (user_id),
-    INDEX idx_ai_cost_budgets_project_id (project_id),
-    INDEX idx_ai_cost_budgets_enabled (is_enabled)
+    UNIQUE(user_id, project_id, provider, budget_type)
 );
+
+-- 为AI成本预算表创建索引
+CREATE INDEX IF NOT EXISTS idx_ai_cost_budgets_user_id ON ai_cost_budgets (user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_cost_budgets_project_id ON ai_cost_budgets (project_id);
+CREATE INDEX IF NOT EXISTS idx_ai_cost_budgets_enabled ON ai_cost_budgets (is_enabled);
 
 -- 更新时间戳触发器
 CREATE OR REPLACE FUNCTION update_updated_at_column()

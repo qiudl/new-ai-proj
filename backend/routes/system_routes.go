@@ -57,6 +57,7 @@ func registerTaskAnalysisRoutes(authorized *gin.RouterGroup, app ApplicationInte
 		analysis.GET("/tags/statistics", app.GetTaskAnalysisHandler().GetTagStatistics)
 		analysis.POST("/tags/batch-update", app.GetTaskAnalysisHandler().BatchUpdateTags)
 		analysis.POST("/tasks/batch-analyze", app.GetTaskAnalysisHandler().BatchAnalyzeTasks)
+		analysis.GET("/tags/:taskId", app.GetTaskAnalysisHandler().AnalyzeTaskTags)
 		analysis.POST("/reports/weekly", app.GetTaskAnalysisHandler().GenerateWeeklyReport)
 		analysis.GET("/environment/nodejs", app.GetTaskAnalysisHandler().GetNodejsEnvironmentStatus)
 	}
