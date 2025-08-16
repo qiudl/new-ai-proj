@@ -202,7 +202,6 @@ func (tr *TaskRoutes) createTask(w http.ResponseWriter, r *http.Request) {
 
 	// 序列化自定义字段
 	var customFieldsJSON []byte
-	var err error
 	if task.CustomFields != nil {
 		customFieldsJSON, err = json.Marshal(task.CustomFields)
 		if err != nil {

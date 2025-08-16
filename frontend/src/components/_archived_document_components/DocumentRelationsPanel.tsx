@@ -175,7 +175,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
           description: '项目UI设计规范',
           created_at: '2024-01-02T00:00:00Z',
           created_by: 1,
-          entity_name: 'AI项目管理平台',
+          entity_name: 'AI上下文任务系统',
           creator_name: 'Admin'
         },
         {
@@ -244,7 +244,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
           { id: 3, name: '百度公司', description: '搜索引擎和AI公司' }
         ],
         project: [
-          { id: 1, name: 'AI项目管理平台', description: '智能项目管理系统' },
+          { id: 1, name: 'AI上下文任务系统', description: '智能项目管理系统' },
           { id: 2, name: '企业ERP系统', description: '企业资源规划系统' },
           { id: 3, name: '移动应用开发', description: '移动端应用程序' }
         ],

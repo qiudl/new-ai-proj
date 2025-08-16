@@ -36,6 +36,6 @@ cors:
   allow_credentials: true
 
 app:
-  name: "AI Project Management Backend"
+  name: "AI Context Task System Backend"
   version: "1.0.0"
   environment: "development"

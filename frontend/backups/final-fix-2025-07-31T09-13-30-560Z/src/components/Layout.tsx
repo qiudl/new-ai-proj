@@ -261,7 +261,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               height: 32}}
           />
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-            AI项目管理平台
+            AI上下文任务系统
           </div>
         </div>
         <div className="user-info">

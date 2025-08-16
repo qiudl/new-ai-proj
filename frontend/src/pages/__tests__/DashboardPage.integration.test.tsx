@@ -432,7 +432,7 @@ describe('DashboardPage 集成测试', () => {
       await waitFor(() => {
         // 检查示例任务是否正确显示
         expect(screen.getByText('Phase 4: 交互优化完成测试')).toBeInTheDocument();
-        expect(screen.getByText('AI项目管理平台MVP')).toBeInTheDocument();
+        expect(screen.getByText('AI上下文任务系统MVP')).toBeInTheDocument();
         expect(screen.getByText('HIGH')).toBeInTheDocument();
         expect(screen.getByText('2h')).toBeInTheDocument();
       });

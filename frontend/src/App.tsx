@@ -43,6 +43,7 @@ const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
 const NavigationManagementPage = React.lazy(() => import('./pages/NavigationManagementPage'));
+const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'));
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
@@ -406,6 +407,15 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <AIConfigPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* API Key management routes */}
+            <Route path="/api-keys" element={
+              <PrivateRoute>
+                <Layout>
+                  <APIKeyManagement />
                 </Layout>
               </PrivateRoute>
             } />

@@ -70,7 +70,7 @@ export class APIKeyService {
     search?: string;
   }): Promise<APIKeyListResponse> {
     try {
-      const response = await api.get('/system/api-keys', { params });
+      const response = await api.get('/api-keys', { params });
       
       // 为每个API Key添加安全掩码
       const processedData = response.data.map((apiKey: APIKey) => ({
@@ -93,7 +93,7 @@ export class APIKeyService {
    */
   static async getAPIKey(id: string): Promise<APIKey> {
     try {
-      const response = await api.get(`/system/api-keys/${id}`);
+      const response = await api.get(`/api-keys/${id}`);
       
       return {
         ...response.data,
@@ -119,7 +119,7 @@ export class APIKeyService {
         console.warn('Permission validation warnings:', permissionValidation.warnings);
       }
 
-      const response = await api.post('/system/api-keys', data);
+      const response = await api.post('/api-keys', data);
       
       return {
         apiKey: {
@@ -147,7 +147,7 @@ export class APIKeyService {
         }
       }
 
-      const response = await api.put(`/system/api-keys/${id}`, data);
+      const response = await api.put(`/api-keys/${id}`, data);
       
       return {
         ...response.data,
@@ -164,7 +164,7 @@ export class APIKeyService {
    */
   static async deleteAPIKey(id: string): Promise<void> {
     try {
-      await api.delete(`/system/api-keys/${id}`);
+      await api.delete(`/api-keys/${id}`);
     } catch (error) {
       console.error(`Failed to delete API key ${id}:`, error);
       throw error;
@@ -176,7 +176,7 @@ export class APIKeyService {
    */
   static async toggleAPIKeyStatus(id: string, status: 'active' | 'inactive'): Promise<APIKey> {
     try {
-      const response = await api.patch(`/system/api-keys/${id}/status`, { status });
+      const response = await api.patch(`/api-keys/${id}/status`, { status });
       
       return {
         ...response.data,
@@ -196,7 +196,7 @@ export class APIKeyService {
     plainKey: string;
   }> {
     try {
-      const response = await api.post(`/system/api-keys/${id}/regenerate`);
+      const response = await api.post(`/api-keys/${id}/regenerate`);
       
       return {
         apiKey: {
@@ -216,7 +216,7 @@ export class APIKeyService {
    */
   static async getAPIKeyStatistics(): Promise<APIKeyStatistics> {
     try {
-      const response = await api.get('/system/api-keys/statistics');
+      const response = await api.get('/api-keys/statistics');
       return response.data;
     } catch (error) {
       console.error('Failed to load API key statistics:', error);
@@ -233,7 +233,7 @@ export class APIKeyService {
     lastTested: string;
   }> {
     try {
-      const response = await api.post(`/system/api-keys/${id}/test`);
+      const response = await api.post(`/api-keys/${id}/test`);
       return response.data;
     } catch (error) {
       console.error(`Failed to test API key ${id}:`, error);
@@ -263,7 +263,7 @@ export class APIKeyService {
     total: number;
   }> {
     try {
-      const response = await api.get(`/system/api-keys/${id}/usage-logs`, { params });
+      const response = await api.get(`/api-keys/${id}/usage-logs`, { params });
       return response.data;
     } catch (error) {
       console.error(`Failed to load usage logs for API key ${id}:`, error);
@@ -282,7 +282,7 @@ export class APIKeyService {
     failed: Array<{ id: string; error: string }>;
   }> {
     try {
-      const response = await api.post('/system/api-keys/batch', {
+      const response = await api.post('/api-keys/batch', {
         ids,
         operation
       });
@@ -298,7 +298,7 @@ export class APIKeyService {
    */
   static async exportAPIKeyConfigs(ids?: string[]): Promise<Blob> {
     try {
-      const response = await api.post('/system/api-keys/export', 
+      const response = await api.post('/api-keys/export', 
         { ids }, 
         { responseType: 'blob' }
       );

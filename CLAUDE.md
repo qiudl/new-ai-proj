@@ -174,7 +174,7 @@ mcp delete_task --id 456
 ### 数据库连接和查询
 ```bash
 # 连接本机PostgreSQL数据库 (端口5433)
-psql -h localhost -p 5433 -U user -d main_db
+psql -h localhost -p 5433 -U user -d local_dev_db
 
 # 查看核心表结构
 \d tasks                    # 任务表结构
@@ -256,7 +256,7 @@ services:
 # 关键端口配置
 DB_PORT=5433                    # 本机PostgreSQL端口
 BACKEND_PORT=8081              # 后端API端口  
-DB_NAME=main_db                # 数据库名称
+DB_NAME=local_dev_db                # 数据库名称
 
 # frontend/.env.local
 REACT_APP_API_BASE_URL=http://localhost:8081/api/v1
@@ -265,8 +265,8 @@ GENERATE_SOURCEMAP=false
 TSC_COMPILE_ON_ERROR=true
 
 # backend/.env  
-DATABASE_URL=postgres://user:password@localhost:5433/main_db
-DB_SOURCE=postgresql://user:password@localhost:5433/main_db?sslmode=disable
+DATABASE_URL=postgres://user:password@localhost:5433/local_dev_db
+DB_SOURCE=postgresql://user:password@localhost:5433/local_dev_db?sslmode=disable
 JWT_SECRET=your_jwt_secret_key
 JWT_EXPIRATION=168h
 ```
@@ -308,8 +308,8 @@ DB_NAME=main_db                # 数据库名称
 
 # frontend/.env (测试环境)
 REACT_APP_API_BASE_URL=/api/v1
-REACT_APP_ENV=staging
-REACT_APP_ENVIRONMENT=staging
+REACT_APP_ENV=test
+REACT_APP_ENVIRONMENT=test
 
 # backend/.env (测试环境)  
 DATABASE_URL=postgres://user:password@db:5432/main_db
@@ -582,8 +582,8 @@ REACT_APP_GOOGLE_CLIENT_ID=your_google_client_id
 REACT_APP_GOOGLE_API_KEY=your_google_api_key
 
 # backend/.env (本机开发)
-DATABASE_URL=postgres://user:password@localhost:5433/main_db
-DB_SOURCE=postgresql://user:password@localhost:5433/main_db?sslmode=disable
+DATABASE_URL=postgres://user:password@localhost:5433/local_dev_db
+DB_SOURCE=postgresql://user:password@localhost:5433/local_dev_db?sslmode=disable
 JWT_SECRET=your_jwt_secret
 BACKEND_PORT=8081
 DB_PORT=5433
@@ -604,8 +604,8 @@ GOOGLE_CLIENT_SECRET=your_google_client_secret
 
 # frontend/.env (Docker测试环境)
 REACT_APP_API_BASE_URL=/api/v1
-REACT_APP_ENV=staging
-REACT_APP_ENVIRONMENT=staging
+REACT_APP_ENV=test
+REACT_APP_ENVIRONMENT=test
 CHOKIDAR_USEPOLLING=true
 
 # backend/.env (Docker测试环境，容器内部)  

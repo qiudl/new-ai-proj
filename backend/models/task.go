@@ -647,12 +647,6 @@ type AlternativePath struct {
 	RiskLevel    string            `json:"risk_level"`
 }
 
-// DocumentRelation represents a relationship between documents
-type DocumentRelation struct {
-	RelationType string `json:"relation_type"`
-	RelatedID    int    `json:"related_id"`
-	RelatedTitle string `json:"related_title"`
-}
 
 // 删除任务文档默认模板功能 - 防止意外覆盖用户数据
 // GetTaskDocumentDefaultTemplate 功能已删除，避免模板覆盖用户内容

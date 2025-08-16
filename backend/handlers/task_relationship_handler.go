@@ -3,11 +3,10 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"new-ai-proj/backend/models"
-	"new-ai-proj/backend/services"
+	"ai-project-backend/models"
+	"ai-project-backend/services"
 )
 
 // TaskRelationshipHandler handles task relationship API requests
@@ -36,21 +35,14 @@ func NewTaskRelationshipHandler(service services.TaskRelationshipService) *TaskR
 func (h *TaskRelationshipHandler) CreateRelationship(c *gin.Context) {
 	var req models.TaskRelationshipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid request format",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
 
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Success: false,
-			Message: "Authentication required",
-		})
+		c.JSON(http.StatusUnauthorized, *models.NewErrorResponse(models.ErrCodeUnauthorized, "Authentication required", nil))
 		return
 	}
 
@@ -58,18 +50,11 @@ func (h *TaskRelationshipHandler) CreateRelationship(c *gin.Context) {
 	if req.RelationshipType == "depends_on" || req.RelationshipType == "blocks" {
 		hasCycle, err := h.service.CheckForCycles(req.SourceTaskID, req.TargetTaskID, req.RelationshipType)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, ErrorResponse{
-				Success: false,
-				Message: "Failed to validate relationship",
-				Error:   err.Error(),
-			})
+			c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate relationship", err.Error()))
 			return
 		}
 		if hasCycle {
-			c.JSON(http.StatusBadRequest, ErrorResponse{
-				Success: false,
-				Message: "Relationship would create a circular dependency",
-			})
+			c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Relationship would create a circular dependency", nil))
 			return
 		}
 	}
@@ -84,19 +69,11 @@ func (h *TaskRelationshipHandler) CreateRelationship(c *gin.Context) {
 		req.Metadata,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to create relationship",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to create relationship", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusCreated, SuccessResponse{
-		Success: true,
-		Message: "Task relationship created successfully",
-		Data:    relationship,
-	})
+	c.JSON(http.StatusCreated, *models.NewSuccessResponse(relationship, "Task relationship created successfully"))
 }
 
 // GetTaskRelationships retrieves all relationships for a specific task
@@ -114,10 +91,7 @@ func (h *TaskRelationshipHandler) GetTaskRelationships(c *gin.Context) {
 	taskIDStr := c.Param("task_id")
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid task ID",
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil))
 		return
 	}
 
@@ -125,19 +99,11 @@ func (h *TaskRelationshipHandler) GetTaskRelationships(c *gin.Context) {
 	
 	relationships, err := h.service.GetTaskRelationships(taskID, relationshipType)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to retrieve relationships",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve relationships", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Task relationships retrieved successfully",
-		Data:    relationships,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(relationships, "Task relationships retrieved successfully"))
 }
 
 // UpdateRelationship updates an existing task relationship
@@ -157,38 +123,23 @@ func (h *TaskRelationshipHandler) UpdateRelationship(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid relationship ID",
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid relationship ID", nil))
 		return
 	}
 
 	var req models.TaskRelationshipRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid request format",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
 
 	relationship, err := h.service.UpdateRelationship(id, req.RelationshipStatus, req.Metadata)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to update relationship",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to update relationship", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Task relationship updated successfully",
-		Data:    relationship,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(relationship, "Task relationship updated successfully"))
 }
 
 // DeleteRelationship deletes a task relationship (soft delete)
@@ -205,27 +156,17 @@ func (h *TaskRelationshipHandler) DeleteRelationship(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid relationship ID",
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid relationship ID", nil))
 		return
 	}
 
 	err = h.service.DeleteRelationship(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to delete relationship",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete relationship", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Task relationship deleted successfully",
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(nil, "Task relationship deleted successfully"))
 }
 
 // GetTaskWithAllRelationships retrieves a task with all its relationships
@@ -242,28 +183,17 @@ func (h *TaskRelationshipHandler) GetTaskWithAllRelationships(c *gin.Context) {
 	taskIDStr := c.Param("task_id")
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid task ID",
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil))
 		return
 	}
 
 	taskWithRels, err := h.service.GetTaskWithAllRelationships(taskID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to retrieve task with relationships",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task with relationships", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Task with relationships retrieved successfully",
-		Data:    taskWithRels,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(taskWithRels, "Task with relationships retrieved successfully"))
 }
 
 // GetParallelDevelopmentGroups retrieves parallel development groups
@@ -286,19 +216,11 @@ func (h *TaskRelationshipHandler) GetParallelDevelopmentGroups(c *gin.Context) {
 
 	groups, err := h.service.GetParallelDevelopmentGroups(projectID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to retrieve parallel development groups",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve parallel development groups", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Parallel development groups retrieved successfully",
-		Data:    groups,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(groups, "Parallel development groups retrieved successfully"))
 }
 
 // ValidateParallelTasksCanStart checks if parallel tasks can be started
@@ -315,29 +237,17 @@ func (h *TaskRelationshipHandler) GetParallelDevelopmentGroups(c *gin.Context) {
 func (h *TaskRelationshipHandler) ValidateParallelTasksCanStart(c *gin.Context) {
 	var taskIDs []int
 	if err := c.ShouldBindJSON(&taskIDs); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid request format",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
 
 	validation, err := h.service.ValidateParallelTasksCanStart(taskIDs)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to validate parallel tasks",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate parallel tasks", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Parallel tasks validation completed",
-		Data:    validation,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(validation, "Parallel tasks validation completed"))
 }
 
 // GetTaskDependencyGraph generates a dependency graph for visualization
@@ -368,19 +278,11 @@ func (h *TaskRelationshipHandler) GetTaskDependencyGraph(c *gin.Context) {
 
 	graph, err := h.service.GenerateTaskDependencyGraph(projectID, rootTaskID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to generate dependency graph",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to generate dependency graph", err.Error()))
 		return
 	}
 
-	c.JSON(http.StatusOK, SuccessResponse{
-		Success: true,
-		Message: "Task dependency graph generated successfully",
-		Data:    graph,
-	})
+	c.JSON(http.StatusOK, *models.NewSuccessResponse(graph, "Task dependency graph generated successfully"))
 }
 
 // BulkCreateRelationships creates multiple task relationships in batch
@@ -397,31 +299,20 @@ func (h *TaskRelationshipHandler) GetTaskDependencyGraph(c *gin.Context) {
 func (h *TaskRelationshipHandler) BulkCreateRelationships(c *gin.Context) {
 	var requests []models.TaskRelationshipRequest
 	if err := c.ShouldBindJSON(&requests); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{
-			Success: false,
-			Message: "Invalid request format",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, *models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
 
 	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, ErrorResponse{
-			Success: false,
-			Message: "Authentication required",
-		})
+		c.JSON(http.StatusUnauthorized, *models.NewErrorResponse(models.ErrCodeUnauthorized, "Authentication required", nil))
 		return
 	}
 
 	relationships, errors, err := h.service.BulkCreateRelationships(requests, userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{
-			Success: false,
-			Message: "Failed to create relationships",
-			Error:   err.Error(),
-		})
+		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to create relationships", err.Error()))
 		return
 	}
 
@@ -437,9 +328,5 @@ func (h *TaskRelationshipHandler) BulkCreateRelationships(c *gin.Context) {
 		statusCode = http.StatusPartialContent
 	}
 
-	c.JSON(statusCode, SuccessResponse{
-		Success: true,
-		Message: "Bulk relationship creation completed",
-		Data:    response,
-	})
+	c.JSON(statusCode, *models.NewSuccessResponse(response, "Bulk relationship creation completed"))
 }

@@ -15,11 +15,11 @@ import (
 
 // APIKeyService handles business logic for API key management
 type APIKeyService struct {
-	apiKeyRepo *database.APIKeyRepository
+	apiKeyRepo database.APIKeyRepository
 }
 
 // NewAPIKeyService creates a new API key service
-func NewAPIKeyService(apiKeyRepo *database.APIKeyRepository) *APIKeyService {
+func NewAPIKeyService(apiKeyRepo database.APIKeyRepository) *APIKeyService {
 	return &APIKeyService{
 		apiKeyRepo: apiKeyRepo,
 	}

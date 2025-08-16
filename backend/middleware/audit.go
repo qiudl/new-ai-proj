@@ -729,10 +729,3 @@ func (am *AuditMiddleware) deepEqual(a, b interface{}) bool {
 	return string(aJSON) == string(bJSON)
 }
 
-// min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

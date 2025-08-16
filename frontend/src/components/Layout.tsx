@@ -27,6 +27,7 @@ import {
   BarChartOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
+  KeyOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -148,6 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/companies')) return ['/companies'];
     if (path.includes('/document-manager')) return ['/document-manager'];
     if (path.includes('/task-documents')) return ['/task-documents'];
+    if (path.includes('/api-keys')) return ['/api-keys'];
     return [path];
   };
 
@@ -307,6 +309,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <MenuUnfoldOutlined />,
           label: '导航管理',
         },
+        {
+          key: '/api-keys',
+          icon: <KeyOutlined />,
+          label: 'API Key管理',
+        },
       ],
     },
   ];
@@ -326,7 +333,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             }}
           />
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>AI项目管理平台</span>
+            <span>AI上下文任务系统</span>
 {/* 临时调试代码 - 输出环境变量 */}
 {(() => {
   console.log('🔍 环境变量调试信息:');

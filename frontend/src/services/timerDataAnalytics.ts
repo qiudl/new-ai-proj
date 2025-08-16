@@ -161,7 +161,7 @@ class TimerDataAnalyticsService {
     const projectDistribution: ProjectTimeStats[] = [
       {
         project_id: 1,
-        project_name: 'AI项目管理平台MVP',
+        project_name: 'AI上下文任务系统MVP',
         total_seconds: 14400, // 4小时
         session_count: 6,
         completion_rate: 85,

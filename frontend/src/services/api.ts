@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/errorTypes';
+import { getEnvironmentConfig } from '../utils/environmentDetection';
 
 // API Base Configuration  
-const API_BASE_URL = '/api/v1';
+const { apiBaseURL } = getEnvironmentConfig();
+const API_BASE_URL = apiBaseURL;
 
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;

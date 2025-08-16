@@ -7,15 +7,15 @@ services:
     container_name: postgres_db
     environment:
       POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_password}
+      POSTGRES_PASSWORD: test_password
       POSTGRES_DB: main_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-main_db}"]
+healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-test_user} -d ${POSTGRES_DB:-main_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,14 +30,14 @@ services:
         condition: service_healthy
     env_file:
       - ./backend/.env.docker
-    environment:
+environment:
       ENV: staging
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: user
-      DB_PASSWORD: password
+      DB_USER: test_user
+      DB_PASSWORD: test_password
       DB_NAME: main_db
-      DB_SOURCE: postgresql://user:password@db:5432/main_db?sslmode=disable
+      DB_SOURCE: postgresql://test_user:test_password@db:5432/main_db?sslmode=disable
     volumes:
       - ./backend:/app:delegated
       - go_mod_cache:/go/pkg/mod
