@@ -129,11 +129,18 @@ func registerSystemManagementRoutes(authorized *gin.RouterGroup, app Application
 			apiKeys.GET("/:id", app.GetAPIKeyHandler().GetAPIKey)
 			apiKeys.PUT("/:id", app.GetAPIKeyHandler().UpdateAPIKey)
 			apiKeys.DELETE("/:id", app.GetAPIKeyHandler().DeleteAPIKey)
+			
+			// Key rotation/regeneration
+			apiKeys.POST("/:id/rotate", app.GetAPIKeyHandler().RotateAPIKey)
+			apiKeys.POST("/:id/regenerate", app.GetAPIKeyHandler().RotateAPIKey) // Alias for frontend compatibility
+			
+			// Statistics and monitoring
+			apiKeys.GET("/:id/stats", app.GetAPIKeyHandler().GetAPIKeyUsageStats) // Usage statistics
+			apiKeys.GET("/:id/logs", app.GetAPIKeyHandler().GetAPIKeyLogs)        // Usage logs
+			
 			// TODO: Implement these methods in api_key_handler.go
-			// apiKeys.POST("/:id/regenerate", app.GetAPIKeyHandler().RegenerateAPIKey)
 			// apiKeys.POST("/:id/activate", app.GetAPIKeyHandler().ActivateAPIKey)
 			// apiKeys.POST("/:id/deactivate", app.GetAPIKeyHandler().DeactivateAPIKey)
-			// apiKeys.GET("/:id/usage", app.GetAPIKeyHandler().GetAPIKeyUsage)
 			// apiKeys.POST("/:id/reset-usage", app.GetAPIKeyHandler().ResetAPIKeyUsage)
 		}
 	}

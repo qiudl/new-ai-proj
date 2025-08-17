@@ -2,10 +2,11 @@ package models
 
 import (
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
-	"time"
 	"net"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // APIPermissionType represents API permission types
@@ -71,14 +72,30 @@ func (p *APIPermissions) Scan(value interface{}) error {
 		return fmt.Errorf("cannot scan %T into APIPermissions", value)
 	}
 	
-	var strSlice []string
-	if err := json.Unmarshal(bytes, &strSlice); err != nil {
-		return fmt.Errorf("failed to unmarshal permissions: %w", err)
+	// Handle PostgreSQL array format: {item1,item2,item3}
+	str := string(bytes)
+	if len(str) == 0 || str == "{}" {
+		*p = APIPermissions{}
+		return nil
 	}
 	
-	permissions := make(APIPermissions, len(strSlice))
-	for i, str := range strSlice {
-		permissions[i] = APIPermissionType(str)
+	// Remove the curly braces and split by comma
+	if str[0] == '{' && str[len(str)-1] == '}' {
+		str = str[1 : len(str)-1]
+	}
+	
+	if str == "" {
+		*p = APIPermissions{}
+		return nil
+	}
+	
+	// Split by comma and create permissions
+	parts := strings.Split(str, ",")
+	permissions := make(APIPermissions, len(parts))
+	for i, part := range parts {
+		// Remove any quotes that might be around the permission
+		permStr := strings.Trim(strings.TrimSpace(part), `"`)
+		permissions[i] = APIPermissionType(permStr)
 	}
 	
 	*p = permissions
@@ -118,9 +135,32 @@ func (is *IntSlice) Scan(value interface{}) error {
 		return fmt.Errorf("cannot scan %T into IntSlice", value)
 	}
 	
-	var slice []int
-	if err := json.Unmarshal(bytes, &slice); err != nil {
-		return fmt.Errorf("failed to unmarshal int slice: %w", err)
+	// Handle PostgreSQL array format: {1,2,3}
+	str := string(bytes)
+	if len(str) == 0 || str == "{}" {
+		*is = IntSlice{}
+		return nil
+	}
+	
+	// Remove the curly braces and split by comma
+	if str[0] == '{' && str[len(str)-1] == '}' {
+		str = str[1 : len(str)-1]
+	}
+	
+	if str == "" {
+		*is = IntSlice{}
+		return nil
+	}
+	
+	// Split by comma and convert to integers
+	parts := strings.Split(str, ",")
+	slice := make([]int, len(parts))
+	for i, part := range parts {
+		val, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			return fmt.Errorf("failed to parse integer '%s': %w", part, err)
+		}
+		slice[i] = val
 	}
 	
 	*is = IntSlice(slice)
@@ -160,9 +200,29 @@ func (ss *StringSlice) Scan(value interface{}) error {
 		return fmt.Errorf("cannot scan %T into StringSlice", value)
 	}
 	
-	var slice []string
-	if err := json.Unmarshal(bytes, &slice); err != nil {
-		return fmt.Errorf("failed to unmarshal string slice: %w", err)
+	// Handle PostgreSQL array format: {item1,item2,item3}
+	str := string(bytes)
+	if len(str) == 0 || str == "{}" {
+		*ss = StringSlice{}
+		return nil
+	}
+	
+	// Remove the curly braces and split by comma
+	if str[0] == '{' && str[len(str)-1] == '}' {
+		str = str[1 : len(str)-1]
+	}
+	
+	if str == "" {
+		*ss = StringSlice{}
+		return nil
+	}
+	
+	// Split by comma and create string slice
+	parts := strings.Split(str, ",")
+	slice := make([]string, len(parts))
+	for i, part := range parts {
+		// Remove any quotes that might be around the string
+		slice[i] = strings.Trim(strings.TrimSpace(part), `"`)
 	}
 	
 	*ss = StringSlice(slice)
@@ -202,16 +262,32 @@ func (ips *IPSlice) Scan(value interface{}) error {
 		return fmt.Errorf("cannot scan %T into IPSlice", value)
 	}
 	
-	var strSlice []string
-	if err := json.Unmarshal(bytes, &strSlice); err != nil {
-		return fmt.Errorf("failed to unmarshal IP slice: %w", err)
+	// Handle PostgreSQL array format: {192.168.1.1,10.0.0.1}
+	str := string(bytes)
+	if len(str) == 0 || str == "{}" {
+		*ips = IPSlice{}
+		return nil
 	}
 	
-	ipSlice := make(IPSlice, len(strSlice))
-	for i, str := range strSlice {
-		ip := net.ParseIP(str)
+	// Remove the curly braces and split by comma
+	if str[0] == '{' && str[len(str)-1] == '}' {
+		str = str[1 : len(str)-1]
+	}
+	
+	if str == "" {
+		*ips = IPSlice{}
+		return nil
+	}
+	
+	// Split by comma and parse IP addresses
+	parts := strings.Split(str, ",")
+	ipSlice := make(IPSlice, len(parts))
+	for i, part := range parts {
+		// Remove any quotes that might be around the IP
+		ipStr := strings.Trim(strings.TrimSpace(part), `"`)
+		ip := net.ParseIP(ipStr)
 		if ip == nil {
-			return fmt.Errorf("invalid IP address: %s", str)
+			return fmt.Errorf("invalid IP address: %s", ipStr)
 		}
 		ipSlice[i] = ip
 	}
@@ -563,4 +639,4 @@ func (ak *APIKey) IsIPAllowed(ip net.IP) bool {
 		}
 	}
 	return false
-}
+}// Force rebuild Sun Aug 17 23:01:15 CST 2025

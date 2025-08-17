@@ -12,6 +12,7 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 	{
 		timer.POST("/start", app.GetTimerHandler().StartTimer)         // Legacy project timer
 		timer.POST("/stop", app.GetTimerHandler().StopTimer)           // Legacy project timer
+		timer.GET("/weekly", app.GetUserTimerHandler().GetWeeklyReport) // Weekly report endpoint
 		// timer.GET("/status", app.GetTimerHandler().GetTimerStatus)     // Legacy project timer
 		// timer.GET("/recent-tasks", app.GetTimerHandler().GetRecentTasks) // Legacy recent tasks
 	}

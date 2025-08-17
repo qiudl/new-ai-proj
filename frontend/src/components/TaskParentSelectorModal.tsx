@@ -16,7 +16,7 @@ const { Search } = Input;
 const { Text } = Typography;
 
 export interface TaskParentSelectorModalProps {
-  visible: boolean;
+  open: boolean;
   projectId: number;
   currentTaskId?: number;
   excludeTaskIds?: number[]; // 批量操作时排除的任务ID列表
@@ -35,7 +35,7 @@ export interface TaskParentSelectorModalProps {
  * Provides full-screen interface for complex parent selection
  */
 export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = ({
-  visible,
+  open,
   projectId,
   currentTaskId,
   excludeTaskIds = [],
@@ -138,16 +138,16 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
 
   // Generate recommendations when search results change
   useEffect(() => {
-    if (visible && searchResults.tasks.length > 0 && !searchKeyword) {
+    if (open && searchResults.tasks.length > 0 && !searchKeyword) {
       generateRecommendations(currentTaskId, searchResults.tasks);
     } else {
       setRecommendations([]);
     }
-  }, [visible, searchResults.tasks, currentTaskId, searchKeyword, generateRecommendations]);
+  }, [open, searchResults.tasks, currentTaskId, searchKeyword, generateRecommendations]);
 
   // Initialize search when modal opens
   useEffect(() => {
-    if (visible && projectId) {
+    if (open && projectId) {
       // 合并单个任务ID和批量任务IDs
       const allExcludeIds = [...excludeTaskIds];
       if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
@@ -164,32 +164,32 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         offset: 0,
       });
     }
-  }, [visible, projectId, currentTaskId, excludeTaskIds]);
+  }, [open, projectId, currentTaskId, excludeTaskIds]);
 
   // Set current parent as selected when search results are available
   useEffect(() => {
-    if (visible && currentParentId && searchResults.tasks.length > 0 && !selectedTask) {
+    if (open && currentParentId && searchResults.tasks.length > 0 && !selectedTask) {
       const currentParent = searchResults.tasks.find(task => task.id === currentParentId);
       if (currentParent) {
         setSelectedTask(currentParent);
       }
     }
-  }, [visible, currentParentId, searchResults.tasks, selectedTask]);
+  }, [open, currentParentId, searchResults.tasks, selectedTask]);
 
   // Clear state when modal closes
   useEffect(() => {
-    if (!visible) {
+    if (!open) {
       setSearchKeyword('');
       setSelectedTask(null);
       setValidationError(null);
       clearResults();
     }
-  }, [visible, clearResults]);
+  }, [open, clearResults]);
 
   // Debounced search
   const debouncedSearch = React.useCallback(
     debounce(async (keyword: string) => {
-      if (!projectId || !visible) return;
+      if (!projectId || !open) return;
 
       // 合并单个任务ID和批量任务IDs
       const allExcludeIds = [...excludeTaskIds];
@@ -206,7 +206,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         offset: 0,
       });
     }, 300),
-    [projectId, currentTaskId, excludeTaskIds, visible, searchParentTasks]
+    [projectId, currentTaskId, excludeTaskIds, open, searchParentTasks]
   );
 
   // Handle search input change
@@ -318,18 +318,18 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
   return (
     <Modal
       title={title}
-      visible={visible}
+      open={open}
       onOk={handleOk}
       onCancel={handleCancel}
       okText={okText}
       cancelText={cancelText}
       width={800}
-      bodyStyle={{ maxHeight: '70vh', overflow: 'hidden' }}
+      styles={{ body: { maxHeight: '70vh', overflow: 'hidden' } }}
       okButtonProps={{
         disabled: validationError !== null || isValidating,
         loading: isValidating,
       }}
-      destroyOnHidden={false}
+      destroyOnClose={false}
     >
       <ErrorBoundary>
         <div className="parent-selector-modal-content">

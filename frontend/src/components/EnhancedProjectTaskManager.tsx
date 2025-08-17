@@ -2002,7 +2002,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
 
       {/* 批量父任务选择模态框 */}
       <TaskParentSelectorModal
-        visible={parentSelectorVisible}
+        open={parentSelectorVisible}
         projectId={projectId}
         excludeTaskIds={selectedRowKeys.map(id => Number(id))} // 排除选中的任务
         onOk={handleBatchParentSelect}

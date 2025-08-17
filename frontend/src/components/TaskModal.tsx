@@ -563,7 +563,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       {/* Parent Task Selection Modal */}
       {allowParentSelection && (
         <TaskParentSelectorModal
-          visible={parentSelectorVisible}
+          open={parentSelectorVisible}
           projectId={projectId}
           currentTaskId={task?.id}
           currentParentId={selectedParentTask?.id || null}

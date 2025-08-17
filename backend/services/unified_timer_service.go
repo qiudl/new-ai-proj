@@ -343,6 +343,11 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 	}
 
 	pauseDuration := int(now.Sub(lastPauseTime).Seconds())
+	
+	// Ensure pause duration is non-negative (protect against clock issues)
+	if pauseDuration < 0 {
+		pauseDuration = 0
+	}
 
 	resumeEventData := map[string]interface{}{
 		"resumed_at":     now,
@@ -422,10 +427,21 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 		
 		if !lastPauseTime.IsZero() {
 			finalPauseDuration := int(now.Sub(lastPauseTime).Seconds())
-			totalDuration += finalPauseDuration
+			// Ensure pause duration is non-negative (protect against clock issues)
+			if finalPauseDuration < 0 {
+				finalPauseDuration = 0
+			}
 			currentTimer.PauseTotalSeconds += finalPauseDuration
 		}
 		actualWorkDuration = totalDuration - currentTimer.PauseTotalSeconds
+	}
+
+	// Ensure actualWorkDuration is non-negative and not greater than totalDuration
+	if actualWorkDuration < 0 {
+		actualWorkDuration = 0
+	}
+	if actualWorkDuration > totalDuration {
+		actualWorkDuration = totalDuration
 	}
 
 	// 更新计时器为完成状态

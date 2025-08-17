@@ -78,7 +78,7 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 	}
 
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -108,10 +108,9 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 		return
 	}
 
-	// Archive the task using stored procedure
-	var success bool
-	archiveQuery := `SELECT archive_task($1, $2, $3)`
-	err = sqlDB.QueryRow(archiveQuery, taskID, userID, req.Reason).Scan(&success)
+	// Archive the task using simple UPDATE
+	archiveQuery := `UPDATE tasks SET archived_at = NOW() WHERE id = $1 AND archived_at IS NULL`
+	result, err := sqlDB.Exec(archiveQuery, taskID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -121,10 +120,11 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 		return
 	}
 
-	if !success {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Task could not be archived",
+			"message": "Task could not be archived or was already archived",
 		})
 		return
 	}
@@ -185,10 +185,9 @@ func (h *ArchiveHandler) UnarchiveTask(c *gin.Context) {
 		return
 	}
 
-	// Unarchive the task using stored procedure
-	var success bool
-	unarchiveQuery := `SELECT unarchive_task($1)`
-	err = sqlDB.QueryRow(unarchiveQuery, taskID).Scan(&success)
+	// Unarchive the task using simple UPDATE
+	unarchiveQuery := `UPDATE tasks SET archived_at = NULL WHERE id = $1 AND archived_at IS NOT NULL`
+	result, err := sqlDB.Exec(unarchiveQuery, taskID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -198,10 +197,11 @@ func (h *ArchiveHandler) UnarchiveTask(c *gin.Context) {
 		return
 	}
 
-	if !success {
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Task could not be unarchived",
+			"message": "Task could not be unarchived or was not archived",
 		})
 		return
 	}
@@ -248,7 +248,7 @@ func (h *ArchiveHandler) BulkArchiveTasks(c *gin.Context) {
 	}
 
 	// Get user ID from context
-	userID, exists := c.Get("user_id")
+	_, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -282,10 +282,9 @@ func (h *ArchiveHandler) BulkArchiveTasks(c *gin.Context) {
 		return
 	}
 
-	// Archive tasks using batch function
-	var archivedCount int
-	batchArchiveQuery := `SELECT archive_tasks_batch($1, $2, $3)`
-	err = sqlDB.QueryRow(batchArchiveQuery, pq.Array(req.TaskIDs), userID, req.Reason).Scan(&archivedCount)
+	// Archive tasks using batch UPDATE
+	batchArchiveQuery := `UPDATE tasks SET archived_at = NOW() WHERE id = ANY($1) AND archived_at IS NULL`
+	result, err := sqlDB.Exec(batchArchiveQuery, pq.Array(req.TaskIDs))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -294,6 +293,18 @@ func (h *ArchiveHandler) BulkArchiveTasks(c *gin.Context) {
 		})
 		return
 	}
+
+	archivedCountInt64, err := result.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to get archived count",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	archivedCount := int(archivedCountInt64)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -331,16 +342,14 @@ func (h *ArchiveHandler) GetArchivedTasks(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	// Get archived tasks
+	// Get archived tasks - note: archived_by and archive_reason fields don't exist in current table
 	query := `
 		SELECT 
 			t.id, t.project_id, t.title, t.description, t.status,
 			t.assignee_id, t.due_date, t.custom_fields, t.created_at,
-			t.archived_at, t.archived_by, t.archive_reason,
-			u.username as archived_by_username,
+			t.archived_at, 
 			p.name as project_name
 		FROM tasks t
-		LEFT JOIN users u ON t.archived_by = u.id
 		JOIN projects p ON t.project_id = p.id
 		WHERE t.project_id = $1 AND t.archived_at IS NOT NULL
 		ORDER BY t.archived_at DESC
@@ -365,8 +374,7 @@ func (h *ArchiveHandler) GetArchivedTasks(c *gin.Context) {
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description, &task.Status,
 			&task.AssigneeID, &task.DueDate, &task.CustomFields, &task.CreatedAt,
-			&task.ArchivedAt, &task.ArchivedBy, &task.ArchiveReason,
-			&task.ArchivedByUsername, &task.ProjectName,
+			&task.ArchivedAt, &task.ProjectName,
 		)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -420,12 +428,18 @@ func (h *ArchiveHandler) GetArchiveStatistics(c *gin.Context) {
 		return
 	}
 
+	// Calculate statistics directly from tasks and projects tables
 	query := `
 		SELECT 
-			project_id, project_name, 
-			active_tasks, archived_tasks, total_tasks
-		FROM archive_statistics 
-		WHERE project_id = $1
+			p.id as project_id,
+			p.name as project_name,
+			COUNT(CASE WHEN t.archived_at IS NULL AND t.deleted_at IS NULL THEN 1 END) as active_tasks,
+			COUNT(CASE WHEN t.archived_at IS NOT NULL THEN 1 END) as archived_tasks,
+			COUNT(CASE WHEN t.deleted_at IS NULL THEN 1 END) as total_tasks
+		FROM projects p
+		LEFT JOIN tasks t ON p.id = t.project_id
+		WHERE p.id = $1
+		GROUP BY p.id, p.name
 	`
 
 	var stats struct {

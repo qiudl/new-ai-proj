@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Table,
@@ -49,17 +50,18 @@ interface APIKey {
   id: string;
   name: string;
   description?: string;
-  key: string;
-  maskedKey: string;
+  key_prefix: string;
   permissions: string[];
-  status: 'active' | 'inactive' | 'expired';
-  expiresAt?: string;
-  lastUsed?: string;
-  usageCount: number;
-  usageLimit?: number;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string;
+  is_active: boolean;
+  expires_at?: string;
+  last_used_at?: string;
+  usage_count: number;
+  usage_limit?: number;
+  rate_limit_count: number;
+  rate_limit_window: string;
+  created_at: string;
+  updated_at: string;
+  created_by: number;
 }
 
 interface APIKeyFormData {
@@ -68,6 +70,8 @@ interface APIKeyFormData {
   permissions: string[];
   expiresAt?: string;
   usageLimit?: number;
+  rateLimitCount: number;
+  rateLimitWindow: string;
 }
 
 interface APIKeyManagementProps {
@@ -81,24 +85,27 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
   bordered = true,
   size = 'middle'
 }) => {
+  const navigate = useNavigate();
   const [apiKeys, setApiKeys] = useState<APIKey[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingKey, setEditingKey] = useState<APIKey | null>(null);
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({});
   const [form] = Form.useForm<APIKeyFormData>();
 
   // 权限选项
   const permissionOptions = [
-    { label: '任务管理', value: 'task.read', description: '读取任务信息' },
-    { label: '任务创建', value: 'task.write', description: '创建和编辑任务' },
-    { label: '任务删除', value: 'task.delete', description: '删除任务' },
-    { label: '项目管理', value: 'project.read', description: '读取项目信息' },
-    { label: '项目创建', value: 'project.write', description: '创建和编辑项目' },
-    { label: '用户管理', value: 'user.read', description: '读取用户信息' },
-    { label: '系统设置', value: 'system.admin', description: '管理员权限' },
-    { label: '文档管理', value: 'document.write', description: '文档读写权限' },
-    { label: '计时器', value: 'timer.write', description: '计时器管理权限' }
+    { label: 'API读取', value: 'api.read', description: '读取API访问权限' },
+    { label: 'API写入', value: 'api.write', description: '写入API访问权限' },
+    { label: 'API管理', value: 'api.admin', description: 'API管理员权限' },
+    { label: '任务读取', value: 'tasks.read', description: '读取任务信息' },
+    { label: '任务写入', value: 'tasks.write', description: '创建和编辑任务' },
+    { label: '项目读取', value: 'projects.read', description: '读取项目信息' },
+    { label: '项目写入', value: 'projects.write', description: '创建和编辑项目' },
+    { label: '用户读取', value: 'users.read', description: '读取用户信息' },
+    { label: '用户写入', value: 'users.write', description: '创建和编辑用户' },
+    { label: '分析读取', value: 'analytics.read', description: '读取分析数据' },
+    { label: '分析写入', value: 'analytics.write', description: '创建分析数据' },
+    { label: '系统监控', value: 'system.monitor', description: '系统监控权限' }
   ];
 
   // 加载API Key列表
@@ -126,7 +133,9 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       
       const payload = {
         ...values,
-        expiresAt: values.expiresAt ? dayjs(values.expiresAt).toISOString() : undefined
+        expiresAt: values.expiresAt ? dayjs(values.expiresAt).toISOString() : undefined,
+        rate_limit_count: values.rateLimitCount,
+        rate_limit_window: values.rateLimitWindow
       };
 
       if (editingKey) {
@@ -137,7 +146,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
         message.success('API Key创建成功');
         
         // 显示新创建的API Key（只显示一次）
-        if (response.data?.key) {
+        if (response.data?.plain_key) {
           Modal.info({
             title: '新的API Key',
             content: (
@@ -149,14 +158,14 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
                   style={{ marginBottom: 16 }}
                 />
                 <Input.Password 
-                  value={response.data.key} 
+                  value={response.data.plain_key} 
                   readOnly 
                   addonAfter={
                     <Button 
                       type="text" 
                       icon={<CopyOutlined />}
                       onClick={() => {
-                        navigator.clipboard.writeText(response.data.key);
+                        navigator.clipboard.writeText(response.data.plain_key);
                         message.success('已复制到剪贴板');
                       }}
                     />
@@ -198,11 +207,11 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
   };
 
   // 切换API Key状态
-  const toggleStatus = async (id: string, currentStatus: string) => {
+  const toggleStatus = async (id: string, currentIsActive: boolean) => {
     try {
-      const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-      await api.patch(`/system/api-keys/${id}/status`, { status: newStatus });
-      message.success(`API Key已${newStatus === 'active' ? '启用' : '禁用'}`);
+      const newIsActive = !currentIsActive;
+      await api.put(`/system/api-keys/${id}`, { is_active: newIsActive });
+      message.success(`API Key已${newIsActive ? '启用' : '禁用'}`);
       loadAPIKeys();
     } catch (error) {
       message.error('状态切换失败');
@@ -216,7 +225,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       setLoading(true);
       const response = await api.post(`/system/api-keys/${id}/regenerate`);
       
-      if (response.data?.key) {
+      if (response.data?.plain_key) {
         Modal.info({
           title: '重新生成的API Key',
           content: (
@@ -228,14 +237,14 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
                 style={{ marginBottom: 16 }}
               />
               <Input.Password 
-                value={response.data.key} 
+                value={response.data.plain_key} 
                 readOnly 
                 addonAfter={
                   <Button 
                     type="text" 
                     icon={<CopyOutlined />}
                     onClick={() => {
-                      navigator.clipboard.writeText(response.data.key);
+                      navigator.clipboard.writeText(response.data.plain_key);
                       message.success('已复制到剪贴板');
                     }}
                   />
@@ -258,14 +267,6 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
     }
   };
 
-  // 切换密钥显示状态
-  const toggleSecretVisibility = (id: string) => {
-    setShowSecrets(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
-  };
-
   // 复制到剪贴板
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -273,18 +274,15 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
   };
 
   // 获取状态标签
-  const getStatusTag = (status: string, expiresAt?: string) => {
+  const getStatusTag = (isActive: boolean, expiresAt?: string) => {
     if (expiresAt && dayjs(expiresAt).isBefore(dayjs())) {
       return <Tag color="red" icon={<ExclamationCircleOutlined />}>已过期</Tag>;
     }
     
-    switch (status) {
-      case 'active':
-        return <Tag color="green" icon={<CheckCircleOutlined />}>活跃</Tag>;
-      case 'inactive':
-        return <Tag color="orange" icon={<ClockCircleOutlined />}>已禁用</Tag>;
-      default:
-        return <Tag color="default">{status}</Tag>;
+    if (isActive) {
+      return <Tag color="green" icon={<CheckCircleOutlined />}>活跃</Tag>;
+    } else {
+      return <Tag color="orange" icon={<ClockCircleOutlined />}>已禁用</Tag>;
     }
   };
 
@@ -309,31 +307,14 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       )
     },
     {
-      title: 'API Key',
-      dataIndex: 'maskedKey',
-      key: 'maskedKey',
-      width: 300,
-      render: (maskedKey: string, record: APIKey) => (
-        <Space>
-          <Input
-            value={showSecrets[record.id] ? record.key : maskedKey}
-            readOnly
-            size="small"
-            style={{ width: 200, fontFamily: 'monospace' }}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={showSecrets[record.id] ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-            onClick={() => toggleSecretVisibility(record.id)}
-          />
-          <Button
-            type="text"
-            size="small"
-            icon={<CopyOutlined />}
-            onClick={() => copyToClipboard(record.key)}
-          />
-        </Space>
+      title: 'API Key前缀',
+      dataIndex: 'key_prefix',
+      key: 'key_prefix',
+      width: 200,
+      render: (keyPrefix: string) => (
+        <Text code style={{ fontFamily: 'monospace' }}>
+          {keyPrefix}***
+        </Text>
       )
     },
     {
@@ -359,26 +340,26 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'is_active',
+      key: 'is_active',
       width: 120,
-      render: (status: string, record: APIKey) => getStatusTag(status, record.expiresAt)
+      render: (isActive: boolean, record: APIKey) => getStatusTag(isActive, record.expires_at)
     },
     {
       title: '使用情况',
       key: 'usage',
       width: 120,
       render: (_, record: APIKey) => {
-        const usagePercent = record.usageLimit 
-          ? Math.round((record.usageCount / record.usageLimit) * 100)
+        const usagePercent = record.usage_limit 
+          ? Math.round((record.usage_count / record.usage_limit) * 100)
           : 0;
         
         return (
           <div>
             <Text style={{ fontSize: '12px' }}>
-              {record.usageCount}{record.usageLimit ? `/${record.usageLimit}` : ''}
+              {record.usage_count}{record.usage_limit ? `/${record.usage_limit}` : ''}
             </Text>
-            {record.usageLimit && (
+            {record.usage_limit && (
               <Progress 
                 percent={usagePercent} 
                 size="small" 
@@ -392,12 +373,12 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
     },
     {
       title: '最后使用',
-      dataIndex: 'lastUsed',
-      key: 'lastUsed',
+      dataIndex: 'last_used_at',
+      key: 'last_used_at',
       width: 150,
-      render: (lastUsed: string) => (
+      render: (lastUsedAt: string) => (
         <Text type="secondary" style={{ fontSize: '12px' }}>
-          {lastUsed ? dayjs(lastUsed).format('YYYY-MM-DD HH:mm') : '从未使用'}
+          {lastUsedAt ? dayjs(lastUsedAt).format('YYYY-MM-DD HH:mm') : '从未使用'}
         </Text>
       )
     },
@@ -407,6 +388,15 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       width: 200,
       render: (_, record: APIKey) => (
         <Space size="small">
+          <Tooltip title="查看详情">
+            <Button
+              type="text"
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/api-keys/${record.id}`)}
+            />
+          </Tooltip>
+          
           <Tooltip title="编辑">
             <Button
               type="text"
@@ -418,19 +408,21 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
                   name: record.name,
                   description: record.description,
                   permissions: record.permissions,
-                  expiresAt: record.expiresAt ? dayjs(record.expiresAt) : undefined,
-                  usageLimit: record.usageLimit
+                  expiresAt: record.expires_at ? dayjs(record.expires_at) : undefined,
+                  usageLimit: record.usage_limit,
+                  rateLimitCount: record.rate_limit_count,
+                  rateLimitWindow: record.rate_limit_window
                 });
                 setModalVisible(true);
               }}
             />
           </Tooltip>
           
-          <Tooltip title={record.status === 'active' ? '禁用' : '启用'}>
+          <Tooltip title={record.is_active ? '禁用' : '启用'}>
             <Switch
               size="small"
-              checked={record.status === 'active'}
-              onChange={() => toggleStatus(record.id, record.status)}
+              checked={record.is_active}
+              onChange={() => toggleStatus(record.id, record.is_active)}
             />
           </Tooltip>
 
@@ -521,7 +513,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           <Card size="small">
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
-                {apiKeys.filter(key => key.status === 'active').length}
+                {apiKeys.filter(key => key.is_active).length}
               </Title>
               <Text type="secondary">活跃</Text>
             </div>
@@ -671,6 +663,39 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
                   min={1}
                   max={1000000}
                 />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="rateLimitCount"
+                label="速率限制次数"
+                rules={[{ required: true, message: '请输入速率限制次数' }]}
+                initialValue={100}
+              >
+                <Input
+                  type="number"
+                  placeholder="100"
+                  min={1}
+                  max={100000}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="rateLimitWindow"
+                label="速率限制时间窗口"
+                rules={[{ required: true, message: '请选择速率限制时间窗口' }]}
+                initialValue="per_hour"
+              >
+                <Select placeholder="选择时间窗口">
+                  <Option value="per_minute">每分钟</Option>
+                  <Option value="per_hour">每小时</Option>
+                  <Option value="per_day">每天</Option>
+                  <Option value="per_month">每月</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>

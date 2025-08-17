@@ -6,6 +6,7 @@ import (
 	"ai-project-backend/services"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -555,4 +556,51 @@ func (h *UserTimerHandler) GetUserTimerAnalytics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, analytics)
+}
+
+// GetWeeklyReport handles GET /api/v1/timer/weekly
+func (h *UserTimerHandler) GetWeeklyReport(c *gin.Context) {
+	
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Parse date parameters
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	// Set default dates if not provided (current week)
+	if startDate == "" || endDate == "" {
+		now := time.Now()
+		weekday := now.Weekday()
+		
+		// Calculate Monday (start of week)
+		mondayOffset := int(time.Monday - weekday)
+		if weekday == time.Sunday {
+			mondayOffset = -6
+		}
+		monday := now.AddDate(0, 0, mondayOffset)
+		startDate = monday.Format("2006-01-02")
+		
+		// Calculate Sunday (end of week)
+		sunday := monday.AddDate(0, 0, 6)
+		endDate = sunday.Format("2006-01-02")
+	}
+
+	// Get weekly report data
+	weeklyReport, err := h.db.Timer().GetWeeklyReport(ctx, uid, startDate, endDate)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to get weekly report",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, weeklyReport)
 }

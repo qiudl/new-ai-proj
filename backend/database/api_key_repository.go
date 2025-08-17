@@ -543,19 +543,35 @@ func (r *APIKeyRepositoryImpl) GetUsageStats(ctx context.Context, apiKeyID int64
 		StatDate: time.Now().Truncate(24 * time.Hour),
 	}
 
-	var avgResponseTime float64
+	var avgResponseTime sql.NullFloat64
+	var requestCount, successCount, errorCount, rateLimitCount sql.NullInt64
 	err := row.Scan(
-		&stats.RequestCount,
-		&stats.SuccessCount,
-		&stats.ErrorCount,
-		&stats.RateLimitCount,
+		&requestCount,
+		&successCount,
+		&errorCount,
+		&rateLimitCount,
 		&avgResponseTime)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get usage stats: %w", err)
 	}
 
-	stats.AvgResponseTimeMs = int(avgResponseTime)
+	// Handle NULL values from aggregate functions
+	if requestCount.Valid {
+		stats.RequestCount = int(requestCount.Int64)
+	}
+	if successCount.Valid {
+		stats.SuccessCount = int(successCount.Int64)
+	}
+	if errorCount.Valid {
+		stats.ErrorCount = int(errorCount.Int64)
+	}
+	if rateLimitCount.Valid {
+		stats.RateLimitCount = int(rateLimitCount.Int64)
+	}
+	if avgResponseTime.Valid {
+		stats.AvgResponseTimeMs = int(avgResponseTime.Float64)
+	}
 
 	return stats, nil
 }

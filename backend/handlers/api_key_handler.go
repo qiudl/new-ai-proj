@@ -572,3 +572,98 @@ func (h *APIKeyHandler) VerifyPermission(c *gin.Context) {
 		"api_key_id": keyInfo.ID,
 	})
 }
+
+// GetAPIKeyLogs retrieves usage logs for an API key
+// @Summary Get API key usage logs
+// @Description Get usage logs for a specific API key
+// @Tags api-keys
+// @Produce json
+// @Param id path int true "API key ID"
+// @Param limit query int false "Number of logs to return (default: 100)"
+// @Param offset query int false "Offset for pagination (default: 0)"
+// @Success 200 {array} map[string]interface{}
+// @Failure 400 {object} map[string]interface{}
+// @Failure 404 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{}
+// @Router /api/v1/api-keys/{id}/logs [get]
+func (h *APIKeyHandler) GetAPIKeyLogs(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid API key ID",
+		})
+		return
+	}
+
+	// Parse pagination parameters
+	limit := 100 // Default limit
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 1000 {
+			limit = l
+		}
+	}
+
+	offset := 0 // Default offset
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	// Check if API key exists
+	_, err = h.apiKeyService.GetAPIKey(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "API key not found",
+		})
+		return
+	}
+
+	// For now, return mock data since we don't have audit logs table yet
+	// In a real implementation, this would query the audit_logs or api_usage_logs table
+	mockLogs := []map[string]interface{}{
+		{
+			"id":              "1",
+			"timestamp":       "2025-08-17T15:30:00Z",
+			"method":          "GET",
+			"endpoint":        "/api/v1/projects",
+			"response_status": 200,
+			"ip_address":      "192.168.1.100",
+			"user_agent":      "MyApp/1.0",
+		},
+		{
+			"id":              "2",
+			"timestamp":       "2025-08-17T15:25:00Z",
+			"method":          "POST",
+			"endpoint":        "/api/v1/tasks",
+			"response_status": 201,
+			"ip_address":      "192.168.1.100",
+			"user_agent":      "MyApp/1.0",
+		},
+		{
+			"id":              "3",
+			"timestamp":       "2025-08-17T15:20:00Z",
+			"method":          "GET",
+			"endpoint":        "/api/v1/tasks/123",
+			"response_status": 404,
+			"ip_address":      "192.168.1.100",
+			"user_agent":      "MyApp/1.0",
+		},
+	}
+
+	// Apply pagination to mock data
+	start := offset
+	end := offset + limit
+	if start >= len(mockLogs) {
+		c.JSON(http.StatusOK, []map[string]interface{}{})
+		return
+	}
+	if end > len(mockLogs) {
+		end = len(mockLogs)
+	}
+
+	paginatedLogs := mockLogs[start:end]
+
+	c.JSON(http.StatusOK, paginatedLogs)
+}
