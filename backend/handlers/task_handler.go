@@ -298,9 +298,9 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, message))
 }
 
-// GetTask handles GET /api/v1/projects/:projectId/tasks/:id
+// GetTask handles GET /api/v1/projects/:projectId/tasks/:taskId
 func (h *TaskHandler) GetTask(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -317,12 +317,14 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, models.NewSuccessResponse(task.ToResponse(), "获取任务成功"))
+	response := task.ToResponse()
+	
+	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取任务成功"))
 }
 
-// UpdateTask handles PUT /api/v1/projects/:projectId/tasks/:id
+// UpdateTask handles PUT /api/v1/projects/:projectId/tasks/:taskId
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -397,9 +399,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), "任务更新成功"))
 }
 
-// DeleteTask handles DELETE /api/v1/projects/:projectId/tasks/:id
+// DeleteTask handles DELETE /api/v1/projects/:projectId/tasks/:taskId
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -467,9 +469,9 @@ func (h *TaskHandler) SearchParentTasks(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
-// GetTaskChildren handles GET /api/v1/projects/:projectId/tasks/:id/children
+// GetTaskChildren handles GET /api/v1/projects/:projectId/tasks/:taskId/children
 func (h *TaskHandler) GetTaskChildren(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
+	_, err := strconv.Atoi(c.Param("taskId")) // taskID for future implementation
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -479,9 +481,9 @@ func (h *TaskHandler) GetTaskChildren(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
-// GetTaskUpdates handles GET /api/v1/projects/:projectId/tasks/:id/updates
+// GetTaskUpdates handles GET /api/v1/projects/:projectId/tasks/:taskId/updates
 func (h *TaskHandler) GetTaskUpdates(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
+	_, err := strconv.Atoi(c.Param("taskId")) // taskID for future implementation
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -536,9 +538,9 @@ func (h *TaskHandler) DeleteTaskUpdate(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
-// GetTaskTimeline handles GET /api/v1/projects/:projectId/tasks/:id/timeline
+// GetTaskTimeline handles GET /api/v1/projects/:projectId/tasks/:taskId/timeline
 func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
+	_, err := strconv.Atoi(c.Param("taskId")) // taskID for future implementation
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
@@ -566,4 +568,4 @@ func (h *TaskHandler) ValidateParent(c *gin.Context) {
 
 	// TODO: Implement ValidateParentChild method in TaskRepository
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
-}
+}// Force rebuild Sun Aug 17 22:30:44 CST 2025

@@ -479,7 +479,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           {title}
         </Space>
       }
-      bordered={bordered}
+      variant={bordered ? "outlined" : undefined}
       size={size}
       extra={
         <Space>

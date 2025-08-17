@@ -9,6 +9,7 @@ import { useMemo, useCallback, useRef, useEffect } from 'react';
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
   private metrics: Map<string, number[]> = new Map();
+  private activeTimers: Map<string, number> = new Map();
 
   static getInstance(): PerformanceMonitor {
     if (!PerformanceMonitor.instance) {
@@ -32,6 +33,37 @@ export class PerformanceMonitor {
         console.log(`⏱️ ${label}: ${duration.toFixed(2)}ms`);
       }
     };
+  }
+
+  startMeasure(label: string, context?: any): void {
+    this.activeTimers.set(label, performance.now());
+    if (process.env.NODE_ENV === 'development' && context) {
+      console.log(`🚀 Starting ${label}:`, context);
+    }
+  }
+
+  endMeasure(label: string): void {
+    const start = this.activeTimers.get(label);
+    if (start === undefined) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`⚠️ No start time found for ${label}`);
+      }
+      return;
+    }
+
+    const end = performance.now();
+    const duration = end - start;
+    
+    if (!this.metrics.has(label)) {
+      this.metrics.set(label, []);
+    }
+    this.metrics.get(label)!.push(duration);
+    
+    this.activeTimers.delete(label);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`⏱️ ${label}: ${duration.toFixed(2)}ms`);
+    }
   }
 
   getMetrics(label: string): { avg: number; min: number; max: number; count: number } | null {

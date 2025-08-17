@@ -29,7 +29,7 @@ func NewTaskUpdateHandler(db database.DB, logger *log.Logger, validator *validat
 
 // GetTaskUpdates 获取任务更新记录
 func (h *TaskUpdateHandler) GetTaskUpdates(c *gin.Context) {
-	taskIDStr := c.Param("task_id")
+	taskIDStr := c.Param("taskId")
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
@@ -134,7 +134,7 @@ func (h *TaskUpdateHandler) DeleteTaskUpdate(c *gin.Context) {
 
 // GetTaskTimeline 获取任务时间线
 func (h *TaskUpdateHandler) GetTaskTimeline(c *gin.Context) {
-	taskIDStr := c.Param("task_id")
+	taskIDStr := c.Param("taskId")
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
@@ -172,4 +172,4 @@ func (h *TaskUpdateHandler) GetTaskTimeline(c *gin.Context) {
 		"limit":  limit,
 	}, "Task timeline retrieved successfully")
 	c.JSON(http.StatusOK, response)
-}
+}// Force rebuild Sun Aug 17 22:42:39 CST 2025

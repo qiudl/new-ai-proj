@@ -261,7 +261,7 @@ type APIKey struct {
 	DeletedAt            *time.Time             `json:"deleted_at,omitempty" db:"deleted_at"`
 	
 	// Metadata
-	Metadata             map[string]interface{} `json:"metadata,omitempty" db:"metadata"`
+	Metadata             CustomFields           `json:"metadata,omitempty" db:"metadata"`
 	Tags                 StringSlice            `json:"tags,omitempty" db:"tags"`
 }
 
@@ -280,7 +280,7 @@ type APIKeyCreateRequest struct {
 	AllowedIPs           IPSlice                `json:"allowed_ips,omitempty"`
 	AllowedDomains       StringSlice            `json:"allowed_domains,omitempty"`
 	UserAgentPattern     *string                `json:"user_agent_pattern,omitempty" validate:"omitempty,max=500"`
-	Metadata             map[string]interface{} `json:"metadata,omitempty"`
+	Metadata             CustomFields           `json:"metadata,omitempty"`
 	Tags                 StringSlice            `json:"tags,omitempty"`
 }
 
@@ -300,7 +300,7 @@ type APIKeyUpdateRequest struct {
 	AllowedIPs           IPSlice                `json:"allowed_ips,omitempty"`
 	AllowedDomains       StringSlice            `json:"allowed_domains,omitempty"`
 	UserAgentPattern     *string                `json:"user_agent_pattern,omitempty" validate:"omitempty,max=500"`
-	Metadata             map[string]interface{} `json:"metadata,omitempty"`
+	Metadata             CustomFields           `json:"metadata,omitempty"`
 	Tags                 StringSlice            `json:"tags,omitempty"`
 }
 
@@ -342,7 +342,7 @@ type APIKeyResponse struct {
 	CreatedAt            time.Time              `json:"created_at"`
 	UpdatedBy            *int                   `json:"updated_by,omitempty"`
 	UpdatedAt            time.Time              `json:"updated_at"`
-	Metadata             map[string]interface{} `json:"metadata,omitempty"`
+	Metadata             CustomFields           `json:"metadata,omitempty"`
 	Tags                 StringSlice            `json:"tags,omitempty"`
 }
 
@@ -406,9 +406,9 @@ type APIUsageLog struct {
 	RequestSequence      *int64                 `json:"request_sequence,omitempty" db:"request_sequence"`
 	
 	// Metadata
-	RequestHeaders       map[string]interface{} `json:"request_headers,omitempty" db:"request_headers"`
-	RequestParams        map[string]interface{} `json:"request_params,omitempty" db:"request_params"`
-	ResponseMetadata     map[string]interface{} `json:"response_metadata,omitempty" db:"response_metadata"`
+	RequestHeaders       CustomFields           `json:"request_headers,omitempty" db:"request_headers"`
+	RequestParams        CustomFields           `json:"request_params,omitempty" db:"request_params"`
+	ResponseMetadata     CustomFields           `json:"response_metadata,omitempty" db:"response_metadata"`
 	CorrelationID        *string                `json:"correlation_id,omitempty" db:"correlation_id"`
 	TraceID              *string                `json:"trace_id,omitempty" db:"trace_id"`
 }

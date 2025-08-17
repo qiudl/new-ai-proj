@@ -176,12 +176,13 @@ type TaskResponse struct {
 	Depth          int          `json:"depth"`
 	HasChildren    bool         `json:"has_children"`
 	// AI-enhanced fields
-	Dependencies   Dependencies `json:"dependencies"`
-	EstimatedHours *float64     `json:"estimated_hours"`
-	Priority       string       `json:"priority"`
-	Tags           Tags         `json:"tags"`
-	CreatedAt      time.Time    `json:"created_at"`
-	UpdatedAt      time.Time    `json:"updated_at"`
+	Dependencies     Dependencies `json:"dependencies"`
+	EstimatedHours   *float64     `json:"estimated_hours"`
+	Priority         string       `json:"priority"`
+	Tags             Tags         `json:"tags"`
+	TotalTimeSeconds int          `json:"total_time_seconds"`
+	CreatedAt        time.Time    `json:"created_at"`
+	UpdatedAt        time.Time    `json:"updated_at"`
 }
 
 // BulkImportRequest represents a bulk task import request
@@ -283,21 +284,26 @@ type RecycledTask struct {
 // ToResponse converts Task to TaskResponse
 func (t *Task) ToResponse() TaskResponse {
 	return TaskResponse{
-		ID:           t.ID,
-		ProjectID:    t.ProjectID,
-		Title:        t.Title,
-		Description:  t.Description,
-		Status:       t.Status,
-		AssigneeID:   t.AssigneeID,
-		DueDate:      t.DueDate,
-		CustomFields: t.CustomFields,
-		ParentID:     t.ParentID,
-		TaskLevel:    t.TaskLevel,
-		SortOrder:    t.SortOrder,
-		Depth:        t.TaskLevel, // 默认使用 TaskLevel 作为 Depth
-		HasChildren:  false,       // 默认值，需要在查询时设置
-		CreatedAt:    t.CreatedAt,
-		UpdatedAt:    t.UpdatedAt,
+		ID:             t.ID,
+		ProjectID:      t.ProjectID,
+		Title:          t.Title,
+		Description:    t.Description,
+		Status:         t.Status,
+		AssigneeID:     t.AssigneeID,
+		DueDate:        t.DueDate,
+		CustomFields:   t.CustomFields,
+		ParentID:       t.ParentID,
+		TaskLevel:      t.TaskLevel,
+		SortOrder:      t.SortOrder,
+		Depth:          t.TaskLevel, // 默认使用 TaskLevel 作为 Depth
+		HasChildren:    false,       // 默认值，需要在查询时设置
+		Dependencies:     t.Dependencies,
+		EstimatedHours:   t.EstimatedHours,
+		Priority:         t.Priority,
+		Tags:             t.Tags,
+		TotalTimeSeconds: t.TotalTimeSeconds,
+		CreatedAt:        t.CreatedAt,
+		UpdatedAt:        t.UpdatedAt,
 	}
 }
 
