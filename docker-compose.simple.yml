@@ -1,0 +1,159 @@
+# 轻量服务器简化部署配置
+# 直接在服务器上构建，不依赖外部镜像仓库
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:16
+    container_name: ai_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-ai_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ai_password_2024}
+      POSTGRES_DB: ${DB_NAME:-ai_project_db}
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ai_user} -d ${DB_NAME:-ai_project_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+  # Go 后端服务 - 直接构建
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: ai_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # 数据库配置
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-ai_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ai_password_2024}
+      DB_NAME: ${DB_NAME:-ai_project_db}
+      DB_SOURCE: postgresql://${DB_USER:-ai_user}:${DB_PASSWORD:-ai_password_2024}@postgres:5432/${DB_NAME:-ai_project_db}?sslmode=disable
+      
+      # 应用配置
+      ENV: production
+      PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:-change_me_super_secure_jwt_secret}
+      
+      # Redis配置
+      REDIS_URL: redis://redis:6379
+      
+      # 其他配置
+      GIN_MODE: release
+      LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+  # React 前端服务 - 直接构建
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: ai_frontend
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: /api/v1
+      REACT_APP_ENV: production
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+  # MCP服务器 - 直接构建（如果存在）
+  mcp-server:
+    build:
+      context: ./ai-proj-mcp
+      dockerfile: Dockerfile.prod
+    container_name: ai_mcp
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: http://backend:8080/api/v1
+      PORT: 3001
+    ports:
+      - "3100:3001"
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis-prod.conf:/etc/redis/redis.conf:ro
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: ai_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-simple.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/default-simple.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai_network
+
+# 网络配置
+networks:
+  ai_network:
+    driver: bridge
+
+# 数据卷
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

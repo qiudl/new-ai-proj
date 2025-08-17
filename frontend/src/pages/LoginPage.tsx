@@ -207,10 +207,7 @@ const LoginPage: React.FC = () => {
           </div>
         )}
         
-        <div style={{ textAlign: 'center', marginTop: '16px', color: '#8c8c8c' }}>
-          <p>请使用正确的用户名和密码登录</p>
-          <p>如无法登录，请联系系统管理员</p>
-        </div>
+       
       </div>
     </div>
   );
