@@ -42,9 +42,26 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 		
 		// Timer status and information  
 		unifiedTimer.GET("/current", app.GetUnifiedTimerHandler().GetCurrentTimer)    // Get current timer state
-		unifiedTimer.GET("/health", app.GetUnifiedTimerHandler().HealthCheck)    // Health check
+		unifiedTimer.GET("/health", app.GetUnifiedTimerHandler().HealthCheck)         // Health check
+		
+		// User timer analytics and history (using UserTimerHandler)
+		unifiedTimer.GET("/dashboard", app.GetUserTimerHandler().GetUserTimerDashboard) // Dashboard data
+		unifiedTimer.GET("/stats", app.GetUserTimerHandler().GetUserTimerStats)         // Statistics
+		unifiedTimer.GET("/history", app.GetUserTimerHandler().GetUserTimerHistory)     // History
+		unifiedTimer.GET("/analytics", app.GetUserTimerHandler().GetUserTimerAnalytics) // Analytics
 	}
 
+	// User Timer Tasks management
+	userTimerTasks := authorized.Group("/user/timer-tasks")
+	{
+		userTimerTasks.POST("", app.GetUserTimerHandler().CreateUserTimerTask)               // Create task
+		userTimerTasks.GET("", app.GetUserTimerHandler().GetUserTimerTasks)                 // List tasks
+		userTimerTasks.GET("/:id", app.GetUserTimerHandler().GetUserTimerTask)              // Get task
+		userTimerTasks.PUT("/:id", app.GetUserTimerHandler().UpdateUserTimerTask)           // Update task
+		userTimerTasks.DELETE("/:id", app.GetUserTimerHandler().DeleteUserTimerTask)        // Delete task
+		userTimerTasks.POST("/:id/favorite", app.GetUserTimerHandler().ToggleFavoriteUserTimerTask) // Toggle favorite
+	}
+	
 	// Recent tasks and history (unified endpoint)
 	// TODO: Implement GetRecentTasks method
 	// authorized.GET("/timer/recent-tasks", app.GetUnifiedTimerHandler().GetRecentTasks)

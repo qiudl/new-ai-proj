@@ -57,8 +57,6 @@ services:
       
       # Go开发配置
       CGO_ENABLED: 0
-      GOOS: linux
-      GOARCH: amd64
       
       # 热重载配置
       AIR_ENABLED: true
@@ -74,8 +72,8 @@ services:
       - ./backend/logs:/app/logs
       - ./backend/docs:/app/docs:rw
     working_dir: /app
-    # 使用go run进行开发
-    command: ["sh", "-c", "go mod download && go run main.go"]
+    # 使用Dockerfile中定义的CMD (air热重载)
+    # command: ["sh", "-c", "go mod download && go run main.go"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s

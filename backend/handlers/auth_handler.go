@@ -5,6 +5,7 @@ import (
 	"ai-project-backend/models"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -88,7 +89,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // DevQuickLogin handles POST /api/v1/auth/dev-quick-login (development only)
 func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	// Only allow in development environment
-	env := c.GetString("env")
+	env := os.Getenv("APP_ENV")
 	if env != "development" && env != "dev" {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "接口不存在", nil))
 		return
@@ -131,7 +132,7 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 // GetDevAccounts handles GET /api/v1/auth/dev-accounts (development only)
 func (h *AuthHandler) GetDevAccounts(c *gin.Context) {
 	// Only allow in development environment
-	env := c.GetString("env")
+	env := os.Getenv("APP_ENV")
 	if env != "development" && env != "dev" {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "接口不存在", nil))
 		return

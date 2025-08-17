@@ -68,10 +68,12 @@ This is an AI-powered project management system with task management, timer func
 # 后端
 cd backend
 go run main.go
+go build -o main .             # Build binary
 
 # 前端
 cd frontend  
-npm start
+npm start                      # Development server
+npm run build                  # Production build
 
 # Docker服务
 docker-compose up db           # 仅启动数据库
@@ -79,23 +81,58 @@ docker-compose up db           # 仅启动数据库
 
 ### MCP Server
 ```bash
-cd ai-proj-mcp
+cd mcp-task-bridge
 npm start                      # Start MCP server
-npm run dev                    # Start with tsx watch
+npm run dev                    # Start with tsx watch mode
+npm test                       # Run MCP server tests
+```
+
+## Build and Quality Commands
+
+### Backend Build
+```bash
+cd backend
+go build -o main .             # Build binary
+go mod tidy                    # Clean up dependencies
+go fmt ./...                   # Format code
+go vet ./...                   # Static analysis
+```
+
+### Frontend Build
+```bash
+cd frontend
+npm run build                  # Production build
+npm run analyze               # Bundle size analysis
+npm run lint                  # Run ESLint
+npm run lint:fix             # Auto-fix ESLint issues
+npm run type-check           # TypeScript type checking
+npm run format              # Format with Prettier
+```
+
+### Docker Build
+```bash
+# Build all services
+./scripts/dev-env.sh build
+
+# Build specific service
+docker-compose build backend
+docker-compose build frontend
 ```
 
 ## Key File Locations
 
 ### Backend Structure
 - `main.go` - Application entry point and dependency injection
-- `handlers/` - HTTP request handlers organized by module
-- `models/` - Data models and domain entities
-- `database/` - Repository implementations and DB interfaces
+- `handlers/` - HTTP request handlers organized by module (Gin framework)
+- `models/` - Data models and domain entities (GORM/SQL structs)
+- `database/` - Repository implementations and DB interfaces (PostgreSQL with sqlx)
 - `services/` - Business logic and validation services
-- `middleware/` - Authentication, audit, and other middleware
-- `routes/` - Route definitions and setup
-- `config/` - Configuration management
-- `migrations/` - Database migration files
+- `middleware/` - Authentication (JWT), audit, and other middleware
+- `routes/` - Route definitions and setup (RESTful API structure)
+- `config/` - Configuration management (YAML + environment variables)
+- `migrations/` - Database migration files (sequential numbered SQL files)
+- `factories/` - Handler factories for dependency injection
+- `utils/` - Shared utilities (JWT, validation, encryption)
 
 ### Frontend Structure
 - `src/App.tsx` - Main application component with routing
@@ -182,15 +219,27 @@ Docker环境使用预配置的环境变量，无需手动设置：
 ## Testing
 
 ### Backend Testing
-- Unit tests for services and utilities
-- Integration tests for database operations
-- Handler tests for API endpoints
+```bash
+cd backend
+go test ./...                  # Run all Go tests
+go test -v ./database         # Run database tests with verbose output
+go test -run TestSpecific     # Run specific test
+```
 
 ### Frontend Testing
-- Jest + React Testing Library
-- Component unit tests
-- Integration tests for key user flows
-- E2E tests for critical paths
+```bash
+cd frontend
+npm test                      # Run Jest tests (interactive)
+npm run test                  # Run all tests
+npm run lint                  # Run ESLint
+npm run lint:fix             # Fix ESLint issues automatically
+npm run type-check           # TypeScript type checking
+npm run format              # Format code with Prettier
+```
+
+### Test File Patterns
+- Backend: `*_test.go` files alongside source code
+- Frontend: Tests in `src/__tests__/` and `src/components/__tests__/` directories
 
 ## Development Guidelines
 
@@ -216,6 +265,16 @@ Docker环境使用预配置的环境变量，无需手动设置：
 - Implement responsive design patterns
 - Follow React best practices (hooks, context)
 - Use React Query for server state management
+- TypeScript strict mode enabled
+- CSS modules for component-specific styling
+- ESLint + Prettier for code quality
+
+### Go Development Patterns
+- Clean architecture with repository pattern
+- Interface-driven design for testability
+- GORM for ORM operations, sqlx for complex queries
+- Gin middleware for cross-cutting concerns
+- Factory pattern for handler dependency injection
 
 ## Common Development Tasks
 
@@ -248,7 +307,13 @@ The system is containerized with Docker:
 
 ## MCP Integration
 
-The `ai-proj-mcp` directory contains an MCP server that enables Claude Code to interact with the task management system. This provides enhanced productivity features when using Claude Code for development.
+The `mcp-task-bridge` directory contains an MCP server that enables Claude Code to interact with the task management system. This provides enhanced productivity features when using Claude Code for development.
+
+### MCP Server Configuration
+- **Server**: Node.js TypeScript server with MCP SDK
+- **Port**: 3100 (configurable)
+- **Tools**: Task creation, project management, document handling
+- **Dependencies**: axios for API communication
 
 ## 🚀 快速开始
 
@@ -289,3 +354,33 @@ chmod +x scripts/dev-env.sh scripts/setup-replica-database.sh
 - 支持热重载，代码修改即时生效
 - 端口映射：前端3001，后端8081，MCP3100
 - 详细迁移指南请参考 `MIGRATION_TO_DOCKER_DEV.md`
+
+## Troubleshooting
+
+### Common Issues
+- **Database Connection**: Ensure PostgreSQL is running on correct port (5433 for Docker, 5432 for local)
+- **Port Conflicts**: Check if ports 3001, 8081, 3100, 5433 are available
+- **Environment Variables**: Verify all required env vars are set (see Environment Setup)
+- **Build Issues**: Run `go mod tidy` for backend, `npm install` for frontend dependencies
+
+### Debug Commands
+```bash
+# Check Docker services
+./scripts/dev-env.sh status
+
+# View container logs
+./scripts/dev-env.sh logs backend
+./scripts/dev-env.sh logs frontend
+
+# Database debugging
+./scripts/dev-env.sh shell backend
+# Inside container: 
+psql -h postgres-master -U dev_user -d ai_project_db
+```
+
+### Important Notes for Claude Code
+- Always run tests and lints before committing code
+- Use `./scripts/dev-env.sh` for consistent development environment
+- MCP server enables enhanced Claude Code integration for task management
+- Project uses Chinese comments and documentation in some places
+- Database migrations are numbered sequentially and must be applied in order
