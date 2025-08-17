@@ -56,6 +56,15 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// API routes with authentication
 	api := router.Group("/api/v1")
 	
+	// Add global OPTIONS handler for CORS preflight requests
+	router.OPTIONS("/*path", func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+		c.Header("Access-Control-Max-Age", "86400")
+		c.Status(204)
+	})
+	
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
 	
