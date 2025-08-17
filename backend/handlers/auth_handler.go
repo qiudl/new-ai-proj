@@ -3,7 +3,6 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
-	"encoding/json"
 	"log"
 	"net/http"
 	"time"
@@ -41,7 +40,7 @@ type LoginResponse struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "请求数据格式错误", nil))
 		return
 	}
 
@@ -49,14 +48,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	user, err := h.db.Users().GetByUsername(c.Request.Context(), req.Username)
 	if err != nil {
 		log.Printf("User not found: %v", err)
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse("用户名或密码错误"))
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse("AUTHENTICATION_ERROR", "用户名或密码错误", nil))
 		return
 	}
 
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 		log.Printf("Password verification failed: %v", err)
-		c.JSON(http.StatusUnauthorized, models.ErrorResponse("用户名或密码错误"))
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse("AUTHENTICATION_ERROR", "用户名或密码错误", nil))
 		return
 	}
 
@@ -64,7 +63,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	token, expiresAt, err := h.generateJWTToken(user)
 	if err != nil {
 		log.Printf("Error generating JWT token: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("登录失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
 
@@ -91,7 +90,7 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	// Only allow in development environment
 	env := c.GetString("env")
 	if env != "development" && env != "dev" {
-		c.JSON(http.StatusNotFound, models.ErrorResponse("接口不存在"))
+		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "接口不存在", nil))
 		return
 	}
 
@@ -100,7 +99,7 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "请求数据格式错误", nil))
 		return
 	}
 
@@ -108,7 +107,7 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	user, err := h.db.Users().GetByUsername(c.Request.Context(), req.Username)
 	if err != nil {
 		log.Printf("Dev quick login - user not found: %v", err)
-		c.JSON(http.StatusNotFound, models.ErrorResponse("用户不存在"))
+		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "用户不存在", nil))
 		return
 	}
 
@@ -116,7 +115,7 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 	token, expiresAt, err := h.generateJWTToken(user)
 	if err != nil {
 		log.Printf("Error generating JWT token for dev login: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("登录失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
 
@@ -134,7 +133,7 @@ func (h *AuthHandler) GetDevAccounts(c *gin.Context) {
 	// Only allow in development environment
 	env := c.GetString("env")
 	if env != "development" && env != "dev" {
-		c.JSON(http.StatusNotFound, models.ErrorResponse("接口不存在"))
+		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "接口不存在", nil))
 		return
 	}
 

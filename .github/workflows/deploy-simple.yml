@@ -21,11 +21,43 @@ jobs:
         key: ${{ secrets.TENCENT_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
+          set -e  # 出错时立即退出
+          
           # 设置变量
           PROJECT_DIR="/opt/ai-project"
           REPO_URL="https://github.com/${{ github.repository }}.git"
           
+          echo "=== 开始部署流程 ==="
+          echo "项目目录: $PROJECT_DIR"
+          echo "仓库地址: $REPO_URL"
+          
+          # 检查并安装必要工具
+          echo "=== 检查系统依赖 ==="
+          if ! command -v git >/dev/null 2>&1; then
+            echo "安装Git..."
+            sudo apt update
+            sudo apt install -y git curl
+          fi
+          
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "安装Docker..."
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $USER
+          fi
+          
+          if ! command -v docker-compose >/dev/null 2>&1; then
+            echo "安装Docker Compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+          
+          # 启动Docker服务
+          sudo systemctl start docker || true
+          sudo systemctl enable docker || true
+          
           # 创建项目目录
+          echo "=== 准备项目目录 ==="
           sudo mkdir -p $PROJECT_DIR
           sudo chown -R $USER:$USER $PROJECT_DIR
           cd $PROJECT_DIR
@@ -37,35 +69,90 @@ jobs:
           fi
           
           # 克隆最新代码
-          echo "下载最新代码..."
-          git clone $REPO_URL current
+          echo "=== 下载最新代码 ==="
+          echo "正在克隆仓库: $REPO_URL"
+          timeout 300 git clone --depth 1 $REPO_URL current || {
+            echo "Git克隆失败，尝试使用wget下载..."
+            wget -O main.zip "https://github.com/${{ github.repository }}/archive/refs/heads/main.zip"
+            unzip main.zip
+            mv *-main current
+            rm main.zip
+          }
           cd current
           
+          echo "=== 检查配置文件 ==="
+          if [ ! -f "docker-compose.simple.yml" ]; then
+            echo "❌ 找不到docker-compose.simple.yml文件"
+            ls -la
+            exit 1
+          fi
+          
+          # 创建环境配置文件
+          if [ ! -f ".env" ]; then
+            echo "创建环境配置文件..."
+            cp .env.simple .env 2>/dev/null || {
+              echo "DB_USER=ai_user" > .env
+              echo "DB_PASSWORD=ai_password_2024" >> .env
+              echo "DB_NAME=ai_project_db" >> .env
+              echo "JWT_SECRET=dev_jwt_secret_2024" >> .env
+            }
+          fi
+          
           # 停止现有服务
-          echo "停止现有服务..."
+          echo "=== 停止现有服务 ==="
           docker-compose -f docker-compose.simple.yml down || true
           
-          # 清理旧镜像
+          # 清理旧镜像和容器
+          echo "=== 清理旧资源 ==="
+          docker container prune -f || true
           docker image prune -f || true
           
           # 构建并启动服务
-          echo "构建并启动服务..."
-          docker-compose -f docker-compose.simple.yml up --build -d
+          echo "=== 构建并启动服务 ==="
+          echo "开始构建Docker镜像..."
+          docker-compose -f docker-compose.simple.yml build || {
+            echo "❌ Docker构建失败，查看详细信息："
+            docker-compose -f docker-compose.simple.yml logs
+            exit 1
+          }
+          
+          echo "启动服务..."
+          docker-compose -f docker-compose.simple.yml up -d || {
+            echo "❌ 服务启动失败，查看详细信息："
+            docker-compose -f docker-compose.simple.yml logs
+            exit 1
+          }
           
           # 健康检查
+          echo "=== 健康检查 ==="
           echo "等待服务启动..."
           sleep 30
           
           # 检查服务状态
+          echo "检查容器状态："
           docker-compose -f docker-compose.simple.yml ps
           
+          # 检查Docker状态
+          echo "检查Docker系统状态："
+          docker system df
+          
           # 简单的健康检查
+          echo "执行应用健康检查..."
           if curl -f http://localhost/health >/dev/null 2>&1; then
             echo "✅ 部署成功！应用正常运行"
+          elif curl -f http://localhost:80/health >/dev/null 2>&1; then
+            echo "✅ 部署成功！应用正常运行（端口80）"
           else
-            echo "⚠️ 应用可能存在问题，请检查日志"
-            docker-compose -f docker-compose.simple.yml logs --tail=20
+            echo "⚠️ 应用健康检查失败，查看服务日志："
+            docker-compose -f docker-compose.simple.yml logs --tail=50
+            
+            echo "检查端口占用情况："
+            netstat -tlnp | grep :80 || true
+            netstat -tlnp | grep :8080 || true
           fi
           
-          echo "🎉 部署完成！"
-          echo "访问地址: http://${{ secrets.TENCENT_HOST }}"
+          echo "=== 部署完成 ==="
+          echo "🎉 部署流程完成！"
+          echo "🌐 访问地址: http://${{ secrets.TENCENT_HOST }}"
+          echo "📊 API地址: http://${{ secrets.TENCENT_HOST }}/api/v1"
+          echo "🏥 健康检查: http://${{ secrets.TENCENT_HOST }}/health"

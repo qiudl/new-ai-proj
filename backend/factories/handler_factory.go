@@ -6,7 +6,6 @@ import (
 	"ai-project-backend/handlers"
 	"ai-project-backend/interfaces"
 	"ai-project-backend/services"
-	"ai-project-backend/utils"
 	"database/sql"
 	"fmt"
 	"log"
@@ -40,16 +39,16 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers := &AllHandlers{}
 	
 	// 认证处理器
-	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.logger, f.validate, utils.NewJWTManager(f.config.JWT.Secret, f.config.JWT.Expiration), f.config)
+	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.config.JWT.Secret)
 	
 	// 基础处理器
 	allHandlers.CustomerHandler = handlers.NewCustomerHandler(f.db, f.logger, f.validate)
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
-	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
+	// allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate) // Disabled
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
 	
 	// 任务管理处理器
-	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
+	// allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate) // Disabled
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 
 	// 用户管理处理器
