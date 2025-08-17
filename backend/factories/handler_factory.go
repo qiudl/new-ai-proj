@@ -124,6 +124,12 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 文档工具处理器
 	allHandlers.DocumentUtilityHandler = handlers.NewDocumentUtilityHandler(f.db, f.logger, f.validate)
 	
+	// 批量操作处理器
+	allHandlers.BulkOperationHandler = handlers.NewBulkOperationHandler(f.db, f.logger, f.validate)
+	
+	// 验证处理器
+	allHandlers.ValidationHandler = handlers.NewValidationHandler(f.db, f.logger, f.validate)
+	
 	// 创建智能模板服务和处理器
 	smartTemplateService := services.NewSmartTemplateService(f.db.GetDB().(*sql.DB))
 	allHandlers.SmartTemplateHandler = handlers.NewSmartTemplateHandler(smartTemplateService)

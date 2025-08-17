@@ -31,29 +31,50 @@ This is an AI-powered project management system with task management, timer func
 
 ## Development Commands
 
-### Backend
+### 🐳 Docker开发环境 (推荐)
 ```bash
+# 启动完整开发环境
+./scripts/dev-env.sh start
+
+# 查看服务状态
+./scripts/dev-env.sh status
+
+# 查看日志
+./scripts/dev-env.sh logs [service]
+
+# 进入容器调试
+./scripts/dev-env.sh shell backend
+./scripts/dev-env.sh shell frontend
+
+# 重启服务
+./scripts/dev-env.sh restart
+
+# 停止环境
+./scripts/dev-env.sh stop
+
+# 设置PostgreSQL从库
+./scripts/dev-env.sh replica
+```
+
+### 访问地址
+- **前端**: http://localhost:3001
+- **后端API**: http://localhost:8081
+- **MCP服务器**: http://localhost:3100
+- **PostgreSQL主库**: localhost:5433
+- **PostgreSQL从库**: localhost:5432 (本机备份)
+
+### 传统开发方式 (不推荐)
+```bash
+# 后端
 cd backend
-go run main.go                    # Start development server
-go build -o main .               # Build binary
-go test ./...                    # Run tests
-```
+go run main.go
 
-### Frontend  
-```bash
-cd frontend
-npm start                        # Start development server (port 3000)
-npm run build                    # Build for production
-npm test                         # Run tests
-npm run lint                     # Run ESLint
-npm run type-check              # TypeScript type checking
-```
+# 前端
+cd frontend  
+npm start
 
-### Docker Development
-```bash
-docker-compose up               # Start all services
-docker-compose up db           # Start only database
-docker-compose down            # Stop all services
+# Docker服务
+docker-compose up db           # 仅启动数据库
 ```
 
 ### MCP Server
@@ -118,14 +139,45 @@ The system uses JWT tokens for authentication:
 
 ## Environment Setup
 
-### Required Environment Variables (Backend)
-- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` - Database configuration
-- `JWT_SECRET` - JWT signing secret
-- `PORT` - Server port (default: 8080)
+### Docker开发环境配置
 
-### Required Environment Variables (Frontend)
-- `REACT_APP_API_URL` - Backend API URL (default: /api/v1)
-- `REACT_APP_ENV` - Environment identifier
+Docker环境使用预配置的环境变量，无需手动设置：
+
+#### 数据库配置 (自动)
+- **主库(Docker)**: 
+  - 容器内访问: `postgres-master:5432`
+  - 主机访问: `localhost:5433`
+- **从库(本机)**: `localhost:5432` (可选备份)
+- **用户**: `dev_user`
+- **密码**: `dev_password_2024`
+- **数据库**: `ai_project_db`
+
+#### API配置 (自动)
+- **后端**: `http://localhost:8081`
+- **前端**: `http://localhost:3001`
+- **MCP服务器**: `http://localhost:3100`
+
+### 手动环境变量 (如需自定义)
+
+#### Backend (.env)
+**容器内运行时 (推荐)**:
+- `DB_HOST=postgres-master` - 数据库主机
+- `DB_PORT=5432` - 数据库端口
+
+**主机运行时**:
+- `DB_HOST=localhost` - 数据库主机
+- `DB_PORT=5433` - 数据库端口
+
+**通用配置**:
+- `DB_USER=dev_user` - 数据库用户
+- `DB_PASSWORD=dev_password_2024` - 数据库密码
+- `DB_NAME=ai_project_db` - 数据库名
+- `JWT_SECRET=dev_jwt_secret_key_2024` - JWT密钥
+- `PORT=8081` - 服务器端口
+
+#### Frontend (.env)
+- `REACT_APP_API_URL=http://localhost:8081/api/v1` - API地址
+- `REACT_APP_ENV=development` - 环境标识
 
 ## Testing
 
@@ -197,3 +249,43 @@ The system is containerized with Docker:
 ## MCP Integration
 
 The `ai-proj-mcp` directory contains an MCP server that enables Claude Code to interact with the task management system. This provides enhanced productivity features when using Claude Code for development.
+
+## 🚀 快速开始
+
+### 首次设置
+```bash
+# 1. 给脚本执行权限
+chmod +x scripts/dev-env.sh scripts/setup-replica-database.sh
+
+# 2. 启动开发环境
+./scripts/dev-env.sh start
+
+# 3. 设置PostgreSQL从库备份 (可选)
+./scripts/dev-env.sh replica
+
+# 4. 验证环境
+./scripts/dev-env.sh status
+```
+
+### 日常开发
+```bash
+# 启动环境
+./scripts/dev-env.sh start
+
+# 查看服务状态
+./scripts/dev-env.sh status
+
+# 查看日志
+./scripts/dev-env.sh logs frontend
+./scripts/dev-env.sh logs backend
+
+# 停止环境
+./scripts/dev-env.sh stop
+```
+
+### 重要说明
+- 开发环境完全基于Docker，避免本机环境污染
+- PostgreSQL主从架构保证数据安全
+- 支持热重载，代码修改即时生效
+- 端口映射：前端3001，后端8081，MCP3100
+- 详细迁移指南请参考 `MIGRATION_TO_DOCKER_DEV.md`

@@ -1,0 +1,390 @@
+package handlers
+
+import (
+	"ai-project-backend/database"
+	"ai-project-backend/models"
+	"encoding/csv"
+	"log"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+)
+
+// BulkOperationHandler 批量操作处理器
+type BulkOperationHandler struct {
+	db        database.DB
+	logger    *log.Logger
+	validator *validator.Validate
+}
+
+// NewBulkOperationHandler 创建批量操作处理器
+func NewBulkOperationHandler(db database.DB, logger *log.Logger, validator *validator.Validate) *BulkOperationHandler {
+	return &BulkOperationHandler{
+		db:        db,
+		logger:    logger,
+		validator: validator,
+	}
+}
+
+// BulkImportTasks 批量导入任务
+func (h *BulkOperationHandler) BulkImportTasks(c *gin.Context) {
+	type TaskBatch struct {
+		Title       string `json:"title" validate:"required"`
+		Description string `json:"description"`
+		Priority    string `json:"priority"`
+		DueDate     string `json:"due_date"`
+		AssigneeID  int    `json:"assignee_id"`
+	}
+
+	var req struct {
+		ProjectID int         `json:"project_id" validate:"required"`
+		Tasks     []TaskBatch `json:"tasks" validate:"required,dive"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Convert batch tasks to regular tasks
+	var tasks []*models.Task
+	for _, batchTask := range req.Tasks {
+		task := &models.Task{
+			Title:       batchTask.Title,
+			Description: batchTask.Description,
+			Status:      "pending",
+			Priority:    batchTask.Priority,
+			ProjectID:   req.ProjectID,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+
+		if batchTask.DueDate != "" {
+			if dueDate, err := time.Parse("2006-01-02", batchTask.DueDate); err == nil {
+				task.DueDate = &dueDate
+			}
+		}
+
+		if batchTask.AssigneeID > 0 {
+			task.AssigneeID = &batchTask.AssigneeID
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	// Bulk create tasks
+	createdTasks, err := h.db.Tasks().BulkCreate(c.Request.Context(), tasks)
+	if err != nil {
+		h.logger.Printf("Error bulk creating tasks: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(map[string]interface{}{
+		"created_count": len(createdTasks),
+		"tasks":         createdTasks,
+	}, "Tasks imported successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+// BulkDeleteTasks 批量删除任务
+func (h *BulkOperationHandler) BulkDeleteTasks() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req struct {
+			TaskIDs []int `json:"task_ids" validate:"required,min=1"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+
+		if err := h.validator.Struct(&req); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+
+		// Perform bulk delete
+		err := h.db.Tasks().BulkDelete(c.Request.Context(), req.TaskIDs)
+		if err != nil {
+			h.logger.Printf("Error bulk deleting tasks: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete tasks", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+
+		response := models.NewSuccessResponse(map[string]interface{}{
+			"deleted_count": len(req.TaskIDs),
+		}, "Tasks deleted successfully")
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+// BatchValidateTasksPreview 批量验证任务预览
+func (h *BulkOperationHandler) BatchValidateTasksPreview() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		type TaskValidation struct {
+			Title       string `json:"title"`
+			Description string `json:"description"`
+			ProjectID   int    `json:"project_id"`
+			AssigneeID  int    `json:"assignee_id"`
+			DueDate     string `json:"due_date"`
+			Priority    string `json:"priority"`
+		}
+
+		var req struct {
+			Tasks []TaskValidation `json:"tasks" validate:"required,dive"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+
+		var validationResults []map[string]interface{}
+		var validCount, invalidCount int
+
+		for i, taskReq := range req.Tasks {
+			result := map[string]interface{}{
+				"index":  i,
+				"valid":  true,
+				"errors": []string{},
+			}
+
+			errors := []string{}
+
+			// Validate required fields
+			if taskReq.Title == "" {
+				errors = append(errors, "Title is required")
+			}
+
+			if taskReq.ProjectID <= 0 {
+				errors = append(errors, "Valid project ID is required")
+			}
+
+			// Validate project exists
+			if taskReq.ProjectID > 0 {
+				if _, err := h.db.Projects().GetByID(c.Request.Context(), taskReq.ProjectID); err != nil {
+					errors = append(errors, "Project not found")
+				}
+			}
+
+			// Validate assignee if provided
+			if taskReq.AssigneeID > 0 {
+				if _, err := h.db.Users().GetByID(c.Request.Context(), taskReq.AssigneeID); err != nil {
+					errors = append(errors, "Assignee not found")
+				}
+			}
+
+			// Validate due date format if provided
+			if taskReq.DueDate != "" {
+				if _, err := time.Parse("2006-01-02", taskReq.DueDate); err != nil {
+					errors = append(errors, "Invalid due date format (use YYYY-MM-DD)")
+				}
+			}
+
+			// Validate priority
+			if taskReq.Priority != "" {
+				validPriorities := []string{"low", "medium", "high"}
+				isValidPriority := false
+				for _, p := range validPriorities {
+					if taskReq.Priority == p {
+						isValidPriority = true
+						break
+					}
+				}
+				if !isValidPriority {
+					errors = append(errors, "Priority must be low, medium, or high")
+				}
+			}
+
+			if len(errors) > 0 {
+				result["valid"] = false
+				result["errors"] = errors
+				invalidCount++
+			} else {
+				validCount++
+			}
+
+			validationResults = append(validationResults, result)
+		}
+
+		summary := map[string]interface{}{
+			"total_tasks":   len(req.Tasks),
+			"valid_tasks":   validCount,
+			"invalid_tasks": invalidCount,
+			"can_proceed":   invalidCount == 0,
+		}
+
+		response := models.NewSuccessResponse(map[string]interface{}{
+			"summary": summary,
+			"results": validationResults,
+		}, "Batch validation completed")
+		c.JSON(http.StatusOK, response)
+	}
+}
+
+// ImportTasksFromCSV 从CSV导入任务
+func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
+	// Get project ID from form
+	projectIDStr := c.PostForm("project_id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get uploaded file
+	file, _, err := c.Request.FormFile("csv_file")
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "CSV file is required", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+	defer file.Close()
+
+	// Parse CSV
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Failed to parse CSV file", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if len(records) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "CSV file is empty", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Skip header row if present
+	dataStart := 0
+	if len(records) > 0 && strings.ToLower(records[0][0]) == "title" {
+		dataStart = 1
+	}
+
+	var tasks []*models.Task
+	var errors []string
+
+	for i := dataStart; i < len(records); i++ {
+		record := records[i]
+		if len(record) < 2 { // At least title and description
+			errors = append(errors, "Row %d: insufficient columns")
+			continue
+		}
+
+		task := &models.Task{
+			Title:       strings.TrimSpace(record[0]),
+			Description: strings.TrimSpace(record[1]),
+			Status:      "pending",
+			Priority:    "medium",
+			ProjectID:   projectID,
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		}
+
+		// Optional priority column
+		if len(record) > 2 && strings.TrimSpace(record[2]) != "" {
+			priority := strings.ToLower(strings.TrimSpace(record[2]))
+			if priority == "low" || priority == "medium" || priority == "high" {
+				task.Priority = priority
+			}
+		}
+
+		// Optional due date column
+		if len(record) > 3 && strings.TrimSpace(record[3]) != "" {
+			if dueDate, err := time.Parse("2006-01-02", strings.TrimSpace(record[3])); err == nil {
+				task.DueDate = &dueDate
+			}
+		}
+
+		tasks = append(tasks, task)
+	}
+
+	if len(tasks) == 0 {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "No valid tasks found in CSV", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Bulk create tasks
+	createdTasks, err := h.db.Tasks().BulkCreate(c.Request.Context(), tasks)
+	if err != nil {
+		h.logger.Printf("Error bulk creating tasks from CSV: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create tasks", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	result := map[string]interface{}{
+		"created_count": len(createdTasks),
+		"total_rows":    len(records) - dataStart,
+	}
+
+	if len(errors) > 0 {
+		result["errors"] = errors
+	}
+
+	response := models.NewSuccessResponse(result, "Tasks imported from CSV successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+// BulkUpdateTaskStatus 批量更新任务状态
+func (h *BulkOperationHandler) BulkUpdateTaskStatus(c *gin.Context) {
+	var req struct {
+		TaskIDs   []int  `json:"task_ids" validate:"required,min=1"`
+		NewStatus string `json:"new_status" validate:"required,oneof=pending in_progress completed cancelled"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var successCount int
+	var errors []string
+
+	for _, taskID := range req.TaskIDs {
+		if err := h.db.Tasks().UpdateStatus(c.Request.Context(), taskID, req.NewStatus); err != nil {
+			errors = append(errors, err.Error())
+		} else {
+			successCount++
+		}
+	}
+
+	result := map[string]interface{}{
+		"success_count": successCount,
+		"total_count":   len(req.TaskIDs),
+	}
+
+	if len(errors) > 0 {
+		result["errors"] = errors
+	}
+
+	response := models.NewSuccessResponse(result, "Bulk status update completed")
+	c.JSON(http.StatusOK, response)
+}

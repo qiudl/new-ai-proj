@@ -46,6 +46,8 @@ type AllHandlers struct {
 	TaskUpdateHandler          *handlers.TaskUpdateHandler
 	TodayTasksHandler          *handlers.TodayTasksHandler
 	DocumentUtilityHandler     *handlers.DocumentUtilityHandler
+	BulkOperationHandler       *handlers.BulkOperationHandler
+	ValidationHandler          *handlers.ValidationHandler
 	TaskDocumentFileHandler    *handlers.TaskDocumentFileHandler
 	GoogleAuthHandler          *handlers.GoogleAuthHandler
 	CalendarSyncHandler        *handlers.CalendarSyncHandler
