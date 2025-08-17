@@ -75,24 +75,25 @@ jobs:
           
           if ! command -v docker-compose >/dev/null 2>&1; then
             echo "安装Docker Compose..."
-            # 尝试多个下载源
-            COMPOSE_VERSION="v2.21.0"
-            for compose_url in \
-              "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-              "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
-              "https://get.daocloud.io/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)"; do
-              if sudo curl -fsSL --retry 3 --retry-delay 5 "$compose_url" -o /usr/local/bin/docker-compose 2>/dev/null; then
-                echo "成功下载Docker Compose: $compose_url"
+            # 优先使用Ubuntu包管理器安装（最快）
+            if sudo apt install -y docker-compose-plugin 2>/dev/null; then
+              echo "通过apt安装docker-compose-plugin成功"
+              # 创建兼容性链接
+              sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose 2>/dev/null || true
+            else
+              echo "apt安装失败，尝试直接下载..."
+              # 快速下载最新版本，设置短超时
+              if timeout 60 sudo curl -fsSL --connect-timeout 10 --max-time 60 \
+                "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose; then
                 sudo chmod +x /usr/local/bin/docker-compose
-                break
+                echo "直接下载安装成功"
+              else
+                echo "使用pip快速安装..."
+                sudo apt install -y python3-pip
+                timeout 120 sudo pip3 install docker-compose --break-system-packages 2>/dev/null || \
+                timeout 120 sudo pip3 install docker-compose
               fi
-            done
-            
-            # 如果上述都失败，尝试使用pip安装
-            if ! command -v docker-compose >/dev/null 2>&1; then
-              echo "使用pip安装docker-compose..."
-              sudo apt install -y python3-pip
-              sudo pip3 install docker-compose
             fi
           fi
           

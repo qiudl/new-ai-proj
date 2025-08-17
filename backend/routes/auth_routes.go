@@ -21,9 +21,15 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		auth.GET("/google/callback", app.GetGoogleAuthHandler().HandleGoogleCallback)
 		
 		// 开发环境专用的登录辅助接口（仅在 development 模式下可用）
-		if app.GetConfig().IsDevelopment() {
+		config := app.GetConfig()
+		isDev := config.IsDevelopment()
+		fmt.Printf("[DEBUG] Environment: %s, IsDevelopment: %v\n", config.App.Environment, isDev)
+		if isDev {
 			auth.GET("/dev-accounts", app.GetDevAccountsHandler())
 			auth.POST("/dev-quick-login", app.DevQuickLoginHandler())
+			fmt.Println("[DEBUG] Development routes registered")
+		} else {
+			fmt.Println("[DEBUG] Development routes NOT registered")
 		}
 	}
 

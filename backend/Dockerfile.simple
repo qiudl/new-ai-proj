@@ -24,6 +24,7 @@ COPY routes/ ./routes/
 COPY application/ ./application/
 COPY factories/ ./factories/
 COPY handlers/auth_handler.go ./handlers/
+COPY handlers/auth_refresh_handler.go ./handlers/
 COPY handlers/customer_handlers.go ./handlers/
 COPY handlers/company_handlers.go ./handlers/
 COPY handlers/permission_handlers.go ./handlers/
@@ -32,6 +33,7 @@ COPY handlers/company_user_handler.go ./handlers/
 COPY handlers/hybrid_document_handler.go ./handlers/
 COPY handlers/hybrid_document_folder_handler.go ./handlers/
 COPY handlers/simple_document_handler.go ./handlers/
+COPY handlers/simple_document_folder_handler.go ./handlers/
 COPY handlers/unified_document_handler.go ./handlers/
 COPY handlers/timer_handlers.go ./handlers/
 COPY handlers/user_timer_handlers.go ./handlers/

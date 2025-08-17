@@ -1,0 +1,111 @@
+name: Deploy to Lightweight Server (Ultra Simple)
+
+on:
+  workflow_dispatch:  # 只允许手动触发
+
+jobs:
+  deploy-minimal:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Ultra Simple Deploy
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.TENCENT_HOST }}
+        username: ${{ secrets.TENCENT_USERNAME }}
+        key: ${{ secrets.TENCENT_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          set -e
+          
+          PROJECT_DIR="/opt/ai-project"
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+          
+          echo "=== 极简部署开始 ==="
+          
+          # 创建目录
+          sudo mkdir -p $PROJECT_DIR
+          sudo chown -R $USER:$USER $PROJECT_DIR
+          cd $PROJECT_DIR
+          
+          # 备份现有部署
+          if [ -d "current" ]; then
+            mv current backup-$(date +%Y%m%d_%H%M%S) || true
+          fi
+          
+          # 快速下载代码（优先wget）
+          echo "=== 下载代码 ==="
+          if wget -q --timeout=30 --tries=2 -O main.zip "https://github.com/${{ github.repository }}/archive/refs/heads/main.zip"; then
+            unzip -q main.zip
+            mv *-main current
+            rm main.zip
+            echo "✅ wget下载成功"
+          elif timeout 60 git clone --depth 1 $REPO_URL current; then
+            echo "✅ git克隆成功"
+          else
+            echo "❌ 代码下载失败"
+            exit 1
+          fi
+          
+          cd current
+          
+          # 检查Docker是否可用
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "❌ Docker未安装，请先手动安装Docker"
+            echo "运行: curl -fsSL https://get.docker.com | sudo sh"
+            exit 1
+          fi
+          
+          # 检查Docker Compose是否可用
+          if ! command -v docker-compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
+            echo "❌ Docker Compose未安装，请先手动安装"
+            echo "运行: sudo apt install docker-compose-plugin"
+            exit 1
+          fi
+          
+          # 确定使用哪个docker-compose命令
+          COMPOSE_CMD="docker-compose"
+          if ! command -v docker-compose >/dev/null 2>&1; then
+            COMPOSE_CMD="docker compose"
+          fi
+          
+          # 创建环境文件
+          if [ ! -f ".env" ]; then
+            echo "创建环境配置..."
+            cat > .env << EOF
+          DB_USER=ai_user
+          DB_PASSWORD=ai_password_2024
+          DB_NAME=ai_project_db
+          JWT_SECRET=dev_jwt_secret_2024
+          EOF
+          fi
+          
+          # 停止现有服务
+          echo "=== 停止现有服务 ==="
+          $COMPOSE_CMD -f docker-compose.simple.yml down || true
+          
+          # 启动服务
+          echo "=== 启动服务 ==="
+          if $COMPOSE_CMD -f docker-compose.simple.yml up --build -d; then
+            echo "✅ 服务启动成功"
+          else
+            echo "❌ 服务启动失败，查看日志："
+            $COMPOSE_CMD -f docker-compose.simple.yml logs --tail=20
+            exit 1
+          fi
+          
+          # 简单健康检查
+          echo "=== 健康检查 ==="
+          sleep 30
+          $COMPOSE_CMD -f docker-compose.simple.yml ps
+          
+          if curl -f http://localhost/health >/dev/null 2>&1; then
+            echo "🎉 部署成功！"
+            echo "🌐 访问: http://${{ secrets.TENCENT_HOST }}"
+          else
+            echo "⚠️ 健康检查失败，但服务可能正在启动中"
+            echo "请稍后手动检查: http://${{ secrets.TENCENT_HOST }}"
+          fi

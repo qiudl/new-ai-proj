@@ -500,7 +500,7 @@ func (h *SimpleDocumentHandler) GetFolderDocuments(c *gin.Context) {
 	})
 }
 
-// 辅助函数在其他文件中已定义
+// 辅助函数 (stringPtr 和 intPtr 在其他文件中已定义)
 
 func containsIgnoreCase(str, substr string) bool {
 	// 简单的忽略大小写搜索
