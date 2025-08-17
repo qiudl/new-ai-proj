@@ -31,17 +31,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // 添加调试信息 - 特别关注计时器和任务相关的请求
-    if (config.url?.includes('timer') || config.url?.includes('tasks')) {
-      console.log('🌐 API Request:', {
-        url: config.url,
-        data: config.data,
-        headers: {
-          'Authorization': config.headers.Authorization ? 'Bearer [REDACTED]' : 'None',
-          'Content-Type': config.headers['Content-Type']
-        }
-      });
-    }
     
     return config;
   },
@@ -53,28 +42,9 @@ api.interceptors.request.use(
 // Response interceptor with enhanced error handling
 api.interceptors.response.use(
   (response) => {
-    // 添加响应调试信息 - 特别关注计时器和任务相关的请求
-    if (response.config.url?.includes('timer') || response.config.url?.includes('tasks')) {
-      console.log('🌐 API Response:', {
-        url: response.config.url,
-        status: response.status,
-        data: response.data
-      });
-    }
     return response.data;
   },
   (error) => {
-    // 添加错误响应调试信息 - 特别关注计时器和任务相关的请求
-    if (error.config?.url?.includes('timer') || error.config?.url?.includes('tasks')) {
-      console.error('🌐 API Response Error:', {
-        method: error.config.method?.toUpperCase(),
-        url: error.config.url,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers
-      });
-    }
     // Handle network errors
     if (!error.response) {
       // 检查是否是CORS或连接问题

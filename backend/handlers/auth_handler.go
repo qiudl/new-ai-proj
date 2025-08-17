@@ -39,6 +39,7 @@ type LoginResponse struct {
 
 // Login handles POST /api/v1/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
+	
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "请求数据格式错误", nil))

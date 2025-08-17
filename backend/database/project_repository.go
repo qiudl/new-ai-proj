@@ -118,6 +118,105 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 	return projects, total, nil
 }
 
+// GetPaginated gets projects with pagination, search, filtering and sorting
+func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.Project, int, error) {
+	// Build WHERE clause with conditions
+	whereConditions := []string{"deleted_at IS NULL"}
+	args := []interface{}{}
+	argIndex := 1
+	
+	// Filter by user ID if provided
+	if userID > 0 {
+		whereConditions = append(whereConditions, fmt.Sprintf("owner_id = $%d", argIndex))
+		args = append(args, userID)
+		argIndex++
+	}
+	
+	// Add search condition
+	if search != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("(name ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex))
+		args = append(args, "%"+search+"%")
+		argIndex++
+	}
+	
+	// Add status filter
+	if status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("status = $%d", argIndex))
+		args = append(args, status)
+		argIndex++
+	}
+	
+	whereClause := "WHERE " + whereConditions[0]
+	for i := 1; i < len(whereConditions); i++ {
+		whereClause += " AND " + whereConditions[i]
+	}
+	
+	// Get total count
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM projects %s", whereClause)
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery, args...)
+	
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get project count: %w", err)
+	}
+	
+	// Build ORDER BY clause
+	orderBy := "ORDER BY updated_at DESC" // default
+	if sortBy != "" {
+		validSortFields := map[string]bool{
+			"name": true, "status": true, "priority": true, "progress": true,
+			"created_at": true, "updated_at": true, "start_date": true, "end_date": true,
+		}
+		if validSortFields[sortBy] {
+			direction := "DESC"
+			if sortOrder == "asc" {
+				direction = "ASC"
+			}
+			orderBy = fmt.Sprintf("ORDER BY %s %s", sortBy, direction)
+		}
+	}
+	
+	// Get projects with pagination
+	query := fmt.Sprintf(`
+		SELECT id, project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
+		FROM projects 
+		%s
+		%s
+		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
+	
+	args = append(args, pageSize, offset)
+	
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list projects: %w", err)
+	}
+	defer rows.Close()
+	
+	var projects []*models.Project
+	for rows.Next() {
+		project := &models.Project{}
+		
+		err := rows.Scan(
+			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.StartDate, &project.EndDate, &project.Budget,
+			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan project: %w", err)
+		}
+		
+		projects = append(projects, project)
+	}
+	
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+	
+	return projects, total, nil
+}
+
 // Update updates a project
 func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `

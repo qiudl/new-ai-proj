@@ -29,6 +29,7 @@ func NewTaskHierarchyHandler(db database.DB, logger *log.Logger, validator *vali
 
 // GetTaskTree 获取任务树结构
 func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
+	
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
@@ -52,6 +53,7 @@ func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
 
 // GetRootTasks 获取根任务列表（没有父任务的任务）
 func (h *TaskHierarchyHandler) GetRootTasks(c *gin.Context) {
+	
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {

@@ -142,34 +142,30 @@ func registerSystemManagementRoutes(authorized *gin.RouterGroup, app Application
 // registerUserManagementRoutes 注册用户管理路由
 func registerUserManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// User management routes
+	// Test direct route registration
+	authorized.GET("/users/profile", func(c *gin.Context) {
+		
+		userID := c.GetInt("user_id")
+		c.JSON(200, gin.H{
+			"success": true,
+			"data": gin.H{
+				"id": userID,
+				"username": "admin",
+				"email": "admin@joylodging.com", 
+				"user_type": "system",
+				"role": "admin", 
+				"status": "active",
+				"profile": gin.H{},
+				"is_primary_contact": false,
+				"timing_status": "stopped",
+				"timing_accumulated_seconds": 0,
+			},
+		})
+	})
+	
 	users := authorized.Group("/users")
 	{
-		// User profile management
-		users.GET("/profile", func(c *gin.Context) {
-			userID := c.GetInt("user_id")
-			// Return a mock user profile for now
-			c.JSON(200, gin.H{
-				"success": true,
-				"data": gin.H{
-					"id": userID,
-					"username": "admin",
-					"email": "admin@joylodging.com", 
-					"user_type": "system",
-					"role": "admin",
-					"status": "active",
-					"profile": gin.H{},
-					"is_primary_contact": false,
-					"timing_status": "stopped",
-					"timing_accumulated_seconds": 0,
-				},
-			})
-		})
-		users.PUT("/profile", func(c *gin.Context) {
-			c.JSON(200, gin.H{"success": true, "message": "Profile updated successfully"})
-		})
-		// users.PUT("/password", app.ChangePasswordHandler())         // No permission needed for own password
-		
-		// Google日历集成管理
+		// Google日历集成管理  
 		users.GET("/google-connection", app.GetGoogleAuthHandler().GetGoogleConnectionStatus)
 		users.DELETE("/google-connection", app.GetGoogleAuthHandler().DisconnectGoogle)
 	}

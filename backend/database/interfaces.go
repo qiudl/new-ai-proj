@@ -42,6 +42,7 @@ type ProjectRepository interface {
 	Create(ctx context.Context, project *models.Project) (*models.Project, error)
 	GetByID(ctx context.Context, id int) (*models.Project, error)
 	GetByUserID(ctx context.Context, userID int, limit, offset int) ([]*models.Project, int, error)
+	GetPaginated(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.Project, int, error)
 	Update(ctx context.Context, project *models.Project) (*models.Project, error)
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)

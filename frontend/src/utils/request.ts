@@ -4,7 +4,7 @@ import { APIResponse, RequestOptions, HTTPMethod } from '../types/api';
 // 在生产环境下使用相对路径，开发环境使用完整URL
 const BASE_URL = process.env.NODE_ENV === 'production' 
   ? '/api/v1'  // 生产环境通过nginx代理
-  : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api/v1');
+  : (process.env.REACT_APP_API_BASE_URL || 'http://localhost:8081/api/v1');
 const DEFAULT_TIMEOUT = 10000;
 
 // 请求拦截器

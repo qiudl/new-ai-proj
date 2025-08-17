@@ -33,6 +33,7 @@ func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 // StartTimer handles POST /api/v1/user/timer/start
 // Unified endpoint for starting both personal and project timers
 func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
+	
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -93,6 +94,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 // StopTimer handles POST /api/v1/user/timer/stop
 // Unified endpoint for stopping any running timer
 func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
+	
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -125,6 +127,8 @@ func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
 // GetCurrentTimer handles GET /api/v1/user/timer/current
 // Returns current timer status
 func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
+	// 添加CORS头部
+	
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -149,6 +153,7 @@ func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
 // PauseTimer handles POST /api/v1/user/timer/pause
 // Pauses the current running timer
 func (h *UnifiedTimerHandler) PauseTimer(c *gin.Context) {
+	
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -181,6 +186,7 @@ func (h *UnifiedTimerHandler) PauseTimer(c *gin.Context) {
 // ResumeTimer handles POST /api/v1/user/timer/resume  
 // Resumes a paused timer
 func (h *UnifiedTimerHandler) ResumeTimer(c *gin.Context) {
+	
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -212,6 +218,7 @@ func (h *UnifiedTimerHandler) ResumeTimer(c *gin.Context) {
 
 // Health check endpoint
 func (h *UnifiedTimerHandler) HealthCheck(c *gin.Context) {
+	
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "healthy",
 		"service": "unified_timer",

@@ -4,8 +4,6 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -26,6 +24,7 @@ func NewProjectHandler(db database.DB, logger *log.Logger, validate interface{})
 
 // GetProjects handles GET /api/v1/projects
 func (h *ProjectHandler) GetProjects(c *gin.Context) {
+	
 	userID := c.GetInt("user_id")
 	
 	// Parse pagination parameters
@@ -48,7 +47,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 	projects, total, err := h.db.Projects().GetPaginated(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目列表失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
 		return
 	}
 
@@ -69,6 +68,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 // CreateProject handles POST /api/v1/projects
 func (h *ProjectHandler) CreateProject(c *gin.Context) {
+	
 	userID := c.GetInt("user_id")
 
 	var req struct {
@@ -87,7 +87,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "请求数据格式错误", nil))
 		return
 	}
 
@@ -104,45 +104,22 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		}
 	}
 
-	// Convert tags to JSON
-	var tagsJSON []byte
-	if len(req.Tags) > 0 {
-		tagsJSON, _ = json.Marshal(req.Tags)
-	}
-
-	// Convert metadata to JSON
-	var metadataJSON []byte
-	if req.Metadata != nil {
-		metadataJSON, _ = json.Marshal(req.Metadata)
-	}
-
 	project := &models.Project{
 		Name:        req.Name,
 		Description: req.Description,
-		Icon:        req.Icon,
-		Color:       req.Color,
-		Status:      models.ProjectStatus(req.Status),
-		Priority:    models.ProjectPriority(req.Priority),
-		CreatedBy:   userID,
+		OwnerID:     userID,
+		Status:      req.Status,
+		Priority:    req.Priority,
 		StartDate:   startDate,
 		EndDate:     endDate,
 		Budget:      req.Budget,
-		Currency:    req.Currency,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
-	}
-
-	if len(tagsJSON) > 0 {
-		project.Tags = tagsJSON
-	}
-	if len(metadataJSON) > 0 {
-		project.Metadata = metadataJSON
+		Progress:    0,
 	}
 
 	createdProject, err := h.db.Projects().Create(c.Request.Context(), project)
 	if err != nil {
 		log.Printf("Error creating project: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("创建项目失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建项目失败", nil))
 		return
 	}
 
@@ -151,19 +128,20 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 // GetProject handles GET /api/v1/projects/:id
 func (h *ProjectHandler) GetProject(c *gin.Context) {
+	
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
 		return
 	}
 
 	project, err := h.db.Projects().GetByID(c.Request.Context(), projectID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, models.ErrorResponse("项目不存在"))
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "项目不存在", nil))
 		} else {
 			log.Printf("Error getting project: %v", err)
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目失败"))
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目失败", nil))
 		}
 		return
 	}
@@ -173,9 +151,10 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 
 // UpdateProject handles PUT /api/v1/projects/:id
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
+	
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
 		return
 	}
 
@@ -195,7 +174,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "请求数据格式错误", nil))
 		return
 	}
 
@@ -203,10 +182,10 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	project, err := h.db.Projects().GetByID(c.Request.Context(), projectID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, models.ErrorResponse("项目不存在"))
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "项目不存在", nil))
 		} else {
 			log.Printf("Error getting project: %v", err)
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目失败"))
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目失败", nil))
 		}
 		return
 	}
@@ -214,11 +193,8 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	// Update fields
 	project.Name = req.Name
 	project.Description = req.Description
-	project.Icon = req.Icon
-	project.Color = req.Color
-	project.Status = models.ProjectStatus(req.Status)
-	project.Priority = models.ProjectPriority(req.Priority)
-	project.Currency = req.Currency
+	project.Status = req.Status
+	project.Priority = req.Priority
 	project.Budget = req.Budget
 	project.UpdatedAt = time.Now()
 
@@ -234,24 +210,11 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		}
 	}
 
-	// Convert tags to JSON
-	if len(req.Tags) > 0 {
-		if tagsJSON, err := json.Marshal(req.Tags); err == nil {
-			project.Tags = tagsJSON
-		}
-	}
-
-	// Convert metadata to JSON
-	if req.Metadata != nil {
-		if metadataJSON, err := json.Marshal(req.Metadata); err == nil {
-			project.Metadata = metadataJSON
-		}
-	}
 
 	updatedProject, err := h.db.Projects().Update(c.Request.Context(), project)
 	if err != nil {
 		log.Printf("Error updating project: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("更新项目失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "更新项目失败", nil))
 		return
 	}
 
@@ -260,16 +223,17 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 
 // DeleteProject handles DELETE /api/v1/projects/:id
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+	
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
 		return
 	}
 
 	err = h.db.Projects().Delete(c.Request.Context(), projectID)
 	if err != nil {
 		log.Printf("Error deleting project: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("删除项目失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除项目失败", nil))
 		return
 	}
 
@@ -278,110 +242,67 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 
 // GetProjectUsers handles GET /api/v1/projects/:id/users
 func (h *ProjectHandler) GetProjectUsers(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
-		return
-	}
-
-	users, err := h.db.Projects().GetUsers(c.Request.Context(), projectID)
-	if err != nil {
-		log.Printf("Error getting project users: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目成员失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(users, "获取项目成员成功"))
+	// TODO: Implement GetUsers method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // AddProjectUser handles POST /api/v1/projects/:id/users
 func (h *ProjectHandler) AddProjectUser(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
-		return
-	}
-
-	var req struct {
-		UserID int    `json:"user_id" binding:"required"`
-		Role   string `json:"role" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
-		return
-	}
-
-	err = h.db.Projects().AddUser(c.Request.Context(), projectID, req.UserID, req.Role)
-	if err != nil {
-		log.Printf("Error adding project user: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("添加项目成员失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "项目成员添加成功"))
+	// TODO: Implement AddUser method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // RemoveProjectUser handles DELETE /api/v1/projects/:id/users/:userId
 func (h *ProjectHandler) RemoveProjectUser(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
-		return
-	}
-
-	userID, err := strconv.Atoi(c.Param("userId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的用户ID"))
-		return
-	}
-
-	err = h.db.Projects().RemoveUser(c.Request.Context(), projectID, userID)
-	if err != nil {
-		log.Printf("Error removing project user: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("移除项目成员失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "项目成员移除成功"))
+	// TODO: Implement RemoveUser method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetProjectTimeline handles GET /api/v1/projects/:id/timeline  
 func (h *ProjectHandler) GetProjectTimeline(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
-		return
-	}
-
-	// Parse query parameters
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-
-	timeline, err := h.db.Projects().GetTimeline(c.Request.Context(), projectID, limit, offset)
-	if err != nil {
-		log.Printf("Error getting project timeline: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目时间线失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(timeline, "获取项目时间线成功"))
+	// TODO: Implement GetTimeline method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetProjectStats handles GET /api/v1/projects/:id/stats
 func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("id"))
+	// TODO: Implement GetStats method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+}
+
+// GetDocumentProjects handles GET /api/v1/projects/options
+func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
+	
+	userID := c.GetInt("user_id")
+	
+	// Get all projects for the user (simplified implementation)
+	projects, _, err := h.db.Projects().GetByUserID(c.Request.Context(), userID, 100, 0)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		log.Printf("Error getting document projects: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目选项失败", nil))
 		return
 	}
-
-	stats, err := h.db.Projects().GetStats(c.Request.Context(), projectID)
-	if err != nil {
-		log.Printf("Error getting project stats: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取项目统计失败"))
-		return
+	
+	// Convert to simple options format
+	var options []map[string]interface{}
+	for _, project := range projects {
+		options = append(options, map[string]interface{}{
+			"id":   project.ID,
+			"name": project.Name,
+		})
 	}
+	
+	c.JSON(http.StatusOK, models.NewSuccessResponse(options, "获取项目选项成功"))
+}
 
-	c.JSON(http.StatusOK, models.NewSuccessResponse(stats, "获取项目统计成功"))
+// GetRecycledProjects handles GET /api/v1/projects/recycled
+func (h *ProjectHandler) GetRecycledProjects(c *gin.Context) {
+	// TODO: Implement GetRecycledProjects method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+}
+
+// RestoreProject handles POST /api/v1/projects/:id/restore
+func (h *ProjectHandler) RestoreProject(c *gin.Context) {
+	// TODO: Implement RestoreProject method in ProjectRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }

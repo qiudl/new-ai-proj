@@ -80,25 +80,30 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 // registerBasicRoutes 注册基础路由
 func registerBasicRoutes(router *gin.Engine, app ApplicationInterface) {
-router.GET("/health", app.GetHealthHandler())
-router.GET("/version", app.GetVersionHandler())
-router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
+	router.GET("/health", app.GetHealthHandler())
+	router.GET("/version", app.GetVersionHandler())
+	router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
 }
 
 
 // corsMiddleware CORS中间件
 func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
-	return gin.HandlerFunc(func(c *gin.Context) {
+	return func(c *gin.Context) {
+		// 明确设置CORS头部 - 对所有请求都设置
 		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, Access-Control-Request-Method, Access-Control-Request-Headers")
+		c.Header("Access-Control-Expose-Headers", "Content-Length, Content-Type")
 		c.Header("Access-Control-Max-Age", "86400")
 
+		// 处理OPTIONS预检请求
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
 
+		// 继续处理其他请求
 		c.Next()
-	})
+	}
 }

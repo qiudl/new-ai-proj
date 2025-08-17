@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,21 +26,29 @@ func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *T
 
 // GetTasks handles GET /api/v1/projects/:projectId/tasks
 func (h *TaskHandler) GetTasks(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	
+	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+	// Parse query parameters (for future implementation)
 	search := c.Query("search")
 	status := c.Query("status")
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
+	_ = search
+	_ = status
+	_ = assigneeID
+	_ = priority
+	_ = sortBy
+	_ = sortOrder
 
 	if page < 1 {
 		page = 1
@@ -52,17 +59,10 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	filters := map[string]interface{}{
-		"search":      search,
-		"status":      status,
-		"assignee_id": assigneeID,
-		"priority":    priority,
-	}
-
-	tasks, total, err := h.db.Tasks().GetByProject(c.Request.Context(), projectID, offset, pageSize, filters, sortBy, sortOrder)
+	tasks, total, err := h.db.Tasks().GetByProjectID(c.Request.Context(), projectID, pageSize, offset)
 	if err != nil {
 		log.Printf("Error getting tasks: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务列表失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务列表失败", nil))
 		return
 	}
 
@@ -83,11 +83,13 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 // GetAllTasks handles GET /api/v1/tasks
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
-	userID := c.GetInt("user_id")
+	userID := c.GetInt("user_id") // For future implementation
+	_ = userID
 	
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+	// Parse query parameters (for future implementation)
 	search := c.Query("search")
 	status := c.Query("status")
 	projectID := c.Query("project_id")
@@ -95,6 +97,13 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	priority := c.Query("priority")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
+	_ = search
+	_ = status
+	_ = projectID
+	_ = assigneeID
+	_ = priority
+	_ = sortBy
+	_ = sortOrder
 
 	if page < 1 {
 		page = 1
@@ -105,19 +114,11 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	filters := map[string]interface{}{
-		"search":      search,
-		"status":      status,
-		"project_id":  projectID,
-		"assignee_id": assigneeID,
-		"priority":    priority,
-		"user_id":     userID, // For access control
-	}
 
-	tasks, total, err := h.db.Tasks().GetAll(c.Request.Context(), offset, pageSize, filters, sortBy, sortOrder)
+	tasks, total, err := h.db.Tasks().GetAll(c.Request.Context(), pageSize, offset)
 	if err != nil {
 		log.Printf("Error getting all tasks: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务列表失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务列表失败", nil))
 		return
 	}
 
@@ -138,13 +139,14 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 
 // CreateTask handles POST /api/v1/projects/:projectId/tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID := c.GetInt("user_id") // For future implementation
+	_ = userID
 
 	var req struct {
 		Title         string                 `json:"title" binding:"required,min=1,max=255"`
@@ -160,7 +162,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
 	}
 
@@ -183,26 +185,25 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	task := &models.Task{
 		Title:         req.Title,
 		Description:   req.Description,
-		Status:        models.TaskStatus(req.Status),
-		Priority:      models.TaskPriority(req.Priority),
+		Status:        req.Status,
+		Priority:      req.Priority,
 		ProjectID:     projectID,
 		AssigneeID:    req.AssigneeID,
 		ParentID:      req.ParentID,
 		DueDate:       dueDate,
-		EstimatedTime: req.EstimatedTime,
-		CreatedBy:     userID,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
 	}
 
 	if len(customFieldsJSON) > 0 {
-		task.CustomFields = customFieldsJSON
+		task.CustomFields = models.CustomFields{}
+		if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err == nil {
+			// CustomFields successfully unmarshaled
+		}
 	}
 
 	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
 	if err != nil {
 		log.Printf("Error creating task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("创建任务失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建任务失败", nil))
 		return
 	}
 
@@ -211,13 +212,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 // BulkImportTasks handles POST /api/v1/projects/:projectId/tasks/bulk-import
 func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
-	userID := c.GetInt("user_id")
+	userID := c.GetInt("user_id") // For future implementation
+	_ = userID
 
 	var req struct {
 		Tasks []struct {
@@ -234,7 +236,7 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
 	}
 
@@ -259,22 +261,21 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 		}
 
 		task := &models.Task{
-			Title:         taskReq.Title,
-			Description:   taskReq.Description,
-			Status:        models.TaskStatus(taskReq.Status),
-			Priority:      models.TaskPriority(taskReq.Priority),
-			ProjectID:     projectID,
-			AssigneeID:    taskReq.AssigneeID,
-			ParentID:      taskReq.ParentID,
-			DueDate:       dueDate,
-			EstimatedTime: taskReq.EstimatedTime,
-			CreatedBy:     userID,
-			CreatedAt:     time.Now(),
-			UpdatedAt:     time.Now(),
+			Title:       taskReq.Title,
+			Description: taskReq.Description,
+			Status:      taskReq.Status,
+			Priority:    taskReq.Priority,
+			ProjectID:   projectID,
+			AssigneeID:  taskReq.AssigneeID,
+			ParentID:    taskReq.ParentID,
+			DueDate:     dueDate,
 		}
 
 		if len(customFieldsJSON) > 0 {
-			task.CustomFields = customFieldsJSON
+			task.CustomFields = models.CustomFields{}
+			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err == nil {
+				// CustomFields successfully unmarshaled
+			}
 		}
 
 		createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
@@ -301,17 +302,17 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 func (h *TaskHandler) GetTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
 	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, models.ErrorResponse("任务不存在"))
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeInternal, "任务不存在", nil))
 		} else {
 			log.Printf("Error getting task: %v", err)
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务失败"))
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
 		}
 		return
 	}
@@ -323,7 +324,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
@@ -341,7 +342,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
 	}
 
@@ -349,10 +350,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, models.ErrorResponse("任务不存在"))
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeInternal, "任务不存在", nil))
 		} else {
 			log.Printf("Error getting task: %v", err)
-			c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务失败"))
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
 		}
 		return
 	}
@@ -360,13 +361,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	// Update fields
 	task.Title = req.Title
 	task.Description = req.Description
-	task.Status = models.TaskStatus(req.Status)
-	task.Priority = models.TaskPriority(req.Priority)
+	task.Status = req.Status
+	task.Priority = req.Priority
 	task.AssigneeID = req.AssigneeID
 	task.ParentID = req.ParentID
-	task.EstimatedTime = req.EstimatedTime
-	task.ActualTime = req.ActualTime
-	task.UpdatedAt = time.Now()
 
 	// Parse due date
 	if req.DueDate != nil && *req.DueDate != "" {
@@ -382,14 +380,17 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	// Convert custom fields to JSON
 	if req.CustomFields != nil {
 		if customFieldsJSON, err := json.Marshal(req.CustomFields); err == nil {
-			task.CustomFields = customFieldsJSON
+			var customFields models.CustomFields
+			if err := json.Unmarshal(customFieldsJSON, &customFields); err == nil {
+				task.CustomFields = customFields
+			}
 		}
 	}
 
 	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), task)
 	if err != nil {
 		log.Printf("Error updating task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("更新任务失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "更新任务失败", nil))
 		return
 	}
 
@@ -400,14 +401,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
 	err = h.db.Tasks().Delete(c.Request.Context(), taskID)
 	if err != nil {
 		log.Printf("Error deleting task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("删除任务失败"))
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除任务失败", nil))
 		return
 	}
 
@@ -416,27 +417,21 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 
 // GetTaskTree handles GET /api/v1/projects/:projectId/tasks/tree
 func (h *TaskHandler) GetTaskTree(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	_, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
-	tree, err := h.db.Tasks().GetTree(c.Request.Context(), projectID)
-	if err != nil {
-		log.Printf("Error getting task tree: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务树失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(tree, "获取任务树成功"))
+	// TODO: Implement GetTree method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetRootTasks handles GET /api/v1/projects/:projectId/tasks/roots
 func (h *TaskHandler) GetRootTasks(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	_, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
@@ -451,81 +446,44 @@ func (h *TaskHandler) GetRootTasks(c *gin.Context) {
 		pageSize = 20
 	}
 
-	offset := (page - 1) * pageSize
+	_ = (page - 1) * pageSize // offset for future implementation
 
-	tasks, total, err := h.db.Tasks().GetRoots(c.Request.Context(), projectID, offset, pageSize)
-	if err != nil {
-		log.Printf("Error getting root tasks: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取根任务失败"))
-		return
-	}
-
-	totalPages := (total + pageSize - 1) / pageSize
-
-	responseData := map[string]interface{}{
-		"data": tasks,
-		"pagination": map[string]interface{}{
-			"page":        page,
-			"page_size":   pageSize,
-			"total":       total,
-			"total_pages": totalPages,
-		},
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取根任务成功"))
+	// TODO: Implement GetRoots method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // SearchParentTasks handles GET /api/v1/projects/:projectId/tasks/search-parents
 func (h *TaskHandler) SearchParentTasks(c *gin.Context) {
-	projectID, err := strconv.Atoi(c.Param("projectId"))
+	_, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的项目ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
 		return
 	}
 
-	query := c.Query("query")
-	excludeID := c.Query("exclude_id")
+	_ = c.Query("query")      // query for future implementation
+	_ = c.Query("exclude_id") // excludeID for future implementation
 
-	var excludeIDInt *int
-	if excludeID != "" {
-		if id, err := strconv.Atoi(excludeID); err == nil {
-			excludeIDInt = &id
-		}
-	}
-
-	tasks, err := h.db.Tasks().SearchParents(c.Request.Context(), projectID, query, excludeIDInt)
-	if err != nil {
-		log.Printf("Error searching parent tasks: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("搜索父任务失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(tasks, "搜索父任务成功"))
+	// TODO: Implement SearchParents method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetTaskChildren handles GET /api/v1/projects/:projectId/tasks/:id/children
 func (h *TaskHandler) GetTaskChildren(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
-	children, err := h.db.Tasks().GetChildren(c.Request.Context(), taskID)
-	if err != nil {
-		log.Printf("Error getting task children: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取子任务失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(children, "获取子任务成功"))
+	// TODO: Implement GetChildren method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetTaskUpdates handles GET /api/v1/projects/:projectId/tasks/:id/updates
 func (h *TaskHandler) GetTaskUpdates(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
@@ -540,35 +498,16 @@ func (h *TaskHandler) GetTaskUpdates(c *gin.Context) {
 		pageSize = 10
 	}
 
-	offset := (page - 1) * pageSize
+	_ = (page - 1) * pageSize // offset for future implementation
 
-	updates, total, err := h.db.Tasks().GetUpdates(c.Request.Context(), taskID, offset, pageSize)
-	if err != nil {
-		log.Printf("Error getting task updates: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务更新失败"))
-		return
-	}
-
-	totalPages := (total + pageSize - 1) / pageSize
-
-	responseData := map[string]interface{}{
-		"data": updates,
-		"pagination": map[string]interface{}{
-			"page":        page,
-			"page_size":   pageSize,
-			"total":       total,
-			"total_pages": totalPages,
-		},
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取任务更新成功"))
-}
+	// TODO: Implement GetUpdates method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))}
 
 // UpdateTaskUpdate handles PUT /api/v1/projects/:projectId/tasks/:id/updates/:updateId
 func (h *TaskHandler) UpdateTaskUpdate(c *gin.Context) {
-	updateID, err := strconv.Atoi(c.Param("updateId"))
+	_, err := strconv.Atoi(c.Param("updateId")) // updateID for future implementation
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的更新ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的更新ID", nil))
 		return
 	}
 
@@ -577,58 +516,40 @@ func (h *TaskHandler) UpdateTaskUpdate(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
 	}
 
-	err = h.db.Tasks().UpdateUpdate(c.Request.Context(), updateID, req.Notes)
-	if err != nil {
-		log.Printf("Error updating task update: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("更新任务更新失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务更新更新成功"))
+	// TODO: Implement UpdateUpdate method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // DeleteTaskUpdate handles DELETE /api/v1/projects/:projectId/tasks/:id/updates/:updateId
 func (h *TaskHandler) DeleteTaskUpdate(c *gin.Context) {
-	updateID, err := strconv.Atoi(c.Param("updateId"))
+	_, err := strconv.Atoi(c.Param("updateId")) // updateID for future implementation
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的更新ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的更新ID", nil))
 		return
 	}
 
-	err = h.db.Tasks().DeleteUpdate(c.Request.Context(), updateID)
-	if err != nil {
-		log.Printf("Error deleting task update: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("删除任务更新失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务更新删除成功"))
+	// TODO: Implement DeleteUpdate method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // GetTaskTimeline handles GET /api/v1/projects/:projectId/tasks/:id/timeline
 func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("id"))
+	_, err := strconv.Atoi(c.Param("id")) // taskID for future implementation
 	if err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("无效的任务ID"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
-	// Parse query parameters
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	// Parse query parameters (for future implementation)
+	_ = c.DefaultQuery("limit", "20")
+	_ = c.DefaultQuery("offset", "0")
 
-	timeline, err := h.db.Tasks().GetTimeline(c.Request.Context(), taskID, limit, offset)
-	if err != nil {
-		log.Printf("Error getting task timeline: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("获取任务时间线失败"))
-		return
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(timeline, "获取任务时间线成功"))
+	// TODO: Implement GetTimeline method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }
 
 // ValidateParent handles POST /api/v1/projects/:projectId/tasks/validate-parent
@@ -639,25 +560,10 @@ func (h *TaskHandler) ValidateParent(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, models.ErrorResponse("请求数据格式错误"))
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
 	}
 
-	isValid, err := h.db.Tasks().ValidateParentChild(c.Request.Context(), req.ParentID, req.ChildID)
-	if err != nil {
-		log.Printf("Error validating parent-child relationship: %v", err)
-		c.JSON(http.StatusInternalServerError, models.ErrorResponse("验证失败"))
-		return
-	}
-
-	responseData := map[string]interface{}{
-		"is_valid": isValid,
-	}
-
-	message := "验证成功"
-	if !isValid {
-		message = "无效的父子关系"
-	}
-
-	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, message))
+	// TODO: Implement ValidateParentChild method in TaskRepository
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
 }

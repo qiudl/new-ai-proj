@@ -2,7 +2,7 @@
 # This file contains default settings that can be overridden by environment variables
 
 server:
-  port: "8080"
+  port: "8081"
   host: "0.0.0.0"
   read_timeout: 30s
   write_timeout: 30s
