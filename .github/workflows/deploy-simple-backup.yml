@@ -44,8 +44,35 @@ jobs:
           echo "=== 检查系统依赖 ==="
           if ! command -v docker >/dev/null 2>&1; then
             echo "安装Docker..."
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo sh get-docker.sh
+            # 尝试官方安装脚本
+            if curl -fsSL --retry 3 --retry-delay 5 https://get.docker.com -o get-docker.sh 2>/dev/null; then
+              sudo sh get-docker.sh
+            else
+              echo "官方脚本下载失败，使用备用方法安装Docker..."
+              # 备用安装方法：使用apt源安装
+              sudo apt update
+              sudo apt install -y apt-transport-https ca-certificates curl gnupg lsb-release
+              
+              # 尝试多个Docker GPG key源
+              for key_url in \
+                "https://download.docker.com/linux/ubuntu/gpg" \
+                "https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg" \
+                "https://mirrors.tencent.com/docker-ce/linux/ubuntu/gpg"; do
+                if curl -fsSL --retry 2 "$key_url" | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg 2>/dev/null; then
+                  echo "成功添加Docker GPG key: $key_url"
+                  break
+                fi
+              done
+              
+              # 添加Docker apt源（优先使用国内镜像）
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" | \
+                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null || \
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+                sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              
+              sudo apt update
+              sudo apt install -y docker-ce docker-ce-cli containerd.io
+            fi
             sudo usermod -aG docker $USER
             sudo systemctl start docker
             sudo systemctl enable docker
@@ -53,8 +80,25 @@ jobs:
           
           if ! command -v docker-compose >/dev/null 2>&1; then
             echo "安装Docker Compose..."
-            sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-            sudo chmod +x /usr/local/bin/docker-compose
+            # 尝试多个下载源
+            COMPOSE_VERSION="v2.21.0"
+            for compose_url in \
+              "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+              "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" \
+              "https://get.daocloud.io/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)"; do
+              if sudo curl -fsSL --retry 3 --retry-delay 5 "$compose_url" -o /usr/local/bin/docker-compose 2>/dev/null; then
+                echo "成功下载Docker Compose: $compose_url"
+                sudo chmod +x /usr/local/bin/docker-compose
+                break
+              fi
+            done
+            
+            # 如果上述都失败，尝试使用pip安装
+            if ! command -v docker-compose >/dev/null 2>&1; then
+              echo "使用pip安装docker-compose..."
+              sudo apt install -y python3-pip
+              sudo pip3 install docker-compose
+            fi
           fi
           
           # 创建项目目录

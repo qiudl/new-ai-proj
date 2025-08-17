@@ -12,7 +12,7 @@ services:
       POSTGRES_DB: ${DB_NAME:-ai_project_db}
       POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init-prod.sql:/docker-entrypoint-initdb.d/01-init.sql
@@ -30,7 +30,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile.simple
     container_name: ai_backend
     depends_on:
       postgres:
@@ -45,7 +45,7 @@ services:
       DB_SOURCE: postgresql://${DB_USER:-ai_user}:${DB_PASSWORD:-ai_password_2024}@postgres:5432/${DB_NAME:-ai_project_db}?sslmode=disable
       
       # 应用配置
-      ENV: production
+      APP_ENV: development
       PORT: 8080
       JWT_SECRET: ${JWT_SECRET:-change_me_super_secure_jwt_secret}
       
