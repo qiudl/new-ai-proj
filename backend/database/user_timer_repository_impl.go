@@ -462,9 +462,81 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 	return dashboard, nil
 }
 
-// Placeholder implementations for other methods
+// GetTimerSessions retrieves timer sessions from unified_timer_logs
 func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error) {
-	sessions := []models.PersonalTimerSession{}
+	query := `
+		SELECT 
+			id,
+			target_type,
+			target_id,
+			target_title,
+			COALESCE(target_metadata->>'color', '#1890ff') as task_color,
+			COALESCE(category, 'general') as task_category,
+			start_time,
+			end_time,
+			COALESCE(duration_seconds, 0) as duration_seconds,
+			CASE 
+				WHEN duration_seconds IS NOT NULL THEN 
+					LPAD((duration_seconds / 3600)::text, 2, '0') || ':' ||
+					LPAD(((duration_seconds % 3600) / 60)::text, 2, '0') || ':' ||
+					LPAD((duration_seconds % 60)::text, 2, '0')
+				ELSE '00:00:00'
+			END as formatted_time,
+			start_time::date as date,
+			TO_CHAR(start_time, 'FMDay') as week_day
+		FROM unified_timer_logs
+		WHERE user_id = $1 AND end_time IS NOT NULL
+		ORDER BY start_time DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query timer sessions: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []models.PersonalTimerSession
+	for rows.Next() {
+		var session models.PersonalTimerSession
+		var endTime sql.NullTime
+		var targetID sql.NullInt64
+		var dateStr string
+		
+		err := rows.Scan(
+			&session.ID,
+			&session.TaskType,
+			&targetID,
+			&session.TaskTitle,
+			&session.TaskColor,
+			&session.TaskCategory,
+			&session.StartTime,
+			&endTime,
+			&session.DurationSeconds,
+			&session.FormattedTime,
+			&dateStr,
+			&session.WeekDay,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan timer session: %w", err)
+		}
+
+		// Handle nullable fields
+		if targetID.Valid {
+			taskID := int(targetID.Int64)
+			session.TaskID = &taskID
+		}
+		if endTime.Valid {
+			session.EndTime = &endTime.Time
+		}
+		session.Date = dateStr
+
+		sessions = append(sessions, session)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over timer sessions: %w", err)
+	}
+
 	return &sessions, nil
 }
 

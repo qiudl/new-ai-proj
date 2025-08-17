@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Key Test</title>
+</head>
+<body>
+    <h1>API Key Test</h1>
+    <div id="result"></div>
+    <button onclick="testAPIKey()">Test API Key 8</button>
+    
+    <script>
+        async function testAPIKey() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // 获取token (如果有的话)
+                const token = localStorage.getItem('token');
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                console.log('Headers:', headers);
+                
+                const response = await fetch('http://localhost:8081/api/v1/system/api-keys/8', {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                resultDiv.innerHTML = `
+                    <h3>Status: ${response.status}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultDiv.innerHTML = `<h3>Error: ${error.message}</h3>`;
+            }
+        }
+        
+        // 检查token
+        console.log('Token in localStorage:', localStorage.getItem('token'));
+    </script>
+</body>
+</html>

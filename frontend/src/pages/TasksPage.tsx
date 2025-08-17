@@ -28,7 +28,7 @@ const TasksPage: React.FC = () => {
   const navigate = useNavigate();
   
   // Global timer context
-  const { timerState } = useTimer();
+  const { timerState, isTaskTiming } = useTimer();
 
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const timerUpdateRef = useRef<NodeJS.Timeout | null>(null);
@@ -2567,8 +2567,8 @@ const TasksPage: React.FC = () => {
                     classes.push('depth-warning');
                   }
                   
-                  // 高亮当前计时的任务行
-                  if (timerState.isRunning && timerState.taskId === record.id) {
+                  // 🎯 优化：高亮当前计时的任务行 - 使用新的isTaskTiming函数
+                  if (isTaskTiming(record.id, 'project_task')) {
                     classes.push('timer-active-row');
                   }
                   
@@ -2618,8 +2618,8 @@ const TasksPage: React.FC = () => {
                 classes.push('depth-warning');
               }
               
-              // 高亮当前计时的任务行
-              if (timerState.isRunning && timerState.taskId === record.id) {
+              // 🎯 优化：高亮当前计时的任务行 - 使用新的isTaskTiming函数
+              if (isTaskTiming(record.id, 'project_task')) {
                 classes.push('timer-active-row');
               }
               

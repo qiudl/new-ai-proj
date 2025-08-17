@@ -118,10 +118,17 @@ const APIKeyDetail: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get(`/system/api-keys/${id}`);
-      setApiKey(response.data);
+      console.log('API Key detail response:', response);
+      setApiKey(response.data || response);
     } catch (error) {
-      message.error('加载API Key详情失败');
       console.error('Failed to load API key detail:', error);
+      if (error?.message?.includes('UNAUTHORIZED') || error?.message?.includes('401')) {
+        message.error('未授权访问，请先登录');
+      } else if (error?.message?.includes('404') || error?.message?.includes('not found')) {
+        message.error('API Key不存在');
+      } else {
+        message.error(`加载API Key详情失败: ${error?.message || '未知错误'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -134,10 +141,11 @@ const APIKeyDetail: React.FC = () => {
     try {
       setStatsLoading(true);
       const response = await api.get(`/system/api-keys/${id}/stats`);
-      setUsageStats(response.data);
+      console.log('API Key stats response:', response);
+      setUsageStats(response.data || response);
     } catch (error) {
       console.error('Failed to load usage stats:', error);
-      // 如果统计接口不存在，使用模拟数据
+      // 如果统计接口不存在或认证失败，使用模拟数据
       setUsageStats({
         total_requests: 0,
         successful_requests: 0,
@@ -158,10 +166,11 @@ const APIKeyDetail: React.FC = () => {
     try {
       setLogsLoading(true);
       const response = await api.get(`/system/api-keys/${id}/logs`);
-      setUsageLogs(response.data || []);
+      console.log('API Key logs response:', response);
+      setUsageLogs(response.data || response || []);
     } catch (error) {
       console.error('Failed to load usage logs:', error);
-      // 如果日志接口不存在，设置为空数组
+      // 如果日志接口不存在或认证失败，设置为空数组
       setUsageLogs([]);
     } finally {
       setLogsLoading(false);
@@ -194,37 +203,97 @@ const APIKeyDetail: React.FC = () => {
     
     try {
       const response = await api.post(`/system/api-keys/${apiKey.id}/regenerate`);
+      console.log('Regenerate response:', response);
       
-      if (response.data?.plain_key) {
+      // 兼容不同的响应格式
+      const plainKey = response.data?.plain_key || response.plain_key;
+      const plainSecret = response.data?.plain_secret || response.plain_secret;
+      const newApiKey = response.data?.api_key || response.api_key;
+      
+      if (plainKey) {
         Modal.info({
-          title: '重新生成的API Key',
+          title: '🔑 重新生成的API Key',
+          width: 600,
           content: (
             <div>
               <Alert 
-                message="旧的API Key已失效，请使用新的API Key："
+                message="旧的API Key已失效，请使用新的API Key"
                 type="warning"
                 showIcon
                 style={{ marginBottom: 16 }}
               />
-              <Input.Password 
-                value={response.data.plain_key} 
-                readOnly 
-                addonAfter={
-                  <Button 
-                    type="text" 
-                    icon={<CopyOutlined />}
-                    onClick={() => {
-                      navigator.clipboard.writeText(response.data.plain_key);
-                      message.success('已复制到剪贴板');
-                    }}
+              
+              <div style={{ marginBottom: 16 }}>
+                <Text strong>完整API Key:</Text>
+                <Input.Password 
+                  value={plainKey} 
+                  readOnly 
+                  style={{ marginTop: 8 }}
+                  addonAfter={
+                    <Button 
+                      type="text" 
+                      icon={<CopyOutlined />}
+                      onClick={() => {
+                        navigator.clipboard.writeText(plainKey);
+                        message.success('API Key已复制到剪贴板');
+                      }}
+                    />
+                  }
+                />
+              </div>
+
+              {plainSecret && (
+                <div style={{ marginBottom: 16 }}>
+                  <Text strong>密钥Secret:</Text>
+                  <Input.Password 
+                    value={plainSecret} 
+                    readOnly 
+                    style={{ marginTop: 8 }}
+                    addonAfter={
+                      <Button 
+                        type="text" 
+                        icon={<CopyOutlined />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(plainSecret);
+                          message.success('Secret已复制到剪贴板');
+                        }}
+                      />
+                    }
                   />
-                }
+                </div>
+              )}
+
+              {newApiKey && (
+                <div>
+                  <Text strong>密钥信息:</Text>
+                  <div style={{ 
+                    background: '#f5f5f5', 
+                    padding: '12px', 
+                    borderRadius: '6px', 
+                    marginTop: '8px',
+                    fontSize: '12px'
+                  }}>
+                    <div><strong>名称:</strong> {newApiKey.name}</div>
+                    <div><strong>前缀:</strong> {newApiKey.key_prefix}</div>
+                    <div><strong>权限:</strong> {newApiKey.permissions?.join(', ')}</div>
+                    <div><strong>创建时间:</strong> {new Date(newApiKey.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+              )}
+
+              <Alert 
+                message="重要提醒" 
+                description="请立即复制并保存此密钥，它只会显示这一次！"
+                type="info" 
+                showIcon 
+                style={{ marginTop: 16 }}
               />
             </div>
           ),
-          width: 500,
-          okText: '我已更新'
+          okText: '我已保存'
         });
+      } else {
+        message.error('重新生成成功但未返回密钥内容');
       }
 
       message.success('API Key已重新生成');
@@ -433,9 +502,37 @@ const APIKeyDetail: React.FC = () => {
                 <Text>{apiKey.description || '无描述'}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="API Key前缀">
-                <Text code style={{ fontFamily: 'monospace' }}>
-                  {apiKey.key_prefix}***
-                </Text>
+                <Space>
+                  <Text code style={{ fontFamily: 'monospace' }}>
+                    {apiKey.key_prefix}***
+                  </Text>
+                  <Button 
+                    size="small" 
+                    type="link" 
+                    onClick={() => {
+                      Modal.info({
+                        title: '查看完整API Key',
+                        content: (
+                          <div>
+                            <Alert 
+                              message="安全提示" 
+                              description="出于安全考虑，完整的API Key只在创建或重新生成时显示。如需查看完整密钥，请使用重新生成功能。"
+                              type="warning" 
+                              showIcon 
+                              style={{ marginBottom: 16 }}
+                            />
+                            <Text strong>当前显示的前缀: </Text>
+                            <Text code>{apiKey.key_prefix}***</Text>
+                            <br /><br />
+                            <Text>要查看完整密钥，请点击上方的"重新生成"按钮。</Text>
+                          </div>
+                        )
+                      });
+                    }}
+                  >
+                    查看说明
+                  </Button>
+                </Space>
               </Descriptions.Item>
               <Descriptions.Item label="状态">
                 {getStatusTag(apiKey.is_active, apiKey.expires_at)}
@@ -607,6 +704,72 @@ const APIKeyDetail: React.FC = () => {
               <Space>
                 <SecurityScanOutlined style={{ color: '#1890ff' }} />
                 安全信息
+              </Space>
+            }
+            extra={
+              <Space>
+                <Button
+                  size="small"
+                  type="primary"
+                  onClick={() => {
+                    Modal.confirm({
+                      title: '🔑 重新生成并查看完整密钥',
+                      width: 500,
+                      content: (
+                        <div>
+                          <Alert 
+                            message="注意：这将使当前密钥失效" 
+                            description="重新生成后，旧的API Key将立即失效，您需要在所有使用的地方更新为新密钥。"
+                            type="warning" 
+                            showIcon 
+                            style={{ marginBottom: 16 }}
+                          />
+                          <Text>确定要重新生成并查看新的完整API Key吗？</Text>
+                        </div>
+                      ),
+                      onOk: handleRegenerate,
+                      okText: '确定重新生成',
+                      cancelText: '取消'
+                    });
+                  }}
+                >
+                  查看完整密钥
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    Modal.info({
+                      title: '💡 密钥查看说明',
+                      content: (
+                        <div>
+                          <Alert 
+                            message="安全机制说明" 
+                            description="出于安全考虑，API密钥在数据库中以加密哈希存储，无法逆向获取原始密钥。"
+                            type="info" 
+                            showIcon 
+                            style={{ marginBottom: 16 }}
+                          />
+                          
+                          <div style={{ marginBottom: 16 }}>
+                            <Text strong>当前可见信息: </Text>
+                            <Text code>{apiKey.key_prefix}***</Text>
+                          </div>
+
+                          <div>
+                            <Text strong>获取完整密钥的方法：</Text>
+                            <ul style={{ marginLeft: 20, marginTop: 8 }}>
+                              <li>点击左侧的"查看完整密钥"按钮重新生成</li>
+                              <li>如果您刚创建此密钥，请检查创建时的保存记录</li>
+                            </ul>
+                          </div>
+                        </div>
+                      ),
+                      okText: '我知道了'
+                    });
+                  }}
+                >
+                  说明
+                </Button>
               </Space>
             }
           >

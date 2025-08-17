@@ -101,6 +101,7 @@ class WeeklyReportService {
     if (cached) {
       return cached;
     }
+
     try {
       const params = new URLSearchParams();
       if (startDate) params.append('start_date', startDate);
@@ -109,10 +110,25 @@ class WeeklyReportService {
       const queryString = params.toString();
       const url = `/timer/weekly${queryString ? `?${queryString}` : ''}`;
       
+      console.log('Fetching weekly report from:', url);
+      
       const response = await api.get(url);
       
+      console.log('Weekly report API response:', response);
+      
+      // 验证响应结构
+      if (!response || typeof response !== 'object') {
+        console.warn('Invalid API response structure:', response);
+        return this.getEmptyWeeklyReportData();
+      }
+
+      // response.data可能不存在，直接使用response
+      const rawData = response.data || response;
+      
+      console.log('Raw data for transformation:', rawData);
+      
       // 转换后端数据格式到前端格式
-      const reportData = this.transformWeeklyReportData(response.data);
+      const reportData = this.transformWeeklyReportData(rawData);
       
       // 缓存结果
       timerCache.set(cacheKey, reportData, CACHE_TTL.STABLE);
@@ -120,7 +136,14 @@ class WeeklyReportService {
       return reportData;
     } catch (error) {
       console.error('获取周报数据失败:', error);
-      throw new Error('获取周报数据失败，请稍后重试');
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        response: error.response || undefined
+      });
+      
+      // 返回空数据而不是抛出错误，提供更好的用户体验
+      return this.getEmptyWeeklyReportData();
     }
   }
 
@@ -142,39 +165,75 @@ class WeeklyReportService {
   /**
    * 转换后端数据格式到前端格式
    */
-  private transformWeeklyReportData(backendData: unknown): WeeklyReportData {
+  private transformWeeklyReportData(backendData: any): WeeklyReportData {
+    // 确保backendData存在且为对象
+    if (!backendData || typeof backendData !== 'object') {
+      console.warn('Backend data is invalid:', backendData);
+      return this.getEmptyWeeklyReportData();
+    }
+
+    try {
+      return {
+        weeklyStats: {
+          totalHours: backendData.weekly_stats?.total_hours || 0,
+          completedTasks: backendData.weekly_stats?.completed_tasks || 0,
+          totalTasks: backendData.weekly_stats?.total_tasks || 0,
+          efficiency: backendData.weekly_stats?.efficiency || 0,
+          weekStart: backendData.weekly_stats?.week_start || this.getDefaultStartDate(),
+          weekEnd: backendData.weekly_stats?.week_end || this.getDefaultEndDate(),
+        },
+        dailyStats: Array.isArray(backendData.daily_stats) 
+          ? backendData.daily_stats.map((day: any) => ({
+              date: day?.date || '',
+              totalHours: day?.total_hours || 0,
+              tasksCompleted: day?.tasks_completed || 0,
+              efficiency: day?.efficiency || 0,
+              topTask: day?.top_task || '无任务',
+            }))
+          : [],
+        taskTimeEntries: Array.isArray(backendData.task_time_entries)
+          ? backendData.task_time_entries.map((entry: any) => ({
+              id: entry?.id || '',
+              taskTitle: entry?.task_title || '',
+              projectName: entry?.project_name || '',
+              duration: entry?.duration || 0,
+              date: entry?.date || '',
+              status: this.mapTaskStatus(entry?.status),
+              priority: this.mapTaskPriority(entry?.priority),
+            }))
+          : [],
+        projectStats: Array.isArray(backendData.project_stats)
+          ? backendData.project_stats.map((project: any) => ({
+              projectName: project?.project_name || '',
+              totalHours: project?.total_hours || 0,
+              tasksCount: project?.tasks_count || 0,
+              completionRate: project?.completion_rate || 0,
+              color: project?.color || '#1890ff',
+            }))
+          : [],
+      };
+    } catch (error) {
+      console.error('Error transforming weekly report data:', error);
+      return this.getEmptyWeeklyReportData();
+    }
+  }
+
+  /**
+   * 获取空的周报数据结构
+   */
+  private getEmptyWeeklyReportData(): WeeklyReportData {
     return {
       weeklyStats: {
-        totalHours: backendData.weekly_stats?.total_hours || 0,
-        completedTasks: backendData.weekly_stats?.completed_tasks || 0,
-        totalTasks: backendData.weekly_stats?.total_tasks || 0,
-        efficiency: backendData.weekly_stats?.efficiency || 0,
-        weekStart: backendData.weekly_stats?.week_start || '',
-        weekEnd: backendData.weekly_stats?.week_end || '',
+        totalHours: 0,
+        completedTasks: 0,
+        totalTasks: 0,
+        efficiency: 0,
+        weekStart: this.getDefaultStartDate(),
+        weekEnd: this.getDefaultEndDate(),
       },
-      dailyStats: (backendData.daily_stats || []).map((day: unknown) => ({
-        date: day.date,
-        totalHours: day.total_hours || 0,
-        tasksCompleted: day.tasks_completed || 0,
-        efficiency: day.efficiency || 0,
-        topTask: day.top_task || '无任务',
-      })),
-      taskTimeEntries: (backendData.task_time_entries || []).map((entry: unknown) => ({
-        id: entry.id,
-        taskTitle: entry.task_title,
-        projectName: entry.project_name,
-        duration: entry.duration || 0,
-        date: entry.date,
-        status: this.mapTaskStatus(entry.status),
-        priority: this.mapTaskPriority(entry.priority),
-      })),
-      projectStats: (backendData.project_stats || []).map((project: unknown) => ({
-        projectName: project.project_name,
-        totalHours: project.total_hours || 0,
-        tasksCount: project.tasks_count || 0,
-        completionRate: project.completion_rate || 0,
-        color: project.color || '#1890ff',
-      })),
+      dailyStats: [],
+      taskTimeEntries: [],
+      projectStats: [],
     };
   }
 

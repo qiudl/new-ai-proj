@@ -47,6 +47,7 @@ export interface PersonalTimerCurrent {
   target_type?: string;
   target_id?: number;
   target_title?: string;
+  project_id?: number; // 🎯 新增：项目ID (如果是项目任务)
   task_color?: string;
   category?: string;
   start_time?: string;

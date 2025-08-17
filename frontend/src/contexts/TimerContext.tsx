@@ -9,6 +9,8 @@ interface TimerState {
   isPaused: boolean; // 🎯 统一为必需字段，兼容SimplifiedTimer
   taskId?: number;
   taskTitle?: string;
+  taskType?: string; // 🎯 新增：任务类型 (project_task, personal_task, etc.)
+  projectId?: number; // 🎯 新增：项目ID (如果是项目任务)
   startTime?: Date;
   elapsedSeconds: number;
   formattedTime: string;
@@ -30,6 +32,9 @@ interface TimerContextType {
   pauseTimer: () => Promise<boolean>;
   resumeTimer: () => Promise<boolean>;
   refreshTimer: () => Promise<void>;
+  
+  // 🎯 新增：任务计时判断工具函数
+  isTaskTiming: (taskId: number, taskType: string) => boolean;
   
   // 🎯 新增：简化模式专用功能 (兼容SimplifiedTimer)
   getDebugInfo: () => any;
@@ -115,6 +120,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       isPaused: response.is_paused || false,
       taskId: response.task_id,
       taskTitle: response.task_title,
+      taskType: response.task_type, // 🎯 从backend透传taskType
+      projectId: response.project_id, // 🎯 从backend透传projectId
       startTime: response.start_time ? new Date(response.start_time) : undefined,
       elapsedSeconds: response.elapsed_seconds,
       formattedTime: response.formatted_time
@@ -180,6 +187,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         is_paused: response.is_paused || false, // 现在PersonalTimerCurrent有is_paused字段
         task_id: response.target_id,
         task_title: response.target_title,
+        task_type: response.target_type, // 🎯 透传taskType
+        project_id: response.project_id, // 🎯 透传projectId (如果backend提供)
         start_time: response.start_time,
         elapsed_seconds: response.elapsed_seconds,
         formatted_time: response.formatted_time || TimerService.formatDuration(response.elapsed_seconds)
@@ -434,6 +443,16 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
 
+  // 🎯 新增：判断指定任务是否正在计时
+  const isTaskTiming = useCallback((taskId: number, taskType: string): boolean => {
+    return (
+      timerState.isRunning && 
+      !timerState.isPaused &&
+      timerState.taskId === taskId &&
+      timerState.taskType === taskType
+    );
+  }, [timerState.isRunning, timerState.isPaused, timerState.taskId, timerState.taskType]);
+
   // 💡 修复：分离初始化和状态恢复
   useEffect(() => {
     let mounted = true;
@@ -576,6 +595,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
               isPaused: newState.isPaused || false,
               taskId: newState.taskId,
               taskTitle: newState.taskTitle,
+              taskType: newState.taskType, // 🎯 同步taskType
+              projectId: newState.projectId, // 🎯 同步projectId
               startTime: newState.startTime ? new Date(newState.startTime) : undefined,
               elapsedSeconds: newState.elapsedSeconds || 0,
               formattedTime: newState.formattedTime || '00:00:00'
@@ -647,6 +668,8 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    // 🎯 新增：任务计时判断工具函数
+    isTaskTiming,
     // 🎯 新增：调试功能
     getDebugInfo,
     onTimerUpdate
@@ -660,6 +683,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    isTaskTiming,
     getDebugInfo,
     onTimerUpdate
   ]);

@@ -317,6 +317,36 @@ const TimeWeeklyReportPage: React.FC = () => {
           </Text>
         </div>
         <Space>
+          <Space.Compact>
+            <Button 
+              type={
+                selectedDateRange[0].isSame(dayjs().startOf('week'), 'day') && 
+                selectedDateRange[1].isSame(dayjs().endOf('week'), 'day') 
+                  ? 'primary' : 'default'
+              }
+              onClick={() => {
+                const thisWeekStart = dayjs().startOf('week');
+                const thisWeekEnd = dayjs().endOf('week');
+                setSelectedDateRange([thisWeekStart, thisWeekEnd]);
+              }}
+            >
+              本周
+            </Button>
+            <Button 
+              type={
+                selectedDateRange[0].isSame(dayjs().subtract(1, 'week').startOf('week'), 'day') && 
+                selectedDateRange[1].isSame(dayjs().subtract(1, 'week').endOf('week'), 'day') 
+                  ? 'primary' : 'default'
+              }
+              onClick={() => {
+                const lastWeekStart = dayjs().subtract(1, 'week').startOf('week');
+                const lastWeekEnd = dayjs().subtract(1, 'week').endOf('week');
+                setSelectedDateRange([lastWeekStart, lastWeekEnd]);
+              }}
+            >
+              上周
+            </Button>
+          </Space.Compact>
           <RangePicker
             value={selectedDateRange}
             onChange={(dates) => dates && setSelectedDateRange(dates as [Dayjs, Dayjs])}
@@ -361,7 +391,7 @@ const TimeWeeklyReportPage: React.FC = () => {
           <Card>
             <Statistic
               title="任务完成率"
-              value={weekSummary.completionRate}
+              value={weekSummary.completionRate.toFixed(2)}
               suffix="%"
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a' }}
@@ -377,7 +407,7 @@ const TimeWeeklyReportPage: React.FC = () => {
           <Card>
             <Statistic
               title="工作效率"
-              value={weekSummary.avgEfficiency}
+              value={weekSummary.avgEfficiency.toFixed(2)}
               suffix="%"
               prefix={<ThunderboltOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14' }}
@@ -441,7 +471,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                         dataIndex: 'efficiency',
                         render: (efficiency) => (
                           <Progress
-                            percent={efficiency}
+                            percent={parseFloat(efficiency.toFixed(2))}
                             size="small"
                             status={efficiency >= 85 ? 'success' : efficiency >= 70 ? 'active' : 'exception'}
                             showInfo={false}
@@ -470,7 +500,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                         />
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
                           <span>{project.tasksCount} 个任务</span>
-                          <span>完成率 {project.completionRate}%</span>
+                          <span>完成率 {project.completionRate.toFixed(2)}%</span>
                         </div>
                       </div>
                     ))}
@@ -489,7 +519,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                           <div>
                             <Text strong>{dayjs(weekSummary.bestDay?.date).format('MM月DD日')}</Text>
                             <br />
-                            <Text>效率达到 {weekSummary.bestDay?.efficiency}%</Text>
+                            <Text>效率达到 {weekSummary.bestDay?.efficiency?.toFixed(2) || '0.00'}%</Text>
                             <br />
                             <Text type="secondary">主要任务: {weekSummary.bestDay?.topTask}</Text>
                           </div>
@@ -519,7 +549,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                         message="任务完成情况"
                         description={
                           <div>
-                            <Text>完成率 {weekSummary.completionRate.toFixed(0)}%</Text>
+                            <Text>完成率 {weekSummary.completionRate.toFixed(2)}%</Text>
                             <br />
                             <Text>超额完成 3 个任务</Text>
                             <br />

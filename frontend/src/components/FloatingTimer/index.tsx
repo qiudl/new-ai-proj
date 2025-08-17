@@ -66,13 +66,34 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     }
   }, []);
 
-  // 获取任务详细信息（包括project_id）- 使用真实API
+  // 🎯 优化：获取任务详细信息 - 基于timer状态中的taskType和projectId避免全局扫描
   const fetchTaskInfo = useCallback(async (taskId: number) => {
     if (loadingTaskInfo) return;
     
     setLoadingTaskInfo(true);
     try {
-      // 首先尝试从所有项目中查找该任务
+      // 🎯 新版：如果已经有taskType和projectId，直接使用，无需扫描
+      if (timerState.taskType === 'project_task' && timerState.projectId) {
+        setTaskDetailInfo({
+          id: taskId,
+          project_id: timerState.projectId,
+          title: timerState.taskTitle || '项目任务'
+        });
+        return;
+      }
+      
+      if (timerState.taskType === 'personal_task') {
+        setTaskDetailInfo({
+          id: taskId,
+          project_id: -1, // 特殊值表示个人任务
+          title: timerState.taskTitle || '个人任务'
+        });
+        return;
+      }
+      
+      // 🎯 降级：只有在缺少taskType/projectId信息时才执行全局扫描
+      console.warn('Timer state missing taskType/projectId, falling back to project scanning...');
+      
       try {
         // 获取所有项目
         const projectsResponse = await api.get('projects');
@@ -138,7 +159,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     } finally {
       setLoadingTaskInfo(false);
     }
-  }, [loadingTaskInfo, timerState.taskTitle]);
+  }, [loadingTaskInfo, timerState.taskTitle, timerState.taskType, timerState.projectId]);
 
   // 💡 修复：优化任务信息获取，避免无限循环
   useEffect(() => {
@@ -264,22 +285,30 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     }
   }, [stopTimer]);
 
-  // 跳转到任务详情页
+  // 🎯 优化：跳转到任务详情页 - 基于timer状态中的taskType和projectId直接跳转
   const handleViewTaskDetail = useCallback(() => {
     if (!timerState.taskId) {
       message.warning('无法获取任务信息');
       return;
     }
 
-    // 如果已经有项目信息，直接跳转
-    if (taskDetailInfo && taskDetailInfo.project_id && taskDetailInfo.project_id > 0) {
-      navigate(`/projects/${taskDetailInfo.project_id}/tasks/${timerState.taskId}`);
+    // 🎯 新版：直接基于timer状态中的信息进行导航
+    if (timerState.taskType === 'project_task' && timerState.projectId) {
+      // 项目任务：直接跳转到项目任务详情页
+      navigate(`/projects/${timerState.projectId}/tasks/${timerState.taskId}`);
+    } else if (timerState.taskType === 'personal_task') {
+      // 个人任务：跳转到个人任务管理页面（如果有的话）
+      navigate(`/personal-tasks/${timerState.taskId}`);
     } else {
-      // 如果没有项目信息，跳转到任务列表页
-      message.info('正在跳转到任务详情页...');
-      navigate(`/tasks?highlight=${timerState.taskId}`);
+      // 其他类型或者缺少信息的情况：使用原有的搜索逻辑作为降级
+      if (taskDetailInfo && taskDetailInfo.project_id && taskDetailInfo.project_id > 0) {
+        navigate(`/projects/${taskDetailInfo.project_id}/tasks/${timerState.taskId}`);
+      } else {
+        message.info('正在跳转到任务详情页...');
+        navigate(`/tasks?highlight=${timerState.taskId}`);
+      }
     }
-  }, [timerState.taskId, taskDetailInfo, navigate]);
+  }, [timerState.taskId, timerState.taskType, timerState.projectId, taskDetailInfo, navigate]);
 
   // 获取运行状态类名
   const getStatusClass = () => {

@@ -21,16 +21,14 @@ const TimerStartButton: React.FC<TimerStartButtonProps> = ({
   className = '',
   disabled = false
 }) => {
-  const { timerState, isLoading, startTimer, stopTimer } = useTimer();
+  const { timerState, isLoading, startTimer, stopTimer, isTaskTiming } = useTimer();
   const [localLoading, setLocalLoading] = useState(false);
 
-  // Check if this task is currently being timed
-  const isCurrentTask = timerState.isRunning && 
-    timerState.taskId === task.id;
+  // 🎯 优化：检查是否当前任务正在计时 - 使用新的isTaskTiming函数
+  const isCurrentTask = isTaskTiming(task.id, 'project_task');
 
   // Check if another task is running
-  const isOtherTaskRunning = timerState.isRunning && 
-    timerState.taskId !== task.id;
+  const isOtherTaskRunning = timerState.isRunning && !isCurrentTask;
 
   const handleTimerAction = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event bubbling

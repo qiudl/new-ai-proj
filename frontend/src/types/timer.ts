@@ -167,6 +167,8 @@ export interface TimerCurrentResponse {
   is_paused?: boolean;
   task_id?: number;
   task_title?: string;
+  task_type?: string; // 🎯 新增：任务类型 (project_task, personal_task, etc.)
+  project_id?: number; // 🎯 新增：项目ID (如果是项目任务)
   start_time?: string;
   elapsed_seconds: number;
   formatted_time: string;
