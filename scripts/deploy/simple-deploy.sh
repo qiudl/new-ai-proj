@@ -20,7 +20,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # 配置变量
 SERVER_HOST="${SERVER_HOST:-152.136.104.251}"
 PROJECT_DIR="/opt/ai-project"
-REPO_URL="https://github.com/yourusername/new-ai-proj.git"  # 替换为您的仓库地址
+REPO_URL="https://github.com/qiudl/new-ai-proj.git"  # 替换为您的仓库地址
 
 # 函数：检查Docker安装
 check_docker() {

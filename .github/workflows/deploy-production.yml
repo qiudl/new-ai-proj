@@ -79,7 +79,7 @@ jobs:
         host: ${{ secrets.TENCENT_HOST }}
         username: ${{ secrets.TENCENT_USERNAME }}
         key: ${{ secrets.TENCENT_SSH_KEY }}
-        port: ${{ secrets.TENCENT_PORT || 22 }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
           # 设置变量
           export REGISTRY="${{ env.REGISTRY }}"

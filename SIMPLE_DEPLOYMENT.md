@@ -42,9 +42,9 @@ curl -fsSL https://raw.githubusercontent.com/yourusername/new-ai-proj/main/scrip
 
 1. **配置GitHub Secrets**
    ```
-   SERVER_HOST: 152.136.104.251
-   SERVER_USERNAME: ubuntu
-   SERVER_SSH_KEY: [您的SSH私钥内容]
+   TENCENT_HOST: 152.136.104.251
+   TENCENT_USERNAME: ubuntu
+   TENCENT_SSH_KEY: [您的SSH私钥内容]
    SERVER_PORT: 22
    ```
 

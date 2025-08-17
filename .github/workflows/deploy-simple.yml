@@ -16,9 +16,9 @@ jobs:
     - name: Deploy to server and build on server
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.SERVER_HOST }}
-        username: ${{ secrets.SERVER_USERNAME }}
-        key: ${{ secrets.SERVER_SSH_KEY }}
+        host: ${{ secrets.TENCENT_HOST }}
+        username: ${{ secrets.TENCENT_USERNAME }}
+        key: ${{ secrets.TENCENT_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
           # 设置变量
@@ -68,4 +68,4 @@ jobs:
           fi
           
           echo "🎉 部署完成！"
-          echo "访问地址: http://${{ secrets.SERVER_HOST }}"
+          echo "访问地址: http://${{ secrets.TENCENT_HOST }}"
