@@ -334,20 +334,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>AI上下文任务系统</span>
-{/* 临时调试代码 - 输出环境变量 */}
-{(() => {
-  console.log('🔍 环境变量调试信息:');
-  console.log('REACT_APP_ENV:', process.env.REACT_APP_ENV);
-  console.log('REACT_APP_ENVIRONMENT:', process.env.REACT_APP_ENVIRONMENT);
-  console.log('REACT_APP_LOCAL_DEV:', process.env.REACT_APP_LOCAL_DEV);
-  console.log('NODE_ENV:', process.env.NODE_ENV);
-  console.log('条件1 (REACT_APP_LOCAL_DEV === "true"):', process.env.REACT_APP_LOCAL_DEV === 'true');
-  console.log('条件2a (REACT_APP_ENV === "development"):', process.env.REACT_APP_ENV === 'development');
-  console.log('条件2b (REACT_APP_ENVIRONMENT === "development"):', process.env.REACT_APP_ENVIRONMENT === 'development');
-  console.log('条件2c (REACT_APP_LOCAL_DEV !== "true"):', process.env.REACT_APP_LOCAL_DEV !== 'true');
-  console.log('条件2整体:', (process.env.REACT_APP_ENV === 'development' && process.env.REACT_APP_ENVIRONMENT === 'development' && process.env.REACT_APP_LOCAL_DEV !== 'true'));
-  return null;
-})()}
 {/* 环境标志显示 */}
             {process.env.REACT_APP_LOCAL_DEV === 'true' && (
               <span style={{

@@ -10,7 +10,7 @@ type AllHandlers struct {
 	// 基础业务处理器
 	CustomerHandler           *handlers.CustomerHandler
 	CompanyHandler            *handlers.CompanyHandler
-	// ProjectHandler            *handlers.ProjectHandler // Disabled due to compilation issues
+	ProjectHandler            *handlers.ProjectHandler
 	PermissionHandler         *handlers.PermissionHandler
 	UserManagementHandler     *handlers.UserManagementHandler
 	CompanyUserHandler        *handlers.CompanyUserHandler
@@ -27,7 +27,7 @@ type AllHandlers struct {
 	UnifiedTimerHandler *handlers.UnifiedTimerHandler
 
 	// 任务管理处理器
-	// TaskHandler                *handlers.TaskHandler // Disabled due to compilation issues
+	TaskHandler                *handlers.TaskHandler
 	TaskHierarchyHandler       *handlers.TaskHierarchyHandler
 
 	// 用户管理处理器

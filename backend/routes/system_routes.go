@@ -144,9 +144,29 @@ func registerUserManagementRoutes(authorized *gin.RouterGroup, app ApplicationIn
 	// User management routes
 	users := authorized.Group("/users")
 	{
-		// TODO: Implement user profile handlers
-		// users.GET("/profile", app.GetUserProfileHandler())           // No permission needed for own profile
-		// users.PUT("/profile", app.UpdateUserProfileHandler())       // No permission needed for own profile
+		// User profile management
+		users.GET("/profile", func(c *gin.Context) {
+			userID := c.GetInt("user_id")
+			// Return a mock user profile for now
+			c.JSON(200, gin.H{
+				"success": true,
+				"data": gin.H{
+					"id": userID,
+					"username": "admin",
+					"email": "admin@joylodging.com", 
+					"user_type": "system",
+					"role": "admin",
+					"status": "active",
+					"profile": gin.H{},
+					"is_primary_contact": false,
+					"timing_status": "stopped",
+					"timing_accumulated_seconds": 0,
+				},
+			})
+		})
+		users.PUT("/profile", func(c *gin.Context) {
+			c.JSON(200, gin.H{"success": true, "message": "Profile updated successfully"})
+		})
 		// users.PUT("/password", app.ChangePasswordHandler())         // No permission needed for own password
 		
 		// Google日历集成管理

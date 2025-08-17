@@ -7,16 +7,7 @@ class TimerDiagnostics {
   constructor() {
     this.API_BASE = '/api/v1';
     this.monitoringInterval = null;
-    console.log('🔍 定时器诊断工具已初始化');
-    console.log('使用方法：');
-    console.log('- window.timerDiag.runDiagnostics() // 运行完整诊断');
-    console.log('- window.timerDiag.checkAuth() // 检查认证状态');
-    console.log('- window.timerDiag.testAPI() // 测试API连接');
-    console.log('- window.timerDiag.testTimer() // 测试定时器功能');
-    console.log('- window.timerDiag.startMonitoring() // 开始实时监控');
-    console.log('- window.timerDiag.stopMonitoring() // 停止监控');
-    console.log('- window.timerDiag.startQuickTimer() // 快速启动定时器');
-    console.log('- window.timerDiag.stopCurrentTimer() // 停止当前定时器');
+    // Timer diagnostics tool initialized silently
   }
 
   log(message, type = 'info') {
@@ -418,7 +409,7 @@ class TimerDiagnostics {
 // 在全局暴露诊断工具
 if (typeof window !== 'undefined') {
   window.timerDiag = new TimerDiagnostics();
-  console.log('🔧 定时器诊断工具已加载到 window.timerDiag');
+  // Timer diagnostics tool loaded silently
 } else {
   // Node.js环境
   module.exports = TimerDiagnostics;

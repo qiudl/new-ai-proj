@@ -21,7 +21,7 @@ type TaskHandler struct {
 }
 
 // NewTaskHandler creates a new task handler
-func NewTaskHandler(db database.DB) *TaskHandler {
+func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *TaskHandler {
 	return &TaskHandler{db: db}
 }
 

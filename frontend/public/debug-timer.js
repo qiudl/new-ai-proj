@@ -6,12 +6,7 @@
 class BrowserTimerDebugger {
   constructor() {
     this.API_BASE = '/api/v1';
-    this.log('🔧 浏览器定时器调试工具已加载');
-    this.log('使用方法:');
-    this.log('- window.timerDebug.runDiagnostics() // 运行完整诊断');
-    this.log('- window.timerDebug.checkTimer() // 检查定时器状态');
-    this.log('- window.timerDebug.checkComponents() // 检查组件状态');
-    this.log('- window.timerDebug.fixIssues() // 尝试修复常见问题');
+    // Debug tool initialized silently
   }
 
   log(message, type = 'info') {

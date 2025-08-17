@@ -44,11 +44,11 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 基础处理器
 	allHandlers.CustomerHandler = handlers.NewCustomerHandler(f.db, f.logger, f.validate)
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
-	// allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate) // Disabled
+	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
 	
 	// 任务管理处理器
-	// allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate) // Disabled
+	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 
 	// 用户管理处理器

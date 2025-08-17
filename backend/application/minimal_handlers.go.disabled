@@ -55,12 +55,7 @@ func (app *Application) GetLogoutHandler() gin.HandlerFunc { return app.handlers
 func (app *Application) GetDevAccountsHandler() gin.HandlerFunc { return app.handlers.AuthHandler.GetDevAccounts }
 func (app *Application) DevQuickLoginHandler() gin.HandlerFunc { return app.handlers.AuthHandler.DevQuickLogin }
 
-// Minimal task handlers - return not implemented for now
-func (app *Application) GetAllTasksHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetAllTasksHandler not implemented"})
-	}
-}
+// Task handlers moved to bottom of file
 
 func (app *Application) GetTasksHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -190,47 +185,34 @@ func (app *Application) ValidateParentHandler() gin.HandlerFunc {
 }
 
 // Project handlers
-func (app *Application) GetProjectsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetProjectsHandler not implemented"})
-	}
-}
+func (app *Application) GetProjectsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProjects }
 
-func (app *Application) CreateProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "CreateProjectHandler not implemented"})
-	}
-}
+func (app *Application) CreateProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.CreateProject }
+func (app *Application) GetProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProject }
+func (app *Application) UpdateProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.UpdateProject }
+func (app *Application) DeleteProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.DeleteProject }
+func (app *Application) GetProjectStatsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProjectStats }
+func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetDocumentProjects }
 
-func (app *Application) GetProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetProjectHandler not implemented"})
-	}
-}
-
-func (app *Application) UpdateProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "UpdateProjectHandler not implemented"})
-	}
-}
-
-func (app *Application) DeleteProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "DeleteProjectHandler not implemented"})
-	}
-}
-
-func (app *Application) GetProjectStatsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetProjectStatsHandler not implemented"})
-	}
-}
-
-func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetDocumentProjectsHandler not implemented"})
-	}
-}
+// Task handlers
+func (app *Application) GetAllTasksHandler() gin.HandlerFunc { return app.handlers.TaskHandler.GetTasks }
+func (app *Application) GetTasksHandler() gin.HandlerFunc { return app.handlers.TaskHandler.GetTasks }
+func (app *Application) GetTaskHandler() gin.HandlerFunc { return app.handlers.TaskHandler.GetTask }
+func (app *Application) CreateTaskHandler() gin.HandlerFunc { return app.handlers.TaskHandler.CreateTask }
+func (app *Application) UpdateTaskHandler() gin.HandlerFunc { return app.handlers.TaskHandler.UpdateTask }
+func (app *Application) DeleteTaskHandler() gin.HandlerFunc { return app.handlers.TaskHandler.DeleteTask }
+func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc { return app.handlers.TaskHandler.BulkDeleteTasks }
+func (app *Application) BatchUpdateTasksHandler() gin.HandlerFunc { return app.handlers.TaskHandler.BatchUpdateTasks }
+func (app *Application) BatchValidateTasksPreviewHandler() gin.HandlerFunc { return app.handlers.TaskHandler.BatchValidateTasksPreview }
+func (app *Application) GetTaskTreeHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.GetTaskTree }
+func (app *Application) GetRootTasksHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.GetRootTasks }
+func (app *Application) SearchParentTasksHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.SearchParentTasks }
+func (app *Application) BulkImportTasksHandler() gin.HandlerFunc { return app.handlers.BulkOperationHandler.BulkImportTasks }
+func (app *Application) GetTaskChildrenHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.GetTaskChildren }
+func (app *Application) GetTaskUpdatesHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.GetTaskUpdates }
+func (app *Application) UpdateTaskUpdateHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.UpdateTaskUpdate }
+func (app *Application) DeleteTaskUpdateHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.DeleteTaskUpdate }
+func (app *Application) GetTaskTimelineHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.GetTaskTimeline }
 
 // Additional handlers for interface compliance
 func (app *Application) MapUserToCompanyUser() gin.HandlerFunc {
@@ -241,11 +223,7 @@ func (app *Application) MapUserToCompanyUser() gin.HandlerFunc {
 	}
 }
 
-func (app *Application) ValidateTaskHierarchyHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "ValidateTaskHierarchyHandler not implemented"})
-	}
-}
+func (app *Application) ValidateTaskHierarchyHandler() gin.HandlerFunc { return app.handlers.ValidationHandler.ValidateTaskHierarchy }
 
 func (app *Application) ValidateTaskDependenciesHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {

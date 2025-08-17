@@ -20,7 +20,7 @@ type ProjectHandler struct {
 }
 
 // NewProjectHandler creates a new project handler
-func NewProjectHandler(db database.DB) *ProjectHandler {
+func NewProjectHandler(db database.DB, logger *log.Logger, validate interface{}) *ProjectHandler {
 	return &ProjectHandler{db: db}
 }
 
