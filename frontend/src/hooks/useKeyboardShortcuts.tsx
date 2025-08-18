@@ -173,6 +173,7 @@ export const createDocumentShortcuts = (callbacks: {
   copyDocument?: () => void;
   deleteDocument?: () => void;
   switchTab?: (direction: 'next' | 'prev') => void;
+  switchListView?: () => void;
 }): ShortcutGroup[] => {
   return [
     {
@@ -248,6 +249,12 @@ export const createDocumentShortcuts = (callbacks: {
           shiftKey: true,
           action: () => callbacks.switchTab?.('prev'),
           description: '切换到上一个标签页'
+        },
+        {
+          key: 'v',
+          ctrlKey: true,
+          action: callbacks.switchListView || (() => message.info('切换视图功能未配置')),
+          description: '切换文档列表视图'
         }
       ]
     },

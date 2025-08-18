@@ -241,6 +241,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
   const [newDocumentModalVisible, setNewDocumentModalVisible] = useState(false);
   const [newDocumentForm, setNewDocumentForm] = useState({ title: '', type: 'markdown', description: '' });
+  const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
 
   // 切换视图模式
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -337,6 +338,13 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         : (currentIndex - 1 + modes.length) % modes.length;
       handleViewModeChange(modes[nextIndex]);
     },
+    switchListView: () => {
+      const views: typeof documentListView[] = ['grouped', 'timeline', 'grid', 'list'];
+      const currentIndex = views.indexOf(documentListView);
+      const nextView = views[(currentIndex + 1) % views.length];
+      setDocumentListView(nextView);
+      message.info(`切换到${nextView === 'grouped' ? '分组' : nextView === 'timeline' ? '时间线' : nextView === 'grid' ? '网格' : '列表'}视图`);
+    },
     showHelp: () => {
       Modal.info({
         title: '快捷键帮助',
@@ -358,6 +366,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
             <div>• Ctrl+F - 聚焦搜索框</div>
             <div>• Ctrl+Tab - 切换到下一个标签页</div>
             <div>• Ctrl+Shift+Tab - 切换到上一个标签页</div>
+            <div>• Ctrl+V - 切换文档列表视图模式</div>
             <br />
             <div><strong>帮助：</strong></div>
             <div>• Ctrl+? - 显示快捷键帮助</div>
@@ -365,7 +374,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         )
       });
     }
-  }), [selectedDocument, viewMode, handleViewModeChange, loadDocuments, searchInputRef]);
+  }), [selectedDocument, viewMode, handleViewModeChange, loadDocuments, searchInputRef, documentListView]);
 
   // 配置快捷键
   const shortcutGroups = useMemo(() => createDocumentShortcuts(shortcutCallbacks), [shortcutCallbacks]);
@@ -507,15 +516,21 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     }
     
     try {
-      const response = await documentService.createDocument({
-        title: newDocumentForm.title.trim(),
-        type: newDocumentForm.type as 'markdown' | 'text',
-        description: newDocumentForm.description,
-        content: newDocumentForm.type === 'markdown' ? '# ' + newDocumentForm.title.trim() + '\n\n请在这里编写文档内容...' : '请在这里编写文档内容...',
-        project_id: projectId,
-        task_id: taskId,
-        is_template: false
-      });
+      const content = newDocumentForm.type === 'markdown' 
+        ? '# ' + newDocumentForm.title.trim() + '\n\n请在这里编写文档内容...'
+        : '请在这里编写文档内容...';
+        
+      const response = await documentService.createDocument(
+        newDocumentForm.title.trim(),
+        content,
+        {
+          type: newDocumentForm.type as 'markdown' | 'text',
+          description: newDocumentForm.description,
+          project_id: projectId,
+          task_id: taskId,
+          is_template: false
+        }
+      );
       
       message.success('文档创建成功');
       setNewDocumentModalVisible(false);
@@ -538,15 +553,21 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     const defaultTitle = `新建${type === 'markdown' ? 'Markdown' : '文本'}文档`;
     
     try {
-      const response = await documentService.createDocument({
-        title: defaultTitle,
-        type,
-        description: '',
-        content: type === 'markdown' ? `# ${defaultTitle}\n\n请在这里编写文档内容...` : '请在这里编写文档内容...',
-        project_id: projectId,
-        task_id: taskId,
-        is_template: false
-      });
+      const content = type === 'markdown' 
+        ? `# ${defaultTitle}\n\n请在这里编写文档内容...`
+        : '请在这里编写文档内容...';
+        
+      const response = await documentService.createDocument(
+        defaultTitle,
+        content,
+        {
+          type,
+          description: '',
+          project_id: projectId,
+          task_id: taskId,
+          is_template: false
+        }
+      );
       
       message.success('文档创建成功');
       await loadDocuments();
@@ -561,6 +582,246 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       message.error('文档创建失败');
     }
   }, [projectId, taskId, loadDocuments]);
+
+  // 渲染不同的文档列表视图
+  const renderDocumentList = useCallback(() => {
+    if (documents.length === 0) {
+      return (
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="暂无文档"
+          style={{ margin: '40px 0' }}
+        >
+          <Button 
+            type="dashed" 
+            icon={<PlusOutlined />}
+            onClick={() => handleQuickCreateDocument('markdown')}
+            style={{ marginTop: '8px' }}
+          >
+            创建文档
+          </Button>
+        </Empty>
+      );
+    }
+
+    switch (documentListView) {
+      case 'grouped':
+        return (
+          <div style={{ padding: '0 8px' }}>
+            {/* 按类型分组显示文档 */}
+            {Object.entries(
+              documents.reduce((groups, doc) => {
+                const type = doc.type || 'other';
+                if (!groups[type]) groups[type] = [];
+                groups[type].push(doc);
+                return groups;
+              }, {} as Record<string, DocumentItem[]>)
+            ).map(([type, docs]) => (
+              <div key={type} style={{ marginBottom: '16px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  marginBottom: '8px',
+                  padding: '4px 8px',
+                  backgroundColor: '#fafafa',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: '#666'
+                }}>
+                  {type === 'markdown' && <FileTextOutlined style={{ marginRight: '4px', color: '#1890ff' }} />}
+                  {type === 'text' && <FileTextOutlined style={{ marginRight: '4px', color: '#52c41a' }} />}
+                  {type === 'pdf' && <FileTextOutlined style={{ marginRight: '4px', color: '#ff4d4f' }} />}
+                  {type.toUpperCase()} ({docs.length})
+                </div>
+                
+                {docs.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className={`document-card ${selectedDocument?.id === doc.id ? 'selected' : ''}`}
+                    onClick={() => handleDocumentSelect(doc)}
+                    style={{
+                      padding: '12px',
+                      marginBottom: '8px',
+                      backgroundColor: selectedDocument?.id === doc.id ? '#e6f7ff' : '#fff',
+                      border: selectedDocument?.id === doc.id ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      boxShadow: selectedDocument?.id === doc.id ? '0 2px 8px rgba(24,144,255,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedDocument?.id !== doc.id) {
+                        e.currentTarget.style.backgroundColor = '#f9f9f9';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedDocument?.id !== doc.id) {
+                        e.currentTarget.style.backgroundColor = '#fff';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {/* 文档标题和状态 */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <Text strong style={{ fontSize: '13px', flex: 1, marginRight: '8px' }}>
+                        {doc.title}
+                      </Text>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        {doc.is_template && <Tag color="purple" size="small" style={{ margin: 0, fontSize: '10px' }}>模板</Tag>}
+                        <Button
+                          type="text"
+                          icon={<EditOutlined />}
+                          size="small"
+                          style={{ width: '20px', height: '20px', fontSize: '10px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDocumentEdit(doc);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* 文档信息 */}
+                    <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.4' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                        <span>{Math.round(doc.file_size / 1024)}KB</span>
+                        <span>v{doc.version}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
+                        <span style={{ color: '#1890ff' }}>●</span>
+                      </div>
+                    </div>
+                    
+                    {/* 文档预览 */}
+                    {doc.description && (
+                      <div style={{ 
+                        fontSize: '11px', 
+                        color: '#999', 
+                        marginTop: '6px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {doc.description}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+
+      case 'timeline':
+        return (
+          <div style={{ padding: '0 8px' }}>
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', fontWeight: 'bold' }}>
+              📅 按时间排序
+            </div>
+            {documents
+              .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+              .map((doc) => (
+                <div
+                  key={doc.id}
+                  onClick={() => handleDocumentSelect(doc)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '10px',
+                    marginBottom: '8px',
+                    backgroundColor: selectedDocument?.id === doc.id ? '#e6f7ff' : '#fff',
+                    border: selectedDocument?.id === doc.id ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ marginRight: '12px' }}>
+                    {doc.type === 'markdown' && <FileTextOutlined style={{ color: '#1890ff' }} />}
+                    {doc.type === 'text' && <FileTextOutlined style={{ color: '#52c41a' }} />}
+                    {doc.type === 'pdf' && <FileTextOutlined style={{ color: '#ff4d4f' }} />}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>
+                      {doc.title}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#666' }}>
+                      {new Date(doc.updated_at).toLocaleDateString()} • {Math.round(doc.file_size / 1024)}KB
+                    </div>
+                  </div>
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDocumentEdit(doc);
+                    }}
+                  />
+                </div>
+              ))}
+          </div>
+        );
+
+      case 'grid':
+        return (
+          <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                onClick={() => handleDocumentSelect(doc)}
+                style={{
+                  padding: '12px',
+                  backgroundColor: selectedDocument?.id === doc.id ? '#e6f7ff' : '#fff',
+                  border: selectedDocument?.id === doc.id ? '1px solid #1890ff' : '1px solid #f0f0f0',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'center',
+                  minHeight: '80px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}
+              >
+                <div style={{ marginBottom: '8px' }}>
+                  {doc.type === 'markdown' && <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
+                  {doc.type === 'text' && <FileTextOutlined style={{ fontSize: '24px', color: '#52c41a' }} />}
+                  {doc.type === 'pdf' && <FileTextOutlined style={{ fontSize: '24px', color: '#ff4d4f' }} />}
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
+                  {doc.title}
+                </div>
+                <div style={{ fontSize: '10px', color: '#666' }}>
+                  {Math.round(doc.file_size / 1024)}KB
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+
+      default: // list
+        return (
+          <List
+            size="small"
+            dataSource={documents}
+            renderItem={(doc) => (
+              <DocumentListItem
+                key={doc.id}
+                document={doc}
+                selected={selectedDocument?.id === doc.id}
+                onSelect={handleDocumentSelect}
+                onEdit={handleDocumentEdit}
+                onDelete={handleDocumentDelete}
+                onDownload={handleDocumentDownload}
+              />
+            )}
+          />
+        );
+    }
+  }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleQuickCreateDocument]);
 
   // 工具栏按钮
   const toolbarItems: MenuProps['items'] = [
@@ -837,43 +1098,50 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
               }}
             >
               <div style={{ padding: '16px 0' }}>
-                <Title level={5} style={{ margin: '0 16px 16px' }}>
-                  文档列表 ({documentStats.total})
-                </Title>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 16px 16px' }}>
+                  <Title level={5} style={{ margin: 0 }}>
+                    文档列表 ({documentStats.total})
+                  </Title>
+                  
+                  {/* 视图切换按钮 */}
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'grouped',
+                          label: '📑 分组视图',
+                          onClick: () => setDocumentListView('grouped')
+                        },
+                        {
+                          key: 'timeline',
+                          label: '📅 时间线',
+                          onClick: () => setDocumentListView('timeline')
+                        },
+                        {
+                          key: 'grid',
+                          label: '⚏ 网格视图',
+                          onClick: () => setDocumentListView('grid')
+                        },
+                        {
+                          key: 'list',
+                          label: '📋 列表视图',
+                          onClick: () => setDocumentListView('list')
+                        }
+                      ]
+                    }}
+                    placement="bottomRight"
+                  >
+                    <Button size="small" type="text">
+                      {documentListView === 'grouped' && '📑'}
+                      {documentListView === 'timeline' && '📅'}
+                      {documentListView === 'grid' && '⚏'}
+                      {documentListView === 'list' && '📋'}
+                    </Button>
+                  </Dropdown>
+                </div>
                 
                 <Spin spinning={loading}>
-                  {documents.length === 0 ? (
-                    <Empty
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="暂无文档"
-                      style={{ margin: '40px 0' }}
-                    >
-                      <Button 
-                        type="dashed" 
-                        icon={<PlusOutlined />}
-                        onClick={() => handleQuickCreateDocument('markdown')}
-                        style={{ marginTop: '8px' }}
-                      >
-                        创建文档
-                      </Button>
-                    </Empty>
-                  ) : (
-                    <List
-                      size="small"
-                      dataSource={documents}
-                      renderItem={(doc) => (
-                        <DocumentListItem
-                          key={doc.id}
-                          document={doc}
-                          selected={selectedDocument?.id === doc.id}
-                          onSelect={handleDocumentSelect}
-                          onEdit={handleDocumentEdit}
-                          onDelete={handleDocumentDelete}
-                          onDownload={handleDocumentDownload}
-                        />
-                      )}
-                    />
-                  )}
+                  {renderDocumentList()}
                 </Spin>
               </div>
             </Col>
