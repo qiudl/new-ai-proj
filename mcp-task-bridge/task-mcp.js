@@ -1137,4 +1137,197 @@ export class TaskMCPServer {
         const currentTime = new Date().getTime();
         return Math.floor((currentTime - startTime) / 1000);
     }
+
+    // ========== 新增任务文档API支持 ==========
+    
+    // 创建任务文档（使用新的统一文档API）
+    async createTaskDocument(taskId, documentData) {
+        try {
+            console.error(`[DEBUG] 创建任务文档: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            
+            // Step 1: 创建文档
+            console.error(`[DEBUG] 第1步: 创建文档`);
+            console.error(`[DEBUG] 文档数据:`, JSON.stringify(documentData, null, 2));
+            console.error(`[DEBUG] API端点: ${this.apiBase}/documents`);
+            console.error(`[DEBUG] Headers:`, this.getHeaders());
+            
+            const createDocResponse = await axios.post(
+                `${this.apiBase}/documents`,
+                documentData,
+                {
+                    headers: this.getHeaders(),
+                    proxy: false
+                }
+            );
+            
+            const document = createDocResponse.data.data;
+            console.error(`[DEBUG] 文档创建成功，ID: ${document.id}`);
+            
+            // Step 2: 将文档关联到任务
+            console.error(`[DEBUG] 第2步: 将文档关联到任务 ${taskId}`);
+            const attachResponse = await axios.post(
+                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents/${document.id}/attach`,
+                {
+                    relationship_type: 'output' // 完成报告作为输出文档
+                },
+                {
+                    headers: this.getHeaders(),
+                    proxy: false
+                }
+            );
+            
+            console.error(`[DEBUG] 文档关联成功`);
+            
+            return {
+                success: true,
+                document_id: document.id,
+                task_id: taskId,
+                title: documentData.title,
+                content_length: documentData.content?.length || 0,
+                relationship_type: 'output',
+                message: `📄 任务 #${taskId} 文档 "${documentData.title}" 已创建并关联`
+            };
+        } catch (error) {
+            console.error(`[ERROR] 创建任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `创建任务文档失败: ${error.response?.data?.error || error.response?.data?.message || error.message}`
+            };
+        }
+    }
+
+    // 获取任务文档列表
+    async getTaskDocuments(taskId) {
+        try {
+            console.error(`[DEBUG] 获取任务文档列表: 任务ID ${taskId}`);
+            const task = await this.findTaskById(taskId);
+            
+            const response = await axios.get(
+                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`,
+                {
+                    headers: this.getHeaders(),
+                    proxy: false
+                }
+            );
+            
+            const documents = response.data.data || [];
+            return {
+                success: true,
+                task_id: taskId,
+                total: documents.length,
+                documents: documents.map(doc => ({
+                    id: doc.id,
+                    title: doc.title,
+                    document_type: doc.document_type,
+                    content_length: doc.content?.length || 0,
+                    created_at: doc.created_at,
+                    updated_at: doc.updated_at
+                })),
+                message: `📄 任务 #${taskId} 有 ${documents.length} 个文档`
+            };
+        } catch (error) {
+            console.error(`[ERROR] 获取任务文档列表失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `获取任务文档列表失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // 更新任务状态（增强版，支持更多字段）
+    async updateTaskStatusAdvanced(taskId, updates) {
+        try {
+            console.error(`[DEBUG] 更新任务状态（增强版）: 任务ID ${taskId}`, updates);
+            const task = await this.findTaskById(taskId);
+            
+            const updateData = {
+                title: task.title,
+                description: task.description,
+                project_id: task.project_id,
+                parent_id: task.parent_id,
+                custom_fields: { ...task.custom_fields },
+                ...updates  // 覆盖指定的字段
+            };
+            
+            const response = await axios.put(
+                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}`,
+                updateData,
+                {
+                    headers: this.getHeaders(),
+                    proxy: false
+                }
+            );
+            
+            const updatedTask = response.data.data;
+            return {
+                success: true,
+                task_id: taskId,
+                title: updatedTask.title,
+                status: updatedTask.status,
+                progress: updatedTask.progress,
+                updated_fields: Object.keys(updates),
+                message: `📝 任务 #${taskId} "${updatedTask.title}" 已更新`
+            };
+        } catch (error) {
+            console.error(`[ERROR] 更新任务状态失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `更新任务状态失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // 完成任务并创建总结文档（一站式服务）
+    async completeTaskWithDocument(taskId, completionNotes, documentData) {
+        try {
+            console.error(`[DEBUG] 完成任务并创建文档: 任务ID ${taskId}`);
+            
+            // Step 1: 更新任务状态为完成
+            const updateResult = await this.updateTaskStatusAdvanced(taskId, {
+                status: 'completed',
+                progress: 100,
+                completion_notes: completionNotes
+            });
+            
+            if (!updateResult.success) {
+                return updateResult;
+            }
+            
+            // Step 2: 创建总结文档
+            const documentResult = await this.createTaskDocument(taskId, documentData);
+            
+            if (!documentResult.success) {
+                // 如果文档创建失败，记录警告但不回滚任务状态
+                console.error(`[WARNING] 任务已完成但文档创建失败: ${documentResult.error}`);
+                return {
+                    success: true,
+                    task_completed: true,
+                    document_created: false,
+                    task_id: taskId,
+                    title: updateResult.title,
+                    document_error: documentResult.error,
+                    message: `✅ 任务 #${taskId} 已完成，但文档创建失败: ${documentResult.error}`
+                };
+            }
+            
+            return {
+                success: true,
+                task_completed: true,
+                document_created: true,
+                task_id: taskId,
+                title: updateResult.title,
+                document_id: documentResult.document_id,
+                document_title: documentData.title,
+                message: `🎉 任务 #${taskId} "${updateResult.title}" 已完成并创建总结文档`
+            };
+            
+        } catch (error) {
+            console.error(`[ERROR] 完成任务并创建文档失败:`, error.message);
+            return {
+                success: false,
+                error: `完成任务并创建文档失败: ${error.message}`
+            };
+        }
+    }
 }
