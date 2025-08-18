@@ -209,7 +209,7 @@ export const taskDocumentService = {
   // ===== Task 307: 新增文档上传下载功能 =====
 
   /**
-   * 手工上传文档 - 适配统一文档系统 (通过文件内容创建/更新文档)
+   * 手工上传文档 - 使用新的数据库API端点
    */
   async uploadDocument(
     projectId: number,
@@ -235,40 +235,48 @@ export const taskDocumentService = {
       // 模拟进度 - 50% 读取文件，50% 上传
       onProgress?.(50, file.size / 2, file.size);
 
-      // 通过统一文档系统创建/更新文档
-      const response = await api.post(
-        `/projects/${projectId}/tasks/${taskId}/documents`,
-        {
-          content: fileContent,
-          title: file.name.replace(/\.[^/.]+$/, '') // 移除文件扩展名作为标题
-        }
-      );
+      // 首先创建文档
+      const createResponse = await api.post('/documents', {
+        title: file.name.replace(/\.[^/.]+$/, ''), // 移除文件扩展名作为标题
+        content: fileContent,
+        type: this.getDocumentTypeFromMimeType(file.type),
+        status: 'published',
+        visibility: 'team',
+        description: `文档从文件 ${file.name} 上传`,
+        tags: ['文件上传']
+      });
+
+      if (!createResponse.data || !createResponse.data.success) {
+        throw new Error(createResponse.data?.message || 'Failed to create document');
+      }
+
+      const documentData = createResponse.data.data;
+      
+      // 然后将文档关联到任务
+      await api.post(`/projects/${projectId}/tasks/${taskId}/documents/${documentData.id}/attach`, {
+        relationship_type: 'attachment'
+      });
 
       // 完成进度
       onProgress?.(100, file.size, file.size);
 
-      if (response.data && (response.data.success !== false)) {
-        // 清除文档列表缓存
-        const listCacheKey = `get_task_documents_${projectId}_${taskId}`;
-        apiCache.remove(listCacheKey);
-        
-        performanceMonitor.endMeasure('upload_document');
-        
-        // 返回符合接口规范的结果
-        const documentData = response.data.data || response.data;
-        return {
-          id: documentData.id || Date.now(),
-          file_name: file.name,
-          original_name: file.name,
-          file_size: file.size,
-          mime_type: file.type,
-          upload_type: 'manual' as const,
-          uploaded_at: new Date().toISOString(),
-          file_path: `/projects/${projectId}/tasks/${taskId}/documents`
-        };
-      } else {
-        throw new Error(response.data?.message || 'Upload failed');
-      }
+      // 清除文档列表缓存
+      const listCacheKey = `get_task_documents_${projectId}_${taskId}`;
+      apiCache.remove(listCacheKey);
+      
+      performanceMonitor.endMeasure('upload_document');
+      
+      // 返回符合接口规范的结果
+      return {
+        id: documentData.id,
+        file_name: file.name,
+        original_name: file.name,
+        file_size: file.size,
+        mime_type: file.type,
+        upload_type: 'manual' as const,
+        uploaded_at: new Date().toISOString(),
+        file_path: `/documents/${documentData.id}`
+      };
     } catch (error) {
       performanceMonitor.endMeasure('upload_document');
       console.error('上传文档失败:', error);
@@ -291,7 +299,7 @@ export const taskDocumentService = {
   },
 
   /**
-   * API方式上传文档 - 适配统一文档系统
+   * API方式上传文档 - 使用新的数据库API端点
    */
   async uploadDocumentAPI(
     projectId: number,
@@ -317,33 +325,38 @@ export const taskDocumentService = {
         textContent = content;
       }
 
-      const payload = {
-        content: textContent,
+      // 首先创建文档
+      const createResponse = await api.post('/documents', {
         title: fileName.replace(/\.[^/.]+$/, ''), // 移除文件扩展名作为标题
-        description: description || ''
-      };
+        content: textContent,
+        type: this.getDocumentTypeFromMimeType(mimeType || this.getMimeTypeFromFileName(fileName)),
+        status: 'published',
+        visibility: 'team',
+        description: description || `文档通过API创建：${fileName}`,
+        tags: ['API上传']
+      });
 
-      const response = await api.post(
-        `/projects/${projectId}/tasks/${taskId}/documents`,
-        payload
-      );
-
-      if (response.data && (response.data.success !== false)) {
-        const documentData = response.data.data || response.data;
-        
-        return {
-          id: documentData.id || Date.now(),
-          file_name: fileName,
-          original_name: fileName,
-          file_size: textContent.length,
-          mime_type: mimeType || this.getMimeTypeFromFileName(fileName),
-          upload_type: 'api' as const,
-          uploaded_at: new Date().toISOString(),
-          file_path: `/projects/${projectId}/tasks/${taskId}/documents`
-        };
-      } else {
-        throw new Error(response.data?.message || 'API upload failed');
+      if (!createResponse.data || !createResponse.data.success) {
+        throw new Error(createResponse.data?.message || 'Failed to create document via API');
       }
+
+      const documentData = createResponse.data.data;
+      
+      // 然后将文档关联到任务
+      await api.post(`/projects/${projectId}/tasks/${taskId}/documents/${documentData.id}/attach`, {
+        relationship_type: 'attachment'
+      });
+
+      return {
+        id: documentData.id,
+        file_name: fileName,
+        original_name: fileName,
+        file_size: textContent.length,
+        mime_type: mimeType || this.getMimeTypeFromFileName(fileName),
+        upload_type: 'api' as const,
+        uploaded_at: new Date().toISOString(),
+        file_path: `/documents/${documentData.id}`
+      };
     } catch (error) {
       console.error('API上传文档失败:', error);
       throw error;
@@ -351,7 +364,7 @@ export const taskDocumentService = {
   },
 
   /**
-   * 获取任务文档 - 适配统一文档系统 (单个文档而非列表)
+   * 获取任务文档列表 - 使用新的数据库API端点
    */
   async getTaskDocuments(projectId: number, taskId: number): Promise<DocumentListResponse> {
     const cacheKey = `get_task_documents_${projectId}_${taskId}`;
@@ -366,39 +379,41 @@ export const taskDocumentService = {
         return cached;
       }
       
-      // 统一文档系统返回单个文档，需要适配为列表格式
+      // 使用新的数据库API端点获取任务文档列表
       const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
 
-      if (response.data && (response.data.success !== false)) {
-        // 如果文档存在，将其包装为列表格式
-        const documentData = response.data.data || response.data;
+      if (response.data && response.data.success) {
+        // 新API返回的数据格式处理
+        const responseData = response.data.data;
+        const documents = responseData.documents || [];
+        
         const result: DocumentListResponse = {
-          documents: documentData ? [{
-            id: documentData.id || Date.now(),
-            file_name: documentData.title || `task-${taskId}-document.md`,
-            original_name: documentData.title || `task-${taskId}-document.md`,
-            file_size: documentData.content ? documentData.content.length : 0,
-            mime_type: 'text/markdown',
+          documents: documents.map((doc: any) => ({
+            id: doc.id,
+            file_name: doc.title || `document-${doc.id}.md`,
+            original_name: doc.title || `document-${doc.id}.md`,
+            file_size: doc.content ? doc.content.length : 0,
+            mime_type: doc.type === 'markdown' ? 'text/markdown' : doc.mime_type || 'text/markdown',
             upload_type: 'api' as const,
-            uploaded_at: documentData.updated_at || documentData.created_at || new Date().toISOString(),
-            file_path: `/projects/${projectId}/tasks/${taskId}/documents`
-          }] : [],
-          total: documentData ? 1 : 0
+            uploaded_at: doc.updated_at || doc.created_at || new Date().toISOString(),
+            file_path: `/documents/${doc.id}`
+          })),
+          total: responseData.total_count || documents.length
         };
         
-        // 缓存结果 (2分钟TTL，文档列表变化较频繁)
+        // 缓存结果 (2分钟TTL)
         apiCache.set(cacheKey, result, 2 * 60 * 1000);
         
         performanceMonitor.endMeasure('get_task_documents');
         return result;
       } else {
-        // 文档不存在，返回空列表
+        // 返回空列表
         const result: DocumentListResponse = {
           documents: [],
           total: 0
         };
         
-        // 缓存空结果 (30秒TTL，因为文档可能很快被创建)
+        // 缓存空结果 (30秒TTL)
         apiCache.set(cacheKey, result, 30 * 1000);
         
         performanceMonitor.endMeasure('get_task_documents');
@@ -407,7 +422,7 @@ export const taskDocumentService = {
     } catch (error: any) {
       performanceMonitor.endMeasure('get_task_documents');
       
-      // 如果是404错误，说明文档不存在，返回空列表而不是抛出错误
+      // 如果是404错误，说明文档不存在，返回空列表
       if (error.response && error.response.status === 404) {
         const result: DocumentListResponse = {
           documents: [],
@@ -581,6 +596,22 @@ export const taskDocumentService = {
         return 'text/plain';
       default:
         return 'application/octet-stream';
+    }
+  },
+
+  /**
+   * 根据MIME类型获取文档类型（用于新API）
+   */
+  getDocumentTypeFromMimeType(mimeType: string): string {
+    switch (mimeType) {
+      case 'text/markdown':
+        return 'markdown';
+      case 'application/pdf':
+        return 'pdf';
+      case 'text/plain':
+        return 'text';
+      default:
+        return 'markdown'; // 默认为markdown
     }
   },
 

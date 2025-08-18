@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Button,
@@ -20,7 +20,7 @@ import {
   SyncOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
-import { useTaskDocuments } from '../hooks/useTaskDocuments';
+import { documentService, UnifiedDocument } from '../services/documentService';
 import { 
   useOptimizedMemo, 
   useOptimizedCallback,
@@ -43,23 +43,65 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   showTitle = true
 }) => {
   const [managerVisible, setManagerVisible] = useState(false);
-  const {
-    documents,
-    loading,
-    uploading,
-    uploadDocument,
-    downloadMarkdown,
-    downloadPDF,
-    refreshDocuments,
-    getDocumentStats
-  } = useTaskDocuments({ projectId, taskId });
+  const [documents, setDocuments] = useState<UnifiedDocument[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   // Use memory monitoring for component lifecycle tracking
-  const { getComponentAge } = useMemoryMonitor('TaskDocumentWidget');
+  useMemoryMonitor('TaskDocumentWidget');
 
-  // Optimized memoization for document statistics
+  // Load documents using unified service
+  const loadDocuments = async () => {
+    setLoading(true);
+    try {
+      const response = await documentService.getTaskDocuments(projectId, taskId);
+      setDocuments(response.documents);
+    } catch (error) {
+      console.error('加载文档失败:', error);
+      message.error('加载文档失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load documents on mount
+  useEffect(() => {
+    loadDocuments();
+  }, [projectId, taskId]);
+
+  // Upload document handler
+  const handleUploadDocument = async (file: File) => {
+    setUploading(true);
+    try {
+      await documentService.uploadFile(file, {
+        task_id: taskId,
+        project_id: projectId,
+        onProgress: (progress) => {
+          // You can add progress tracking here if needed
+        }
+      });
+      message.success('文档上传成功');
+      await loadDocuments(); // Refresh the list
+    } catch (error) {
+      console.error('上传失败:', error);
+      message.error('文档上传失败');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Calculate document statistics
   const stats = useOptimizedMemo(
-    () => getDocumentStats(),
+    () => {
+      const total = documents.length;
+      const totalSize = documents.reduce((sum, doc) => sum + doc.file_size, 0);
+      const byType = documents.reduce((acc, doc) => {
+        acc[doc.mime_type] = (acc[doc.mime_type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      return { total, totalSize, byType };
+    },
     [documents],
     'documentStats'
   );
@@ -106,13 +148,13 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   const handleQuickUpload = useOptimizedCallback(
     async (file: File) => {
       try {
-        await uploadDocument(file);
+        await handleUploadDocument(file);
         return false; // Prevent default upload behavior
       } catch (error) {
         return false;
       }
     },
-    [uploadDocument],
+    [handleUploadDocument],
     'quickUpload'
   );
 
@@ -123,6 +165,41 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     'openManager'
   );
 
+  // Download handlers
+  const handleDownloadMarkdown = useOptimizedCallback(
+    async () => {
+      try {
+        // Get main task document for download
+        const taskDoc = await documentService.getTaskDocument(projectId, taskId);
+        if (taskDoc) {
+          const blob = new Blob([taskDoc.content], { type: 'text/markdown' });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `task-${taskId}-document.md`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        } else {
+          message.info('该任务没有主文档可导出');
+        }
+      } catch (error) {
+        message.error('导出Markdown失败');
+      }
+    },
+    [projectId, taskId],
+    'downloadMarkdown'
+  );
+
+  const handleDownloadPDF = useOptimizedCallback(
+    async () => {
+      message.info('PDF导出功能正在开发中');
+    },
+    [],
+    'downloadPDF'
+  );
+
   // More actions menu with optimized memoization
   const moreActions: MenuProps['items'] = useOptimizedMemo(
     () => [
@@ -130,7 +207,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
         key: 'refresh',
         label: '刷新文档列表',
         icon: <SyncOutlined />,
-        onClick: refreshDocuments
+        onClick: loadDocuments
       },
       {
         key: 'manager',
@@ -145,16 +222,16 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
         key: 'download-md',
         label: '导出 Markdown',
         icon: <DownloadOutlined />,
-        onClick: downloadMarkdown
+        onClick: handleDownloadMarkdown
       },
       {
         key: 'download-pdf',
         label: '导出 PDF',
         icon: <DownloadOutlined />,
-        onClick: downloadPDF
+        onClick: handleDownloadPDF
       }
     ],
-    [refreshDocuments, handleOpenManager, downloadMarkdown, downloadPDF],
+    [loadDocuments, handleOpenManager, handleDownloadMarkdown, handleDownloadPDF],
     'moreActions'
   );
 
@@ -227,7 +304,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
               <Button
                 type="text"
                 icon={<SyncOutlined />}
-                onClick={refreshDocuments}
+                onClick={loadDocuments}
                 loading={loading}
                 size="small"
               />
@@ -284,14 +361,14 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
               <>
                 <Button
                   size="small"
-                  onClick={downloadMarkdown}
+                  onClick={handleDownloadMarkdown}
                   icon={<DownloadOutlined />}
                 >
                   导出 MD
                 </Button>
                 <Button
                   size="small"
-                  onClick={downloadPDF}
+                  onClick={handleDownloadPDF}
                   icon={<DownloadOutlined />}
                 >
                   导出 PDF

@@ -192,8 +192,8 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
 
   // 渲染甘特图任务条
   const renderGanttBar = (task: GanttTask, index: number) => {
-    const statusConfig = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG];
-    const priorityConfig = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG];
+    const statusConfig = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.todo;
+    const priorityConfig = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG.low;
     
     // 计算时间线位置
     const minDate = Math.min(...ganttTasks.map(t => t.startDate.getTime()));

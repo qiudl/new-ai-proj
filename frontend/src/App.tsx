@@ -37,6 +37,7 @@ const CompanyDetailPage = React.lazy(() => import('./pages/CompanyDetailPage'));
 const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
 const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
+const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const CompanyUserManagementPage = React.lazy(() => import('./pages/CompanyUserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
@@ -393,6 +394,14 @@ const AppContent: React.FC = () => {
               <PrivateRoute>
                 <Layout>
                   <PermissionManagementPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/enhanced-permissions" element={
+              <PrivateRoute>
+                <Layout>
+                  <EnhancedPermissionManagementPage />
                 </Layout>
               </PrivateRoute>
             } />
