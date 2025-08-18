@@ -60,6 +60,11 @@ type ApplicationInterface interface {
 	UpdateProjectHandler() gin.HandlerFunc
 	DeleteProjectHandler() gin.HandlerFunc
 	GetProjectStatsHandler() gin.HandlerFunc
+	
+	// 项目用户管理
+	GetProjectUsersHandler() gin.HandlerFunc
+	AddProjectUserHandler() gin.HandlerFunc
+	RemoveProjectUserHandler() gin.HandlerFunc
 
 	// 文件处理器方法
 	FileDownloadHandler() gin.HandlerFunc
@@ -80,6 +85,7 @@ type ApplicationInterface interface {
 	GetCompanyUserHandler() *handlers.CompanyUserHandler
 
 	// 文档管理处理器
+	GetDocumentHandler() *handlers.DocumentHandler
 	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler
 	GetSimpleDocumentHandler() *handlers.SimpleDocumentHandler

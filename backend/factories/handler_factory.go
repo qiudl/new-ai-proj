@@ -73,10 +73,11 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 		f.validate,
 	)
 	
-	// 文档管理处理器 (混合版本，直接SQL)
+	// 文档管理处理器 (新版本，基于数据库)
+	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db)
 	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
 	allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db)
-	allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler()
+	allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 保留兼容性
 	allHandlers.TimerHandler = handlers.NewTimerHandler(f.db)
 	
 	// 任务文档处理器

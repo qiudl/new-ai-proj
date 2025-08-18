@@ -33,9 +33,9 @@ USER nodeuser
 # 暴露端口
 EXPOSE 3001
 
-# 健康检查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/health || exit 1
+# 移除健康检查 - MCP服务器使用stdio通信，无HTTP端点
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+#     CMD curl -f http://localhost:3001/health || exit 1
 
 # 开发命令
 CMD ["npm", "run", "dev"]

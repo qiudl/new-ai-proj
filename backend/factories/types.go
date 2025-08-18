@@ -16,6 +16,7 @@ type AllHandlers struct {
 	CompanyUserHandler        *handlers.CompanyUserHandler
 
 	// 文档管理处理器
+	DocumentHandler             *handlers.DocumentHandler
 	HybridDocumentHandler       *handlers.HybridDocumentHandler
 	HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
 	SimpleDocumentHandler       *handlers.SimpleDocumentHandler

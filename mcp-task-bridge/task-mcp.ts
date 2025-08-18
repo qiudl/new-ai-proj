@@ -82,7 +82,7 @@ export class TaskMCPServer {
   constructor(apiBase: string = 'http://localhost:8080/api/v1') {
     this.apiBase = apiBase;
     // 使用系统 JWT token
-    this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJleHAiOjE3NTQ3MTkwMTgsIm5iZiI6MTc1NDExNDIxOCwiaWF0IjoxNzU0MTE0MjE4fQ.iBXJyoqj7MQOT6ijQnSQQeiZx-q9-0_SCZ2q4eAB-J8';
+    this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxMDU4ODksImlhdCI6MTc1NTUwMTA4OSwibmJmIjoxNzU1NTAxMDg5LCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.Dt-5xOP2tHWRZmKeApIDgVEwq7cR1GGPNzB0d2K96JQ';
   }
 
   private getHeaders(): Record<string, string> {

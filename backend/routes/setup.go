@@ -73,6 +73,8 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	RegisterDocumentRoutes(authorized, app)
 	RegisterTimerRoutes(authorized, app)
 	RegisterSystemRoutes(authorized, app)
+	RegisterSearchRoutes(authorized, app)
+	RegisterEnhancedPermissionRoutes(authorized, app)
 	
 	// 注册API和其他杂项路由（包含公共路由、webhooks、全局任务等）
 	RegisterAPIRoutes(router, authorized, app)

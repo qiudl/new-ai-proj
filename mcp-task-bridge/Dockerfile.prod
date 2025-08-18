@@ -31,14 +31,14 @@ USER mcpuser
 
 # 设置生产环境变量
 ENV NODE_ENV=production
-ENV PORT=3001
+# 移除PORT配置 - MCP使用stdio通信
 
-# 添加健康检查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3001/health || exit 1
+# 移除健康检查 - MCP服务器使用stdio通信，无HTTP端点  
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD curl -f http://localhost:3001/health || exit 1
 
-# 暴露端口
-EXPOSE 3001
+# 移除端口暴露 - MCP使用stdio通信
+# EXPOSE 3001
 
 # 启动应用
 CMD ["npm", "start"]

@@ -95,9 +95,13 @@ func (pdb *PostgresDB) APIKeys() APIKeyRepository {
 
 // Documents returns the document repository
 func (pdb *PostgresDB) Documents() DocumentRepository {
-	// TODO: Fix DocumentRepository implementation issues
-	return nil // 临时注释，避免编译错误
-	// return NewDocumentRepository(pdb.db)
+	// TODO: 暂时返回nil，需要实现完整的DocumentRepository接口
+	return nil
+}
+
+// NewDocuments returns the new document repository implementation
+func (pdb *PostgresDB) NewDocuments() DocumentRepositoryNew {
+	return NewDocumentRepository(pdb.db)
 }
 
 // DocumentFolders returns the document folder repository

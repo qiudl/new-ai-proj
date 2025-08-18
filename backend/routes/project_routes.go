@@ -19,11 +19,16 @@ projects.DELETE("/:id", app.DeleteProjectHandler())
 		// Project statistics endpoint
 projects.GET("/:id/stats", app.GetProjectStatsHandler())
 
+		// Project user management routes
+		projects.GET("/:id/users", app.GetProjectUsersHandler())
+		projects.POST("/:id/users", app.AddProjectUserHandler())
+		projects.DELETE("/:id/users/:userId", app.RemoveProjectUserHandler())
+
 		// 注册任务相关路由
 		registerTaskRoutes(projects, app)
 		
-		// 注册文档相关路由
-		registerTaskDocumentRoutes(projects, app)
+		// 注册文档相关路由 (已移动到document_routes.go)
+		// registerTaskDocumentRoutes(projects, app)
 		
 		// 注册归档相关路由
 		registerArchiveRoutes(projects, app)
@@ -64,33 +69,7 @@ projects.PUT("/:id/tasks/:taskId", app.UpdateTaskHandler())
 projects.DELETE("/:id/tasks/:taskId", app.DeleteTaskHandler())
 }
 
-// registerTaskDocumentRoutes 注册任务文档路由
-func registerTaskDocumentRoutes(projects *gin.RouterGroup, app ApplicationInterface) {
-	// 统一文档管理API (新架构)
-	documents := projects.Group("/:id/tasks/:taskId/documents")
-	{
-		documents.GET("", app.GetUnifiedDocumentHandler().GetDocument)
-		documents.POST("", app.GetUnifiedDocumentHandler().CreateDocument)
-		documents.PUT("", app.GetUnifiedDocumentHandler().UpdateDocument)
-		documents.DELETE("", app.GetUnifiedDocumentHandler().DeleteDocument)
-		documents.GET("/history", app.GetUnifiedDocumentHandler().GetDocumentHistory)
-		documents.POST("/archive", app.GetUnifiedDocumentHandler().ArchiveDocument)
-		documents.POST("/migrate", app.GetUnifiedDocumentHandler().MigrateDocument)
-	}
-	
-	// 向后兼容的文档API
-	projects.GET("/:id/tasks/:taskId/document", app.GetUnifiedDocumentHandler().GetTaskDocument)
-	projects.PUT("/:id/tasks/:taskId/document", app.GetUnifiedDocumentHandler().SaveTaskDocument)
-	projects.HEAD("/:id/tasks/:taskId/document", app.GetUnifiedDocumentHandler().CheckTaskDocument)
-	
-	// 基于文件的任务文档管理API (向后兼容)
-	projects.GET("/:id/tasks/:taskId/document/file", app.GetTaskDocumentFileHandler().GetTaskDocument)
-	projects.PUT("/:id/tasks/:taskId/document/file", app.GetTaskDocumentFileHandler().UpdateTaskDocument)
-	projects.POST("/:id/tasks/:taskId/document/create", app.GetTaskDocumentFileHandler().CreateTaskDocumentFromTask)
-	projects.POST("/:id/tasks/:taskId/document/archive", app.GetTaskDocumentFileHandler().ArchiveTaskDocument)
-	projects.GET("/:id/tasks/:taskId/document/history", app.GetTaskDocumentFileHandler().GetDocumentHistory)
-	projects.GET("/:id/tasks/:taskId/document/compare", app.GetTaskDocumentFileHandler().CompareDocumentVersions)
-}
+// registerTaskDocumentRoutes function moved to document_routes.go
 
 // registerArchiveRoutes 注册归档路由
 func registerArchiveRoutes(projects *gin.RouterGroup, app ApplicationInterface) {

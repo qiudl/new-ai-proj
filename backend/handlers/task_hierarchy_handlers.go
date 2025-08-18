@@ -118,12 +118,13 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 		return
 	}
 
-	projectIDStr := c.Query("project_id")
-	var projectID *int
-	if projectIDStr != "" {
-		if pid, err := strconv.Atoi(projectIDStr); err == nil {
-			projectID = &pid
-		}
+	// Get project ID from path parameter
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
 	}
 
 	currentTaskIDStr := c.Query("current_task_id")
@@ -140,10 +141,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 		excludeTaskIDs = append(excludeTaskIDs, *currentTaskID)
 	}
 	
-	searchProjectID := 0
-	if projectID != nil {
-		searchProjectID = *projectID
-	}
+	searchProjectID := projectID
 	
 	tasks, _, err := h.db.Tasks().SearchParentTasks(c.Request.Context(), searchProjectID, query, excludeTaskIDs, 5, 50, 0)
 	if err != nil {

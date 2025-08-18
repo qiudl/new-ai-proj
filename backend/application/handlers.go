@@ -72,6 +72,9 @@ func (app *Application) GetProjectHandler() gin.HandlerFunc { return app.handler
 func (app *Application) UpdateProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.UpdateProject }
 func (app *Application) DeleteProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.DeleteProject }
 func (app *Application) GetProjectStatsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProjectStats }
+func (app *Application) GetProjectUsersHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProjectUsers }
+func (app *Application) AddProjectUserHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.AddProjectUser }
+func (app *Application) RemoveProjectUserHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.RemoveProjectUser }
 func (app *Application) FileDownloadHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "FileDownloadHandler not implemented"})
@@ -208,6 +211,10 @@ func (app *Application) GetUtilityHandler() *handlers.UtilityHandler {
 
 func (app *Application) GetCompanyUserHandler() *handlers.CompanyUserHandler {
 	return app.handlers.CompanyUserHandler
+}
+
+func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
+	return app.handlers.DocumentHandler
 }
 
 func (app *Application) GetHybridDocumentHandler() *handlers.HybridDocumentHandler {

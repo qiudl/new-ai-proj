@@ -135,7 +135,7 @@ services:
       - ai_dev_network
 
 
-  # MCP服务器 (开发环境)
+  # MCP服务器 (标准MCP协议 - 仅stdio通信)
   mcp-server:
     build:
       context: ./mcp-task-bridge
@@ -146,8 +146,9 @@ services:
     environment:
       NODE_ENV: development
       API_BASE_URL: http://backend:8080/api/v1
-    ports:
-      - "3100:3001"
+    # 移除端口映射 - MCP使用stdio通信，不需要HTTP端点
+    # ports:
+    #   - "3100:3001"
     volumes:
       - ./mcp-task-bridge:/app:cached
       - mcp_node_modules:/app/node_modules
@@ -155,6 +156,7 @@ services:
     restart: unless-stopped
     networks:
       - ai_dev_network
+    # MCP服务器不需要健康检查 - 使用stdio通信
 
   # Redis (缓存和会话存储)
   redis:

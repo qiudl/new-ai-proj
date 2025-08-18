@@ -9,6 +9,9 @@ func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 	// 注册文档CRUD路由
 	registerDocumentCRUDRoutes(authorized, app)
 	
+	// 注册任务文档关联路由
+	registerTaskDocumentRoutes(authorized, app)
+	
 	// 注册文档文件夹管理路由
 	registerDocumentFolderRoutes(authorized, app)
 	
@@ -24,14 +27,57 @@ func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 
 // registerDocumentCRUDRoutes 注册文档CRUD路由
 func registerDocumentCRUDRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// Document CRUD routes (direct access by document ID)
-	authorized.GET("/documents", app.GetHybridDocumentHandler().GetDocuments)
-	authorized.POST("/documents", app.GetHybridDocumentHandler().CreateDocument)
-	authorized.GET("/documents/:id", app.GetHybridDocumentHandler().GetDocument)
-	authorized.PUT("/documents/:id", app.GetHybridDocumentHandler().UpdateDocument)
-	authorized.DELETE("/documents/:id", app.GetHybridDocumentHandler().DeleteDocument)
+	// Document CRUD routes (use new DocumentHandler for core operations)
+	authorized.GET("/documents", app.GetDocumentHandler().GetDocuments)
+	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
+	authorized.GET("/documents/:id", app.GetDocumentHandler().GetDocument)
+	authorized.PUT("/documents/:id", app.GetDocumentHandler().UpdateDocument)
+	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
+	
+	// Search
+	authorized.GET("/documents/search", app.GetDocumentHandler().SearchDocuments)
+	
+	// Version management
+	authorized.GET("/documents/:id/versions", app.GetDocumentHandler().GetDocumentVersions)
+	authorized.POST("/documents/:id/versions", app.GetDocumentHandler().CreateDocumentVersion)
+	
+	// Legacy compatibility routes (keep HybridDocumentHandler for backward compatibility)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 	authorized.POST("/documents/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
+}
+
+// registerTaskDocumentRoutes 注册任务文档关联路由
+func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 任务文档管理路由
+	projects := authorized.Group("/projects")
+	{
+		tasks := projects.Group("/:id/tasks")
+		{
+			taskDocuments := tasks.Group("/:taskId/documents")
+			{
+				// 获取任务的所有文档
+				taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
+				
+				// 批量更新任务文档关联 (暂时返回成功，需要实现具体逻辑)
+				taskDocuments.PUT("", func(c *gin.Context) {
+					c.JSON(200, gin.H{
+						"success": true,
+						"message": "批量更新功能开发中，请使用单个文档更新接口",
+						"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档"
+					})
+				})
+				
+				// 更新特定任务文档 (便捷路由，实际调用标准文档更新)
+				taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
+				
+				// 将现有文档关联到任务
+				taskDocuments.POST("/:documentId/attach", app.GetDocumentHandler().AttachDocumentToTask)
+				
+				// 从任务中移除文档
+				taskDocuments.DELETE("/:documentId", app.GetDocumentHandler().DetachDocumentFromTask)
+			}
+		}
+	}
 }
 
 // registerDocumentFolderRoutes 注册文档文件夹管理路由

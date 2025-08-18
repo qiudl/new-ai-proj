@@ -6,8 +6,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { TaskMCPServer } from './task-mcp.js';
 
-// 初始化任务服务器
-const taskServer = new TaskMCPServer();
+// 初始化任务服务器 - 从环境变量读取API地址
+const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8081/api/v1';
+const taskServer = new TaskMCPServer(apiBaseUrl);
 
 // 创建 MCP Server
 const server = new Server(
@@ -358,6 +359,40 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: 'object',
           properties: {}
         }
+      },
+      {
+        name: 'create_sibling_task',
+        description: '创建兄弟任务（与指定任务共享相同的父任务）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            siblingId: { 
+              type: 'number', 
+              description: '兄弟任务ID（参考任务）' 
+            },
+            title: { 
+              type: 'string', 
+              description: '新任务标题' 
+            },
+            description: { 
+              type: 'string', 
+              description: '任务描述' 
+            },
+            status: { 
+              type: 'string', 
+              enum: ['todo', 'pending', 'in_progress', 'completed', 'cancelled'],
+              description: '任务状态',
+              default: 'todo'
+            },
+            priority: { 
+              type: 'string', 
+              enum: ['low', 'medium', 'high'],
+              description: '优先级',
+              default: 'medium'
+            }
+          },
+          required: ['siblingId', 'title']
+        }
       }
     ]
   };
@@ -452,6 +487,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'get_current_timer':
         result = await taskServer.getCurrentTimer();
+        break;
+      
+      case 'create_sibling_task':
+        result = await taskServer.createSiblingTask(
+          args.siblingId as number, 
+          args.title as string, 
+          args.description as string,
+          args.status as string,
+          args.priority as string
+        );
         break;
       
       default:
