@@ -664,6 +664,7 @@ func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.T
 		}
 	}
 
+	// 1. 创建计时器记录
 	query := `
 		INSERT INTO unified_timer_logs (
 			user_id, target_type, target_id, target_title, target_metadata,
@@ -694,7 +695,19 @@ func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.T
 		reasoningJSON,
 	).Scan(&timerID)
 
-	return timerID, err
+	if err != nil {
+		return 0, err
+	}
+
+	// 2. 如果是任务计时器，自动将任务状态更新为"进行中"
+	if req.TaskID != nil && *req.TaskID > 0 {
+		err = s.updateTaskStatusToInProgressInTx(ctx, tx, *req.TaskID, req.UserID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to update task status to in_progress: %w", err)
+		}
+	}
+
+	return timerID, nil
 }
 
 func (s *unifiedTimerServiceImpl) updateUserCurrentTimerInTx(ctx context.Context, tx *sql.Tx, userID, timerID int) error {
@@ -705,6 +718,50 @@ func (s *unifiedTimerServiceImpl) updateUserCurrentTimerInTx(ctx context.Context
 	`
 	_, err := tx.ExecContext(ctx, query, timerID, userID)
 	return err
+}
+
+// updateTaskStatusToInProgressInTx 将任务状态更新为"进行中"
+func (s *unifiedTimerServiceImpl) updateTaskStatusToInProgressInTx(ctx context.Context, tx *sql.Tx, taskID, userID int) error {
+	// 首先检查任务当前状态，只有当状态为'todo'或'pending'时才更新为'in_progress'
+	checkQuery := `
+		SELECT status 
+		FROM tasks 
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	
+	var currentStatus string
+	err := tx.QueryRowContext(ctx, checkQuery, taskID).Scan(&currentStatus)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("task with ID %d not found", taskID)
+		}
+		return fmt.Errorf("failed to check task status: %w", err)
+	}
+
+	// 只有在特定状态下才自动更新为in_progress
+	if currentStatus == "todo" || currentStatus == "pending" {
+		updateQuery := `
+			UPDATE tasks 
+			SET status = 'in_progress', updated_at = NOW() 
+			WHERE id = $1 AND deleted_at IS NULL
+		`
+		
+		result, err := tx.ExecContext(ctx, updateQuery, taskID)
+		if err != nil {
+			return fmt.Errorf("failed to update task status: %w", err)
+		}
+		
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("failed to get rows affected: %w", err)
+		}
+		
+		if rowsAffected == 0 {
+			return fmt.Errorf("no task was updated, task ID %d may not exist", taskID)
+		}
+	}
+	
+	return nil
 }
 
 func (s *unifiedTimerServiceImpl) getTimerTypeDisplayName(timerType string) string {

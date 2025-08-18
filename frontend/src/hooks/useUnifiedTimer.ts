@@ -155,6 +155,19 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
       
       if (response.success) {
         await getCurrentStatus(); // 重新获取状态
+        
+        // 如果启动的是任务计时器，刷新相关查询以同步任务状态变化
+        if (request.task_id) {
+          const { invalidateQueries } = await import('../utils/queryClient');
+          // 获取用户ID (假设从本地存储或上下文获取)
+          const userId = 1; // TODO: 从实际的用户上下文获取
+          
+          // 刷新任务相关查询
+          invalidateQueries.tasks(userId);
+          // 刷新仪表板数据
+          invalidateQueries.dashboard(userId);
+        }
+        
         message.success('计时器启动成功');
         return response;
       } else {
