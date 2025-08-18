@@ -420,10 +420,11 @@ export class TaskService {
     message: string;
   }> {
     try {
+      // 修正参数映射，确保与后端期望的格式一致
       const requestData = {
         task_ids: taskIds,
         status: updates.status || undefined,
-        parent_id: updates.parent_id !== undefined ? (updates.parent_id || 0) : undefined,
+        parent_id: updates.parent_id !== undefined ? (updates.parent_id === null ? null : updates.parent_id) : undefined,
         updated_by: 1 // TODO: Get from auth context
       };
 

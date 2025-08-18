@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Modal, Button, Input, Alert, Empty, Typography, Spin } from 'antd';
 import ErrorBoundary from './ErrorBoundary';
 import {
@@ -145,26 +145,36 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
     }
   }, [open, searchResults.tasks, currentTaskId, searchKeyword, generateRecommendations]);
 
+  // Stabilize exclude IDs to prevent infinite re-renders
+  const stableExcludeIds = useMemo(() => {
+    const allExcludeIds = [...excludeTaskIds];
+    if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
+      allExcludeIds.push(currentTaskId);
+    }
+    return allExcludeIds;
+  }, [currentTaskId, excludeTaskIds]);
+
   // Initialize search when modal opens
+  const hasInitialized = useRef(false);
   useEffect(() => {
-    if (open && projectId) {
-      // 合并单个任务ID和批量任务IDs
-      const allExcludeIds = [...excludeTaskIds];
-      if (currentTaskId && !allExcludeIds.includes(currentTaskId)) {
-        allExcludeIds.push(currentTaskId);
-      }
+    if (open && projectId && !hasInitialized.current) {
+      hasInitialized.current = true;
       
       // Initial search
       searchParentTasks({
         projectId,
         keyword: '',
-        excludeTaskIds: allExcludeIds,
+        excludeTaskIds: stableExcludeIds,
         maxLevel: 3,
         limit: 20,
         offset: 0,
       });
     }
-  }, [open, projectId, currentTaskId, excludeTaskIds]);
+    
+    if (!open) {
+      hasInitialized.current = false;
+    }
+  }, [open, projectId, stableExcludeIds, searchParentTasks]);
 
   // Set current parent as selected when search results are available
   useEffect(() => {

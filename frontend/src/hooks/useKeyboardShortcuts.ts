@@ -131,7 +131,9 @@ const useKeyboardShortcuts = (
   }, []);
 
   return {
-    getShortcutsHelp
+    getShortcutsHelp,
+    showShortcutHelp: getShortcutsHelp, // Alias for compatibility
+    registeredCount: shortcutsRef.current.length
   };
 };
 
@@ -290,5 +292,126 @@ export const createTimerShortcuts = (actions: {
 
   return shortcuts;
 };
+
+// 预定义的文档系统快捷键
+export const createDocumentShortcuts = (actions: {
+  saveDocument?: () => void;
+  toggleEdit?: () => void;
+  togglePreview?: () => void;
+  uploadFile?: () => void;
+  refreshDocuments?: () => void;
+  openManager?: () => void;
+  showStats?: () => void;
+  exportDocument?: () => void;
+  newDocument?: () => void;
+  deleteDocument?: () => void;
+}) => {
+  const shortcuts: KeyboardShortcut[] = [];
+
+  if (actions.saveDocument) {
+    shortcuts.push({
+      key: 's',
+      metaKey: true,
+      action: actions.saveDocument,
+      description: '保存文档',
+      category: '文档操作'
+    });
+  }
+
+  if (actions.toggleEdit) {
+    shortcuts.push({
+      key: 'e',
+      metaKey: true,
+      action: actions.toggleEdit,
+      description: '切换编辑模式',
+      category: '视图切换'
+    });
+  }
+
+  if (actions.togglePreview) {
+    shortcuts.push({
+      key: 'p',
+      metaKey: true,
+      action: actions.togglePreview,
+      description: '切换预览模式',
+      category: '视图切换'
+    });
+  }
+
+  if (actions.uploadFile) {
+    shortcuts.push({
+      key: 'u',
+      metaKey: true,
+      action: actions.uploadFile,
+      description: '上传文件',
+      category: '文档操作'
+    });
+  }
+
+  if (actions.refreshDocuments) {
+    shortcuts.push({
+      key: 'r',
+      metaKey: true,
+      action: actions.refreshDocuments,
+      description: '刷新文档列表',
+      category: '文档操作'
+    });
+  }
+
+  if (actions.openManager) {
+    shortcuts.push({
+      key: 'm',
+      metaKey: true,
+      action: actions.openManager,
+      description: '打开文档管理器',
+      category: '导航'
+    });
+  }
+
+  if (actions.showStats) {
+    shortcuts.push({
+      key: 'i',
+      metaKey: true,
+      action: actions.showStats,
+      description: '显示文档统计',
+      category: '信息'
+    });
+  }
+
+  if (actions.exportDocument) {
+    shortcuts.push({
+      key: 'd',
+      metaKey: true,
+      action: actions.exportDocument,
+      description: '导出文档',
+      category: '文档操作'
+    });
+  }
+
+  if (actions.newDocument) {
+    shortcuts.push({
+      key: 'n',
+      metaKey: true,
+      shiftKey: true,
+      action: actions.newDocument,
+      description: '新建文档',
+      category: '文档操作'
+    });
+  }
+
+  if (actions.deleteDocument) {
+    shortcuts.push({
+      key: 'Delete',
+      action: actions.deleteDocument,
+      description: '删除选中文档',
+      category: '文档操作'
+    });
+  }
+
+  return shortcuts;
+};
+
+// 导出命名的useKeyboardShortcuts
+export { useKeyboardShortcuts };
 
 export default useKeyboardShortcuts;

@@ -157,20 +157,43 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         actualData = response;
         }
       
+      // Add null/undefined safety checks
+      if (!actualData || typeof actualData !== 'object') {
+        console.warn('Invalid response data:', actualData);
+        setSearchResults(prev => ({
+          ...prev,
+          tasks: [],
+          total: 0,
+          loading: false,
+          error: null,
+          hasMore: false,
+        }));
+        return;
+      }
+      
       const responseData = actualData as unknown as PaginatedResponse<Task> | { data: Task[], total: number };
       
       let data: Task[];
       let total: number;
       
-      if ('pagination' in responseData) {
-        data = responseData.data;
-        total = responseData.pagination.total;
+      if (responseData && typeof responseData === 'object' && 'pagination' in responseData) {
+        data = Array.isArray(responseData.data) ? responseData.data : [];
+        total = responseData.pagination.total || 0;
         console.log('Pagination response data:', data);
         console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
         console.log('Total:', total);
       } else {
-        data = responseData.data;
-        total = responseData.total;
+        // Handle direct response or simple array response
+        if (Array.isArray(responseData)) {
+          data = responseData;
+          total = responseData.length;
+        } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+          data = Array.isArray(responseData.data) ? responseData.data : [];
+          total = responseData.total || data.length;
+        } else {
+          data = [];
+          total = 0;
+        }
         console.log('Direct response data:', data);
         console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
         console.log('Total:', total);
@@ -187,13 +210,14 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         });
       }
 
-      const newTasks = isLoadMore ? [...prev.tasks, ...data] : data;
+      const safeData = Array.isArray(data) ? data : [];
+      const newTasks = isLoadMore ? [...(searchResults.tasks || []), ...safeData] : safeData;
       const newSearchResults = {
         tasks: newTasks,
         total,
         loading: false,
         error: null,
-        hasMore: data.length === (params.limit || 20) && (newTasks.length) < total,
+        hasMore: safeData.length === (params.limit || 20) && newTasks.length < total,
       };
       
       setSearchResults(prev => {

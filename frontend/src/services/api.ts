@@ -20,6 +20,22 @@ console.log('🔍 Current Environment Config:', {
   isProduction: envConfig.isProduction
 });
 
+// 临时测试：使用fetch API测试连接
+if (typeof window !== 'undefined' && apiBaseURL.includes('127.0.0.1')) {
+  console.log('🧪 Testing direct fetch connection...');
+  fetch(`${apiBaseURL}/health`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    mode: 'cors'
+  }).then(response => {
+    console.log('✅ Fetch test successful:', response.status, response.statusText);
+  }).catch(error => {
+    console.error('❌ Fetch test failed:', error);
+  });
+}
+
 
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;

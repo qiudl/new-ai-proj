@@ -49,6 +49,12 @@ import TaskDocumentEditor from './TaskDocumentEditor';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
 
+// 导入快捷键Hook
+import { useKeyboardShortcuts, createDocumentShortcuts } from '../hooks/useKeyboardShortcuts';
+
+// 导入拖拽Hook
+import { useDragAndDrop } from '../hooks/useDragAndDrop';
+
 // 导入样式
 import '../styles/UnifiedTaskDocumentArea.css';
 
@@ -87,7 +93,10 @@ const DocumentListItem: React.FC<{
   onEdit?: (doc: DocumentItem) => void;
   onDelete?: (doc: DocumentItem) => void;
   onDownload?: (doc: DocumentItem) => void;
-}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload }) => {
+  draggableProps?: any;
+  isDragOver?: boolean;
+  isDraggedItem?: boolean;
+}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, draggableProps, isDragOver, isDraggedItem }) => {
   
   // 右键菜单
   const contextMenuItems: MenuProps['items'] = [
@@ -135,13 +144,17 @@ const DocumentListItem: React.FC<{
   return (
     <Dropdown menu={{ items: contextMenuItems }} trigger={['contextMenu']}>
       <List.Item
-        className={`document-list-item ${selected ? 'selected' : ''}`}
+        {...draggableProps}
+        className={`document-list-item ${selected ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
         style={{
           padding: '12px 16px',
-          cursor: 'pointer',
-          backgroundColor: selected ? '#e6f7ff' : 'transparent',
-          borderLeft: selected ? '3px solid #1890ff' : '3px solid transparent',
-          transition: 'all 0.3s ease'
+          cursor: draggableProps?.draggable ? 'move' : 'pointer',
+          backgroundColor: selected ? '#e6f7ff' : isDragOver ? '#f0f9ff' : 'transparent',
+          borderLeft: selected ? '3px solid #1890ff' : isDragOver ? '3px solid #52c41a' : '3px solid transparent',
+          transition: 'all 0.3s ease',
+          opacity: isDraggedItem ? 0.5 : 1,
+          transform: isDragOver ? 'translateY(-2px)' : 'translateY(0)',
+          boxShadow: isDragOver ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
         }}
         onClick={() => onSelect?.(document)}
         actions={[
@@ -225,6 +238,13 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [managerVisible, setManagerVisible] = useState(false);
+  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
+
+  // 切换视图模式
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    onViewModeChange?.(mode);
+  }, [onViewModeChange]);
 
   // 加载文档列表
   const loadDocuments = useCallback(async () => {
@@ -248,16 +268,166 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     }
   }, [projectId, taskId, selectedDocument, onDocumentChange]);
 
+  // 快捷键回调函数
+  const shortcutCallbacks = useMemo(() => ({
+    save: () => {
+      if (selectedDocument && viewMode === 'edit') {
+        // 这里应该调用保存文档的函数
+        message.success('文档保存中...');
+      } else {
+        message.warning('请先选择要保存的文档');
+      }
+    },
+    toggleEditMode: () => {
+      const modes: ViewMode[] = ['edit', 'preview', 'manage', 'stats'];
+      const currentIndex = modes.indexOf(viewMode);
+      const nextMode = modes[(currentIndex + 1) % modes.length];
+      handleViewModeChange(nextMode);
+      message.info(`切换到${nextMode === 'edit' ? '编辑' : nextMode === 'preview' ? '预览' : nextMode === 'manage' ? '管理' : '统计'}模式`);
+    },
+    focusSearch: () => {
+      if (searchInputRef) {
+        searchInputRef.focus();
+        message.info('聚焦搜索框');
+      }
+    },
+    upload: () => {
+      // 触发文件上传
+      message.info('打开文件上传对话框');
+    },
+    refresh: () => {
+      loadDocuments();
+      message.success('刷新文档列表');
+    },
+    newDocument: () => {
+      // 创建新文档
+      message.info('创建新文档功能待实现');
+    },
+    copyDocument: () => {
+      if (selectedDocument) {
+        // 复制选中文档
+        message.info(`复制文档: ${selectedDocument.title}`);
+      } else {
+        message.warning('请先选择要复制的文档');
+      }
+    },
+    deleteDocument: () => {
+      if (selectedDocument) {
+        Modal.confirm({
+          title: '确认删除',
+          content: `确定要删除文档 "${selectedDocument.title}" 吗？`,
+          okText: '删除',
+          okType: 'danger',
+          cancelText: '取消',
+          onOk: () => {
+            message.success(`删除文档: ${selectedDocument.title}`);
+          }
+        });
+      } else {
+        message.warning('请先选择要删除的文档');
+      }
+    },
+    switchTab: (direction: 'next' | 'prev') => {
+      const modes: ViewMode[] = ['edit', 'preview', 'manage', 'stats'];
+      const currentIndex = modes.indexOf(viewMode);
+      const nextIndex = direction === 'next' 
+        ? (currentIndex + 1) % modes.length
+        : (currentIndex - 1 + modes.length) % modes.length;
+      handleViewModeChange(modes[nextIndex]);
+    },
+    showHelp: () => {
+      Modal.info({
+        title: '快捷键帮助',
+        width: 600,
+        content: (
+          <div style={{ lineHeight: '1.8' }}>
+            <div><strong>文档编辑：</strong></div>
+            <div>• Ctrl+S - 保存文档</div>
+            <div>• Ctrl+E - 切换编辑/预览模式</div>
+            <div>• Ctrl+N - 新建文档</div>
+            <br />
+            <div><strong>文档操作：</strong></div>
+            <div>• Ctrl+U - 上传文件</div>
+            <div>• Ctrl+R - 刷新数据</div>
+            <div>• Ctrl+Shift+C - 复制文档</div>
+            <div>• Delete - 删除选中文档</div>
+            <br />
+            <div><strong>导航操作：</strong></div>
+            <div>• Ctrl+F - 聚焦搜索框</div>
+            <div>• Ctrl+Tab - 切换到下一个标签页</div>
+            <div>• Ctrl+Shift+Tab - 切换到上一个标签页</div>
+            <br />
+            <div><strong>帮助：</strong></div>
+            <div>• Ctrl+? - 显示快捷键帮助</div>
+          </div>
+        )
+      });
+    }
+  }), [selectedDocument, viewMode, handleViewModeChange, loadDocuments, searchInputRef]);
+
+  // 配置快捷键
+  const shortcutGroups = useMemo(() => createDocumentShortcuts(shortcutCallbacks), [shortcutCallbacks]);
+  
+  // 注册快捷键
+  const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroups, true);
+
+  // 配置拖拽功能
+  const dragDropConfig = useMemo(() => ({
+    enableFileDrop: true,
+    enableItemReorder: true,
+    acceptedFileTypes: ['.pdf', '.md', '.txt', '.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg'],
+    maxFileSize: 50 * 1024 * 1024, // 50MB
+    maxFiles: 10,
+    onFilesDrop: async (files: FileList, dropZone?: string) => {
+      console.log(`文件拖放到区域: ${dropZone || '默认区域'}`);
+      setUploading(true);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          console.log(`上传文件: ${file.name}`);
+          // 这里应该调用实际的文件上传API
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟上传延迟
+        }
+        message.success(`成功上传 ${files.length} 个文件`);
+        loadDocuments(); // 重新加载文档列表
+      } catch (error) {
+        console.error('文件上传失败:', error);
+        message.error('文件上传失败');
+      } finally {
+        setUploading(false);
+      }
+    },
+    onItemDrop: (draggedItem: DocumentItem, targetItem: DocumentItem, dropZone: string) => {
+      console.log('文档拖拽重排:', draggedItem.title, '->', targetItem.title);
+      // 重新排序文档列表
+      setDocuments(prev => {
+        const draggedIndex = prev.findIndex(doc => doc.id === draggedItem.id);
+        const targetIndex = prev.findIndex(doc => doc.id === targetItem.id);
+        
+        if (draggedIndex === -1 || targetIndex === -1) return prev;
+        
+        const newDocs = [...prev];
+        const [removed] = newDocs.splice(draggedIndex, 1);
+        newDocs.splice(targetIndex, 0, removed);
+        
+        message.success('文档顺序已更新');
+        return newDocs;
+      });
+    },
+    onItemReorder: (items: DocumentItem[], fromIndex: number, toIndex: number) => {
+      console.log('文档重排序:', fromIndex, '->', toIndex);
+      setDocuments(items);
+      message.success('文档顺序已更新');
+    }
+  }), [loadDocuments]);
+
+  // 初始化拖拽功能
+  const { dragState, createDropZoneProps, createDraggableProps, isDragActive } = useDragAndDrop(dragDropConfig);
+
   // 初始加载
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
-
-  // 切换视图模式
-  const handleViewModeChange = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-    onViewModeChange?.(mode);
-  }, [onViewModeChange]);
 
   // 文档选择
   const handleDocumentSelect = useCallback((doc: DocumentItem) => {

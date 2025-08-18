@@ -111,8 +111,11 @@ export const getEnvironmentConfig = () => {
   // 根据访问端口和环境变量确定API地址
   let apiBaseURL: string;
   
-  if (env.actualEnv === 'local-dev' || env.actualEnv === 'docker-test') {
-    // 开发和测试环境，使用localhost:8081访问后端
+  if (env.actualEnv === 'local-dev') {
+    // 本地开发环境，确保绕过代理直接访问后端
+    apiBaseURL = 'http://127.0.0.1:8081/api/v1';
+  } else if (env.actualEnv === 'docker-test') {
+    // Docker测试环境，使用localhost
     apiBaseURL = 'http://localhost:8081/api/v1';
   } else {
     // 生产环境，使用相对路径通过反向代理
