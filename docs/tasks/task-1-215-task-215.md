@@ -1,20 +1,20 @@
 ---
 task_id: 215
 project_id: 1 
-title: "Phase 4: MCP接口集成与系统整合"
+title: "数据库迁移测试验收 (任务201)"
 status: "todo"
 priority: "medium"
 assignee: ""
-created_date: "2025-08-03 04:53:39"
-updated_date: "2025-08-03 04:53:39"
+created_date: "2025-08-18 08:22:52"
+updated_date: "2025-08-18 16:43:52"
 due_date: ""
-tags: ["", ""]
-parent_task_id: 
-estimated_hours: 0
+tags: ["database", "migration", "validation"]
+parent_task_id: 214
+estimated_hours: 2
 actual_hours: 0
 ---
 
-# Phase 4: MCP接口集成与系统整合
+# 数据库迁移测试验收 (任务201)
 
 ## 📋 任务概述
 通过Claude Code创建：Phase 4: MCP接口集成与系统整合

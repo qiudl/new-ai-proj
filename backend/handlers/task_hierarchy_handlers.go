@@ -112,11 +112,7 @@ func (h *TaskHierarchyHandler) GetRootTasks(c *gin.Context) {
 // SearchParentTasks 搜索可用作父任务的任务列表
 func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 	query := c.Query("query")
-	if query == "" {
-		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Search query is required", nil)
-		c.JSON(http.StatusBadRequest, response)
-		return
-	}
+	// Allow empty query - return all potential parent tasks when no search term provided
 
 	// Get project ID from path parameter
 	projectIDStr := c.Param("id")

@@ -300,7 +300,7 @@ export class DocumentService {
       
       const result: DocumentListResponse = {
         documents: response.data.documents.map((doc: any) => this.normalizeDocument(doc)),
-        total: response.data.total,
+        total: response.data.total_count || response.data.total || 0,
         page: response.data.page || page,
         page_size: response.data.page_size || page_size
       };

@@ -107,14 +107,24 @@ export const detectEnvironment = (): EnvironmentInfo => {
 export const getEnvironmentConfig = () => {
   const env = detectEnvironment();
   
+  // 前端JavaScript运行在浏览器中，不是Docker容器内
+  // 根据访问端口和环境变量确定API地址
+  let apiBaseURL: string;
+  
+  if (env.actualEnv === 'local-dev' || env.actualEnv === 'docker-test') {
+    // 开发和测试环境，使用localhost:8081访问后端
+    apiBaseURL = 'http://localhost:8081/api/v1';
+  } else {
+    // 生产环境，使用相对路径通过反向代理
+    apiBaseURL = '/api/v1';
+  }
+  
   return {
     ...env,
     isLocal: env.actualEnv === 'local-dev',
     isDocker: env.actualEnv === 'docker-test', 
     isProduction: env.actualEnv === 'production',
-    apiBaseURL: env.actualEnv === 'local-dev' 
-      ? 'http://localhost:8081/api/v1'
-      : '/api/v1'
+    apiBaseURL
   };
 };
 

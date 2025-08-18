@@ -63,7 +63,7 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 					c.JSON(200, gin.H{
 						"success": true,
 						"message": "批量更新功能开发中，请使用单个文档更新接口",
-						"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档"
+						"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档",
 					})
 				})
 				

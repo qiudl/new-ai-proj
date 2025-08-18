@@ -68,6 +68,7 @@ import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import TaskGanttChart from '../components/TaskGanttChart';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
+import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
@@ -154,7 +155,9 @@ const TaskDetailPageNew: React.FC = () => {
     try {
       // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
       const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
-      setDocumentExists(true);
+      // 检查是否真的有文档数据
+      const hasDocuments = response.data?.data?.documents?.length > 0;
+      setDocumentExists(hasDocuments);
     } catch (error: Error | unknown) {
       // 404表示文档不存在，这是正常情况，不需要记录错误
       if (error.status === 404) {
@@ -1025,21 +1028,21 @@ const TaskDetailPageNew: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <div style={{ minHeight: '400px' }}>
-                      <TaskDocumentEditor
+                    <div style={{ minHeight: '500px' }}>
+                      <UnifiedTaskDocumentArea
                         taskId={task.id}
                         projectId={parseInt(projectId || '0')}
-                        className="task-document-editor-responsive"
-                        onSave={(content) => {
-                          // 文档保存成功后更新状态
-                          setDocumentExists(true);
-                          // 不在这里显示成功消息，让TaskDocumentEditor自己处理
+                        height="500px"
+                        defaultViewMode="edit"
+                        showToolbar={true}
+                        showDocumentList={true}
+                        compactMode={false}
+                        onDocumentChange={(docs) => {
+                          // 更新文档存在状态
+                          setDocumentExists(docs.length > 0);
                         }}
-                        style={{ 
-                          minHeight: '400px',
-                          height: 'auto',
-                          maxHeight: '80vh',
-                          overflow: 'auto'
+                        onViewModeChange={(mode) => {
+                          console.log('视图模式切换:', mode);
                         }}
                       />
                     </div>
@@ -1083,14 +1086,21 @@ const TaskDetailPageNew: React.FC = () => {
             style={{ marginBottom: '16px' }}
           />
           
-          {/* 任务文档小部件 */}
+          {/* 任务文档小部件 - 兼容性保留 */}
           <div style={{ marginBottom: '16px' }}>
-            <TaskDocumentWidget
-              projectId={parseInt(projectId || '0')}
-              taskId={task.id}
-              compact={false}
-              showTitle={true}
-            />
+            <Card size="small" title="文档概览">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  💡 新版统一文档界面已在主Tab中启用
+                </Text>
+                <TaskDocumentWidget
+                  projectId={parseInt(projectId || '0')}
+                  taskId={task.id}
+                  compact={true}
+                  showTitle={false}
+                />
+              </Space>
+            </Card>
           </div>
           
           {/* 基本信息 */}

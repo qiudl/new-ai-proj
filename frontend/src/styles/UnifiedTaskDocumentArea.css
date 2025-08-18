@@ -1,0 +1,427 @@
+.unified-task-document-area {
+  /* 基础样式 */
+  width: 100%;
+  height: 100%;
+  
+  /* 文档列表项样式 */
+  .document-list-item {
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    
+    &:hover {
+      background-color: #f5f5f5;
+      transform: translateX(2px);
+    }
+    
+    &.selected {
+      background-color: #e6f7ff;
+      border-left: 3px solid #1890ff;
+      
+      .ant-list-item-meta-title {
+        color: #1890ff;
+      }
+    }
+    
+    /* 列表项操作按钮 */
+    .ant-list-item-action {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    &:hover .ant-list-item-action {
+      opacity: 1;
+    }
+  }
+  
+  /* 视图模式按钮组 */
+  .ant-btn-group {
+    .ant-btn {
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  /* 工具栏样式 */
+  .document-toolbar {
+    padding: 8px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #fafafa;
+    
+    .toolbar-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+  
+  /* 内容区域样式 */
+  .content-area {
+    height: 100%;
+    overflow: auto;
+    padding: 16px;
+    
+    /* 编辑模式 */
+    &.edit-mode {
+      .task-document-editor {
+        border: none;
+        box-shadow: none;
+      }
+    }
+    
+    /* 预览模式 */
+    &.preview-mode {
+      .markdown-preview {
+        font-size: 14px;
+        line-height: 1.6;
+        
+        h1, h2, h3, h4, h5, h6 {
+          color: #333;
+          margin: 16px 0 8px;
+        }
+        
+        p {
+          margin-bottom: 16px;
+        }
+        
+        code {
+          background: #f5f5f5;
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        pre {
+          background: #f5f5f5;
+          padding: 16px;
+          border-radius: 6px;
+          overflow-x: auto;
+        }
+      }
+    }
+    
+    /* 管理模式 */
+    &.manage-mode {
+      .document-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 16px;
+        
+        .document-card {
+          border: 1px solid #d9d9d9;
+          border-radius: 6px;
+          padding: 12px;
+          transition: all 0.3s ease;
+          
+          &:hover {
+            border-color: #1890ff;
+            box-shadow: 0 2px 8px rgba(24, 144, 255, 0.1);
+          }
+        }
+      }
+    }
+    
+    /* 统计模式 */
+    &.stats-mode {
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      
+      .chart-container {
+        height: 300px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #fafafa;
+        border-radius: 6px;
+      }
+    }
+  }
+  
+  /* 空状态样式 */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    
+    .empty-icon {
+      font-size: 48px;
+      color: #d9d9d9;
+      margin-bottom: 16px;
+    }
+    
+    .empty-text {
+      color: #999;
+      font-size: 14px;
+    }
+  }
+  
+  /* 加载状态 */
+  .loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+  }
+  
+  /* 分割线样式 */
+  .document-divider {
+    margin: 16px 0;
+    border-color: #f0f0f0;
+  }
+}
+
+/* 响应式设计 */
+
+/* 平板设备 */
+@media (max-width: 1024px) {
+  .unified-task-document-area {
+    .content-area {
+      padding: 12px;
+    }
+    
+    .toolbar-section {
+      gap: 4px;
+    }
+    
+    .ant-btn-group .ant-btn {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+  }
+}
+
+/* 手机设备 */
+@media (max-width: 768px) {
+  .unified-task-document-area {
+    /* 移动端使用堆叠布局 */
+    .ant-row {
+      flex-direction: column;
+    }
+    
+    .document-list-col {
+      order: 2;
+      margin-top: 16px;
+    }
+    
+    .content-area-col {
+      order: 1;
+    }
+    
+    /* 工具栏适配 */
+    .document-toolbar {
+      padding: 4px 8px;
+      
+      .toolbar-section {
+        flex-wrap: wrap;
+        gap: 2px;
+      }
+    }
+    
+    /* 按钮组适配 */
+    .ant-btn-group {
+      display: flex;
+      
+      .ant-btn {
+        flex: 1;
+        font-size: 11px;
+        padding: 4px 6px;
+      }
+    }
+    
+    /* 文档列表适配 */
+    .document-list-item {
+      padding: 8px 12px;
+      
+      .ant-list-item-meta-title {
+        font-size: 13px;
+      }
+      
+      .ant-list-item-meta-description {
+        font-size: 11px;
+      }
+      
+      .ant-list-item-action {
+        margin-left: 8px;
+        
+        .ant-btn {
+          padding: 2px 4px;
+        }
+      }
+    }
+    
+    /* 内容区域适配 */
+    .content-area {
+      padding: 8px;
+      
+      &.manage-mode .document-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      &.stats-mode .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}
+
+/* 超小屏幕 */
+@media (max-width: 480px) {
+  .unified-task-document-area {
+    /* 进一步简化布局 */
+    .ant-card-head-title {
+      font-size: 14px;
+    }
+    
+    .ant-card-extra {
+      .ant-btn {
+        padding: 2px 4px;
+        font-size: 10px;
+      }
+    }
+    
+    /* 隐藏非必要元素 */
+    .document-toolbar {
+      display: none;
+    }
+    
+    .content-area {
+      padding: 4px;
+    }
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .unified-task-document-area {
+    .document-list-item {
+      &:hover {
+        background-color: #262626;
+      }
+      
+      &.selected {
+        background-color: #111b26;
+        border-left-color: #177ddc;
+      }
+    }
+    
+    .document-toolbar {
+      background: #141414;
+      border-bottom-color: #303030;
+    }
+    
+    .content-area {
+      &.preview-mode .markdown-preview {
+        color: #d9d9d9;
+        
+        h1, h2, h3, h4, h5, h6 {
+          color: #f0f0f0;
+        }
+        
+        code {
+          background: #262626;
+          color: #d9d9d9;
+        }
+        
+        pre {
+          background: #262626;
+          color: #d9d9d9;
+        }
+      }
+      
+      &.stats-mode .chart-container {
+        background: #141414;
+      }
+    }
+  }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .unified-task-document-area {
+    .document-list-item {
+      border: 1px solid #000;
+      
+      &.selected {
+        border-left: 4px solid #000;
+        background-color: #ffff00;
+        color: #000;
+      }
+    }
+    
+    .ant-btn {
+      border: 2px solid #000;
+    }
+  }
+}
+
+/* 打印样式 */
+@media print {
+  .unified-task-document-area {
+    .document-toolbar,
+    .ant-card-extra,
+    .ant-list-item-action {
+      display: none !important;
+    }
+    
+    .content-area {
+      &.preview-mode .markdown-preview {
+        font-size: 12pt;
+        line-height: 1.4;
+        color: #000;
+        
+        * {
+          background: transparent !important;
+        }
+      }
+    }
+  }
+}
+
+/* 无障碍样式 */
+.unified-task-document-area {
+  /* 焦点指示器 */
+  .document-list-item:focus,
+  .ant-btn:focus {
+    outline: 2px solid #1890ff;
+    outline-offset: 2px;
+  }
+  
+  /* 跳过链接 */
+  .skip-link {
+    position: absolute;
+    top: -40px;
+    left: 6px;
+    background: #1890ff;
+    color: white;
+    padding: 8px;
+    text-decoration: none;
+    z-index: 1000;
+    
+    &:focus {
+      top: 6px;
+    }
+  }
+  
+  /* 屏幕阅读器文本 */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

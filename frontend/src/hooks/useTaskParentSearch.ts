@@ -130,7 +130,7 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       }
       
       const searchParams = {
-        keyword: params.keyword || '',
+        query: params.keyword || '',  // Backend expects 'query' parameter, not 'keyword'
         exclude_task_ids: allExcludeIds.length > 0 ? allExcludeIds.join(',') : undefined,
         max_level: params.maxLevel || 3,
         page: Math.floor((params.offset || 0) / (params.limit || 20)) + 1,

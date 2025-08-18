@@ -8,7 +8,8 @@ import {
   Dropdown,
   Typography,
   Upload,
-  message
+  message,
+  Tag
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -55,6 +56,8 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     setLoading(true);
     try {
       const response = await documentService.getTaskDocuments(projectId, taskId);
+      console.log('🔍 DEBUG TaskDocumentWidget: API Response', response);
+      console.log('🔍 DEBUG TaskDocumentWidget: Documents count', response.documents?.length);
       setDocuments(response.documents);
     } catch (error) {
       console.error('加载文档失败:', error);
@@ -337,15 +340,56 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
           {stats.total === 0 ? (
             <Text type="secondary">暂无上传文档</Text>
           ) : (
-            <Space split="|" size="small">
-              <Text type="secondary">
-                {stats.total} 个文档
-              </Text>
-              <Text type="secondary">
-                {stats.totalSize > 0 && `总大小 ${Math.round(stats.totalSize / 1024)}KB`}
-              </Text>
-              {documentTypeStats}
-            </Space>
+            <>
+              <Space split="|" size="small">
+                <Text type="secondary">
+                  {stats.total} 个文档
+                </Text>
+                <Text type="secondary">
+                  {stats.totalSize > 0 && `总大小 ${Math.round(stats.totalSize / 1024)}KB`}
+                </Text>
+                {documentTypeStats}
+              </Space>
+              
+              {/* 显示文档列表 */}
+              <div style={{ marginTop: '8px' }}>
+                {documents.map((doc, index) => (
+                  <div key={doc.id} style={{ 
+                    padding: '8px', 
+                    border: '1px solid #f0f0f0', 
+                    borderRadius: '4px',
+                    marginBottom: index < documents.length - 1 ? '8px' : '0',
+                    backgroundColor: '#fafafa'
+                  }}>
+                    <div style={{ marginBottom: '4px' }}>
+                      <Text strong>{doc.title}</Text>
+                      <Tag size="small" style={{ marginLeft: '8px' }}>{doc.type}</Tag>
+                    </div>
+                    {doc.description && (
+                      <div style={{ marginBottom: '4px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>{doc.description}</Text>
+                      </div>
+                    )}
+                    {doc.content && (
+                      <div style={{ 
+                        maxHeight: '200px', 
+                        overflow: 'auto',
+                        padding: '8px',
+                        backgroundColor: 'white',
+                        border: '1px solid #e8e8e8',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        lineHeight: '1.5'
+                      }}>
+                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
+                          {doc.content.substring(0, 500)}{doc.content.length > 500 ? '...' : ''}
+                        </pre>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
           
           <Space size="small">
