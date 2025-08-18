@@ -53,6 +53,10 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 	{
 		tasks := projects.Group("/:id/tasks")
 		{
+			// 单个任务文档管理 (文件系统存储)
+			tasks.GET("/:taskId/document", app.GetTaskDocumentFileHandler().GetTaskDocument)
+			tasks.PUT("/:taskId/document", app.GetTaskDocumentFileHandler().UpdateTaskDocument)
+			
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{
 				// 获取任务的所有文档
