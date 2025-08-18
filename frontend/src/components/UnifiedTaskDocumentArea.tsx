@@ -239,6 +239,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   const [uploading, setUploading] = useState(false);
   const [managerVisible, setManagerVisible] = useState(false);
   const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
+  const [newDocumentModalVisible, setNewDocumentModalVisible] = useState(false);
+  const [newDocumentForm, setNewDocumentForm] = useState({ title: '', type: 'markdown', description: '' });
 
   // 切换视图模式
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -300,8 +302,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       message.success('刷新文档列表');
     },
     newDocument: () => {
-      // 创建新文档
-      message.info('创建新文档功能待实现');
+      // 快速创建新文档
+      handleQuickCreateDocument('markdown');
     },
     copyDocument: () => {
       if (selectedDocument) {
@@ -497,6 +499,69 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     }
   }, []);
 
+  // 创建新文档
+  const handleCreateNewDocument = useCallback(async () => {
+    if (!newDocumentForm.title.trim()) {
+      message.warning('请输入文档标题');
+      return;
+    }
+    
+    try {
+      const response = await documentService.createDocument({
+        title: newDocumentForm.title.trim(),
+        type: newDocumentForm.type as 'markdown' | 'text',
+        description: newDocumentForm.description,
+        content: newDocumentForm.type === 'markdown' ? '# ' + newDocumentForm.title.trim() + '\n\n请在这里编写文档内容...' : '请在这里编写文档内容...',
+        project_id: projectId,
+        task_id: taskId,
+        is_template: false
+      });
+      
+      message.success('文档创建成功');
+      setNewDocumentModalVisible(false);
+      setNewDocumentForm({ title: '', type: 'markdown', description: '' });
+      await loadDocuments();
+      
+      // 自动选中新创建的文档
+      if (response.document) {
+        setSelectedDocument(response.document);
+        setViewMode('edit');
+      }
+    } catch (error) {
+      console.error('创建文档失败:', error);
+      message.error('文档创建失败');
+    }
+  }, [newDocumentForm, projectId, taskId, loadDocuments]);
+
+  // 快速创建新文档
+  const handleQuickCreateDocument = useCallback(async (type: 'markdown' | 'text' = 'markdown') => {
+    const defaultTitle = `新建${type === 'markdown' ? 'Markdown' : '文本'}文档`;
+    
+    try {
+      const response = await documentService.createDocument({
+        title: defaultTitle,
+        type,
+        description: '',
+        content: type === 'markdown' ? `# ${defaultTitle}\n\n请在这里编写文档内容...` : '请在这里编写文档内容...',
+        project_id: projectId,
+        task_id: taskId,
+        is_template: false
+      });
+      
+      message.success('文档创建成功');
+      await loadDocuments();
+      
+      // 自动选中新创建的文档并切换到编辑模式
+      if (response.document) {
+        setSelectedDocument(response.document);
+        setViewMode('edit');
+      }
+    } catch (error) {
+      console.error('创建文档失败:', error);
+      message.error('文档创建失败');
+    }
+  }, [projectId, taskId, loadDocuments]);
+
   // 工具栏按钮
   const toolbarItems: MenuProps['items'] = [
     {
@@ -506,10 +571,23 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       onClick: loadDocuments
     },
     {
-      key: 'new-doc',
-      label: '新建文档',
+      key: 'new-doc-advanced',
+      label: '新建文档 (高级)',
       icon: <PlusOutlined />,
-      onClick: () => setManagerVisible(true)
+      onClick: () => setNewDocumentModalVisible(true)
+    },
+    { type: 'divider' },
+    {
+      key: 'quick-md',
+      label: '快速新建 Markdown',
+      icon: <FileTextOutlined />,
+      onClick: () => handleQuickCreateDocument('markdown')
+    },
+    {
+      key: 'quick-txt',
+      label: '快速新建文本',
+      icon: <FileTextOutlined />,
+      onClick: () => handleQuickCreateDocument('text')
     },
     { type: 'divider' },
     {
@@ -551,9 +629,33 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           />
         ) : (
           <Empty
-            description="请选择一个文档进行编辑"
+            description="暂无文档，请创建一个新文档开始编辑"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          >
+            <Space direction="vertical" size="middle">
+              <Space>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />}
+                  onClick={() => handleQuickCreateDocument('markdown')}
+                >
+                  新建 Markdown 文档
+                </Button>
+                <Button 
+                  icon={<FileTextOutlined />}
+                  onClick={() => handleQuickCreateDocument('text')}
+                >
+                  新建文本文档
+                </Button>
+              </Space>
+              <Button 
+                type="link" 
+                onClick={() => setNewDocumentModalVisible(true)}
+              >
+                高级创建选项
+              </Button>
+            </Space>
+          </Empty>
         );
         
       case 'preview':
@@ -679,6 +781,18 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
 
               {/* 快速操作 */}
               <Divider type="vertical" />
+              
+              {/* 新建文档按钮 - 明显位置 */}
+              <Tooltip title="新建文档">
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => handleQuickCreateDocument('markdown')}
+                >
+                  新建文档
+                </Button>
+              </Tooltip>
+              
               <Tooltip title="刷新">
                 <Button
                   icon={<SyncOutlined />}
@@ -702,7 +816,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
               </Upload>
 
               <Dropdown menu={{ items: toolbarItems }} trigger={['click']}>
-                <Button icon={<MoreOutlined />} />
+                <Tooltip title="更多操作">
+                  <Button icon={<MoreOutlined />} />
+                </Tooltip>
               </Dropdown>
             </Space>
           )
@@ -731,7 +847,16 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                       description="暂无文档"
                       style={{ margin: '40px 0' }}
-                    />
+                    >
+                      <Button 
+                        type="dashed" 
+                        icon={<PlusOutlined />}
+                        onClick={() => handleQuickCreateDocument('markdown')}
+                        style={{ marginTop: '8px' }}
+                      >
+                        创建文档
+                      </Button>
+                    </Empty>
                   ) : (
                     <List
                       size="small"
@@ -771,6 +896,79 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         onClose={() => setManagerVisible(false)}
         mode="modal"
       />
+
+      {/* 新建文档模态框 */}
+      <Modal
+        title="新建文档"
+        open={newDocumentModalVisible}
+        onOk={handleCreateNewDocument}
+        onCancel={() => {
+          setNewDocumentModalVisible(false);
+          setNewDocumentForm({ title: '', type: 'markdown', description: '' });
+        }}
+        okText="创建"
+        cancelText="取消"
+        width={600}
+        okButtonProps={{ disabled: !newDocumentForm.title.trim() }}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+              文档标题 <span style={{ color: '#ff4d4f' }}>*</span>
+            </label>
+            <Input
+              placeholder="请输入文档标题"
+              value={newDocumentForm.title}
+              onChange={(e) => setNewDocumentForm(prev => ({ ...prev, title: e.target.value }))}
+              maxLength={100}
+              showCount
+            />
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+              文档类型
+            </label>
+            <Space>
+              <Button
+                type={newDocumentForm.type === 'markdown' ? 'primary' : 'default'}
+                icon={<FileTextOutlined />}
+                onClick={() => setNewDocumentForm(prev => ({ ...prev, type: 'markdown' }))}
+              >
+                Markdown
+              </Button>
+              <Button
+                type={newDocumentForm.type === 'text' ? 'primary' : 'default'}
+                icon={<FileTextOutlined />}
+                onClick={() => setNewDocumentForm(prev => ({ ...prev, type: 'text' }))}
+              >
+                纯文本
+              </Button>
+            </Space>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+              文档描述
+            </label>
+            <TextArea
+              placeholder="请输入文档描述 (可选)"
+              value={newDocumentForm.description}
+              onChange={(e) => setNewDocumentForm(prev => ({ ...prev, description: e.target.value }))}
+              rows={3}
+              maxLength={500}
+              showCount
+            />
+          </div>
+          
+          <Alert
+            message="提示"
+            description={`将创建一个${newDocumentForm.type === 'markdown' ? 'Markdown' : '纯文本'}格式的新文档，创建后将自动打开编辑模式。`}
+            type="info"
+            showIcon
+          />
+        </Space>
+      </Modal>
     </div>
   );
 };
