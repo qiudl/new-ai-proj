@@ -48,6 +48,7 @@ const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
 
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
+const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
@@ -364,6 +365,14 @@ const AppContent: React.FC = () => {
 
             
             <Route path="/document-manager" element={
+              <PrivateRoute>
+                <Layout>
+                  <ModernDocumentManagerPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+            
+            <Route path="/document-manager-old" element={
               <PrivateRoute>
                 <Layout>
                   <DocumentManagerPage />

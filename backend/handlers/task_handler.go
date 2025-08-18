@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -195,7 +196,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 
 	if len(customFieldsJSON) > 0 {
 		task.CustomFields = models.CustomFields{}
-		if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err == nil {
+		if err := task.CustomFields.Scan(customFieldsJSON); err == nil {
 			// CustomFields successfully unmarshaled
 		}
 	}
@@ -273,7 +274,7 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 
 		if len(customFieldsJSON) > 0 {
 			task.CustomFields = models.CustomFields{}
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err == nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err == nil {
 				// CustomFields successfully unmarshaled
 			}
 		}
@@ -360,6 +361,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// Store original status for comparison before making changes
+	originalStatus := task.Status
+
 	// Update fields
 	task.Title = req.Title
 	task.Description = req.Description
@@ -394,6 +398,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		log.Printf("Error updating task: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "更新任务失败", nil))
 		return
+	}
+
+	// If task status changed to completed, stop any running timer for this task
+	if originalStatus != "completed" && updatedTask.Status == "completed" {
+		if err := h.stopTimerForCompletedTask(c.Request.Context(), updatedTask.ID); err != nil {
+			log.Printf("Warning: Failed to stop timer for completed task %d: %v", updatedTask.ID, err)
+			// Don't fail the request, just log the warning
+		}
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), "任务更新成功"))
@@ -568,4 +580,84 @@ func (h *TaskHandler) ValidateParent(c *gin.Context) {
 
 	// TODO: Implement ValidateParentChild method in TaskRepository
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+}
+
+// stopTimerForCompletedTask stops any running timer for the specified task
+func (h *TaskHandler) stopTimerForCompletedTask(ctx context.Context, taskID int) error {
+	// Find users who are currently timing this task
+	users, err := h.db.Users().GetUsersTimingTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get users timing task %d: %w", taskID, err)
+	}
+
+	// Stop timer for each user timing this task
+	for _, user := range users {
+		if err := h.stopCurrentTimerForUser(ctx, &user, taskID); err != nil {
+			log.Printf("Warning: Failed to stop timer for user %d on task %d: %v", user.ID, taskID, err)
+			// Continue with other users even if one fails
+		}
+	}
+
+	return nil
+}
+
+// stopCurrentTimerForUser stops the current timer for a specific user and task
+func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.User, taskID int) error {
+	// Verify the user is actually timing this specific task
+	if user.TimingStatus != string(models.TimingStatusRunning) || 
+	   user.CurrentTimingTaskID == nil || 
+	   *user.CurrentTimingTaskID != taskID {
+		return nil // User is not timing this task
+	}
+
+	// Calculate duration
+	endTime := time.Now()
+	duration := endTime.Sub(*user.TimingStartTime)
+	durationSeconds := int(duration.Seconds())
+	
+	// Ensure duration is not negative
+	if durationSeconds < 0 {
+		durationSeconds = 0
+	}
+
+	// Create time log entry
+	timeLog := &models.TaskTimeLog{
+		TaskID:          user.CurrentTimingTaskID,
+		UserID:          user.ID,
+		StartTime:       *user.TimingStartTime,
+		EndTime:         &endTime,
+		DurationSeconds: durationSeconds,
+	}
+
+	if err := h.db.Timer().Create(ctx, timeLog); err != nil {
+		return fmt.Errorf("failed to create time log: %w", err)
+	}
+
+	// Update task total time
+	task, err := h.db.Tasks().GetByID(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task for time update: %w", err)
+	}
+
+	task.TotalTimeSeconds += durationSeconds
+	_, err = h.db.Tasks().Update(ctx, task)
+	if err != nil {
+		log.Printf("Warning: Failed to update task total time: %v", err)
+		// Don't fail the operation just for this
+	}
+
+	// Clear user timer state
+	user.CurrentTimingTaskID = nil
+	user.TimingStartTime = nil
+	user.TimingStatus = string(models.TimingStatusStopped)
+
+	_, err = h.db.Users().Update(ctx, user)
+	if err != nil {
+		return fmt.Errorf("failed to stop timer for user: %w", err)
+	}
+
+	log.Printf("Auto-stopped timer for user %d on completed task %d (duration: %s)", 
+		user.ID, taskID, models.FormatDuration(durationSeconds))
+
+	return nil
 }// Force rebuild Sun Aug 17 22:30:44 CST 2025

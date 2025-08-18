@@ -125,6 +125,11 @@ const TaskDetailPageNew: React.FC = () => {
   
   // 完成情况相关状态
   const [subtasks, setSubtasks] = useState<Task[]>([]);
+  
+  // 调试状态变化
+  useEffect(() => {
+    console.log('🔍 DEBUG: subtasks state changed', { subtasks, count: subtasks.length });
+  }, [subtasks]);
   const [completionStats, setCompletionStats] = useState<TaskCompletionStats>({
     totalSubtasks: 0,
     completedSubtasks: 0,
@@ -151,11 +156,11 @@ const TaskDetailPageNew: React.FC = () => {
       const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
       setDocumentExists(true);
     } catch (error: Error | unknown) {
-      console.error('检查文档状态失败:', error);
-      // 404表示文档不存在，这是正常情况
+      // 404表示文档不存在，这是正常情况，不需要记录错误
       if (error.status === 404) {
         setDocumentExists(false);
       } else {
+        console.error('检查文档状态失败:', error);
         setDocumentExists(false);
       }
     }
@@ -206,6 +211,7 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 并行加载所有任务数据（使用传入的task参数）
   const loadAllTaskDataWithTask = useCallback(async (taskData: Task) => {
+    console.log('🔍 DEBUG: loadAllTaskDataWithTask called', { projectId, taskId, taskData: taskData?.id });
     if (!projectId || !taskId || !taskData) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -219,11 +225,16 @@ const TaskDetailPageNew: React.FC = () => {
       setDataLoading(true);
       
       // 并行加载基础数据
+      console.log('🔍 DEBUG: Making API calls', { parsedProjectId, parsedTaskId });
       const [subtasksData, updatesData, timelineData] = await Promise.allSettled([
         TaskService.getTaskChildren(parsedProjectId, parsedTaskId),
         TaskService.getTaskUpdates(parsedProjectId, parsedTaskId, { page: 1, page_size: 20 }),
         TaskService.getTaskTimeline(parsedProjectId, parsedTaskId, { page: 1, page_size: 20 }),
       ]);
+      console.log('🔍 DEBUG: API calls completed', { 
+        subtasksStatus: subtasksData.status, 
+        subtasksData: subtasksData.status === 'fulfilled' ? subtasksData.value : subtasksData.reason 
+      });
       
       // 单独获取项目信息
       try {
@@ -251,10 +262,11 @@ const TaskDetailPageNew: React.FC = () => {
       } else {
         // 如果是根任务，获取同级的其他根任务作为兄弟任务
         try {
-          const rootTasks = await TaskService.getRootTasks(parsedProjectId);
-          const filteredRootSiblings = Array.isArray(rootTasks) 
-            ? rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id)
-            : [];
+          const rootTasksResponse = await TaskService.getRootTasks(parsedProjectId);
+          console.log('🔍 DEBUG: Root tasks response', { rootTasksResponse });
+          const rootTasks = Array.isArray(rootTasksResponse?.data) ? rootTasksResponse.data : [];
+          const filteredRootSiblings = rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id);
+          console.log('🔍 DEBUG: Filtered root siblings', { filteredRootSiblings, count: filteredRootSiblings.length });
           setSiblingTasks(filteredRootSiblings);
         } catch (error) {
           console.error('Error loading root tasks:', error);
@@ -263,9 +275,16 @@ const TaskDetailPageNew: React.FC = () => {
       
       // 处理子任务数据
       if (subtasksData.status === 'fulfilled') {
+        // TaskService已经处理了数据结构适配
         const children = Array.isArray(subtasksData.value) ? subtasksData.value : [];
+        console.log('🔍 DEBUG: Final children from TaskService', { children, count: children.length });
         setSubtasks(children);
         calculateCompletionStats(children);
+      } else {
+        // 处理API调用失败的情况
+        console.error('🔍 DEBUG: Failed to load subtasks:', subtasksData.reason);
+        setSubtasks([]);
+        calculateCompletionStats([]);
       }
       
       // 处理更新历史数据
@@ -904,6 +923,7 @@ const TaskDetailPageNew: React.FC = () => {
           )}
 
           {/* 子任务列表 */}
+          {console.log('🔍 DEBUG: Rendering subtasks check', { subtasksLength: subtasks.length, subtasks })}
           {subtasks.length > 0 && (
             <Card 
               title={

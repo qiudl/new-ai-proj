@@ -35,6 +35,9 @@ type UserRepository interface {
 	GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error)
 	GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error)
 	GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error)
+	
+	// Timer management
+	GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error)
 }
 
 // ProjectRepository defines the interface for project database operations

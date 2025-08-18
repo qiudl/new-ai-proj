@@ -106,7 +106,7 @@ func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, 
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}

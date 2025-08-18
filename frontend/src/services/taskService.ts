@@ -319,7 +319,7 @@ export class TaskService {
    */
   static async getTaskChildren(projectId: number, taskId: number): Promise<Task[]> {
     try {
-      const response: APIResponse<Task[]> = await api.get(
+      const response: APIResponse<any> = await api.get(
         `/projects/${projectId}/tasks/${taskId}/children`
       );
       
@@ -327,8 +327,15 @@ export class TaskService {
         throw new Error(response?.error?.message || 'Failed to fetch task children');
       }
       
-      // Ensure response.data is an array
-      return Array.isArray(response.data) ? response.data : [];
+      // 适配后端返回的分页数据结构
+      console.log('🔍 DEBUG: TaskService.getTaskChildren response', response.data);
+      const children = Array.isArray(response.data?.data) 
+        ? response.data.data 
+        : Array.isArray(response.data) 
+          ? response.data 
+          : [];
+      console.log('🔍 DEBUG: TaskService.getTaskChildren processed', { children, count: children.length });
+      return children;
     } catch (error: Error | unknown) {
       console.error('TaskService.getTaskChildren error:', error);
       console.warn('Using fallback empty array for getTaskChildren due to API error');

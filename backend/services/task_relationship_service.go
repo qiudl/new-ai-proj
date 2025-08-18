@@ -1721,7 +1721,7 @@ func (s *taskRelationshipService) generateParallelRecommendations(projectID *int
 
 		// Parse custom fields
 		if customFieldsJSON != nil {
-			json.Unmarshal(customFieldsJSON, &task.CustomFields)
+			task.CustomFields.Scan(customFieldsJSON)
 		}
 
 		tasks = append(tasks, task)

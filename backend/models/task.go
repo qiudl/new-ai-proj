@@ -43,6 +43,10 @@ func (cf *CustomFields) Scan(value interface{}) error {
 		// Convert array to map by merging non-nil map elements
 		result := make(CustomFields)
 		for _, item := range arr {
+			// Skip nil items in array
+			if item == nil {
+				continue
+			}
 			if itemMap, ok := item.(map[string]interface{}); ok {
 				for k, v := range itemMap {
 					if v != nil && k != "" {
@@ -125,6 +129,8 @@ type Task struct {
 	TaskLevel         int          `json:"task_level" db:"task_level"`
 	SortOrder         int          `json:"sort_order" db:"sort_order"`
 	TotalTimeSeconds  int          `json:"total_time_seconds" db:"total_time_seconds"`
+	ChildrenCount     int          `json:"children_count" db:"children_count"`
+	HasChildren       bool         `json:"has_children" db:"has_children"`
 	// AI-enhanced fields
 	Dependencies      Dependencies `json:"dependencies" db:"dependencies"`
 	EstimatedHours    *float64     `json:"estimated_hours" db:"estimated_hours"`
@@ -295,8 +301,9 @@ func (t *Task) ToResponse() TaskResponse {
 		ParentID:       t.ParentID,
 		TaskLevel:      t.TaskLevel,
 		SortOrder:      t.SortOrder,
+		ChildrenCount:  t.ChildrenCount,
 		Depth:          t.TaskLevel, // 默认使用 TaskLevel 作为 Depth
-		HasChildren:    false,       // 默认值，需要在查询时设置
+		HasChildren:    t.HasChildren,
 		Dependencies:     t.Dependencies,
 		EstimatedHours:   t.EstimatedHours,
 		Priority:         t.Priority,

@@ -65,10 +65,18 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 // GetByID gets a task by ID (only non-deleted)
 func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.Task, error) {
 	query := `
-		SELECT id, project_id, title, description, status, assignee_id, due_date, 
-		       custom_fields, parent_id, task_level, sort_order, total_time_seconds,
-		       created_at, updated_at, deleted_at
-		FROM tasks WHERE id = $1 AND deleted_at IS NULL`
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.created_at, t.updated_at, t.deleted_at,
+		       COALESCE(c.children_count, 0) as children_count
+		FROM tasks t
+		LEFT JOIN (
+			SELECT parent_id, COUNT(*) as children_count 
+			FROM tasks 
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL 
+			GROUP BY parent_id
+		) c ON t.id = c.parent_id
+		WHERE t.id = $1 AND t.deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
@@ -79,12 +87,13 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var dueDate sql.NullTime
 	var parentID sql.NullInt64
 	var updatedAt sql.NullTime
+	var childrenCount int
 
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
-		&task.CreatedAt, &updatedAt, &task.DeletedAt,
+		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount,
 	)
 
 	if err == sql.ErrNoRows {
@@ -112,10 +121,14 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	}
 
 	if len(customFieldsJSON) > 0 {
-		if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+		if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 		}
 	}
+
+	// Set children count and has children flag
+	task.ChildrenCount = childrenCount
+	task.HasChildren = childrenCount > 0
 
 	return task, nil
 }
@@ -187,10 +200,14 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
+
+		// Set children count and has children flag
+		task.ChildrenCount = childrenCount
+		task.HasChildren = childrenCount > 0
 
 		tasks = append(tasks, task)
 	}
@@ -279,7 +296,7 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
@@ -549,7 +566,7 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}
@@ -676,7 +693,7 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 
 		// Unmarshal custom fields
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}

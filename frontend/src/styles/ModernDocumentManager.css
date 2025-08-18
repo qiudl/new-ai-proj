@@ -1,0 +1,288 @@
+/* 现代工作笔记管理器样式 */
+
+.note-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #f0f0f0;
+  overflow: hidden;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-color: #1890ff;
+}
+
+.note-card .ant-card-cover {
+  position: relative;
+  overflow: hidden;
+}
+
+.note-card .ant-card-cover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.note-card:hover .ant-card-cover::before {
+  opacity: 0.2;
+}
+
+/* 侧边栏优化 */
+.ant-layout-sider.ant-layout-sider-collapsed .ant-layout-sider-trigger {
+  background: #1890ff;
+  color: white;
+}
+
+.ant-layout-sider .ant-layout-sider-trigger:hover {
+  background: #40a9ff;
+}
+
+/* 搜索栏优化 */
+.ant-input-search .ant-input-search-button {
+  background: #1890ff;
+  border-color: #1890ff;
+}
+
+.ant-input-search .ant-input-search-button:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+}
+
+/* 状态标签动画 */
+.ant-tag {
+  transition: all 0.3s ease;
+}
+
+.ant-tag:hover {
+  transform: scale(1.05);
+}
+
+/* 工具栏玻璃效果 */
+.toolbar-glass {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 笔记列表项动画 */
+.note-list-item {
+  transition: all 0.3s ease;
+}
+
+.note-list-item:hover {
+  background: #f5f5f5;
+  border-left: 4px solid #1890ff;
+  padding-left: 12px;
+}
+
+/* 加载动画优化 */
+.ant-spin-container {
+  transition: opacity 0.3s ease;
+}
+
+.ant-spin-blur {
+  opacity: 0.3;
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .note-card {
+    margin-bottom: 12px;
+  }
+  
+  .toolbar-glass {
+    padding: 8px !important;
+  }
+  
+  .ant-layout-sider {
+    width: 200px !important;
+    min-width: 200px !important;
+  }
+}
+
+/* 深色模式准备 */
+@media (prefers-color-scheme: dark) {
+  .note-card {
+    background: #1f1f1f;
+    border-color: #303030;
+  }
+  
+  .note-card:hover {
+    border-color: #1890ff;
+    background: #262626;
+  }
+  
+  .toolbar-glass {
+    background: rgba(31, 31, 31, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* 平滑滚动 */
+.ant-layout-content {
+  scroll-behavior: smooth;
+}
+
+/* 自定义滚动条 */
+.ant-layout-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ant-layout-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.ant-layout-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.ant-layout-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 卡片阴影渐变 */
+.stats-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+/* 按钮组优化 */
+.ant-btn-group .ant-btn {
+  border-radius: 6px;
+}
+
+.ant-btn-group .ant-btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ant-btn-group .ant-btn:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* 抽屉动画优化 */
+.ant-drawer-content {
+  border-radius: 8px 0 0 8px;
+}
+
+.ant-drawer-header {
+  border-bottom: 1px solid #f0f0f0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.ant-drawer-header .ant-drawer-title {
+  color: white;
+}
+
+.ant-drawer-close {
+  color: white;
+}
+
+.ant-drawer-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 文本编辑器优化 */
+.ant-input {
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.ant-input:focus,
+.ant-input-focused {
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.ant-input.ant-input-lg {
+  font-size: 16px;
+  padding: 12px 16px;
+}
+
+/* 标签输入优化 */
+.ant-select-multiple .ant-select-selection-item {
+  border-radius: 4px;
+  background: #f0f2ff;
+  border-color: #d6e4ff;
+  color: #1890ff;
+}
+
+/* 空状态优化 */
+.ant-empty {
+  padding: 48px 24px;
+}
+
+.ant-empty-image {
+  margin-bottom: 16px;
+}
+
+.ant-empty-description {
+  color: #8c8c8c;
+  font-size: 14px;
+}
+
+/* 微交互动画 */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pulse-animation {
+  animation: pulse 0.3s ease-in-out;
+}
+
+/* 渐入动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* 加载骨架屏 */
+.skeleton-card {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

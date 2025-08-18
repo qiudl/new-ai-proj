@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"ai-project-backend/models"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -65,7 +66,7 @@ type TaskInfo struct {
 	DueDate      *string                `json:"due_date"`
 	CreatedAt    string                 `json:"created_at"`
 	UpdatedAt    *string                `json:"updated_at"`
-	CustomFields map[string]interface{} `json:"custom_fields,omitempty"`
+	CustomFields models.CustomFields `json:"custom_fields,omitempty"`
 }
 
 // HandleTodayStats 处理今日任务统计请求
@@ -467,10 +468,11 @@ func (sh *StatisticsHandlers) scanTaskInfo(rows *sql.Rows) (TaskInfo, error) {
 		task.AssigneeName = &assigneeNameStr.String
 	}
 
-	// 解析自定义字段
+	// 初始化和解析自定义字段
+	task.CustomFields = make(models.CustomFields)
 	if customFieldsStr.Valid && customFieldsStr.String != "" {
-		if err := json.Unmarshal([]byte(customFieldsStr.String), &task.CustomFields); err != nil {
-			task.CustomFields = make(map[string]interface{})
+		if err := task.CustomFields.Scan([]byte(customFieldsStr.String)); err != nil {
+			task.CustomFields = make(models.CustomFields)
 		}
 	}
 

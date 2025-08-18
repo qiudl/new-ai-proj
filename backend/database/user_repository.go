@@ -531,3 +531,61 @@ func (r *PostgresUserRepository) GetExpiringAccounts(ctx context.Context, days i
 
 	return users, nil
 }
+
+// GetUsersTimingTask retrieves all users currently timing the specified task
+func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error) {
+	query := `
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id, 
+		       role, status, profile, last_login_at, is_primary_contact, notes,
+		       current_timing_task_id, current_user_timer_task_id, timing_start_time, 
+		       timing_status, timing_paused_time, timing_accumulated_seconds,
+		       created_at, updated_at
+		FROM users 
+		WHERE timing_status = 'running' 
+		AND current_timing_task_id = $1`
+
+	rows, err := r.getExecer().QueryContext(ctx, query, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users timing task: %w", err)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var user models.User
+		err := rows.Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&user.PasswordHash,
+			&user.UserType,
+			&user.CompanyID,
+			&user.CompanyUserID,
+			&user.Role,
+			&user.Status,
+			&user.Profile,
+			&user.LastLoginAt,
+			&user.IsPrimaryContact,
+			&user.Notes,
+			&user.CurrentTimingTaskID,
+			&user.CurrentUserTimerTaskID,
+			&user.TimingStartTime,
+			&user.TimingStatus,
+			&user.TimingPausedTime,
+			&user.TimingAccumulatedSeconds,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan user timing task: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return users, nil
+}

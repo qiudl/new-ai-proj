@@ -12,7 +12,9 @@ import (
 func (r *PostgresTaskRepository) GetChildren(ctx context.Context, parentID int) ([]*models.Task, error) {
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
-		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.dependencies, t.estimated_hours, t.priority, t.tags,
+		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count,
 		       u.username as assignee_name
 		FROM tasks t
@@ -43,11 +45,16 @@ func (r *PostgresTaskRepository) GetChildren(ctx context.Context, parentID int) 
 		var updatedAt sql.NullTime
 		var childrenCount int
 		var assigneeName sql.NullString
+		var dependenciesJSON []byte
+		var estimatedHours sql.NullFloat64
+		var priority sql.NullString
+		var tagsJSON []byte
 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&parentIDNull, &task.TaskLevel, &task.SortOrder,
+			&parentIDNull, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+			&dependenciesJSON, &estimatedHours, &priority, &tagsJSON,
 			&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount, &assigneeName,
 		)
 		if err != nil {
@@ -71,15 +78,48 @@ func (r *PostgresTaskRepository) GetChildren(ctx context.Context, parentID int) 
 			task.UpdatedAt = task.CreatedAt
 		}
 
+		// Process AI-enhanced fields
+		if estimatedHours.Valid {
+			task.EstimatedHours = &estimatedHours.Float64
+		}
+		if priority.Valid {
+			task.Priority = priority.String
+		}
+
+		// Initialize Dependencies and Tags
+		task.Dependencies = make(models.Dependencies, 0)
+		task.Tags = make(models.Tags, 0)
+
+		// Process dependencies and tags JSON fields
+		if len(dependenciesJSON) > 0 {
+			if err := (&task.Dependencies).Scan(dependenciesJSON); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal dependencies: %w", err)
+			}
+		}
+		if len(tagsJSON) > 0 {
+			if err := (&task.Tags).Scan(tagsJSON); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal tags: %w", err)
+			}
+		}
+
 		// Initialize custom fields if nil
 		if task.CustomFields == nil {
 			task.CustomFields = make(models.CustomFields)
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
+		}
+
+		// Set children count and has children flag
+		task.ChildrenCount = childrenCount
+		task.HasChildren = childrenCount > 0
+
+		// Ensure CustomFields is initialized before setting values
+		if task.CustomFields == nil {
+			task.CustomFields = make(models.CustomFields)
 		}
 
 		// Add children_count and assignee_name to custom fields for frontend access
@@ -108,7 +148,8 @@ func (r *PostgresTaskRepository) GetRootTasks(ctx context.Context, projectID int
 
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
-		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count,
 		       u.username as assignee_name
 		FROM tasks t
@@ -143,7 +184,7 @@ func (r *PostgresTaskRepository) GetRootTasks(ctx context.Context, projectID int
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&parentID, &task.TaskLevel, &task.SortOrder,
+			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
 			&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount, &assigneeName,
 		)
 		if err != nil {
@@ -173,9 +214,18 @@ func (r *PostgresTaskRepository) GetRootTasks(ctx context.Context, projectID int
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
+		}
+
+		// Set children count and has children flag
+		task.ChildrenCount = childrenCount
+		task.HasChildren = childrenCount > 0
+
+		// Ensure CustomFields is initialized before setting values
+		if task.CustomFields == nil {
+			task.CustomFields = make(models.CustomFields)
 		}
 
 		// Add children_count and assignee_name to custom fields for frontend access
@@ -250,7 +300,7 @@ func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int)
 		}
 
 		if len(customFieldsJSON) > 0 {
-			if err := json.Unmarshal(customFieldsJSON, &task.CustomFields); err != nil {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal custom fields: %w", err)
 			}
 		}

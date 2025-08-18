@@ -138,7 +138,7 @@ services:
   # MCP服务器 (开发环境)
   mcp-server:
     build:
-      context: ./ai-proj-mcp
+      context: ./mcp-task-bridge
       dockerfile: Dockerfile.dev
     container_name: ai_mcp_server
     depends_on:
@@ -149,7 +149,7 @@ services:
     ports:
       - "3100:3001"
     volumes:
-      - ./ai-proj-mcp:/app:cached
+      - ./mcp-task-bridge:/app:cached
       - mcp_node_modules:/app/node_modules
     command: ["npm", "run", "dev"]
     restart: unless-stopped
