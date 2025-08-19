@@ -143,7 +143,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
     } else {
       setRecommendations([]);
     }
-  }, [open, searchResults.tasks, currentTaskId, searchKeyword, generateRecommendations]);
+  }, [open, searchResults.tasks, currentTaskId, searchKeyword]); // Remove generateRecommendations from deps to prevent infinite loop
 
   // Stabilize exclude IDs to prevent infinite re-renders
   const stableExcludeIds = useMemo(() => {
@@ -184,7 +184,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         setSelectedTask(currentParent);
       }
     }
-  }, [open, currentParentId, searchResults.tasks, selectedTask]);
+  }, [open, currentParentId, searchResults.tasks]); // Remove selectedTask from deps to prevent loop
 
   // Clear state when modal closes
   useEffect(() => {

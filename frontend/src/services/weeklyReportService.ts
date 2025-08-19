@@ -173,9 +173,20 @@ class WeeklyReportService {
     }
 
     try {
+      // 🔧 检查并警告负数时长数据
+      const hasNegativeValues = 
+        (backendData.weekly_stats?.total_hours < 0) ||
+        (backendData.daily_stats || []).some((day: any) => day?.total_hours < 0) ||
+        (backendData.task_time_entries || []).some((entry: any) => entry?.duration < 0) ||
+        (backendData.project_stats || []).some((project: any) => project?.total_hours < 0);
+      
+      if (hasNegativeValues) {
+        console.warn('⚠️ 检测到负数时长数据，已自动修正为0。后端可能存在时间计算错误。');
+      }
+      
       return {
         weeklyStats: {
-          totalHours: backendData.weekly_stats?.total_hours || 0,
+          totalHours: Math.max(0, backendData.weekly_stats?.total_hours || 0), // 🔧 防止负数工作时长
           completedTasks: backendData.weekly_stats?.completed_tasks || 0,
           totalTasks: backendData.weekly_stats?.total_tasks || 0,
           efficiency: backendData.weekly_stats?.efficiency || 0,
@@ -185,7 +196,7 @@ class WeeklyReportService {
         dailyStats: Array.isArray(backendData.daily_stats) 
           ? backendData.daily_stats.map((day: any) => ({
               date: day?.date || '',
-              totalHours: day?.total_hours || 0,
+              totalHours: Math.max(0, day?.total_hours || 0), // 🔧 防止负数工作时长
               tasksCompleted: day?.tasks_completed || 0,
               efficiency: day?.efficiency || 0,
               topTask: day?.top_task || '无任务',
@@ -196,7 +207,7 @@ class WeeklyReportService {
               id: entry?.id || '',
               taskTitle: entry?.task_title || '',
               projectName: entry?.project_name || '',
-              duration: entry?.duration || 0,
+              duration: Math.max(0, entry?.duration || 0), // 🔧 防止负数任务时长
               date: entry?.date || '',
               status: this.mapTaskStatus(entry?.status),
               priority: this.mapTaskPriority(entry?.priority),
@@ -205,7 +216,7 @@ class WeeklyReportService {
         projectStats: Array.isArray(backendData.project_stats)
           ? backendData.project_stats.map((project: any) => ({
               projectName: project?.project_name || '',
-              totalHours: project?.total_hours || 0,
+              totalHours: Math.max(0, project?.total_hours || 0), // 🔧 防止负数项目时长
               tasksCount: project?.tasks_count || 0,
               completionRate: project?.completion_rate || 0,
               color: project?.color || '#1890ff',

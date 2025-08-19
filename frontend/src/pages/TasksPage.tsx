@@ -16,6 +16,7 @@ import { useTimer } from '../contexts/TimerContext';
 import { Project } from '../types/project';
 import { projectService } from '../services/projectService';
 import { formatRelativeTime, formatExactTime, getTimeStyle, getUpdateTimestamp } from '../utils/dateUtils';
+import { formatTaskStatus } from '../utils/formatters';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
@@ -1307,10 +1308,10 @@ const TasksPage: React.FC = () => {
                                 </button>
                                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                   <Tag 
-                                    color={subTask.status === 'completed' ? 'success' : subTask.status === 'in_progress' ? 'processing' : 'default'}
+                                    color={formatTaskStatus(subTask.status).color}
                                     style={{ fontSize: '10px', margin: 0 }}
                                   >
-                                    {subTask.status === 'completed' ? '完成' : subTask.status === 'in_progress' ? '进行中' : '待办'}
+                                    {formatTaskStatus(subTask.status).text}
                                   </Tag>
                                   <button
                                     onClick={() => handleEditTask(subTask)}
@@ -1575,7 +1576,7 @@ const TasksPage: React.FC = () => {
             key: 'action',
             width: config.width,
             render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => {
-              const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
+              const canStartTimer = !['completed', 'cancelled', 'archived'].includes(record.status);
               
               return (
                 <Space size="small">
@@ -1868,7 +1869,7 @@ const TasksPage: React.FC = () => {
                             </Tag>
                             
                             {/* 子任务计时器按钮 */}
-                            {subTask.status !== 'completed' && subTask.status !== 'cancelled' && (
+                            {!['completed', 'cancelled', 'archived'].includes(subTask.status) && (
                               <TimerStartButton
                                 task={subTask}
                                 size="small"
@@ -2169,7 +2170,7 @@ const TasksPage: React.FC = () => {
       key: 'action',
       width: 160, // 增加宽度以容纳计时器按钮
       render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => {
-        const canStartTimer = record.status !== 'completed' && record.status !== 'cancelled';
+        const canStartTimer = !['completed', 'cancelled', 'archived'].includes(record.status);
         
         return (
           <Space size="small">

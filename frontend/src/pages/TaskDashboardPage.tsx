@@ -47,6 +47,7 @@ import { DashboardService } from '../services/dashboardService';
 import { projectService } from '../services/projectService';
 import companyService from '../services/companyService';
 import { Task } from '../types/task';
+import { formatTaskStatus } from '../utils/formatters';
 import { Project } from '../types/project';
 import { Company } from '../types/company';
 import { useWeeklyDashboardStats, useDashboardManager } from '../hooks/useDashboard';
@@ -117,27 +118,7 @@ const getPriorityColor = (priority: string) => {
   }
 };
 
-// 获取状态颜色
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed': return '#52c41a';
-    case 'in_progress': return '#1890ff';
-    case 'todo': return '#8c8c8c';
-    case 'cancelled': return '#ff4d4f';
-    default: return '#8c8c8c';
-  }
-};
-
-// 获取状态文本
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'completed': return '已完成';
-    case 'in_progress': return '进行中';
-    case 'todo': return '待办';
-    case 'cancelled': return '已取消';
-    default: return status;
-  }
-};
+// 使用统一的状态格式化函数 - 已迁移到 formatters.ts
 
 interface WeeklyStats {
   totalTasks: number;
@@ -444,8 +425,8 @@ const TaskDashboardPage: React.FC = () => {
 
     const totalTasks = weeklyTasks.length;
     const completedTasks = weeklyTasks.filter(task => task.status === 'completed').length;
-    const inProgressTasks = weeklyTasks.filter(task => task.status === 'in_progress').length;
-    const todoTasks = weeklyTasks.filter(task => task.status === 'todo').length;
+    const inProgressTasks = weeklyTasks.filter(task => ['in_progress', 'testing'].includes(task.status)).length;
+    const todoTasks = weeklyTasks.filter(task => ['todo', 'draft', 'planning'].includes(task.status)).length;
     
     console.log('📊 weeklyStats计算结果:', {
       totalTasks,
@@ -459,7 +440,7 @@ const TaskDashboardPage: React.FC = () => {
     // 计算逾期任务
     const today = dayjs();
     const overdueTasks = weeklyTasks.filter(task => {
-      if (!task.due_date || task.status === 'completed') return false;
+      if (!task.due_date || ['completed', 'cancelled', 'archived'].includes(task.status)) return false;
       return dayjs(task.due_date).isBefore(today, 'day');
     }).length;
 
@@ -1082,7 +1063,7 @@ const TaskDashboardPage: React.FC = () => {
                         {day.tasks.map((task: Task) => {
                           const projectName = getTaskProjectName(task.project_id);
                           const isOverdue = task.due_date && 
-                            task.status !== 'completed' && 
+                            !['completed', 'cancelled', 'archived'].includes(task.status) && 
                             dayjs(task.due_date).isBefore(dayjs(), 'day');
                           
                           return (
@@ -1204,7 +1185,7 @@ const TaskDashboardPage: React.FC = () => {
               const projectName = getTaskProjectName(task.project_id);
               const customerName = getTaskCustomerName(task.project_id);
               const isOverdue = task.due_date && 
-                task.status !== 'completed' && 
+                !['completed', 'cancelled', 'archived'].includes(task.status) && 
                 dayjs(task.due_date).isBefore(dayjs(), 'day');
               
               return (
@@ -1236,7 +1217,7 @@ const TaskDashboardPage: React.FC = () => {
                         }}
                         icon={
                           task.status === 'completed' ? <CheckCircleOutlined /> : 
-                          task.status === 'in_progress' ? <ClockCircleOutlined /> : 
+                          ['in_progress', 'testing'].includes(task.status) ? <ClockCircleOutlined /> : 
                           <UserOutlined />
                         }
                       />

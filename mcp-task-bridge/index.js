@@ -2,8 +2,9 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { ListToolsRequestSchema, CallToolRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
 import { TaskMCPServer } from './task-mcp.js';
-// 初始化任务服务器
-const taskServer = new TaskMCPServer();
+// 初始化任务服务器 - 从环境变量读取API地址
+const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8081/api/v1';
+const taskServer = new TaskMCPServer(apiBaseUrl);
 // 创建 MCP Server
 const server = new Server({
     name: 'task-manager',
@@ -145,7 +146,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                                 description: { type: 'string', description: '新描述' },
                                 status: {
                                     type: 'string',
-                                    enum: ['todo', 'pending', 'in_progress', 'completed', 'cancelled'],
+                                    enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'],
                                     description: '新状态',
                                     default: 'todo'
                                 },
@@ -370,7 +371,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         },
                         status: {
                             type: 'string',
-                            enum: ['todo', 'pending', 'in_progress', 'completed', 'cancelled'],
+                            enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'],
                             description: '任务状态',
                             default: 'todo'
                         },
@@ -454,13 +455,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 result = await taskServer.getCurrentTimer();
                 break;
             case 'create_sibling_task':
-                result = await taskServer.createSiblingTask(
-                    args.siblingId, 
-                    args.title, 
-                    args.description, 
-                    args.status, 
-                    args.priority
-                );
+                result = await taskServer.createSiblingTask(args.siblingId, args.title, args.description, args.status, args.priority);
                 break;
             default:
                 throw new Error(`Unknown tool: ${name}`);

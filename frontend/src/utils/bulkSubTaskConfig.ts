@@ -24,13 +24,25 @@ export interface BulkSubTaskColumn {
 }
 
 /**
- * 任务状态选项配置
+ * 任务状态选项配置 - 支持11种状态的完整工作流
  */
 export const TASK_STATUS_OPTIONS = [
-  { label: '待办', value: 'todo' as TaskStatus, color: 'default' },
+  // 工作流状态
+  { label: '草稿', value: 'draft' as TaskStatus, color: 'default' },
+  { label: '规划中', value: 'planning' as TaskStatus, color: 'cyan' },
+  { label: '待办', value: 'todo' as TaskStatus, color: 'blue' },
   { label: '进行中', value: 'in_progress' as TaskStatus, color: 'processing' },
+  { label: '测试中', value: 'testing' as TaskStatus, color: 'purple' },
   { label: '已完成', value: 'completed' as TaskStatus, color: 'success' },
+  
+  // 终止状态
   { label: '已取消', value: 'cancelled' as TaskStatus, color: 'error' },
+  { label: '已归档', value: 'archived' as TaskStatus, color: 'default' },
+  
+  // 暂停状态  
+  { label: '挂起', value: 'on_hold' as TaskStatus, color: 'warning' },
+  { label: '暂停', value: 'suspended' as TaskStatus, color: 'orange' },
+  { label: '阻塞', value: 'blocked' as TaskStatus, color: 'volcano' },
 ];
 
 /**

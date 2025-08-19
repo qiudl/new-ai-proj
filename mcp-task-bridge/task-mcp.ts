@@ -4,7 +4,7 @@ import axios, { AxiosResponse } from 'axios';
 interface Task {
   id: number;
   title: string;
-  status: 'todo' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'draft' | 'planning' | 'todo' | 'in_progress' | 'testing' | 'completed' | 'cancelled' | 'on_hold' | 'suspended' | 'blocked' | 'archived';
   project_id: number;
   parent_id?: number | null;
   description?: string;
@@ -81,8 +81,8 @@ export class TaskMCPServer {
 
   constructor(apiBase: string = 'http://localhost:8080/api/v1') {
     this.apiBase = apiBase;
-    // 使用系统 JWT token
-    this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxMDU4ODksImlhdCI6MTc1NTUwMTA4OSwibmJmIjoxNzU1NTAxMDg5LCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.Dt-5xOP2tHWRZmKeApIDgVEwq7cR1GGPNzB0d2K96JQ';
+    // 使用系统 JWT token (2025-08-18 更新)
+    this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxNDQ2ODAsImlhdCI6MTc1NTUzOTg4MCwibmJmIjoxNzU1NTM5ODgwLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.huC0kTWXh_OzoOUfApPNTXroiv9u31BX7ZQBrXcX0a4';
   }
 
   private getHeaders(): Record<string, string> {
@@ -666,10 +666,10 @@ export class TaskMCPServer {
       }
 
       // 状态验证
-      if (updates.status && !['todo', 'pending', 'in_progress', 'completed', 'cancelled'].includes(updates.status)) {
+      if (updates.status && !['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'].includes(updates.status)) {
         return {
           success: false,
-          error: `无效的状态值: ${updates.status}。允许的值: todo, pending, in_progress, completed, cancelled`
+          error: `无效的状态值: ${updates.status}。允许的值: draft, planning, todo, in_progress, testing, completed, cancelled, on_hold, suspended, blocked, archived`
         };
       }
 
@@ -1148,8 +1148,8 @@ export class TaskMCPServer {
       console.error(`[DEBUG] 开始任务计时: 任务ID ${taskId}`);
       const task = await this.findTaskById(taskId);
       
-      // 检查任务状态 - 只有待开始或进行中的任务可以计时
-      if (!['todo', 'pending', 'in_progress'].includes(task.status)) {
+      // 检查任务状态 - 只有可工作状态的任务可以计时
+      if (!['draft', 'planning', 'todo', 'in_progress', 'testing', 'on_hold'].includes(task.status)) {
         return {
           success: false,
           error: `任务 "${task.title}" 状态为 "${task.status}"，无法开始计时`

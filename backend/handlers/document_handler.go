@@ -57,7 +57,8 @@ func (h *DocumentHandler) CreateDocument(c *gin.Context) {
 	}
 
 	document := &models.Document{
-		ProjectID:   req.FolderID, // 暂时使用FolderID作为ProjectID
+		ProjectID:   req.ProjectID,
+		FolderID:    req.FolderID,
 		Title:       req.Title,
 		Content:     req.Content,
 		Type:        req.Type,

@@ -48,7 +48,7 @@ body.fullscreen-editor-active [data-fullscreen-editor="true"] {
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  z-index: 999999 !important;
+  z-index: 1050 !important;
   background-color: #fff !important;
 }
 

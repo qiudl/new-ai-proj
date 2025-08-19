@@ -20,6 +20,7 @@ import { TaskService } from '../services/taskService';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
 import dayjs from 'dayjs';
+import { TASK_STATUS_OPTIONS } from '../utils/bulkSubTaskConfig';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -424,10 +425,11 @@ const TaskModal: React.FC<TaskModalProps> = ({
               rules={[{ required: true, message: '请选择任务状态' }]}
             >
               <Select placeholder="请选择任务状态">
-                <Option value="todo">待办</Option>
-                <Option value="in_progress">进行中</Option>
-                <Option value="completed">已完成</Option>
-                <Option value="cancelled">已取消</Option>
+                {TASK_STATUS_OPTIONS.map(option => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
               </Select>
             </Form.Item>
           </Col>

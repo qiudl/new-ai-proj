@@ -222,14 +222,15 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		SELECT 
 			COUNT(*) as total_tasks,
 			COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as completed_tasks,
-			COUNT(CASE WHEN t.status = 'in_progress' THEN 1 END) as in_progress_tasks,
-			COUNT(CASE WHEN t.status = 'todo' THEN 1 END) as pending_tasks,
-			COUNT(CASE WHEN t.due_date < NOW() AND t.status != 'completed' THEN 1 END) as overdue_tasks,
+			COUNT(CASE WHEN t.status IN ('in_progress', 'testing') THEN 1 END) as in_progress_tasks,
+			COUNT(CASE WHEN t.status IN ('draft', 'planning', 'todo') THEN 1 END) as pending_tasks,
+			COUNT(CASE WHEN t.due_date < NOW() AND t.status NOT IN ('completed', 'cancelled', 'archived') THEN 1 END) as overdue_tasks,
 			COUNT(DISTINCT t.project_id) as projects_involved
 		FROM tasks t 
 		JOIN projects p ON t.project_id = p.id 
 		WHERE t.deleted_at IS NULL 
 		AND p.deleted_at IS NULL 
+		AND t.status NOT IN ('cancelled', 'archived')
 		AND ` + timeFilter + projectFilter
 
 	err := db.QueryRow(summaryQuery, args...).Scan(
@@ -267,6 +268,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		FROM projects p 
 		LEFT JOIN tasks t ON p.id = t.project_id 
 			AND t.deleted_at IS NULL 
+			AND t.status NOT IN ('cancelled', 'archived')
 			AND ` + timeFilter + `
 		WHERE p.deleted_at IS NULL` + projectFilter + `
 		GROUP BY p.id, p.name 

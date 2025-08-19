@@ -121,7 +121,7 @@ type Task struct {
 	ProjectID         int          `json:"project_id" db:"project_id" validate:"required"`
 	Title             string       `json:"title" db:"title" validate:"required,min=1,max=255"`
 	Description       string       `json:"description" db:"description"`
-	Status            string       `json:"status" db:"status" validate:"required,oneof=todo in_progress completed cancelled"`
+	Status            string       `json:"status" db:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID        *int         `json:"assignee_id" db:"assignee_id"`
 	DueDate           *time.Time   `json:"due_date" db:"due_date"`
 	CustomFields      CustomFields `json:"custom_fields" db:"custom_fields"`
@@ -145,7 +145,7 @@ type Task struct {
 type TaskRequest struct {
 	Title          string       `json:"title" validate:"required,min=1,max=255"`
 	Description    string       `json:"description"`
-	Status         string       `json:"status" validate:"required,oneof=todo in_progress completed cancelled"`
+	Status         string       `json:"status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	AssigneeID     *int         `json:"assignee_id"`
 	DueDate        *time.Time   `json:"due_date"`
 	CustomFields   CustomFields `json:"custom_fields"`

@@ -2,10 +2,10 @@ import axios from 'axios';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    constructor(apiBase = 'http://localhost:8081/api/v1') {
+    constructor(apiBase = 'http://localhost:8080/api/v1') {
         this.apiBase = apiBase;
-        // 使用系统 JWT token (更新于 2025-08-18 13:00)
-        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYwOTgwMDUsImlhdCI6MTc1NTQ5MzIwNSwibmJmIjoxNzU1NDkzMjA1LCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.Lguj_VFqr_2vGG_L2gUM_dsmnezCYFzdZ0Loudx6vcg';
+        // 使用系统 JWT token (2025-08-18 更新)
+        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxNDQ2ODAsImlhdCI6MTc1NTUzOTg4MCwibmJmIjoxNzU1NTM5ODgwLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.huC0kTWXh_OzoOUfApPNTXroiv9u31BX7ZQBrXcX0a4';
     }
     getHeaders() {
         return {
@@ -17,7 +17,7 @@ export class TaskMCPServer {
     async findTaskById(id) {
         try {
             // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
-            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks?page_size=1000`, {
+            const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -36,7 +36,7 @@ export class TaskMCPServer {
                 if (project.id === 1)
                     continue; // 已经检查过项目1
                 try {
-                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks?page_size=1000`, {
+                    const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
                         headers: this.getHeaders(),
                         proxy: false
                     });
@@ -61,7 +61,6 @@ export class TaskMCPServer {
     async createTask(title, projectId = 1, options = {}) {
         try {
             console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}${options.parent_id ? `, 父任务ID: ${options.parent_id}` : ''}`);
-            
             // 构建任务数据，支持parent_id等选项
             const taskData = {
                 title,
@@ -73,12 +72,18 @@ export class TaskMCPServer {
                     ...options.custom_fields
                 }
             };
-            
             // 如果有parent_id，添加到请求中
             if (options.parent_id) {
                 taskData.parent_id = options.parent_id;
             }
-            
+            // 添加预估工时
+            if (options.estimated_hours) {
+                taskData.custom_fields.estimated_hours = options.estimated_hours;
+            }
+            // 添加标签
+            if (options.tags && options.tags.length > 0) {
+                taskData.custom_fields.tags = options.tags;
+            }
             const response = await axios.post(`${this.apiBase}/projects/${projectId}/tasks`, taskData, {
                 headers: this.getHeaders(),
                 timeout: 10000,
@@ -87,6 +92,7 @@ export class TaskMCPServer {
             const task = response.data.data;
             return {
                 success: true,
+                data: task,
                 id: task.id,
                 title: task.title,
                 status: task.status,
@@ -96,7 +102,6 @@ export class TaskMCPServer {
         }
         catch (error) {
             console.error(`[ERROR] 创建任务失败:`, error.response?.data || error.message);
-            
             // 更好的错误处理：提取用户友好的错误信息
             let userFriendlyError = error.message;
             if (error.response?.data) {
@@ -104,14 +109,15 @@ export class TaskMCPServer {
                 if (responseData.error?.message) {
                     // 后端返回的结构化错误信息
                     userFriendlyError = responseData.error.message;
-                } else if (responseData.message) {
+                }
+                else if (responseData.message) {
                     // 简单的错误信息
                     userFriendlyError = responseData.message;
-                } else if (typeof responseData === 'string') {
+                }
+                else if (typeof responseData === 'string') {
                     userFriendlyError = responseData;
                 }
             }
-            
             return {
                 success: false,
                 error: userFriendlyError
@@ -128,7 +134,8 @@ export class TaskMCPServer {
                 title: task.title,
                 project_id: task.project_id,
                 status: 'in_progress',
-                description: task.description
+                description: task.description,
+                parent_id: task.parent_id
             }, {
                 headers: this.getHeaders(),
                 proxy: false
@@ -159,7 +166,8 @@ export class TaskMCPServer {
                 title: task.title,
                 project_id: task.project_id,
                 status: 'completed',
-                description: task.description
+                description: task.description,
+                parent_id: task.parent_id
             }, {
                 headers: this.getHeaders(),
                 proxy: false
@@ -245,10 +253,10 @@ export class TaskMCPServer {
         }
     }
     // 查看任务列表
-    async listTasks(projectId = 1) {
+    async listTasks(projectId) {
         try {
             console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks?page_size=1000`, {
+            const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -262,7 +270,8 @@ export class TaskMCPServer {
                     status: task.status,
                     created_at: task.created_at,
                     project_id: task.project_id,
-                    parent_id: task.parent_id
+                    parent_id: task.parent_id,
+                    custom_fields: task.custom_fields
                 })),
                 message: `📋 共找到 ${tasks.length} 个任务`
             };
@@ -282,19 +291,9 @@ export class TaskMCPServer {
             if (typeof taskData === 'string') {
                 taskData = { title: taskData };
             }
-            
-            const { 
-                title, 
-                description, 
-                priority = 'medium', 
-                estimated_hours = null,
-                status = 'todo',
-                tags = []
-            } = taskData;
-            
+            const { title, description, priority = 'medium', estimated_hours = null, status = 'todo', tags = [] } = taskData;
             console.error(`[DEBUG] 创建子任务: ${title}, 父任务ID: ${parentId}`);
             const parentTask = await this.findTaskById(parentId);
-            
             // 构建任务数据
             const taskPayload = {
                 title,
@@ -306,22 +305,18 @@ export class TaskMCPServer {
                     priority: priority
                 }
             };
-            
             // 添加预估工时
             if (estimated_hours) {
                 taskPayload.custom_fields.estimated_hours = estimated_hours;
             }
-            
             // 添加标签
             if (tags && tags.length > 0) {
                 taskPayload.custom_fields.tags = tags;
             }
-            
             const response = await axios.post(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, taskPayload, {
                 headers: this.getHeaders(),
                 proxy: false
             });
-            
             const subtask = response.data.data;
             return {
                 success: true,
@@ -342,13 +337,11 @@ export class TaskMCPServer {
             };
         }
     }
-    
     // 创建兄弟任务 - 与指定任务同级的任务
     async createSiblingTask(siblingId, title, description, status = 'todo', priority = 'medium') {
         try {
             console.error(`[DEBUG] 创建兄弟任务: ${title}, 兄弟任务ID: ${siblingId}`);
             const siblingTask = await this.findTaskById(siblingId);
-            
             // 构建任务数据 - 兄弟任务具有相同的parent_id和project_id
             const taskPayload = {
                 title,
@@ -360,12 +353,10 @@ export class TaskMCPServer {
                     priority: priority
                 }
             };
-            
             const response = await axios.post(`${this.apiBase}/projects/${siblingTask.project_id}/tasks`, taskPayload, {
                 headers: this.getHeaders(),
                 proxy: false
             });
-            
             const newSibling = response.data.data;
             return {
                 success: true,
@@ -415,7 +406,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 删除任务: ID ${id}, 强制删除: ${force}`);
             const task = await this.findTaskById(id);
             // 检查是否有子任务
-            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks?page_size=1000`, {
+            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -473,7 +464,7 @@ export class TaskMCPServer {
         try {
             console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
             const task = await this.findTaskById(id);
-            // 验证更新字段
+            // 验证更新字段 - 现在包含parent_id
             const directFields = ['title', 'description', 'status', 'due_date', 'assignee_id', 'parent_id'];
             const customFields = ['priority'];
             const allFields = [...directFields, ...customFields];
@@ -521,7 +512,7 @@ export class TaskMCPServer {
             if (changedFields.length === 0) {
                 return {
                     success: true,
-                    updated_task: {
+                    data: {
                         ...task,
                         priority: task.custom_fields?.priority
                     },
@@ -530,10 +521,10 @@ export class TaskMCPServer {
                 };
             }
             // 状态验证
-            if (updates.status && !['todo', 'pending', 'in_progress', 'completed', 'cancelled'].includes(updates.status)) {
+            if (updates.status && !['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'].includes(updates.status)) {
                 return {
                     success: false,
-                    error: `无效的状态值: ${updates.status}。允许的值: todo, pending, in_progress, completed, cancelled`
+                    error: `无效的状态值: ${updates.status}。允许的值: draft, planning, todo, in_progress, testing, completed, cancelled, on_hold, suspended, blocked, archived`
                 };
             }
             // 优先级验证
@@ -561,6 +552,7 @@ export class TaskMCPServer {
             const updatedTask = updateResponse.data.data;
             return {
                 success: true,
+                data: updatedTask,
                 updated_task: {
                     id: updatedTask.id,
                     title: updatedTask.title,
@@ -570,6 +562,7 @@ export class TaskMCPServer {
                     due_date: updatedTask.due_date,
                     assignee_id: updatedTask.assignee_id,
                     project_id: updatedTask.project_id,
+                    parent_id: updatedTask.parent_id,
                     updated_at: updatedTask.updated_at,
                     custom_fields: updatedTask.custom_fields
                 },
@@ -755,7 +748,7 @@ export class TaskMCPServer {
                 };
             }
             // 检查任务是否有子任务
-            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks?page_size=1000`, {
+            const childrenResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -909,6 +902,7 @@ export class TaskMCPServer {
             const project = response.data.data;
             return {
                 success: true,
+                data: project,
                 id: project.id,
                 name: project.name,
                 description: project.description,
@@ -930,7 +924,7 @@ export class TaskMCPServer {
             console.error(`[DEBUG] 获取任务子任务: 父任务ID ${parentId}`);
             const parentTask = await this.findTaskById(parentId);
             // 获取父任务所在项目的所有任务
-            const response = await axios.get(`${this.apiBase}/projects/${parentTask.project_id}/tasks?page_size=1000`, {
+            const response = await axios.get(`${this.apiBase}/projects/${parentTask.project_id}/tasks`, {
                 headers: this.getHeaders(),
                 proxy: false
             });
@@ -964,8 +958,8 @@ export class TaskMCPServer {
         try {
             console.error(`[DEBUG] 开始任务计时: 任务ID ${taskId}`);
             const task = await this.findTaskById(taskId);
-            // 检查任务状态 - 只有待开始或进行中的任务可以计时
-            if (!['todo', 'pending', 'in_progress'].includes(task.status)) {
+            // 检查任务状态 - 只有可工作状态的任务可以计时
+            if (!['draft', 'planning', 'todo', 'in_progress', 'testing', 'on_hold'].includes(task.status)) {
                 return {
                     success: false,
                     error: `任务 "${task.title}" 状态为 "${task.status}"，无法开始计时`
@@ -988,6 +982,7 @@ export class TaskMCPServer {
             }
             return {
                 success: true,
+                data: timerData,
                 task_id: taskId,
                 task_title: task.title,
                 timer_id: timerData.id,
@@ -1020,6 +1015,7 @@ export class TaskMCPServer {
                     const task = await this.findTaskById(taskId);
                     return {
                         success: true,
+                        data: timerData,
                         task_id: taskId,
                         task_title: task.title,
                         timer_id: timerData.id,
@@ -1032,6 +1028,7 @@ export class TaskMCPServer {
                 catch (taskError) {
                     return {
                         success: true,
+                        data: timerData,
                         task_id: taskId,
                         task_title: '未知任务',
                         timer_id: timerData.id,
@@ -1045,6 +1042,7 @@ export class TaskMCPServer {
             else {
                 return {
                     success: true,
+                    data: timerData,
                     stopped_count: 1,
                     duration_seconds: timerData.duration_seconds,
                     duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
@@ -1073,6 +1071,7 @@ export class TaskMCPServer {
             if (!timerData || !timerData.task_id) {
                 return {
                     success: true,
+                    data: { active_timers: [] },
                     active_timers: [],
                     total: 0,
                     message: `⏱️ 当前没有活动的计时`
@@ -1093,24 +1092,27 @@ export class TaskMCPServer {
                 };
                 return {
                     success: true,
+                    data: { active_timers: [timerInfo] },
                     active_timers: [timerInfo],
                     total: 1,
                     message: `⏱️ 当前正在计时任务: "${task.title}" - ${this.formatDuration(currentDuration)}`
                 };
             }
             catch (taskError) {
+                const timerInfo = {
+                    timer_id: timerData.id,
+                    task_id: timerData.task_id,
+                    task_title: '未知任务',
+                    started_at: timerData.started_at,
+                    current_duration_seconds: 0,
+                    current_duration_formatted: '00:00:00',
+                    description: timerData.description,
+                    error: '无法获取任务信息'
+                };
                 return {
                     success: true,
-                    active_timers: [{
-                            timer_id: timerData.id,
-                            task_id: timerData.task_id,
-                            task_title: '未知任务',
-                            started_at: timerData.started_at,
-                            current_duration_seconds: 0,
-                            current_duration_formatted: '00:00:00',
-                            description: timerData.description,
-                            error: '无法获取任务信息'
-                        }],
+                    data: { active_timers: [timerInfo] },
+                    active_timers: [timerInfo],
                     total: 1,
                     message: `⏱️ 当前有 1 个活动计时（任务信息获取失败）`
                 };
@@ -1136,198 +1138,5 @@ export class TaskMCPServer {
         const startTime = new Date(startedAt).getTime();
         const currentTime = new Date().getTime();
         return Math.floor((currentTime - startTime) / 1000);
-    }
-
-    // ========== 新增任务文档API支持 ==========
-    
-    // 创建任务文档（使用新的统一文档API）
-    async createTaskDocument(taskId, documentData) {
-        try {
-            console.error(`[DEBUG] 创建任务文档: 任务ID ${taskId}`);
-            const task = await this.findTaskById(taskId);
-            
-            // Step 1: 创建文档
-            console.error(`[DEBUG] 第1步: 创建文档`);
-            console.error(`[DEBUG] 文档数据:`, JSON.stringify(documentData, null, 2));
-            console.error(`[DEBUG] API端点: ${this.apiBase}/documents`);
-            console.error(`[DEBUG] Headers:`, this.getHeaders());
-            
-            const createDocResponse = await axios.post(
-                `${this.apiBase}/documents`,
-                documentData,
-                {
-                    headers: this.getHeaders(),
-                    proxy: false
-                }
-            );
-            
-            const document = createDocResponse.data.data;
-            console.error(`[DEBUG] 文档创建成功，ID: ${document.id}`);
-            
-            // Step 2: 将文档关联到任务
-            console.error(`[DEBUG] 第2步: 将文档关联到任务 ${taskId}`);
-            const attachResponse = await axios.post(
-                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents/${document.id}/attach`,
-                {
-                    relationship_type: 'output' // 完成报告作为输出文档
-                },
-                {
-                    headers: this.getHeaders(),
-                    proxy: false
-                }
-            );
-            
-            console.error(`[DEBUG] 文档关联成功`);
-            
-            return {
-                success: true,
-                document_id: document.id,
-                task_id: taskId,
-                title: documentData.title,
-                content_length: documentData.content?.length || 0,
-                relationship_type: 'output',
-                message: `📄 任务 #${taskId} 文档 "${documentData.title}" 已创建并关联`
-            };
-        } catch (error) {
-            console.error(`[ERROR] 创建任务文档失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `创建任务文档失败: ${error.response?.data?.error || error.response?.data?.message || error.message}`
-            };
-        }
-    }
-
-    // 获取任务文档列表
-    async getTaskDocuments(taskId) {
-        try {
-            console.error(`[DEBUG] 获取任务文档列表: 任务ID ${taskId}`);
-            const task = await this.findTaskById(taskId);
-            
-            const response = await axios.get(
-                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}/documents`,
-                {
-                    headers: this.getHeaders(),
-                    proxy: false
-                }
-            );
-            
-            const documents = response.data.data || [];
-            return {
-                success: true,
-                task_id: taskId,
-                total: documents.length,
-                documents: documents.map(doc => ({
-                    id: doc.id,
-                    title: doc.title,
-                    document_type: doc.document_type,
-                    content_length: doc.content?.length || 0,
-                    created_at: doc.created_at,
-                    updated_at: doc.updated_at
-                })),
-                message: `📄 任务 #${taskId} 有 ${documents.length} 个文档`
-            };
-        } catch (error) {
-            console.error(`[ERROR] 获取任务文档列表失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `获取任务文档列表失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // 更新任务状态（增强版，支持更多字段）
-    async updateTaskStatusAdvanced(taskId, updates) {
-        try {
-            console.error(`[DEBUG] 更新任务状态（增强版）: 任务ID ${taskId}`, updates);
-            const task = await this.findTaskById(taskId);
-            
-            const updateData = {
-                title: task.title,
-                description: task.description,
-                project_id: task.project_id,
-                parent_id: task.parent_id,
-                custom_fields: { ...task.custom_fields },
-                ...updates  // 覆盖指定的字段
-            };
-            
-            const response = await axios.put(
-                `${this.apiBase}/projects/${task.project_id}/tasks/${taskId}`,
-                updateData,
-                {
-                    headers: this.getHeaders(),
-                    proxy: false
-                }
-            );
-            
-            const updatedTask = response.data.data;
-            return {
-                success: true,
-                task_id: taskId,
-                title: updatedTask.title,
-                status: updatedTask.status,
-                progress: updatedTask.progress,
-                updated_fields: Object.keys(updates),
-                message: `📝 任务 #${taskId} "${updatedTask.title}" 已更新`
-            };
-        } catch (error) {
-            console.error(`[ERROR] 更新任务状态失败:`, error.response?.data || error.message);
-            return {
-                success: false,
-                error: `更新任务状态失败: ${error.response?.data?.error || error.message}`
-            };
-        }
-    }
-
-    // 完成任务并创建总结文档（一站式服务）
-    async completeTaskWithDocument(taskId, completionNotes, documentData) {
-        try {
-            console.error(`[DEBUG] 完成任务并创建文档: 任务ID ${taskId}`);
-            
-            // Step 1: 更新任务状态为完成
-            const updateResult = await this.updateTaskStatusAdvanced(taskId, {
-                status: 'completed',
-                progress: 100,
-                completion_notes: completionNotes
-            });
-            
-            if (!updateResult.success) {
-                return updateResult;
-            }
-            
-            // Step 2: 创建总结文档
-            const documentResult = await this.createTaskDocument(taskId, documentData);
-            
-            if (!documentResult.success) {
-                // 如果文档创建失败，记录警告但不回滚任务状态
-                console.error(`[WARNING] 任务已完成但文档创建失败: ${documentResult.error}`);
-                return {
-                    success: true,
-                    task_completed: true,
-                    document_created: false,
-                    task_id: taskId,
-                    title: updateResult.title,
-                    document_error: documentResult.error,
-                    message: `✅ 任务 #${taskId} 已完成，但文档创建失败: ${documentResult.error}`
-                };
-            }
-            
-            return {
-                success: true,
-                task_completed: true,
-                document_created: true,
-                task_id: taskId,
-                title: updateResult.title,
-                document_id: documentResult.document_id,
-                document_title: documentData.title,
-                message: `🎉 任务 #${taskId} "${updateResult.title}" 已完成并创建总结文档`
-            };
-            
-        } catch (error) {
-            console.error(`[ERROR] 完成任务并创建文档失败:`, error.message);
-            return {
-                success: false,
-                error: `完成任务并创建文档失败: ${error.message}`
-            };
-        }
     }
 }

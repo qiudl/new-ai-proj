@@ -61,6 +61,7 @@ import { useNavigate } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { Task, TaskStatus, TaskRequest, HierarchicalTask as APIHierarchicalTask } from '../types/task';
 import { logUserAction, logApiError } from '../utils/logger';
+import { formatTaskStatus } from '../utils/formatters';
 import { useTimer } from '../contexts/TimerContext';
 import AllFieldsTableGuide from './AllFieldsTableGuide';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
@@ -246,10 +247,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const projectStats = useMemo((): ProjectTaskStats => {
     const totalTasks = tasks.length;
     const completedTasks = tasks.filter(task => task.status === 'completed').length;
-    const inProgressTasks = tasks.filter(task => task.status === 'in_progress').length;
-    const todoTasks = tasks.filter(task => task.status === 'todo').length;
+    const inProgressTasks = tasks.filter(task => ['in_progress', 'testing'].includes(task.status)).length;
+    const todoTasks = tasks.filter(task => ['todo', 'draft', 'planning'].includes(task.status)).length;
     const overdueTasks = tasks.filter(task => 
-      task.due_date && dayjs(task.due_date).isBefore(dayjs(), 'day') && task.status !== 'completed'
+      task.due_date && dayjs(task.due_date).isBefore(dayjs(), 'day') && !['completed', 'cancelled', 'archived'].includes(task.status)
     ).length;
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     
@@ -932,7 +933,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 );
               }
               
-              if (record.status === 'in_progress' || record.status === 'todo') {
+              if (['in_progress', 'testing', 'todo', 'draft', 'planning'].includes(record.status)) {
                 return (
                   <Button
                     type="text"
@@ -1083,9 +1084,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const handleBatchUpdateStatus = useCallback(async (status: string) => {
     if (selectedRowKeys.length === 0) return;
 
-    const statusText = status === 'todo' ? '待开始' : 
-                      status === 'in_progress' ? '进行中' : 
-                      status === 'completed' ? '已完成' : '已取消';
+    const { text: statusText } = formatTaskStatus(status);
 
     Modal.confirm({
       title: '批量更新状态',
@@ -1408,7 +1407,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   ...prev, 
                   search: '',
                   taskIdSearch: '',
-                  status: ['in_progress'],
+                  status: ['in_progress', 'testing'],
                   due_date_range: null 
                 }));
               }}>
@@ -1432,7 +1431,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   ...prev, 
                   search: '',
                   taskIdSearch: '',
-                  status: ['todo', 'in_progress'], // 逾期任务应该是未完成的
+                  status: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'on_hold', 'suspended', 'blocked'], // 逾期任务应该是未完成的
                   due_date_range: [dayjs('2020-01-01'), yesterday] // 截止日期在昨天之前的
                 }));
               }}>

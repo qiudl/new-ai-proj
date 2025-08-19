@@ -886,6 +886,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
             key={selectedDocument.id}
             taskId={taskId}
             projectId={projectId}
+            document={selectedDocument}
             onSave={() => loadDocuments()}
           />
         ) : (
@@ -924,7 +925,13 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           <Card>
             <Title level={3}>{selectedDocument.title}</Title>
             <Divider />
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+            <div style={{ 
+              whiteSpace: 'pre-wrap', 
+              lineHeight: '1.6',
+              maxHeight: 'none',  // 移除高度限制
+              overflow: 'visible', // 允许内容完整显示
+              wordBreak: 'break-word' // 处理长单词换行
+            }}>
               {selectedDocument.content}
             </div>
           </Card>
@@ -1149,7 +1156,12 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
 
           {/* 右侧内容区域 */}
           <Col span={showDocumentList ? (compactMode ? 24 : 17) : 24}>
-            <div style={{ padding: '16px', height: '100%', overflow: 'auto' }}>
+            <div style={{ 
+              padding: '16px', 
+              height: viewMode === 'preview' ? 'auto' : '100%', // 预览模式下取消高度限制
+              minHeight: viewMode === 'preview' ? '100%' : 'auto', // 预览模式下保证最小高度
+              overflow: viewMode === 'preview' ? 'visible' : 'auto' // 预览模式下允许滚动完整内容
+            }}>
               {renderContentArea()}
             </div>
           </Col>

@@ -272,10 +272,14 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           }
           break;
         case 'Escape':
+          e.preventDefault();
           if (selectedRowKeys.length > 0) {
-            e.preventDefault();
+            // Clear selections first, but allow modal to close on second Escape
             setSelectedRowKeys([]);
-            notification.info({ message: '快捷键触发', description: '已取消选择', duration: 2 });
+            notification.info({ message: '快捷键触发', description: '已取消选择，再按一次ESC关闭窗口', duration: 3 });
+          } else if (mode === 'modal') {
+            // Close modal when no selections or on second Escape press
+            handleModalClose();
           }
           break;
         case 'd':
@@ -789,7 +793,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
               dataSource={[
                 { key: 'Ctrl+R', desc: '刷新文档列表' },
                 { key: 'Ctrl+F', desc: '焦点移至搜索框' },
-                { key: 'Esc', desc: '取消当前选择' },
+                { key: 'Esc', desc: '取消当前选择 / 关闭窗口' },
                 { key: 'Ctrl+Shift+H', desc: '显示快捷键帮助' },
                 { key: 'Ctrl+Shift+T', desc: '开始功能导览' }
               ]}
@@ -1477,14 +1481,59 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     </div>
   );
 
+  // Handle modal close - ensure all nested modals are closed
+  const handleModalClose = useCallback(() => {
+    // Close all nested modals first
+    setPreviewVisible(false);
+    setBatchProgressVisible(false);
+    setVersionHistoryVisible(false);
+    setKeyboardShortcutsVisible(false);
+    setTourOpen(false);
+    
+    // Clear selections and reset states
+    setSelectedRowKeys([]);
+    setError(null);
+    
+    // Call the parent onClose callback
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
+
   // Render based on mode
   if (mode === 'modal') {
     return (
       <Modal
-        title={`任务 #${taskId} - 文档管理`}
+        title={
+          <div 
+            onDoubleClick={handleModalClose}
+            style={{ cursor: 'pointer' }}
+            title="双击标题栏快速关闭窗口"
+          >
+            任务 #{taskId} - 文档管理
+          </div>
+        }
         open={visible}
-        onCancel={onClose}
-        footer={null}
+        onCancel={handleModalClose}
+        footer={[
+          <Button key="close" onClick={handleModalClose} type="primary">
+            关闭
+          </Button>,
+          <Button key="force-close" onClick={() => {
+            // Force close all modals and reset all states
+            setPreviewVisible(false);
+            setBatchProgressVisible(false);
+            setVersionHistoryVisible(false);
+            setKeyboardShortcutsVisible(false);
+            setTourOpen(false);
+            setSelectedRowKeys([]);
+            setError(null);
+            setActiveTab('uploader');
+            onClose && onClose();
+          }} danger type="text" size="small">
+            强制关闭
+          </Button>
+        ]}
         width={isMobile ? '95vw' : 900}
         style={isMobile ? {
           top: 20,
@@ -1498,6 +1547,8 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           }
         } : undefined}
         destroyOnClose
+        closable={true}
+        maskClosable={true}
       >
         {renderContent()}
       </Modal>

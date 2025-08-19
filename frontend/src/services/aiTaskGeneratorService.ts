@@ -55,7 +55,7 @@ class AITaskGeneratorService {
    */
   async checkSystemHealth(): Promise<boolean> {
     try {
-      const response = await fetch('/api/v1/health');
+      const response = await fetch('/health');
       return response.ok;
     } catch (error) {
       console.error('Health check failed:', error);

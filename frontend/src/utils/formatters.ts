@@ -65,13 +65,25 @@ export const formatDateTime = (dateStr: string): string => {
   });
 };
 
-// 格式化任务状态
+// 格式化任务状态 - 支持11种状态的完整工作流
 export const formatTaskStatus = (status: TaskStatus): { text: string; color: string } => {
   const statusMap = {
-    'todo': { text: '待办', color: '#faad14' },
-    'in_progress': { text: '进行中', color: '#1890ff' },
+    // 工作流状态
+    'draft': { text: '草稿', color: '#d9d9d9' },
+    'planning': { text: '规划中', color: '#13c2c2' },
+    'todo': { text: '待办', color: '#1890ff' },
+    'in_progress': { text: '进行中', color: '#faad14' },
+    'testing': { text: '测试中', color: '#722ed1' },
     'completed': { text: '已完成', color: '#52c41a' },
-    'cancelled': { text: '已取消', color: '#8c8c8c' }
+    
+    // 终止状态
+    'cancelled': { text: '已取消', color: '#ff4d4f' },
+    'archived': { text: '已归档', color: '#8c8c8c' },
+    
+    // 暂停状态
+    'on_hold': { text: '挂起', color: '#fa8c16' },
+    'suspended': { text: '暂停', color: '#fa541c' },
+    'blocked': { text: '阻塞', color: '#f5222d' }
   };
   return statusMap[status] || { text: '未知', color: '#d9d9d9' };
 };

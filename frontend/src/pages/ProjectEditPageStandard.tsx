@@ -456,7 +456,7 @@ const ProjectEditPageNew: React.FC = () => {
         user_ids: processedUserIds.length > 0 ? processedUserIds : undefined,
         status: values.status || 'planning',
         priority: values.priority || 'medium',
-        progress: values.progress || 0,
+        progress: typeof values.progress === 'number' ? values.progress : 0,
         start_date: values.date_range?.[0]?.format('YYYY-MM-DD') || undefined,
         end_date: values.date_range?.[1]?.format('YYYY-MM-DD') || undefined
       };

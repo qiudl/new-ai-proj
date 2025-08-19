@@ -63,7 +63,7 @@ func (h *BulkOperationHandler) BulkImportTasks(c *gin.Context) {
 		task := &models.Task{
 			Title:       batchTask.Title,
 			Description: batchTask.Description,
-			Status:      "pending",
+			Status:      "todo",
 			Priority:    batchTask.Priority,
 			ProjectID:   req.ProjectID,
 			CreatedAt:   time.Now(),
@@ -293,7 +293,7 @@ func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
 		task := &models.Task{
 			Title:       strings.TrimSpace(record[0]),
 			Description: strings.TrimSpace(record[1]),
-			Status:      "pending",
+			Status:      "todo",
 			Priority:    "medium",
 			ProjectID:   projectID,
 			CreatedAt:   time.Now(),
@@ -350,7 +350,7 @@ func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
 func (h *BulkOperationHandler) BulkUpdateTaskStatus(c *gin.Context) {
 	var req struct {
 		TaskIDs   []int  `json:"task_ids" validate:"required,min=1"`
-		NewStatus string `json:"new_status" validate:"required,oneof=pending in_progress completed cancelled"`
+		NewStatus string `json:"new_status" validate:"required,oneof=draft planning todo in_progress testing completed cancelled on_hold suspended blocked archived"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {

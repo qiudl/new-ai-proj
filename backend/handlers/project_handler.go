@@ -159,18 +159,23 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	}
 
 	var req struct {
-		Name        string                 `json:"name" binding:"required,min=1,max=255"`
-		Description string                 `json:"description"`
-		Icon        *string                `json:"icon"`
-		Color       *string                `json:"color"`
-		Status      string                 `json:"status"`
-		Priority    string                 `json:"priority"`
-		Tags        []string               `json:"tags"`
-		Metadata    map[string]interface{} `json:"metadata"`
-		StartDate   *string                `json:"start_date"`
-		EndDate     *string                `json:"end_date"`
-		Budget      *float64               `json:"budget"`
-		Currency    string                 `json:"currency"`
+		ProjectNumber *string                `json:"project_number"`
+		Name          string                 `json:"name" binding:"required,min=1,max=255"`
+		Description   string                 `json:"description"`
+		CompanyID     *int                   `json:"company_id"`
+		CompanyIDs    []int                  `json:"company_ids"`
+		UserIDs       []int                  `json:"user_ids"`
+		Icon          *string                `json:"icon"`
+		Color         *string                `json:"color"`
+		Status        string                 `json:"status"`
+		Priority      string                 `json:"priority"`
+		Progress      int                    `json:"progress"`
+		Tags          []string               `json:"tags"`
+		Metadata      map[string]interface{} `json:"metadata"`
+		StartDate     *string                `json:"start_date"`
+		EndDate       *string                `json:"end_date"`
+		Budget        *float64               `json:"budget"`
+		Currency      string                 `json:"currency"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -191,10 +196,23 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	}
 
 	// Update fields
+	if req.ProjectNumber != nil {
+		project.ProjectNumber = req.ProjectNumber
+	}
 	project.Name = req.Name
 	project.Description = req.Description
+	
+	// Update company_id if provided
+	if req.CompanyID != nil {
+		project.CompanyID = req.CompanyID
+	} else if len(req.CompanyIDs) > 0 {
+		// If company_ids array is provided, use the first one as the primary company
+		project.CompanyID = &req.CompanyIDs[0]
+	}
+	
 	project.Status = req.Status
 	project.Priority = req.Priority
+	project.Progress = req.Progress
 	project.Budget = req.Budget
 	project.UpdatedAt = time.Now()
 
@@ -279,8 +297,84 @@ func (h *ProjectHandler) GetProjectTimeline(c *gin.Context) {
 
 // GetProjectStats handles GET /api/v1/projects/:id/stats
 func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
-	// TODO: Implement GetStats method in ProjectRepository
-	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+	// Parse project ID from URL parameter
+	projectIDStr := c.Param("id")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_PROJECT_ID", "Invalid project ID", nil))
+		return
+	}
+
+	// Get database connection
+	dbConn := h.db.GetDB().(*sql.DB)
+
+	// Check if project exists
+	var projectExists bool
+	checkProjectQuery := `SELECT EXISTS(SELECT 1 FROM projects WHERE id = $1 AND deleted_at IS NULL)`
+	err = dbConn.QueryRow(checkProjectQuery, projectID).Scan(&projectExists)
+	if err != nil {
+		log.Printf("Error checking project existence: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to check project existence", nil))
+		return
+	}
+
+	if !projectExists {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse("PROJECT_NOT_FOUND", "Project not found", nil))
+		return
+	}
+
+	// Get project statistics
+	stats := make(map[string]interface{})
+
+	// Get task statistics
+	taskStatsQuery := `
+		SELECT 
+			COUNT(*) as total_tasks,
+			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_tasks,
+			COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_tasks,
+			COUNT(CASE WHEN status = 'todo' THEN 1 END) as todo_tasks
+		FROM tasks 
+		WHERE project_id = $1 AND deleted_at IS NULL`
+
+	var totalTasks, completedTasks, inProgressTasks, todoTasks int
+	err = dbConn.QueryRow(taskStatsQuery, projectID).Scan(&totalTasks, &completedTasks, &inProgressTasks, &todoTasks)
+	if err != nil {
+		log.Printf("Error getting task statistics: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get project statistics", nil))
+		return
+	}
+
+	// Calculate progress
+	var progress float64
+	if totalTasks > 0 {
+		progress = float64(completedTasks) / float64(totalTasks) * 100
+	}
+
+	// Get user count (users assigned to tasks in this project)
+	userCountQuery := `
+		SELECT COUNT(DISTINCT t.assignee_id) 
+		FROM tasks t 
+		WHERE t.project_id = $1 
+			AND t.assignee_id IS NOT NULL 
+			AND t.deleted_at IS NULL`
+
+	var userCount int
+	err = dbConn.QueryRow(userCountQuery, projectID).Scan(&userCount)
+	if err != nil {
+		log.Printf("Error getting user count: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get user statistics", nil))
+		return
+	}
+
+	// Build response
+	stats["task_count"] = totalTasks
+	stats["completed_task_count"] = completedTasks
+	stats["in_progress_task_count"] = inProgressTasks
+	stats["todo_task_count"] = todoTasks
+	stats["user_count"] = userCount
+	stats["progress"] = progress
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(stats, "Project statistics retrieved successfully"))
 }
 
 // GetDocumentProjects handles GET /api/v1/projects/options

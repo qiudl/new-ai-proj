@@ -155,7 +155,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 description: { type: 'string', description: '新描述' },
                 status: { 
                   type: 'string', 
-                  enum: ['todo', 'pending', 'in_progress', 'completed', 'cancelled'],
+                  enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'],
                   description: '新状态',
                   default: 'todo'
                 },
@@ -380,7 +380,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             status: { 
               type: 'string', 
-              enum: ['todo', 'pending', 'in_progress', 'completed', 'cancelled'],
+              enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'],
               description: '任务状态',
               default: 'todo'
             },
@@ -494,8 +494,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           args.siblingId as number, 
           args.title as string, 
           args.description as string,
-          args.status as string,
-          args.priority as string
+          args.status as 'draft' | 'planning' | 'todo' | 'in_progress' | 'testing' | 'completed' | 'cancelled' | 'on_hold' | 'suspended' | 'blocked' | 'archived',
+          args.priority as 'low' | 'medium' | 'high'
         );
         break;
       

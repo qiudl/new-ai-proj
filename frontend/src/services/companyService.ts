@@ -61,9 +61,11 @@ class CompanyService {
       company_size: companyData.companySize,
     };
 
-    // Remove undefined values
+    // Remove undefined and empty string values, convert empty strings to null for optional fields
     const cleanedData = Object.fromEntries(
-      Object.entries(backendData).filter(([_, value]) => value !== undefined)
+      Object.entries(backendData)
+        .filter(([_, value]) => value !== undefined)
+        .map(([key, value]) => [key, value === '' ? null : value])
     );
 
     const response = await api.post(API_BASE_URL, cleanedData);

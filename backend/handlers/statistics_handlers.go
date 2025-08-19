@@ -141,16 +141,16 @@ func (sh *StatisticsHandlers) calculateBasicStats(stats *TodayTaskStats, todaySt
 		SELECT 
 			COUNT(*) as total,
 			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-			SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
-			SUM(CASE WHEN status = 'todo' THEN 1 ELSE 0 END) as todo,
-			SUM(CASE WHEN due_date < ? AND status != 'completed' AND status != 'cancelled' THEN 1 ELSE 0 END) as overdue
+			SUM(CASE WHEN status IN ('in_progress', 'testing') THEN 1 ELSE 0 END) as in_progress,
+			SUM(CASE WHEN status IN ('draft', 'planning', 'todo') THEN 1 ELSE 0 END) as todo,
+			SUM(CASE WHEN due_date < ? AND status NOT IN ('completed', 'cancelled', 'archived') THEN 1 ELSE 0 END) as overdue
 		FROM tasks 
-		WHERE status != 'cancelled' 
+		WHERE status NOT IN ('cancelled', 'archived') 
 		AND (
 			DATE(due_date) = ? OR 
 			DATE(created_at) = ? OR 
 			DATE(updated_at) = ? OR 
-			status = 'in_progress' OR
+			status IN ('in_progress', 'testing') OR
 			(due_date < ? AND status != 'completed')
 		)
 	`
@@ -224,12 +224,12 @@ func (sh *StatisticsHandlers) calculateTimeStats(stats *TodayTaskStats, todaySta
 				END
 			), 0) as total_actual_minutes
 		FROM tasks 
-		WHERE status != 'cancelled' 
+		WHERE status NOT IN ('cancelled', 'archived') 
 		AND (
 			DATE(due_date) = ? OR 
 			DATE(created_at) = ? OR 
 			DATE(updated_at) = ? OR 
-			status = 'in_progress' OR
+			status IN ('in_progress', 'testing') OR
 			(due_date < ? AND status != 'completed')
 		)
 	`
@@ -254,12 +254,12 @@ func (sh *StatisticsHandlers) calculateTimeStats(stats *TodayTaskStats, todaySta
 				END
 			), 0) as total_remaining_minutes
 		FROM tasks 
-		WHERE status NOT IN ('completed', 'cancelled')
+		WHERE status NOT IN ('completed', 'cancelled', 'archived')
 		AND (
 			DATE(due_date) = ? OR 
 			DATE(created_at) = ? OR 
 			DATE(updated_at) = ? OR 
-			status = 'in_progress' OR
+			status IN ('in_progress', 'testing') OR
 			(due_date < ? AND status != 'completed')
 		)
 	`
@@ -292,12 +292,12 @@ func (sh *StatisticsHandlers) calculatePriorityDistribution(stats *TodayTaskStat
 			COALESCE(JSON_EXTRACT(custom_fields, '$.priority'), 'unset') as priority,
 			COUNT(*) as count
 		FROM tasks 
-		WHERE status != 'cancelled' 
+		WHERE status NOT IN ('cancelled', 'archived') 
 		AND (
 			DATE(due_date) = ? OR 
 			DATE(created_at) = ? OR 
 			DATE(updated_at) = ? OR 
-			status = 'in_progress' OR
+			status IN ('in_progress', 'testing') OR
 			(due_date < ? AND status != 'completed')
 		)
 		GROUP BY priority
@@ -378,7 +378,7 @@ func (sh *StatisticsHandlers) getSpecialTasks(stats *TodayTaskStats, today strin
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
-		WHERE t.status NOT IN ('completed', 'cancelled')
+		WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
 		AND (
 			JSON_EXTRACT(t.custom_fields, '$.priority') IN ('"urgent"', '"high"') OR
 			t.custom_fields LIKE '%"priority":"urgent"%' OR
@@ -412,7 +412,7 @@ func (sh *StatisticsHandlers) getSpecialTasks(stats *TodayTaskStats, today strin
 		FROM tasks t
 		LEFT JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u ON t.assignee_id = u.id
-		WHERE t.status NOT IN ('completed', 'cancelled')
+		WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
 		AND DATE(t.due_date) = ?
 		ORDER BY t.created_at ASC
 		LIMIT 5

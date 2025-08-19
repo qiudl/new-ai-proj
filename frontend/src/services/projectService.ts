@@ -102,13 +102,15 @@ class ProjectService {
       end_date: project.end_date,
     };
 
-    // Remove undefined and null values, but allow empty strings for project_number
+    // Remove undefined and null values, but allow empty strings and zero values
     const cleanedData = Object.fromEntries(
       Object.entries(backendData).filter(([key, value]) => {
         if (value === undefined || value === null) return false;
         if (Array.isArray(value) && value.length === 0) return false;
-        // Allow empty string for project_number to enable clearing
-        if (typeof value === 'string' && value === '' && key !== 'project_number') return false;
+        // Allow empty strings for all string fields (user might want to create project with empty optional fields)
+        // Allow zero values for progress field
+        if (typeof value === 'string' && value === '') return true;
+        if (typeof value === 'number' && value === 0) return true;
         return true;
       })
     );
@@ -135,13 +137,15 @@ class ProjectService {
       end_date: project.end_date,
     };
 
-    // Remove undefined and null values, but allow empty strings for project_number
+    // Remove undefined and null values, but allow empty strings and zero values
     const cleanedData = Object.fromEntries(
       Object.entries(backendData).filter(([key, value]) => {
         if (value === undefined || value === null) return false;
         if (Array.isArray(value) && value.length === 0) return false;
-        // Allow empty string for project_number to enable clearing
-        if (typeof value === 'string' && value === '' && key !== 'project_number') return false;
+        // Allow empty strings for all string fields (user might want to clear fields)
+        // Allow zero values for progress field
+        if (typeof value === 'string' && value === '') return true;
+        if (typeof value === 'number' && value === 0) return true;
         return true;
       })
     );

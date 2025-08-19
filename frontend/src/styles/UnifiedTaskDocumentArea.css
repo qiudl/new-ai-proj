@@ -243,9 +243,15 @@
     
     /* 预览模式 */
     &.preview-mode {
+      height: auto; /* 移除高度限制 */
+      max-height: none; /* 移除最大高度限制 */
+      overflow: visible; /* 允许内容完整显示 */
+      
       .markdown-preview {
         font-size: 14px;
         line-height: 1.6;
+        max-height: none; /* 移除高度限制 */
+        overflow: visible; /* 允许内容完整显示 */
         
         h1, h2, h3, h4, h5, h6 {
           color: #333;
@@ -268,6 +274,18 @@
           padding: 16px;
           border-radius: 6px;
           overflow-x: auto;
+        }
+      }
+      
+      /* 预览内容容器 */
+      .ant-card {
+        height: auto;
+        max-height: none;
+        
+        .ant-card-body {
+          height: auto;
+          max-height: none;
+          overflow: visible;
         }
       }
     }

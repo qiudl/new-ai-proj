@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button, Space, message, Spin } from 'antd';
+import { Button, Space, message, Spin, Input } from 'antd';
 import { SaveOutlined, FullscreenOutlined, FullscreenExitOutlined, FilePdfOutlined, PrinterOutlined } from '@ant-design/icons';
 import { createPortal } from 'react-dom';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
@@ -38,6 +38,12 @@ interface DocumentRequest {
 interface TaskDocumentEditorProps {
   taskId: number;
   projectId: number;
+  document?: {
+    id: number;
+    title: string;
+    content: string;
+    type: string;
+  };
   onSave?: (content: string) => void;
   style?: React.CSSProperties;
   className?: string;
@@ -46,12 +52,15 @@ interface TaskDocumentEditorProps {
 const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   taskId,
   projectId,
+  document,
   onSave,
   style = {},
   className = ''
 }) => {
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
+  const [title, setTitle] = useState('');
+  const [originalTitle, setOriginalTitle] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,26 +71,35 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
   // 加载文档内容
   const loadDocument = useCallback(async () => {
+    if (!document) {
+      setContent('');
+      setOriginalContent('');
+      setTitle('');
+      setOriginalTitle('');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`) as TaskDocumentResponse;
-      if (response && response.data && response.data.content !== undefined) {
-        const documentContent = response.data.content || '';
-        setContent(documentContent);
-        setOriginalContent(documentContent);
-        
-      }
+      // 使用传入的document数据，而不是从API加载
+      const documentContent = document.content || '';
+      const documentTitle = document.title || '';
+      setContent(documentContent);
+      setOriginalContent(documentContent);
+      setTitle(documentTitle);
+      setOriginalTitle(documentTitle);
+      
     } catch (err: unknown) {
-      const errorMsg = err.response?.data?.error || err.message || '加载文档失败';
+      const errorMsg = err instanceof Error ? err.message : '加载文档失败';
       setError(errorMsg);
       console.error('Error loading document:', err);
       
     } finally {
       setLoading(false);
     }
-  }, [taskId, projectId]);
+  }, [document]);
 
   // 保存文档
   const saveDocument = useCallback(async () => {
@@ -90,21 +108,31 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       return;
     }
 
+    if (!document) {
+      message.error('未选择文档');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     
     try {
-      const requestData: DocumentRequest = { content };
-      await api.put(`/projects/${projectId}/tasks/${taskId}/documents`, requestData);
+      const requestData = { 
+        content,
+        title: title.trim() || document.title,
+        type: document.type
+      };
+      await api.put(`/documents/${document.id}`, requestData);
       
       setOriginalContent(content);
+      setOriginalTitle(title);
       setHasChanges(false);
       message.success('文档保存成功');
       
       if (onSave) {
         onSave(content);
       }
-    } catch (err: unknown) {
+    } catch (err: any) {
       const errorMsg = err.response?.data?.error || err.message || '保存文档失败';
       setError(errorMsg);
       message.error(errorMsg);
@@ -112,12 +140,12 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     } finally {
       setSaving(false);
     }
-  }, [content, taskId, projectId, onSave, hasChanges]);
+  }, [content, title, document, onSave, hasChanges]);
 
   // 检查内容是否有变化
   useEffect(() => {
-    setHasChanges(content !== originalContent);
-  }, [content, originalContent]);
+    setHasChanges(content !== originalContent || title !== originalTitle);
+  }, [content, originalContent, title, originalTitle]);
 
   // 初始加载
   useEffect(() => {
@@ -514,7 +542,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           right: 0,
           bottom: 0,
           backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          zIndex: 9999,
+          zIndex: 1060, // 高于全屏编辑器
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -725,6 +753,12 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
   // 键盘快捷键
   useEffect(() => {
+    // 检查 document 是否存在且为有效对象
+    if (typeof document === 'undefined' || !document || typeof document.addEventListener !== 'function') {
+      console.warn('[TaskDocumentEditor] document.addEventListener is not available, skipping keyboard shortcuts');
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
@@ -743,12 +777,27 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    try {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        if (typeof document !== 'undefined' && document && typeof document.removeEventListener === 'function') {
+          document.removeEventListener('keydown', handleKeyDown);
+        }
+      };
+    } catch (error) {
+      console.warn('[TaskDocumentEditor] Failed to add/remove event listener:', error);
+      return () => {}; // 返回空的清理函数
+    }
   }, [saveDocument, toggleFullscreen, isFullscreen]);
 
   // 全屏状态变化时的副作用
   useEffect(() => {
+    // 检查 document 是否可用
+    if (typeof document === 'undefined' || !document || !document.body) {
+      console.warn('[TaskDocumentEditor] document is not available for fullscreen functionality');
+      return;
+    }
+
     if (isFullscreen) {
       // 全屏时隐藏页面滚动条并添加全屏CSS类
       document.body.style.overflow = 'hidden';
@@ -810,16 +859,18 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
     // 清理函数
     return () => {
-      document.body.style.overflow = 'auto';
-      document.body.classList.remove('fullscreen-editor-active');
-      // 确保退出时恢复所有元素
-      const hiddenElements = document.querySelectorAll('[data-hidden-by-fullscreen="true"]');
-      hiddenElements.forEach(element => {
-        if (element instanceof HTMLElement) {
-          element.style.display = '';
-          element.removeAttribute('data-hidden-by-fullscreen');
-        }
-      });
+      if (typeof document !== 'undefined' && document && document.body) {
+        document.body.style.overflow = 'auto';
+        document.body.classList.remove('fullscreen-editor-active');
+        // 确保退出时恢复所有元素
+        const hiddenElements = document.querySelectorAll('[data-hidden-by-fullscreen="true"]');
+        hiddenElements.forEach(element => {
+          if (element instanceof HTMLElement) {
+            element.style.display = '';
+            element.removeAttribute('data-hidden-by-fullscreen');
+          }
+        });
+      }
     };
   }, [isFullscreen]);
 
@@ -852,7 +903,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     bottom: 0,
     width: '100vw',
     height: '100vh',
-    zIndex: 999999, // 更高的层级确保在最上层
+    zIndex: 1050, // 高于Modal的默认层级(1000)但不过度
     backgroundColor: '#fff',
     display: 'flex',
     flexDirection: 'column',
@@ -922,6 +973,24 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
         </Space>
       </div>
 
+      {/* 文档标题编辑 */}
+      <div style={{ marginBottom: '16px' }}>
+        <Input
+          placeholder="请输入文档标题..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          style={{ 
+            fontSize: '18px', 
+            fontWeight: '600',
+            border: '1px solid #d9d9d9',
+            borderRadius: '6px',
+            padding: '12px 16px'
+          }}
+          maxLength={255}
+          showCount
+        />
+      </div>
+
       {/* 使用TaskMarkdownEditor组件 */}
       <div style={{ 
         flex: isFullscreen ? 1 : 'none', 
@@ -970,7 +1039,14 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
   // 如果是全屏模式，使用Portal渲染到body
   if (isFullscreen) {
-    return createPortal(renderEditor(), document.body);
+    // 确保document.body可用，否则回退到正常渲染
+    if (typeof document !== 'undefined' && document && document.body) {
+      return createPortal(renderEditor(), document.body);
+    } else {
+      console.warn('[TaskDocumentEditor] document.body not available for portal, falling back to normal rendering');
+      // 回退到正常渲染，但保持全屏样式
+      return renderEditor();
+    }
   }
 
   // 正常模式直接渲染

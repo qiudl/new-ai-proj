@@ -184,10 +184,10 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       // 转换PersonalTimerCurrent到TimerCurrentResponse格式
       const convertedResponse: TimerCurrentResponse = {
         is_running: response.is_running,
-        is_paused: response.is_paused || false, // 现在PersonalTimerCurrent有is_paused字段
+        is_paused: response.is_paused || false,
         task_id: response.target_id,
         task_title: response.target_title,
-        task_type: response.target_type, // 🎯 透传taskType
+        task_type: response.target_type, // 🎯 透传taskType (backend中为target_type)
         project_id: response.project_id, // 🎯 透传projectId (如果backend提供)
         start_time: response.start_time,
         elapsed_seconds: response.elapsed_seconds,

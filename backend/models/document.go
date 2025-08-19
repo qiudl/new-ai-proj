@@ -99,6 +99,7 @@ type Document struct {
 
 // CreateDocumentRequest 创建文档请求
 type CreateDocumentRequest struct {
+	ProjectID   *int             `json:"project_id"`
 	FolderID    *int             `json:"folder_id"`
 	Title       string           `json:"title" validate:"required,min=1,max=255"`
 	Content     *string          `json:"content"`

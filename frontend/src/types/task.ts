@@ -28,7 +28,7 @@ export interface Task {
   total_time_seconds?: number;
 }
 
-export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskStatus = 'draft' | 'planning' | 'todo' | 'in_progress' | 'testing' | 'completed' | 'cancelled' | 'on_hold' | 'suspended' | 'blocked' | 'archived';
 
 export interface TaskRequest {
   title: string;

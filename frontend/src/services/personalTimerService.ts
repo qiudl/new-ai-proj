@@ -42,15 +42,22 @@ export interface UserTimerTaskResponse {
 }
 
 export interface PersonalTimerCurrent {
+  id?: number;
+  user_id?: number;
   is_running: boolean;
   is_paused?: boolean;
   target_type?: string;
   target_id?: number;
   target_title?: string;
   project_id?: number; // 🎯 新增：项目ID (如果是项目任务)
+  status?: string;
+  start_time?: string;
+  pause_count?: number;
+  pause_total_seconds?: number;
   task_color?: string;
   category?: string;
-  start_time?: string;
+  description?: string;
+  metadata?: Record<string, any>;
   elapsed_seconds: number;
   formatted_time?: string;
 }

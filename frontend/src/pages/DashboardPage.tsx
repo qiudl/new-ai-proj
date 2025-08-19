@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Typography, Button, message, Tooltip } from 'antd';
 import { QuestionCircleOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 // 统一定时器系统
-import { useTimer } from '../contexts/TimerContext';
+import useSafeTimer from '../hooks/useSafeTimer';
 import UniversalTimerWidget from '../components/UniversalTimerWidget';
 import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
@@ -25,7 +25,7 @@ const DashboardPage: React.FC = () => {
   const [floatingTimerVisible, setFloatingTimerVisible] = useState(true);
   
   // 获取定时器状态
-  const { timerState, startTimer, stopTimer, pauseTimer } = useTimer();
+  const { timerState, startTimer, stopTimer, pauseTimer } = useSafeTimer();
 
   // Phase 4: 交互优化状态
   const dashboardRef = useRef<HTMLDivElement>(null);

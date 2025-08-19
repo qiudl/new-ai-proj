@@ -23,7 +23,9 @@ console.log('🔍 Current Environment Config:', {
 // 临时测试：使用fetch API测试连接
 if (typeof window !== 'undefined' && apiBaseURL.includes('127.0.0.1')) {
   console.log('🧪 Testing direct fetch connection...');
-  fetch(`${apiBaseURL}/health`, {
+  // Health endpoint is at root level, not under /api/v1
+  const healthURL = apiBaseURL.replace('/api/v1', '/health');
+  fetch(healthURL, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

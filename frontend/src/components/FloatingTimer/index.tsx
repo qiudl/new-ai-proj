@@ -82,6 +82,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         return;
       }
       
+      // 🎯 个人任务直接处理
       if (timerState.taskType === 'personal_task') {
         setTaskDetailInfo({
           id: taskId,
@@ -91,8 +92,19 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         return;
       }
       
-      // 🎯 降级：只有在缺少taskType/projectId信息时才执行全局扫描
-      console.warn('Timer state missing taskType/projectId, falling back to project scanning...');
+      // 🎯 项目任务但缺少projectId的情况 - 暂时设置基本信息，避免扫描
+      if (timerState.taskType === 'project_task') {
+        console.warn('Timer state has taskType=project_task but missing projectId, using fallback...');
+        setTaskDetailInfo({
+          id: taskId,
+          project_id: 1, // 假设默认项目ID为1，实际应该从任务数据获取
+          title: timerState.taskTitle || '项目任务'
+        });
+        return;
+      }
+      
+      // 🎯 降级：只有在完全缺少taskType信息时才执行全局扫描
+      console.warn('Timer state missing taskType, falling back to project scanning...');
       
       try {
         // 获取所有项目

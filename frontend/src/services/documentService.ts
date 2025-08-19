@@ -11,7 +11,7 @@ export interface UnifiedDocument {
   title: string;
   content: string;
   description?: string;
-  type: 'markdown' | 'text' | 'pdf';
+  type: 'markdown' | 'txt' | 'pdf';
   status: 'draft' | 'published' | 'archived';
   visibility: 'private' | 'team' | 'public';
   tags: string[];
@@ -178,7 +178,7 @@ export class DocumentService {
     try {
       performanceMonitor.startMeasure('update_document', { documentId });
       
-      const response = await api.patch(`/documents/${documentId}`, updates);
+      const response = await api.put(`/documents/${documentId}`, updates);
       const document = this.normalizeDocument(response.data);
       
       // 更新缓存
@@ -555,7 +555,7 @@ export class DocumentService {
       case 'application/pdf':
         return 'pdf';
       case 'text/plain':
-        return 'text';
+        return 'txt';
       default:
         return 'markdown';
     }
@@ -570,7 +570,7 @@ export class DocumentService {
         return 'text/markdown';
       case 'pdf':
         return 'application/pdf';
-      case 'text':
+      case 'txt':
         return 'text/plain';
       default:
         return 'text/markdown';
