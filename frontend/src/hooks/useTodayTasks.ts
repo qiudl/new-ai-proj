@@ -43,7 +43,22 @@ const DEFAULT_STATS: TodayTasksStats = {
   created_today_count: 0,
   updated_today_count: 0,
   overdue_count: 0,
-  high_priority_count: 0
+  high_priority_count: 0,
+  
+  // 精准时间统计默认值
+  totalPlannedTime: 0,
+  totalActualTime: 0,
+  totalRemainingTime: 0,
+  timeEfficiency: 0,
+  totalPlannedTimeFormatted: '0分钟',
+  totalActualTimeFormatted: '0分钟',
+  totalRemainingTimeFormatted: '0分钟',
+  timeDistribution: {
+    short: 0,  // 0-2小时
+    medium: 0, // 2-8小时
+    long: 0,   // 8小时以上
+    huge: 0    // 1天以上
+  }
 };
 
 export const useTodayTasks = (options: UseTodayTasksOptions = {}): UseTodayTasksReturn => {

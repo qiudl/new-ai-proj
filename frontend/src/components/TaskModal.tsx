@@ -13,17 +13,20 @@ import {
   Tooltip,
   Spin,
   Grid,
+  Typography,
 } from 'antd';
-import { EditOutlined, FolderOutlined } from '@ant-design/icons';
+import { EditOutlined, FolderOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { Task, TaskRequest } from '../types/task';
 import { TaskService } from '../services/taskService';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
+import TimeInput from './TimeInput';
 import dayjs from 'dayjs';
 import { TASK_STATUS_OPTIONS } from '../utils/bulkSubTaskConfig';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { Text } = Typography;
 
 interface TaskModalProps {
   visible: boolean;
@@ -101,6 +104,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
           tags: task.custom_fields?.tags?.join(', ') || '',
           estimated_hours: task.custom_fields?.estimated_hours,
           parent_id: task.parent_id,
+          // 新的时间管理字段
+          timeInput: {
+            estimatedMinutes: task.estimated_minutes,
+            timeUnitPreference: task.time_unit_preference || 'auto',
+            workHoursPerDay: task.work_hours_per_day || 8,
+            timeTrackingMode: task.time_tracking_mode || 'manual',
+            startDatetime: task.start_datetime,
+            dueDatetime: task.due_datetime,
+          },
         };
         form.setFieldsValue(formValues);
         
@@ -225,6 +237,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       }
       
       // Transform form values to TaskRequest
+      const timeInput = values.timeInput || {};
       const taskRequest: TaskRequest = {
         title: values.title,
         description: values.description || '',
@@ -237,6 +250,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
           tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],
           estimated_hours: values.estimated_hours || undefined,
         },
+        // 新的时间管理字段
+        estimated_minutes: timeInput.estimatedMinutes || undefined,
+        time_unit_preference: timeInput.timeUnitPreference || 'auto',
+        work_hours_per_day: timeInput.workHoursPerDay || 8,
+        time_tracking_mode: timeInput.timeTrackingMode || 'manual',
+        start_datetime: timeInput.startDatetime || undefined,
+        due_datetime: timeInput.dueDatetime || undefined,
       };
 
       await onOk(taskRequest);
@@ -462,14 +482,33 @@ const TaskModal: React.FC<TaskModalProps> = ({
           </Col>
           <Col span={12}>
             <Form.Item
-              name="estimated_hours"
-              label="预估工时(小时)"
+              name="timeInput"
+              label={
+                <span>
+                  <ClockCircleOutlined style={{ marginRight: 4, color: '#1890ff' }} />
+                  预估时间
+                </span>
+              }
+              tooltip={
+                <div>
+                  <div><strong>🎯 精准时间管理功能：</strong></div>
+                  <div>• 支持分钟、小时、天等多种单位</div>
+                  <div>• 快速设置按钮：30分钟、1小时、1天等</div>
+                  <div>• 智能统计：时间效率分析、工作分布</div>
+                  <div>• 点击"显示高级选项"配置工作模式</div>
+                </div>
+              }
+              extra={
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  💡 使用精准时间管理提升工作效率统计
+                </Text>
+              }
             >
-              <Input
-                type="number"
-                min={0}
-                max={1000}
-                placeholder="请输入预估工时"
+              <TimeInput
+                placeholder="点击输入预估时间，支持智能单位转换"
+                mode="estimate"
+                compact={isMobile}
+                showAdvanced={!isMobile} // 非移动端默认显示高级选项按钮
               />
             </Form.Item>
           </Col>

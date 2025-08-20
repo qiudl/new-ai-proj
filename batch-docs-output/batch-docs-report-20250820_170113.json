@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "created_count": 1,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 1,
+    "duration_seconds": 0.134623,
+    "start_time": "2025-08-20T17:01:13.159805",
+    "end_time": "2025-08-20T17:01:13.294428"
+  },
+  "created_documents": [
+    {
+      "task_id": 303,
+      "task_title": "【任务278-子任务4】重新设计并实现运输单模板功能",
+      "doc_id": "dry_run",
+      "doc_title": "【任务278-子任务4】重新设计并实现运输单模板功能 - 功能开发文档",
+      "template": "feature"
+    }
+  ],
+  "errors": []
+}

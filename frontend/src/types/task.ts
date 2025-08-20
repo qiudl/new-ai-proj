@@ -20,6 +20,14 @@ export interface Task {
   // AI-enhanced fields
   dependencies?: number[];  // Array of task IDs this task depends on
   tags?: string[];          // AI-generated tags for categorization
+  // Enhanced time management fields
+  start_datetime?: string;
+  due_datetime?: string;
+  estimated_minutes?: number;
+  actual_minutes?: number;
+  time_unit_preference?: 'auto' | 'hours' | 'minutes' | 'days';
+  work_hours_per_day?: number;
+  time_tracking_mode?: 'manual' | 'automatic' | 'hybrid';
   created_at: string;
   updated_at: string;
   updated_by?: number;

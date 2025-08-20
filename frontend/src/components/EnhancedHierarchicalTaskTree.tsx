@@ -285,7 +285,8 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
       setLoading(true);
       
       const projectsResponse = await projectService.getProjects();
-      const projectsList = projectsResponse?.data || [];
+      // API response structure: { data: { data: [...], pagination: {...} } }
+      const projectsList = Array.isArray(projectsResponse?.data?.data) ? projectsResponse.data.data : [];
       setProjects(projectsList);
 
       const projectsWithTasks = await Promise.all(
@@ -295,7 +296,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
               page: 1,
               pageSize: 50
             });
-            const tasks = tasksResponse.data || [];
+            const tasks = tasksResponse.data?.data || [];
             
             // 构建层级任务结构
             const taskMap = new Map<number, TaskWithChildren>();
@@ -327,7 +328,6 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
 
       // 构建增强的树节点
       const treeNodes: TreeNodeData[] = projectsWithTasks
-        .filter(({ tasks }) => tasks.length > 0)
         .map(({ project, tasks }) => {
           const totalTasks = tasks.reduce((count, task) => {
             const countTaskAndChildren = (t: TaskWithChildren): number => {

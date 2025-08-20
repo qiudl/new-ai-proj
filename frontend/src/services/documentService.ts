@@ -527,9 +527,48 @@ export class DocumentService {
       throw new Error(`文件大小 ${this.formatFileSize(file.size)} 超过最大允许大小 ${this.formatFileSize(maxSize)}`);
     }
 
-    const allowedTypes = ['text/plain', 'text/markdown', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error(`文件类型 ${file.type} 不被允许`);
+    // 扩展的文件类型支持
+    const allowedMimeTypes = [
+      // 文本类型
+      'text/plain', 'text/markdown', 'text/html', 'text/css', 'text/javascript', 'text/csv',
+      // PDF文档
+      'application/pdf',
+      // Office文档
+      'application/msword', // .doc
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/vnd.ms-excel', // .xls
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-powerpoint', // .ppt
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx
+      // 图片类型
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      // 代码文件
+      'application/json', 'application/xml', 'text/xml',
+      // 压缩文件
+      'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed',
+      // 其他文档
+      'application/rtf'
+    ];
+
+    // 文件扩展名映射 - 作为MIME类型的备用验证
+    const allowedExtensions = [
+      '.txt', '.md', '.html', '.css', '.js', '.ts', '.jsx', '.tsx', '.json', '.csv',
+      '.pdf',
+      '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+      '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
+      '.xml', '.zip', '.rar', '.7z', '.rtf'
+    ];
+
+    // 获取文件扩展名
+    const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    
+    // 验证文件类型：优先检查MIME类型，如果MIME类型为空或未识别，则检查扩展名
+    const isValidMimeType = file.type && allowedMimeTypes.includes(file.type);
+    const isValidExtension = allowedExtensions.includes(fileExtension);
+    
+    if (!isValidMimeType && !isValidExtension) {
+      const supportedFormats = allowedExtensions.join(', ');
+      throw new Error(`文件类型 "${file.type || '未知'}" (${fileExtension}) 不被允许。支持的格式：${supportedFormats}`);
     }
   }
 

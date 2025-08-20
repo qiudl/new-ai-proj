@@ -63,7 +63,7 @@ services:
 
     container_name: react_frontend
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - REACT_APP_API_URL=/api/v1
       - REACT_APP_ENV=staging
@@ -72,7 +72,7 @@ services:
       - HOST=0.0.0.0
       - PORT=3000
       - WDS_SOCKET_HOST=localhost
-      - WDS_SOCKET_PORT=80
+      - WDS_SOCKET_PORT=3001
       - WDS_SOCKET_PATH=/ws
       - GENERATE_SOURCEMAP=false
       - TSC_COMPILE_ON_ERROR=true
@@ -88,24 +88,6 @@ services:
       retries: 3
     restart: unless-stopped
 
-  # Nginx Reverse Proxy
-  nginx:
-    image: nginx:alpine
-    container_name: nginx_proxy
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - backend
-      - frontend
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
 
 volumes:
   postgres_data:

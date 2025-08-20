@@ -125,10 +125,10 @@ const ProjectDetailPage: React.FC = () => {
           任务管理
         </span>
       ),
-      children: project ? (
+      children: projectId ? (
         <EnhancedProjectTaskManager 
-          projectId={project.id} 
-          projectName={project.name}
+          projectId={Number(projectId)} 
+          projectName={project?.name}
         />
       ) : null
     },
@@ -436,18 +436,18 @@ const ProjectDetailPage: React.FC = () => {
           项目文档
         </span>
       ),
-      children: project ? (
+      children: projectId ? (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <div style={{ marginBottom: '16px' }}>
             📄 项目文档管理功能正在简化重构中...
           </div>
           <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
-            项目ID: {project.id} | 项目名称: {project.name}
+            项目ID: {projectId} | 项目名称: {project?.name || '加载中...'}
           </div>
           <div style={{ marginTop: '16px' }}>
             <Button 
               type="primary" 
-              onClick={() => navigate(`/projects/${project.id}/documents/new`)}
+              onClick={() => navigate(`/projects/${projectId}/documents/new`)}
             >
               创建文档
             </Button>

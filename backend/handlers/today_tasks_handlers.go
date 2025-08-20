@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"fmt"
 	"log"
 	"net/http"
 	"sort"
@@ -81,6 +82,20 @@ func (h *TodayTasksHandler) GetTodayTasksStats(c *gin.Context) {
 
 	// Calculate statistics
 	stats := h.calculateTodayStats(todayTasks)
+
+	// DEBUG: Force visible logging for debugging
+	fmt.Printf("\n=== DEBUG: Stats map contents BEFORE response ===\n")
+	for key, value := range stats {
+		fmt.Printf("Key: %s, Value: %v\n", key, value)
+	}
+	fmt.Printf("Total map keys: %d\n", len(stats))
+	
+	if totalPlanned, exists := stats["totalPlannedTime"]; exists {
+		fmt.Printf("totalPlannedTime EXISTS: %v\n", totalPlanned)
+	} else {
+		fmt.Printf("totalPlannedTime does NOT exist in stats map\n")
+	}
+	fmt.Printf("=== END DEBUG ===\n\n")
 
 	response := models.NewSuccessResponse(stats, "Today's task statistics retrieved successfully")
 	c.JSON(http.StatusOK, response)
@@ -446,15 +461,39 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 		"overdue_count":   0,
 		"due_today_count": 0,
 		"created_today_count": 0,
+		"updated_today_count": 0,
+		"high_priority_count": 0,
 		"priority_stats": map[string]int{
 			"high":   0,
 			"medium": 0,
 			"low":    0,
 		},
+		
+		// 时间统计 - 精准时间支持
+		"totalPlannedTime":   0.0,   // 分钟 (精准到分钟)
+		"totalActualTime":    0.0,   // 分钟 (精准到分钟)  
+		"totalRemainingTime": 0.0,   // 分钟 (精准到分钟)
+		"timeEfficiency":     0.0,   // 百分比
+		
+		// 新增：精准时间格式统计
+		"totalPlannedTimeFormatted":   "0分钟",   // 格式化显示
+		"totalActualTimeFormatted":    "0分钟",   // 格式化显示
+		"totalRemainingTimeFormatted": "0分钟",   // 格式化显示
+		
+		// 时间分布统计
+		"timeDistribution": map[string]float64{
+			"short":  0, // 0-2小时
+			"medium": 0, // 2-8小时
+			"long":   0, // 8小时以上
+			"huge":   0, // 1天以上
+		},
 	}
 
 	today := time.Now().Format("2006-01-02")
 	priorityStats := stats["priority_stats"].(map[string]int)
+	timeDistribution := stats["timeDistribution"].(map[string]float64)
+	
+	var totalPlannedMinutes, totalActualMinutes float64
 
 	for _, task := range tasks {
 		// Status counts
@@ -481,6 +520,11 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 		if task.CreatedAt.Format("2006-01-02") == today {
 			stats["created_today_count"] = stats["created_today_count"].(int) + 1
 		}
+		
+		// Updated today (where updated_at ≠ created_at)
+		if task.UpdatedAt.Format("2006-01-02") == today && !task.UpdatedAt.Equal(task.CreatedAt) {
+			stats["updated_today_count"] = stats["updated_today_count"].(int) + 1
+		}
 
 		// Priority counts
 		if task.CustomFields != nil {
@@ -489,8 +533,15 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 					if count, exists := priorityStats[priorityStr]; exists {
 						priorityStats[priorityStr] = count + 1
 					}
+					// High priority count
+					if priorityStr == "high" {
+						stats["high_priority_count"] = stats["high_priority_count"].(int) + 1
+					}
 				}
 			}
+			
+			// 时间统计处理 - 支持精准时间
+			h.processTaskTimeStats(task, &totalPlannedMinutes, &totalActualMinutes, timeDistribution)
 		}
 	}
 
@@ -501,6 +552,135 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 	} else {
 		stats["completion_rate"] = 0.0
 	}
+	
+	// 完成时间统计计算
+	h.finalizeTimeStats(stats, totalPlannedMinutes, totalActualMinutes)
+
+	// 调试日志：显示最终stats内容
+	h.logger.Printf("DEBUG: Final stats keys: %v", getMapKeys(stats))
+	if totalPlanned, exists := stats["totalPlannedTime"]; exists {
+		h.logger.Printf("DEBUG: Final totalPlannedTime: %v", totalPlanned)
+	}
 
 	return stats
+}
+
+// processTaskTimeStats 处理单个任务的时间统计
+func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlannedMinutes, totalActualMinutes *float64, timeDistribution map[string]float64) {
+	if task.CustomFields == nil {
+		return
+	}
+	
+	// 提取精准时间数据 (estimatedMinutes)
+	var plannedMinutes float64
+	if estimatedMinutes, exists := task.CustomFields["estimatedMinutes"]; exists {
+		if minutes, ok := estimatedMinutes.(float64); ok {
+			plannedMinutes = minutes
+		} else if minutesInt, ok := estimatedMinutes.(int); ok {
+			plannedMinutes = float64(minutesInt)
+		}
+	}
+	
+	// 如果没有estimatedMinutes，尝试从estimated_hours获取（向后兼容）
+	if plannedMinutes == 0 {
+		if estimatedHours, exists := task.CustomFields["estimated_hours"]; exists {
+			if hours, ok := estimatedHours.(float64); ok {
+				plannedMinutes = hours * 60
+			} else if hoursInt, ok := estimatedHours.(int); ok {
+				plannedMinutes = float64(hoursInt) * 60
+			}
+		}
+	}
+	
+	// 提取实际时间数据
+	var actualMinutes float64
+	if actualTime, exists := task.CustomFields["actual_time"]; exists {
+		if minutes, ok := actualTime.(float64); ok {
+			actualMinutes = minutes
+		} else if minutesInt, ok := actualTime.(int); ok {
+			actualMinutes = float64(minutesInt)
+		}
+	}
+	
+	*totalPlannedMinutes += plannedMinutes
+	*totalActualMinutes += actualMinutes
+	
+	// 时间分布统计 (基于计划时间)
+	if plannedMinutes > 0 {
+		if plannedMinutes <= 120 { // 0-2小时
+			timeDistribution["short"] += plannedMinutes
+		} else if plannedMinutes <= 480 { // 2-8小时
+			timeDistribution["medium"] += plannedMinutes
+		} else if plannedMinutes <= 1440 { // 8小时-1天
+			timeDistribution["long"] += plannedMinutes
+		} else { // 1天以上
+			timeDistribution["huge"] += plannedMinutes
+		}
+	}
+}
+
+// finalizeTimeStats 完成时间统计的最终计算
+func (h *TodayTasksHandler) finalizeTimeStats(stats map[string]interface{}, totalPlannedMinutes, totalActualMinutes float64) {
+	// 调试日志
+	h.logger.Printf("DEBUG: finalizeTimeStats - totalPlannedMinutes: %f, totalActualMinutes: %f", totalPlannedMinutes, totalActualMinutes)
+	
+	// 设置原始分钟数
+	stats["totalPlannedTime"] = totalPlannedMinutes
+	stats["totalActualTime"] = totalActualMinutes
+	
+	// 计算剩余时间
+	totalRemainingMinutes := totalPlannedMinutes - totalActualMinutes
+	if totalRemainingMinutes < 0 {
+		totalRemainingMinutes = 0
+	}
+	stats["totalRemainingTime"] = totalRemainingMinutes
+	
+	// 计算时间效率
+	var timeEfficiency float64
+	if totalPlannedMinutes > 0 {
+		timeEfficiency = (totalActualMinutes / totalPlannedMinutes) * 100
+		if timeEfficiency > 100 {
+			timeEfficiency = 100
+		}
+	}
+	stats["timeEfficiency"] = timeEfficiency
+	
+	// 生成格式化的时间字符串
+	stats["totalPlannedTimeFormatted"] = h.formatMinutesToReadable(totalPlannedMinutes)
+	stats["totalActualTimeFormatted"] = h.formatMinutesToReadable(totalActualMinutes)
+	stats["totalRemainingTimeFormatted"] = h.formatMinutesToReadable(totalRemainingMinutes)
+}
+
+// formatMinutesToReadable 将分钟数格式化为可读的时间字符串
+func (h *TodayTasksHandler) formatMinutesToReadable(minutes float64) string {
+	if minutes == 0 {
+		return "0分钟"
+	}
+	
+	if minutes < 60 {
+		return strconv.FormatFloat(minutes, 'f', 0, 64) + "分钟"
+	}
+	
+	hours := minutes / 60
+	if hours < 24 {
+		if hours == float64(int(hours)) {
+			return strconv.Itoa(int(hours)) + "小时"
+		}
+		return strconv.FormatFloat(hours, 'f', 1, 64) + "小时"
+	}
+	
+	days := hours / 24
+	if days == float64(int(days)) {
+		return strconv.Itoa(int(days)) + "天"
+	}
+	return strconv.FormatFloat(days, 'f', 1, 64) + "天"
+}
+
+// getMapKeys 获取map的所有键（用于调试）
+func getMapKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

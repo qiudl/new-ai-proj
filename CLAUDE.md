@@ -8,14 +8,21 @@ This is an AI-powered project management system with task management, timer func
 
 ## Architecture
 
-### Backend (Go)
+### Version Information
+- **Go Backend**: Go 1.24.4 with Gin framework
+- **React Frontend**: React 18 with TypeScript
+- **Node.js Runtime**: Latest LTS for MCP server and frontend tooling
+- **PostgreSQL**: Version 16
+- **Docker**: Docker Compose for containerized development
+
+### Backend (Go 1.24.4)
 - **Framework**: Gin (HTTP web framework)
 - **Database**: PostgreSQL with GORM/SQL
 - **Authentication**: JWT-based auth system
 - **Architecture**: Clean architecture with handlers, services, repositories
 - **Key modules**: Tasks, Projects, Timers, Documents, Companies, Users, AI Integration
 
-### Frontend (React)
+### Frontend (React 18)
 - **Framework**: React 18 with TypeScript
 - **UI Library**: Ant Design
 - **State Management**: React Query (@tanstack/react-query)
@@ -54,6 +61,21 @@ This is an AI-powered project management system with task management, timer func
 
 # 设置PostgreSQL从库
 ./scripts/dev-env.sh replica
+```
+
+### 🚀 自动化脚本工具
+```bash
+# 批量生成任务文档 (配置驱动)
+python3 scripts/create-task-docs.py
+
+# 指定任务ID批量创建
+python3 scripts/create-task-docs.py --task-ids 274,275,276
+
+# 干运行模式（预览不执行）
+python3 scripts/create-task-docs.py --dry-run
+
+# 使用自定义配置文件
+python3 scripts/create-task-docs.py --config custom-config.yaml
 ```
 
 ### 访问地址
@@ -149,11 +171,12 @@ docker-compose build frontend
 Key tables include:
 - `users` - User accounts and authentication
 - `projects` - Project management
-- `tasks` - Task management with hierarchical support
+- `tasks` - Task management with hierarchical support (includes flexible time management: estimated_minutes, actual_minutes, time_unit_preference)
 - `companies` - Enterprise customer management
 - `timers` - Time tracking functionality
-- `documents` - Document management system
+- `documents` - Document management system with batch creation support
 - `audit_logs` - System audit trail
+- `task_status_config` - Configurable task status definitions (supports 11 status workflow)
 
 ## API Architecture
 
@@ -163,8 +186,9 @@ The backend follows RESTful API conventions:
 - `/api/v1/projects/{id}/tasks/*` - Task management (project-scoped)
 - `/api/v1/timers/*` - Timer functionality
 - `/api/v1/companies/*` - Company management
-- `/api/v1/documents/*` - Document management
+- `/api/v1/documents/*` - Document management (includes batch creation at `/api/v1/documents/batch`)
 - `/api/v1/system/*` - System administration
+- `/api/v1/bulk/*` - Bulk operations for tasks and other entities
 
 ## Authentication
 
@@ -292,10 +316,11 @@ npm run format              # Format code with Prettier
 4. Add to navigation if needed
 
 ### Database Changes
-1. Create migration file in `backend/migrations/`
+1. Create migration file in `backend/migrations/` (use sequential numbering)
 2. Update model structs in `backend/models/`
 3. Update repository interfaces and implementations
 4. Update frontend types if needed
+5. For time-related changes, consider the flexible time management system (estimated_minutes, time_unit_preference)
 
 ## Deployment
 
@@ -384,3 +409,6 @@ psql -h postgres-master -U dev_user -d ai_project_db
 - MCP server enables enhanced Claude Code integration for task management
 - Project uses Chinese comments and documentation in some places
 - Database migrations are numbered sequentially and must be applied in order
+- Batch document creation available via `python3 scripts/create-task-docs.py` (759 lines of production-ready code)
+- Task status system supports 11 configurable states: draft, planning, todo, in_progress, testing, completed, cancelled, failed, pending, blocked, archived
+- Time estimation uses minutes as base unit with flexible display (TimeInput component supports auto-conversion)

@@ -115,6 +115,82 @@ type CreateDocumentRequest struct {
 	IsTemplate  bool             `json:"is_template"`
 }
 
+// CreateBatchDocumentsRequest 批量创建文档请求
+type CreateBatchDocumentsRequest struct {
+	Documents []BatchDocumentItem   `json:"documents" validate:"required,min=1,max=50,dive"`
+	Options   BatchCreateOptions    `json:"options"`
+	Templates TemplateConfiguration `json:"templates,omitempty"`
+}
+
+// BatchDocumentItem 批量文档项
+type BatchDocumentItem struct {
+	ProjectID       *int             `json:"project_id"`
+	TaskID          *int             `json:"task_id"`
+	Title           string           `json:"title" validate:"required,min=1,max=255"`
+	Content         *string          `json:"content"`
+	Type            DocumentType     `json:"type" validate:"required"`
+	Status          DocumentStatus   `json:"status"`
+	Description     *string          `json:"description"`
+	Tags            []string         `json:"tags"`
+	Metadata        DocumentMetadata `json:"metadata"`
+	Visibility      Visibility       `json:"visibility"`
+	IsTemplate      bool             `json:"is_template"`
+	AttachToTask    bool             `json:"attach_to_task"`     // 是否自动关联到任务
+	RelationType    string           `json:"relation_type"`      // 关联类型 (attachment, main, reference)
+	TemplateType    string           `json:"template_type"`      // 模板类型 (auto, bug_fix, feature, project_phase)
+	Variables       map[string]interface{} `json:"variables,omitempty"` // 模板变量
+}
+
+// BatchDocumentResult 批量创建结果
+type BatchDocumentResult struct {
+	CreatedDocuments []Document        `json:"created_documents"`
+	Errors          []BatchCreateError `json:"errors,omitempty"`
+	SuccessCount    int               `json:"success_count"`
+	ErrorCount      int               `json:"error_count"`
+}
+
+// BatchCreateError 批量创建错误
+type BatchCreateError struct {
+	Index   int    `json:"index"`   // 文档在批量请求中的索引
+	Title   string `json:"title"`   // 文档标题
+	Error   string `json:"error"`   // 错误信息
+	Code    string `json:"code"`    // 错误代码
+}
+
+// BatchCreateOptions 批量创建选项
+type BatchCreateOptions struct {
+	AutoAttach       bool   `json:"auto_attach"`        // 自动关联到任务
+	SkipExisting     bool   `json:"skip_existing"`      // 跳过已存在文档的任务
+	TransactionMode  bool   `json:"transaction_mode"`   // 事务模式：全部成功或全部失败
+	DefaultStatus    string `json:"default_status"`     // 默认状态
+	DefaultVisibility string `json:"default_visibility"` // 默认可见性
+	ProgressCallback bool   `json:"progress_callback"`  // 是否需要进度回调
+}
+
+// TemplateConfiguration 模板配置
+type TemplateConfiguration struct {
+	EnableSmartTemplate bool                        `json:"enable_smart_template"` // 启用智能模板选择
+	DefaultTemplate     string                      `json:"default_template"`      // 默认模板类型
+	CustomTemplates     map[string]TemplateDefinition `json:"custom_templates"`      // 自定义模板定义
+	GlobalVariables     map[string]interface{}      `json:"global_variables"`      // 全局模板变量
+}
+
+// TemplateDefinition 模板定义
+type TemplateDefinition struct {
+	Name            string                 `json:"name"`
+	TitleTemplate   string                 `json:"title_template"`   // 标题模板
+	ContentTemplate string                 `json:"content_template"` // 内容模板
+	Variables       map[string]interface{} `json:"variables"`        // 默认变量
+	Conditions      []TemplateCondition    `json:"conditions"`       // 应用条件
+}
+
+// TemplateCondition 模板应用条件
+type TemplateCondition struct {
+	Field    string      `json:"field"`    // 字段名 (title, description, status, priority)
+	Operator string      `json:"operator"` // 操作符 (contains, equals, regex)
+	Value    interface{} `json:"value"`    // 匹配值
+}
+
 // 类型别名以兼容现有代码
 type DocumentRequest = CreateDocumentRequest
 

@@ -1139,4 +1139,332 @@ export class TaskMCPServer {
         const currentTime = new Date().getTime();
         return Math.floor((currentTime - startTime) / 1000);
     }
+
+    // 批量创建任务文档 (Claude Code专用命令)
+    async createTaskDocs(options = {}) {
+        try {
+            console.error(`[DEBUG] 批量创建任务文档: ${JSON.stringify(options)}`);
+            
+            const {
+                task_ids = [],
+                date_filter = null,
+                template_type = 'auto',
+                auto_attach = true,
+                skip_existing = true,
+                project_id = 1,
+                batch_size = 10
+            } = options;
+
+            let targetTasks = [];
+
+            // 步骤1: 获取目标任务列表
+            if (task_ids && task_ids.length > 0) {
+                // 通过指定任务ID获取任务
+                console.error(`[DEBUG] 通过任务ID获取任务: ${task_ids.join(', ')}`);
+                for (const taskId of task_ids) {
+                    try {
+                        const task = await this.findTaskById(taskId);
+                        if (task) {
+                            targetTasks.push(task);
+                        }
+                    } catch (error) {
+                        console.error(`[WARNING] 跳过任务 ${taskId}: ${error.message}`);
+                    }
+                }
+            } else if (date_filter) {
+                // 通过日期过滤获取任务
+                console.error(`[DEBUG] 通过日期过滤获取任务: ${date_filter}`);
+                const tasksResponse = await axios.get(`${this.apiBase}/projects/${project_id}/tasks?page=1&page_size=100`, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+                
+                const allTasks = tasksResponse.data.data?.data || [];
+                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                
+                targetTasks = allTasks.filter(task => {
+                    const taskDate = new Date(task.created_at).toISOString().split('T')[0];
+                    
+                    switch (date_filter) {
+                        case 'today':
+                            return taskDate === today;
+                        case 'yesterday':
+                            const yesterday = new Date();
+                            yesterday.setDate(yesterday.getDate() - 1);
+                            return taskDate === yesterday.toISOString().split('T')[0];
+                        case 'this_week':
+                            const weekStart = new Date();
+                            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                            return new Date(task.created_at) >= weekStart;
+                        case 'last_week':
+                            const lastWeekStart = new Date();
+                            lastWeekStart.setDate(lastWeekStart.getDate() - lastWeekStart.getDay() - 7);
+                            const lastWeekEnd = new Date();
+                            lastWeekEnd.setDate(lastWeekEnd.getDate() - lastWeekEnd.getDay() - 1);
+                            const taskDateTime = new Date(task.created_at);
+                            return taskDateTime >= lastWeekStart && taskDateTime <= lastWeekEnd;
+                        case 'this_month':
+                            return taskDate.substring(0, 7) === today.substring(0, 7);
+                        case 'last_month':
+                            const lastMonth = new Date();
+                            lastMonth.setMonth(lastMonth.getMonth() - 1);
+                            return taskDate.substring(0, 7) === lastMonth.toISOString().split('T')[0].substring(0, 7);
+                        default:
+                            return false;
+                    }
+                });
+            } else {
+                return {
+                    success: false,
+                    error: "必须提供 task_ids 或 date_filter 参数"
+                };
+            }
+
+            if (targetTasks.length === 0) {
+                return {
+                    success: true,
+                    data: {
+                        created_documents: [],
+                        skipped_tasks: [],
+                        errors: []
+                    },
+                    message: "没有找到符合条件的任务"
+                };
+            }
+
+            console.error(`[DEBUG] 找到 ${targetTasks.length} 个待处理任务`);
+
+            // 步骤2: 检查已有文档 (如果启用skip_existing)
+            const tasksToProcess = [];
+            const skippedTasks = [];
+
+            if (skip_existing) {
+                for (const task of targetTasks) {
+                    try {
+                        const docsResponse = await axios.get(`${this.apiBase}/projects/${project_id}/tasks/${task.id}/documents`, {
+                            headers: this.getHeaders(),
+                            proxy: false
+                        });
+                        
+                        const existingDocs = docsResponse.data.documents || [];
+                        if (existingDocs.length > 0) {
+                            skippedTasks.push({
+                                task_id: task.id,
+                                title: task.title,
+                                reason: `已有 ${existingDocs.length} 个文档`
+                            });
+                        } else {
+                            tasksToProcess.push(task);
+                        }
+                    } catch (error) {
+                        // 如果无法获取文档列表，假设没有文档
+                        tasksToProcess.push(task);
+                    }
+                }
+            } else {
+                tasksToProcess.push(...targetTasks);
+            }
+
+            console.error(`[DEBUG] 需要创建文档的任务: ${tasksToProcess.length} 个, 跳过: ${skippedTasks.length} 个`);
+
+            // 步骤3: 批量创建文档
+            const batchDocuments = [];
+            const errors = [];
+
+            for (const task of tasksToProcess) {
+                try {
+                    // 智能模板检测
+                    let detectedTemplate = template_type;
+                    if (template_type === 'auto') {
+                        const title = task.title.toLowerCase();
+                        const description = (task.description || '').toLowerCase();
+                        
+                        if (title.includes('bug') || title.includes('修复') || title.includes('fix')) {
+                            detectedTemplate = 'bug_fix';
+                        } else if (title.includes('第') && title.includes('阶段')) {
+                            detectedTemplate = 'project_phase';
+                        } else if (title.includes('api') || title.includes('接口')) {
+                            detectedTemplate = 'api_documentation';
+                        } else if (title.includes('技术') || title.includes('设计')) {
+                            detectedTemplate = 'technical_design';
+                        } else {
+                            detectedTemplate = 'feature';
+                        }
+                    }
+
+                    // 生成文档标题和内容
+                    const docTitle = `${task.title} - 技术实现文档`;
+                    const docContent = this.generateDocumentContent(task, detectedTemplate);
+
+                    batchDocuments.push({
+                        project_id: project_id,
+                        task_id: task.id,
+                        title: docTitle,
+                        content: docContent,
+                        type: 'markdown',
+                        status: 'draft',
+                        description: `任务 ${task.id} 的自动生成技术文档`,
+                        attach_to_task: auto_attach,
+                        relation_type: 'main',
+                        template_type: detectedTemplate,
+                        variables: {
+                            task_id: task.id,
+                            task_title: task.title,
+                            task_status: task.status,
+                            task_priority: task.custom_fields?.priority || 'medium',
+                            created_at: new Date().toISOString()
+                        }
+                    });
+                } catch (error) {
+                    errors.push({
+                        task_id: task.id,
+                        title: task.title,
+                        error: error.message
+                    });
+                }
+            }
+
+            // 步骤4: 调用批量文档创建API
+            let createdDocuments = [];
+            
+            if (batchDocuments.length > 0) {
+                try {
+                    const batchResponse = await axios.post(`${this.apiBase}/documents/batch`, {
+                        documents: batchDocuments,
+                        options: {
+                            auto_attach: auto_attach,
+                            skip_existing: skip_existing,
+                            transaction_mode: false, // 允许部分成功
+                            default_status: 'draft',
+                            default_visibility: 'team'
+                        }
+                    }, {
+                        headers: this.getHeaders(),
+                        timeout: 30000,
+                        proxy: false
+                    });
+
+                    createdDocuments = batchResponse.data.created_documents || [];
+                    const batchErrors = batchResponse.data.errors || [];
+                    errors.push(...batchErrors);
+                    
+                    console.error(`[DEBUG] 批量创建完成: 成功 ${createdDocuments.length} 个, 错误 ${batchErrors.length} 个`);
+                } catch (batchError) {
+                    console.error(`[ERROR] 批量文档创建失败:`, batchError.response?.data || batchError.message);
+                    return {
+                        success: false,
+                        error: `批量文档创建失败: ${batchError.response?.data?.error || batchError.message}`
+                    };
+                }
+            }
+
+            // 返回结果
+            const result = {
+                success: true,
+                data: {
+                    created_documents: createdDocuments,
+                    skipped_tasks: skippedTasks,
+                    errors: errors,
+                    statistics: {
+                        total_tasks: targetTasks.length,
+                        processed_tasks: tasksToProcess.length,
+                        created_documents: createdDocuments.length,
+                        skipped_tasks: skippedTasks.length,
+                        errors: errors.length
+                    }
+                },
+                message: `📝 批量文档创建完成: 成功创建 ${createdDocuments.length} 个文档, 跳过 ${skippedTasks.length} 个任务, ${errors.length} 个错误`
+            };
+
+            return result;
+
+        } catch (error) {
+            console.error(`[ERROR] 批量创建任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `批量创建任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
+
+    // 辅助方法：生成文档内容
+    generateDocumentContent(task, templateType) {
+        const now = new Date().toISOString();
+        const priority = task.custom_fields?.priority || 'medium';
+        const status = task.status || 'todo';
+
+        let content = `# ${task.title}\n\n`;
+        content += `## 📋 任务信息\n`;
+        content += `- **任务ID**: ${task.id}\n`;
+        content += `- **状态**: ${status}\n`;
+        content += `- **优先级**: ${priority}\n`;
+        content += `- **创建时间**: ${task.created_at}\n`;
+        content += `- **文档生成时间**: ${now}\n\n`;
+
+        if (task.description) {
+            content += `## 📝 任务描述\n${task.description}\n\n`;
+        }
+
+        // 根据模板类型添加特定内容
+        switch (templateType) {
+            case 'bug_fix':
+                content += `## 🐛 Bug分析\n\n`;
+                content += `### 问题描述\n- 详细描述bug现象\n- 重现步骤\n- 影响范围评估\n\n`;
+                content += `### 根本原因\n- 技术原因分析\n- 代码位置定位\n- 数据流分析\n\n`;
+                content += `## 🔧 修复方案\n\n`;
+                content += `### 技术方案\n- 修复策略\n- 代码改动\n- 测试验证\n\n`;
+                content += `### 验收标准\n- [ ] Bug现象消失\n- [ ] 相关功能正常\n- [ ] 无回归问题\n- [ ] 代码review通过\n\n`;
+                break;
+
+            case 'feature':
+                content += `## 🎯 功能设计\n\n`;
+                content += `### 需求分析\n- 用户故事\n- 功能需求\n- 非功能需求\n\n`;
+                content += `### 技术方案\n- 架构设计\n- 接口设计\n- 数据模型\n\n`;
+                content += `## 🚀 实施计划\n\n`;
+                content += `### 开发阶段\n1. **需求澄清** - 与产品确认需求细节\n2. **技术设计** - 完成详细设计\n3. **功能开发** - 编码实现\n4. **测试验证** - 质量保证\n\n`;
+                content += `### 验收标准\n- [ ] 功能完全按需求实现\n- [ ] 用户体验友好\n- [ ] 性能满足要求\n- [ ] 兼容性测试通过\n\n`;
+                break;
+
+            case 'project_phase':
+                content += `## 🎯 阶段目标\n\n`;
+                content += `### 核心交付\n- 功能列表\n- 质量标准\n- 里程碑定义\n\n`;
+                content += `### 技术架构\n- 系统架构\n- 技术选型\n- 集成方案\n\n`;
+                content += `## 📅 执行计划\n\n`;
+                content += `### 分阶段实施\n1. **分析阶段** - 需求梳理和技术调研\n2. **设计阶段** - 架构设计和接口定义\n3. **开发阶段** - 功能实现和单元测试\n4. **验证阶段** - 集成测试和性能优化\n\n`;
+                content += `### 质量保证\n- [ ] 阶段目标达成\n- [ ] 技术方案验证\n- [ ] 代码质量合格\n- [ ] 文档更新完整\n\n`;
+                break;
+
+            case 'api_documentation':
+                content += `## 📡 API设计\n\n`;
+                content += `### 接口规范\n- 请求方法和路径\n- 参数定义\n- 响应格式\n\n`;
+                content += `### 技术细节\n- 认证机制\n- 错误处理\n- 数据验证\n\n`;
+                content += `## 🔧 实现要点\n\n`;
+                content += `### 后端实现\n- 路由定义\n- 控制器逻辑\n- 数据访问层\n\n`;
+                content += `### 测试策略\n- 单元测试\n- 集成测试\n- API文档\n\n`;
+                break;
+
+            case 'technical_design':
+                content += `## 🏗️ 技术架构\n\n`;
+                content += `### 系统设计\n- 整体架构\n- 模块划分\n- 数据流设计\n\n`;
+                content += `### 技术选型\n- 框架选择\n- 工具选型\n- 技术栈\n\n`;
+                content += `## 🎯 实施细节\n\n`;
+                content += `### 开发规范\n- 代码规范\n- 命名约定\n- 项目结构\n\n`;
+                content += `### 质量控制\n- 代码review\n- 自动化测试\n- 性能监控\n\n`;
+                break;
+
+            default:
+                content += `## 🔧 技术实现\n\n`;
+                content += `### 实现要点\n- 关键技术点\n- 难点分析\n- 解决方案\n\n`;
+                content += `### 开发计划\n1. **分析设计** - 需求分析和方案设计\n2. **编码实现** - 功能开发和调试\n3. **测试优化** - 测试和性能优化\n\n`;
+                content += `### 验收标准\n- [ ] 功能正确实现\n- [ ] 代码质量合格\n- [ ] 测试覆盖充分\n\n`;
+        }
+
+        content += `## ⏱️ 预估工时\n待评估\n\n`;
+        content += `---\n`;
+        content += `*文档自动生成时间: ${now}*  \n`;
+        content += `*生成工具: Claude Code MCP Server*  \n`;
+        content += `*模板类型: ${templateType}*`;
+
+        return content;
+    }
 }

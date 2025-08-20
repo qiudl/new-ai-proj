@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"ai-project-backend/database"
 	"ai-project-backend/models"
@@ -519,4 +522,442 @@ func (h *DocumentHandler) CreateDocumentVersion(c *gin.Context) {
 		"message": "Document version created successfully",
 		"data":    version,
 	})
+}
+
+// CreateBatchDocuments 批量创建文档
+func (h *DocumentHandler) CreateBatchDocuments(c *gin.Context) {
+	var req models.CreateBatchDocumentsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request format",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "Unauthorized",
+		})
+		return
+	}
+
+	// 验证批量请求限制
+	if len(req.Documents) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "No documents provided",
+		})
+		return
+	}
+
+	if len(req.Documents) > 50 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Too many documents in batch (max: 50)",
+		})
+		return
+	}
+
+	// 初始化结果
+	result := &models.BatchDocumentResult{
+		CreatedDocuments: []models.Document{},
+		Errors:          []models.BatchCreateError{},
+		SuccessCount:    0,
+		ErrorCount:      0,
+	}
+
+	// 逐一处理文档创建
+	for i, item := range req.Documents {
+		// 应用批量选项默认值
+		if req.Options.DefaultStatus != "" && item.Status == "" {
+			if status := models.DocumentStatus(req.Options.DefaultStatus); status != "" {
+				item.Status = status
+			}
+		}
+		if req.Options.DefaultVisibility != "" && item.Visibility == "" {
+			if visibility := models.Visibility(req.Options.DefaultVisibility); visibility != "" {
+				item.Visibility = visibility
+			}
+		}
+
+		// 设置默认值
+		if item.Status == "" {
+			item.Status = models.DocumentStatusDraft
+		}
+		if item.Type == "" {
+			item.Type = models.DocumentTypeMarkdown
+		}
+		if item.Visibility == "" {
+			item.Visibility = models.VisibilityTeam
+		}
+
+		// 智能模板处理
+		if req.Templates.EnableSmartTemplate || item.TemplateType != "" {
+			if processedItem, err := h.applySmartTemplate(&item, &req.Templates, &req.Options); err != nil {
+				result.Errors = append(result.Errors, models.BatchCreateError{
+					Index: i,
+					Title: item.Title,
+					Error: "Template processing failed: " + err.Error(),
+					Code:  "TEMPLATE_ERROR",
+				})
+				result.ErrorCount++
+				continue
+			} else {
+				item = *processedItem
+			}
+		}
+
+		// 检查是否跳过已存在文档的任务
+		if req.Options.SkipExisting && item.TaskID != nil {
+			exists, err := h.checkTaskHasDocuments(*item.TaskID)
+			if err == nil && exists {
+				result.Errors = append(result.Errors, models.BatchCreateError{
+					Index: i,
+					Title: item.Title,
+					Error: "Task already has documents and skip_existing is enabled",
+					Code:  "SKIPPED",
+				})
+				continue
+			}
+		}
+
+		// 创建文档对象
+		document := &models.Document{
+			ProjectID:   item.ProjectID,
+			Title:       item.Title,
+			Content:     item.Content,
+			Type:        item.Type,
+			Status:      item.Status,
+			Description: item.Description,
+			Tags:        item.Tags,
+			Metadata:    item.Metadata,
+			OwnerID:     userID.(int),
+			Visibility:  item.Visibility,
+			Version:     1,
+			IsTemplate:  item.IsTemplate,
+			CreatedBy:   userID.(int),
+		}
+
+		// 尝试创建文档
+		createdDoc, err := h.docRepo.Create(c.Request.Context(), document)
+		if err != nil {
+			// 记录创建失败的文档
+			result.Errors = append(result.Errors, models.BatchCreateError{
+				Index: i,
+				Title: item.Title,
+				Error: err.Error(),
+				Code:  "CREATE_FAILED",
+			})
+			result.ErrorCount++
+			continue
+		}
+
+		// 如果需要关联到任务，尝试创建关联
+		if item.AttachToTask && item.TaskID != nil {
+			relationType := item.RelationType
+			if relationType == "" {
+				relationType = "attachment"
+			}
+
+			err = h.docRepo.AttachToTask(c.Request.Context(), *item.TaskID, createdDoc.ID, relationType, userID.(int))
+			if err != nil {
+				// 文档创建成功但关联失败，记录警告但不算错误
+				result.Errors = append(result.Errors, models.BatchCreateError{
+					Index: i,
+					Title: item.Title,
+					Error: "Document created but failed to attach to task: " + err.Error(),
+					Code:  "ATTACH_WARNING",
+				})
+			}
+		}
+
+		// 记录成功创建的文档
+		result.CreatedDocuments = append(result.CreatedDocuments, *createdDoc)
+		result.SuccessCount++
+	}
+
+	// 确定响应状态码
+	statusCode := http.StatusCreated
+	if result.ErrorCount > 0 && result.SuccessCount == 0 {
+		// 全部失败
+		statusCode = http.StatusInternalServerError
+	} else if result.ErrorCount > 0 {
+		// 部分成功
+		statusCode = http.StatusMultiStatus
+	}
+
+	c.JSON(statusCode, gin.H{
+		"success": result.SuccessCount > 0,
+		"message": generateBatchMessage(result.SuccessCount, result.ErrorCount),
+		"data":    result,
+	})
+}
+
+// generateBatchMessage 生成批量操作结果消息
+func generateBatchMessage(successCount, errorCount int) string {
+	if errorCount == 0 {
+		return "All documents created successfully"
+	}
+	if successCount == 0 {
+		return "All documents failed to create"
+	}
+	return "Batch operation completed with partial success"
+}
+
+// applySmartTemplate 应用智能模板处理
+func (h *DocumentHandler) applySmartTemplate(item *models.BatchDocumentItem, templates *models.TemplateConfiguration, options *models.BatchCreateOptions) (*models.BatchDocumentItem, error) {
+	processedItem := *item
+
+	// 如果没有指定模板类型，尝试智能检测
+	templateType := item.TemplateType
+	if templateType == "" && templates.EnableSmartTemplate {
+		templateType = h.detectTemplateType(item)
+	}
+
+	// 如果仍然没有模板类型，使用默认模板
+	if templateType == "" && templates.DefaultTemplate != "" {
+		templateType = templates.DefaultTemplate
+	}
+
+	// 应用模板
+	if templateType != "" {
+		if template, exists := getBuiltinTemplate(templateType); exists {
+			processedItem = h.applyTemplate(&processedItem, template, templates.GlobalVariables)
+		} else if template, exists := templates.CustomTemplates[templateType]; exists {
+			processedItem = h.applyCustomTemplate(&processedItem, template, templates.GlobalVariables)
+		}
+	}
+
+	return &processedItem, nil
+}
+
+// detectTemplateType 智能检测模板类型
+func (h *DocumentHandler) detectTemplateType(item *models.BatchDocumentItem) string {
+	title := strings.ToLower(item.Title)
+	description := ""
+	if item.Description != nil {
+		description = strings.ToLower(*item.Description)
+	}
+
+	// Bug修复模板检测
+	if strings.Contains(title, "bug") || strings.Contains(title, "修复") || strings.Contains(title, "fix") ||
+		strings.Contains(description, "bug") || strings.Contains(description, "修复") {
+		return "bug_fix"
+	}
+
+	// 项目阶段模板检测
+	if strings.Contains(title, "第") && strings.Contains(title, "阶段") ||
+		strings.Contains(title, "phase") || strings.Contains(description, "阶段") {
+		return "project_phase"
+	}
+
+	// 部署模板检测
+	if strings.Contains(title, "部署") || strings.Contains(title, "deploy") ||
+		strings.Contains(description, "部署") || strings.Contains(description, "deploy") {
+		return "deployment"
+	}
+
+	// 文档模板检测
+	if strings.Contains(title, "文档") || strings.Contains(title, "document") ||
+		strings.Contains(description, "文档") {
+		return "documentation"
+	}
+
+	// 默认为功能开发模板
+	return "feature"
+}
+
+// getBuiltinTemplate 获取内置模板
+func getBuiltinTemplate(templateType string) (models.TemplateDefinition, bool) {
+	builtinTemplates := map[string]models.TemplateDefinition{
+		"bug_fix": {
+			Name:          "Bug修复文档",
+			TitleTemplate: "{{.title}}",
+			ContentTemplate: `# {{.title}}
+
+## 🎯 修复总结
+**修复时间**: {{.created_time}}
+**状态**: {{.status}}
+
+## 🐛 问题分析
+{{.description}}
+
+## 🔍 根本原因
+需要分析和记录问题的根本原因
+
+## 🔧 修复方案
+详细描述修复的技术方案和实施步骤
+
+## 📁 修复文件
+列出修改的文件和关键代码位置
+
+## ✅ 测试验证
+- [ ] 功能测试通过
+- [ ] 回归测试通过
+- [ ] 代码审查完成
+
+## 📊 影响分析
+- **修复范围**: 
+- **影响用户**: 
+- **风险评估**: 
+
+---
+*文档生成时间: {{.created_time}}*`,
+		},
+		"feature": {
+			Name:          "功能开发文档",
+			TitleTemplate: "{{.title}} - 技术实现文档",
+			ContentTemplate: `# {{.title}}
+
+## 📋 功能概述
+**任务ID**: {{.task_id}}
+**状态**: {{.status}}
+**优先级**: {{.priority}}
+
+## 🎯 需求分析
+{{.description}}
+
+## 🔧 技术设计
+### 架构设计
+待补充技术架构说明
+
+### 接口设计
+待补充API接口设计
+
+### 数据库设计
+待补充数据库变更（如需要）
+
+## 📋 实施计划
+1. **需求分析** - 明确功能需求和验收标准
+2. **技术设计** - 完善架构和接口设计
+3. **开发实现** - 编码实现核心功能
+4. **测试验证** - 功能测试和集成测试
+5. **文档完善** - 更新相关技术文档
+
+## ✅ 验收标准
+- [ ] 功能按需求正确实现
+- [ ] 用户界面友好易用
+- [ ] 性能指标满足要求
+- [ ] 代码质量符合规范
+
+## ⏱️ 预估工时
+{{.estimated_hours}}小时
+
+---
+*文档生成时间: {{.created_time}}*`,
+		},
+		"project_phase": {
+			Name:          "项目阶段文档",
+			TitleTemplate: "{{.title}}",
+			ContentTemplate: `# {{.title}}
+
+## 🎯 阶段目标
+**阶段**: {{.phase}}
+**预估工时**: {{.estimated_hours}}小时
+**状态**: {{.status}}
+
+## 📋 核心任务
+{{.description}}
+
+## 🔧 技术要点
+### 关键技术栈
+- 前端技术
+- 后端技术
+- 数据库方案
+
+### 架构设计
+待补充详细的架构设计和技术选型
+
+## 📅 实施计划
+### 分阶段实施
+1. **需求梳理** - 详细需求分析和整理
+2. **方案设计** - 技术方案设计和评审
+3. **开发实现** - 按计划推进开发工作
+4. **测试验证** - 全面的功能和性能测试
+5. **部署上线** - 生产环境部署和验证
+
+## 📊 成功指标
+- [ ] 阶段目标100%达成
+- [ ] 代码质量满足标准
+- [ ] 性能指标达标
+- [ ] 用户验收通过
+
+## 🎯 后续规划
+描述下一阶段的规划和目标
+
+---
+*文档生成时间: {{.created_time}}*`,
+		},
+	}
+
+	template, exists := builtinTemplates[templateType]
+	return template, exists
+}
+
+// applyTemplate 应用内置模板
+func (h *DocumentHandler) applyTemplate(item *models.BatchDocumentItem, template models.TemplateDefinition, globalVars map[string]interface{}) models.BatchDocumentItem {
+	result := *item
+	
+	// 准备模板变量
+	vars := make(map[string]interface{})
+	for k, v := range globalVars {
+		vars[k] = v
+	}
+	for k, v := range item.Variables {
+		vars[k] = v
+	}
+	
+	// 添加基础变量
+	vars["title"] = item.Title
+	vars["task_id"] = item.TaskID
+	vars["created_time"] = time.Now().Format("2006-01-02 15:04:05")
+	if item.Description != nil {
+		vars["description"] = *item.Description
+	} else {
+		vars["description"] = "待补充详细描述"
+	}
+	
+	// 应用标题模板
+	if template.TitleTemplate != "" {
+		result.Title = h.processTemplate(template.TitleTemplate, vars)
+	}
+	
+	// 应用内容模板
+	if template.ContentTemplate != "" && (item.Content == nil || *item.Content == "") {
+		content := h.processTemplate(template.ContentTemplate, vars)
+		result.Content = &content
+	}
+	
+	return result
+}
+
+// applyCustomTemplate 应用自定义模板
+func (h *DocumentHandler) applyCustomTemplate(item *models.BatchDocumentItem, template models.TemplateDefinition, globalVars map[string]interface{}) models.BatchDocumentItem {
+	// 与内置模板处理相同，但使用自定义模板定义
+	return h.applyTemplate(item, template, globalVars)
+}
+
+// processTemplate 处理模板字符串
+func (h *DocumentHandler) processTemplate(templateStr string, vars map[string]interface{}) string {
+	// 简单的变量替换实现（生产环境建议使用 text/template 包）
+	result := templateStr
+	for k, v := range vars {
+		placeholder := "{{." + k + "}}"
+		value := fmt.Sprintf("%v", v)
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+	return result
+}
+
+// checkTaskHasDocuments 检查任务是否已有文档
+func (h *DocumentHandler) checkTaskHasDocuments(taskID int) (bool, error) {
+	// 这里需要查询任务关联的文档数量
+	// 为了简化，暂时返回 false
+	// TODO: 实现实际的查询逻辑
+	return false, nil
 }

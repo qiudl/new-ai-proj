@@ -1,0 +1,28 @@
+{
+  "summary": {
+    "created_count": 2,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 2,
+    "duration_seconds": 1.172918,
+    "start_time": "2025-08-20T16:45:37.530687",
+    "end_time": "2025-08-20T16:45:38.703605"
+  },
+  "created_documents": [
+    {
+      "task_id": 311,
+      "task_title": "第二阶段：智能模板管理系统开发",
+      "doc_id": 128,
+      "doc_title": "第二阶段：智能模板管理系统开发 - 功能开发文档",
+      "template": "feature"
+    },
+    {
+      "task_id": 310,
+      "task_title": "第一阶段：后端批量文档API接口开发",
+      "doc_id": 129,
+      "doc_title": "第一阶段：后端批量文档API接口开发 - 功能开发文档",
+      "template": "feature"
+    }
+  ],
+  "errors": []
+}

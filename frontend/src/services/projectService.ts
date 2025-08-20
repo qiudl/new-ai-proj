@@ -53,10 +53,7 @@ class ProjectService {
       // axios interceptor已经处理了响应格式化，返回的是后端response.data
       // 后端返回格式: { success: true, data: {...}, message: "..." }
       // api.ts的interceptor已经返回了response.data，所以response就是后端的整个响应
-      // 我们需要返回response.data，即后端响应中的data字段
-      if (response && typeof response === 'object' && 'data' in response) {
-        return response.data;
-      }
+      // 由于axios interceptor已经提取了data，我们直接返回response即可
       return response;
     } catch (error: Error | unknown) {
       console.error('API Error:', error);
@@ -79,7 +76,9 @@ class ProjectService {
     queryParams.append('page_size', '100'); // 获取足够多的项目
     
     const response = await this.request<PaginatedResponse<Project>>(`/projects?${queryParams}`);
-    return response.data;
+    // Response structure: response = { data: [...], pagination: {...} }
+    // We need the data array from the paginated response
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   async getProject(id: number): Promise<Project> {

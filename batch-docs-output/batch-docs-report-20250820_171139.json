@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "created_count": 1,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 1,
+    "duration_seconds": 0.1408,
+    "start_time": "2025-08-20T17:11:39.034013",
+    "end_time": "2025-08-20T17:11:39.174813"
+  },
+  "created_documents": [
+    {
+      "task_id": 314,
+      "task_title": "Task 274和子系统全面检查验证",
+      "doc_id": 182,
+      "doc_title": "Bug修复：Task 274和子系统全面检查验证",
+      "template": "bug_fix"
+    }
+  ],
+  "errors": []
+}

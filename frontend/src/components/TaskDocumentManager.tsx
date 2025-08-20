@@ -274,11 +274,28 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         case 'Escape':
           e.preventDefault();
           if (selectedRowKeys.length > 0) {
-            // Clear selections first, but allow modal to close on second Escape
+            // Clear selections first, but provide clear guidance
             setSelectedRowKeys([]);
-            notification.info({ message: '快捷键触发', description: '已取消选择，再按一次ESC关闭窗口', duration: 3 });
+            notification.info({ 
+              message: '已取消选择', 
+              description: (
+                <div>
+                  <div>已清除所有选中项</div>
+                  <div style={{ marginTop: 4, color: '#666', fontSize: '12px' }}>
+                    提示：再按ESC键关闭窗口，或点击"关闭"按钮，或使用"强制关闭"
+                  </div>
+                </div>
+              ), 
+              duration: 4,
+              style: { marginTop: '10vh' }
+            });
           } else if (mode === 'modal') {
-            // Close modal when no selections or on second Escape press
+            // Close modal when no selections
+            notification.info({ 
+              message: '正在关闭...', 
+              description: '如果窗口未正常关闭，请点击"强制关闭"按钮', 
+              duration: 2 
+            });
             handleModalClose();
           }
           break;
@@ -776,6 +793,8 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       width={isMobile ? '95vw' : 600}
       style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
       styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
+      destroyOnClose
+      maskClosable={true}
     >
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
         <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -1493,6 +1512,22 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     // Clear selections and reset states
     setSelectedRowKeys([]);
     setError(null);
+    setActiveTab('uploader'); // Reset to default tab
+    
+    // Force DOM cleanup after state updates
+    setTimeout(() => {
+      // Remove any lingering modal masks and wrappers
+      const masks = document.querySelectorAll('.ant-modal-mask, .ant-modal-wrap');
+      masks.forEach(mask => {
+        if (mask && mask.parentNode) {
+          mask.parentNode.removeChild(mask);
+        }
+      });
+      
+      // Reset body style that might be modified by modals
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }, 100);
     
     // Call the parent onClose callback
     if (onClose) {
@@ -1529,8 +1564,24 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             setSelectedRowKeys([]);
             setError(null);
             setActiveTab('uploader');
-            onClose && onClose();
-          }} danger type="text" size="small">
+            
+            // Immediate DOM cleanup
+            const masks = document.querySelectorAll('.ant-modal-mask, .ant-modal-wrap');
+            masks.forEach(mask => {
+              if (mask && mask.parentNode) {
+                mask.parentNode.removeChild(mask);
+              }
+            });
+            
+            // Reset body styles
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            // Call parent close with a slight delay to ensure cleanup
+            setTimeout(() => {
+              onClose && onClose();
+            }, 50);
+          }} danger type="text" size="small" title="如果正常关闭失败，使用此按钮强制清理所有状态和DOM元素">
             强制关闭
           </Button>
         ]}
@@ -1584,6 +1635,8 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           }
         } : undefined}
         className="document-preview-modal"
+        destroyOnClose
+        maskClosable={true}
       >
         <div className="document-preview-content">
           {previewContent.includes('```') || previewContent.includes('#') ? (
@@ -1655,6 +1708,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             padding: '16px 12px'
           }
         } : undefined}
+        destroyOnClose
       >
         {currentBatchOperation && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>

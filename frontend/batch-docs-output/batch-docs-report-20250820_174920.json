@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "created_count": 1,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 1,
+    "duration_seconds": 0.102716,
+    "start_time": "2025-08-20T17:49:20.834441",
+    "end_time": "2025-08-20T17:49:20.937157"
+  },
+  "created_documents": [
+    {
+      "task_id": 274,
+      "task_title": "实现自动化批量任务文档生成脚本",
+      "doc_id": "dry_run",
+      "doc_title": "Bug修复：实现自动化批量任务文档生成脚本",
+      "template": "bug_fix"
+    }
+  ],
+  "errors": []
+}

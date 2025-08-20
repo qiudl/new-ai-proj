@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "created_count": 1,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 1,
+    "duration_seconds": 0.138174,
+    "start_time": "2025-08-20T18:20:52.106884",
+    "end_time": "2025-08-20T18:20:52.245058"
+  },
+  "created_documents": [
+    {
+      "task_id": 300,
+      "task_title": "【任务278-子任务1】修复运输单成本创建页面的模拟数据问题",
+      "doc_id": 187,
+      "doc_title": "Bug修复：【任务278-子任务1】修复运输单成本创建页面的模拟数据问题",
+      "template": "bug_fix"
+    }
+  ],
+  "errors": []
+}

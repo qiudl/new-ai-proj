@@ -30,7 +30,9 @@ import {
   LineChartOutlined,
   SettingOutlined,
   ReloadOutlined,
-  FilterOutlined
+  FilterOutlined,
+  HourglassOutlined,
+  BarChartOutlined
 } from '@ant-design/icons';
 import { useTodayTasks } from '../hooks/useTodayTasks';
 import TodayTasksCard from '../components/TodayTasksCard';
@@ -167,19 +169,15 @@ const TodayTasksDashboard: React.FC = () => {
       <Col xs={24} sm={12} md={6}>
         <Card>
           <Statistic
-            title="完成率"
-            value={completionRate}
-            suffix="%"
-            prefix={<TrophyOutlined />}
-            valueStyle={{ color: completionRate >= 80 ? '#52c41a' : completionRate >= 60 ? '#fa8c16' : '#ff4d4f' }}
+            title="计划工时"
+            value={stats?.totalPlannedTimeFormatted || '0分钟'}
+            prefix={<HourglassOutlined />}
+            valueStyle={{ color: '#fa8c16' }}
           />
           <div style={{ marginTop: 8 }}>
-            <Progress 
-              percent={completionRate} 
-              size="small" 
-              strokeColor={completionRate >= 80 ? '#52c41a' : completionRate >= 60 ? '#fa8c16' : '#ff4d4f'}
-              showInfo={false}
-            />
+            <Text type="secondary">
+              今日预估工作量
+            </Text>
           </div>
         </Card>
       </Col>
@@ -444,11 +442,138 @@ const TodayTasksDashboard: React.FC = () => {
         
         <TabPane tab="时间分析" key="analysis">
           <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Card title="任务时间分析" extra={<LineChartOutlined />}>
-                <Text type="secondary">
-                  时间分析图表功能开发中...
-                </Text>
+            {/* 精准时间统计卡片 */}
+            <Col xs={24} lg={8}>
+              <Card title="计划工时统计" extra={<HourglassOutlined />}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>总计划时间:</Text>
+                    <Text strong style={{ color: '#1890ff' }}>
+                      {stats?.totalPlannedTimeFormatted || '0分钟'}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>实际用时:</Text>
+                    <Text strong style={{ color: '#52c41a' }}>
+                      {stats?.totalActualTimeFormatted || '0分钟'}
+                    </Text>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>剩余时间:</Text>
+                    <Text strong style={{ color: '#fa8c16' }}>
+                      {stats?.totalRemainingTimeFormatted || '0分钟'}
+                    </Text>
+                  </div>
+                  <Divider />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>时间效率:</Text>
+                    <Text strong style={{ 
+                      color: (stats?.timeEfficiency || 0) >= 80 ? '#52c41a' : 
+                            (stats?.timeEfficiency || 0) >= 60 ? '#fa8c16' : '#ff4d4f' 
+                    }}>
+                      {Math.round(stats?.timeEfficiency || 0)}%
+                    </Text>
+                  </div>
+                  <Progress 
+                    percent={Math.round(stats?.timeEfficiency || 0)} 
+                    strokeColor={
+                      (stats?.timeEfficiency || 0) >= 80 ? '#52c41a' : 
+                      (stats?.timeEfficiency || 0) >= 60 ? '#fa8c16' : '#ff4d4f'
+                    }
+                  />
+                </Space>
+              </Card>
+            </Col>
+            
+            {/* 时间分布统计 */}
+            <Col xs={24} lg={8}>
+              <Card title="任务时长分布" extra={<BarChartOutlined />}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>短期任务 (0-2小时):</Text>
+                    <Badge count={stats?.timeDistribution?.short || 0} color="#87d068" />
+                  </div>
+                  <Progress 
+                    percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.short || 0) / totalCount * 100) : 0}
+                    size="small"
+                    strokeColor="#87d068"
+                    showInfo={false}
+                  />
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>中期任务 (2-8小时):</Text>
+                    <Badge count={stats?.timeDistribution?.medium || 0} color="#1890ff" />
+                  </div>
+                  <Progress 
+                    percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.medium || 0) / totalCount * 100) : 0}
+                    size="small"
+                    strokeColor="#1890ff"
+                    showInfo={false}
+                  />
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>长期任务 (8小时+):</Text>
+                    <Badge count={stats?.timeDistribution?.long || 0} color="#fa8c16" />
+                  </div>
+                  <Progress 
+                    percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.long || 0) / totalCount * 100) : 0}
+                    size="small"
+                    strokeColor="#fa8c16"
+                    showInfo={false}
+                  />
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text>超大任务 (1天+):</Text>
+                    <Badge count={stats?.timeDistribution?.huge || 0} color="#ff4d4f" />
+                  </div>
+                  <Progress 
+                    percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.huge || 0) / totalCount * 100) : 0}
+                    size="small"
+                    strokeColor="#ff4d4f"
+                    showInfo={false}
+                  />
+                </Space>
+              </Card>
+            </Col>
+            
+            {/* 时间智能分析 */}
+            <Col xs={24} lg={8}>
+              <Card title="智能时间分析" extra={<LineChartOutlined />}>
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Alert
+                    message="时间管理建议"
+                    description={
+                      (stats?.timeEfficiency || 0) >= 80 ? 
+                        "您的时间管理非常高效！继续保持这种状态。" :
+                      (stats?.timeEfficiency || 0) >= 60 ? 
+                        "时间效率良好，可以适当优化任务规划。" :
+                        "建议重新评估任务时间预估，提高计划准确性。"
+                    }
+                    type={
+                      (stats?.timeEfficiency || 0) >= 80 ? "success" :
+                      (stats?.timeEfficiency || 0) >= 60 ? "info" : "warning"
+                    }
+                    showIcon
+                  />
+                  
+                  <div style={{ marginTop: 16 }}>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      基于精准时间追踪的数据分析
+                    </Text>
+                  </div>
+                  
+                  <div style={{ 
+                    background: '#f6ffed', 
+                    border: '1px solid #b7eb8f',
+                    borderRadius: 6,
+                    padding: 12,
+                    marginTop: 8
+                  }}>
+                    <Text style={{ fontSize: '12px', color: '#389e0d' }}>
+                      💡 使用TimeInput组件的估算分钟数进行精确计算
+                    </Text>
+                  </div>
+                </Space>
               </Card>
             </Col>
           </Row>

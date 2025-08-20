@@ -1,0 +1,90 @@
+{
+  "project": {
+    "name": "全栈项目开发",
+    "path": "/path/to/your/project",
+    "taskSystem": {
+      "url": "http://localhost:8081",
+      "projectId": 1
+    }
+  },
+  "environment": {
+    "proxyScript": "~/proxy.sh local",
+    "preCommands": [
+      "echo '🚀 启动全栈开发环境...'",
+      "git status --short",
+      "echo '当前分支: $(git branch --show-current)'"
+    ]
+  },
+  "dependencies": {
+    "analyzer": "auto",
+    "strategy": "smart",
+    "parallelGroups": true
+  },
+  "aiExperts": [
+    {
+      "id": "backend_api",
+      "name": "🔧 后端API专家",
+      "description": "负责后端API开发、数据库设计、业务逻辑实现",
+      "tasks": ["1", "2", "3"],
+      "workingDir": "./backend",
+      "specialties": ["Go", "Python", "Node.js", "数据库", "API设计", "微服务"],
+      "concurrent": 2,
+      "dependencies": {
+        "requires": [],
+        "blocks": ["frontend_ui", "integration_test"]
+      }
+    },
+    {
+      "id": "frontend_ui", 
+      "name": "🎨 前端UI专家",
+      "description": "负责前端界面开发、用户体验优化、组件设计",
+      "tasks": ["4", "5", "6"],
+      "workingDir": "./frontend",
+      "specialties": ["Vue3", "React", "TypeScript", "CSS", "UI/UX", "响应式设计"],
+      "concurrent": 2,
+      "dependencies": {
+        "requires": ["backend_api"],
+        "blocks": ["integration_test"]
+      }
+    },
+    {
+      "id": "database_expert",
+      "name": "🗄️ 数据库专家", 
+      "description": "负责数据库设计、优化、迁移脚本编写",
+      "tasks": ["7", "8"],
+      "workingDir": "./database",
+      "specialties": ["MySQL", "PostgreSQL", "Redis", "数据建模", "性能优化"],
+      "concurrent": 1,
+      "dependencies": {
+        "requires": [],
+        "blocks": ["backend_api"]
+      }
+    },
+    {
+      "id": "devops_expert",
+      "name": "🏗️ DevOps专家",
+      "description": "负责部署、CI/CD、监控、容器化",
+      "tasks": ["9", "10"],
+      "workingDir": "./devops",
+      "specialties": ["Docker", "Kubernetes", "CI/CD", "监控", "自动化部署"],
+      "concurrent": 1,
+      "dependencies": {
+        "requires": ["backend_api", "frontend_ui"],
+        "blocks": []
+      }
+    },
+    {
+      "id": "integration_test",
+      "name": "🔗 集成测试专家",
+      "description": "负责端到端测试、API测试、性能测试",
+      "tasks": ["11", "12"],
+      "workingDir": "./tests",
+      "specialties": ["自动化测试", "API测试", "性能测试", "E2E测试"],
+      "concurrent": 1,
+      "dependencies": {
+        "requires": ["backend_api", "frontend_ui"],
+        "blocks": []
+      }
+    }
+  ]
+}

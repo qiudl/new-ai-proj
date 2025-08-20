@@ -1,0 +1,273 @@
+#!/bin/bash
+
+# 多AI开发工具统一CLI入口
+# 版本: v2.0
+
+set -e
+
+# 脚本目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TOOL_ROOT="$(dirname "$SCRIPT_DIR")"
+CORE_DIR="$TOOL_ROOT/core"
+
+# 颜色输出
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+log() {
+    echo -e "${GREEN}[$(date +'%H:%M:%S')]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[$(date +'%H:%M:%S')]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[$(date +'%H:%M:%S')]${NC} $1"
+}
+
+# 显示版本信息
+show_version() {
+    echo -e "${BLUE}多AI开发工具 v2.0${NC}"
+    echo "工具路径: $TOOL_ROOT"
+    echo "构建时间: $(date +'%Y-%m-%d %H:%M:%S')"
+}
+
+# 显示帮助信息
+show_help() {
+    echo -e "${BLUE}多AI开发工具 - 智能并行开发助手${NC}"
+    echo ""
+    echo "用法:"
+    echo "  multi-ai start [配置文件]         # 启动多AI开发环境"
+    echo "  multi-ai analyze [配置文件]       # 分析任务依赖关系"  
+    echo "  multi-ai config [项目名]          # 生成配置文件"
+    echo "  multi-ai status                  # 查看运行状态"
+    echo "  multi-ai stop                    # 停止所有AI实例"
+    echo "  multi-ai --version              # 显示版本信息"
+    echo "  multi-ai --help                 # 显示帮助信息"
+    echo ""
+    echo "配置文件:"
+    echo "  默认: multi-ai-config.json"
+    echo "  模板: $TOOL_ROOT/templates/"
+    echo ""
+    echo "示例:"
+    echo "  multi-ai start                   # 使用默认配置启动"
+    echo "  multi-ai start my-config.json   # 使用自定义配置启动"
+    echo "  multi-ai analyze config.json    # 分析任务依赖后再启动"
+    echo "  multi-ai config web-app         # 为web-app项目生成配置"
+    echo ""
+    echo "工具组件:"
+    echo "  universal-launcher.sh    - 多AI启动器"
+    echo "  dependency-analyzer.sh   - 任务依赖分析器"
+    echo "  task-scheduler.sh        - 智能任务调度器"
+}
+
+# 启动多AI环境
+start_multi_ai() {
+    local config_file="${1:-multi-ai-config.json}"
+    
+    log "启动多AI开发环境..."
+    log "配置文件: $config_file"
+    
+    # 检查配置文件
+    if [[ ! -f "$config_file" ]]; then
+        if [[ "$config_file" == "multi-ai-config.json" ]]; then
+            warn "默认配置文件不存在，创建示例配置..."
+            exec "$CORE_DIR/universal-launcher.sh"
+        else
+            error "配置文件不存在: $config_file"
+            return 1
+        fi
+    fi
+    
+    # 执行启动器
+    exec "$CORE_DIR/universal-launcher.sh" "$config_file"
+}
+
+# 分析任务依赖
+analyze_dependencies() {
+    local config_file="${1:-multi-ai-config.json}"
+    
+    log "分析任务依赖关系..."
+    
+    if [[ ! -f "$config_file" ]]; then
+        error "配置文件不存在: $config_file"
+        return 1
+    fi
+    
+    # 执行依赖分析
+    "$CORE_DIR/analyzers/dependency-analyzer.sh" "$config_file"
+    
+    if [[ $? -eq 0 ]]; then
+        echo ""
+        read -p "是否基于依赖分析结果启动多AI环境? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            start_multi_ai "$config_file"
+        fi
+    fi
+}
+
+# 生成配置文件
+generate_config() {
+    local project_name="${1:-my-project}"
+    local config_name="${project_name}-ai-config.json"
+    
+    log "为项目 '$project_name' 生成配置文件..."
+    
+    # 执行配置生成
+    "$CORE_DIR/universal-launcher.sh" --init "$project_name"
+    
+    log "配置文件已生成: $config_name"
+    log "请编辑配置文件后使用 'multi-ai start $config_name' 启动"
+}
+
+# 查看运行状态
+show_status() {
+    log "检查多AI环境运行状态..."
+    
+    # 检查Claude Code进程
+    local claude_processes
+    claude_processes=$(ps aux | grep "claude code" | grep -v grep | wc -l)
+    
+    if [[ "$claude_processes" -gt 0 ]]; then
+        log "发现 $claude_processes 个Claude Code实例正在运行"
+        
+        echo ""
+        echo -e "${YELLOW}运行中的Claude Code进程:${NC}"
+        ps aux | grep "claude code" | grep -v grep | awk '{print "  PID: " $2 "  CMD: " $11 $12 $13}'
+    else
+        log "未发现运行中的Claude Code实例"
+    fi
+    
+    # 检查Terminal进程
+    local terminal_count
+    terminal_count=$(osascript -e 'tell application "Terminal" to count windows' 2>/dev/null || echo "0")
+    
+    if [[ "$terminal_count" -gt 0 ]]; then
+        log "Terminal窗口数量: $terminal_count"
+    fi
+}
+
+# 停止所有AI实例
+stop_all_ai() {
+    log "停止所有多AI实例..."
+    
+    # 查找并终止Claude Code进程
+    local claude_pids
+    claude_pids=$(ps aux | grep "claude code" | grep -v grep | awk '{print $2}')
+    
+    if [[ -n "$claude_pids" ]]; then
+        while IFS= read -r pid; do
+            if [[ -n "$pid" ]]; then
+                log "终止Claude Code进程: $pid"
+                kill "$pid" 2>/dev/null || true
+            fi
+        done <<< "$claude_pids"
+        
+        sleep 2
+        
+        # 强制终止仍在运行的进程
+        claude_pids=$(ps aux | grep "claude code" | grep -v grep | awk '{print $2}')
+        if [[ -n "$claude_pids" ]]; then
+            while IFS= read -r pid; do
+                if [[ -n "$pid" ]]; then
+                    warn "强制终止进程: $pid"
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            done <<< "$claude_pids"
+        fi
+        
+        log "所有Claude Code实例已停止"
+    else
+        log "未发现运行中的Claude Code实例"
+    fi
+}
+
+# 检查依赖
+check_dependencies() {
+    local missing_deps=()
+    
+    # 检查必需工具
+    if ! command -v jq &> /dev/null; then
+        missing_deps+=("jq")
+    fi
+    
+    if ! command -v claude &> /dev/null; then
+        missing_deps+=("claude-cli")
+    fi
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        if ! command -v osascript &> /dev/null; then
+            missing_deps+=("osascript (macOS)")
+        fi
+    fi
+    
+    # 检查核心脚本
+    if [[ ! -f "$CORE_DIR/universal-launcher.sh" ]]; then
+        missing_deps+=("universal-launcher.sh")
+    fi
+    
+    if [[ ! -f "$CORE_DIR/analyzers/dependency-analyzer.sh" ]]; then
+        missing_deps+=("dependency-analyzer.sh")
+    fi
+    
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        error "缺少依赖:"
+        for dep in "${missing_deps[@]}"; do
+            echo "  - $dep"
+        done
+        echo ""
+        echo "安装指南:"
+        echo "  jq: brew install jq"
+        echo "  claude-cli: 请参考Claude Code官方文档"
+        echo "  核心脚本: 请检查工具安装是否完整"
+        return 1
+    fi
+    
+    return 0
+}
+
+# 主函数
+main() {
+    # 检查依赖
+    if ! check_dependencies; then
+        exit 1
+    fi
+    
+    case "${1:-}" in
+        start)
+            start_multi_ai "$2"
+            ;;
+        analyze)
+            analyze_dependencies "$2"
+            ;;
+        config)
+            generate_config "$2"
+            ;;
+        status)
+            show_status
+            ;;
+        stop)
+            stop_all_ai
+            ;;
+        --version|-v)
+            show_version
+            ;;
+        --help|-h|"")
+            show_help
+            ;;
+        *)
+            error "未知命令: $1"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# 运行主函数
+main "$@"

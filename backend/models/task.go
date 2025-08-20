@@ -131,6 +131,14 @@ type Task struct {
 	TotalTimeSeconds  int          `json:"total_time_seconds" db:"total_time_seconds"`
 	ChildrenCount     int          `json:"children_count" db:"children_count"`
 	HasChildren       bool         `json:"has_children" db:"has_children"`
+	// Enhanced time management fields
+	StartDatetime      *time.Time   `json:"start_datetime" db:"start_datetime"`
+	DueDatetime        *time.Time   `json:"due_datetime" db:"due_datetime"`
+	EstimatedMinutes   int          `json:"estimated_minutes" db:"estimated_minutes"`
+	ActualMinutes      int          `json:"actual_minutes" db:"actual_minutes"`
+	TimeUnitPreference string       `json:"time_unit_preference" db:"time_unit_preference" validate:"oneof=auto minutes hours days"`
+	WorkHoursPerDay    float64      `json:"work_hours_per_day" db:"work_hours_per_day"`
+	TimeTrackingMode   string       `json:"time_tracking_mode" db:"time_tracking_mode" validate:"oneof=manual automatic hybrid"`
 	// AI-enhanced fields
 	Dependencies      Dependencies `json:"dependencies" db:"dependencies"`
 	EstimatedHours    *float64     `json:"estimated_hours" db:"estimated_hours"`
@@ -151,6 +159,14 @@ type TaskRequest struct {
 	CustomFields   CustomFields `json:"custom_fields"`
 	ParentID       *int         `json:"parent_id"`
 	SortOrder      int          `json:"sort_order"`
+	// Enhanced time management fields
+	StartDatetime      *time.Time `json:"start_datetime"`
+	DueDatetime        *time.Time `json:"due_datetime"`
+	EstimatedMinutes   *int       `json:"estimated_minutes" validate:"omitempty,min=0"`
+	ActualMinutes      *int       `json:"actual_minutes" validate:"omitempty,min=0"`
+	TimeUnitPreference *string    `json:"time_unit_preference" validate:"omitempty,oneof=auto minutes hours days"`
+	WorkHoursPerDay    *float64   `json:"work_hours_per_day" validate:"omitempty,min=0.1,max=24"`
+	TimeTrackingMode   *string    `json:"time_tracking_mode" validate:"omitempty,oneof=manual automatic hybrid"`
 	// AI-enhanced fields
 	Dependencies   Dependencies `json:"dependencies"`
 	EstimatedHours *float64     `json:"estimated_hours" validate:"min=0"` 
@@ -187,8 +203,16 @@ type TaskResponse struct {
 	Priority         string       `json:"priority"`
 	Tags             Tags         `json:"tags"`
 	TotalTimeSeconds int          `json:"total_time_seconds"`
-	CreatedAt        time.Time    `json:"created_at"`
-	UpdatedAt        time.Time    `json:"updated_at"`
+	// Enhanced time management fields
+	StartDatetime      *time.Time `json:"start_datetime"`
+	DueDatetime        *time.Time `json:"due_datetime"`
+	EstimatedMinutes   int        `json:"estimated_minutes"`
+	ActualMinutes      int        `json:"actual_minutes"`
+	TimeUnitPreference string     `json:"time_unit_preference"`
+	WorkHoursPerDay    float64    `json:"work_hours_per_day"`
+	TimeTrackingMode   string     `json:"time_tracking_mode"`
+	CreatedAt          time.Time  `json:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at"`
 }
 
 // BulkImportRequest represents a bulk task import request
@@ -304,13 +328,21 @@ func (t *Task) ToResponse() TaskResponse {
 		ChildrenCount:  t.ChildrenCount,
 		Depth:          t.TaskLevel, // 默认使用 TaskLevel 作为 Depth
 		HasChildren:    t.HasChildren,
-		Dependencies:     t.Dependencies,
-		EstimatedHours:   t.EstimatedHours,
-		Priority:         t.Priority,
-		Tags:             t.Tags,
-		TotalTimeSeconds: t.TotalTimeSeconds,
-		CreatedAt:        t.CreatedAt,
-		UpdatedAt:        t.UpdatedAt,
+		Dependencies:       t.Dependencies,
+		EstimatedHours:     t.EstimatedHours,
+		Priority:           t.Priority,
+		Tags:               t.Tags,
+		TotalTimeSeconds:   t.TotalTimeSeconds,
+		// Enhanced time management fields
+		StartDatetime:      t.StartDatetime,
+		DueDatetime:        t.DueDatetime,
+		EstimatedMinutes:   t.EstimatedMinutes,
+		ActualMinutes:      t.ActualMinutes,
+		TimeUnitPreference: t.TimeUnitPreference,
+		WorkHoursPerDay:    t.WorkHoursPerDay,
+		TimeTrackingMode:   t.TimeTrackingMode,
+		CreatedAt:          t.CreatedAt,
+		UpdatedAt:          t.UpdatedAt,
 	}
 }
 

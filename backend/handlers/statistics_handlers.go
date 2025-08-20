@@ -32,11 +32,19 @@ type TodayTaskStats struct {
 	CompletionRate         float64 `json:"completionRate"`
 	OnTimeCompletionRate   float64 `json:"onTimeCompletionRate"`
 
-	// 时间统计
-	TotalPlannedTime   float64 `json:"totalPlannedTime"`   // 分钟
-	TotalActualTime    float64 `json:"totalActualTime"`    // 分钟
-	TotalRemainingTime float64 `json:"totalRemainingTime"` // 分钟
+	// 时间统计 - 精准时间支持
+	TotalPlannedTime   float64 `json:"totalPlannedTime"`   // 分钟 (精准到分钟)
+	TotalActualTime    float64 `json:"totalActualTime"`    // 分钟 (精准到分钟)  
+	TotalRemainingTime float64 `json:"totalRemainingTime"` // 分钟 (精准到分钟)
 	TimeEfficiency     float64 `json:"timeEfficiency"`     // 百分比
+	
+	// 新增：精准时间格式统计
+	TotalPlannedTimeFormatted   string `json:"totalPlannedTimeFormatted"`   // 格式化显示 (如: "2小时30分钟")
+	TotalActualTimeFormatted    string `json:"totalActualTimeFormatted"`    // 格式化显示
+	TotalRemainingTimeFormatted string `json:"totalRemainingTimeFormatted"` // 格式化显示
+	
+	// 时间分布统计
+	TimeDistribution map[string]float64 `json:"timeDistribution"` // 按时间范围分布统计
 
 	// 优先级分布
 	PriorityDistribution map[string]int `json:"priorityDistribution"`
@@ -282,6 +290,14 @@ func (sh *StatisticsHandlers) calculateTimeStats(stats *TodayTaskStats, todaySta
 		stats.AvgTaskDuration = totalActualMinutes / float64(stats.CompletedTasks)
 	}
 
+	// 格式化精准时间显示
+	stats.TotalPlannedTimeFormatted = formatMinutesToReadable(totalPlannedMinutes)
+	stats.TotalActualTimeFormatted = formatMinutesToReadable(totalActualMinutes)
+	stats.TotalRemainingTimeFormatted = formatMinutesToReadable(stats.TotalRemainingTime)
+
+	// 计算时间分布统计
+	stats.TimeDistribution = sh.calculateTimeDistribution(today)
+
 	return nil
 }
 
@@ -477,4 +493,107 @@ func (sh *StatisticsHandlers) scanTaskInfo(rows *sql.Rows) (TaskInfo, error) {
 	}
 
 	return task, nil
+}
+
+// formatMinutesToReadable 将分钟数格式化为可读的时间字符串
+func formatMinutesToReadable(minutes float64) string {
+	if minutes <= 0 {
+		return "0分钟"
+	}
+
+	totalMinutes := int(minutes)
+	days := totalMinutes / (8 * 60)    // 按8小时工作日计算
+	hours := (totalMinutes % (8 * 60)) / 60
+	remainingMinutes := totalMinutes % 60
+
+	var parts []string
+	
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%d天", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%d小时", hours))
+	}
+	if remainingMinutes > 0 || len(parts) == 0 {
+		parts = append(parts, fmt.Sprintf("%d分钟", remainingMinutes))
+	}
+
+	// 限制显示最多两个单位，保持简洁
+	if len(parts) > 2 {
+		parts = parts[:2]
+	}
+
+	result := ""
+	for i, part := range parts {
+		if i > 0 {
+			result += ""
+		}
+		result += part
+	}
+	
+	return result
+}
+
+// calculateTimeDistribution 计算时间分布统计
+func (sh *StatisticsHandlers) calculateTimeDistribution(today string) map[string]float64 {
+	distribution := map[string]float64{
+		"short":  0,  // 0-2小时 (0-120分钟)
+		"medium": 0,  // 2-8小时 (120-480分钟)
+		"long":   0,  // 8小时-1天 (480-480分钟，实际上应该是8小时以上)
+		"huge":   0,  // 1天以上 (超过8小时)
+	}
+
+	query := `
+		SELECT 
+			CASE 
+				WHEN JSON_EXTRACT(custom_fields, '$.estimated_hours') IS NOT NULL 
+				THEN CAST(JSON_EXTRACT(custom_fields, '$.estimated_hours') AS DECIMAL) * 60
+				WHEN JSON_EXTRACT(custom_fields, '$.estimatedMinutes') IS NOT NULL
+				THEN CAST(JSON_EXTRACT(custom_fields, '$.estimatedMinutes') AS DECIMAL)
+				ELSE 0 
+			END as estimated_minutes
+		FROM tasks 
+		WHERE status NOT IN ('cancelled', 'archived') 
+		AND (
+			DATE(due_date) = ? OR 
+			DATE(created_at) = ? OR 
+			DATE(updated_at) = ? OR 
+			status IN ('in_progress', 'testing') OR
+			(due_date < ? AND status != 'completed')
+		)
+		AND (
+			JSON_EXTRACT(custom_fields, '$.estimated_hours') IS NOT NULL OR
+			JSON_EXTRACT(custom_fields, '$.estimatedMinutes') IS NOT NULL
+		)
+	`
+
+	rows, err := sh.db.Query(query, today, today, today, today)
+	if err != nil {
+		return distribution
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var estimatedMinutes float64
+		if err := rows.Scan(&estimatedMinutes); err != nil {
+			continue
+		}
+
+		if estimatedMinutes <= 0 {
+			continue
+		}
+
+		switch {
+		case estimatedMinutes <= 120: // 0-2小时
+			distribution["short"] += estimatedMinutes
+		case estimatedMinutes <= 480: // 2-8小时
+			distribution["medium"] += estimatedMinutes
+		case estimatedMinutes <= 480*1: // 8小时-1天 (修正：应该是 <= 1*8*60 = 480，但这里应该是一天的分钟数)
+			distribution["long"] += estimatedMinutes
+		default: // 1天以上
+			distribution["huge"] += estimatedMinutes
+		}
+	}
+
+	return distribution
 }

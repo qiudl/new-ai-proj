@@ -9,7 +9,9 @@ import {
   Typography,
   Upload,
   message,
-  Tag
+  Tag,
+  Modal,
+  Popconfirm
 } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -18,7 +20,10 @@ import {
   DownloadOutlined,
   PlusOutlined,
   MoreOutlined,
-  SyncOutlined
+  SyncOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
@@ -90,6 +95,18 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
       message.error('文档上传失败');
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Delete document handler
+  const handleDeleteDocument = async (documentId: number, documentTitle: string) => {
+    try {
+      await documentService.deleteDocument(documentId);
+      message.success(`文档 "${documentTitle}" 删除成功`);
+      await loadDocuments(); // Refresh the list
+    } catch (error) {
+      console.error('删除失败:', error);
+      message.error('文档删除失败');
     }
   };
 
@@ -359,11 +376,52 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                     border: '1px solid #f0f0f0', 
                     borderRadius: '4px',
                     marginBottom: index < documents.length - 1 ? '8px' : '0',
-                    backgroundColor: '#fafafa'
+                    backgroundColor: '#fafafa',
+                    position: 'relative'
                   }}>
-                    <div style={{ marginBottom: '4px' }}>
-                      <Text strong>{doc.title}</Text>
-                      <Tag size="small" style={{ marginLeft: '8px' }}>{doc.type}</Tag>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <div style={{ flex: 1 }}>
+                        <Text strong>{doc.title}</Text>
+                        <Tag size="small" style={{ marginLeft: '8px' }}>{doc.type}</Tag>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <Tooltip title="预览文档">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<EyeOutlined />}
+                            onClick={() => setManagerVisible(true)}
+                            style={{ padding: '0 4px' }}
+                          />
+                        </Tooltip>
+                        <Tooltip title="编辑文档">
+                          <Button
+                            type="text"
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setManagerVisible(true)}
+                            style={{ padding: '0 4px' }}
+                          />
+                        </Tooltip>
+                        <Popconfirm
+                          title={`确定删除文档 "${doc.title}"？`}
+                          description="删除后无法恢复，请确认操作"
+                          onConfirm={() => handleDeleteDocument(doc.id, doc.title)}
+                          okText="删除"
+                          cancelText="取消"
+                          okType="danger"
+                        >
+                          <Tooltip title="删除文档">
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<DeleteOutlined />}
+                              danger
+                              style={{ padding: '0 4px' }}
+                            />
+                          </Tooltip>
+                        </Popconfirm>
+                      </div>
                     </div>
                     {doc.description && (
                       <div style={{ marginBottom: '4px' }}>

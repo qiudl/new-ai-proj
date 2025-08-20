@@ -45,13 +45,17 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 	}
 
 	query := `
-		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields, parent_id, sort_order)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields, parent_id, sort_order,
+		                   start_datetime, due_datetime, estimated_minutes, actual_minutes, 
+		                   time_unit_preference, work_hours_per_day, time_tracking_mode)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id, created_at, task_level`
 
 	row := exec.QueryRowContext(ctx, query,
 		task.ProjectID, task.Title, task.Description, task.Status,
-		task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder)
+		task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder,
+		task.StartDatetime, task.DueDatetime, task.EstimatedMinutes, task.ActualMinutes,
+		task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode)
 
 	err = row.Scan(&task.ID, &task.CreatedAt, &task.TaskLevel)
 	task.UpdatedAt = task.CreatedAt
@@ -67,6 +71,8 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count
 		FROM tasks t
@@ -87,12 +93,19 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	var dueDate sql.NullTime
 	var parentID sql.NullInt64
 	var updatedAt sql.NullTime
+	var startDatetime sql.NullTime
+	var dueDatetime sql.NullTime
+	var timeUnitPreference sql.NullString
+	var workHoursPerDay sql.NullFloat64
+	var timeTrackingMode sql.NullString
 	var childrenCount int
 
 	err := row.Scan(
 		&task.ID, &task.ProjectID, &task.Title, &task.Description,
 		&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 		&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+		&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+		&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 		&task.CreatedAt, &updatedAt, &task.DeletedAt, &childrenCount,
 	)
 
@@ -118,6 +131,29 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 		task.UpdatedAt = updatedAt.Time
 	} else {
 		task.UpdatedAt = task.CreatedAt
+	}
+	
+	// Handle new time management fields
+	if startDatetime.Valid {
+		task.StartDatetime = &startDatetime.Time
+	}
+	if dueDatetime.Valid {
+		task.DueDatetime = &dueDatetime.Time
+	}
+	if timeUnitPreference.Valid {
+		task.TimeUnitPreference = timeUnitPreference.String
+	} else {
+		task.TimeUnitPreference = "auto"
+	}
+	if workHoursPerDay.Valid {
+		task.WorkHoursPerDay = workHoursPerDay.Float64
+	} else {
+		task.WorkHoursPerDay = 8.0
+	}
+	if timeTrackingMode.Valid {
+		task.TimeTrackingMode = timeTrackingMode.String
+	} else {
+		task.TimeTrackingMode = "manual"
 	}
 
 	if len(customFieldsJSON) > 0 {
@@ -149,6 +185,8 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
 		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
 		       t.created_at, t.updated_at, t.deleted_at,
 		       COALESCE(c.children_count, 0) as children_count
 		FROM tasks t
@@ -175,12 +213,19 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		var assigneeID sql.NullInt64
 		var dueDate sql.NullTime
 		var parentID sql.NullInt64
+		var startDatetime sql.NullTime
+		var dueDatetime sql.NullTime
+		var timeUnitPreference sql.NullString
+		var workHoursPerDay sql.NullFloat64
+		var timeTrackingMode sql.NullString
 		var childrenCount int
 		
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt, &childrenCount,
 		)
 		if err != nil {
@@ -197,6 +242,29 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		if parentID.Valid {
 			intVal := int(parentID.Int64)
 			task.ParentID = &intVal
+		}
+		
+		// Handle new time management fields
+		if startDatetime.Valid {
+			task.StartDatetime = &startDatetime.Time
+		}
+		if dueDatetime.Valid {
+			task.DueDatetime = &dueDatetime.Time
+		}
+		if timeUnitPreference.Valid {
+			task.TimeUnitPreference = timeUnitPreference.String
+		} else {
+			task.TimeUnitPreference = "auto"
+		}
+		if workHoursPerDay.Valid {
+			task.WorkHoursPerDay = workHoursPerDay.Float64
+		} else {
+			task.WorkHoursPerDay = 8.0
+		}
+		if timeTrackingMode.Valid {
+			task.TimeTrackingMode = timeTrackingMode.String
+		} else {
+			task.TimeTrackingMode = "manual"
 		}
 
 		if len(customFieldsJSON) > 0 {
@@ -233,7 +301,10 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 
 	query := `
 		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date, 
-		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes, 
+		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
+		       t.created_at, t.updated_at, t.deleted_at,
 		       p.name as project_name, u.username as assignee_name,
 		       COALESCE(c.children_count, 0) as children_count
 		FROM tasks t
@@ -263,6 +334,11 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		var dueDate sql.NullTime
 		var parentID sql.NullInt64
 		var updatedAt sql.NullTime
+		var startDatetime sql.NullTime
+		var dueDatetime sql.NullTime
+		var timeUnitPreference sql.NullString
+		var workHoursPerDay sql.NullFloat64
+		var timeTrackingMode sql.NullString
 		var projectName sql.NullString
 		var assigneeName sql.NullString
 		var childrenCount int
@@ -270,7 +346,9 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
-			&parentID, &task.TaskLevel, &task.SortOrder,
+			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 			&task.CreatedAt, &updatedAt, &task.DeletedAt,
 			&projectName, &assigneeName, &childrenCount,
 		)
@@ -293,6 +371,29 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 			task.UpdatedAt = updatedAt.Time
 		} else {
 			task.UpdatedAt = task.CreatedAt
+		}
+		
+		// Handle new time management fields
+		if startDatetime.Valid {
+			task.StartDatetime = &startDatetime.Time
+		}
+		if dueDatetime.Valid {
+			task.DueDatetime = &dueDatetime.Time
+		}
+		if timeUnitPreference.Valid {
+			task.TimeUnitPreference = timeUnitPreference.String
+		} else {
+			task.TimeUnitPreference = "auto"
+		}
+		if workHoursPerDay.Valid {
+			task.WorkHoursPerDay = workHoursPerDay.Float64
+		} else {
+			task.WorkHoursPerDay = 8.0
+		}
+		if timeTrackingMode.Valid {
+			task.TimeTrackingMode = timeTrackingMode.String
+		} else {
+			task.TimeTrackingMode = "manual"
 		}
 
 		if len(customFieldsJSON) > 0 {
@@ -335,6 +436,9 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 		SET title = $2, description = $3, assignee_id = $4, status = $5,
 		    due_date = $6, custom_fields = $7, total_time_seconds = $8,
 		    parent_id = $9, task_level = $10, sort_order = $11,
+		    start_datetime = $12, due_datetime = $13, estimated_minutes = $14, 
+		    actual_minutes = $15, time_unit_preference = $16, 
+		    work_hours_per_day = $17, time_tracking_mode = $18,
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
@@ -343,7 +447,9 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 	row := exec.QueryRowContext(ctx, query,
 		task.ID, task.Title, task.Description, task.AssigneeID,
 		task.Status, task.DueDate, customFieldsJSON, task.TotalTimeSeconds,
-		task.ParentID, task.TaskLevel, task.SortOrder)
+		task.ParentID, task.TaskLevel, task.SortOrder,
+		task.StartDatetime, task.DueDatetime, task.EstimatedMinutes,
+		task.ActualMinutes, task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode)
 
 	err = row.Scan(&task.UpdatedAt)
 	if err != nil {
@@ -465,8 +571,10 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 	}
 
 	query := `
-		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO tasks (project_id, title, description, status, assignee_id, due_date, custom_fields, parent_id, sort_order,
+		                   start_datetime, due_datetime, estimated_minutes, actual_minutes, 
+		                   time_unit_preference, work_hours_per_day, time_tracking_mode)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id, created_at`
 
 	for i, task := range tasks {
@@ -477,7 +585,9 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 
 		row := exec.QueryRowContext(ctx, query,
 			task.ProjectID, task.Title, task.Description, task.Status,
-			task.AssigneeID, task.DueDate, customFieldsJSON)
+			task.AssigneeID, task.DueDate, customFieldsJSON, task.ParentID, task.SortOrder,
+			task.StartDatetime, task.DueDatetime, task.EstimatedMinutes, task.ActualMinutes,
+			task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode)
 
 		err = row.Scan(&task.ID, &task.CreatedAt)
 		if err != nil {
@@ -638,7 +748,9 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 	query := fmt.Sprintf(`
 		SELECT id, project_id, title, description, status, assignee_id, due_date, 
 		       custom_fields, created_at, updated_at, deleted_at, parent_id, 
-		       task_level, sort_order
+		       task_level, sort_order, total_time_seconds,
+		       start_datetime, due_datetime, estimated_minutes, actual_minutes, 
+		       time_unit_preference, work_hours_per_day, time_tracking_mode
 		FROM tasks 
 		%s
 		ORDER BY task_level ASC, title ASC
@@ -661,12 +773,19 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 		var parentID sql.NullInt64
 		var taskLevel sql.NullInt64
 		var sortOrder sql.NullInt64
+		var startDatetime sql.NullTime
+		var dueDatetime sql.NullTime
+		var timeUnitPreference sql.NullString
+		var workHoursPerDay sql.NullFloat64
+		var timeTrackingMode sql.NullString
 
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
 			&task.CreatedAt, &task.UpdatedAt, &task.DeletedAt,
-			&parentID, &taskLevel, &sortOrder,
+			&parentID, &taskLevel, &sortOrder, &task.TotalTimeSeconds,
+			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
@@ -689,6 +808,29 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 		}
 		if sortOrder.Valid {
 			task.SortOrder = int(sortOrder.Int64)
+		}
+		
+		// Handle new time management fields
+		if startDatetime.Valid {
+			task.StartDatetime = &startDatetime.Time
+		}
+		if dueDatetime.Valid {
+			task.DueDatetime = &dueDatetime.Time
+		}
+		if timeUnitPreference.Valid {
+			task.TimeUnitPreference = timeUnitPreference.String
+		} else {
+			task.TimeUnitPreference = "auto"
+		}
+		if workHoursPerDay.Valid {
+			task.WorkHoursPerDay = workHoursPerDay.Float64
+		} else {
+			task.WorkHoursPerDay = 8.0
+		}
+		if timeTrackingMode.Valid {
+			task.TimeTrackingMode = timeTrackingMode.String
+		} else {
+			task.TimeTrackingMode = "manual"
 		}
 
 		// Unmarshal custom fields

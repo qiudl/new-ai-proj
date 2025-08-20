@@ -150,16 +150,24 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	_ = userID
 
 	var req struct {
-		Title         string                 `json:"title" binding:"required,min=1,max=255"`
-		Description   string                 `json:"description"`
-		Status        string                 `json:"status"`
-		Priority      string                 `json:"priority"`
-		AssigneeID    *int                   `json:"assignee_id"`
-		ParentID      *int                   `json:"parent_id"`
-		DueDate       *string                `json:"due_date"`
-		Tags          []string               `json:"tags"`
-		CustomFields  map[string]interface{} `json:"custom_fields"`
-		EstimatedTime *int                   `json:"estimated_time"`
+		Title              string                 `json:"title" binding:"required,min=1,max=255"`
+		Description        string                 `json:"description"`
+		Status             string                 `json:"status"`
+		Priority           string                 `json:"priority"`
+		AssigneeID         *int                   `json:"assignee_id"`
+		ParentID           *int                   `json:"parent_id"`
+		DueDate            *string                `json:"due_date"`
+		Tags               []string               `json:"tags"`
+		CustomFields       map[string]interface{} `json:"custom_fields"`
+		EstimatedTime      *int                   `json:"estimated_time"`
+		// Enhanced time management fields
+		StartDatetime      *string                `json:"start_datetime"`
+		DueDatetime        *string                `json:"due_datetime"`
+		EstimatedMinutes   *int                   `json:"estimated_minutes"`
+		ActualMinutes      *int                   `json:"actual_minutes"`
+		TimeUnitPreference *string                `json:"time_unit_preference"`
+		WorkHoursPerDay    *float64               `json:"work_hours_per_day"`
+		TimeTrackingMode   *string                `json:"time_tracking_mode"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -177,6 +185,26 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		}
 	}
 
+	// Parse start datetime
+	var startDatetime *time.Time
+	if req.StartDatetime != nil && *req.StartDatetime != "" {
+		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.StartDatetime); err == nil {
+			startDatetime = &parsed
+		} else if parsed, err := time.Parse("2006-01-02", *req.StartDatetime); err == nil {
+			startDatetime = &parsed
+		}
+	}
+
+	// Parse due datetime
+	var dueDatetime *time.Time
+	if req.DueDatetime != nil && *req.DueDatetime != "" {
+		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDatetime); err == nil {
+			dueDatetime = &parsed
+		} else if parsed, err := time.Parse("2006-01-02", *req.DueDatetime); err == nil {
+			dueDatetime = &parsed
+		}
+	}
+
 	// Convert custom fields to JSON
 	var customFieldsJSON []byte
 	if req.CustomFields != nil {
@@ -184,14 +212,22 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	task := &models.Task{
-		Title:         req.Title,
-		Description:   req.Description,
-		Status:        req.Status,
-		Priority:      req.Priority,
-		ProjectID:     projectID,
-		AssigneeID:    req.AssigneeID,
-		ParentID:      req.ParentID,
-		DueDate:       dueDate,
+		Title:              req.Title,
+		Description:        req.Description,
+		Status:             req.Status,
+		Priority:           req.Priority,
+		ProjectID:          projectID,
+		AssigneeID:         req.AssigneeID,
+		ParentID:           req.ParentID,
+		DueDate:            dueDate,
+		// Enhanced time management fields
+		StartDatetime:      startDatetime,
+		DueDatetime:        dueDatetime,
+		EstimatedMinutes:   getIntValue(req.EstimatedMinutes),
+		ActualMinutes:      getIntValue(req.ActualMinutes),
+		TimeUnitPreference: getStringValue(req.TimeUnitPreference, "auto"),
+		WorkHoursPerDay:    getFloat64Value(req.WorkHoursPerDay, 8.0),
+		TimeTrackingMode:   getStringValue(req.TimeTrackingMode, "manual"),
 	}
 
 	if len(customFieldsJSON) > 0 {
@@ -332,16 +368,24 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	var req struct {
-		Title         string                 `json:"title" binding:"required,min=1,max=255"`
-		Description   string                 `json:"description"`
-		Status        string                 `json:"status"`
-		Priority      string                 `json:"priority"`
-		AssigneeID    *int                   `json:"assignee_id"`
-		ParentID      *int                   `json:"parent_id"`
-		DueDate       *string                `json:"due_date"`
-		CustomFields  map[string]interface{} `json:"custom_fields"`
-		EstimatedTime *int                   `json:"estimated_time"`
-		ActualTime    *int                   `json:"actual_time"`
+		Title              string                 `json:"title" binding:"required,min=1,max=255"`
+		Description        string                 `json:"description"`
+		Status             string                 `json:"status"`
+		Priority           string                 `json:"priority"`
+		AssigneeID         *int                   `json:"assignee_id"`
+		ParentID           *int                   `json:"parent_id"`
+		DueDate            *string                `json:"due_date"`
+		CustomFields       map[string]interface{} `json:"custom_fields"`
+		EstimatedTime      *int                   `json:"estimated_time"`
+		ActualTime         *int                   `json:"actual_time"`
+		// Enhanced time management fields
+		StartDatetime      *string                `json:"start_datetime"`
+		DueDatetime        *string                `json:"due_datetime"`
+		EstimatedMinutes   *int                   `json:"estimated_minutes"`
+		ActualMinutes      *int                   `json:"actual_minutes"`
+		TimeUnitPreference *string                `json:"time_unit_preference"`
+		WorkHoursPerDay    *float64               `json:"work_hours_per_day"`
+		TimeTrackingMode   *string                `json:"time_tracking_mode"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -381,6 +425,45 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		}
 	} else {
 		task.DueDate = nil
+	}
+
+	// Parse and update start datetime
+	if req.StartDatetime != nil && *req.StartDatetime != "" {
+		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.StartDatetime); err == nil {
+			task.StartDatetime = &parsed
+		} else if parsed, err := time.Parse("2006-01-02", *req.StartDatetime); err == nil {
+			task.StartDatetime = &parsed
+		}
+	} else {
+		task.StartDatetime = nil
+	}
+
+	// Parse and update due datetime
+	if req.DueDatetime != nil && *req.DueDatetime != "" {
+		if parsed, err := time.Parse("2006-01-02T15:04:05Z", *req.DueDatetime); err == nil {
+			task.DueDatetime = &parsed
+		} else if parsed, err := time.Parse("2006-01-02", *req.DueDatetime); err == nil {
+			task.DueDatetime = &parsed
+		}
+	} else {
+		task.DueDatetime = nil
+	}
+
+	// Update enhanced time management fields
+	if req.EstimatedMinutes != nil {
+		task.EstimatedMinutes = *req.EstimatedMinutes
+	}
+	if req.ActualMinutes != nil {
+		task.ActualMinutes = *req.ActualMinutes
+	}
+	if req.TimeUnitPreference != nil {
+		task.TimeUnitPreference = *req.TimeUnitPreference
+	}
+	if req.WorkHoursPerDay != nil {
+		task.WorkHoursPerDay = *req.WorkHoursPerDay
+	}
+	if req.TimeTrackingMode != nil {
+		task.TimeTrackingMode = *req.TimeTrackingMode
 	}
 
 	// Convert custom fields to JSON
@@ -660,4 +743,29 @@ func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.
 		user.ID, taskID, models.FormatDuration(durationSeconds))
 
 	return nil
-}// Force rebuild Sun Aug 17 22:30:44 CST 2025
+}
+
+// Helper functions for handling nullable values in task creation/update
+
+func getIntValue(ptr *int) int {
+	if ptr != nil {
+		return *ptr
+	}
+	return 0
+}
+
+func getStringValue(ptr *string, defaultValue string) string {
+	if ptr != nil && *ptr != "" {
+		return *ptr
+	}
+	return defaultValue
+}
+
+func getFloat64Value(ptr *float64, defaultValue float64) float64 {
+	if ptr != nil {
+		return *ptr
+	}
+	return defaultValue
+}
+
+// Force rebuild Sun Aug 17 22:30:44 CST 2025

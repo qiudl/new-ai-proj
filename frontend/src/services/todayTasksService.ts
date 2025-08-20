@@ -19,6 +19,20 @@ interface TodayTasksStats {
   updated_today_count: number;
   overdue_count: number;
   high_priority_count: number;
+  
+  // 时间统计 - 精准时间支持
+  totalPlannedTime?: number;   // 分钟 (精准到分钟)
+  totalActualTime?: number;    // 分钟 (精准到分钟)  
+  totalRemainingTime?: number; // 分钟 (精准到分钟)
+  timeEfficiency?: number;     // 百分比
+  
+  // 新增：精准时间格式统计
+  totalPlannedTimeFormatted?: string;   // 格式化显示
+  totalActualTimeFormatted?: string;    // 格式化显示
+  totalRemainingTimeFormatted?: string; // 格式化显示
+  
+  // 时间分布统计
+  timeDistribution?: { [key: string]: number }; // 按时间范围分布统计
 }
 
 interface TodayTasksResponse {

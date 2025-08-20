@@ -34,6 +34,9 @@ func registerDocumentCRUDRoutes(authorized *gin.RouterGroup, app ApplicationInte
 	authorized.PUT("/documents/:id", app.GetDocumentHandler().UpdateDocument)
 	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
 	
+	// Batch operations
+	authorized.POST("/documents/batch", app.GetDocumentHandler().CreateBatchDocuments)
+	
 	// Search
 	authorized.GET("/documents/search", app.GetDocumentHandler().SearchDocuments)
 	

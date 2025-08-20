@@ -1,0 +1,21 @@
+{
+  "summary": {
+    "created_count": 1,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "total_count": 1,
+    "duration_seconds": 0.137797,
+    "start_time": "2025-08-20T21:48:14.971046",
+    "end_time": "2025-08-20T21:48:15.108843"
+  },
+  "created_documents": [
+    {
+      "task_id": 318,
+      "task_title": "【Bug修复】运单搜索报错：Unknown column o.shipper_name",
+      "doc_id": 189,
+      "doc_title": "Bug修复：【Bug修复】运单搜索报错：Unknown column o.shipper_name",
+      "template": "bug_fix"
+    }
+  ],
+  "errors": []
+}
