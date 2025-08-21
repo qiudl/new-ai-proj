@@ -84,7 +84,44 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 func registerBasicRoutes(router *gin.Engine, app ApplicationInterface) {
 	router.GET("/health", app.GetHealthHandler())
 	router.GET("/version", app.GetVersionHandler())
-	router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
+		router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
+
+		// Documents consistency health (DB-level checks only)
+		router.GET("/documents/health/docs", func(c *gin.Context) {
+			type result struct{ Count int }
+			orphanDocs := 0
+			orphanLinks := 0
+			if db := app.GetDB(); db != nil {
+				if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+					// Orphan documents: documents without any task_documents link (and not deleted)
+					row := sqlDB.QueryRow(`
+						SELECT COALESCE(COUNT(*),0)
+						FROM documents d
+						LEFT JOIN task_documents td ON td.document_id = d.id
+						WHERE td.document_id IS NULL AND d.deleted_at IS NULL
+					`)
+					_ = row.Scan(&orphanDocs)
+
+					// Orphan links: task_documents pointing to missing documents
+					row2 := sqlDB.QueryRow(`
+						SELECT COALESCE(COUNT(*),0)
+						FROM task_documents td
+						LEFT JOIN documents d ON d.id = td.document_id
+						WHERE d.id IS NULL
+					`)
+					_ = row2.Scan(&orphanLinks)
+				}
+			}
+			c.JSON(200, gin.H{
+				"success": true,
+				"data": gin.H{
+					"orphan_documents": orphanDocs,
+					"orphan_links": orphanLinks,
+					"mirror_writable": false, // to be implemented in phase 2
+					"timestamp": time.Now().UTC(),
+				},
+			})
+		})
 }
 
 
