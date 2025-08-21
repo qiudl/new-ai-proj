@@ -322,7 +322,7 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	})
 }
 
-// HasTaskDocument 一致性读取：检查任务是否存在关联文档
+// HasTaskDocument 一致性读取：检查任务是否存在关联文档（统一通过 Repository）
 func (h *DocumentHandler) HasTaskDocument(c *gin.Context) {
 	// taskId from path
 	taskIDStr := c.Param("taskId")
@@ -331,27 +331,20 @@ func (h *DocumentHandler) HasTaskDocument(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
 		return
 	}
-	var exists bool
-	if h.db != nil {
-		if sqlDB, ok := h.db.GetDB().(*sql.DB); ok {
-			row := sqlDB.QueryRow(`
-				SELECT EXISTS(
-				  SELECT 1
-				  FROM task_documents td
-				  JOIN documents d ON d.id = td.document_id
-				  WHERE td.task_id = $1 AND d.deleted_at IS NULL
-				)
-			`, taskID)
-			_ = row.Scan(&exists)
-		}
+	// 统一从仓库读取，避免直连 SQL 分叉
+	docs, err := h.docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read task documents", "error": err.Error()})
+		return
 	}
+	exists := len(docs) > 0
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{"has_document": exists},
 	})
 }
 
-// ListTaskDocuments 一致性读取：列出任务的所有文档（简化字段集）
+// ListTaskDocuments 一致性读取：列出任务的所有文档（统一通过 Repository；按更新时间倒序）
 func (h *DocumentHandler) ListTaskDocuments(c *gin.Context) {
 	taskIDStr := c.Param("taskId")
 	taskID, err := strconv.Atoi(taskIDStr)
@@ -359,42 +352,49 @@ func (h *DocumentHandler) ListTaskDocuments(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
 		return
 	}
-	docs := []map[string]interface{}{}
-	if h.db != nil {
-		if sqlDB, ok := h.db.GetDB().(*sql.DB); ok {
-			rows, qerr := sqlDB.Query(`
-				SELECT d.id, d.title, d.type, d.status, d.visibility, d.version, d.updated_at
-				FROM documents d
-				JOIN task_documents td ON td.document_id = d.id
-				WHERE td.task_id = $1 AND d.deleted_at IS NULL
-				ORDER BY d.updated_at DESC
-			`, taskID)
-			if qerr == nil {
-				defer rows.Close()
-				for rows.Next() {
-					var id, version, visNull int
-					var title, dtype, status string
-					var visibility string
-					var updatedAt time.Time
-					err := rows.Scan(&id, &title, &dtype, &status, &visibility, &version, &updatedAt)
-					if err == nil {
-						docs = append(docs, map[string]interface{}{
-							"id": id,
-							"title": title,
-							"type": dtype,
-							"status": status,
-							"visibility": visibility,
-							"version": version,
-							"updated_at": updatedAt,
-						})
-					}
-				}
-			}
+	// 统一从仓库读取
+	documents, err := h.docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to get task documents", "error": err.Error()})
+		return
+	}
+	// 简化字段输出，并进行按 updated_at 降序排序（若无则稳定输出）
+	type item struct {
+		ID         int         `json:"id"`
+		Title      string      `json:"title"`
+		Type       string      `json:"type"`
+		Status     string      `json:"status"`
+		Visibility string      `json:"visibility"`
+		Version    int         `json:"version"`
+		UpdatedAt  time.Time   `json:"updated_at"`
+	}
+	list := make([]item, 0, len(documents))
+	for _, d := range documents {
+		it := item{ID: d.ID, Title: d.Title, Type: string(d.Type), Status: string(d.Status), Visibility: string(d.Visibility), Version: d.Version}
+		if d.UpdatedAt != nil {
+			it.UpdatedAt = *d.UpdatedAt
+		}
+		list = append(list, it)
+	}
+	// 排序（有 UpdatedAt 的在前）
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].UpdatedAt.After(list[j].UpdatedAt)
+	})
+	res := make([]map[string]interface{}, len(list))
+	for i, it := range list {
+		res[i] = map[string]interface{}{
+			"id":         it.ID,
+			"title":      it.Title,
+			"type":       it.Type,
+			"status":     it.Status,
+			"visibility": it.Visibility,
+			"version":    it.Version,
+			"updated_at": it.UpdatedAt,
 		}
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{"documents": docs, "total": len(docs)},
+		"data": gin.H{"documents": res, "total": len(res)},
 	})
 }
 
