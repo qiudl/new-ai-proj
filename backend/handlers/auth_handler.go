@@ -105,12 +105,36 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		return
 	}
 
-	// Get user by username
+	// Get user by username；若不存在则在开发环境下自动创建一个内存用户并签发JWT（不强制写库）
 	user, err := h.db.Users().GetByUsername(c.Request.Context(), req.Username)
 	if err != nil {
-		log.Printf("Dev quick login - user not found: %v", err)
-		c.JSON(http.StatusNotFound, models.NewErrorResponse("NOT_FOUND", "用户不存在", nil))
-		return
+		log.Printf("[DEV] quick login - user not found, trying to create dev user '%s' in DB", req.Username)
+		// 优先尝试通过仓库创建一个开发用户（若表结构不满足，则回退为内存用户JWT）
+		devEmail := req.Username + "@dev.local"
+		devHash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 12)
+		candidate := &models.User{
+			Username:     req.Username,
+			Email:        devEmail,
+			PasswordHash: string(devHash),
+			UserType:     "system",
+			Role:         "admin",
+			Status:       "active",
+		}
+		if created, cerr := h.db.Users().Create(c.Request.Context(), candidate); cerr == nil {
+			user = created
+			log.Printf("[DEV] created user '%s' with id=%d for quick login", user.Username, user.ID)
+		} else {
+			log.Printf("[DEV] failed to create user in DB: %v; issuing in-memory token as fallback", cerr)
+			// 构造内存用户（仅用于生成JWT）
+			user = &models.User{
+				ID:       1,
+				Username: req.Username,
+				Email:    devEmail,
+				Role:     "admin",
+				UserType: "system",
+				Status:   "active",
+			}
+		}
 	}
 
 	// Generate JWT token without password verification (development only)

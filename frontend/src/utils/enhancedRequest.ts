@@ -6,7 +6,8 @@ import { jwtDebugger } from './jwtDebugger';
 import { APIResponse, RequestOptions } from '../types/api';
 
 // 基础配置
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
+import { getEnvironmentConfig } from './environmentDetection';
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || getEnvironmentConfig().apiBaseURL;
 const DEFAULT_TIMEOUT = 10000;
 
 interface EnhancedRequestOptions extends RequestOptions {

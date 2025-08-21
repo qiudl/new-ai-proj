@@ -2,6 +2,8 @@ package routes
 
 import (
 	"database/sql"
+	"os"
+	"path/filepath"
 	"time"
 	"github.com/gin-gonic/gin"
 )
@@ -132,9 +134,9 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
 		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
 
-		// 开发环境辅助端点（仅 development 环境注册）
+		// 开发环境辅助端点（非生产环境注册，避免因环境名不一致导致开发期不可用）
 		config := app.GetConfig()
-		if config.IsDevelopment() {
+		if !config.IsProduction() {
 			workNotes.POST("/dev-create", app.GetDocumentHandler().DevCreateWorkNote)
 		}
 
@@ -217,7 +219,7 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 					LEFT JOIN task_documents td ON td.document_id = d.id
 					WHERE td.document_id IS NULL AND d.deleted_at IS NULL
 				`)
-				_ = row.Scan( 26orphanDocs)
+					_ = row.Scan(&orphanDocs)
 
 				row2 := sqlDB.QueryRow(`
 					SELECT COALESCE(COUNT(*),0)
@@ -225,7 +227,7 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 					LEFT JOIN documents d ON d.id = td.document_id
 					WHERE d.id IS NULL
 				`)
-				_ = row2.Scan( 26orphanLinks)
+					_ = row2.Scan(&orphanLinks)
 			}
 		}
 		c.JSON(200, gin.H{
@@ -271,6 +273,61 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 				"orphan_links": orphanLinks,
 				"mirror_writable": false,
 				"timestamp": time.Now().UTC(),
+			},
+		})
+	})
+
+	// 综合健康：/health/docs（合并文档一致性与镜像状态）
+	router.GET("/health/docs", func(c *gin.Context) {
+		status := "healthy"
+		orphanDocs := 0
+		orphanLinks := 0
+		cfg := app.GetConfig()
+		mirrorEnabled := cfg.App.MirrorEnabled
+		mirrorPath := cfg.App.MirrorBasePath
+		mirrorWritable := false
+
+		if db := app.GetDB(); db != nil {
+			if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+				row := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM documents d
+					LEFT JOIN task_documents td ON td.document_id = d.id
+					WHERE td.document_id IS NULL AND d.deleted_at IS NULL
+				`)
+				_ = row.Scan(&orphanDocs)
+
+				row2 := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM task_documents td
+					LEFT JOIN documents d ON d.id = td.document_id
+					WHERE d.id IS NULL
+				`)
+				_ = row2.Scan(&orphanLinks)
+			}
+		}
+
+		if mirrorEnabled && mirrorPath != "" {
+			if err := os.MkdirAll(mirrorPath, 0o755); err == nil {
+				tmp := filepath.Join(mirrorPath, ".health_write_test")
+				if err2 := os.WriteFile(tmp, []byte(time.Now().Format(time.RFC3339)), 0o644); err2 == nil {
+					mirrorWritable = true
+					_ = os.Remove(tmp)
+				}
+			}
+		}
+
+		c.JSON(200, gin.H{
+			"success": true,
+			"message": "Document service health",
+			"data": gin.H{
+				"status": status,
+				"timestamp": time.Now().Format(time.RFC3339),
+				"orphan_documents": orphanDocs,
+				"orphan_links": orphanLinks,
+				"mirror_enabled": mirrorEnabled,
+				"mirror_base_path": mirrorPath,
+				"mirror_writable": mirrorWritable,
 			},
 		})
 	})

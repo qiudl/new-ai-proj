@@ -340,6 +340,13 @@ The `mcp-task-bridge` directory contains an MCP server that enables Claude Code 
 - **Tools**: Task creation, project management, document handling
 - **Dependencies**: axios for API communication
 
+### Claude Code Integration Benefits
+- **Seamless Task Management**: Create, update, and manage tasks directly from Claude Code
+- **Automated Documentation**: Generate task documentation using the batch creation system
+- **Project Context**: Access project statistics, task relationships, and status information
+- **Productivity Tools**: Timer integration, bulk operations, and workflow automation
+- **Real-time Sync**: Changes made through Claude Code are immediately reflected in the web interface
+
 ## 🚀 快速开始
 
 ### 首次设置

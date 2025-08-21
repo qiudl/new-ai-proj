@@ -48,10 +48,12 @@ type JWTConfig struct {
 
 // AppConfig holds application configuration
 type AppConfig struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Environment string `json:"environment"`
-	LogLevel    string `json:"log_level"`
+	Name           string `json:"name"`
+	Version        string `json:"version"`
+	Environment    string `json:"environment"`
+	LogLevel       string `json:"log_level"`
+	MirrorEnabled  bool   `json:"mirror_enabled"`
+	MirrorBasePath string `json:"mirror_base_path"`
 }
 
 // LoadConfig loads configuration from environment variables
@@ -96,11 +98,13 @@ func LoadConfig() (*Config, error) {
 			Secret:     getEnv("JWT_SECRET", "dev-secret-key"),
 			Expiration: getDurationEnv("JWT_EXPIRATION", 24*time.Hour),
 		},
-		App: AppConfig{
-			Name:        getEnv("APP_NAME", "AI Context Task System Backend"),
-			Version:     getEnv("APP_VERSION", "1.0.0"),
-			Environment: getEnv("APP_ENV", "test"),
-			LogLevel:    getEnv("LOG_LEVEL", "debug"),
+App: AppConfig{
+			Name:           getEnv("APP_NAME", "AI Context Task System Backend"),
+			Version:        getEnv("APP_VERSION", "1.0.0"),
+			Environment:    getEnv("APP_ENV", "test"),
+			LogLevel:       getEnv("LOG_LEVEL", "debug"),
+			MirrorEnabled:  getBoolEnv("DOCS_MIRROR_ENABLED", false),
+			MirrorBasePath: getEnv("DOCS_MIRROR_PATH", ""),
 		},
 	}
 
@@ -156,6 +160,18 @@ func getDurationEnv(key string, defaultValue time.Duration) time.Duration {
 	if value := os.Getenv(key); value != "" {
 		if duration, err := time.ParseDuration(value); err == nil {
 			return duration
+		}
+	}
+	return defaultValue
+}
+
+func getBoolEnv(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if value == "1" || value == "true" || value == "TRUE" || value == "True" {
+			return true
+		}
+		if value == "0" || value == "false" || value == "FALSE" || value == "False" {
+			return false
 		}
 	}
 	return defaultValue

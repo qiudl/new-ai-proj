@@ -65,7 +65,8 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - REACT_APP_API_URL=/api/v1
+      - REACT_APP_API_URL=http://localhost:8081/api/v1
+      - REACT_APP_API_BASE_URL=http://localhost:8081/api/v1
       - REACT_APP_ENV=staging
       - REACT_APP_ENVIRONMENT=staging
       - CHOKIDAR_USEPOLLING=true

@@ -24,11 +24,16 @@ func (app *Application) healthHandler(c *gin.Context) {
 		dbStatus = "unhealthy"
 	}
 
-	status := gin.H{
+status := gin.H{
 		"status":    "ok",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 		"version":   Version,
 		"database":  dbStatus,
+		"docs": gin.H{
+			"mirror_enabled":  app.config.App.MirrorEnabled,
+			"mirror_base_path": app.config.App.MirrorBasePath,
+			"mirror_writable": app.mirrorWritable,
+		},
 	}
 
 	c.JSON(http.StatusOK, status)

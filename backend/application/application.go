@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -15,12 +18,13 @@ import (
 
 // Application holds the application dependencies
 type Application struct {
-	config     *config.Config
-	db         database.DB
-	logger     *log.Logger
-	validator  *validator.Validate
-	jwtManager *utils.JWTManager
-	handlers   *factories.AllHandlers
+	config         *config.Config
+	db             database.DB
+	logger         *log.Logger
+	validator      *validator.Validate
+	jwtManager     *utils.JWTManager
+	handlers       *factories.AllHandlers
+	mirrorWritable bool
 }
 
 // NewApplication creates a new application instance
@@ -57,20 +61,28 @@ func NewApplication() (*Application, error) {
 	logger := log.New(log.Writer(), "[API] ", log.LstdFlags)
 
 	// Initialize handlers using factory
-	handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
+handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
 	allHandlers, err := handlerFactory.CreateAllHandlers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create handlers: %v", err)
 	}
 
-	return &Application{
+	app := &Application{
 		config:     cfg,
 		db:         db,
 		logger:     logger,
 		validator:  validate,
 		jwtManager: jwtManager,
 		handlers:   allHandlers,
-	}, nil
+	}
+
+	// Perform startup permission/volume checks
+	app.mirrorWritable = app.checkMirrorWritable()
+	if cfg.App.MirrorEnabled && !app.mirrorWritable {
+		logger.Printf("Warning: DOCS mirror is enabled but not writable at path: %s", cfg.App.MirrorBasePath)
+	}
+
+	return app, nil
 }
 
 // initDB initializes database connection
@@ -133,4 +145,25 @@ func (app *Application) GetDB() database.DB {
 // GetJWTManager returns the JWT manager
 func (app *Application) GetJWTManager() *utils.JWTManager {
 	return app.jwtManager
+}
+
+// checkMirrorWritable verifies if the optional mirror base path is writable
+func (app *Application) checkMirrorWritable() bool {
+	cfg := app.config
+	if !cfg.App.MirrorEnabled || cfg.App.MirrorBasePath == "" {
+		return false
+	}
+	// Try to create the base directory and a temp file
+	if err := os.MkdirAll(cfg.App.MirrorBasePath, 0o755); err != nil {
+		app.logger.Printf("Mirror path mkdir failed: %v", err)
+		return false
+	}
+	tmpFile := filepath.Join(cfg.App.MirrorBasePath, ".health_write_test")
+	data := []byte(time.Now().UTC().Format(time.RFC3339))
+	if err := os.WriteFile(tmpFile, data, 0o644); err != nil {
+		app.logger.Printf("Mirror path write test failed: %v", err)
+		return false
+	}
+	_ = os.Remove(tmpFile)
+	return true
 }

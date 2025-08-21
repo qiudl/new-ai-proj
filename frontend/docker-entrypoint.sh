@@ -10,6 +10,7 @@ echo "📋 Environment Information:"
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "REACT_APP_ENV: ${REACT_APP_ENV:-development}"
 echo "REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8081/api/v1}"
+echo "REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-$REACT_APP_API_URL}"
 echo "Working directory: $(pwd)"
 
 # Check if node_modules exists
@@ -27,8 +28,9 @@ fi
 # Create .env file for development if it doesn't exist
 if [ ! -f .env ]; then
     echo "🔧 Creating .env file for development..."
-    cat > .env << EOF
+cat > .env << EOF
 REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:8081/api/v1}
+REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL:-${REACT_APP_API_URL:-http://localhost:8081/api/v1}}
 REACT_APP_ENV=${REACT_APP_ENV:-development}
 GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP:-false}
 CHOKIDAR_USEPOLLING=true

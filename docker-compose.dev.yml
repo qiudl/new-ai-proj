@@ -71,6 +71,8 @@ services:
       # 日志和文档
       - ./backend/logs:/app/logs
       - ./backend/docs:/app/docs:rw
+      # 挂载项目OpenAPI文档到容器供 /docs 访问
+      - ./docs/api:/app/docs/api:ro
     working_dir: /app
     # 使用Dockerfile中定义的CMD (air热重载)
     # command: ["sh", "-c", "go mod download && go run main.go"]
@@ -96,6 +98,7 @@ services:
     environment:
       # React开发配置
       REACT_APP_API_URL: http://localhost:8081/api/v1
+      REACT_APP_API_BASE_URL: http://localhost:8081/api/v1
       REACT_APP_ENV: development
       REACT_APP_ENVIRONMENT: development
       REACT_APP_LOCAL_DEV: true
@@ -184,7 +187,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.31.0.0/16
 
 # 数据卷
 volumes:
