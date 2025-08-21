@@ -13,7 +13,7 @@ const getCurrentUserId = (): number => {
       return payload.user_id || 1;
     }
   } catch (error) {
-    console.warn('Failed to get user ID from token:', error);
+    // Token parsing failed - silently fall back to default user ID
   }
   return 1;
 };

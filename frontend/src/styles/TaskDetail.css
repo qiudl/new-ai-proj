@@ -659,6 +659,16 @@
   z-index: auto !important; /* 确保不会产生浮层效果 */
 }
 
+/* 文档Tab所在卡片的Body不应产生局部滚动条，让页面整体滚动接管 */
+.task-detail-container .ant-card .ant-card-body {
+  overflow: visible !important;
+}
+
+/* 如果浏览器支持，进一步限定仅对包含Tabs的卡片生效 */
+.task-detail-container .ant-card:has(.ant-tabs) .ant-card-body {
+  overflow: visible !important;
+}
+
 /* 强化小屏幕下的info-sidebar行为 */
 @media (max-width: 991px) {
   .task-detail-container .info-sidebar {
@@ -701,6 +711,30 @@
     top: 24px;
     overflow-y: auto;
   }
+}
+
+/* ========================================
+   TaskDocumentEditor与文档Tab滚动修正
+   ======================================== */
+
+/* 仅在任务详情页内，移除 Ant Tabs 内容容器的滚动，让页面整体滚动接管 */
+.task-detail-container .ant-tabs-content,
+.task-detail-container .ant-tabs-content-holder,
+.task-detail-container .ant-tabs-content-top,
+.task-detail-container .ant-tabs-nav-wrap,
+.task-detail-container .ant-tabs-nav-list {
+  overflow: visible !important;
+}
+
+/* 文档Tab面板内不允许产生横向滚动条 */
+.task-detail-container .ant-tabs-tabpane {
+  overflow-x: hidden !important;
+}
+
+/* 统一文档区域外围容器也不产生局部滚动条 */
+.task-detail-container .task-document-editor,
+.task-detail-container .task-document-editor .task-document-scroll {
+  overflow: visible !important;
 }
 
 /* ========================================

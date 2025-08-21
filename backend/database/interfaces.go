@@ -192,6 +192,8 @@ type CompanyRepository interface {
 	// Company operations
 	Create(ctx context.Context, company *models.Company) (*models.Company, error)
 	GetByID(ctx context.Context, id int) (*models.Company, error)
+	// GetByIDIncludeDeleted retrieves a company by ID including soft-deleted rows
+	GetByIDIncludeDeleted(ctx context.Context, id int) (*models.Company, error)
 	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Company, int, error)
 	Update(ctx context.Context, company *models.Company) (*models.Company, error)
 	Delete(ctx context.Context, id int) error

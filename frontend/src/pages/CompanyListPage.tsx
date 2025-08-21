@@ -354,7 +354,9 @@ const CompanyListPage: React.FC = () => {
             fixed: 'left',
             render: (text: string, record: Company) => (
               <div>
-                <div style={{ fontWeight: 500, marginBottom: 4 }}>{text}</div>
+<div style={{ fontWeight: 500, marginBottom: 4 }}>
+                {text} {record.deleted && <Tag color="red" style={{ marginLeft: 8 }}>已删除</Tag>}
+              </div>
                 <Space size="small">
                   {record.companyCode && (
                     <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -398,8 +400,8 @@ const CompanyListPage: React.FC = () => {
             ...baseColumn,
             dataIndex: 'status',
             render: (status: string, record: Company) => (
-              <Tag color={getStatusColor(status)}>
-                {record.statusText}
+<Tag color={record.deleted ? 'red' : getStatusColor(status)}>
+                {record.deleted ? '已删除' : record.statusText}
               </Tag>
             ),
           };
@@ -486,6 +488,7 @@ const CompanyListPage: React.FC = () => {
             fixed: 'right',
             render: (_, record: Company) => (
               <Space size="small">
+                {record.deleted && <Tag color="red">已删除</Tag>}
                 <Tooltip title="查看详情">
                   <Button
                     type="text"
@@ -531,7 +534,12 @@ const CompanyListPage: React.FC = () => {
         <Col xs={24} sm={12} lg={8} xl={6} key={company.id}>
           <Card
             hoverable
-            actions={[
+actions={[
+              company.deleted && (
+                <Tag color="red" key="deleted" style={{ margin: '8px' }}>
+                  已删除
+                </Tag>
+              ),
               <Tooltip title="查看详情" key="view">
                 <Button
                   type="text"
@@ -540,19 +548,19 @@ const CompanyListPage: React.FC = () => {
                   style={{ color: '#1890ff' }}
                 />
               </Tooltip>,
-              <Tooltip title="编辑" key="edit">
+<Tooltip title={company.deleted ? '已删除（不可编辑）' : '编辑'} key="edit">
                 <Button 
                   type="text" 
                   icon={<EditOutlined />}
-                  onClick={() => navigate(`/companies/${company.id}/edit`)}
+onClick={() => !company.deleted && navigate(`/companies/${company.id}/edit`)}
                   style={{ color: '#52c41a' }}
                 />
               </Tooltip>,
-              <Tooltip title="删除" key="delete">
+<Tooltip title={company.deleted ? '已删除（无需再次删除）' : '删除'} key="delete">
                 <Button 
                   type="text" 
                   icon={<DeleteOutlined />} 
-                  onClick={() => handleDelete(company.id, company.companyName)}
+onClick={() => !company.deleted && handleDelete(company.id, company.companyName)}
                   style={{ color: '#ff4d4f' }}
                   danger
                 />

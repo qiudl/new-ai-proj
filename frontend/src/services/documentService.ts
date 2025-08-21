@@ -294,15 +294,27 @@ export class DocumentService {
         return cached;
       }
       
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
+      const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`, {
         params: { page, page_size, include_main }
       });
       
+      const payload = response && response.data ? response.data : response;
+      const docsArray = Array.isArray(payload?.documents)
+        ? payload.documents
+        : Array.isArray(payload?.data?.documents)
+          ? payload.data.documents
+          : Array.isArray(payload)
+            ? payload
+            : [];
+      const totalCount = payload?.total_count ?? payload?.total ?? payload?.data?.total_count ?? payload?.data?.total ?? docsArray.length;
+      const pageNum = payload?.page ?? payload?.data?.page ?? page;
+      const pageSizeNum = payload?.page_size ?? payload?.data?.page_size ?? page_size;
+
       const result: DocumentListResponse = {
-        documents: response.data.documents.map((doc: any) => this.normalizeDocument(doc)),
-        total: response.data.total_count || response.data.total || 0,
-        page: response.data.page || page,
-        page_size: response.data.page_size || page_size
+        documents: (docsArray as any[]).map((doc: any) => this.normalizeDocument(doc)),
+        total: totalCount,
+        page: pageNum,
+        page_size: pageSizeNum
       };
       
       // 缓存结果 (2分钟)

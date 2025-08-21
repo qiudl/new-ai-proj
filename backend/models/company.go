@@ -101,6 +101,7 @@ type CompanyUpdateRequest struct {
 type CompanyResponse struct {
 	ID                   int        `json:"id"`
 	CompanyName          string     `json:"companyName"`
+	Deleted              bool       `json:"deleted,omitempty"`
 	CompanyCode          *string    `json:"companyCode"`
 	Industry             *string    `json:"industry"`
 	CompanyType          string     `json:"companyType"`

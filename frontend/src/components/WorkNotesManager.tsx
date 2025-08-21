@@ -473,7 +473,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           form.resetFields();
         }}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={form}
@@ -562,7 +562,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           editForm.resetFields();
         }}
         width={600}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form
           form={editForm}

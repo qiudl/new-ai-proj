@@ -94,6 +94,7 @@ const TaskDetailPageNew: React.FC = () => {
   // 核心状态
   const [task, setTask] = useState<Task | null>(null);
   const [documentExists, setDocumentExists] = useState<boolean | null>(null);
+  const [documentCount, setDocumentCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   
   // 从URL参数读取活动Tab
@@ -127,10 +128,6 @@ const TaskDetailPageNew: React.FC = () => {
   // 完成情况相关状态
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   
-  // 调试状态变化
-  useEffect(() => {
-    console.log('🔍 DEBUG: subtasks state changed', { subtasks, count: subtasks.length });
-  }, [subtasks]);
   const [completionStats, setCompletionStats] = useState<TaskCompletionStats>({
     totalSubtasks: 0,
     completedSubtasks: 0,
@@ -156,8 +153,10 @@ const TaskDetailPageNew: React.FC = () => {
       // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
       const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
       // 检查是否真的有文档数据
-      const hasDocuments = response.data?.data?.documents?.length > 0;
+      const docLen = response.data?.data?.documents?.length || 0;
+      const hasDocuments = docLen > 0;
       setDocumentExists(hasDocuments);
+      setDocumentCount(docLen);
     } catch (error: Error | unknown) {
       // 404表示文档不存在，这是正常情况，不需要记录错误
       if (error.status === 404) {
@@ -214,7 +213,6 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 并行加载所有任务数据（使用传入的task参数）
   const loadAllTaskDataWithTask = useCallback(async (taskData: Task) => {
-    console.log('🔍 DEBUG: loadAllTaskDataWithTask called', { projectId, taskId, taskData: taskData?.id });
     if (!projectId || !taskId || !taskData) return;
     
     const parsedProjectId = parseInt(projectId);
@@ -224,20 +222,43 @@ const TaskDetailPageNew: React.FC = () => {
       return;
     }
     
+    // 容错解析函数：尽可能从不同结构中提取数组
+    const toArray = (resp: any): any[] => {
+      if (!resp) return [];
+      // 显式处理常见结构
+      const candidates = [
+        resp,
+        resp?.data,
+        resp?.data?.data,
+        resp?.items,
+        resp?.data?.items,
+        resp?.results,
+        resp?.data?.results,
+        // 针对时间线与更新历史的常见键
+        resp?.events,
+        resp?.data?.events,
+        resp?.updates,
+        resp?.data?.updates,
+      ];
+      for (const c of candidates) {
+        if (Array.isArray(c)) return c as any[];
+      }
+      // 针对返回 { data: { total, updates: null } } 的情况
+      if (resp?.data && typeof resp.data.total === 'number' && (resp.data.updates === null || resp.data.updates === undefined)) {
+        return [];
+      }
+      return [];
+    };
+    
     try {
       setDataLoading(true);
       
       // 并行加载基础数据
-      console.log('🔍 DEBUG: Making API calls', { parsedProjectId, parsedTaskId });
       const [subtasksData, updatesData, timelineData] = await Promise.allSettled([
         TaskService.getTaskChildren(parsedProjectId, parsedTaskId),
         TaskService.getTaskUpdates(parsedProjectId, parsedTaskId, { page: 1, page_size: 20 }),
         TaskService.getTaskTimeline(parsedProjectId, parsedTaskId, { page: 1, page_size: 20 }),
       ]);
-      console.log('🔍 DEBUG: API calls completed', { 
-        subtasksStatus: subtasksData.status, 
-        subtasksData: subtasksData.status === 'fulfilled' ? subtasksData.value : subtasksData.reason 
-      });
       
       // 单独获取项目信息
       try {
@@ -266,10 +287,8 @@ const TaskDetailPageNew: React.FC = () => {
         // 如果是根任务，获取同级的其他根任务作为兄弟任务
         try {
           const rootTasksResponse = await TaskService.getRootTasks(parsedProjectId);
-          console.log('🔍 DEBUG: Root tasks response', { rootTasksResponse });
-          const rootTasks = Array.isArray(rootTasksResponse?.data) ? rootTasksResponse.data : [];
+          const rootTasks = toArray(rootTasksResponse);
           const filteredRootSiblings = rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id);
-          console.log('🔍 DEBUG: Filtered root siblings', { filteredRootSiblings, count: filteredRootSiblings.length });
           setSiblingTasks(filteredRootSiblings);
         } catch (error) {
           console.error('Error loading root tasks:', error);
@@ -278,27 +297,25 @@ const TaskDetailPageNew: React.FC = () => {
       
       // 处理子任务数据
       if (subtasksData.status === 'fulfilled') {
-        // TaskService已经处理了数据结构适配
-        const children = Array.isArray(subtasksData.value) ? subtasksData.value : [];
-        console.log('🔍 DEBUG: Final children from TaskService', { children, count: children.length });
+        const children = toArray((subtasksData as PromiseFulfilledResult<any>).value);
         setSubtasks(children);
         calculateCompletionStats(children);
       } else {
         // 处理API调用失败的情况
-        console.error('🔍 DEBUG: Failed to load subtasks:', subtasksData.reason);
+        console.error('Failed to load subtasks:', (subtasksData as PromiseRejectedResult).reason);
         setSubtasks([]);
         calculateCompletionStats([]);
       }
       
       // 处理更新历史数据
       if (updatesData.status === 'fulfilled') {
-        const updates = Array.isArray(updatesData.value.data) ? updatesData.value.data : [];
+        const updates = toArray((updatesData as PromiseFulfilledResult<any>).value);
         setTaskUpdates(updates);
       }
       
       // 处理时间线数据
       if (timelineData.status === 'fulfilled') {
-        const timeline = Array.isArray(timelineData.value.data) ? timelineData.value.data : [];
+        const timeline = toArray((timelineData as PromiseFulfilledResult<any>).value);
         setTimelineEvents(timeline);
       }
       
@@ -926,7 +943,6 @@ const TaskDetailPageNew: React.FC = () => {
           )}
 
           {/* 子任务列表 */}
-          {console.log('🔍 DEBUG: Rendering subtasks check', { subtasksLength: subtasks.length, subtasks })}
           {subtasks.length > 0 && (
             <Card 
               title={
@@ -1019,12 +1035,7 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <EditOutlined />
                       <span>任务文档</span>
-                      {documentExists === true && (
-                        <Badge status="success" />
-                      )}
-                      {documentExists === false && (
-                        <Badge status="default" />
-                      )}
+                      <Badge count={documentCount} size="small" />
                     </Space>
                   ),
                   children: (
@@ -1038,11 +1049,12 @@ const TaskDetailPageNew: React.FC = () => {
                         showDocumentList={true}
                         compactMode={false}
                         onDocumentChange={(docs) => {
-                          // 更新文档存在状态
+                          // 更新文档存在状态与数量
                           setDocumentExists(docs.length > 0);
+                          setDocumentCount(docs.length);
                         }}
                         onViewModeChange={(mode) => {
-                          console.log('视图模式切换:', mode);
+                          // no-op
                         }}
                       />
                     </div>

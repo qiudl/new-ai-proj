@@ -1597,7 +1597,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             overflow: 'auto'
           }
         } : undefined}
-        destroyOnClose
+        destroyOnHidden
         closable={true}
         maskClosable={true}
       >
@@ -1635,7 +1635,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           }
         } : undefined}
         className="document-preview-modal"
-        destroyOnClose
+        destroyOnHidden
         maskClosable={true}
       >
         <div className="document-preview-content">
@@ -1708,7 +1708,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             padding: '16px 12px'
           }
         } : undefined}
-        destroyOnClose
+        destroyOnHidden
       >
         {currentBatchOperation && (
           <Space direction="vertical" size="large" style={{ width: '100%' }}>

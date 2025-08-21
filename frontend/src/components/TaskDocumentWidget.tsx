@@ -61,8 +61,6 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
     setLoading(true);
     try {
       const response = await documentService.getTaskDocuments(projectId, taskId);
-      console.log('🔍 DEBUG TaskDocumentWidget: API Response', response);
-      console.log('🔍 DEBUG TaskDocumentWidget: Documents count', response.documents?.length);
       setDocuments(response.documents);
     } catch (error) {
       console.error('加载文档失败:', error);
@@ -430,8 +428,9 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                     )}
                     {doc.content && (
                       <div style={{ 
-                        maxHeight: '200px', 
-                        overflow: 'auto',
+                        /* 移除预览限高，允许内容完整展示 */
+                        maxHeight: 'none',
+                        overflow: 'visible',
                         padding: '8px',
                         backgroundColor: 'white',
                         border: '1px solid #e8e8e8',
@@ -440,7 +439,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         lineHeight: '1.5'
                       }}>
                         <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>
-                          {doc.content.substring(0, 500)}{doc.content.length > 500 ? '...' : ''}
+                          {doc.content}
                         </pre>
                       </div>
                     )}

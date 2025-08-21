@@ -389,7 +389,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         onCancel={() => setAdvancedVisible(false)}
         footer={null}
         width={1200}
-        destroyOnClose
+        destroyOnHidden
       >
         <EnhancedSearchInterface
           mode="embedded"

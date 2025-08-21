@@ -154,7 +154,6 @@ const useRealtimeCollaboration = (options: UseRealtimeCollaborationOptions = {})
         if (enabled && reconnectCountRef.current < reconnectAttempts) {
           reconnectCountRef.current++;
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log(`重连尝试 ${reconnectCountRef.current}/${reconnectAttempts}`);
             connect();
           }, reconnectDelay * reconnectCountRef.current);
         }

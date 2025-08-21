@@ -179,9 +179,6 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
       if (responseData && typeof responseData === 'object' && 'pagination' in responseData) {
         data = Array.isArray(responseData.data) ? responseData.data : [];
         total = responseData.pagination.total || 0;
-        console.log('Pagination response data:', data);
-        console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
-        console.log('Total:', total);
       } else {
         // Handle direct response or simple array response
         if (Array.isArray(responseData)) {
@@ -194,9 +191,6 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
           data = [];
           total = 0;
         }
-        console.log('Direct response data:', data);
-        console.log('Data type:', Array.isArray(data) ? 'Array' : typeof data);
-        console.log('Total:', total);
       }
       
       const isLoadMore = (params.offset || 0) > 0;

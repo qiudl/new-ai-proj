@@ -222,7 +222,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           disabled: validationError !== null || isValidating || (!selectedTask && !allowClear),
           loading: isValidating,
         }}
-        destroyOnClose={false}
+        destroyOnHidden={false}
       >
         <div className="parent-selector-modal-content">
           {/* Search input */}

@@ -7,37 +7,6 @@ const envConfig = getEnvironmentConfig();
 const { apiBaseURL } = envConfig;
 const API_BASE_URL = apiBaseURL;
 
-// 临时调试：输出环境配置信息
-console.log('🔍 Current Environment Config:', {
-  currentPort: typeof window !== 'undefined' ? window.location.port : 'server-side',
-  hostname: typeof window !== 'undefined' ? window.location.hostname : 'server-side',
-  REACT_APP_ENV: process.env.REACT_APP_ENV,
-  REACT_APP_LOCAL_DEV: process.env.REACT_APP_LOCAL_DEV,
-  detectedEnv: envConfig.actualEnv,
-  apiBaseURL: apiBaseURL,
-  isLocal: envConfig.isLocal,
-  isDocker: envConfig.isDocker,
-  isProduction: envConfig.isProduction
-});
-
-// 临时测试：使用fetch API测试连接
-if (typeof window !== 'undefined' && apiBaseURL.includes('127.0.0.1')) {
-  console.log('🧪 Testing direct fetch connection...');
-  // Health endpoint is at root level, not under /api/v1
-  const healthURL = apiBaseURL.replace('/api/v1', '/health');
-  fetch(healthURL, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    mode: 'cors'
-  }).then(response => {
-    console.log('✅ Fetch test successful:', response.status, response.statusText);
-  }).catch(error => {
-    console.error('❌ Fetch test failed:', error);
-  });
-}
-
 
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;
@@ -64,18 +33,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // 临时调试：记录所有HTTP请求
-    console.log('🚀 API Request Debug:', {
-      method: config.method?.toUpperCase(),
-      baseURL: config.baseURL,
-      url: config.url,
-      fullURL: `${config.baseURL}${config.url}`,
-      params: config.params,
-      headers: {
-        'Content-Type': config.headers['Content-Type'],
-        'Authorization': config.headers.Authorization ? 'Bearer ***' : undefined
-      }
-    });
     
     return config;
   },
@@ -88,30 +45,14 @@ api.interceptors.request.use(
 // Response interceptor with enhanced error handling
 api.interceptors.response.use(
   (response) => {
-    // 临时调试：记录成功的HTTP响应
-    console.log('✅ API Response Debug:', {
-      status: response.status,
-      statusText: response.statusText,
-      url: response.config.url,
-      data: response.data
-    });
-    return response.data;
+    // 统一解包后端标准响应 { success, message, data, timestamp }
+    const body = response.data;
+    if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      return body.data;
+    }
+    return body;
   },
   (error) => {
-    // 临时调试：记录详细的错误信息
-    console.error('❌ API Response Error Debug:', {
-      url: error.config?.url,
-      fullURL: error.config ? `${error.config.baseURL}${error.config.url}` : 'unknown',
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      message: error.message,
-      code: error.code,
-      hasResponse: !!error.response,
-      isNetworkError: !error.response,
-      requestTimeout: error.code === 'ECONNABORTED',
-      errorType: error.name
-    });
     
     // Handle network errors
     if (!error.response) {

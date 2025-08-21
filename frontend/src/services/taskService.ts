@@ -73,15 +73,29 @@ export class TaskService {
    * Get a single task by ID
    */
   static async getTask(projectId: number, taskId: number): Promise<Task> {
-    const response: APIResponse<Task> = await api.get(
-      `/projects/${projectId}/tasks/${taskId}`
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch task');
+    try {
+      const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}`);
+
+      // If using wrapped APIResponse shape
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to fetch task');
+        }
+        return (response.data as Task);
+      }
+
+      // If axios interceptor already unwrapped to data or { data: Task }
+      const data = response && response.data ? response.data : response;
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        console.warn('TaskService.getTask: unexpected response shape', response);
+        throw new Error('Failed to fetch task');
+      }
+
+      return data as Task;
+    } catch (error) {
+      console.error('TaskService.getTask error:', error);
+      throw error;
     }
-    
-    return response.data!;
   }
 
   /**
@@ -157,8 +171,7 @@ export class TaskService {
     task: Partial<TaskRequest>
   ): Promise<Task> {
     try {
-      // Log the request data for debugging
-      console.log('🔄 Updating task:', { projectId, taskId, task });
+      // Debug logging removed
 
       // 验证和清理任务数据
       const validationResult = validateTaskRequest(task);
@@ -251,15 +264,40 @@ export class TaskService {
    * Get complete task tree for a project
    */
   static async getTaskTree(projectId: number): Promise<HierarchicalTask[]> {
-    const response: APIResponse<HierarchicalTask[]> = await api.get(
-      `/projects/${projectId}/tasks/tree`
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch task tree');
+    // 兼容不同的响应格式：
+    // 1) 标准包装 { success, data }
+    // 2) axios 拦截器已解包，直接返回 data
+    // 3) 某些情况下后端返回 { data: [...] }
+    try {
+      const response: any = await api.get(`/projects/${projectId}/tasks/tree`);
+
+      // 如果是标准包装格式（包含 success 字段）
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Failed to fetch task tree');
+        }
+        return (response.data as HierarchicalTask[]) || [];
+      }
+
+      // 如果 axios 拦截器已解包，response 可能直接是数据或 { data: [...] }
+      const data = Array.isArray(response)
+        ? response
+        : Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.data?.data)
+            ? response.data.data
+            : [];
+
+      if (!Array.isArray(data)) {
+        console.warn('TaskService.getTaskTree: unexpected response shape', response);
+        return [];
+      }
+
+      return data as HierarchicalTask[];
+    } catch (error) {
+      console.error('TaskService.getTaskTree error:', error);
+      throw error;
     }
-    
-    return response.data!;
   }
 
   /**
@@ -270,31 +308,56 @@ export class TaskService {
     params?: PaginationParams
   ): Promise<PaginatedResponse<Task>> {
     try {
-      const response: APIResponse<PaginatedResponse<Task>> = await api.get(
+      const response: any = await api.get(
         `/projects/${projectId}/tasks/root`,
         { params }
       );
       
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to fetch root tasks');
+      // 1) Wrapped APIResponse shape { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch root tasks');
+        }
+        const payload = response.data;
+        if (!payload) {
+          return {
+            data: [],
+            pagination: {
+              page: params?.page || 1,
+              page_size: params?.page_size || 20,
+              total: 0,
+              total_pages: 0,
+              has_next: false,
+              has_prev: false
+            }
+          };
+        }
+        // payload might be { data: Task[], pagination: {...} }
+        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
+          return payload as PaginatedResponse<Task>;
+        }
+        console.warn('TaskService.getRootTasks: unexpected wrapped response shape', response);
+        throw new Error('Failed to fetch root tasks');
       }
-      
-      // Ensure response.data has the correct structure
-      if (!response.data) {
-        return {
-          data: [],
-          pagination: {
-            page: params?.page || 1,
-            page_size: params?.page_size || 20,
-            total: 0,
-            total_pages: 0,
-            has_next: false,
-            has_prev: false
-          }
-        };
+
+      // 2) Axios-unwrapped cases
+      // Important: Do NOT blindly unwrap "response.data" when response is already the PaginatedResponse,
+      // because that would drop the pagination field. First, check if response itself matches the expected shape.
+      const r = response;
+      if (r && typeof r === 'object') {
+        // Case A: Already PaginatedResponse { data: Task[], pagination: {...} }
+        if (Array.isArray((r as any).data) && (r as any).pagination) {
+          return r as PaginatedResponse<Task>;
+        }
+        // Case B: Nested inside a data field: { data: { data: Task[], pagination: {...} } }
+        const nested = (r as any).data;
+        if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
+          return nested as PaginatedResponse<Task>;
+        }
       }
-      
-      return response.data;
+
+      console.warn('TaskService.getRootTasks: unexpected response shape', response);
+      throw new Error('Failed to fetch root tasks');
     } catch (error: Error | unknown) {
       console.error('TaskService.getRootTasks error:', error);
       console.warn('Using fallback empty data for getRootTasks due to API error');
@@ -319,23 +382,32 @@ export class TaskService {
    */
   static async getTaskChildren(projectId: number, taskId: number): Promise<Task[]> {
     try {
-      const response: APIResponse<any> = await api.get(
+      const response: any = await api.get(
         `/projects/${projectId}/tasks/${taskId}/children`
       );
       
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to fetch task children');
+      // Handle wrapped APIResponse
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch task children');
+        }
+        const d = response.data;
+        const children = Array.isArray(d?.data)
+          ? d.data
+          : Array.isArray(d)
+            ? d
+            : [];
+        return children as Task[];
       }
-      
-      // 适配后端返回的分页数据结构
-      console.log('🔍 DEBUG: TaskService.getTaskChildren response', response.data);
-      const children = Array.isArray(response.data?.data) 
-        ? response.data.data 
-        : Array.isArray(response.data) 
-          ? response.data 
+
+      // Axios-unwrapped
+      const data = response && response.data ? response.data : response;
+      const children = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+          ? data
           : [];
-      console.log('🔍 DEBUG: TaskService.getTaskChildren processed', { children, count: children.length });
-      return children;
+      return children as Task[];
     } catch (error: Error | unknown) {
       console.error('TaskService.getTaskChildren error:', error);
       console.warn('Using fallback empty array for getTaskChildren due to API error');

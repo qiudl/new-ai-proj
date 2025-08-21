@@ -237,8 +237,9 @@ const ProjectDetailPage: React.FC = () => {
                             style={{ backgroundColor: '#52c41a' }} 
                           />
                           <div>
-                            <Text strong style={{ color: '#389e0d', fontSize: '16px' }}>
+<Text strong style={{ color: companyInfo?.deleted ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
                               {companyInfo?.companyName || '加载中...'}
+                              {companyInfo?.deleted && '（已删除）'}
                             </Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
@@ -262,8 +263,8 @@ const ProjectDetailPage: React.FC = () => {
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业状态</Text>
                                 <br />
-                                <Tag color={companyInfo.status === 'active' ? 'green' : 'orange'}>
-                                  {companyInfo.statusText || '未设置'}
+<Tag color={companyInfo.deleted ? 'red' : (companyInfo.status === 'active' ? 'green' : 'orange')}>
+                                  {companyInfo.deleted ? '已删除' : (companyInfo.statusText || '未设置')}
                                 </Tag>
                               </Col>
                               <Col span={12}>

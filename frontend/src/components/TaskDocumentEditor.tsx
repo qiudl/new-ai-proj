@@ -55,7 +55,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   document,
   onSave,
   style = {},
-  className = ''
+  className = 'task-document-editor'
 }) => {
   const [content, setContent] = useState('');
   const [originalContent, setOriginalContent] = useState('');
@@ -633,7 +633,6 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       const diagramId = `pdf-mermaid-${Date.now()}-${mermaidBlocks.length}`;
       
       try {
-        console.log('🎨 [TaskDocumentEditor] PDF导出：开始渲染 Mermaid 图表', diagramId);
         
         // 使用统一的渲染工具
         const result = await renderMermaidDiagram(cleanCode, diagramId);
@@ -653,7 +652,6 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
           `);
         } else if (result.svg) {
           // 渲染成功
-          console.log('✅ [TaskDocumentEditor] PDF导出：Mermaid SVG生成成功，长度:', result.svg.length);
           
           // 创建包含实际SVG的容器
           mermaidBlocks.push(`
@@ -912,18 +910,33 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     margin: 0,
     border: 'none',
     outline: 'none',
-    overflow: 'auto' // 修复: 允许容器滚动
+    overflow: 'auto', // 修复: 允许容器滚动
+    overflowX: 'hidden' // 避免出现横向滚动条
+  };
+
+  // 普通模式容器样式：放开滚动，由页面整体滚动接管，避免局部滚动条
+  const normalContainerStyle: React.CSSProperties = {
+    ...style,
+    width: '100%',
+    maxWidth: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    boxSizing: 'border-box',
+    overflowX: 'visible',
+    overflowY: 'visible',
+    minHeight: 0
   };
 
   const containerStyle: React.CSSProperties = isFullscreen 
     ? fullscreenStyle 
-    : { ...style };
+    : normalContainerStyle;
 
   // 渲染编辑器内容
   const renderEditor = () => (
     <div 
       style={containerStyle} 
       className={className}
+      id={isFullscreen ? 'task-doc-fullscreen' : undefined}
       data-fullscreen-editor={isFullscreen ? 'true' : 'false'}
     >
       {/* 工具栏 */}
@@ -992,12 +1005,13 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       </div>
 
       {/* 使用TaskMarkdownEditor组件 */}
-      <div style={{ 
+      <div className="task-document-scroll" style={{ 
         flex: isFullscreen ? 1 : 'none', 
         display: 'flex', 
         flexDirection: 'column',
-        overflow: 'auto', // 修复: 允许编辑器区域滚动
-        minHeight: isFullscreen ? 0 : 'auto' // 全屏时允许弹性高度
+        overflowY: isFullscreen ? 'auto' : 'visible',
+        overflowX: 'visible',
+        minHeight: isFullscreen ? 0 : 'auto'
       }}>
         <TaskMarkdownEditor
           value={content}
@@ -1043,7 +1057,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     if (typeof document !== 'undefined' && document && document.body) {
       return createPortal(renderEditor(), document.body);
     } else {
-      console.warn('[TaskDocumentEditor] document.body not available for portal, falling back to normal rendering');
+      // document.body not available for portal, falling back to normal rendering
       // 回退到正常渲染，但保持全屏样式
       return renderEditor();
     }

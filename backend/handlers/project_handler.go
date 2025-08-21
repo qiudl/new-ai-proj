@@ -51,19 +51,25 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 		return
 	}
 
-	totalPages := (total + pageSize - 1) / pageSize
+    totalPages := (total + pageSize - 1) / pageSize
 
-	responseData := map[string]interface{}{
-		"data": projects,
-		"pagination": map[string]interface{}{
-			"page":        page,
-			"page_size":   pageSize,
-			"total":       total,
-			"total_pages": totalPages,
-		},
-	}
+    // 计算分页辅助字段
+    hasNext := page < totalPages
+    hasPrev := page > 1 && totalPages > 0
 
-	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取项目列表成功"))
+    responseData := map[string]interface{}{
+        "data": projects,
+        "pagination": map[string]interface{}{
+            "page":        page,
+            "page_size":   pageSize,
+            "total":       total,
+            "total_pages": totalPages,
+            "has_next":    hasNext,
+            "has_prev":    hasPrev,
+        },
+    }
+
+    c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取项目列表成功"))
 }
 
 // CreateProject handles POST /api/v1/projects

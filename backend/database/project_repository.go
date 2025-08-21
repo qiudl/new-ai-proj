@@ -125,11 +125,12 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 	args := []interface{}{}
 	argIndex := 1
 	
-	// Filter by user ID if provided
+	// Filter by ownership or membership if user ID provided
 	if userID > 0 {
-		whereConditions = append(whereConditions, fmt.Sprintf("owner_id = $%d", argIndex))
-		args = append(args, userID)
-		argIndex++
+		// Include projects owned by the user OR where the user is a member in project_users
+		whereConditions = append(whereConditions, fmt.Sprintf("(owner_id = $%d OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id = projects.id AND pu.user_id = $%d))", argIndex, argIndex+1))
+		args = append(args, userID, userID)
+		argIndex += 2
 	}
 	
 	// Add search condition
@@ -193,7 +194,8 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 	}
 	defer rows.Close()
 	
-	var projects []*models.Project
+	// Initialize as empty slice to ensure JSON encodes [] instead of null when no results
+	projects := make([]*models.Project, 0)
 	for rows.Next() {
 		project := &models.Project{}
 		

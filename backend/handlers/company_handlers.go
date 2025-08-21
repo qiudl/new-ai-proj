@@ -191,21 +191,29 @@ func (h *CompanyHandler) GetCompany(c *gin.Context) {
 		return
 	}
 
-	company, err := h.db.Companies().GetByID(c.Request.Context(), companyID)
-	if err != nil {
-		if err.Error() == "company not found" {
-			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
-			c.JSON(http.StatusNotFound, response)
+company, err := h.db.Companies().GetByID(c.Request.Context(), companyID)
+if err != nil {
+	if err.Error() == "company not found" {
+		// Try to load including soft-deleted records and return minimal info
+		deletedCompany, derr := h.db.Companies().GetByIDIncludeDeleted(c.Request.Context(), companyID)
+		if derr == nil && deletedCompany != nil && deletedCompany.DeletedAt != nil {
+			resp := deletedCompany.ToResponse()
+			resp.Deleted = true
+			c.JSON(http.StatusOK, models.NewSuccessResponse(resp, "Company retrieved (soft-deleted)"))
 			return
 		}
-		h.logger.Printf("Error getting company: %v", err)
-		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
-		c.JSON(http.StatusInternalServerError, response)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
+		c.JSON(http.StatusNotFound, response)
 		return
 	}
+	h.logger.Printf("Error getting company: %v", err)
+	response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
+	c.JSON(http.StatusInternalServerError, response)
+	return
+}
 
-	response := models.NewSuccessResponse(company.ToResponse(), "Company retrieved successfully")
-	c.JSON(http.StatusOK, response)
+response := models.NewSuccessResponse(company.ToResponse(), "Company retrieved successfully")
+c.JSON(http.StatusOK, response)
 }
 
 // UpdateCompany handles PUT /api/v1/companies/:id

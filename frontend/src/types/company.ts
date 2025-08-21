@@ -4,6 +4,7 @@
 export interface Company {
   id: number;
   companyName: string;
+  deleted?: boolean;
   companyCode?: string;
   industry?: string;
   companyType: 'limited_company' | 'joint_stock' | 'individual' | 'partnership';

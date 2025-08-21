@@ -115,6 +115,10 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/:id", app.GetHybridDocumentHandler().GetDocument)      // 重用GetDocument  
 		workNotes.PUT("/:id", app.GetHybridDocumentHandler().UpdateDocument)   // 重用UpdateDocument
 		workNotes.DELETE("/:id", app.GetHybridDocumentHandler().DeleteDocument) // 重用DeleteDocument
+
+		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）
+		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
+		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
 	}
 }
 

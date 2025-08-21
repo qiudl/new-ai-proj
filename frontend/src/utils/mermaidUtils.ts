@@ -55,14 +55,12 @@ export async function ensureMermaidReady(retryCount: number = 20): Promise<boole
       // 检查是否已经初始化过
       if (!window.mermaidInitialized) {
         try {
-          console.log('🎨 [MermaidUtils] 统一初始化 Mermaid 库...');
           
           // 统一初始化
           window.mermaid.initialize(UNIFIED_MERMAID_CONFIG);
           window.mermaidInitialized = true;
           window.mermaidConfig = UNIFIED_MERMAID_CONFIG;
           
-          console.log('✅ [MermaidUtils] Mermaid 库初始化成功');
           return true;
         } catch (error) {
           console.error('❌ [MermaidUtils] Mermaid 初始化失败:', error);
@@ -70,7 +68,6 @@ export async function ensureMermaidReady(retryCount: number = 20): Promise<boole
         }
       } else {
         // 已经初始化过，直接返回成功
-        console.log('✅ [MermaidUtils] Mermaid 库已初始化');
         return true;
       }
     }
@@ -104,7 +101,6 @@ export async function renderMermaidDiagram(code: string, id?: string): Promise<{
     // 清理代码
     const cleanCode = code.replace(/^\n+/, '').replace(/\n+$/, '');
     
-    console.log('🎨 [MermaidUtils] 渲染图表:', diagramId);
     
     // 渲染图表
     const { svg } = await window.mermaid.render(diagramId, cleanCode);
@@ -113,7 +109,6 @@ export async function renderMermaidDiagram(code: string, id?: string): Promise<{
       throw new Error('SVG 渲染结果为空');
     }
     
-    console.log('✅ [MermaidUtils] 图表渲染成功，SVG 长度:', svg.length);
     return { svg };
     
   } catch (error: any) {
@@ -236,6 +231,5 @@ export function resetMermaidState(): void {
   if (typeof window !== 'undefined') {
     window.mermaidInitialized = false;
     window.mermaidConfig = undefined;
-    console.log('🔄 [MermaidUtils] Mermaid 状态已重置');
   }
 }

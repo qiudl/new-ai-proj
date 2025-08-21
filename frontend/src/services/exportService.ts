@@ -335,7 +335,6 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
       fallbackFont: 'helvetica'  // 如果中文字体加载失败，使用helvetica作为后备
     });
 
-    console.log('📄 PDF字体配置完成，支持中文显示');
 
     // 标题
     pdf.setFontSize(18);
@@ -429,8 +428,6 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
     
     if (validation.hasChineseContent && !validation.fontSupported) {
       console.warn('⚠️ PDF包含中文内容但字体支持可能不完整:', validation.recommendations);
-    } else if (validation.hasChineseContent && validation.fontSupported) {
-      console.log('✅ PDF中文内容支持验证通过');
     }
 
     // 🔧 [任务#714修复] 添加页码功能
@@ -461,11 +458,7 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
     // 保存PDF
     pdf.save(config.filename);
     
-    // 输出成功信息
-    console.log(`📄 PDF导出成功: ${config.filename}`);
-    if (validation.hasChineseContent) {
-      console.log('🈴 PDF包含中文内容，字体支持已配置');
-    }
+    // 输出成功信息（日志移除）
     
     return true;
   } catch (error) {

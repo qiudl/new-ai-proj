@@ -556,30 +556,55 @@ const CompanyDetailPage: React.FC = () => {
           >
             返回
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            {company.companyName}
+          <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: company.deleted ? '#f5222d' : undefined }}>
+              {company.companyName}
+            </span>
+            {company.deleted && <Tag color="red">已删除</Tag>}
           </Title>
-          <Tag color={getStatusColor(company.status)}>{company.statusText}</Tag>
+          <Tag color={company.deleted ? 'red' : getStatusColor(company.status)}>
+            {company.deleted ? '已删除' : company.statusText}
+          </Tag>
           <Tag color={getPriorityColor(company.priority)}>{company.priorityText}</Tag>
         </Space>
 
         <Space>
-          <Button 
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => navigate(`/companies/${company.id}/edit`)}
-          >
-            编辑
-          </Button>
-          <Button 
-            danger
-            icon={<DeleteOutlined />}
-            onClick={handleDelete}
-          >
-            删除
-          </Button>
+          {company.deleted && (
+            <Tag color="red" style={{ marginRight: 8 }}>已删除</Tag>
+          )}
+          <Tooltip title={company.deleted ? '该企业已删除，无法编辑' : '编辑'}>
+            <Button 
+              type="primary"
+              icon={<EditOutlined />}
+              onClick={() => !company.deleted && navigate(`/companies/${company.id}/edit`)}
+              disabled={!!company.deleted}
+            >
+              编辑
+            </Button>
+          </Tooltip>
+          <Tooltip title={company.deleted ? '该企业已删除，无需再次删除' : '删除'}>
+            <Button 
+              danger
+              icon={<DeleteOutlined />}
+              onClick={!company.deleted ? handleDelete : undefined}
+              disabled={!!company.deleted}
+            >
+              删除
+            </Button>
+          </Tooltip>
         </Space>
       </div>
+
+      {/* 已删除提示 */}
+      {company.deleted && (
+        <Alert
+          type="error"
+          showIcon
+          message="该企业已被删除"
+          description="此企业已被软删除。无法创建新项目或添加联系记录，编辑和删除操作已禁用。"
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* 内容标签页 */}
       <Card>
@@ -599,13 +624,16 @@ const CompanyDetailPage: React.FC = () => {
               children: (
                 <div>
                   <div style={{ marginBottom: '16px' }}>
-                    <Button 
-                      type="primary" 
-                      icon={<ProjectOutlined />}
-                      onClick={() => navigate(`/projects/create?companyId=${company.id}`)}
-                    >
-                      新建项目
-                    </Button>
+                    <Tooltip title={company.deleted ? '该企业已删除，无法新建项目' : '新建项目'}>
+                      <Button 
+                        type="primary" 
+                        icon={<ProjectOutlined />}
+                        onClick={() => { if (!company.deleted) navigate(`/projects/create?companyId=${company.id}`); }}
+                        disabled={!!company.deleted}
+                      >
+                        新建项目
+                      </Button>
+                    </Tooltip>
                   </div>
                   
                   <Table
@@ -784,9 +812,15 @@ const CompanyDetailPage: React.FC = () => {
               children: (
                 <div>
                   <div style={{ marginBottom: '16px' }}>
-                    <Button type="primary" icon={<ContactsOutlined />}>
-                      添加联系记录
-                    </Button>
+                    <Tooltip title={company.deleted ? '该企业已删除，无法添加联系记录' : '添加联系记录'}>
+                      <Button 
+                        type="primary" 
+                        icon={<ContactsOutlined />}
+                        disabled={!!company.deleted}
+                      >
+                        添加联系记录
+                      </Button>
+                    </Tooltip>
                   </div>
                   
                   <Table

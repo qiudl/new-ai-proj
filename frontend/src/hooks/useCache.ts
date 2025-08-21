@@ -171,10 +171,7 @@ class MemoryAwareCache {
       }
     });
 
-    // Log cleanup results in development
-    if (keysToDelete.length > 0 && process.env.NODE_ENV === 'development') {
-      console.log(`Cache cleanup: removed ${keysToDelete.length} expired entries, freed ${(this.currentMemoryMB).toFixed(2)}MB`);
-    }
+    // Cleanup completed silently
   }
 
   clear(): void {

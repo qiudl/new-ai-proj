@@ -5,34 +5,70 @@ import { APIResponse } from '../types/task';
 export const userService = {
   // Get current user profile
   getProfile: async (): Promise<APIResponse<User>> => {
-    const response: APIResponse<User> = await api.get('/users/profile');
+    const response: any = await api.get('/users/profile');
     
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to fetch user profile');
+    // Handle wrapped APIResponse
+    if (response && typeof response === 'object' && 'success' in response) {
+      if (!response.success) {
+        throw new Error(response.message || (response as any).error?.message || 'Failed to fetch user profile');
+      }
+      return response as APIResponse<User>;
     }
-    
-    return response;
+
+    // Axios-unwrapped: response is the actual User object
+    const user = response as User;
+    if (!user || typeof user !== 'object' || !('id' in user)) {
+      throw new Error('Failed to fetch user profile');
+    }
+    return {
+      success: true,
+      data: user,
+      message: 'Profile loaded',
+      timestamp: new Date().toISOString(),
+    } as APIResponse<User>;
   },
 
   // Update user profile
   updateProfile: async (data: UserProfileUpdateRequest): Promise<APIResponse<User>> => {
-    const response: APIResponse<User> = await api.put('/users/profile', data);
+    const response: any = await api.put('/users/profile', data);
     
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to update user profile');
+    if (response && typeof response === 'object' && 'success' in response) {
+      if (!response.success) {
+        throw new Error(response.message || (response as any).error?.message || 'Failed to update user profile');
+      }
+      return response as APIResponse<User>;
     }
-    
-    return response;
+
+    // Unwrapped case
+    const user = response as User;
+    if (!user || typeof user !== 'object' || !('id' in user)) {
+      throw new Error('Failed to update user profile');
+    }
+    return {
+      success: true,
+      data: user,
+      message: 'Profile updated',
+      timestamp: new Date().toISOString(),
+    } as APIResponse<User>;
   },
 
   // Change password
   changePassword: async (data: PasswordChangeRequest): Promise<APIResponse<null>> => {
-    const response: APIResponse<null> = await api.put('/users/password', data);
+    const response: any = await api.put('/users/password', data);
     
-    if (!response.success) {
-      throw new Error(response.message || 'Failed to change password');
+    if (response && typeof response === 'object' && 'success' in response) {
+      if (!response.success) {
+        throw new Error(response.message || (response as any).error?.message || 'Failed to change password');
+      }
+      return response as APIResponse<null>;
     }
-    
-    return response;
+
+    // Unwrapped case: treat as success with no data
+    return {
+      success: true,
+      data: null,
+      message: 'Password changed',
+      timestamp: new Date().toISOString(),
+    } as APIResponse<null>;
   },
 };

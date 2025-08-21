@@ -28,7 +28,6 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
       renderingRef.current = true;
       
       try {
-        console.log('🎨 [TaskMarkdownEditor] 开始渲染 Mermaid 图表...');
         
         // 使用统一的渲染工具
         const result = await renderMermaidDiagram(chart, id);
@@ -43,7 +42,6 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
           // 渲染成功
           ref.current.innerHTML = result.svg;
           setError(null);
-          console.log('✅ [TaskMarkdownEditor] Mermaid 图表渲染成功');
         } else {
           throw new Error('未知的渲染结果');
         }

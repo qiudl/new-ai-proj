@@ -380,11 +380,15 @@ export const taskDocumentService = {
       }
       
       // 使用新的数据库API端点获取任务文档列表
-      const response = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
+      const response: any = await api.get(`/projects/${projectId}/tasks/${taskId}/documents`);
 
-      if (response.data && response.data.success) {
-        // 新API返回的数据格式处理
-        const responseData = response.data.data;
+      // 支持两种格式：
+      // 1) 包装格式 { success, data: { documents: [...] } }
+      // 2) axios解包后的直接数据 { documents: [...] }
+      const isWrapped = response && typeof response === 'object' && 'success' in response;
+      const payload = isWrapped ? response.data : (response && response.data ? response.data : response);
+      if (isWrapped ? response.success : !!payload) {
+        const responseData = payload?.data || payload || {};
         const documents = responseData.documents || [];
         
         const result: DocumentListResponse = {

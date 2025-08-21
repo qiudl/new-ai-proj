@@ -110,22 +110,16 @@ class WeeklyReportService {
       const queryString = params.toString();
       const url = `/timer/weekly${queryString ? `?${queryString}` : ''}`;
       
-      console.log('Fetching weekly report from:', url);
-      
       const response = await api.get(url);
       
-      console.log('Weekly report API response:', response);
       
       // 验证响应结构
       if (!response || typeof response !== 'object') {
-        console.warn('Invalid API response structure:', response);
         return this.getEmptyWeeklyReportData();
       }
 
       // response.data可能不存在，直接使用response
       const rawData = response.data || response;
-      
-      console.log('Raw data for transformation:', rawData);
       
       // 转换后端数据格式到前端格式
       const reportData = this.transformWeeklyReportData(rawData);

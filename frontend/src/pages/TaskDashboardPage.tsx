@@ -298,11 +298,6 @@ const TaskDashboardPage: React.FC = () => {
         }
         
         const tasks = await DashboardService.getAllTasks();
-        console.log('🔍 TaskDashboardPage - getAllTasks结果:', {
-          isArray: Array.isArray(tasks),
-          length: tasks?.length || 0,
-          firstTask: tasks?.[0] || null
-        });
         
         if (!tasks || tasks.length === 0) {
           console.warn('⚠️ TaskDashboardPage - 未获取到任务数据，可能是没有任务或API返回空数组');
@@ -342,14 +337,9 @@ const TaskDashboardPage: React.FC = () => {
       return [];
     }
 
-    console.log('🔍 筛选本周任务：', weekStart.format('YYYY-MM-DD'), '到', weekEnd.format('YYYY-MM-DD'));
-    console.log('🔍 当前allTasks数量:', allTasks.length);
-    console.log('🔍 weekStart对象:', weekStart.toISOString());
-    console.log('🔍 weekEnd对象:', weekEnd.toISOString());
 
     const filteredTasks = allTasks.filter((task: Task) => {
       if (!task.due_date && !task.created_at) {
-        console.log(`❌ 任务 ${task.title} 没有due_date和created_at，跳过`);
         return false;
       }
       
@@ -357,19 +347,14 @@ const TaskDashboardPage: React.FC = () => {
       const isInWeek = taskDate.isBetween(weekStart, weekEnd, 'day', '[]');
       
       if (isInWeek) {
-        console.log(`✅ 任务 ${task.title} -> 日期: ${taskDate.format('YYYY-MM-DD')} -> 在本周: ${isInWeek}`);
+        // in week
       }
       
       return isInWeek;
     });
 
-    console.log(`🎯 本周任务筛选结果: ${filteredTasks.length}/${allTasks.length}`);
     if (filteredTasks.length === 0) {
-      console.log('⚠️ 没有找到本周任务，检查前5个任务的日期:');
-      allTasks.slice(0, 5).forEach((task: Task) => {
-        const taskDate = task.due_date ? dayjs(task.due_date) : dayjs(task.created_at);
-        console.log(`  - ${task.title}: ${taskDate?.format('YYYY-MM-DD') || '无日期'}`);
-      });
+      // no weekly tasks
     }
     return filteredTasks;
   }, [allTasks, weekStart, weekEnd]);
@@ -402,16 +387,8 @@ const TaskDashboardPage: React.FC = () => {
 
   // 计算本周统计数据
   const weeklyStats: WeeklyStats = useMemo(() => {
-    console.log('🔍 计算weeklyStats，weeklyTasks:', {
-      isArray: Array.isArray(weeklyTasks),
-      length: weeklyTasks?.length || 0,
-      isNull: weeklyTasks === null,
-      isUndefined: weeklyTasks === undefined,
-      actualValue: weeklyTasks
-    });
 
     if (!weeklyTasks) {
-      console.log('⚠️ weeklyTasks为空，返回默认统计数据');
       return {
         totalTasks: 0,
         completedTasks: 0,
@@ -428,12 +405,6 @@ const TaskDashboardPage: React.FC = () => {
     const inProgressTasks = weeklyTasks.filter(task => ['in_progress', 'testing'].includes(task.status)).length;
     const todoTasks = weeklyTasks.filter(task => ['todo', 'draft', 'planning'].includes(task.status)).length;
     
-    console.log('📊 weeklyStats计算结果:', {
-      totalTasks,
-      completedTasks,
-      inProgressTasks,
-      todoTasks
-    });
     
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -454,7 +425,6 @@ const TaskDashboardPage: React.FC = () => {
       weekRange: `${weekStart.format('MM/DD')} - ${weekEnd.format('MM/DD')}`
     };
     
-    console.log('🎯 最终weeklyStats:', finalStats);
     return finalStats;
   }, [weeklyTasks, weekStart, weekEnd]);
 

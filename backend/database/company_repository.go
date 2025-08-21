@@ -88,6 +88,41 @@ func (r *PostgresCompanyRepository) GetByID(ctx context.Context, id int) (*model
 		return nil, fmt.Errorf("failed to get company: %w", err)
 	}
 
+return company, nil
+}
+
+// GetByIDIncludeDeleted retrieves a company by ID including soft-deleted rows
+func (r *PostgresCompanyRepository) GetByIDIncludeDeleted(ctx context.Context, id int) (*models.Company, error) {
+	query := `
+		SELECT id, company_name, company_code, industry, company_type, business_license,
+			   tax_number, legal_representative, address, city, province, postal_code,
+			   website, main_phone, main_email, status, priority, annual_contract_value,
+			   total_contract_value, start_date, employee_count, company_size,
+			   created_by, updated_by, created_at, updated_at, deleted_at
+		FROM customers 
+		WHERE id = $1`
+
+	exec := r.getExecer()
+	company := &models.Company{}
+
+	err := exec.QueryRowContext(ctx, query, id).Scan(
+		&company.ID, &company.CompanyName, &company.CompanyCode, &company.Industry,
+		&company.CompanyType, &company.BusinessLicense, &company.TaxNumber,
+		&company.LegalRepresentative, &company.Address, &company.City, &company.Province,
+		&company.PostalCode, &company.Website, &company.MainPhone, &company.MainEmail,
+		&company.Status, &company.Priority, &company.AnnualContractValue,
+		&company.TotalContractValue, &company.StartDate, &company.EmployeeCount,
+		&company.CompanySize, &company.CreatedBy, &company.UpdatedBy,
+		&company.CreatedAt, &company.UpdatedAt, &company.DeletedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("company not found")
+		}
+		return nil, fmt.Errorf("failed to get company (include deleted): %w", err)
+	}
+
 	return company, nil
 }
 

@@ -31,8 +31,9 @@ class CompanyService {
     if (filters?.industry) params.append('industry', filters.industry);
     if (filters?.search) params.append('search', filters.search);
 
+    // Axios interceptor returns the unwrapped payload (PaginatedResponse)
     const response = await api.get(`${API_BASE_URL}?${params.toString()}`);
-    return response.data;
+    return response as unknown as PaginatedResponse<Company[]>;
   }
 
   // Create new company
@@ -68,14 +69,15 @@ class CompanyService {
         .map(([key, value]) => [key, value === '' ? null : value])
     );
 
+    // Interceptor returns created Company directly
     const response = await api.post(API_BASE_URL, cleanedData);
-    return response.data;
+    return response as unknown as Company;
   }
 
   // Get company by ID
   async getCompany(id: number): Promise<Company> {
-    const response = await api.get(`${API_BASE_URL}/${id}`);
-    const data = response.data;
+    // Interceptor returns CompanyResponse payload
+    const data = await api.get(`${API_BASE_URL}/${id}`);
     
     // Convert snake_case from backend to camelCase for frontend
     const company: Company = {
@@ -164,7 +166,7 @@ class CompanyService {
     );
 
     const response = await api.put(`${API_BASE_URL}/${id}`, cleanedData);
-    return response.data;
+    return response as unknown as Company;
   }
 
   // Delete company
@@ -175,13 +177,13 @@ class CompanyService {
   // Get company statistics
   async getCompanyStats(): Promise<CompanyStats> {
     const response = await api.get(`${API_BASE_URL}/stats`);
-    return response.data;
+    return response as unknown as CompanyStats;
   }
 
   // Get company users
   async getCompanyUsers(companyId: number): Promise<CompanyUser[]> {
     const response = await api.get(`${API_BASE_URL}/${companyId}/users`);
-    return response.data;
+    return response as unknown as CompanyUser[];
   }
 
   // Create company user
@@ -419,7 +421,8 @@ class CompanyService {
     params.append('page_size', '50'); // 限制返回数量
     
     const response = await api.get(`${API_BASE_URL}?${params.toString()}`);
-    return response.data.data;
+    // Interceptor returns PaginatedResponse; for search we only need the data array
+    return (response as unknown as PaginatedResponse<Company[]>).data;
   }
 
   // 批量获取客户信息
@@ -430,7 +433,7 @@ class CompanyService {
     params.append('ids', ids.join(','));
     
     const response = await api.get(`${API_BASE_URL}/batch?${params.toString()}`);
-    return response.data;
+    return response as unknown as Company[];
   }
 
   // 获取多个客户的用户列表
@@ -441,7 +444,7 @@ class CompanyService {
     params.append('company_ids', companyIds.join(','));
     
     const response = await api.get(`${API_BASE_URL}/users/batch?${params.toString()}`);
-    return response.data;
+    return response as unknown as { companyId: number; users: CompanyUser[] }[];
   }
 
   // Helper methods for text conversion

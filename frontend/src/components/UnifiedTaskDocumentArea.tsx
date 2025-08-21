@@ -390,12 +390,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     maxFileSize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
     onFilesDrop: async (files: FileList, dropZone?: string) => {
-      console.log(`文件拖放到区域: ${dropZone || '默认区域'}`);
       setUploading(true);
       try {
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          console.log(`上传文件: ${file.name}`);
           // 这里应该调用实际的文件上传API
           await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟上传延迟
         }
@@ -409,7 +407,6 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       }
     },
     onItemDrop: (draggedItem: DocumentItem, targetItem: DocumentItem, dropZone: string) => {
-      console.log('文档拖拽重排:', draggedItem.title, '->', targetItem.title);
       // 重新排序文档列表
       setDocuments(prev => {
         const draggedIndex = prev.findIndex(doc => doc.id === draggedItem.id);
@@ -426,7 +423,6 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       });
     },
     onItemReorder: (items: DocumentItem[], fromIndex: number, toIndex: number) => {
-      console.log('文档重排序:', fromIndex, '->', toIndex);
       setDocuments(items);
       message.success('文档顺序已更新');
     }
@@ -1003,7 +999,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   );
 
   return (
-    <div className={`unified-task-document-area ${className}`} style={style}>
+    <div className={`unified-task-document-area ${viewMode}-mode ${className}`} style={style}>
       <Card
         title={
           <Space>
@@ -1092,16 +1088,16 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           )
         }
         bodyStyle={{ padding: 0 }}
-        style={{ height }}
+        style={{ height: viewMode === 'preview' ? 'auto' : height }}
       >
-        <Row style={{ height: 'calc(100% - 60px)' }}>
+        <Row style={{ height: viewMode === 'preview' ? 'auto' : 'calc(100% - 60px)' }}>
           {/* 左侧文档列表 */}
           {showDocumentList && (
             <Col 
               span={compactMode ? 24 : 7} 
               style={{ 
                 borderRight: compactMode ? 'none' : '1px solid #f0f0f0',
-                height: '100%'
+                height: viewMode === 'preview' ? 'auto' : '100%'
               }}
             >
               <div style={{ padding: '16px 0' }}>

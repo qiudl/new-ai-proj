@@ -11,7 +11,7 @@ module.exports = function(app) {
     ? 'http://backend:8080'    // Docker container name when running in container
     : 'http://localhost:8081'; // Host machine when running locally
   
-  console.log(`[PROXY] Backend URL: ${backendUrl}`);
+  // Backend URL logging removed to reduce debug noise
   
   app.use(
     '/api',

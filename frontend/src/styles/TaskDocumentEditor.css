@@ -1,5 +1,17 @@
 /* TaskDocumentEditor 全屏功能样式 */
 
+/* 普通模式：放开外层容器溢出，不产生局部滚动条，由页面整体滚动 */
+body:not(.fullscreen-editor-active) .task-document-editor {
+  width: 100%;
+  max-width: 100%;
+  overflow: visible;
+}
+
+body:not(.fullscreen-editor-active) .task-document-editor .task-document-scroll {
+  overflow: visible;
+  min-height: 0;
+}
+
 /* 当body有fullscreen-editor-active类时，隐藏所有可能的页面元素 */
 body.fullscreen-editor-active #root > *:not([data-fullscreen-editor="true"]) {
   display: none !important;
@@ -40,16 +52,32 @@ body.fullscreen-editor-active [class*="Header"]:not([data-fullscreen-editor="tru
   display: none !important;
 }
 
-/* 确保全屏编辑器正确显示 */
-body.fullscreen-editor-active [data-fullscreen-editor="true"] {
+/********************* 全屏彻底覆盖修正 *********************/
+body.fullscreen-editor-active [data-fullscreen-editor="true"],
+body.fullscreen-editor-active #task-doc-fullscreen {
   display: flex !important;
   position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
+  inset: 0 !important; /* top/left/right/bottom: 0 的简写 */
   width: 100vw !important;
   height: 100vh !important;
-  z-index: 1050 !important;
+  z-index: 9999 !important; /* 提升覆盖层级，确保超过 Tabs/Drawer 等 */
   background-color: #fff !important;
+  overflow: auto !important;
+  overscroll-behavior: contain !important; /* 防止背景滚动 */
+}
+
+/* 避免外层容器（如 Tabs 面板）设置的定位影响全屏定位 */
+body.fullscreen-editor-active .ant-tabs,
+body.fullscreen-editor-active .ant-tabs-content,
+body.fullscreen-editor-active .ant-tabs-content-holder,
+body.fullscreen-editor-active .ant-tabs-tabpane {
+  position: static !important;
+  overflow: visible !important;
+}
+
+/* 全屏时强制隐藏页面滚动条，避免双滚动 */
+body.fullscreen-editor-active {
+  overflow: hidden !important;
 }
 
 /* 全屏时优化编辑器内部样式 */
