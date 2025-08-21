@@ -59,7 +59,14 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 		tasks := projects.Group("/:id/tasks")
 		{
 			// 单个任务文档管理 (文件系统存储)
-			tasks.GET("/:taskId/document", app.GetTaskDocumentFileHandler().GetTaskDocument)
+			// 已归档：GET 接口返回 410，避免误用；请使用 /projects/:id/tasks/:taskId/documents 下的新接口
+			tasks.GET("/:taskId/document", func(c *gin.Context) {
+				c.JSON(410, gin.H{
+					"success": false,
+					"message": "This file-based GET endpoint is deprecated. Use /projects/:id/tasks/:taskId/documents instead.",
+					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
+				})
+			})
 			tasks.PUT("/:taskId/document", app.GetTaskDocumentFileHandler().UpdateTaskDocument)
 			
 			taskDocuments := tasks.Group("/:taskId/documents")
@@ -183,7 +190,14 @@ func registerDocumentMetadataRoutes(authorized *gin.RouterGroup, app Application
 // RegisterPersonalTimerDocumentRoutes 注册个人计时器文档路由
 func RegisterPersonalTimerDocumentRoutes(timerTasks *gin.RouterGroup, app ApplicationInterface) {
 	// 个人计时器任务的文档管理
-	timerTasks.GET("/:id/document", app.GetTaskDocumentFileHandler().GetPersonalTaskDocument)
+	// 已归档：GET 接口返回 410，避免误用；请使用标准文档接口或任务文档列表
+	timerTasks.GET("/:id/document", func(c *gin.Context) {
+		c.JSON(410, gin.H{
+			"success": false,
+			"message": "This file-based personal GET endpoint is deprecated. Use documents API instead.",
+			"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
+		})
+	})
 	timerTasks.PUT("/:id/document", app.GetTaskDocumentFileHandler().UpdatePersonalTaskDocument)
 }
 
