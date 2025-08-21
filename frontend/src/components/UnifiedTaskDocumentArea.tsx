@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Card,
   Row,
@@ -41,13 +42,16 @@ import {
   CopyOutlined,
   ShareAltOutlined,
   HistoryOutlined,
-  LinkOutlined
+  LinkOutlined,
+  ArrowsAltOutlined,
+  ShrinkOutlined
 } from '@ant-design/icons';
 
 // 导入现有组件
 import TaskDocumentEditor from './TaskDocumentEditor';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
+import { TaskService } from '../services/taskService';
 
 // 导入快捷键Hook
 import { useKeyboardShortcuts, createDocumentShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -68,6 +72,7 @@ export type ViewMode = 'edit' | 'preview' | 'manage' | 'stats';
 export interface DocumentItem extends UnifiedDocument {
   loading?: boolean;
   selected?: boolean;
+  sourceTaskId?: number;
 }
 
 // 组件属性接口
@@ -82,6 +87,7 @@ export interface UnifiedTaskDocumentAreaProps {
   showDocumentList?: boolean;
   compactMode?: boolean;
   headerVisible?: boolean; // 是否显示头部标题与统计徽章
+  includeSubtaskDocuments?: boolean; // 是否包含子任务的文档
   onDocumentChange?: (documents: DocumentItem[]) => void;
   onViewModeChange?: (mode: ViewMode) => void;
 }
@@ -97,7 +103,8 @@ const DocumentListItem: React.FC<{
   draggableProps?: any;
   isDragOver?: boolean;
   isDraggedItem?: boolean;
-}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, draggableProps, isDragOver, isDraggedItem }) => {
+  currentTaskId?: number;
+}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, draggableProps, isDragOver, isDraggedItem, currentTaskId }) => {
   
   // 右键菜单
   const contextMenuItems: MenuProps['items'] = [
@@ -190,6 +197,9 @@ const DocumentListItem: React.FC<{
               <Text strong>{document.title}</Text>
               <Tag size="small">{document.type.toUpperCase()}</Tag>
               {document.is_template && <Tag color="purple" size="small">模板</Tag>}
+              {document.sourceTaskId && currentTaskId && document.sourceTaskId !== currentTaskId && (
+                <Tag color="geekblue" size="small">子任务 #{document.sourceTaskId}</Tag>
+              )}
             </Space>
           }
           description={
@@ -230,11 +240,13 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   showDocumentList = true,
   compactMode = false,
   headerVisible = true,
+  includeSubtaskDocuments = false,
   onDocumentChange,
   onViewModeChange
 }) => {
   // 状态管理
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<DocumentItem | null>(null);
   const [loading, setLoading] = useState(false);
@@ -251,12 +263,76 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     onViewModeChange?.(mode);
   }, [onViewModeChange]);
 
+  // 本地控制“是否包含下级”开关，默认取props
+  const [includeDescendants, setIncludeDescendants] = useState<boolean>(includeSubtaskDocuments);
+  useEffect(() => {
+    setIncludeDescendants(includeSubtaskDocuments);
+  }, [includeSubtaskDocuments]);
+
+  // 快速过滤：全部 / 仅本任务 / 仅子任务
+  const [filterMode, setFilterMode] = useState<'all' | 'root' | 'desc'>('all');
+
   // 加载文档列表
   const loadDocuments = useCallback(async () => {
     setLoading(true);
     try {
+      // 获取当前任务文档
       const response = await documentService.getTaskDocuments(projectId, taskId);
-      const docs = response.documents.map((doc: UnifiedDocument) => ({ ...doc, selected: false }));
+      let docs: DocumentItem[] = response.documents.map((doc: UnifiedDocument) => ({ ...doc, selected: false, sourceTaskId: taskId }));
+
+      // 可选：合并所有下级任务文档（递归）
+      if (includeDescendants) {
+        try {
+          const getAllDescendantTaskIds = async (pid: number, rootTaskId: number): Promise<number[]> => {
+            const result: number[] = [];
+            const queue: number[] = [rootTaskId];
+            const visited = new Set<number>();
+            // 出队根本身以获取其子任务，不计入自身ID
+            queue.shift();
+            // 首先入队根的直接子任务
+            const firstLevel = await TaskService.getTaskChildren(pid, rootTaskId);
+            const initialChildren = Array.isArray(firstLevel) ? firstLevel : [];
+            initialChildren.forEach((t: any) => queue.push(t.id));
+
+            while (queue.length) {
+              const currentId = queue.shift() as number;
+              if (visited.has(currentId)) continue;
+              visited.add(currentId);
+              result.push(currentId);
+              try {
+                const children = await TaskService.getTaskChildren(pid, currentId);
+                const arr = Array.isArray(children) ? children : [];
+                arr.forEach((t: any) => {
+                  if (!visited.has(t.id)) queue.push(t.id);
+                });
+              } catch (e) {
+                // 忽略单个节点失败
+              }
+            }
+            return result;
+          };
+
+          const descendantIds = await getAllDescendantTaskIds(projectId, taskId);
+          const descendantDocArrays = await Promise.all(
+            descendantIds.map(async (descTaskId) => {
+              try {
+                const resp = await documentService.getTaskDocuments(projectId, descTaskId);
+                return resp.documents.map((d: UnifiedDocument) => ({ ...d, selected: false, sourceTaskId: descTaskId }));
+              } catch (e) {
+                return [] as DocumentItem[];
+              }
+            })
+          );
+          const allDescDocs = descendantDocArrays.flat();
+          docs = [
+            ...docs,
+            ...allDescDocs.map(d => ({ ...d, description: d.description || `来自子任务 #${d.sourceTaskId}` }))
+          ];
+        } catch (e) {
+          // 忽略递归失败
+        }
+      }
+
       setDocuments(docs);
       
       // 如果没有选中文档且有文档列表，选中第一个
@@ -271,7 +347,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [projectId, taskId, selectedDocument, onDocumentChange]);
+  }, [projectId, taskId, includeDescendants, selectedDocument, onDocumentChange]);
 
   // 快捷键回调函数
   const shortcutCallbacks = useMemo(() => ({
@@ -437,6 +513,33 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  // 监听 ESC 键退出全屏
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isFullscreen]);
+
+  // 切换全屏时锁定/恢复页面滚动，并添加全屏状态类到 body 以隐藏左右区域
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (isFullscreen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('fullscreen-doc-active');
+      return () => {
+        document.body.style.overflow = prev;
+        document.body.classList.remove('fullscreen-doc-active');
+      };
+    } else {
+      document.body.classList.remove('fullscreen-doc-active');
+    }
+  }, [isFullscreen]);
 
   // 文档选择
   const handleDocumentSelect = useCallback((doc: DocumentItem) => {
@@ -608,7 +711,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           <div style={{ padding: '0 8px' }}>
             {/* 按类型分组显示文档 */}
             {Object.entries(
-              documents.reduce((groups, doc) => {
+              filteredDocuments.reduce((groups, doc) => {
                 const type = doc.type || 'other';
                 if (!groups[type]) groups[type] = [];
                 groups[type].push(doc);
@@ -719,7 +822,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', fontWeight: 'bold' }}>
               📅 按时间排序
             </div>
-            {documents
+            {filteredDocuments
               .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
               .map((doc) => (
                 <div
@@ -767,7 +870,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       case 'grid':
         return (
           <div style={{ padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            {documents.map((doc) => (
+            {filteredDocuments.map((doc) => (
               <div
                 key={doc.id}
                 onClick={() => handleDocumentSelect(doc)}
@@ -804,9 +907,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         return (
           <List
             size="small"
-            dataSource={documents}
+            dataSource={filteredDocuments}
             renderItem={(doc) => (
-              <DocumentListItem
+              <DocumentListItem currentTaskId={taskId}
                 key={doc.id}
                 document={doc}
                 selected={selectedDocument?.id === doc.id}
@@ -863,17 +966,24 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     }
   ];
 
-  // 文档统计
+  // 过滤后的文档
+  const filteredDocuments = useMemo(() => {
+    if (filterMode === 'root') return documents.filter(d => (d.sourceTaskId ?? taskId) === taskId);
+    if (filterMode === 'desc') return documents.filter(d => (d.sourceTaskId ?? taskId) !== taskId);
+    return documents;
+  }, [documents, filterMode, taskId]);
+
+  // 文档统计（基于过滤结果）
   const documentStats = useMemo(() => {
-    const total = documents.length;
-    const totalSize = documents.reduce((sum, doc) => sum + doc.file_size, 0);
-    const byType = documents.reduce((acc, doc) => {
+    const total = filteredDocuments.length;
+    const totalSize = filteredDocuments.reduce((sum, doc) => sum + doc.file_size, 0);
+    const byType = filteredDocuments.reduce((acc, doc) => {
       acc[doc.type] = (acc[doc.type] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
     
     return { total, totalSize, byType };
-  }, [documents]);
+  }, [filteredDocuments]);
 
   // 渲染主要内容区域
   const renderContentArea = () => {
@@ -1000,8 +1110,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     </div>
   );
 
-  return (
-    <div className={`unified-task-document-area ${viewMode}-mode ${className}`} style={style}>
+  const __content = (
+    <div className={`unified-task-document-area ${viewMode}-mode ${className} ${isFullscreen ? 'fullscreen' : ''}`} style={isFullscreen ? {} : style}>
       <Card
         title={
           headerVisible ? (
@@ -1014,6 +1124,14 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         extra={
           showToolbar && (
             <Space>
+              {/* 全屏切换 */}
+              <Tooltip title={isFullscreen ? '退出全屏 (Esc)' : '全屏查看'}>
+                <Button
+                  icon={isFullscreen ? <ShrinkOutlined /> : <ArrowsAltOutlined />}
+                  onClick={() => setIsFullscreen(v => !v)}
+                />
+              </Tooltip>
+
               {/* 视图模式切换 */}
               <Button.Group>
                 <Button
@@ -1047,6 +1165,25 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
               </Button.Group>
 
               {/* 快速操作 */}
+              <Divider type="vertical" />
+
+              {/* 范围切换：仅本任务 / 含下级 */}
+              <Tooltip title={includeDescendants ? '显示本任务及所有下级任务文档' : '仅显示本任务文档'}>
+                <Button
+                  onClick={() => { setIncludeDescendants(v => !v); setFilterMode('all'); loadDocuments(); }}
+                  type={includeDescendants ? 'primary' : 'default'}
+                >
+                  {includeDescendants ? '含下级' : '仅本任务'}
+                </Button>
+              </Tooltip>
+
+              {/* 快速过滤：全部 / 仅本任务 / 仅子任务 */}
+              <Space size={4}>
+                <Button size="small" type={filterMode === 'all' ? 'primary' : 'default'} onClick={() => setFilterMode('all')}>全部</Button>
+                <Button size="small" type={filterMode === 'root' ? 'primary' : 'default'} onClick={() => setFilterMode('root')}>仅本任务</Button>
+                <Button size="small" type={filterMode === 'desc' ? 'primary' : 'default'} onClick={() => setFilterMode('desc')}>仅子任务</Button>
+              </Space>
+
               <Divider type="vertical" />
               
               {/* 新建文档按钮 - 明显位置 */}
@@ -1091,9 +1228,9 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           )
         }
         bodyStyle={{ padding: 0 }}
-        style={{ height: viewMode === 'preview' ? 'auto' : height }}
+        style={{ height: isFullscreen ? '100vh' : (viewMode === 'preview' ? 'auto' : height) }}
       >
-        <Row style={{ height: viewMode === 'preview' ? 'auto' : 'calc(100% - 60px)' }}>
+        <Row style={{ height: isFullscreen ? 'calc(100vh - 60px)' : (viewMode === 'preview' ? 'auto' : 'calc(100% - 60px)') }}>
           {/* 左侧文档列表 */}
           {showDocumentList && (
             <Col 
@@ -1250,6 +1387,11 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       </Modal>
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(__content, document.body);
+  }
+  return __content;
 };
 
 export default UnifiedTaskDocumentArea;

@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Task Document API - Create and Attach
+  version: '1.0.0'
+paths:
+  /api/v1/projects/{id}/tasks/{taskId}/documents/create-and-attach:
+    post:
+      summary: 原子创建文档并关联到任务
+      description: 在单一数据库事务中创建文档并关联到指定任务。任一步失败会回滚。
+      tags:
+        - documents
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 项目ID
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: 任务ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+                type:
+                  type: string
+                  enum: [markdown, file, note]
+                status:
+                  type: string
+                  enum: [draft, published, archived]
+                description:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                visibility:
+                  type: string
+                  enum: [team, private, public]
+                is_template:
+                  type: boolean
+                metadata:
+                  type: object
+                  additionalProperties: true
+                relationship_type:
+                  type: string
+                  description: 与任务的关系类型，默认 attachment
+              required: [title]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      document_id:
+                        type: integer
+                      task_id:
+                        type: integer
+                      project_id:
+                        type: integer
+                      created_at:
+                        type: string
+                        format: date-time
+                      updated_at:
+                        type: string
+                        format: date-time
+                      relationship_type:
+                        type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error

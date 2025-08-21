@@ -901,7 +901,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     bottom: 0,
     width: '100vw',
     height: '100vh',
-    zIndex: 1050, // 高于Modal的默认层级(1000)但不过度
+    zIndex: 2147483647, // 极大层级，确保覆盖页面任何元素
     backgroundColor: '#fff',
     display: 'flex',
     flexDirection: 'column',

@@ -32,9 +32,27 @@
   transition: all var(--animation-normal) var(--ease-out);
   
   /* 整体悬停效果 */
-  &:hover {
+  \u0026:hover {
     box-shadow: var(--shadow-medium);
     transform: translateY(-1px);
+  }
+
+  /* 满屏模式样式（嵌套） */
+  \u0026.fullscreen {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  \u0026.fullscreen .ant-card-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   /* 工具栏样式增强 */
@@ -370,6 +388,78 @@
 .unified-task-document-area.preview-mode {
   /* 预览模式确保外层可滚动 */
   overflow: auto !important;
+}
+
+/* 针对全屏状态，隐藏应用布局的其他区域，防止遮挡 */
+body.fullscreen-doc-active .ant-layout-sider,
+body.fullscreen-doc-active .info-sidebar,
+body.fullscreen-doc-active .ant-layout-header,
+body.fullscreen-doc-active .ant-layout-footer {
+  display: none !important;
+}
+
+/* 针对编辑器全屏状态，也隐藏布局区域 */
+body.fullscreen-editor-active .ant-layout-sider,
+body.fullscreen-editor-active .info-sidebar,
+body.fullscreen-editor-active .ant-layout-header,
+body.fullscreen-editor-active .ant-layout-footer {
+  display: none !important;
+}
+
+/* 针对包含 dev-only 类名的元素，进一步提升特异性，防止被覆盖 */
+/* 文档区域全屏 */
+body.fullscreen-doc-active .ant-layout-header.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-doc-active .ant-layout-sider.ant-layout-sider-light.ant-layout-sider-collapsed.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-doc-active .ant-col.info-sidebar.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-doc-active .info-sidebar.css-dev-only-do-not-override-7t2xvq {
+  display: none !important;
+}
+
+/* 编辑器全屏 */
+body.fullscreen-editor-active .ant-layout-header.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-editor-active .ant-layout-sider.ant-layout-sider-light.ant-layout-sider-collapsed.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-editor-active .ant-col.info-sidebar.css-dev-only-do-not-override-7t2xvq,
+body.fullscreen-editor-active .info-sidebar.css-dev-only-do-not-override-7t2xvq {
+  display: none !important;
+}
+
+/* 进一步通用化选择器，确保无论是否携带 dev-only 类名都能隐藏 */
+/* 文档区域全屏 - 强制隐藏 sider 与 info 侧栏（含各种组合类） */
+body.fullscreen-doc-active .ant-layout-sider,
+body.fullscreen-doc-active [class*="ant-layout-sider"],
+body.fullscreen-doc-active .info-sidebar,
+body.fullscreen-doc-active [class*="info-sidebar"],
+body.fullscreen-doc-active .ant-col.info-sidebar,
+body.fullscreen-doc-active .ant-col[class*="info-sidebar"] {
+  display: none !important;
+}
+
+/* 编辑器全屏 - 同样强制隐藏 */
+body.fullscreen-editor-active .ant-layout-sider,
+body.fullscreen-editor-active [class*="ant-layout-sider"],
+body.fullscreen-editor-active .info-sidebar,
+body.fullscreen-editor-active [class*="info-sidebar"],
+body.fullscreen-editor-active .ant-col.info-sidebar,
+body.fullscreen-editor-active .ant-col[class*="info-sidebar"] {
+  display: none !important;
+}
+
+/* 兜底：在全屏时将这些外框元素的 z-index 降到最低，避免偶发浮层遮挡 */
+body.fullscreen-doc-active .ant-layout-header,
+body.fullscreen-doc-active .ant-layout-sider,
+body.fullscreen-doc-active [class*="ant-layout-sider"],
+body.fullscreen-doc-active .ant-layout-footer,
+body.fullscreen-doc-active .info-sidebar,
+body.fullscreen-doc-active [class*="info-sidebar"],
+body.fullscreen-editor-active .ant-layout-header,
+body.fullscreen-editor-active .ant-layout-sider,
+body.fullscreen-editor-active [class*="ant-layout-sider"],
+body.fullscreen-editor-active .ant-layout-footer,
+body.fullscreen-editor-active .info-sidebar,
+body.fullscreen-editor-active [class*="info-sidebar"] {
+  z-index: -1 !important;
+  pointer-events: none !important;
+  visibility: hidden !important; /* 双保险 */
 }
 
 /* 响应式设计 */

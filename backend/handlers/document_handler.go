@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,12 +11,28 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 // DocumentHandler 基于数据库的文档处理器
 type DocumentHandler struct {
 	db database.DB
 	docRepo database.DocumentRepositoryNew
+}
+
+// CreateAndAttachDocumentRequest 原子创建并关联的请求体
+// 非必填字段将使用与 CreateDocument 一致的默认值
+type CreateAndAttachDocumentRequest struct {
+	Title       string                 `json:"title"`
+	Content     string                 `json:"content"`
+	Type        models.DocumentType    `json:"type"`
+	Status      models.DocumentStatus  `json:"status"`
+	Description *string                `json:"description,omitempty"`
+	Tags        []string               `json:"tags,omitempty"`
+	Visibility  models.Visibility      `json:"visibility"`
+	IsTemplate  bool                   `json:"is_template"`
+	Metadata    models.DocumentMetadata `json:"metadata,omitempty"`
+	RelationshipType string            `json:"relationship_type"` // 默认 attachment
 }
 
 // NewDocumentHandler 创建新的文档处理器
@@ -98,7 +115,7 @@ func (h *DocumentHandler) CreateDocument(c *gin.Context) {
 
 // GetDocuments 获取文档列表
 func (h *DocumentHandler) GetDocuments(c *gin.Context) {
-	filter := &models.DocumentFilter{}
+	filter := &models.DocumentFilter{}
 
 	// 解析查询参数
 	if projectIDStr := c.Query("project_id"); projectIDStr != "" {
@@ -157,6 +174,12 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		"message": "Documents retrieved successfully",
 		"data":    response,
 	})
+}
+
+// ListWorkNotes 获取工作笔记列表（与前端预期一致的分页结构）
+func (h *DocumentHandler) ListWorkNotes(c *gin.Context) {
+	// 复用 GetDocuments 的逻辑，确保返回 data: {documents,total,page,page_size}
+	h.GetDocuments(c)
 }
 
 // GetDocument 获取单个文档
@@ -227,6 +250,60 @@ func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
 	})
 }
 
+// SearchWorkNotes 搜索工作笔记（数据库）
+// GET /api/v1/work-notes/search?query=...&page=...&limit=...
+func (h *DocumentHandler) SearchWorkNotes(c *gin.Context) {
+	filter := &models.DocumentFilter{}
+
+	// 读取前端使用的查询参数名 query（而非 search）
+	if q := c.Query("query"); q != "" {
+		filter.Search = q
+	}
+
+	// 解析可选分页与排序参数，保持与 GetDocuments 一致的默认值
+	filter.Type = c.Query("type")
+	filter.Status = c.Query("status")
+	filter.Visibility = c.Query("visibility")
+	filter.SortBy = c.DefaultQuery("sort_by", "updated_at")
+	filter.Order = c.DefaultQuery("order", "desc")
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if page, err := strconv.Atoi(pageStr); err == nil {
+			filter.Page = page
+		}
+	}
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if limit, err := strconv.Atoi(limitStr); err == nil {
+			filter.Limit = limit
+		}
+	}
+
+	documents, total, err := h.docRepo.List(c.Request.Context(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to search work notes",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	response := models.DocumentListResponse{
+		Documents: make([]models.Document, len(documents)),
+		Total:     total,
+		Page:      filter.Page,
+		PageSize:  filter.Limit,
+	}
+	for i, doc := range documents {
+		response.Documents[i] = *doc
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Work notes searched successfully",
+		"data":    response,
+	})
+
 // DeleteDocument 删除文档
 func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 	idStr := c.Param("id")
@@ -238,20 +315,86 @@ func (h *DocumentHandler) DeleteDocument(c *gin.Context) {
 		})
 		return
 	}
+	// TODO: implement delete in repository (soft delete)
+	c.JSON(http.StatusNotImplemented, gin.H{
+		"success": false,
+		"message": "DeleteDocument not implemented",
+	})
+}
 
-	err = h.docRepo.Delete(c.Request.Context(), id)
+// HasTaskDocument 一致性读取：检查任务是否存在关联文档
+func (h *DocumentHandler) HasTaskDocument(c *gin.Context) {
+	// taskId from path
+	taskIDStr := c.Param("taskId")
+	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to delete document",
-			"error":   err.Error(),
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
 		return
 	}
-
+	var exists bool
+	if h.db != nil {
+		if sqlDB, ok := h.db.GetDB().(*sql.DB); ok {
+			row := sqlDB.QueryRow(`
+				SELECT EXISTS(
+				  SELECT 1
+				  FROM task_documents td
+				  JOIN documents d ON d.id = td.document_id
+				  WHERE td.task_id = $1 AND d.deleted_at IS NULL
+				)
+			`, taskID)
+			_ = row.Scan(&exists)
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Document deleted successfully",
+		"data": gin.H{"has_document": exists},
+	})
+}
+
+// ListTaskDocuments 一致性读取：列出任务的所有文档（简化字段集）
+func (h *DocumentHandler) ListTaskDocuments(c *gin.Context) {
+	taskIDStr := c.Param("taskId")
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+	docs := []map[string]interface{}{}
+	if h.db != nil {
+		if sqlDB, ok := h.db.GetDB().(*sql.DB); ok {
+			rows, qerr := sqlDB.Query(`
+				SELECT d.id, d.title, d.type, d.status, d.visibility, d.version, d.updated_at
+				FROM documents d
+				JOIN task_documents td ON td.document_id = d.id
+				WHERE td.task_id = $1 AND d.deleted_at IS NULL
+				ORDER BY d.updated_at DESC
+			`, taskID)
+			if qerr == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var id, version, visNull int
+					var title, dtype, status string
+					var visibility string
+					var updatedAt time.Time
+					err := rows.Scan(&id, &title, &dtype, &status, &visibility, &version, &updatedAt)
+					if err == nil {
+						docs = append(docs, map[string]interface{}{
+							"id": id,
+							"title": title,
+							"type": dtype,
+							"status": status,
+							"visibility": visibility,
+							"version": version,
+							"updated_at": updatedAt,
+						})
+					}
+				}
+			}
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{"documents": docs, "total": len(docs)},
 	})
 }
 
@@ -521,6 +664,134 @@ func (h *DocumentHandler) CreateDocumentVersion(c *gin.Context) {
 		"success": true,
 		"message": "Document version created successfully",
 		"data":    version,
+	})
+}
+
+// CreateAndAttachDocument 原子创建文档并关联到任务
+// 事务边界：INSERT documents -> INSERT task_documents，任一失败则回滚
+func (h *DocumentHandler) CreateAndAttachDocument(c *gin.Context) {
+	// 路径参数
+	projectIDStr := c.Param("id")
+	taskIDStr := c.Param("taskId")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid project ID"})
+		return
+	}
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil || taskID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+
+	// 用户
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	uid := userID.(int)
+
+	// 请求体
+	var req CreateAndAttachDocumentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request format", "error": err.Error()})
+		return
+	}
+	// 默认值与校正
+	if req.Status == "" { req.Status = models.DocumentStatusDraft }
+	if req.Type == "" { req.Type = models.DocumentTypeMarkdown }
+	if req.Visibility == "" { req.Visibility = models.VisibilityTeam }
+	if req.RelationshipType == "" { req.RelationshipType = "attachment" }
+
+	// 打开事务
+	var sqlDB *sql.DB
+	if h.db == nil || h.db.GetDB() == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "DB not initialized"})
+		return
+	}
+	var ok bool
+	sqlDB, ok = h.db.GetDB().(*sql.DB)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Invalid DB driver"})
+		return
+	}
+	tx, err := sqlDB.BeginTx(c.Request.Context(), nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to begin transaction", "error": err.Error()})
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p)
+		}
+	}()
+
+	// 插入 documents
+	var docID int
+	var createdAt, updatedAt time.Time
+	insertDoc := `
+		INSERT INTO documents (
+			project_id, title, content, type, status, file_url, file_size,
+			mime_type, description, tags, metadata, owner_id, visibility,
+			version, is_template, created_by
+		) VALUES (
+			$1, $2, $3, $4, $5, NULL, 0,
+			NULL, $6, $7, $8, $9, $10,
+			1, $11, $12
+		) RETURNING id, created_at, updated_at`
+
+	// 处理可空字段
+	desc := sql.NullString{}
+	if req.Description != nil { desc = sql.NullString{String: *req.Description, Valid: true} }
+	metaJSON := req.Metadata
+	if metaJSON == nil { metaJSON = make(models.DocumentMetadata) }
+
+	// 使用 github.com/lib/pq 处理 tags 数组
+	// 注意：需在顶部 import 中加入 "github.com/lib/pq"
+	_, _ = desc, metaJSON // 避免未使用告警（Scan 处使用）
+	
+	err = tx.QueryRowContext(c.Request.Context(), insertDoc,
+		projectID, req.Title, req.Content, req.Type, req.Status,
+		desc, pq.Array(req.Tags), metaJSON, uid, req.Visibility,
+		req.IsTemplate, uid,
+	).Scan(&docID, &createdAt, &updatedAt)
+	if err != nil {
+		_ = tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create document", "error": err.Error()})
+		return
+	}
+
+	// 插入 task_documents 关联
+	insertLink := `
+		INSERT INTO task_documents (task_id, document_id, relationship_type, created_by)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (task_id, document_id)
+		DO UPDATE SET relationship_type = EXCLUDED.relationship_type, updated_at = CURRENT_TIMESTAMP`
+	if _, err := tx.ExecContext(c.Request.Context(), insertLink, taskID, docID, req.RelationshipType, uid); err != nil {
+		_ = tx.Rollback()
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to attach document to task", "error": err.Error()})
+		return
+	}
+
+	// 提交
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to commit transaction", "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Document created and attached successfully",
+		"data": gin.H{
+			"document_id": docID,
+			"task_id": taskID,
+			"project_id": projectID,
+			"created_at": createdAt,
+			"updated_at": updatedAt,
+			"relationship_type": req.RelationshipType,
+		},
 	})
 }
 

@@ -151,13 +151,58 @@ const TaskDetailPageNew: React.FC = () => {
     if (!taskData || !projectId) return;
 
     try {
-      // 使用统一文档服务以兼容不同响应结构，并获取准确的总数
+      // 使用统一文档服务以兼容不同响应结构，并获取准确的总数（包含所有下级任务）
       const parsedProjectId = parseInt(projectId);
-      const docsResp = await documentService.getTaskDocuments(parsedProjectId, taskData.id);
-      const docLen = (docsResp?.total ?? docsResp?.documents?.length ?? 0) as number;
-      const hasDocuments = docLen > 0;
+
+      const getAllDescendantTaskIds = async (pid: number, rootTaskId: number): Promise<number[]> => {
+        const result: number[] = [];
+        try {
+          const firstLevel = await TaskService.getTaskChildren(pid, rootTaskId);
+          const queue: number[] = Array.isArray(firstLevel) ? firstLevel.map((t: any) => t.id) : [];
+          const visited = new Set<number>();
+          while (queue.length) {
+            const currentId = queue.shift() as number;
+            if (visited.has(currentId)) continue;
+            visited.add(currentId);
+            result.push(currentId);
+            try {
+              const children = await TaskService.getTaskChildren(pid, currentId);
+              const arr = Array.isArray(children) ? children : [];
+              arr.forEach((t: any) => {
+                if (!visited.has(t.id)) queue.push(t.id);
+              });
+            } catch {
+              // ignore
+            }
+          }
+        } catch {
+          // ignore
+        }
+        return result;
+      };
+
+      const [rootDocsResp, descendantIds] = await Promise.all([
+        documentService.getTaskDocuments(parsedProjectId, taskData.id),
+        getAllDescendantTaskIds(parsedProjectId, taskData.id)
+      ]);
+
+      const descendantDocTotals = await Promise.all(
+        descendantIds.map(async (tid) => {
+          try {
+            const r = await documentService.getTaskDocuments(parsedProjectId, tid);
+            return (r?.total ?? r?.documents?.length ?? 0) as number;
+          } catch {
+            return 0;
+          }
+        })
+      );
+
+      const rootCount = (rootDocsResp?.total ?? rootDocsResp?.documents?.length ?? 0) as number;
+      const totalCount = rootCount + descendantDocTotals.reduce((a, b) => a + b, 0);
+
+      const hasDocuments = totalCount > 0;
       setDocumentExists(hasDocuments);
-      setDocumentCount(docLen);
+      setDocumentCount(totalCount);
     } catch (error: any) {
       // 404表示文档不存在，这是正常情况，不需要记录错误
       if (error?.response?.status === 404) {
@@ -1052,8 +1097,9 @@ const TaskDetailPageNew: React.FC = () => {
                         showDocumentList={true}
                         compactMode={false}
                         headerVisible={false}
+                        includeSubtaskDocuments={true}
                         onDocumentChange={(docs) => {
-                          // 更新文档存在状态与数量
+                          // 更新文档存在状态与数量（包含所有下级任务）
                           setDocumentExists(docs.length > 0);
                           setDocumentCount(docs.length);
                         }}

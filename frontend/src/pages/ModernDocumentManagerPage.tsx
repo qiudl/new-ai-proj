@@ -290,7 +290,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             </div>
           </div>
         }
-        bodyStyle={{ padding: '12px 16px 16px 16px' }}
+        styles={{ body: { padding: '12px 16px 16px 16px' } }}
       >
         <div style={{ marginBottom: 12 }}>
           {renderStatusTag(note.status)}
@@ -362,7 +362,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
           cursor: 'pointer',
           borderRadius: 6
         }}
-        bodyStyle={{ padding: '12px 16px' }}
+        styles={{ body: { padding: '12px 16px' } }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -507,7 +507,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             <Card 
               size="small" 
               style={{ marginBottom: 16, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)' }}
-              bodyStyle={{ padding: '12px 16px' }}
+              styles={{ body: { padding: '12px 16px' } }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -530,7 +530,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                     <Option value="title">标题排序</Option>
                   </Select>
                   
-                  <Button.Group size="small">
+                  <Space.Compact size="small">
                     <Button
                       type={viewMode === 'grid' ? 'primary' : 'default'}
                       icon={<AppstoreOutlined />}
@@ -541,7 +541,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                       icon={<BarsOutlined />}
                       onClick={() => setViewMode('list')}
                     />
-                  </Button.Group>
+                  </Space.Compact>
                 </div>
                 
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateNote}>

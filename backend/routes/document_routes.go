@@ -70,6 +70,9 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 				taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
 				taskDocuments.GET("/list", app.GetDocumentHandler().ListTaskDocuments)
 				
+				// 原子：创建文档并关联到任务（单事务）
+				taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
+				
 				// 批量更新任务文档关联 (暂时返回成功，需要实现具体逻辑)
 				taskDocuments.PUT("", func(c *gin.Context) {
 					c.JSON(200, gin.H{
@@ -115,9 +118,9 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 	workNotes := authorized.Group("/work-notes")
 	{
 		// 使用标准 DocumentHandler 以保证与前端期望的数据结构一致（包含分页字段）
-		workNotes.GET("", app.GetDocumentHandler().GetDocuments)
+		workNotes.GET("", app.GetDocumentHandler().ListWorkNotes)
 		workNotes.POST("", app.GetDocumentHandler().CreateDocument)
-		workNotes.GET("/search", app.GetUnifiedDocumentHandler().SearchDocuments)
+		workNotes.GET("/search", app.GetDocumentHandler().SearchWorkNotes)
 		workNotes.GET("/:id", app.GetDocumentHandler().GetDocument)
 		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
 		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
