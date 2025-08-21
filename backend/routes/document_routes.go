@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"database/sql"
+	"time"
 	"github.com/gin-gonic/gin"
 )
 
@@ -64,6 +66,9 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 			{
 				// 获取任务的所有文档
 				taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
+				// 一致性读取：是否存在文档、列出文档
+				taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
+				taskDocuments.GET("/list", app.GetDocumentHandler().ListTaskDocuments)
 				
 				// 批量更新任务文档关联 (暂时返回成功，需要实现具体逻辑)
 				taskDocuments.PUT("", func(c *gin.Context) {
@@ -109,12 +114,13 @@ func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationIn
 func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	workNotes := authorized.Group("/work-notes")
 	{
-		workNotes.GET("", app.GetHybridDocumentHandler().GetDocuments)        // 重用GetDocuments，通过查询参数过滤
-		workNotes.POST("", app.GetHybridDocumentHandler().CreateDocument)      // 重用CreateDocument
-		workNotes.GET("/search", app.GetUnifiedDocumentHandler().SearchDocuments) // 搜索工作笔记
-		workNotes.GET("/:id", app.GetHybridDocumentHandler().GetDocument)      // 重用GetDocument  
-		workNotes.PUT("/:id", app.GetHybridDocumentHandler().UpdateDocument)   // 重用UpdateDocument
-		workNotes.DELETE("/:id", app.GetHybridDocumentHandler().DeleteDocument) // 重用DeleteDocument
+		// 使用标准 DocumentHandler 以保证与前端期望的数据结构一致（包含分页字段）
+		workNotes.GET("", app.GetDocumentHandler().GetDocuments)
+		workNotes.POST("", app.GetDocumentHandler().CreateDocument)
+		workNotes.GET("/search", app.GetUnifiedDocumentHandler().SearchDocuments)
+		workNotes.GET("/:id", app.GetDocumentHandler().GetDocument)
+		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
+		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
 
 		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）
 		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
@@ -175,5 +181,74 @@ func RegisterPersonalTimerDocumentRoutes(timerTasks *gin.RouterGroup, app Applic
 // RegisterDocumentHealthRoute 注册文档服务健康检查路由
 func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 	// 文档服务健康检查路由（不需要认证）
-	router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
+	router.GET("/documents/health", func(c *gin.Context) {
+		// 组合基础健康与一致性指标
+		status := "healthy"
+		orphanDocs := 0
+		orphanLinks := 0
+		if db := app.GetDB(); db != nil {
+			if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+				row := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM documents d
+					LEFT JOIN task_documents td ON td.document_id = d.id
+					WHERE td.document_id IS NULL AND d.deleted_at IS NULL
+				`)
+				_ = row.Scan( 26orphanDocs)
+
+				row2 := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM task_documents td
+					LEFT JOIN documents d ON d.id = td.document_id
+					WHERE d.id IS NULL
+				`)
+				_ = row2.Scan( 26orphanLinks)
+			}
+		}
+		c.JSON(200, gin.H{
+			"success": true,
+			"message": "Document service is healthy",
+			"data": gin.H{
+				"status": status,
+				"timestamp": time.Now().Format(time.RFC3339),
+				"orphan_documents": orphanDocs,
+				"orphan_links": orphanLinks,
+				"mirror_writable": false,
+			},
+		})
+	})
+
+	// 文档一致性健康检查（DB层）
+	router.GET("/documents/health/docs", func(c *gin.Context) {
+		orphanDocs := 0
+		orphanLinks := 0
+		if db := app.GetDB(); db != nil {
+			if sqlDB, ok := db.GetDB().(*sql.DB); ok {
+				row := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM documents d
+					LEFT JOIN task_documents td ON td.document_id = d.id
+					WHERE td.document_id IS NULL AND d.deleted_at IS NULL
+				`)
+				_ = row.Scan(&orphanDocs)
+
+				row2 := sqlDB.QueryRow(`
+					SELECT COALESCE(COUNT(*),0)
+					FROM task_documents td
+					LEFT JOIN documents d ON d.id = td.document_id
+					WHERE d.id IS NULL
+				`)
+				_ = row2.Scan(&orphanLinks)
+			}
+		}
+		c.JSON(200, gin.H{
+			"success": true,
+			"data": gin.H{
+				"orphan_documents": orphanDocs,
+				"orphan_links": orphanLinks,
+				"mirror_writable": false,
+				"timestamp": time.Now().UTC(),
+			},
+		})
+	})
 }

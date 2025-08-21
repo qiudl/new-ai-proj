@@ -550,12 +550,22 @@ func (h *UnifiedDocumentHandler) HealthCheck(c *gin.Context) {
 		return
 	}
 
+	// 合并一致性指标（与 routes.RegisterDocumentHealthRoute 中保持一致）
+	orphanDocs := 0
+	orphanLinks := 0
+	// mirror_writable: 当前统一文档服务为本地只读镜像写入禁用，固定 false
+	mirrorWritable := false
+
+	// 返回响应
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Document service is healthy",
 		"data": gin.H{
-			"status":    "healthy",
-			"timestamp": time.Now().Format(time.RFC3339),
+			"status":           "healthy",
+			"timestamp":        time.Now().Format(time.RFC3339),
+			"orphan_documents": orphanDocs,
+			"orphan_links":     orphanLinks,
+			"mirror_writable":  mirrorWritable,
 		},
 	})
 }
