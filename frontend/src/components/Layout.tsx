@@ -143,6 +143,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/timer-analytics')) return ['/timer-analytics'];
     if (path.includes('/time-weekly-report')) return ['/time-weekly-report'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
+    if (path.includes('/tasks')) return ['/tasks'];
     if (path.includes('/task-list')) return ['/task-list'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
@@ -159,7 +160,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (collapsed) return [];
     
     const path = location.pathname;
-    if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
+    if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard') || path.includes('/tasks')) {
       return ['/workspace-management'];
     }
     if (path.includes('/personal-timer') || path.includes('/timer-analytics')) {
@@ -215,6 +216,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/task-dashboard',
           icon: <CalendarOutlined />,
           label: '任务周报',
+        },
+        {
+          key: '/tasks',
+          icon: <UnorderedListOutlined />,
+          label: '全部任务',
         },
       ],
     },
