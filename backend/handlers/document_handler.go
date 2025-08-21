@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sort"
 
 	"ai-project-backend/database"
 	"ai-project-backend/models"
@@ -111,6 +112,64 @@ func (h *DocumentHandler) CreateDocument(c *gin.Context) {
 		"message": "Document created successfully",
 		"data":    createdDoc,
 	})
+}
+
+// DevCreateWorkNote 开发环境：更宽松的创建接口，自动补齐默认值
+func (h *DocumentHandler) DevCreateWorkNote(c *gin.Context) {
+	// 仅开发环境可用，由路由层控制
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	uid := userID.(int)
+
+	var req struct {
+		ProjectID   *int                   `json:"project_id"`
+		Title       string                 `json:"title"`
+		Content     *string                `json:"content"`
+		Type        *models.DocumentType   `json:"type"`
+		Status      *models.DocumentStatus `json:"status"`
+		Visibility  *models.Visibility     `json:"visibility"`
+		Tags        []string               `json:"tags"`
+		Metadata    models.DocumentMetadata `json:"metadata"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request format", "error": err.Error()})
+		return
+	}
+	// 默认值
+	proj := 1
+	if req.ProjectID != nil { proj = *req.ProjectID }
+	ctype := models.DocumentTypeMarkdown
+	if req.Type != nil { ctype = *req.Type }
+	cstatus := models.DocumentStatusDraft
+	if req.Status != nil { cstatus = *req.Status }
+	vis := models.VisibilityTeam
+	if req.Visibility != nil { vis = *req.Visibility }
+	content := ""
+	if req.Content != nil { content = *req.Content }
+
+	doc := &models.Document{
+		ProjectID:   &proj,
+		Title:       req.Title,
+		Content:     &content,
+		Type:        ctype,
+		Status:      cstatus,
+		Tags:        req.Tags,
+		Metadata:    req.Metadata,
+		OwnerID:     uid,
+		Visibility:  vis,
+		Version:     1,
+		IsTemplate:  false,
+		CreatedBy:   uid,
+	}
+	created, err := h.docRepo.Create(c.Request.Context(), doc)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create document", "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": created})
 }
 
 // GetDocuments 获取文档列表

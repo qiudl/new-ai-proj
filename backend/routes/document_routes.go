@@ -125,6 +125,12 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
 		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
 
+		// 开发环境辅助端点（仅 development 环境注册）
+		config := app.GetConfig()
+		if config.IsDevelopment() {
+			workNotes.POST("/dev-create", app.GetDocumentHandler().DevCreateWorkNote)
+		}
+
 		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）
 		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
