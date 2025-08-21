@@ -1,0 +1,974 @@
+openapi: 3.0.3
+info:
+  title: New AI Project API
+  version: 1.0.0
+  description: |
+    OpenAPI 3.0 specification for New AI Project.
+    - Auth, Users, Projects, Tasks, Comments, Notifications
+    - RBAC permissions as x-permissions extension on operations
+    - Production DB: PostgreSQL (per user rule)
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Projects
+  - name: Tasks
+  - name: Comments
+  - name: Notifications
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: User login
+      x-permissions: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: User registration
+      x-permissions: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      x-permissions: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+
+  /users/profile:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      x-permissions: ["read:profile"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+    put:
+      tags: [Users]
+      summary: Update current user profile
+      x-permissions: ["write:profile"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateProfileResponse'
+
+  /projects:
+    get:
+      tags: [Projects]
+      summary: List projects
+      x-permissions: ["project:list"]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - in: query
+          name: keyword
+          schema: { type: string }
+        - in: query
+          name: visibility
+          schema: { type: string, enum: [private, internal, public] }
+        - in: query
+          name: sort
+          description: field:direction e.g. created_at:desc
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+    post:
+      tags: [Projects]
+      summary: Create project
+      x-permissions: ["project:create"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateProjectRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+
+  /projects/{projectId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdPath'
+    get:
+      tags: [Projects]
+      summary: Get project by ID
+      x-permissions: ["project:read"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+    put:
+      tags: [Projects]
+      summary: Update project
+      x-permissions: ["project:update"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateProjectRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectResponse' }
+    delete:
+      tags: [Projects]
+      summary: Delete project
+      x-permissions: ["project:delete"]
+      responses:
+        '204':
+          description: No Content
+
+  /projects/{projectId}/members:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdPath'
+    get:
+      tags: [Projects]
+      summary: List project members
+      x-permissions: ["project:members:list"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberListResponse' }
+    post:
+      tags: [Projects]
+      summary: Add project member
+      x-permissions: ["project:members:add"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddMemberRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberResponse' }
+
+  /projects/{projectId}/members/{userId}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdPath'
+      - $ref: '#/components/parameters/UserIdPath'
+    put:
+      tags: [Projects]
+      summary: Update project member role
+      x-permissions: ["project:members:update"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateMemberRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemberResponse' }
+    delete:
+      tags: [Projects]
+      summary: Remove project member
+      x-permissions: ["project:members:remove"]
+      responses:
+        '204':
+          description: No Content
+
+  /projects/{projectId}/tasks:
+    parameters:
+      - $ref: '#/components/parameters/ProjectIdPath'
+    get:
+      tags: [Tasks]
+      summary: List tasks in project
+      x-permissions: ["task:list"]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - in: query
+          name: status
+          schema: { type: string, enum: [todo, in_progress, review, done, archived] }
+        - in: query
+          name: assignee_id
+          schema: { type: integer }
+        - in: query
+          name: tag
+          schema: { type: string }
+        - in: query
+          name: sort
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskListResponse' }
+    post:
+      tags: [Tasks]
+      summary: Create task in project
+      x-permissions: ["task:create"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateTaskRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+
+  /tasks/{taskId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskIdPath'
+    get:
+      tags: [Tasks]
+      summary: Get task by ID
+      x-permissions: ["task:read"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+    put:
+      tags: [Tasks]
+      summary: Update task
+      x-permissions: ["task:update"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateTaskRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskResponse' }
+    delete:
+      tags: [Tasks]
+      summary: Delete task
+      x-permissions: ["task:delete"]
+      responses:
+        '204':
+          description: No Content
+
+  /tasks:batch:
+    post:
+      tags: [Tasks]
+      summary: Batch operations on tasks
+      x-permissions: ["task:batch"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TaskBatchRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskBatchResponse' }
+
+  /search/tasks:
+    get:
+      tags: [Tasks]
+      summary: Search tasks
+      x-permissions: ["task:search"]
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+        - in: query
+          name: project_id
+          schema: { type: integer }
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TaskListResponse' }
+
+  /tasks/{taskId}/comments:
+    parameters:
+      - $ref: '#/components/parameters/TaskIdPath'
+    get:
+      tags: [Comments]
+      summary: List comments of task
+      x-permissions: ["comment:list"]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentListResponse' }
+    post:
+      tags: [Comments]
+      summary: Create comment on task
+      x-permissions: ["comment:create"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateCommentRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentResponse' }
+
+  /comments/{commentId}:
+    parameters:
+      - $ref: '#/components/parameters/CommentIdPath'
+    put:
+      tags: [Comments]
+      summary: Update comment
+      x-permissions: ["comment:update"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateCommentRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentResponse' }
+    delete:
+      tags: [Comments]
+      summary: Delete comment
+      x-permissions: ["comment:delete"]
+      responses:
+        '204':
+          description: No Content
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List notifications (self)
+      x-permissions: ["notification:list"]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - in: query
+          name: only_unread
+          schema: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationListResponse' }
+
+  /notifications/{notificationId}:read:
+    post:
+      tags: [Notifications]
+      summary: Mark notification as read
+      x-permissions: ["notification:update"]
+      parameters:
+        - $ref: '#/components/parameters/NotificationIdPath'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationResponse' }
+
+  /notifications:read:
+    post:
+      tags: [Notifications]
+      summary: Batch mark notifications as read
+      x-permissions: ["notification:update"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BatchReadNotificationsRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BatchReadNotificationsResponse' }
+
+  /notifications/{notificationId}:
+    delete:
+      tags: [Notifications]
+      summary: Delete notification (self)
+      x-permissions: ["notification:delete"]
+      parameters:
+        - $ref: '#/components/parameters/NotificationIdPath'
+      responses:
+        '204':
+          description: No Content
+
+  /notifications/preferences:
+    get:
+      tags: [Notifications]
+      summary: Get notification preferences (self)
+      x-permissions: ["notification:preferences"]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferencesResponse' }
+    put:
+      tags: [Notifications]
+      summary: Update notification preferences (self)
+      x-permissions: ["notification:preferences"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateNotificationPreferencesRequest' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotificationPreferencesResponse' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPageParam:
+      in: query
+      name: per_page
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    ProjectIdPath:
+      in: path
+      name: projectId
+      required: true
+      schema: { type: integer }
+    TaskIdPath:
+      in: path
+      name: taskId
+      required: true
+      schema: { type: integer }
+    CommentIdPath:
+      in: path
+      name: commentId
+      required: true
+      schema: { type: integer }
+    UserIdPath:
+      in: path
+      name: userId
+      required: true
+      schema: { type: integer }
+    NotificationIdPath:
+      in: path
+      name: notificationId
+      required: true
+      schema: { type: integer }
+
+  schemas:
+    ApiResponseSuccess:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: {}
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    ApiResponseError:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            trace_id: { type: string }
+        timestamp: { type: string, format: date-time }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        remember_me: { type: boolean, default: false }
+        captcha:
+          type: object
+          properties:
+            token: { type: string }
+            value: { type: string }
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token: { type: string }
+                refresh_token: { type: string }
+                expires_in: { type: integer }
+                token_type: { type: string, example: Bearer }
+                user: { $ref: '#/components/schemas/User' }
+
+    RegisterRequest:
+      type: object
+      required: [username, email, password, password_confirmation, agree_terms]
+      properties:
+        username: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        password_confirmation: { type: string, minLength: 8 }
+        phone: { type: string }
+        agree_terms: { type: boolean }
+        verification_code: { type: string }
+    RegisterResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user_id: { type: integer }
+                email: { type: string }
+                username: { type: string }
+                status: { type: string, example: pending_verification }
+                created_at: { type: string, format: date-time }
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token: { type: string }
+    RefreshResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token: { type: string }
+                expires_in: { type: integer }
+                token_type: { type: string, example: Bearer }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        username: { type: string }
+        avatar: { type: string, format: uri }
+        roles:
+          type: array
+          items: { type: string }
+        permissions:
+          type: array
+          items: { type: string }
+    UserProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/UserProfile'
+    UserProfile:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        avatar: { type: string }
+        full_name: { type: string }
+        bio: { type: string }
+        location: { type: string }
+        website: { type: string }
+        social_links:
+          type: object
+          properties:
+            github: { type: string }
+            linkedin: { type: string }
+        preferences:
+          type: object
+          properties:
+            language: { type: string }
+            timezone: { type: string }
+            theme: { type: string, enum: [light, dark] }
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: string, format: date-time }
+        email_verified: { type: boolean }
+        phone_verified: { type: boolean }
+    UpdateProfileRequest:
+      type: object
+      properties:
+        full_name: { type: string }
+        bio: { type: string }
+        location: { type: string }
+        website: { type: string }
+        preferences:
+          type: object
+          properties:
+            language: { type: string }
+            theme: { type: string, enum: [light, dark] }
+    UpdateProfileResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                updated_fields:
+                  type: array
+                  items: { type: string }
+                updated_at: { type: string, format: date-time }
+
+    Project:
+      type: object
+      properties:
+        id: { type: integer }
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        visibility: { type: string, enum: [private, internal, public] }
+        owner_id: { type: integer }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateProjectRequest:
+      type: object
+      required: [key, name]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        visibility: { type: string, enum: [private, internal, public], default: private }
+    UpdateProjectRequest:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string }
+        visibility: { type: string, enum: [private, internal, public] }
+    ProjectResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Project' }
+    ProjectListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Project' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    Member:
+      type: object
+      properties:
+        user_id: { type: integer }
+        role: { type: string, enum: [owner, manager, contributor, viewer] }
+        joined_at: { type: string, format: date-time }
+    AddMemberRequest:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id: { type: integer }
+        role: { type: string, enum: [owner, manager, contributor, viewer] }
+    UpdateMemberRequest:
+      type: object
+      properties:
+        role: { type: string, enum: [owner, manager, contributor, viewer] }
+    MemberResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Member' }
+    MemberListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Member' }
+
+    Task:
+      type: object
+      properties:
+        id: { type: integer }
+        project_id: { type: integer }
+        title: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [todo, in_progress, review, done, archived] }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        assignee_id: { type: integer, nullable: true }
+        reporter_id: { type: integer }
+        tags:
+          type: array
+          items: { type: string }
+        due_date: { type: string, format: date-time, nullable: true }
+        estimate: { type: number, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        priority: { type: string, enum: [low, medium, high, critical], default: medium }
+        assignee_id: { type: integer }
+        tags:
+          type: array
+          items: { type: string }
+        due_date: { type: string, format: date-time }
+        estimate: { type: number }
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [todo, in_progress, review, done, archived] }
+        priority: { type: string, enum: [low, medium, high, critical] }
+        assignee_id: { type: integer, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+        due_date: { type: string, format: date-time, nullable: true }
+        estimate: { type: number, nullable: true }
+    TaskResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Task' }
+    TaskListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Task' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    TaskBatchRequest:
+      type: object
+      required: [operations]
+      properties:
+        operations:
+          type: array
+          items:
+            type: object
+            properties:
+              op: { type: string, enum: [update, delete] }
+              id: { type: integer }
+              data: { $ref: '#/components/schemas/UpdateTaskRequest' }
+    TaskBatchResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              ok: { type: boolean }
+              error: { $ref: '#/components/schemas/ApiResponseError' }
+
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        task_id: { type: integer }
+        author_id: { type: integer }
+        content: { type: string }
+        mentions:
+          type: array
+          items: { type: integer }
+        is_edited: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+        mentions:
+          type: array
+          items: { type: integer }
+    UpdateCommentRequest:
+      type: object
+      properties:
+        content: { type: string }
+    CommentResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Comment' }
+    CommentListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        type: { type: string, enum: [task_assigned, task_commented, task_status_changed, mention, system] }
+        title: { type: string }
+        body: { type: string }
+        data: { type: object }
+        read: { type: boolean }
+        created_at: { type: string, format: date-time }
+    NotificationResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/Notification' }
+    NotificationListResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Notification' }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+    NotificationPreferences:
+      type: object
+      properties:
+        channels:
+          type: array
+          items: { type: string, enum: [in_app, email] }
+        mutes:
+          type: array
+          items: { type: string, enum: [task_assigned, task_commented, task_status_changed, mention, system] }
+    NotificationPreferencesResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseSuccess'
+        - type: object
+          properties:
+            data: { $ref: '#/components/schemas/NotificationPreferences' }
+    UpdateNotificationPreferencesRequest:
+      $ref: '#/components/schemas/NotificationPreferences'
+
+    BatchReadNotificationsRequest:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items: { type: integer }
+    BatchReadNotificationsResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            updated:
+              type: array
+              items: { type: integer }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        total_pages: { type: integer }
+

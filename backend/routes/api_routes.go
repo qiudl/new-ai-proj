@@ -22,9 +22,9 @@ func RegisterAPIRoutes(router *gin.Engine, authorized *gin.RouterGroup, app Appl
 // registerPublicRoutes 注册公共路由 (无需认证)
 func registerPublicRoutes(router *gin.Engine, app ApplicationInterface) {
 	// Health check and version endpoints (public access)
-router.GET("/health", app.GetHealthHandler())
-router.GET("/version", app.GetVersionHandler())
-router.GET("/documents/health", app.GetUnifiedDocumentHandler().HealthCheck)
+	router.GET("/health", app.GetHealthHandler())
+	router.GET("/version", app.GetVersionHandler())
+	// 注意：/documents/health 已在 document_routes.go 中注册了包含一致性指标的版本，这里不要重复注册以避免覆盖
 }
 
 // registerWebhookRoutes 注册Webhook路由 (无需认证)
