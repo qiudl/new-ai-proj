@@ -106,31 +106,82 @@ export class TaskService {
     params?: PaginationParams & TaskFilter
   ): Promise<PaginatedResponse<Task>> {
     try {
-      const response: APIResponse<PaginatedResponse<Task>> = await api.get(
-        `/tasks`,
-        { params }
-      );
+      const response: any = await api.get(`/tasks`, { params });
 
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to fetch all tasks');
-      }
-
-      // Ensure response.data has the correct structure
-      if (!response.data) {
+      // Case 1: Wrapped APIResponse { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch all tasks');
+        }
+        const payload = response.data;
+        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
+          return payload as PaginatedResponse<Task>;
+        }
+        // Fallback when payload missing/invalid
         return {
-          data: [],
+          data: Array.isArray(payload) ? payload : [],
           pagination: {
             page: params?.page || 1,
             page_size: params?.page_size || 20,
             total: 0,
             total_pages: 0,
             has_next: false,
-            has_prev: false
-          }
+            has_prev: false,
+          },
         };
       }
 
-      return response.data;
+      // Case 2: Axios interceptor unwrapped to payload already
+      // 2A) Direct PaginatedResponse shape
+      if (response && typeof response === 'object' && Array.isArray(response.data) && response.pagination) {
+        return response as PaginatedResponse<Task>;
+      }
+      // 2B) Nested inside a data field: { data: { data: Task[], pagination: {...} } }
+      const nested = response?.data;
+      if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
+        return nested as PaginatedResponse<Task>;
+      }
+      // 2C) Plain array (no pagination)
+      if (Array.isArray(response)) {
+        return {
+          data: response as Task[],
+          pagination: {
+            page: params?.page || 1,
+            page_size: params?.page_size || 20,
+            total: (response as Task[]).length,
+            total_pages: 1,
+            has_next: false,
+            has_prev: false,
+          },
+        };
+      }
+      if (Array.isArray(nested)) {
+        return {
+          data: nested as Task[],
+          pagination: {
+            page: params?.page || 1,
+            page_size: params?.page_size || 20,
+            total: (nested as Task[]).length,
+            total_pages: 1,
+            has_next: false,
+            has_prev: false,
+          },
+        };
+      }
+
+      // Unknown shape -> fallback
+      console.warn('TaskService.getAllTasks: unexpected response shape', response);
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
     } catch (error: Error | unknown) {
       console.error('TaskService.getAllTasks error:', error);
       console.warn('Using fallback empty data for getAllTasks due to API error');
@@ -144,8 +195,8 @@ export class TaskService {
           total: 0,
           total_pages: 0,
           has_next: false,
-          has_prev: false
-        }
+          has_prev: false,
+        },
       };
     }
   }
