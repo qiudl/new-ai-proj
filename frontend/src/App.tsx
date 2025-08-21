@@ -215,6 +215,15 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
             
+            {/* 全部任务（跨项目） */}
+            <Route path="/tasks" element={
+              <PrivateRoute>
+                <Layout>
+                  <TasksPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
             <Route path="/projects/:projectId/tasks" element={
               <PrivateRoute>
                 <Layout>

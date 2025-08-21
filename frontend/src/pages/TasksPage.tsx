@@ -278,7 +278,7 @@ const TasksPage: React.FC = () => {
   const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
-      let response: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+      let response: any;
       if (effectiveProjectId) {
         // Load tasks for specific project
         response = await TaskService.getTasks(effectiveProjectId, {
@@ -288,9 +288,13 @@ const TasksPage: React.FC = () => {
           sort_order: 'desc', // 默认按最后更新时间倒序
         });
       } else {
-        // 没有项目ID，无法加载任务
-        console.error('项目ID是必需的');
-        return;
+        // 全局模式：加载全部任务（跨项目）
+        response = await TaskService.getAllTasks({
+          page,
+          page_size: pageSize,
+          sort_by: 'updated_at',
+          sort_order: 'desc',
+        });
       }
       
       // Comprehensive validation of response structure
@@ -2269,12 +2273,6 @@ const TasksPage: React.FC = () => {
       setSelectedTaskIds([]);
     };
   }, []);
-
-  // 强制要求项目ID - 任务页面只支持项目内任务
-  if (!projectId) {
-    navigate('/projects');
-    return null;
-  }
 
   return (
     <div className="page-container">

@@ -1,4 +1,33 @@
 import api from './api';
+
+// Task service additions for descendants API
+export async function fetchTaskDescendants(projectId: number, taskId: number, params?: { depth?: number; limit?: number }) {
+  const depth = params?.depth ?? 2;
+  const limit = params?.limit ?? 200;
+  try {
+    const response: any = await api.get(
+      `/projects/${projectId}/tasks/${taskId}/descendants`,
+      { params: { depth, limit } }
+    );
+
+    const data = Array.isArray(response?.data?.data)
+      ? response.data.data
+      : Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : Array.isArray(response?.items)
+            ? response.items
+            : [];
+
+    return { data: { data } };
+  } catch (e: any) {
+    const status = e?.response?.status;
+    const payload = e?.response?.data ? JSON.stringify(e.response.data) : e?.message || '';
+    throw new Error(`Failed to fetch descendants: ${status ?? ''} ${payload}`.trim());
+  }
+}
+
 import { ValidationHelper } from '../utils/errorTypes';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
 import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
@@ -54,6 +83,58 @@ export class TaskService {
       console.error('TaskService.getTasks error:', error);
       console.warn('Using fallback empty data for getTasks due to API error');
       
+      // Return empty data instead of throwing for graceful degradation
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false
+        }
+      };
+    }
+  }
+
+  /**
+   * Get all tasks across projects with pagination and filtering
+   * Backend endpoint: GET /api/v1/tasks
+   */
+  static async getAllTasks(
+    params?: PaginationParams & TaskFilter
+  ): Promise<PaginatedResponse<Task>> {
+    try {
+      const response: APIResponse<PaginatedResponse<Task>> = await api.get(
+        `/tasks`,
+        { params }
+      );
+
+      if (!response || !response.success) {
+        throw new Error(response?.error?.message || 'Failed to fetch all tasks');
+      }
+
+      // Ensure response.data has the correct structure
+      if (!response.data) {
+        return {
+          data: [],
+          pagination: {
+            page: params?.page || 1,
+            page_size: params?.page_size || 20,
+            total: 0,
+            total_pages: 0,
+            has_next: false,
+            has_prev: false
+          }
+        };
+      }
+
+      return response.data;
+    } catch (error: Error | unknown) {
+      console.error('TaskService.getAllTasks error:', error);
+      console.warn('Using fallback empty data for getAllTasks due to API error');
+
       // Return empty data instead of throwing for graceful degradation
       return {
         data: [],
