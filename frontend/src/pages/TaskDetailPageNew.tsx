@@ -55,6 +55,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
 import { projectService } from '../services/projectService';
 import api from '../services/api';
+import { documentService } from '../services/documentService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
@@ -150,20 +151,22 @@ const TaskDetailPageNew: React.FC = () => {
     if (!taskData || !projectId) return;
 
     try {
-      // 使用GET请求代替HEAD，因为api服务更好地处理GET请求
-      const response = await api.get(`/projects/${projectId}/tasks/${taskData.id}/documents`);
-      // 检查是否真的有文档数据
-      const docLen = response.data?.data?.documents?.length || 0;
+      // 使用统一文档服务以兼容不同响应结构，并获取准确的总数
+      const parsedProjectId = parseInt(projectId);
+      const docsResp = await documentService.getTaskDocuments(parsedProjectId, taskData.id);
+      const docLen = (docsResp?.total ?? docsResp?.documents?.length ?? 0) as number;
       const hasDocuments = docLen > 0;
       setDocumentExists(hasDocuments);
       setDocumentCount(docLen);
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       // 404表示文档不存在，这是正常情况，不需要记录错误
-      if (error.status === 404) {
+      if (error?.response?.status === 404) {
         setDocumentExists(false);
+        setDocumentCount(0);
       } else {
         console.error('检查文档状态失败:', error);
         setDocumentExists(false);
+        setDocumentCount(0);
       }
     }
   }, [projectId]);
@@ -1048,6 +1051,7 @@ const TaskDetailPageNew: React.FC = () => {
                         showToolbar={true}
                         showDocumentList={true}
                         compactMode={false}
+                        headerVisible={false}
                         onDocumentChange={(docs) => {
                           // 更新文档存在状态与数量
                           setDocumentExists(docs.length > 0);

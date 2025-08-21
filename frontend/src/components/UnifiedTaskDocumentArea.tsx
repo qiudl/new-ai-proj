@@ -81,6 +81,7 @@ export interface UnifiedTaskDocumentAreaProps {
   showToolbar?: boolean;
   showDocumentList?: boolean;
   compactMode?: boolean;
+  headerVisible?: boolean; // 是否显示头部标题与统计徽章
   onDocumentChange?: (documents: DocumentItem[]) => void;
   onViewModeChange?: (mode: ViewMode) => void;
 }
@@ -228,6 +229,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   showToolbar = true,
   showDocumentList = true,
   compactMode = false,
+  headerVisible = true,
   onDocumentChange,
   onViewModeChange
 }) => {
@@ -1002,11 +1004,12 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
     <div className={`unified-task-document-area ${viewMode}-mode ${className}`} style={style}>
       <Card
         title={
-          <Space>
-            <FileTextOutlined />
-            <span>任务文档</span>
-            <Badge count={documentStats.total} size="small" color="#1890ff" />
-          </Space>
+          headerVisible ? (
+            <Space>
+              <FileTextOutlined />
+              <span>任务文档</span>
+            </Space>
+          ) : undefined
         }
         extra={
           showToolbar && (
