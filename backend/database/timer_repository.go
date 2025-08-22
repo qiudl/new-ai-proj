@@ -188,37 +188,44 @@ func (r *PostgresTimerRepository) GetRecentTasksByUser(ctx context.Context, user
 // Bug#3 Fix: Now returns both project tasks and personal tasks
 func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context.Context, userID int, limit int, offset int) ([]models.RecentTimedTask, error) {
 	query := `
-		-- Unified query for both project tasks and personal tasks
-		WITH recent_tasks AS (
-			-- Project tasks
-			SELECT DISTINCT 
+		-- Limit source rows by recent time to avoid scanning large tables
+		WITH recent_logs AS (
+			SELECT *
+			FROM task_time_logs
+			WHERE user_id = $1
+			  AND (end_time IS NOT NULL)
+			  AND end_time > NOW() - INTERVAL '90 days'
+		),
+		recent_tasks AS (
+			-- Project tasks aggregated
+			SELECT 
 				t.id as task_id,
 				t.title as task_title,
 				p.name as project_name,
-				MAX(ttl.end_time) as last_timed_at,
-				SUM(ttl.duration_seconds) as total_seconds,
+				MAX(rl.end_time) as last_timed_at,
+				SUM(rl.duration_seconds) as total_seconds,
 				COALESCE(t.status, 'unknown') as status,
 				CASE WHEN t.deleted_at IS NOT NULL THEN true ELSE false END as is_deleted
-			FROM task_time_logs ttl
-			INNER JOIN tasks t ON ttl.task_id = t.id
+			FROM recent_logs rl
+			JOIN tasks t ON rl.task_id = t.id
 			LEFT JOIN projects p ON t.project_id = p.id
-			WHERE ttl.user_id = $1 AND ttl.task_id IS NOT NULL
+			WHERE rl.task_id IS NOT NULL
 			GROUP BY t.id, t.title, p.name, t.status, t.deleted_at
 			
 			UNION ALL
 			
-			-- Personal tasks
-			SELECT DISTINCT 
+			-- Personal tasks aggregated
+			SELECT 
 				ut.id as task_id,
 				ut.title as task_title,
 				'Personal Timer' as project_name,
-				MAX(ttl.end_time) as last_timed_at,
-				SUM(ttl.duration_seconds) as total_seconds,
+				MAX(rl.end_time) as last_timed_at,
+				SUM(rl.duration_seconds) as total_seconds,
 				COALESCE(ut.status, 'active') as status,
 				CASE WHEN ut.deleted_at IS NOT NULL THEN true ELSE false END as is_deleted
-			FROM task_time_logs ttl
-			INNER JOIN user_timer_tasks ut ON ttl.user_timer_task_id = ut.id
-			WHERE ttl.user_id = $1 AND ttl.user_timer_task_id IS NOT NULL
+			FROM recent_logs rl
+			JOIN user_timer_tasks ut ON rl.user_timer_task_id = ut.id
+			WHERE rl.user_timer_task_id IS NOT NULL
 			GROUP BY ut.id, ut.title, ut.status, ut.deleted_at
 		)
 		SELECT * FROM recent_tasks

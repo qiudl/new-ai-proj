@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -42,6 +43,7 @@ type UnifiedStartTimerRequest struct {
 	Category         string                 `json:"category,omitempty"`
 	EstimatedMinutes int                    `json:"estimated_minutes,omitempty"`
 	Context          string                 `json:"context"` // dashboard, task_detail, quick_start
+	TaskType         string                 `json:"task_type,omitempty"` // optional hint: personal | project | pomodoro | quick_timer
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 	AutoStopOthers   *bool                  `json:"auto_stop_others,omitempty"`
 	TemplateID       *int                   `json:"template_id,omitempty"`
@@ -59,21 +61,22 @@ type UnifiedTimerResponse struct {
 
 // TimerStatus 计时器状态
 type TimerStatus struct {
-	ID               int                    `json:"id"`
-	UserID           int                    `json:"user_id"`
-	TargetType       string                 `json:"target_type"`
-	TargetID         *int                   `json:"target_id"`
-	TargetTitle      string                 `json:"target_title"`
-	Status           string                 `json:"status"`
-	StartTime        time.Time              `json:"start_time"`
-	ElapsedSeconds   int                    `json:"elapsed_seconds"`
-	PauseCount       int                    `json:"pause_count"`
-	PauseTotalSeconds int                   `json:"pause_total_seconds"`
-	Category         string                 `json:"category"`
-	Description      string                 `json:"description"`
-	Metadata         map[string]interface{} `json:"metadata"`
-	IsRunning        bool                   `json:"is_running"`
-	IsPaused         bool                   `json:"is_paused"`
+	ID                int                    `json:"id"`
+	UserID            int                    `json:"user_id"`
+	TargetType        string                 `json:"target_type"`
+	TargetID          *int                   `json:"target_id"`
+	TargetTitle       string                 `json:"target_title"`
+	Status            string                 `json:"status"`
+	StartTime         time.Time              `json:"start_time"`
+	ElapsedSeconds    int                    `json:"elapsed_seconds"`
+	PauseCount        int                    `json:"pause_count"`
+	PauseTotalSeconds int                    `json:"pause_total_seconds"`
+	Category          string                 `json:"category"`
+	Description       string                 `json:"description"`
+	ProjectID         *int                   `json:"project_id,omitempty"`
+	Metadata          map[string]interface{} `json:"metadata"`
+	IsRunning         bool                   `json:"is_running"`
+	IsPaused          bool                   `json:"is_paused"`
 }
 
 // HistoryFilter 历史记录过滤器
@@ -172,6 +175,20 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 			Success: false,
 			Message: fmt.Sprintf("智能推断失败: %v", err),
 		}, err
+	}
+
+	// 2.1 如果客户端提供了明确的任务类型提示，则覆盖推断结果
+	if req.TaskType != "" {
+		switch strings.ToLower(req.TaskType) {
+		case "personal", "personal_task":
+			inferenceResult.Type = "personal_task"
+		case "project", "project_task":
+			inferenceResult.Type = "project_task"
+		case "pomodoro":
+			inferenceResult.Type = "pomodoro"
+		case "quick_timer":
+			inferenceResult.Type = "quick_timer"
+		}
 	}
 
 	// 3. 事务开始
@@ -509,11 +526,12 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 
 // GetCurrentTimer 获取当前计时器状态（保留向后兼容：返回最近启动的一个活动计时器）
 func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error) {
-	query := `
+query := `
 		SELECT 
 			utl.id, utl.user_id, utl.target_type, utl.target_id, utl.target_title,
 			utl.status, utl.start_time, utl.pause_count, utl.pause_total_seconds,
 			utl.category, COALESCE(utl.description, ''), 
+			utl.project_id,
 			COALESCE(utl.target_metadata, '{}')::text
 		FROM unified_timer_logs utl
 		WHERE utl.user_id = $1 
@@ -526,11 +544,12 @@ func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID in
 
 	var timer TimerStatus
 	var metadataJSON string
+	var projectID sql.NullInt64
 	
 	err := row.Scan(
 		&timer.ID, &timer.UserID, &timer.TargetType, &timer.TargetID, &timer.TargetTitle,
 		&timer.Status, &timer.StartTime, &timer.PauseCount, &timer.PauseTotalSeconds,
-		&timer.Category, &timer.Description, &metadataJSON,
+		&timer.Category, &timer.Description, &projectID, &metadataJSON,
 	)
 
 	if err == sql.ErrNoRows {
@@ -540,9 +559,30 @@ func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID in
 		return nil, fmt.Errorf("查询当前计时器失败: %v", err)
 	}
 
+	// 设置项目ID（如果有）
+	if projectID.Valid {
+		pid := int(projectID.Int64)
+		timer.ProjectID = &pid
+	}
+
 	// 解析metadata
 	if err := json.Unmarshal([]byte(metadataJSON), &timer.Metadata); err != nil {
 		timer.Metadata = make(map[string]interface{})
+	}
+
+	// 如果列中没有项目ID，尝试从metadata中提取
+	if timer.ProjectID == nil && timer.Metadata != nil {
+		if pid, ok := extractProjectIDFromMetadata(timer.Metadata); ok {
+			timer.ProjectID = &pid
+		}
+	}
+
+	// 如果仍然缺少项目ID但目标是项目任务，则从任务表回填项目ID
+	if timer.ProjectID == nil && (timer.TargetType == "project_task" || timer.TargetType == "project") && timer.TargetID != nil {
+		var pid int
+		if err := s.db.QueryRowContext(ctx, `SELECT project_id FROM tasks WHERE id = $1`, *timer.TargetID).Scan(&pid); err == nil {
+			timer.ProjectID = &pid
+		}
 	}
 
 	// 计算状态
@@ -577,11 +617,12 @@ return &timer, nil
 
 // GetActiveTimers 获取所有活动（running/paused）的计时器列表
 func (s *unifiedTimerServiceImpl) GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error) {
-	query := `
+query := `
 		SELECT 
 			utl.id, utl.user_id, utl.target_type, utl.target_id, utl.target_title,
 			utl.status, utl.start_time, utl.pause_count, utl.pause_total_seconds,
 			utl.category, COALESCE(utl.description, ''), 
+			utl.project_id,
 			COALESCE(utl.target_metadata, '{}')::text
 		FROM unified_timer_logs utl
 		WHERE utl.user_id = $1 
@@ -594,20 +635,38 @@ func (s *unifiedTimerServiceImpl) GetActiveTimers(ctx context.Context, userID in
 		return nil, fmt.Errorf("查询活动计时器失败: %v", err)
 	}
 	defer rows.Close()
-
+	
 	var timers []*TimerStatus
 	for rows.Next() {
 		var t TimerStatus
 		var metadataJSON string
+		var projectID sql.NullInt64
 		if err := rows.Scan(
 			&t.ID, &t.UserID, &t.TargetType, &t.TargetID, &t.TargetTitle,
 			&t.Status, &t.StartTime, &t.PauseCount, &t.PauseTotalSeconds,
-			&t.Category, &t.Description, &metadataJSON,
+			&t.Category, &t.Description, &projectID, &metadataJSON,
 		); err != nil {
 			continue
 		}
+		if projectID.Valid {
+			pid := int(projectID.Int64)
+			t.ProjectID = &pid
+		}
 		if err := json.Unmarshal([]byte(metadataJSON), &t.Metadata); err != nil {
 			t.Metadata = make(map[string]interface{})
+		}
+		// 如果列中没有项目ID，尝试从metadata中提取
+		if t.ProjectID == nil && t.Metadata != nil {
+			if pid, ok := extractProjectIDFromMetadata(t.Metadata); ok {
+				t.ProjectID = &pid
+			}
+		}
+		// 如果仍然缺少项目ID但目标是项目任务，则回填项目ID
+		if t.ProjectID == nil && (t.TargetType == "project_task" || t.TargetType == "project") && t.TargetID != nil {
+			var pid int
+			if err := s.db.QueryRowContext(ctx, `SELECT project_id FROM tasks WHERE id = $1`, *t.TargetID).Scan(&pid); err == nil {
+				t.ProjectID = &pid
+			}
 		}
 		now := time.Now()
 		t.IsRunning = t.Status == "running"
@@ -631,7 +690,7 @@ func (s *unifiedTimerServiceImpl) GetActiveTimers(ctx context.Context, userID in
 		}
 		timers = append(timers, &t)
 	}
-
+	
 	return timers, nil
 }
 
@@ -917,7 +976,8 @@ func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.T
 	}
 
 	// 2. 如果是任务计时器，自动将任务状态更新为"进行中"
-	if req.TaskID != nil && *req.TaskID > 0 {
+	// 仅对项目任务(project_task)更新通用 tasks 表；个人任务不在此处更新，避免表不匹配导致错误
+	if req.TaskID != nil && *req.TaskID > 0 && inference.Type == "project_task" {
 		err = s.updateTaskStatusToInProgressInTx(ctx, tx, *req.TaskID, req.UserID)
 		if err != nil {
 			return 0, fmt.Errorf("failed to update task status to in_progress: %w", err)
@@ -1016,6 +1076,31 @@ func (s *unifiedTimerServiceImpl) formatDuration(seconds int) string {
 		return fmt.Sprintf("%d小时", hours)
 	}
 	return fmt.Sprintf("%d小时%d分钟", hours, remainingMinutes)
+}
+
+// extractProjectIDFromMetadata 尝试从metadata中提取project_id（支持多种键名和类型）
+func extractProjectIDFromMetadata(meta map[string]interface{}) (int, bool) {
+	if meta == nil {
+		return 0, false
+	}
+	keys := []string{"project_id", "projectId", "projectID"}
+	for _, k := range keys {
+		if v, ok := meta[k]; ok {
+			switch vv := v.(type) {
+			case float64:
+				return int(vv), true
+			case int:
+				return vv, true
+			case int64:
+				return int(vv), true
+			case json.Number:
+				if n, err := vv.Int64(); err == nil { return int(n), true }
+			case string:
+				if i, err := strconv.Atoi(vv); err == nil { return i, true }
+			}
+		}
+	}
+	return 0, false
 }
 
 // 通知方法

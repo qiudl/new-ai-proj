@@ -27,7 +27,6 @@ import {
   ClockCircleOutlined,
   BulbOutlined,
   HistoryOutlined,
-  TagOutlined,
   ProjectOutlined,
   UserOutlined,
   ThunderboltOutlined,
@@ -40,6 +39,7 @@ import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboard
 import { personalTimerService } from '../services/personalTimerService';
 import { useUnifiedTimer } from '../hooks/useUnifiedTimer';
 import type { TimerStatus, TimerSuggestion, TimerTemplate } from '../types/timer';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -70,7 +70,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   showHistory = true,
   allowFullscreen = true,
   embedded = false,
-  defaultTaskType = 'project_task',
+  _defaultTaskType = 'project_task',
   defaultCategory = '工作',
   presetTaskId,
   onTimerStart,
@@ -100,7 +100,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
 
   // UI状态
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [_showSettings, setShowSettings] = useState(false);
   const [showQuickStart, setShowQuickStart] = useState(false);
   const [suggestions, setSuggestions] = useState<TimerSuggestion[]>([]);
   const [templates, setTemplates] = useState<TimerTemplate[]>([]);
@@ -162,36 +162,98 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
     return [];
   };
 
-  const getRecentTasks = async (limit: number = 5, offset: number = 0): Promise<{tasks: any[], hasMore: boolean}> => {
+const getRecentTasks = async (limit: number = 5, offset: number = 0): Promise<{tasks: any[], hasMore: boolean}> => {
     try {
-      // 使用personalTimerService获取计时历史
+      // 使用 unified timer 历史接口，拿到会话（包含 start_time）
       const response = await personalTimerService.getHistory({ limit, offset });
-      
-      // 转换数据格式以匹配UI需求
-      const tasks = response.sessions.map(session => ({
-        task_title: session.task_title,
-        target_type: session.task_type,
-        total_seconds: session.duration_seconds,
-        category: session.task_category,
-        task_id: session.task_id,
-        last_timed_at: session.end_time || session.start_time,
-        task_color: session.task_color
-      }));
-      
-      // 检查是否还有更多数据
-      const hasMore = response.sessions.length === limit;
-      
+
+      // 先转换为内部结构，并收集需要补充项目名的 task_id
+      const sessions = response.sessions || [];
+      const projectTaskIds = new Set<number>();
+      const baseTasks = sessions.map((session) => {
+        if ((session.task_type === 'project' || session.task_type === 'project_task') && session.task_id) {
+          projectTaskIds.add(session.task_id);
+        }
+        return {
+          task_title: session.task_title,
+          target_type: session.task_type,
+          total_seconds: session.duration_seconds,
+          category: session.task_category,
+          task_id: session.task_id,
+          start_time: session.start_time,
+          end_time: session.end_time,
+          last_timed_at: session.end_time || session.start_time,
+          task_color: session.task_color,
+          project_name: undefined as string | undefined,
+        };
+      });
+
+      // 并行拉取 recent-tasks 作为 task_id -> project_name 的映射（仅用于补全项目名）
+      const idToProjectName = new Map<number, string>();
+      try {
+        const token = localStorage.getItem('token');
+        // 为该非关键请求增加快速超时与静默降级，避免阻塞与报错污染
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500); // 1.5s 超时
+        try {
+          // 添加 suppressLog=1 参数，配合拦截器降低日志级别
+          const recentResp = await fetch(`/api/v1/timer/recent-tasks?limit=50&offset=0&suppressLog=1`, {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+            signal: controller.signal,
+          });
+          if (recentResp.ok) {
+            const data = await recentResp.json();
+            const arr = Array.isArray(data?.tasks) ? data.tasks : [];
+            for (const t of arr) {
+              if (typeof t?.task_id === 'number' && typeof t?.project_name === 'string') {
+                idToProjectName.set(t.task_id, t.project_name);
+              }
+            }
+          }
+        } catch (innerErr) {
+          // 静默失败（含超时/中断），项目名补全不是强依赖
+          // 仅以 warn 输出一次，避免控制台错误噪声
+          console.warn('补全项目名失败，继续使用基础数据:', innerErr);
+        } finally {
+          clearTimeout(timeout);
+        }
+      } catch (e) {
+        // 兜底处理（极少触发）
+        console.warn('补全项目名失败（兜底），继续使用基础数据:', e);
+      }
+
+      // 填充 project_name，并确保按开始时间倒序排序
+      const tasks = baseTasks
+        .map(t => ({
+          ...t,
+          project_name: t.project_name || (
+            (t.target_type === 'project' || t.target_type === 'project_task') && typeof t.task_id === 'number'
+              ? (idToProjectName.get(t.task_id) || '项目任务')
+              : '个人计时'
+          ),
+        }))
+        .sort((a, b) => {
+          const ta = a?.start_time ? new Date(a.start_time).getTime() : 0;
+          const tb = b?.start_time ? new Date(b.start_time).getTime() : 0;
+          return tb - ta; // 开始时间倒序
+        });
+
+      const hasMore = sessions.length === limit;
       return { tasks, hasMore };
     } catch (error) {
       console.error('获取最近任务失败:', error);
       // 返回模拟的最近任务数据作为fallback
+      const now = Date.now();
       const mockTasks = [
-        { task_title: 'API文档优化', target_type: 'project_task', total_seconds: 5100, category: '开发' },
-        { task_title: '数据库设计', target_type: 'project_task', total_seconds: 2700, category: '开发' },
-        { task_title: '学习React Hook', target_type: 'personal_task', total_seconds: 1800, category: '学习' },
-        { task_title: '代码review', target_type: 'project_task', total_seconds: 900, category: '审查' }
+        { task_title: 'API文档优化', target_type: 'project_task', total_seconds: 5100, category: '开发', project_name: '示例项目A', start_time: new Date(now - 60*60*1000).toISOString() },
+        { task_title: '数据库设计', target_type: 'project_task', total_seconds: 2700, category: '开发', project_name: '示例项目B', start_time: new Date(now - 2*60*60*1000).toISOString() },
+        { task_title: '学习React Hook', target_type: 'personal_task', total_seconds: 1800, category: '学习', project_name: '个人计时', start_time: new Date(now - 3*60*60*1000).toISOString() },
+        { task_title: '代码review', target_type: 'project_task', total_seconds: 900, category: '审查', project_name: '示例项目C', start_time: new Date(now - 4*60*60*1000).toISOString() }
       ].slice(offset, offset + limit);
-      
+
       return { tasks: mockTasks, hasMore: false };
     }
   };
@@ -761,9 +823,9 @@ const renderMainControls = () => (
                       ) : (
                         <Text style={{ fontSize: 13, fontWeight: 500 }}>{task.task_title}</Text>
                       )}
-                      <div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 2 }}>
-                        {task.target_type === 'project_task' ? '📋 项目任务' : '👤 个人任务'}
-                        {task.category && ` • ${task.category}`}
+<div style={{ fontSize: 11, color: '#8c8c8c', marginTop: 2 }}>
+                        📁 {task.project_name || (task.target_type === 'project_task' ? '项目' : '个人计时')}
+                        {` • ${task.start_time ? dayjs(task.start_time).format('YYYY-MM-DD HH:mm') : (task.last_timed_at ? dayjs(task.last_timed_at).format('YYYY-MM-DD HH:mm') : '-')}`}
                       </div>
                     </div>
                   </div>

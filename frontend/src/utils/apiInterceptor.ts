@@ -33,6 +33,12 @@ const isAnalysisApi = (url: string): boolean => {
   return url.includes('/api/v1/analysis/');
 };
 
+// 非关键的API：失败时不应污染控制台错误（降级为debug）
+const isNonCriticalApi = (url: string): boolean => {
+  // recent-tasks 仅用于补全显示信息，失败可降级
+  return url.includes('/api/v1/timer/recent-tasks') || url.includes('suppressLog=1');
+};
+
 // 增强的fetch函数
 const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
@@ -57,6 +63,7 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     
     // 对于分析API的500错误，进行静默处理
     const isKnownAnalysisError = !response.ok && response.status === 500 && isAnalysisApi(url);
+    const nonCritical = isNonCriticalApi(url);
     const errorMessage = response.ok ? undefined : 
       isKnownAnalysisError ? 'Analysis service unavailable (Node.js environment needed)' :
       `HTTP ${response.status}: ${response.statusText}`;
@@ -74,7 +81,11 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     if (isKnownAnalysisError) {
       console.debug(`Analysis API temporarily unavailable: ${method} ${url} (Node.js environment needed)`);
     } else if (!response.ok) {
-      console.error(`API Error: ${method} ${url} - ${response.status} ${response.statusText}`);
+      if (nonCritical) {
+        console.debug(`Non-critical API error: ${method} ${url} - ${response.status} ${response.statusText}`);
+      } else {
+        console.error(`API Error: ${method} ${url} - ${response.status} ${response.statusText}`);
+      }
     }
     
     activeApiCalls.delete(requestKey);
@@ -84,9 +95,9 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     const errorMessage = error instanceof Error ? error.message : 'Network Error';
     performanceMonitor.endApiCall(trackingId, 0, 0, false, errorMessage);
     
-    // 对于分析API，使用debug级别日志
-    if (isAnalysisApi(url)) {
-      console.debug(`Analysis API network error: ${method} ${url}`, error);
+    // 对于分析API或非关键API，使用debug级别日志
+    if (isAnalysisApi(url) || isNonCriticalApi(url)) {
+      console.debug(`Non-critical network issue: ${method} ${url}`, error);
     } else {
       console.error(`Network Error: ${method} ${url}`, error);
     }

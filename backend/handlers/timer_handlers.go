@@ -254,7 +254,7 @@ func (h *TimerHandler) GetTimerRecentTasks(c *gin.Context) {
 	}
 
 	uid := userID.(int)
-	ctx := c.Request.Context()
+	baseCtx := c.Request.Context()
 
 	// Parse pagination parameters
 	limit := 8 // Default page size
@@ -271,10 +271,19 @@ func (h *TimerHandler) GetTimerRecentTasks(c *gin.Context) {
 			offset = parsedOffset
 		}
 	}
+	
+	// Add a short timeout to avoid hanging requests (server-side protection)
+	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
+	defer cancel()
 
 	// Get recent tasks with pagination
 	tasks, err := h.db.Timer().GetRecentTasksByUserWithPagination(ctx, uid, limit, offset)
 	if err != nil {
+		// Graceful fallback: return empty list instead of 504/500 if context deadline exceeded
+		if ctx.Err() == context.DeadlineExceeded {
+			c.JSON(http.StatusOK, gin.H{"tasks": []interface{}{}, "limit": limit, "offset": offset, "count": 0, "note": "timeout"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent tasks", "details": err.Error()})
 		return
 	}
