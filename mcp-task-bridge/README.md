@@ -1,47 +1,26 @@
-# AI项目 MCP 桥接服务配置
+# MCP Task Bridge
 
-## 环境配置
+Small Node.js utilities to interact with the Task API for troubleshooting, verification, and automation.
 
-### 稳定环境（默认）
-- API基础路径: `http://localhost:8080/api/v1`
-- 用于日常任务管理操作
-- 端口: 8080（后端）, 3000（前端）
+Configuration (env-driven)
+- TASK_API_BASE: Task API base URL. Default http://localhost:8081/api/v1 (aligns with backend/config/config.yaml and MIGRATION_TO_DOCKER_DEV.md)
+- TASK_API_TOKEN: Optional bearer token. If set, added as Authorization header. If not set, requests are sent without Authorization.
 
-### 开发环境
-- API基础路径: `http://localhost:8090/api/v1`
-- 用于测试新功能
-- 端口: 8090（后端）, 3001（前端）
+Usage
+- Export environment variables before running scripts. Do not print secrets to terminal or logs.
+- Example (bash):
+  export TASK_API_BASE=http://localhost:8081/api/v1
+  export TASK_API_TOKEN={{YOUR_TASK_API_TOKEN}}
+- Run scripts:
+  node mcp-task-bridge/check-task-200.cjs
+  node mcp-task-bridge/find-task-200.js
 
-## 环境切换
+Notes
+- CI (Jenkins, Docker agent): inject TASK_API_BASE and TASK_API_TOKEN via credentials bindings. Never echo credentials.
+- Database: per project rules, production uses Postgres; prefer Dockerized Postgres for development.
+- Security: never commit real tokens. See .env.example for placeholders (no dotenv is used by default; export envs in your shell or CI).
 
-在 `mcp-task-bridge/config.js` 中修改：
-
-```javascript
-// 稳定环境（默认）
-export const API_BASE = 'http://localhost:8080/api/v1';
-
-// 开发环境（测试时切换）
-// export const API_BASE = 'http://localhost:8090/api/v1';
-```
-
-## 使用建议
-
-1. **日常使用**: 始终使用稳定环境（8080端口）
-2. **开发测试**: 切换到开发环境（8090端口）
-3. **功能验证**: 在开发环境测试通过后，再部署到稳定环境
-
-## 快速命令
-
-```bash
-# 查看环境状态
-./env-manager.sh status
-
-# 启动稳定环境
-./env-manager.sh start-stable
-
-# 启动开发环境
-./env-manager.sh start-dev
-
-# 备份稳定环境
-./env-manager.sh backup
-```
+Troubleshooting
+- 401 Unauthorized: ensure TASK_API_TOKEN has permissions and is exported in the environment.
+- 404 Not Found for tasks: verify API base/port (should be 8081), and that the Task service is running; check project and pagination.
+- CORS issues in browsers: these scripts run in Node and avoid CORS; for browser tools, configure server CORS accordingly.

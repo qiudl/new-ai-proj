@@ -3,9 +3,9 @@ import { Drawer, Checkbox, Button, Space, Typography, Divider, List, Tooltip, Sw
 import { SettingOutlined, DragOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 
 // Dynamic import for react-beautiful-dnd
-let DragDropContext: unknown = null;
-let Droppable: React.FormEvent | React.ChangeEvent<HTMLInputElement> = null;
-let Draggable: React.FormEvent | React.ChangeEvent<HTMLInputElement> = null;
+let DragDropContext: any = null;
+let Droppable: any = null;
+let Draggable: any = null;
 try {
   const dnd = require('react-beautiful-dnd');
   DragDropContext = dnd.DragDropContext;
@@ -29,14 +29,14 @@ interface DropResult {
 
 interface DroppableProvided {
   innerRef: React.Ref<any>;
-  droppableProps: unknown;
+  droppableProps: any;
   placeholder?: React.ReactElement;
 }
 
 interface DraggableProvided {
   innerRef: React.Ref<any>;
-  draggableProps: unknown;
-  dragHandleProps: unknown;
+  draggableProps: any;
+  dragHandleProps: any;
 }
 
 interface DraggableStateSnapshot {
@@ -184,9 +184,9 @@ useEffect(() => {
         {/* 列配置列表 */}
         {DragDropContext && Droppable && Draggable ? (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="columns">
+<Droppable droppableId="columns">
               {(provided: DroppableProvided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef}>
+                <div {...(provided.droppableProps as any)} ref={provided.innerRef}>
                   {localColumns.map((column, index) => (
                     <Draggable
                       key={column.key}
@@ -198,8 +198,8 @@ useEffect(() => {
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          style={{
-                            ...provided.draggableProps.style,
+style={{
+                            ...(provided.draggableProps.style as any),
                             marginBottom: '8px'
                           }}
                         >

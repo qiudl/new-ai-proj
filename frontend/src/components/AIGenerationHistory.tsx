@@ -1,12 +1,13 @@
 import React from 'react';
 import { Card, Typography } from 'antd';
+import { GeneratedSubTask } from '../types/aiTaskGenerator';
 
 const { Title } = Typography;
 
 interface AIGenerationHistoryProps {
   showDetailedView?: boolean;
   projectId?: number;
-  onReuse?: (history: unknown, tasks: unknown[]) => Promise<void>;
+  onReuse?: (history: unknown, tasks: GeneratedSubTask[]) => Promise<void>;
   onSaveAsTemplate?: (history: unknown, templateName: string) => void;
 }
 

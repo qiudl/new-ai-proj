@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, message, Button, Space, Tooltip, Modal, Form, Select, Alert } from 'antd';
+import { Card, message, Button, Space, Tooltip, Modal, Form, Select, Alert, Input } from 'antd';
 import {
   PlusOutlined,
   LinkOutlined,
@@ -16,14 +16,14 @@ import {
   DependencyStrength,
   CreateDependencyRequest
 } from '../../types/dependency';
-import { Project, Task } from '../../types/task';
+import { Task } from '../../types/task';
 import DependencyService from '../../services/dependencyService';
 import './DependencyGraphVisualization.css';
 
 const { Option } = Select;
 
 interface DragDropDependencyCreatorProps {
-  project: Project;
+  project: { id: number; name?: string };
   tasks: Task[];
   dependencyGraph: DependencyGraph;
   onDependencyCreated?: (dependency: CreateDependencyRequest) => void;
@@ -109,9 +109,11 @@ const DragDropDependencyCreator: React.FC<DragDropDependencyCreatorProps> = ({
       return DependencyType.FINISH_TO_START;
     }
     
-    if (sourceTask.start_date && targetTask.start_date) {
-      const sourceStart = new Date(sourceTask.start_date);
-      const targetStart = new Date(targetTask.start_date);
+    const sourceStartRaw = (sourceTask as any).start_date || sourceTask.due_date || sourceTask.created_at;
+    const targetStartRaw = (targetTask as any).start_date || targetTask.due_date || targetTask.created_at;
+    if (sourceStartRaw && targetStartRaw) {
+      const sourceStart = new Date(sourceStartRaw);
+      const targetStart = new Date(targetStartRaw);
       
       // 如果两个任务开始时间相近，建议同时开始
       if (Math.abs(sourceStart.getTime() - targetStart.getTime()) < 24 * 60 * 60 * 1000) {

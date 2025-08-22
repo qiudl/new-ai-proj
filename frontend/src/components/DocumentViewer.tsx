@@ -86,7 +86,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
   onShowHistory,
   onDownload
 }) => {
-  const [document, setDocument] = useState<DocumentDetail | null>(null);
+  const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [contentLoading, setContentLoading] = useState(false);
 
@@ -140,13 +140,13 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       const result = await response.json();
       
       if (result.success) {
-        setDocument(result.data);
+        setDocDetail(result.data);
       } else {
         throw new Error(result.message || '加载失败');
       }
     } catch (error: any) {
       message.error(`加载文档详情失败: ${error.message}`);
-      setDocument(null);
+      setDocDetail(null);
     } finally {
       setLoading(false);
     }
@@ -154,7 +154,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   // 下载文档
   const handleDownload = async () => {
-    if (!document) return;
+    if (!docDetail) return;
 
     try {
       setContentLoading(true);
@@ -174,16 +174,16 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       // 创建下载链接
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
-      link.download = document.file_name;
-      document.body.appendChild(link);
+      link.download = docDetail.file_name;
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       message.success('文档下载成功');
-      onDownload?.(document);
+      onDownload?.(docDetail);
     } catch (error: any) {
       message.error(`下载文档失败: ${error.message}`);
     } finally {
@@ -193,7 +193,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   // 分享文档
   const handleShare = async () => {
-    if (!document) return;
+    if (!docDetail) return;
 
     try {
       const shareUrl = `${window.location.origin}/documents/share/${documentId}`;
@@ -216,9 +216,9 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
 
   // 渲染文档内容
   const renderContent = () => {
-    if (!document) return null;
+    if (!docDetail) return null;
 
-    switch (document.file_type) {
+    switch (docDetail.file_type) {
       case 'markdown':
         return (
           <div className="markdown-content">
@@ -274,7 +274,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 )
               }}
             >
-              {document.content}
+              {docDetail.content}
             </ReactMarkdown>
           </div>
         );
@@ -283,7 +283,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
         return (
           <div 
             className="html-content"
-            dangerouslySetInnerHTML={{ __html: document.content }}
+            dangerouslySetInnerHTML={{ __html: docDetail.content }}
             style={{
               padding: '16px',
               border: '1px solid #d9d9d9',
@@ -303,7 +303,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             fontSize: '13px',
             lineHeight: '1.45'
           }}>
-            {JSON.stringify(JSON.parse(document.content), null, 2)}
+            {JSON.stringify(JSON.parse(docDetail.content), null, 2)}
           </pre>
         );
       
@@ -320,7 +320,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word'
           }}>
-            {document.content}
+            {docDetail.content}
           </pre>
         );
     }
@@ -338,7 +338,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       title={
         <Space>
           <FileOutlined />
-          {document?.title || '文档详情'}
+          {docDetail?.title || '文档详情'}
         </Space>
       }
       open={visible}
@@ -361,7 +361,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
           key="edit" 
           type="primary" 
           icon={<EditOutlined />}
-          onClick={() => document && onEdit?.(document)}
+          onClick={() => docDetail && onEdit?.(docDetail)}
         >
           编辑
         </Button>
@@ -369,7 +369,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
       destroyOnHidden
     >
       <Spin spinning={loading}>
-        {document && (
+        {docDetail && (
           <Tabs defaultActiveKey="content">
             <TabPane 
               tab={
@@ -398,55 +398,55 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="文档标题" span={2}>
                     <Title level={4} style={{ margin: 0 }}>
-                      {document.title}
+                      {docDetail.title}
                     </Title>
                   </Descriptions.Item>
                   
-                  {document.description && (
+                  {docDetail.description && (
                     <Descriptions.Item label="文档描述" span={2}>
-                      <Text>{document.description}</Text>
+                      <Text>{docDetail.description}</Text>
                     </Descriptions.Item>
                   )}
                   
                   <Descriptions.Item label="文件名">
-                    {document.file_name}
+                    {docDetail.file_name}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="文件类型">
-                    <Tag>{document.file_type}</Tag>
+                    <Tag>{docDetail.file_type}</Tag>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="文件大小">
-                    {formatFileSize(document.file_size)}
+                    {formatFileSize(docDetail.file_size)}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="下载次数">
-                    {document.download_count}
+                    {docDetail.download_count}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="状态">
-                    <Tag color={getStatusTagColor(document.status)}>
-                      {document.status}
+                    <Tag color={getStatusTagColor(docDetail.status)}>
+                      {docDetail.status}
                     </Tag>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="可见性">
-                    <Tag color={getVisibilityTagColor(document.visibility)}>
-                      {document.visibility}
+                    <Tag color={getVisibilityTagColor(docDetail.visibility)}>
+                      {docDetail.visibility}
                     </Tag>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="版本信息">
                     <Space>
-                      <Text>v{document.current_version}</Text>
+                      <Text>v{docDetail.current_version}</Text>
                       <Text type="secondary">
-                        (共{document.total_versions}版)
+                        (共{docDetail.total_versions}版)
                       </Text>
                       <Button 
                         type="link" 
                         size="small"
                         icon={<HistoryOutlined />}
-                        onClick={() => onShowHistory?.(document.id)}
+                        onClick={() => onShowHistory?.(docDetail.id)}
                       >
                         查看历史
                       </Button>
@@ -455,36 +455,36 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                   
                   <Descriptions.Item label="校验和">
                     <Text code style={{ fontSize: '12px' }}>
-                      {document.checksum}
+                      {docDetail.checksum}
                     </Text>
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="上传者">
-                    {document.uploaded_by.username}
+                    {docDetail.uploaded_by.username}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="最后更新者">
-                    {document.updated_by?.username || '-'}
+                    {docDetail.updated_by?.username || '-'}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="创建时间">
-                    {dayjs(document.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                    {dayjs(docDetail.created_at).format('YYYY-MM-DD HH:mm:ss')}
                   </Descriptions.Item>
                   
                   <Descriptions.Item label="更新时间">
-                    {dayjs(document.updated_at).format('YYYY-MM-DD HH:mm:ss')}
+                    {dayjs(docDetail.updated_at).format('YYYY-MM-DD HH:mm:ss')}
                   </Descriptions.Item>
                   
-                  {document.published_at && (
+                  {docDetail.published_at && (
                     <Descriptions.Item label="发布时间">
-                      {dayjs(document.published_at).format('YYYY-MM-DD HH:mm:ss')}
+                      {dayjs(docDetail.published_at).format('YYYY-MM-DD HH:mm:ss')}
                     </Descriptions.Item>
                   )}
                   
-                  {document.tags.length > 0 && (
+                  {docDetail.tags.length > 0 && (
                     <Descriptions.Item label="标签" span={2}>
                       <Space wrap>
-                        {document.tags.map(tag => (
+                        {docDetail.tags.map(tag => (
                           <Tag key={tag}>{tag}</Tag>
                         ))}
                       </Space>

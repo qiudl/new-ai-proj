@@ -487,25 +487,27 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
 
   // 监听自定义复制文档事件
   useEffect(() => {
-    const handleCopyDocumentEvent = (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
-      const document = event.detail;
-      if (document) {
-        handleCopyDocument(document);
+    const handleCopyDocumentEvent = (event: Event) => {
+      const custom = event as CustomEvent;
+      const doc = custom.detail;
+      if (doc) {
+        handleCopyDocument(doc as Document);
       }
     };
 
     // 监听文件夹导航事件（可选：如果需要在当前组件内响应）
-    const handleFolderNavigateEvent = (event: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
-      const { folderId, folderName } = event.detail;
+    const handleFolderNavigateEvent = (event: Event) => {
+      const custom = event as CustomEvent;
+      const { folderId, folderName } = custom.detail || {};
       // 这里可以添加额外的处理逻辑，比如更新面包屑等
     };
 
-    window.addEventListener('copyDocument', handleCopyDocumentEvent);
-    window.addEventListener('folderNavigate', handleFolderNavigateEvent);
+    window.addEventListener('copyDocument', handleCopyDocumentEvent as EventListener);
+    window.addEventListener('folderNavigate', handleFolderNavigateEvent as EventListener);
     
     return () => {
-      window.removeEventListener('copyDocument', handleCopyDocumentEvent);
-      window.removeEventListener('folderNavigate', handleFolderNavigateEvent);
+      window.removeEventListener('copyDocument', handleCopyDocumentEvent as EventListener);
+      window.removeEventListener('folderNavigate', handleFolderNavigateEvent as EventListener);
     };
   }, []);
 
@@ -981,16 +983,16 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
 
   // 表格列定义
-  const columns: unknown[] = [
+  const columns: ColumnsType<Document> = [
     {
       title: '文档',
       key: 'document',
       width: 400,
       fixed: 'left',
-      render: (_: unknown, record: unknown) => (
+      render: (_: any, record: Document) => (
         <Space>
           <span style={{ fontSize: '18px', color: '#1890ff' }}>
-            {(DOCUMENT_TYPES as unknown)[record.type]?.icon || <FileOutlined />}
+            {(DOCUMENT_TYPES as any)[record.type as keyof typeof DOCUMENT_TYPES]?.icon || <FileOutlined />}
           </span>
           <div>
             <Space>
@@ -1004,7 +1006,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               >
                 {record.title}
               </Text>
-              {record.is_favorite && (
+...
                 <StarFilled style={{ color: '#faad14' }} />
               )}
               {record.is_template && (
@@ -1027,11 +1029,11 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'folder_name',
       key: 'folder_name',
       width: 120,
-      render: (folderName: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown) => (
+      render: (folderName: string | null | undefined, record: Document) => (
         folderName ? (
           <Space 
             style={{ cursor: 'pointer' }}
-            onClick={() => handleFolderClick(record.folder_id, folderName)}
+            onClick={() => handleFolderClick(record.folder_id || null, folderName)}
           >
             <FolderOutlined style={{ color: '#faad14' }} />
             <Text style={{ color: '#1890ff' }}>{folderName}</Text>
@@ -1052,9 +1054,9 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'tags',
       key: 'tags',
       width: 150,
-      render: (tags: unknown) => (
+      render: (tags: string[]) => (
         <Space wrap>
-          {tags.slice(0, 2).map((tag: unknown) => (
+          {tags.slice(0, 2).map((tag) => (
             <Tag key={tag}>{tag}</Tag>
           ))}
           {tags.length > 2 && (
@@ -1068,7 +1070,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'project_name',
       key: 'project_name',
       width: 120,
-      render: (projectName: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
+      render: (projectName?: string) => (
         projectName ? (
           <Tag color="blue">{projectName}</Tag>
         ) : (
@@ -1081,7 +1083,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'customer_name',
       key: 'customer_name', 
       width: 120,
-      render: (customerName: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
+      render: (customerName?: string) => (
         customerName ? (
           <Tag color="green">{customerName}</Tag>
         ) : (
@@ -1094,7 +1096,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'owner_name',
       key: 'owner_name',
       width: 100,
-      render: (name: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
+      render: (name?: string) => (
         <Space>
           <Avatar size="small" icon={<UserOutlined />} />
           <Text>{name}</Text>
@@ -1106,10 +1108,10 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 120,
-      render: (date: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => (
-        <Tooltip title={dayjs(date).format('YYYY-MM-DD HH:mm:ss')}>
+      render: (date?: string) => (
+        <Tooltip title={date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : ''}>
           <Text type="secondary" style={{ fontSize: '12px' }}>
-            {dayjs(date).fromNow()}
+            {date ? dayjs(date).fromNow() : ''}
           </Text>
         </Tooltip>
       )
@@ -1119,7 +1121,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       key: 'actions',
       width: 120,
       fixed: 'right',
-      render: (_: unknown, record: unknown) => {
+      render: (_: any, record: Document) => {
         const moreActions: MenuProps['items'] = [
           {
             key: 'copy',
@@ -1391,8 +1393,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               value={`${sortBy}-${sortOrder}`}
               onChange={(value) => {
                 const [field, order] = value.split('-');
-                setSortBy(field as unknown);
-                setSortOrder(order as unknown);
+                setSortBy(field as 'title' | 'created_at' | 'updated_at');
+                setSortOrder(order as 'asc' | 'desc');
               }}
               style={{ width: 120 }}
               size="small"

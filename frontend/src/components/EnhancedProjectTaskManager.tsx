@@ -85,7 +85,7 @@ interface CustomFieldConfig {
   key: string;
   title: string;
   dataType: 'string' | 'number' | 'boolean' | 'array' | 'date';
-  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => React.ReactNode;
+  render?: (value: any, record: Task) => React.ReactNode;
   width?: number;
   sortable?: boolean;
 }
@@ -95,7 +95,7 @@ interface ColumnConfig {
   key: string;
   title: string;
   dataIndex: string | string[];
-  width: number;
+  width?: number | string;
   fixed?: 'left' | 'right';
   visible: boolean;
   sortable: boolean;
@@ -108,7 +108,7 @@ interface AdvancedFilter {
   id: string;
   field: string;
   operator: string;
-  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+  value: any;
   logicalOperator?: 'AND' | 'OR';
 }
 
@@ -293,7 +293,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         key: 'id',
         title: 'ID',
         dataIndex: 'id',
-        width: undefined, // 自适应宽度
+        width: 'auto', // 自适应宽度
         fixed: 'left',
         visible: true,
         sortable: true,
@@ -709,7 +709,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       setCreateModalVisible(false);
       createForm.resetFields();
       loadData(); // 重新加载数据
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       // 使用改进的错误日志记录
       logApiError('Task creation failed in component', error, { 
         projectId, 
@@ -755,10 +755,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       const customKey = field.replace('custom_', '');
       return task.custom_fields?.[customKey];
     }
-    return (task as unknown)[field];
+    return (task as any)[field as keyof Task];
   };
 
-  const matchesFilterCondition = (fieldValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>, operator: string, filterValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const matchesFilterCondition = (fieldValue: any, operator: string, filterValue: any) => {
     // 处理为空和不为空的特殊情况
     if (operator === 'isEmpty') {
       return fieldValue == null || fieldValue === '' || 
@@ -1072,7 +1072,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           loadData();
         } catch (error: Error | unknown) {
           console.error('Error deleting task:', error);
-          const errorMessage = error?.message || error?.error?.message || '删除失败';
+          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '删除失败';
           message.error(`删除失败: ${errorMessage}`);
         }
       },
@@ -1083,7 +1083,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
   const handleBatchUpdateStatus = useCallback(async (status: string) => {
     if (selectedRowKeys.length === 0) return;
 
-    const { text: statusText } = formatTaskStatus(status);
+    const { text: statusText } = formatTaskStatus(status as any);
 
     Modal.confirm({
       title: '批量更新状态',

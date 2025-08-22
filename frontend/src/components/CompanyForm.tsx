@@ -40,10 +40,12 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { Title } = Typography;
 
+import type { FormInstance } from 'antd';
+
 interface CompanyFormProps {
-  form: unknown;
+  form: FormInstance;
   company?: Company;
-  onValuesChange?: (changedValues: unknown, allValues: unknown) => void;
+  onValuesChange?: (changedValues: any, allValues: any) => void;
   disabled?: boolean;
 }
 
@@ -143,7 +145,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
   // 应用AI搜索结果
   const handleApplyAiResult = (aiInfo: AICompanyInfo) => {
-    const formValues: unknown = {
+    const formValues: Record<string, any> = {
       companyName: aiInfo.companyName,
       companyType: aiInfo.companyType,
       industry: aiInfo.industry,
@@ -161,9 +163,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     };
 
     // 只设置有值的字段，避免覆盖用户已填写的内容
-    Object.keys(formValues).forEach(key => {
-      if (formValues[key] !== undefined && formValues[key] !== null && formValues[key] !== '') {
-        form.setFieldValue(key, formValues[key]);
+    Object.keys(formValues).forEach((key) => {
+      const v = formValues[key];
+      if (v !== undefined && v !== null && v !== '') {
+        form.setFieldValue(key, v);
       }
     });
 
@@ -496,11 +499,11 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 { type: 'number', min: 0, message: '合同金额不能为负数' }
               ]}
             >
-              <InputNumber
+              <InputNumber<number>
                 placeholder="请输入年度合同金额"
                 style={{ width: '100%' }}
-                formatter={value => `¥ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={value => parseFloat(value!.replace(/¥\s?|(,*)/g, '')) || 0 as unknown}
+                formatter={(value) => `¥ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(value) => (value ? parseFloat(value.replace(/¥\s?|(,*)/g, '')) : 0)}
                 min={0}
               />
             </Form.Item>
@@ -550,12 +553,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 { type: 'number', min: 1, message: '员工人数必须大于0' }
               ]}
             >
-              <InputNumber
+              <InputNumber<number>
                 placeholder="请输入员工人数"
                 style={{ width: '100%' }}
                 min={1}
-                formatter={value => `${value}人`}
-                parser={value => parseInt(value!.replace('人', '')) || 1 as unknown}
+                formatter={(value) => `${value}人`}
+                parser={(value) => (value ? parseInt(value.replace('人', '')) : 1)}
               />
             </Form.Item>
           </Col>

@@ -153,8 +153,8 @@ const AICostManager: React.FC = () => {
       if (budgetResponse.success) {
         setBudgetStatus(budgetResponse.data);
       }
-    } catch (error: Error | unknown) {
-      message.error('加载成本数据失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('加载成本数据失败: ' + (error?.message || '未知错误'));
       console.error('Failed to load cost data:', error);
     } finally {
       setLoading(false);
@@ -167,7 +167,7 @@ const AICostManager: React.FC = () => {
       if (response.success) {
         setBudgetAlerts(response.data);
       }
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Failed to load budget alerts:', error);
     }
   };
@@ -183,8 +183,8 @@ const AICostManager: React.FC = () => {
       } else {
         message.error('预算限制设置失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('预算限制设置失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('预算限制设置失败: ' + (error?.message || '未知错误'));
       console.error('Failed to set budget limit:', error);
     }
   };

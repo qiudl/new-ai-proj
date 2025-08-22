@@ -22,7 +22,7 @@ import {
   DependencyConfig,
   CreateDependencyRequest
 } from '../../types/dependency';
-import { Project, Task } from '../../types/task';
+import { Task } from '../../types/task';
 import DependencyService from '../../services/dependencyService';
 import DragDropDependencyCreator from './DragDropDependencyCreator';
 import './DependencyGraphVisualization.css';
@@ -30,7 +30,7 @@ import './DependencyGraphVisualization.css';
 const { Option } = Select;
 
 interface EnhancedDependencyGraphProps {
-  project: Project;
+  project: { id: number; name?: string };
   tasks: Task[];
   onNodeClick?: (taskId: number) => void;
   onEdgeClick?: (dependencyId: number) => void;
@@ -267,7 +267,7 @@ const EnhancedDependencyGraph: React.FC<EnhancedDependencyGraphProps> = ({
       .attr('data-edge-id', (d: DependencyGraphEdge) => d.dependencyId)
       .style('stroke', (d: DependencyGraphEdge) => getEdgeStyle(d).stroke)
       .style('stroke-width', (d: DependencyGraphEdge) => getEdgeStyle(d).strokeWidth)
-      .style('stroke-dasharray', (d: DependencyGraphEdge) => getEdgeStyle(d).strokeDasharray)
+.style('stroke-dasharray', (d: DependencyGraphEdge) => (getEdgeStyle(d) as any).strokeDasharray)
       .style('fill', 'none')
       .style('marker-end', 'url(#arrowhead)')
       .style('cursor', 'pointer')
@@ -385,7 +385,7 @@ const EnhancedDependencyGraph: React.FC<EnhancedDependencyGraphProps> = ({
     // 监听模拟更新
     sim.on('tick', updatePositions);
 
-    setSimulation(sim);
+setSimulation(sim as unknown as d3.Simulation<DependencyGraphNode, undefined>);
 
     // 缩放行为
     const zoom = d3.zoom<SVGSVGElement, unknown>()

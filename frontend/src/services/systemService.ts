@@ -102,15 +102,41 @@ export interface ApiResponse<T> {
 export class SystemService {
   // Recycled Projects
   static async getRecycledProjects(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledProject>> {
-    const response = await api.get<BackendPaginatedResponse>(
-      `/system/recycle/projects?page=${page}&page_size=${pageSize}`
-    );
-    // Since api.interceptors.response already extracts data from response
-    // the response here is already the 'data' part of the backend response
-    return {
-      data: response.data.data as RecycledProject[],
-      pagination: response.data.pagination
-    };
+    try {
+      const payload: any = await api.get<BackendPaginatedResponse>(
+        `/system/recycle/projects?page=${page}&page_size=${pageSize}`
+      );
+      // Build a safe response structure even if backend returns null/invalid shapes
+      const projectsData = Array.isArray(payload?.data) ? (payload.data as RecycledProject[]) : [];
+      const pagination = (payload?.pagination && typeof payload.pagination === 'object')
+        ? payload.pagination
+        : {
+            page,
+            page_size: pageSize,
+            total: projectsData.length,
+            total_pages: projectsData.length > 0 ? Math.ceil(projectsData.length / pageSize) : 0,
+            has_next: false,
+            has_prev: false,
+          };
+
+      return {
+        data: projectsData,
+        pagination,
+      };
+    } catch (e) {
+      // Fallback when backend is not implemented or API fails
+      return {
+        data: [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
+    }
   }
 
   static async restoreProject(id: number): Promise<void> {
@@ -123,15 +149,41 @@ export class SystemService {
 
   // Recycled Tasks
   static async getRecycledTasks(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledTask>> {
-    const response = await api.get<BackendPaginatedResponse>(
-      `/system/recycle/tasks?page=${page}&page_size=${pageSize}`
-    );
-    // Since api.interceptors.response already extracts data from response
-    // the response here is already the 'data' part of the backend response
-    return {
-      data: response.data.data as RecycledTask[],
-      pagination: response.data.pagination
-    };
+    try {
+      const payload: any = await api.get<BackendPaginatedResponse>(
+        `/system/recycle/tasks?page=${page}&page_size=${pageSize}`
+      );
+      // Build a safe response structure even if backend returns null/invalid shapes
+      const tasksData = Array.isArray(payload?.data) ? (payload.data as RecycledTask[]) : [];
+      const pagination = (payload?.pagination && typeof payload.pagination === 'object')
+        ? payload.pagination
+        : {
+            page,
+            page_size: pageSize,
+            total: tasksData.length,
+            total_pages: tasksData.length > 0 ? Math.ceil(tasksData.length / pageSize) : 0,
+            has_next: false,
+            has_prev: false,
+          };
+
+      return {
+        data: tasksData,
+        pagination,
+      };
+    } catch (e) {
+      // Fallback when backend is not implemented or API fails
+      return {
+        data: [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
+    }
   }
 
   static async restoreTask(id: number): Promise<void> {

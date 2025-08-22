@@ -148,7 +148,7 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
 
   // 构建层级结构预览数据
   const buildHierarchyPreview = () => {
-    const treeData = [];
+    const treeData: any[] = [];
     
     if (targetParent) {
       // 显示目标父任务

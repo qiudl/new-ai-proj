@@ -1,17 +1,23 @@
 import axios from 'axios';
+const DEFAULT_API_BASE = (typeof process !== 'undefined' && process.env && process.env.TASK_API_BASE && process.env.TASK_API_BASE.trim())
+    ? process.env.TASK_API_BASE.trim()
+    : 'http://localhost:8081/api/v1';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    constructor(apiBase = 'http://localhost:8080/api/v1') {
+    constructor(apiBase = DEFAULT_API_BASE) {
         this.apiBase = apiBase;
-        // 使用系统 JWT token (2025-08-18 更新)
-        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxNDQ2ODAsImlhdCI6MTc1NTUzOTg4MCwibmJmIjoxNzU1NTM5ODgwLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.huC0kTWXh_OzoOUfApPNTXroiv9u31BX7ZQBrXcX0a4';
+        // 从环境变量读取令牌；未设置时不附加 Authorization
+        this.authToken = (typeof process !== 'undefined' && process.env && process.env.TASK_API_TOKEN) ? process.env.TASK_API_TOKEN : '';
     }
     getHeaders() {
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.authToken}`
+        const headers = {
+            'Content-Type': 'application/json'
         };
+        if (this.authToken) {
+            headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
+        return headers;
     }
     // 辅助方法：通过ID查找任务
     async findTaskById(id) {
@@ -391,6 +397,95 @@ export class TaskMCPServer {
                 total: matchingTasks.length,
                 tasks: matchingTasks,
                 message: `🔍 找到 ${matchingTasks.length} 个匹配"${titlePattern}"的任务`
+            };
+        }
+        catch (error) {
+            return {
+                success: false,
+                error: `搜索任务失败: ${error.message}`
+            };
+        }
+    }
+    // 按ID或标题搜索任务（新增）
+    async findTask(params = {}) {
+        try {
+            const { id, titlePattern } = params || {};
+            if (typeof id === 'number' && !Number.isNaN(id)) {
+                try {
+                    const task = await this.findTaskById(id);
+                    const mapped = {
+                        id: task.id,
+                        title: task.title,
+                        status: task.status,
+                        created_at: task.created_at,
+                        project_id: task.project_id,
+                        parent_id: task.parent_id,
+                        custom_fields: task.custom_fields
+                    };
+                    return {
+                        success: true,
+                        total: 1,
+                        tasks: [mapped],
+                        message: `🔍 通过ID找到 1 个任务`
+                    };
+                }
+                catch (e) {
+                    return {
+                        success: true,
+                        total: 0,
+                        tasks: [],
+                        message: `未找到任务 ID ${id}`
+                    };
+                }
+            }
+            if (!titlePattern || titlePattern.trim().length === 0) {
+                return {
+                    success: true,
+                    total: 0,
+                    tasks: [],
+                    message: '未提供搜索条件'
+                };
+            }
+            const projectsResp = await axios.get(`${this.apiBase}/projects`, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const projects = projectsResp.data?.data?.data || projectsResp.data?.data || [];
+            const matches = [];
+            const pattern = titlePattern.toLowerCase();
+            for (const project of projects) {
+                try {
+                    const resp = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+                        headers: this.getHeaders(),
+                        proxy: false
+                    });
+                    const tasks = resp.data?.data?.data || resp.data?.data || [];
+                    for (const t of tasks) {
+                        const title = (t.title || '').toLowerCase();
+                        if (title.includes(pattern)) {
+                            matches.push(t);
+                        }
+                    }
+                }
+                catch (err) {
+                    // ignore single project errors
+                    continue;
+                }
+            }
+            const mapped = matches.map(task => ({
+                id: task.id,
+                title: task.title,
+                status: task.status,
+                created_at: task.created_at,
+                project_id: task.project_id,
+                parent_id: task.parent_id,
+                custom_fields: task.custom_fields
+            }));
+            return {
+                success: true,
+                total: mapped.length,
+                tasks: mapped,
+                message: `🔍 找到 ${mapped.length} 个匹配"${titlePattern}"的任务`
             };
         }
         catch (error) {

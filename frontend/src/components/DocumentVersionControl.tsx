@@ -22,14 +22,15 @@ import {
   Progress,
   Alert
 } from 'antd';
-import type { ColumnsType, TableProps } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import {
   HistoryOutlined,
   UploadOutlined,
   DownloadOutlined,
-  RestoreOutlined,
-  DeleteOutlined,
+  RollbackOutlined,
   CompareOutlined,
+  DeleteOutlined,
+  DiffOutlined,
   FileTextOutlined,
   UserOutlined,
   CalendarOutlined,
@@ -397,7 +398,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
           items.push({
             key: 'restore',
             label: '恢复',
-            icon: <RestoreOutlined />,
+            icon: <RollbackOutlined />,
             onClick: () => handleRestoreVersion(record.version_number)
           });
           items.push({
@@ -432,7 +433,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                 >
                   <Button
                     type="text"
-                    icon={<RestoreOutlined />}
+                    icon={<RollbackOutlined />}
                     size="small"
                   />
                 </Popconfirm>
@@ -458,7 +459,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
   ];
 
   // 表格选择配置
-  const rowSelection: TableProps<DocumentVersion>['rowSelection'] = {
+  const rowSelection: any = {
     selectedRowKeys: selectedVersions,
     onChange: (selectedRowKeys) => {
       setSelectedVersions(selectedRowKeys as number[]);

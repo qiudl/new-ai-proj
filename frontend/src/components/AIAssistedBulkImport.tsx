@@ -116,21 +116,22 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
             const statusMap = new Map<AIProvider, AIServiceStatus>();
             const providers: AIProvider[] = [];
             
-            // 处理配置数据
-            configArray.forEach((config: unknown) => {
-              const provider = config.provider as AIProvider;
-              
-              // 根据配置的enabled状态确定是否可用
-              const isAvailable = config.enabled === true;
-              
-              statusMap.set(provider, {
-                provider,
-                available: isAvailable,
-                lastCheck: config.updated_at ? new Date(config.updated_at) : new Date(),
-                responseTime: 0, // 配置数据中没有响应时间信息
-                errorMessage: !isAvailable ? '配置已禁用' : (config.status === 'error' ? '连接测试失败' : undefined),
-                model: config.model || 'unknown'
-              });
+          // 处理配置数据
+          configArray.forEach((config: unknown) => {
+            const cfg = config as any;
+            const provider = cfg.provider as AIProvider;
+            
+            // 根据配置的enabled状态确定是否可用
+            const isAvailable = cfg.enabled === true;
+            
+            statusMap.set(provider, {
+              provider,
+              available: isAvailable,
+              lastCheck: cfg.updated_at ? new Date(cfg.updated_at) : new Date(),
+              responseTime: 0, // 配置数据中没有响应时间信息
+              errorMessage: !isAvailable ? '配置已禁用' : (cfg.status === 'error' ? '连接测试失败' : undefined),
+              model: cfg.model || 'unknown'
+            });
               
               if (isAvailable) {
                 providers.push(provider);
@@ -169,37 +170,38 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       // 获取AI配置信息
       const configData = await request.get('/system/ai-configs');
       if (configData.success && configData.data && configData.data.success && configData.data.data) {
-          // 处理数据，这里是真正的配置数组
-          const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
-          const statusMap = new Map<AIProvider, AIServiceStatus>();
-          const providers: AIProvider[] = [];
+        // 处理数据，这里是真正的配置数组
+        const configArray = Array.isArray(configData.data.data) ? configData.data.data : [configData.data.data];
+        const statusMap = new Map<AIProvider, AIServiceStatus>();
+        const providers: AIProvider[] = [];
+        
+        // 处理配置数据
+        configArray.forEach((config: unknown) => {
+          const cfg = config as any;
+          const provider = cfg.provider as AIProvider;
           
-          // 处理配置数据
-          configArray.forEach((config: unknown) => {
-            const provider = config.provider as AIProvider;
-            
-            // 根据配置的enabled状态确定是否可用
-            const isAvailable = config.enabled === true;
-            
-            statusMap.set(provider, {
-              provider,
-              available: isAvailable,
-              lastCheck: config.updated_at ? new Date(config.updated_at) : new Date(),
-              responseTime: 0, // 配置数据中没有响应时间信息
-              errorMessage: !isAvailable ? '配置已禁用' : (config.status === 'error' ? '连接测试失败' : undefined),
-              model: config.model || 'unknown'
-            });
-            
-            if (isAvailable) {
-              providers.push(provider);
-            }
+          // 根据配置的enabled状态确定是否可用
+          const isAvailable = cfg.enabled === true;
+          
+          statusMap.set(provider, {
+            provider,
+            available: isAvailable,
+            lastCheck: cfg.updated_at ? new Date(cfg.updated_at) : new Date(),
+            responseTime: 0, // 配置数据中没有响应时间信息
+            errorMessage: !isAvailable ? '配置已禁用' : (cfg.status === 'error' ? '连接测试失败' : undefined),
+            model: cfg.model || 'unknown'
           });
           
-          setAvailableProviders(providers);
-          setServiceStatus(statusMap);
-          setLastStatusCheck(new Date());
-          
-          message.success('AI服务状态已刷新');
+          if (isAvailable) {
+            providers.push(provider);
+          }
+        });
+        
+        setAvailableProviders(providers);
+        setServiceStatus(statusMap);
+        setLastStatusCheck(new Date());
+        
+        message.success('AI服务状态已刷新');
       } else {
         console.error('刷新AI服务状态失败: API返回错误', configData);
         message.error('刷新AI服务状态失败');
@@ -320,31 +322,36 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       });
 
       const data = await response.json();
-
+      
       if (data.success && data.data) {
         const generationResult = data.data.generation_result;
+        const tasks: GeneratedSubTask[] = (generationResult?.generated_tasks || []).map((task: unknown) => {
+          const t = task as any;
+          return {
+            id: t.ai_generated_id,
+            title: t.title,
+            description: t.description,
+            priority: t.priority,
+            estimatedHours: t.estimated_hours,
+            tags: t.tags || [],
+            dependencies: t.dependencies || [],
+            confidence: t.confidence
+          };
+        });
+
         const result: GenerationResult = {
-          tasks: generationResult.generated_tasks.map((task: unknown) => ({
-            id: task.ai_generated_id,
-            title: task.title,
-            description: task.description,
-            priority: task.priority,
-            estimatedHours: task.estimated_hours,
-            tags: task.tags || [],
-            dependencies: task.dependencies || [],
-            confidence: task.confidence
-          })),
-          quality: generationResult.quality_metrics?.overall_score * 100 || 80,
+          tasks,
+          quality: (generationResult?.quality_metrics?.overall_score ?? 0) * 100 || 80,
           provider: selectedProvider || availableProviders[0],
-          model: generationResult.model_info?.name || 'unknown',
+          model: generationResult?.model_info?.name || 'unknown',
           tokensUsed: {
-            input: generationResult.token_usage?.prompt_tokens || 0,
-            output: generationResult.token_usage?.completion_tokens || 0,
-            total: generationResult.token_usage?.total_tokens || 0
+            input: generationResult?.token_usage?.prompt_tokens || 0,
+            output: generationResult?.token_usage?.completion_tokens || 0,
+            total: generationResult?.token_usage?.total_tokens || 0
           },
           cost: 0, // Calculate based on token usage and provider rates
-          generationTime: generationResult.processing_time_ms || 0,
-          reasoning: generationResult.suggestions?.join('; ') || ''
+          generationTime: generationResult?.processing_time_ms || 0,
+          reasoning: Array.isArray(generationResult?.suggestions) ? generationResult.suggestions.join('; ') : ''
         };
 
         setGenerationResult(result);
@@ -443,16 +450,19 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
           
           // 调用回调通知父组件任务已导入
           if (onImport && imported_tasks) {
-            onImport(imported_tasks.map((task: unknown) => ({
-              id: task.id,
-              title: task.title,
-              description: task.description,
-              priority: task.priority,
-              estimatedHours: task.custom_fields?.estimated_hours || 0,
-              tags: task.tags || [],
-              dependencies: [],
-              confidence: task.custom_fields?.ai_confidence || 0.8
-            })), selectedParentTaskId || selectedParentTask?.id);
+            onImport(imported_tasks.map((task: unknown) => {
+              const t = task as any;
+              return {
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                priority: t.priority,
+                estimatedHours: t.custom_fields?.estimated_hours || 0,
+                tags: t.tags || [],
+                dependencies: [],
+                confidence: t.custom_fields?.ai_confidence || 0.8
+              };
+            }), selectedParentTaskId || selectedParentTask?.id);
           }
         } else {
           message.error('任务导入失败，请重试');
@@ -470,21 +480,22 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
   // 处理历史记录复用
   const handleReuseHistory = useCallback(async (history: unknown, tasks: GeneratedSubTask[]) => {
     try {
+      const h = history as any;
       // 复用历史配置
-      setKeywords(history.keywords);
-      setSelectedProvider(history.usedProvider);
-      setMaxTasks(history.generatedCount);
+      setKeywords(h.keywords);
+      setSelectedProvider(h.usedProvider);
+      setMaxTasks(h.generatedCount);
       
       // 设置任务结果
       const result: GenerationResult = {
         tasks,
-        quality: history.quality,
-        provider: history.usedProvider,
-        model: history.usedModel,
-        tokensUsed: { input: 0, output: 0, total: history.tokensUsed },
-        cost: history.cost,
+        quality: h.quality,
+        provider: h.usedProvider,
+        model: h.usedModel,
+        tokensUsed: { input: 0, output: 0, total: h.tokensUsed },
+        cost: h.cost,
         generationTime: 0,
-        reasoning: `复用历史记录: ${history.id}`
+        reasoning: `复用历史记录: ${h.id}`
       };
       
       setGenerationResult(result);

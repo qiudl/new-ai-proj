@@ -6,31 +6,32 @@ declare module 'antd/lib/locale/zh_CN' {
 }
 
 // Relax some AntD prop typings used across the codebase for rapid migration
+// Note: for TagProps, AntD uses a type alias in v5 so module augmentation won't merge.
+// Prefer to remove invalid props in code. We still keep a permissive declaration here for DX.
 declare module 'antd/es/tag' {
   export interface TagProps {
-    // Allow a non-standard size prop used in various components
-    size?: string;
+    size?: string; // non-standard, tolerated for migration only
   }
 }
 
 declare module 'antd/es/badge' {
   export interface BadgeProps {
-    // Allow computed or custom statuses
-    status?: any;
+    status?: any; // allow computed preset status strings
   }
 }
 
 declare module 'antd/es/card' {
   export interface CardProps {
-    // Accept string union mapping to AntD CardSize
     size?: 'small' | 'middle' | 'large' | undefined;
     variant?: any;
   }
 }
 
 declare module 'antd/es/table' {
-  // Allow passing "unknown" or custom-shaped columns during migration
+  // Provide ColumnsType and relax columns typing to ease migration
+  export type ColumnsType<T = any> = any;
   export interface TableProps<T = any> {
     columns?: any;
+    rowSelection?: any;
   }
 }

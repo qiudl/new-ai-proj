@@ -126,7 +126,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
   }, [subTasks.length]);
 
   // 更新行数据
-  const updateRow = useCallback((key: string, field: keyof SubTaskRow, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const updateRow = useCallback((key: string, field: keyof SubTaskRow, value: any) => {
     setSubTasks(prev => prev.map(row => 
       row.key === key ? { ...row, [field]: value } : row
     ));
@@ -345,8 +345,8 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
             current: i + 1
           }));
           
-        } catch (error: Error | unknown) {
-          const errorMessage = error.response?.data?.error?.message || error.message || '未知错误';
+        } catch (error: any) {
+          const errorMessage = error?.response?.data?.error?.message || error?.message || '未知错误';
           results.push({ 
             success: false, 
             index, 
@@ -403,7 +403,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
         setShowErrorDetails(true);
       }
 
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('批量创建子任务失败:', error);
       
       setCreateProgress(prev => ({
@@ -413,7 +413,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       
       notification.error({
         message: '系统错误',
-        description: error.message || '创建过程中发生未知错误，请重试',
+        description: error?.message || '创建过程中发生未知错误，请重试',
         duration: 5,
       });
       

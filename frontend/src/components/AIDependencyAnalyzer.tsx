@@ -116,10 +116,10 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
   };
 
   // 获取置信度颜色
-  const getConfidenceColor = (confidence: number): string => {
+  const getConfidenceColor = (confidence: number): 'success' | 'normal' | 'exception' => {
     if (confidence >= 0.8) return 'success';
-    if (confidence >= 0.6) return 'warning';
-    return 'error';
+    if (confidence >= 0.6) return 'normal';
+    return 'exception';
   };
 
   // 获取建议类型图标

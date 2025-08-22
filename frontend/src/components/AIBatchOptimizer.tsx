@@ -144,8 +144,8 @@ const AIBatchOptimizer: React.FC = () => {
     ));
   };
 
-  // 执行批量优化
-  const handleBatchOptimization = async (values: unknown) => {
+// 执行批量优化
+  const handleBatchOptimization = async (values: any) => {
     if (taskGroups.length === 0) {
       message.warning('请先添加任务组');
       return;
@@ -181,8 +181,8 @@ const AIBatchOptimizer: React.FC = () => {
       } else {
         message.error('批量优化失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('批量优化失败: ' + (error.message || '未知错误'));
+  } catch (error: any) {
+      message.error('批量优化失败: ' + (error?.message || '未知错误'));
       console.error('Batch optimization failed:', error);
     } finally {
       setOptimizing(false);

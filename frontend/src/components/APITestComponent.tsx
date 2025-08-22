@@ -164,7 +164,7 @@ const APITestComponent: React.FC = () => {
             <div>
               <Text strong>成功加载 {testResults.projects.data.length} 个项目:</Text>
               <ul>
-                {testResults.projects.data.map((project: unknown) => (
+                {testResults.projects.data.map((project: any) => (
                   <li key={project.id}>
                     <Text>{project.name}</Text>
                     {project.description && (
@@ -196,7 +196,7 @@ const APITestComponent: React.FC = () => {
             <div>
               <Text strong>成功加载 {testResults.customers.data.length} 个客户:</Text>
               <ul>
-                {testResults.customers.data.map((customer: unknown) => (
+                {testResults.customers.data.map((customer: any) => (
                   <li key={customer.id}>
                     <Text>{customer.name}</Text>
                     {customer.description && (

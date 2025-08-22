@@ -31,7 +31,7 @@ const { Search } = Input;
 const { Option } = Select;
 const { Title } = Typography;
 
-export interface Document {
+export interface DocItem {
   id: number;
   title: string;
   file_name: string;
@@ -63,10 +63,10 @@ export interface Document {
 export interface DocumentListProps {
   projectId: number;
   taskId: number;
-  onEdit?: (document: Document) => void;
-  onView?: (document: Document) => void;
+  onEdit?: (document: DocItem) => void;
+  onView?: (document: DocItem) => void;
   onDelete?: (documentId: number) => void;
-  onDownload?: (document: Document) => void;
+  onDownload?: (document: DocItem) => void;
   className?: string;
 }
 
@@ -79,7 +79,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   onDownload,
   className
 }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -209,7 +209,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   // 下载文档
-  const handleDownload = async (document: Document) => {
+  const handleDownload = async (document: DocItem) => {
     try {
       const response = await fetch(
         `/api/v1/projects/${projectId}/tasks/${taskId}/documents/${document.id}/download`,
@@ -227,12 +227,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
       // 创建下载链接
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = window.document.createElement('a');
       link.href = url;
       link.download = document.file_name;
-      document.body.appendChild(link);
+      window.document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      window.document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       message.success('文档下载成功');
@@ -243,13 +243,13 @@ const DocumentList: React.FC<DocumentListProps> = ({
   };
 
   // 表格列定义
-  const columns: ColumnsType<Document> = [
+  const columns: ColumnsType<DocItem> = [
     {
       title: '文档',
       dataIndex: 'title',
       key: 'title',
       width: 300,
-      render: (title: string, record: Document) => (
+      render: (title: string, record: DocItem) => (
         <Space direction="vertical" size={2}>
           <Space>
             <span style={{ fontSize: '16px' }}>{getFileTypeIcon(record.file_type)}</span>
@@ -296,7 +296,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       title: '文件信息',
       key: 'fileInfo',
       width: 150,
-      render: (_, record: Document) => (
+      render: (_, record: DocItem) => (
         <Space direction="vertical" size={2}>
           <span style={{ fontSize: '13px' }}>{record.file_name}</span>
           <span style={{ fontSize: '12px', color: '#999' }}>
@@ -336,7 +336,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       key: 'action',
       width: 150,
       fixed: 'right',
-      render: (_, record: Document) => (
+      render: (_, record: DocItem) => (
         <Space size="small">
           <Tooltip title="查看">
             <Button 

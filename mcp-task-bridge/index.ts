@@ -106,16 +106,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'find_task',
-        description: '根据名称搜索任务',
+        description: '根据名称或ID搜索任务',
         inputSchema: {
           type: 'object',
           properties: {
             titlePattern: { 
               type: 'string', 
-              description: '任务标题搜索关键词' 
+              description: '任务标题搜索关键词（可选）' 
+            },
+            id: {
+              type: 'number',
+              description: '任务ID（可选，优先使用）'
             }
-          },
-          required: ['titlePattern']
+          }
         }
       },
       {
@@ -612,7 +615,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       case 'find_task':
-        result = await taskServer.findTaskByName(args.titlePattern as string);
+        result = await taskServer.findTask({ id: args.id as number, titlePattern: args.titlePattern as string });
         break;
       
       case 'delete_task':

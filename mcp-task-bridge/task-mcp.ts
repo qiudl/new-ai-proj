@@ -529,6 +529,101 @@ export class TaskMCPServer {
     }
   }
 
+  // 按ID或标题搜索任务（新增）
+  async findTask(params: { id?: number; titlePattern?: string }): Promise<ApiResponse<{ tasks: Task[] }>> {
+    try {
+      const { id, titlePattern } = params || {};
+
+      if (typeof id === 'number' && !isNaN(id)) {
+        try {
+          const task: any = await this.findTaskById(id);
+          const mapped = {
+            id: task.id,
+            title: task.title,
+            status: task.status,
+            created_at: task.created_at,
+            project_id: task.project_id,
+            parent_id: task.parent_id,
+            custom_fields: task.custom_fields
+          } as any;
+          return {
+            success: true,
+            total: 1,
+            tasks: [mapped],
+            message: `🔍 通过ID找到 1 个任务`
+          };
+        } catch (e: any) {
+          return {
+            success: true,
+            total: 0,
+            tasks: [],
+            message: `未找到任务 ID ${id}`
+          };
+        }
+      }
+
+      if (!titlePattern || titlePattern.trim().length === 0) {
+        return {
+          success: true,
+          total: 0,
+          tasks: [],
+          message: '未提供搜索条件'
+        };
+      }
+
+      // 跨项目搜索标题匹配
+      const projectsResp = await axios.get(`${this.apiBase}/projects`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+      const projects = projectsResp.data?.data?.data || projectsResp.data?.data || [];
+
+      const matches: any[] = [];
+      const pattern = titlePattern.toLowerCase();
+
+      for (const project of projects) {
+        try {
+          const resp = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+            headers: this.getHeaders(),
+            proxy: false
+          });
+          const tasks = resp.data?.data?.data || resp.data?.data || [];
+          for (const t of tasks) {
+            const title = (t.title || '').toLowerCase();
+            if (title.includes(pattern)) {
+              matches.push(t);
+            }
+          }
+        } catch (err) {
+          // 忽略单个项目失败
+          continue;
+        }
+      }
+
+      const mapped = matches.map((task: any) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        created_at: task.created_at,
+        project_id: task.project_id,
+        parent_id: task.parent_id,
+        custom_fields: task.custom_fields
+      }));
+
+      return {
+        success: true,
+        total: mapped.length,
+        tasks: mapped as any,
+        message: `🔍 找到 ${mapped.length} 个匹配"${titlePattern}"的任务`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `搜索任务失败: ${error.message}`
+      };
+    }
+  }
+
   // 删除任务
   async deleteTask(id: number, force: boolean = false): Promise<ApiResponse> {
     try {
