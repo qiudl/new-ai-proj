@@ -99,10 +99,11 @@ type PersonalTimerTodayStats struct {
 }
 
 // PersonalTimerSession represents a personal timer session
-type PersonalTimerSession struct {
+ type PersonalTimerSession struct {
 	ID                int        `json:"id"`
 	TaskType          string     `json:"task_type"` // "project" | "personal"
 	TaskID            *int       `json:"task_id,omitempty"`
+	ProjectID         *int       `json:"project_id,omitempty"`
 	TaskTitle         string     `json:"task_title"`
 	TaskColor         string     `json:"task_color"`
 	TaskCategory      string     `json:"task_category"`
@@ -112,7 +113,7 @@ type PersonalTimerSession struct {
 	FormattedTime     string     `json:"formatted_time"`
 	Date              string     `json:"date"`
 	WeekDay           string     `json:"week_day"`
-}
+ }
 
 // PersonalTimerSummary represents personal timer summary statistics
 type PersonalTimerSummary struct {

@@ -440,7 +440,7 @@ type UserTimerRepository interface {
 	GetDashboardData(ctx context.Context, userID int) (*models.PersonalTimerDashboard, error)
 	GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error)
 	GetTodayStats(ctx context.Context, userID int) (*models.PersonalTimerTodayStats, error)
-	GetAnalytics(ctx context.Context, userID int, dateRange string) (*models.PersonalTimerAnalytics, error)
+	GetAnalytics(ctx context.Context, userID int, dateRange string, tz string) (*models.PersonalTimerAnalytics, error)
 	
 	// Task validation
 	CheckUserOwnership(ctx context.Context, taskID, userID int) (bool, error)

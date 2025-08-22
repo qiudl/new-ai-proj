@@ -467,27 +467,29 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error) {
 	query := `
 		SELECT 
-			id,
-			target_type,
-			target_id,
-			target_title,
-			COALESCE(target_metadata->>'color', '#1890ff') as task_color,
-			COALESCE(category, 'general') as task_category,
-			start_time,
-			end_time,
-			COALESCE(duration_seconds, 0) as duration_seconds,
+			utl.id,
+			utl.target_type,
+			utl.target_id,
+			COALESCE(utl.project_id, t.project_id) AS project_id,
+			utl.target_title,
+			COALESCE(utl.target_metadata->>'color', '#1890ff') as task_color,
+			COALESCE(utl.category, 'general') as task_category,
+			utl.start_time,
+			utl.end_time,
+			COALESCE(utl.duration_seconds, 0) as duration_seconds,
 			CASE 
-				WHEN duration_seconds IS NOT NULL THEN 
-					LPAD((duration_seconds / 3600)::text, 2, '0') || ':' ||
-					LPAD(((duration_seconds % 3600) / 60)::text, 2, '0') || ':' ||
-					LPAD((duration_seconds % 60)::text, 2, '0')
+				WHEN utl.duration_seconds IS NOT NULL THEN 
+					LPAD((utl.duration_seconds / 3600)::text, 2, '0') || ':' ||
+					LPAD(((utl.duration_seconds % 3600) / 60)::text, 2, '0') || ':' ||
+					LPAD((utl.duration_seconds % 60)::text, 2, '0')
 				ELSE '00:00:00'
 			END as formatted_time,
-			start_time::date as date,
-			TO_CHAR(start_time, 'FMDay') as week_day
-		FROM unified_timer_logs
-		WHERE user_id = $1 AND end_time IS NOT NULL
-		ORDER BY start_time DESC
+			utl.start_time::date as date,
+			TO_CHAR(utl.start_time, 'FMDay') as week_day
+		FROM unified_timer_logs utl
+		LEFT JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
+		WHERE utl.user_id = $1 AND utl.end_time IS NOT NULL
+		ORDER BY utl.start_time DESC
 		LIMIT $2 OFFSET $3`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
@@ -501,12 +503,14 @@ func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, user
 		var session models.PersonalTimerSession
 		var endTime sql.NullTime
 		var targetID sql.NullInt64
+		var projectID sql.NullInt64
 		var dateStr string
 		
 		err := rows.Scan(
 			&session.ID,
 			&session.TaskType,
 			&targetID,
+			&projectID,
 			&session.TaskTitle,
 			&session.TaskColor,
 			&session.TaskCategory,
@@ -521,15 +525,19 @@ func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, user
 			return nil, fmt.Errorf("failed to scan timer session: %w", err)
 		}
 
-		// Handle nullable fields
-		if targetID.Valid {
-			taskID := int(targetID.Int64)
-			session.TaskID = &taskID
-		}
-		if endTime.Valid {
-			session.EndTime = &endTime.Time
-		}
-		session.Date = dateStr
+	// Handle nullable fields
+	if targetID.Valid {
+		taskID := int(targetID.Int64)
+		session.TaskID = &taskID
+	}
+	if projectID.Valid {
+		pid := int(projectID.Int64)
+		session.ProjectID = &pid
+	}
+	if endTime.Valid {
+		session.EndTime = &endTime.Time
+	}
+	session.Date = dateStr
 
 		sessions = append(sessions, session)
 	}
@@ -555,8 +563,8 @@ func (r *PostgresUserTimerRepository) GetTodayStats(ctx context.Context, userID 
 	return stats, nil
 }
 
-func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID int, dateRange string) (*models.PersonalTimerAnalytics, error) {
-	// Determine date range
+func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID int, dateRange string, tz string) (*models.PersonalTimerAnalytics, error) {
+	// Determine date range in UTC for consistent bounds; convert in SQL per tz
 	now := time.Now().UTC()
 	var days int
 	switch dateRange {
@@ -680,15 +688,23 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 		analytics.CategoryBreakdown = breakdown
 	}
 
-	// 3) Daily trend (split overlap per day)
+	// 3) Daily trend (split overlap per day in requested timezone)
 	{
 		query := `
-			WITH days AS (
-			  SELECT generate_series(date_trunc('day', $2::timestamptz), date_trunc('day', $3::timestamptz) - interval '1 day', interval '1 day') AS d
+			WITH bounds AS (
+			  SELECT timezone($4, $2::timestamptz) AS tz_start,
+			         timezone($4, $3::timestamptz) AS tz_end
+			), days AS (
+			  SELECT generate_series(
+			           date_trunc('day', (SELECT tz_start FROM bounds)),
+			           date_trunc('day', (SELECT tz_end FROM bounds)) - interval '1 day',
+			           interval '1 day'
+			         ) AS d
 			)
 			SELECT d.d::date AS day,
 			       COALESCE(SUM(EXTRACT(EPOCH FROM (
-			         LEAST(utl.end_time, d.d + interval '1 day') - GREATEST(utl.start_time, d.d)
+			         LEAST(timezone($4, utl.end_time), d.d + interval '1 day') -
+			         GREATEST(timezone($4, utl.start_time), d.d)
 			       ))), 0)::int AS total_seconds,
 			       COUNT(utl.id) AS sessions_count,
 			       COUNT(DISTINCT COALESCE(utl.target_id, 0)) AS tasks_count
@@ -697,10 +713,11 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 			  ON utl.user_id = $1
 			 AND utl.end_time IS NOT NULL
 			 AND utl.duration_seconds IS NOT NULL
-			 AND utl.start_time < d.d + interval '1 day' AND utl.end_time > d.d
+			 AND timezone($4, utl.start_time) < d.d + interval '1 day'
+			 AND timezone($4, utl.end_time)   > d.d
 			GROUP BY d.d
 			ORDER BY d.d`
-		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end, tz)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query daily trend: %w", err)
 		}
@@ -731,17 +748,21 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 		analytics.WeeklyTrend = trends
 	}
 
-	// 4) Hourly distribution across the selected range (UTC hours)
+	// 4) Hourly distribution across the selected range in requested timezone
 	{
 		query := `
-			WITH hours AS (
+			WITH bounds AS (
+			  SELECT timezone($4, $2::timestamptz) AS tz_start,
+			         timezone($4, $3::timestamptz) AS tz_end
+			), hours AS (
 			  SELECT generate_series(0,23) AS h
 			)
 			SELECT h.h as hour,
 			       COALESCE(SUM(EXTRACT(EPOCH FROM (
-			         LEAST(utl.end_time, $3) - GREATEST(utl.start_time, $2)
-			       )) FILTER (WHERE EXTRACT(HOUR FROM utl.start_time AT TIME ZONE 'UTC') = h.h), 0))::int AS total_seconds,
-			       COUNT(utl.id) FILTER (WHERE EXTRACT(HOUR FROM utl.start_time AT TIME ZONE 'UTC') = h.h) AS session_count
+			         LEAST(timezone($4, utl.end_time), (SELECT tz_end FROM bounds)) -
+			         GREATEST(timezone($4, utl.start_time), (SELECT tz_start FROM bounds))
+			       )) FILTER (WHERE EXTRACT(HOUR FROM timezone($4, utl.start_time)) = h.h), 0))::int AS total_seconds,
+			       COUNT(utl.id) FILTER (WHERE EXTRACT(HOUR FROM timezone($4, utl.start_time)) = h.h) AS session_count
 			FROM hours h
 			LEFT JOIN unified_timer_logs utl
 			  ON utl.user_id = $1
@@ -750,7 +771,7 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 			 AND utl.start_time < $3 AND utl.end_time > $2
 			GROUP BY h.h
 			ORDER BY h.h`
-		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end, tz)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query hourly distribution: %w", err)
 		}
@@ -783,7 +804,14 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 			       COALESCE(SUM(EXTRACT(EPOCH FROM (
 			         LEAST(end_time, $3) - GREATEST(start_time, $2)
 			       ))),0)::int as total_seconds,
-			       COALESCE(SUM(COALESCE((target_metadata->>'target_minutes')::int, 0)),0) * 60 AS target_seconds
+			       COALESCE(SUM(
+			         CASE 
+			           WHEN target_metadata ? 'target_minutes' 
+			             AND (target_metadata->>'target_minutes') ~ '^[0-9]+$' 
+			           THEN ((target_metadata->>'target_minutes')::int)
+			           ELSE 0
+			         END
+			       ),0) * 60 AS target_seconds
 			FROM unified_timer_logs
 			WHERE user_id = $1
 			  AND end_time IS NOT NULL

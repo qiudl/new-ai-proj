@@ -545,8 +545,10 @@ func (h *UserTimerHandler) GetUserTimerAnalytics(c *gin.Context) {
 	// Parse date range parameter
 	dateRange := c.DefaultQuery("range", "30days")
 
+	// Timezone parameter (IANA name), default to UTC if missing/invalid
+	tz := c.DefaultQuery("tz", "UTC")
 	// Get analytics data
-	analytics, err := h.db.UserTimer().GetAnalytics(ctx, uid, dateRange)
+	analytics, err := h.db.UserTimer().GetAnalytics(ctx, uid, dateRange, tz)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to get analytics data",

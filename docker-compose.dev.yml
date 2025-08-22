@@ -97,8 +97,8 @@ services:
       - backend
     environment:
       # React开发配置
-      REACT_APP_API_URL: http://localhost:8081/api/v1
-      REACT_APP_API_BASE_URL: http://localhost:8081/api/v1
+      REACT_APP_API_URL: /api/v1
+      REACT_APP_API_BASE_URL: /api/v1
       REACT_APP_ENV: development
       REACT_APP_ENVIRONMENT: development
       REACT_APP_LOCAL_DEV: true

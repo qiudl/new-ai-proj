@@ -77,6 +77,7 @@ export interface PersonalTimerSession {
   id: number;
   task_type: string;
   task_id?: number;
+  project_id?: number;
   task_title: string;
   task_color: string;
   task_category: string;
@@ -293,8 +294,9 @@ export const personalTimerService = {
   },
 
   // 获取分析报告
-  async getAnalytics(params?: { range?: string }): Promise<any> {
-    const response = await api.get('/user/timer/analytics', { params }) as unknown;
+  async getAnalytics(params?: { range?: string; tz?: string }): Promise<any> {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const response = await api.get('/user/timer/analytics', { params: { tz, ...(params || {}) } }) as unknown;
     return response;
   },
 

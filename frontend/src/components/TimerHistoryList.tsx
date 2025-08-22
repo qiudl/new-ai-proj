@@ -3,6 +3,7 @@ import { Card, List, Typography, Tag, Space, Button, DatePicker, Select, Row, Co
 import { ClockCircleOutlined, CalendarOutlined, FilterOutlined, DownloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { personalTimerService } from '../services/personalTimerService';
+import { Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -12,6 +13,7 @@ interface TimerSession {
   id: number;
   task_type: string;
   task_id?: number;
+  project_id?: number;
   task_title: string;
   task_color: string;
   task_category: string;
@@ -305,9 +307,15 @@ const TimerHistoryList: React.FC<TimerHistoryListProps> = ({ userId }) => {
                       }}
                     />
                   }
-                  title={
+title={
                     <Space>
-                      <Text strong>{session.task_title}</Text>
+                      {session.project_id && session.task_id ? (
+                        <Link to={`/projects/${session.project_id}/tasks/${session.task_id}`}>
+                          <Text strong>{session.task_title}</Text>
+                        </Link>
+                      ) : (
+                        <Text strong>{session.task_title}</Text>
+                      )}
                       <Tag color={session.task_type === 'personal' ? 'blue' : 'green'}>
                         {session.task_type === 'personal' ? '个人任务' : '项目任务'}
                       </Tag>
@@ -330,8 +338,8 @@ const TimerHistoryList: React.FC<TimerHistoryListProps> = ({ userId }) => {
                         </Text>
                       </Space>
                       <div>
-                        <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
-                          {session.formatted_time}
+<Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
+                          {formatDuration(session.duration_seconds)}
                         </Text>
                       </div>
                     </Space>

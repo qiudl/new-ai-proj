@@ -9,7 +9,6 @@ import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboard
 import '../styles/personal-timer.css';
 
 const { Title, Text } = Typography;
-const { TabPane } = Tabs;
 
 const TimerAnalyticsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -150,37 +149,37 @@ const TimerAnalyticsPage: React.FC = () => {
       {/* 主要内容区域 */}
       <Card>
         <Tabs 
-          activeKey={activeTab} 
+          items={[
+            {
+              key: 'analytics',
+              label: (
+                <Space>
+                  <BarChartOutlined />
+                  <span>数据分析</span>
+                </Space>
+              ),
+              children: (
+                <TimerAnalyticsCharts
+                  timeRange={timeRange}
+                  onTimeRangeChange={setTimeRange}
+                />
+              ),
+            },
+            {
+              key: 'history',
+              label: (
+                <Space>
+                  <HistoryOutlined />
+                  <span>历史记录</span>
+                </Space>
+              ),
+              children: <TimerHistoryList />,
+            },
+          ]}
+          activeKey={activeTab}
           onChange={setActiveTab}
           size="large"
-        >
-          <TabPane
-            tab={
-              <Space>
-                <BarChartOutlined />
-                <span>数据分析</span>
-              </Space>
-            }
-            key="analytics"
-          >
-            <TimerAnalyticsCharts
-              timeRange={timeRange}
-              onTimeRangeChange={setTimeRange}
-            />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <Space>
-                <HistoryOutlined />
-                <span>历史记录</span>
-              </Space>
-            }
-            key="history"
-          >
-            <TimerHistoryList />
-          </TabPane>
-        </Tabs>
+        />
       </Card>
 
       {/* 快速洞察卡片 */}

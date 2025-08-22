@@ -76,10 +76,13 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
           };
         });
 
-        const hourlyDistribution = (data?.hourly_distribution || []).map((h: any) => ({
-          hour: h.hour,
-          value: h.total_seconds || 0,
-        }));
+        // 现在后端已按 tz 聚合，前端不再进行UTC->本地转换
+        const hourlyDistribution = (data?.hourly_distribution || [])
+          .map((h: any) => ({
+            hour: Number(h.hour),
+            value: h.total_seconds || 0,
+          }))
+          .sort((a: any, b: any) => a.hour - b.hour);
 
         const taskEfficiency = (data?.task_efficiency || []).map((t: any) => ({
           taskName: t.task_name,
@@ -250,6 +253,9 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
       return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无数据</div>;
     }
     const maxValue = Math.max(...data.map(item => item.value));
+    if (maxValue <= 0) {
+      return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无数据</div>;
+    }
     const chartHeight = 120;
     const chartWidth = 300;
     
