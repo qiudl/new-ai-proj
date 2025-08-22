@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, List, Typography, Spin, Empty, Button, Space, message } from 'antd';
+import { Card, List, Typography, Spin, Empty, Button, Space, message, Tooltip } from 'antd';
 import { ClockCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import TimerService from '../services/timerService';
 import dayjs from 'dayjs';
@@ -132,9 +132,16 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
                       <Text style={{ color: '#52c41a', fontWeight: 600 }}>
                         {formatDuration(task.total_seconds)}
                       </Text>
-                      <Text type="secondary" style={{ fontSize: '11px' }}>
-                        {task.last_timed_at ? dayjs(task.last_timed_at).fromNow() : '未知时间'}
-                      </Text>
+                      <Tooltip title={task.last_timed_at ? dayjs(task.last_timed_at).format('YYYY-MM-DD HH:mm:ss') : ''}>
+                        <Text type="secondary" style={{ fontSize: '11px' }}>
+                          {task.last_timed_at ? dayjs(task.last_timed_at).fromNow() : '未知时间'}
+                        </Text>
+                      </Tooltip>
+                      {task.last_timed_at && (
+                        <Text type="secondary" style={{ fontSize: '10px' }}>
+                          {dayjs(task.last_timed_at).format('YYYY-MM-DD HH:mm:ss')}
+                        </Text>
+                      )}
                     </Space>
                   </div>
                 </List.Item>

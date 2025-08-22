@@ -73,7 +73,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
     setLoadingTaskInfo(true);
     try {
       // 🎯 新版：如果已经有taskType和projectId，直接使用，无需扫描
-      if (timerState.taskType === 'project_task' && timerState.projectId) {
+      if ((timerState.taskType === 'project_task' || timerState.taskType === 'project') && timerState.projectId) {
         setTaskDetailInfo({
           id: taskId,
           project_id: timerState.projectId,
@@ -83,7 +83,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       }
       
       // 🎯 个人任务直接处理
-      if (timerState.taskType === 'personal_task') {
+      if (timerState.taskType === 'personal_task' || timerState.taskType === 'personal') {
         setTaskDetailInfo({
           id: taskId,
           project_id: -1, // 特殊值表示个人任务
@@ -93,7 +93,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       }
       
       // 🎯 项目任务但缺少projectId的情况 - 暂时设置基本信息，避免扫描
-      if (timerState.taskType === 'project_task') {
+      if (timerState.taskType === 'project_task' || timerState.taskType === 'project') {
         console.warn('Timer state has taskType=project_task but missing projectId, using fallback...');
         setTaskDetailInfo({
           id: taskId,

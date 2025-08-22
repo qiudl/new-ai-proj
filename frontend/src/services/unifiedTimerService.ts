@@ -39,7 +39,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response as any,
         message: '计时器启动成功'
       };
     } catch (error: any) {
@@ -57,7 +57,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response as any,
         message: '计时器已暂停'
       };
     } catch (error: any) {
@@ -75,7 +75,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response as any,
         message: '计时器已恢复'
       };
     } catch (error: any) {
@@ -93,7 +93,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response as any,
         message: '计时器已停止'
       };
     } catch (error: any) {
@@ -111,7 +111,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: (response as any) ?? null,
         message: '获取当前计时器状态成功'
       };
     } catch (error: any) {
@@ -135,10 +135,13 @@ export class UnifiedTimerService {
   async getActiveTimers(): Promise<ApiResponse<{ timers: TimerStatus[]; total: number }>> {
     try {
       const response = await api.get(`${API_BASE}/active`);
-      const timers = response.data?.timers || [];
+      // 兼容拦截器返回原始body的情况
+      const raw: any = response;
+      const timers = (raw?.timers ?? raw?.data?.timers ?? []) as TimerStatus[];
+      const total = (raw?.total ?? timers.length) as number;
       return {
         success: true,
-        data: { timers, total: timers.length },
+        data: { timers, total },
         message: '获取活动计时器成功'
       };
     } catch (error: any) {
@@ -154,7 +157,7 @@ export class UnifiedTimerService {
   async pauseTimerById(timerId: number): Promise<ApiResponse<any>> {
     try {
       const response = await api.post(`${API_BASE}/${timerId}/pause`);
-      return { success: true, data: response.data, message: '计时器已暂停' };
+      return { success: true, data: response as any, message: '计时器已暂停' };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || error.message || '暂停计时器失败' };
     }
@@ -163,7 +166,7 @@ export class UnifiedTimerService {
   async resumeTimerById(timerId: number): Promise<ApiResponse<any>> {
     try {
       const response = await api.post(`${API_BASE}/${timerId}/resume`);
-      return { success: true, data: response.data, message: '计时器已恢复' };
+      return { success: true, data: response as any, message: '计时器已恢复' };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || error.message || '恢复计时器失败' };
     }
@@ -172,7 +175,7 @@ export class UnifiedTimerService {
   async stopTimerById(timerId: number): Promise<ApiResponse<any>> {
     try {
       const response = await api.post(`${API_BASE}/${timerId}/stop`);
-      return { success: true, data: response.data, message: '计时器已停止' };
+      return { success: true, data: response as any, message: '计时器已停止' };
     } catch (error: any) {
       return { success: false, error: error.response?.data?.error || error.message || '停止计时器失败' };
     }
@@ -184,7 +187,7 @@ export class UnifiedTimerService {
 
       return {
         success: true,
-        data: response.data,
+        data: response as any,
         message: '健康检查成功'
       };
     } catch (error: any) {

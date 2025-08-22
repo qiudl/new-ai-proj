@@ -71,31 +71,10 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
   const [visible, setVisible] = useState(false);
   const [localColumns, setLocalColumns] = useState<ColumnConfig[]>(columns);
 
-  // 从localStorage加载配置
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const savedColumns = JSON.parse(saved);
-        // 合并保存的配置和默认配置，确保新增的列能显示
-        const mergedColumns = columns.map(col => {
-          const savedCol = savedColumns.find((s: ColumnConfig) => s.key === col.key);
-          return savedCol ? { 
-            ...col, 
-            visible: savedCol.visible,
-            width: savedCol.width !== undefined ? savedCol.width : col.width
-          } : col;
-        });
-        setLocalColumns(mergedColumns);
-        onChange(mergedColumns);
-      } catch (error) {
-        console.warn('Failed to load column configuration:', error);
-      }
-    } else {
-      // 如果没有保存的配置，使用默认配置
-      setLocalColumns(columns);
-    }
-  }, [columns, storageKey]); // 移除onChange依赖
+// 与父级状态保持同步：由父组件负责从 localStorage 读取配置
+useEffect(() => {
+  setLocalColumns(columns);
+}, [columns]);
 
   // 保存配置到localStorage
   const saveConfiguration = useCallback((newColumns: ColumnConfig[]) => {

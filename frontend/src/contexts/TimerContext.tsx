@@ -174,7 +174,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
           task_title: null,
           start_time: null,
           elapsed_seconds: 0,
-          formatted_time: '00:00'
+          formatted_time: '00:00:00'
         };
         updateTimerFromResponse(emptyResponse);
         setConnectionStatus('connected');
@@ -445,11 +445,12 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
 
   // 🎯 新增：判断指定任务是否正在计时
   const isTaskTiming = useCallback((taskId: number, taskType: string): boolean => {
+    const normalize = (t?: string) => (t ? t.replace('_task', '') : t);
     return (
       timerState.isRunning && 
       !timerState.isPaused &&
       timerState.taskId === taskId &&
-      timerState.taskType === taskType
+      normalize(timerState.taskType) === normalize(taskType)
     );
   }, [timerState.isRunning, timerState.isPaused, timerState.taskId, timerState.taskType]);
 
@@ -485,9 +486,11 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
                 isPaused: parsedState.isPaused || false,
                 taskId: parsedState.taskId,
                 taskTitle: parsedState.taskTitle,
+                taskType: parsedState.taskType, // include taskType to avoid fallback scanning
+                projectId: parsedState.projectId, // include projectId when available
                 startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined,
                 elapsedSeconds,
-                formattedTime
+                formattedTime,
               };
               
               setTimerState(restoredState);

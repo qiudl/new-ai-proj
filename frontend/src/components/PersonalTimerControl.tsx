@@ -91,14 +91,24 @@ const PersonalTimerControl: React.FC<PersonalTimerControlProps> = ({
       return;
     }
 
+    // 从可用任务中获取标题等信息
+    const selectedTask = availableTasks.find(t => t.id === selectedTaskId);
+    if (!selectedTask) {
+      message.error('未找到所选任务，请刷新后重试');
+      return;
+    }
+
     try {
       setLoading(true);
       await personalTimerService.startPersonalTimer({
         task_type: 'personal',
         task_id: selectedTaskId,
-        auto_stop_others: true
+        title: selectedTask.title,
+        context: 'personal_timer',
+        auto_stop_others: true,
+        category: selectedTask.category
       });
-      message.success('计时已开始');
+      message.success(`计时已开始：${selectedTask.title}`);
       onRefresh?.();
     } catch (error) {
       message.error('启动计时失败');

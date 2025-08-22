@@ -46,6 +46,8 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	taskIDParam := c.Query("task_id")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
+	onlyRootsParam := c.DefaultQuery("only_roots", "false")
+	onlyRoots := onlyRootsParam == "true" || onlyRootsParam == "1"
 
 	var assigneePtr *int
 	if assigneeID != "" {
@@ -70,6 +72,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 		Assignee:  assigneePtr,
 		ProjectID: &projectID,
 		TaskID:    taskIDPtr,
+		OnlyRoots: onlyRoots,
 		SortBy:    sortBy,
 		SortOrder: sortOrder,
 	}
@@ -115,6 +118,8 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
+	onlyRootsParam := c.DefaultQuery("only_roots", "false")
+	onlyRoots := onlyRootsParam == "true" || onlyRootsParam == "1"
 
 	var assigneePtr *int
 	if assigneeID != "" {
@@ -148,6 +153,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		Assignee: assigneePtr, 
 		ProjectID: projectPtr, 
 		TaskID: taskIDPtr,
+		OnlyRoots: onlyRoots,
 		SortBy: sortBy, 
 		SortOrder: sortOrder,
 	}
@@ -427,10 +433,10 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	var req struct {
-		Title              string                 `json:"title" binding:"required,min=1,max=255"`
-		Description        string                 `json:"description"`
-		Status             string                 `json:"status"`
-		Priority           string                 `json:"priority"`
+		Title              *string                `json:"title"`
+		Description        *string                `json:"description"`
+		Status             *string                `json:"status"`
+		Priority           *string                `json:"priority"`
 		AssigneeID         *int                   `json:"assignee_id"`
 		ParentID           *int                   `json:"parent_id"`
 		DueDate            *string                `json:"due_date"`
@@ -467,13 +473,13 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	// Store original status for comparison before making changes
 	originalStatus := task.Status
 
-	// Update fields
-	task.Title = req.Title
-	task.Description = req.Description
-	task.Status = req.Status
-	task.Priority = req.Priority
-	task.AssigneeID = req.AssigneeID
-	task.ParentID = req.ParentID
+	// Update fields (apply only if provided)
+	if req.Title != nil { task.Title = *req.Title }
+	if req.Description != nil { task.Description = *req.Description }
+	if req.Status != nil { task.Status = *req.Status }
+	if req.Priority != nil { task.Priority = *req.Priority }
+	if req.AssigneeID != nil { task.AssigneeID = req.AssigneeID }
+	if req.ParentID != nil { task.ParentID = req.ParentID }
 
 	// Parse due date
 	if req.DueDate != nil && *req.DueDate != "" {

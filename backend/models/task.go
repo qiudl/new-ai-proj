@@ -247,6 +247,7 @@ type TaskListOptions struct {
 	Assignee  *int
 	ProjectID *int
 	TaskID    *int
+	OnlyRoots bool   // if true, only return root tasks (parent_id IS NULL)
 	SortBy    string // updated_at | due_date | created_at
 	SortOrder string // asc | desc
 }

@@ -13,8 +13,10 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 		timer.POST("/start", app.GetTimerHandler().StartTimer)         // Legacy project timer
 		timer.POST("/stop", app.GetTimerHandler().StopTimer)           // Legacy project timer
 		timer.GET("/weekly", app.GetUserTimerHandler().GetWeeklyReport) // Weekly report endpoint
-		// timer.GET("/status", app.GetTimerHandler().GetTimerStatus)     // Legacy project timer
-		// timer.GET("/recent-tasks", app.GetTimerHandler().GetRecentTasks) // Legacy recent tasks
+		// Re-enable legacy stats and recent tasks endpoints for backward-compatible frontend
+		timer.GET("/stats", app.GetTimerHandler().GetTimerStats)                 // Legacy stats endpoint
+		timer.GET("/recent-tasks", app.GetTimerHandler().GetTimerRecentTasks)    // Legacy recent tasks endpoint
+		// timer.GET("/status", app.GetTimerHandler().GetTimerStatus)           // Legacy project timer (not implemented)
 	}
 
 	// User Timer routes (Phase 4: Personal timers - will be deprecated in Phase 5) 
@@ -33,7 +35,7 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 
 	// Unified Timer routes (Phase 5: Current unified architecture)
 	// NOTE: These are the primary timer routes that handle both project and personal timers
-unifiedTimer := authorized.Group("/user/timer")
+	unifiedTimer := authorized.Group("/user/timer")
 	{
 		// Core timer operations
 		unifiedTimer.POST("/start", app.GetUnifiedTimerHandler().StartTimer)           // Unified start (project/personal)

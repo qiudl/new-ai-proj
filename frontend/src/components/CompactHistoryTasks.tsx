@@ -287,9 +287,11 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                           {formatDuration(task.total_seconds)}
                         </Text>
                         
-                        <Text type="secondary" className="compact-task-time">
-                          {task.last_timed_at ? dayjs(task.last_timed_at).fromNow() : ''}
-                        </Text>
+                        <Tooltip title={task.last_timed_at ? dayjs(task.last_timed_at).format('YYYY-MM-DD HH:mm:ss') : ''}>
+                          <Text type="secondary" className="compact-task-time">
+                            {task.last_timed_at ? dayjs(task.last_timed_at).fromNow() : ''}
+                          </Text>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

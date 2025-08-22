@@ -49,7 +49,7 @@ const TimerStartButton: React.FC<TimerStartButtonProps> = ({
         message.warning(`当前正在为其他任务计时，请先停止当前定时器`);
       } else {
         // Start timer for this task
-        const success = await startTimer(task.id, task.title);
+        const success = await startTimer(task.id, task.title, 'project');
         if (success) {
           message.success(`开始计时: ${task.title}`);
         }

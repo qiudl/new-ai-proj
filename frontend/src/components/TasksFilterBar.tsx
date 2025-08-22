@@ -10,13 +10,17 @@ export interface TasksFilterBarProps {
 
 const statusOptions = [
   { value: undefined, label: '全部状态' },
+  { value: 'draft', label: '草稿' },
+  { value: 'planning', label: '规划中' },
   { value: 'todo', label: '待办' },
   { value: 'in_progress', label: '进行中' },
+  { value: 'testing', label: '测试中' },
   { value: 'completed', label: '已完成' },
-  { value: 'planning', label: '规划中' },
   { value: 'on_hold', label: '搁置' },
+  { value: 'suspended', label: '暂停' },
   { value: 'blocked', label: '阻塞' },
   { value: 'cancelled', label: '已取消' },
+  { value: 'archived', label: '已归档' },
 ];
 
 const priorityOptions = [

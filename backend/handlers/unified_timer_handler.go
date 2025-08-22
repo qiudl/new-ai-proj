@@ -111,63 +111,6 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 
 	c.JSON(http.StatusOK, response)
 }
-	
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-
-	var req services.UnifiedStartTimerRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request format",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	// Set user ID in request
-	req.UserID = userID.(int)
-	
-	// Validate task ID if provided
-	if req.TaskID != nil && *req.TaskID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid task ID",
-			"details": "task_id must be a positive integer",
-		})
-		return
-	}
-
-	ctx := c.Request.Context()
-
-	response, err := h.timerService.StartTimer(ctx, &req)
-	if err != nil {
-		// Handle specific error types
-		if err.Error() == "no timer is currently running" {
-			c.JSON(http.StatusConflict, gin.H{
-				"error":   "Timer conflict",
-				"message": err.Error(),
-			})
-			return
-		}
-		if err.Error() == "another timer is already running" {
-			c.JSON(http.StatusConflict, gin.H{
-				"error":   "Timer conflict", 
-				"message": err.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to start timer",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, response)
-}
 
 // StopTimer handles POST /api/v1/user/timer/stop
 // Unified endpoint for stopping any running timer

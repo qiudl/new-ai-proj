@@ -140,6 +140,8 @@ type PersonalTimerAnalytics struct {
 	TotalTime         PersonalTimeAnalytics       `json:"total_time"`
 	CategoryBreakdown []PersonalCategoryAnalytics `json:"category_breakdown"`
 	WeeklyTrend       []PersonalWeeklyTrend       `json:"weekly_trend"`
+	HourlyDistribution []PersonalHourlyDistribution `json:"hourly_distribution"`
+	TaskEfficiency    []PersonalTaskEfficiency    `json:"task_efficiency"`
 	ProductivityScore PersonalProductivityScore   `json:"productivity_score"`
 	Recommendations   []string                    `json:"recommendations"`
 }
@@ -165,7 +167,7 @@ type PersonalCategoryAnalytics struct {
 }
 
 // PersonalWeeklyTrend represents weekly trend data
-type PersonalWeeklyTrend struct {
+ type PersonalWeeklyTrend struct {
 	WeekStart         string  `json:"week_start"`
 	WeekEnd           string  `json:"week_end"`
 	TotalSeconds      int     `json:"total_seconds"`
@@ -173,6 +175,23 @@ type PersonalWeeklyTrend struct {
 	SessionsCount     int     `json:"sessions_count"`
 	TasksCount        int     `json:"tasks_count"`
 	ComparisonPercent float64 `json:"comparison_percent"` // 与上周比较
+}
+
+// PersonalHourlyDistribution represents per-hour distribution across the selected range
+ type PersonalHourlyDistribution struct {
+	Hour           int `json:"hour"`
+	TotalSeconds   int `json:"total_seconds"`
+	SessionCount   int `json:"session_count"`
+	AvgEfficiency  int `json:"avg_efficiency"`
+	PeakFocusScore int `json:"peak_focus_score"`
+}
+
+// PersonalTaskEfficiency represents task efficiency items for the selected range
+ type PersonalTaskEfficiency struct {
+	TaskName   string `json:"task_name"`
+	TotalTime  int    `json:"total_time"`
+	TargetTime int    `json:"target_time"`
+	Efficiency int    `json:"efficiency"`
 }
 
 // PersonalProductivityScore represents productivity scoring

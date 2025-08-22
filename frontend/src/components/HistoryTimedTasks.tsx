@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, List, Typography, Spin, Empty, Button, Tag, Space, Tooltip } from 'antd';
 import { ClockCircleOutlined, ReloadOutlined, ProjectOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import TimerService from '../services/timerService';
@@ -34,27 +34,40 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
   maxHeight = '400px',
   showHeader = true
 }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [tasks, setTasks] = useState<RecentTimedTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>();
   const { startTimer } = useTimer();
 
   // 加载历史任务数据
-  const loadHistoryTasks = useCallback(async () => {
+  const loadHistoryTasks = useCallback(async (scrollTopAfter?: boolean) => {
     try {
       setLoading(true);
       const statsResponse = await TimerService.getTimerStats();
       // 获取最近的计时任务，按最后计时时间倒序
       const recentTasks = statsResponse.recent_tasks || [];
-      // 按最后计时时间倒序排列
+      // 按最后计时时间倒序排列（健壮性：缺失/无效时间放到末尾）
       const sortedTasks = recentTasks.sort((a, b) => {
-        const timeA = dayjs(a.last_timed_at);
-        const timeB = dayjs(b.last_timed_at);
-        return timeB.valueOf() - timeA.valueOf();
+        const tA = a && a.last_timed_at ? dayjs(a.last_timed_at) : null;
+        const tB = b && b.last_timed_at ? dayjs(b.last_timed_at) : null;
+        const vA = tA && tA.isValid() ? tA.valueOf() : 0;
+        const vB = tB && tB.isValid() ? tB.valueOf() : 0;
+        return vB - vA;
       });
       
       setTasks(sortedTasks);
       setLastUpdated(new Date());
+      if (scrollTopAfter && scrollRef.current) {
+        // 等待渲染后再滚动
+        requestAnimationFrame(() => {
+          try {
+            scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+          } catch {
+            if (scrollRef.current) scrollRef.current.scrollTop = 0;
+          }
+        });
+      }
     } catch (error) {
       console.error('加载历史任务失败:', error);
       setTasks([]);
@@ -65,7 +78,7 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
 
   // 组件挂载时加载数据
   useEffect(() => {
-    loadHistoryTasks();
+    loadHistoryTasks(false);
   }, [loadHistoryTasks]);
 
   // 处理任务选择/开始计时
@@ -143,7 +156,7 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
             type="text" 
             size="small"
             icon={<ReloadOutlined />}
-            onClick={loadHistoryTasks}
+            onClick={() => loadHistoryTasks(true)}
             loading={loading}
           />
         </Tooltip>
@@ -151,7 +164,9 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
     );
   };
 
-  const renderTaskItem = (task: RecentTimedTask) => (
+const renderTaskItem = (task: RecentTimedTask) => {
+    const ts = task && task.last_timed_at ? dayjs(task.last_timed_at) : null;
+    return (
     <List.Item
       key={task.task_id}
       style={{ 
@@ -218,8 +233,13 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
           </div>
           
           <div style={{ textAlign: 'right' }}>
-            <Text type="secondary" style={{ fontSize: '11px' }}>
-              {dayjs(task.last_timed_at).fromNow()}
+            <Tooltip title={(ts && ts.isValid()) ? ts.format('YYYY-MM-DD HH:mm:ss') : '-'}>
+              <Text type="secondary" style={{ fontSize: '11px' }}>
+                {(ts && ts.isValid()) ? ts.fromNow() : '-'}
+              </Text>
+            </Tooltip>
+            <Text type="secondary" style={{ fontSize: '10px', display: 'block' }}>
+              {(ts && ts.isValid()) ? ts.format('YYYY-MM-DD HH:mm:ss') : '-'}
             </Text>
             <Tooltip title="开始计时">
               <Button
@@ -241,12 +261,14 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
       </div>
     </List.Item>
   );
+};
 
   return (
     <div>
       {renderHeader()}
       
       <div 
+        ref={scrollRef}
         style={{ 
           maxHeight,
           overflowY: 'auto',

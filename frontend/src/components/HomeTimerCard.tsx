@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { 
   Card, 
   Button, 
@@ -19,10 +19,12 @@ import {
   WarningOutlined,
   PauseCircleOutlined,
   EyeOutlined,
-  ThunderboltOutlined
+  ThunderboltOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../contexts/TimerContext';
+import { useUnifiedTimer } from '../hooks/useUnifiedTimer';
 
 const { Text, Title } = Typography;
 
@@ -37,6 +39,23 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
 }) => {
   const { timerState, isLoading, stopTimer } = useTimer();
   const navigate = useNavigate();
+
+  // 引入统一计时Hook以获取所有活动计时器
+  const {
+    activeTimers,
+    refreshActiveTimers,
+    pauseTimerById,
+    resumeTimerById,
+    stopTimerById,
+    pauseAll,
+    resumeAll,
+    stopAll,
+  } = useUnifiedTimer();
+
+  // 初次加载时刷新一次活动计时器列表
+  useEffect(() => {
+    refreshActiveTimers();
+  }, [refreshActiveTimers]);
 
   // 🎯 检查是否有任务正在计时
   const isTimerRunning = timerState.isRunning;
@@ -244,9 +263,76 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
             style={{ marginTop: '8px' }}
           />
         )}
+
+        {/* 🎯 正在计时（并行）列表 */}
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text strong style={{ fontSize: 14 }}>
+              ⏱️ 正在计时（{activeTimers?.length || 0}）
+            </Text>
+            <Space size="small">
+              <Button size="small" onClick={pauseAll} disabled={!activeTimers || activeTimers.length === 0}>全部暂停</Button>
+              <Button size="small" type="primary" onClick={resumeAll} disabled={!activeTimers || activeTimers.length === 0}>全部继续</Button>
+              <Button size="small" danger onClick={stopAll} disabled={!activeTimers || activeTimers.length === 0}>全部完成</Button>
+              <Button size="small" type="text" icon={<ReloadOutlined />} onClick={refreshActiveTimers} />
+            </Space>
+          </div>
+
+          {(!activeTimers || activeTimers.length === 0) ? (
+            <Text type="secondary" style={{ fontSize: 12 }}>暂无活动计时</Text>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+              {activeTimers.map((t) => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 6, padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <Badge color={t.status === 'running' ? '#52c41a' : '#faad14'} />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#262626', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }} title={t.target_title}>
+                        {t.target_title}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                        {t.status === 'running' ? '运行中' : '已暂停'} · {formatElapsed(t.start_time, t.pause_total_seconds)}
+                      </div>
+                    </div>
+                  </div>
+                  <Space size="small">
+                    {t.status === 'running' ? (
+                      <>
+                        <Button size="small" onClick={() => pauseTimerById(t.id)} icon={<PauseCircleOutlined />}>暂停</Button>
+                        <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button size="small" type="primary" onClick={() => resumeTimerById(t.id)} icon={<PlayCircleOutlined />}>继续</Button>
+                        <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                      </>
+                    )}
+                  </Space>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </Space>
     </Card>
   );
 };
+
+// 辅助：格式化已用时间（基于start_time与暂停总时长）
+function formatElapsed(startTime?: string, pauseTotalSeconds?: number) {
+  try {
+    if (!startTime) return '00:00:00';
+    const start = new Date(startTime).getTime();
+    const now = Date.now();
+    const pause = pauseTotalSeconds || 0;
+    const seconds = Math.max(0, Math.floor((now - start) / 1000) - pause);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  } catch {
+    return '00:00:00';
+  }
+}
 
 export default HomeTimerCard;

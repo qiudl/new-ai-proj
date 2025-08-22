@@ -5,8 +5,8 @@ import { getEnvironmentConfig } from '../utils/environmentDetection';
 // API Base Configuration  
 const envConfig = getEnvironmentConfig();
 const { apiBaseURL } = envConfig;
-const API_BASE_URL = apiBaseURL;
-
+// 优先使用环境变量配置，其次使用自动检测到的配置
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || apiBaseURL);
 
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;
@@ -167,9 +167,10 @@ api.interceptors.response.use(
 // Helper function to get user name by ID
 export const getUserName = async (userId: string): Promise<string> => {
   try {
-    const response = await fetch(`/api/v1/users/${userId}`, {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
       },
     });
     

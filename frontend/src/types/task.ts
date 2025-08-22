@@ -1,3 +1,5 @@
+export type CustomFields = Record<string, any>;
+
 export interface Task {
   id: number;
   project_id: number;
@@ -66,6 +68,8 @@ export interface TaskFilter {
   due_before?: string;
   search?: string; // free-text search
   q?: string; // alias for search used by some endpoints
+  task_id?: number;
+  only_roots?: boolean;
 }
 
 export interface PaginationParams {

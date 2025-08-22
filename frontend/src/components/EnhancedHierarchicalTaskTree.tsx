@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Card, 
   Tree, 
@@ -32,6 +32,7 @@ import '../styles/EnhancedHierarchicalTaskTree.css';
 import { projectService } from '../services/projectService';
 import { Project } from '../types/project';
 import { Task } from '../types/task';
+import { TaskService } from '../services/taskService';
 
 const { Title, Text } = Typography;
 
@@ -73,6 +74,9 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [loadingNodes, setLoadingNodes] = useState<Set<string>>(new Set());
+  const loadedProjectRootsRef = useRef<Set<number>>(new Set()); // 已加载过的项目根任务
+  const loadedTaskChildrenRef = useRef<Set<string>>(new Set()); // 已加载过的任务子节点
   const navigate = useNavigate();
   
   const { timerState, startTimer, pauseTimer, resumeTimer } = useTimer();
@@ -153,6 +157,11 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
     const isDueSoon = isTaskDueSoon(task.due_date);
     const isOverdue = isTaskOverdue(task.due_date);
     const isCurrentTimer = timerState.taskId === task.id;
+
+    const hasKnownChildren = Array.isArray(task.children) && task.children.length > 0;
+    const mayHaveChildren = typeof (task as any)?.custom_fields?.children_count === 'number'
+      ? ((task as any).custom_fields.children_count as number) > 0
+      : true; // 未知则默认可展开，走懒加载
     
     return {
       key: `task-${task.id}`,
@@ -176,7 +185,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
           {/* 紧凑状态指示器 */}
           <div className="task-status-indicators">
             {/* 子任务计数 */}
-            {task.children && task.children.length > 0 && (
+            {Array.isArray(task.children) && task.children.length > 0 && (
               <span className="subtask-counter">
                 {task.children.filter(c => c.status === 'completed').length}/{task.children.length}
               </span>
@@ -262,11 +271,11 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
           </div>
         </div>
       ),
-      icon: task.children && task.children.length > 0 ? <BranchesOutlined /> : <FileTextOutlined />,
-      children: task.children && task.children.length > 0 ? 
-        task.children.map(child => buildEnhancedTaskNode(child, projectId, level + 1)) : 
+      icon: hasKnownChildren ? <BranchesOutlined /> : <FileTextOutlined />,
+      children: hasKnownChildren ? 
+        task.children!.map(child => buildEnhancedTaskNode(child, projectId, level + 1)) : 
         undefined,
-      isLeaf: !task.children || task.children.length === 0,
+      isLeaf: hasKnownChildren ? false : !mayHaveChildren,
       type: 'task' as const,
       id: task.id,
       status: task.status,
@@ -279,162 +288,177 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
     };
   };
 
-  // 获取项目和任务数据
-  const fetchProjectsAndTasks = useCallback(async () => {
+  // 辅助函数：持久化展开状态
+  const STORAGE_KEY = 'enhanced_hierarchical_task_tree_expanded_keys';
+  const saveExpandedKeys = useCallback((keys: string[]) => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(keys));
+    } catch {}
+  }, []);
+  const restoreExpandedKeys = useCallback((): string[] => {
+    try {
+      const saved = sessionStorage.getItem(STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  }, []);
+
+  // 更新树数据的工具方法
+  const updateTreeData = useCallback((list: TreeNodeData[], key: string, children: TreeNodeData[]): TreeNodeData[] => {
+    return list.map(node => {
+      if (node.key === key) {
+        return { ...node, children };
+      }
+      if (node.children) {
+        return { ...node, children: updateTreeData(node.children, key, children) };
+      }
+      return node;
+    });
+  }, []);
+
+  // 初始仅加载项目列表
+  const fetchProjectsOnly = useCallback(async () => {
     try {
       setLoading(true);
-      
       const projectsResponse = await projectService.getProjects();
-      // API response structure: { data: { data: [...], pagination: {...} } }
-      const projectsList = Array.isArray(projectsResponse?.data?.data) ? projectsResponse.data.data : [];
+      // axios 拦截器已将 { success, data } 解包为 data（此处为分页对象：{ data: Project[], pagination }）
+      const projectsList = Array.isArray((projectsResponse as any)?.data)
+        ? (projectsResponse as any).data
+        : Array.isArray(projectsResponse)
+          ? (projectsResponse as any)
+          : [];
       setProjects(projectsList);
 
-      const projectsWithTasks = await Promise.all(
-        projectsList.map(async (project) => {
-          try {
-            const tasksResponse = await projectService.getProjectTasks(project.id, {
-              page: 1,
-              pageSize: 50
-            });
-            const tasks = tasksResponse.data?.data || [];
+      const treeNodes: TreeNodeData[] = projectsList.map((project) => ({
+        key: `project-${project.id}`,
+        title: showProjectInfo ? (
+          <div className="task-compact-row">
+            <span style={{ 
+              fontWeight: 600, 
+              color: '#262626',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1,
+              fontSize: '14px'
+            }}>
+              {project.name}
+            </span>
             
-            // 构建层级任务结构
-            const taskMap = new Map<number, TaskWithChildren>();
-            const rootTasks: TaskWithChildren[] = [];
-            
-            tasks.forEach(task => {
-              taskMap.set(task.id, { ...task, children: [], level: 0 });
-            });
-            
-            tasks.forEach(task => {
-              const taskWithChildren = taskMap.get(task.id)!;
-              if (task.parent_id && taskMap.has(task.parent_id)) {
-                const parent = taskMap.get(task.parent_id)!;
-                parent.children = parent.children || [];
-                taskWithChildren.level = (parent.level || 0) + 1;
-                parent.children.push(taskWithChildren);
-              } else {
-                rootTasks.push(taskWithChildren);
-              }
-            });
-            
-            return { project, tasks: rootTasks };
-          } catch (error) {
-            console.warn(`Failed to fetch tasks for project ${project.id}:`, error);
-            return { project, tasks: [] };
-          }
-        })
-      );
-
-      // 构建增强的树节点
-      const treeNodes: TreeNodeData[] = projectsWithTasks
-        .map(({ project, tasks }) => {
-          const totalTasks = tasks.reduce((count, task) => {
-            const countTaskAndChildren = (t: TaskWithChildren): number => {
-              return 1 + (t.children?.reduce((sum, child) => sum + countTaskAndChildren(child), 0) || 0);
-            };
-            return count + countTaskAndChildren(task);
-          }, 0);
-          
-          const completedTasks = tasks.reduce((count, task) => {
-            const countCompletedTaskAndChildren = (t: TaskWithChildren): number => {
-              const thisTaskCount = t.status === 'completed' ? 1 : 0;
-              const childrenCount = t.children?.reduce((sum, child) => sum + countCompletedTaskAndChildren(child), 0) || 0;
-              return thisTaskCount + childrenCount;
-            };
-            return count + countCompletedTaskAndChildren(task);
-          }, 0);
-          
-          const projectProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-          return {
-            key: `project-${project.id}`,
-            title: showProjectInfo ? (
-              <div className="task-compact-row">
-                <span style={{ 
-                  fontWeight: 600, 
-                  color: '#262626',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                  fontSize: '14px'
-                }}>
-                  {project.name}
-                </span>
-                
-                <div className="task-status-indicators">
-                  <span className="subtask-counter">
-                    {completedTasks}/{totalTasks}
-                  </span>
-                  <div 
-                    className="status-dot"
-                    style={{ backgroundColor: projectProgress === 100 ? '#52c41a' : '#1890ff' }}
-                  />
-                  <Button
-                    type="text"
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/projects/${project.id}`);
-                    }}
-                    style={{ 
-                      fontSize: '11px',
-                      height: '18px',
-                      padding: '0 4px',
-                      color: '#1890ff'
-                    }}
-                  >
-                    进入
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <span style={{ fontWeight: 600, color: '#262626' }}>{project.name}</span>
-            ),
-            icon: <ProjectOutlined />,
-            children: tasks.map(task => buildEnhancedTaskNode(task, project.id, 0)),
-            isLeaf: false,
-            type: 'project' as const,
-            id: project.id,
-            level: 0
-          };
-        });
-
+            <div className="task-status-indicators">
+              <Button
+                type="text"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/projects/${project.id}`);
+                }}
+                style={{ 
+                  fontSize: '11px',
+                  height: '18px',
+                  padding: '0 4px',
+                  color: '#1890ff'
+                }}
+              >
+                进入
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <span style={{ fontWeight: 600, color: '#262626' }}>{project.name}</span>
+        ),
+        icon: <ProjectOutlined />,
+        isLeaf: false,
+        type: 'project' as const,
+        id: project.id,
+        level: 0
+      }));
 
       setTreeData(treeNodes);
-      
-      // 默认展开项目节点和有子任务的父任务（仅一级）
-      const expandedKeys: string[] = [];
-      
-      treeNodes.forEach(projectNode => {
-        // 展开项目节点
-        expandedKeys.push(projectNode.key);
-        
-        // 展开有子任务的父任务（仅第一级）
-        if (projectNode.children) {
-          projectNode.children.forEach(taskNode => {
-            if (taskNode.children && taskNode.children.length > 0) {
-              expandedKeys.push(taskNode.key);
+
+      // 恢复展开状态
+      const restored = restoreExpandedKeys();
+      if (restored.length > 0) {
+        setExpandedKeys(restored);
+        // 如果有已展开的项目节点，触发加载
+        restored.forEach(key => {
+          if (key.startsWith('project-')) {
+            const pid = parseInt(key.replace('project-', ''), 10);
+            if (!loadedProjectRootsRef.current.has(pid)) {
+              loadProjectRootTasks(pid, key);
             }
-          });
-        }
-      });
-      
-      setExpandedKeys(expandedKeys);
-      
+          }
+        });
+      }
     } catch (error) {
-      console.error('Failed to fetch projects and tasks:', error);
-      message.error('加载项目和任务失败');
+      console.error('Failed to fetch projects:', error);
+      message.error('加载项目失败');
     } finally {
       setLoading(false);
     }
-  }, [navigate, timerState.taskId, timerState.isRunning, timerState.isPaused, showProjectInfo]);
+  }, [navigate, showProjectInfo, restoreExpandedKeys]);
+
+  // 懒加载：加载项目的根任务
+  const loadProjectRootTasks = useCallback(async (projectId: number, projectKey?: string) => {
+    if (loadedProjectRootsRef.current.has(projectId)) return;
+    const key = projectKey || `project-${projectId}`;
+    setLoadingNodes(prev => new Set(prev).add(key));
+    try {
+      const resp = await TaskService.getRootTasks(projectId, { page: 1, page_size: 200 });
+      const tasks = Array.isArray((resp as any)?.data) ? (resp as any).data : Array.isArray(resp) ? resp as any : [];
+
+      const taskNodes = (tasks as Task[]).map(task => buildEnhancedTaskNode({ ...task, children: [] }, projectId, 0));
+      setTreeData(prev => updateTreeData(prev, key, taskNodes));
+      loadedProjectRootsRef.current.add(projectId);
+    } catch (error) {
+      console.error('加载项目根任务失败:', error);
+      message.error('加载项目根任务失败');
+      // 设置为空避免重复请求
+      setTreeData(prev => updateTreeData(prev, key, []));
+      loadedProjectRootsRef.current.add(projectId);
+    } finally {
+      setLoadingNodes(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, [updateTreeData, buildEnhancedTaskNode]);
+
+  // 懒加载：加载任务的子任务
+  const loadTaskChildren = useCallback(async (projectId: number, taskId: number, taskKey?: string) => {
+    const key = taskKey || `task-${taskId}`;
+    if (loadedTaskChildrenRef.current.has(key)) return;
+    setLoadingNodes(prev => new Set(prev).add(key));
+    try {
+      const resp = await TaskService.getTaskChildren(projectId, taskId);
+      const children = Array.isArray((resp as any)?.data?.data) ? (resp as any).data.data
+        : Array.isArray((resp as any)?.data) ? (resp as any).data
+        : Array.isArray(resp) ? (resp as any)
+        : [];
+
+      const childNodes = (children as Task[]).map(child => buildEnhancedTaskNode({ ...child, children: [] }, projectId, 1));
+      setTreeData(prev => updateTreeData(prev, key, childNodes));
+      loadedTaskChildrenRef.current.add(key);
+    } catch (error) {
+      console.error('加载子任务失败:', error);
+      message.error('加载子任务失败');
+      // 设置为空避免重复请求
+      setTreeData(prev => updateTreeData(prev, key, []));
+      loadedTaskChildrenRef.current.add(key);
+    } finally {
+      setLoadingNodes(prev => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    }
+  }, [updateTreeData, buildEnhancedTaskNode]);
 
   // 启动计时器
   const handleStartTimer = useCallback(async (task: Task) => {
     try {
-      const success = await startTimer(task.id, task.title);
+      const success = await startTimer(task.id, task.title, 'project');
       if (success) {
         message.success(`开始计时: ${task.title}`);
       }
@@ -445,31 +469,47 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
   }, [startTimer]);
 
   // 处理节点选择
-  const handleSelect = useCallback((selectedKeys: React.Key[], info: unknown) => {
+  const handleSelect = useCallback((selectedKeys: React.Key[], info: any) => {
     if (selectedKeys.length === 0) return;
-    
-    const node = info.node;
-    if (node.type === 'project') {
-      navigate(`/projects/${node.id}`);
-    } else if (node.type === 'task') {
+    const node = info.node as TreeNodeData & { key: string };
+    if (node.type === 'task' && node.projectId) {
       navigate(`/projects/${node.projectId}/tasks/${node.id}`);
     }
+    // 点击项目节点不跳转，保持用于展开/收起
   }, [navigate]);
 
-  // 处理节点展开
-  const handleExpand = useCallback((expandedKeys: React.Key[]) => {
-    setExpandedKeys(expandedKeys.map(key => key.toString()));
-  }, []);
+  // 处理节点展开/收起
+  const handleExpand = useCallback((keys: React.Key[], info: any) => {
+    const normalized = keys.map(k => k.toString());
+    setExpandedKeys(normalized);
+    saveExpandedKeys(normalized);
 
-  // 刷新数据
-  const handleRefresh = useCallback(() => {
-    setRefreshKey(prev => prev + 1);
-    fetchProjectsAndTasks();
-  }, [fetchProjectsAndTasks]);
+    // 懒加载：当展开节点时加载其子节点
+    const node = info.node as TreeNodeData & { key: string };
+    if (info.expanded) {
+      if (node.type === 'project') {
+        loadProjectRootTasks(node.id, node.key);
+      } else if (node.type === 'task' && node.projectId) {
+        loadTaskChildren(node.projectId, node.id, node.key);
+      }
+    }
+  }, [saveExpandedKeys, loadProjectRootTasks, loadTaskChildren]);
+
+  // Tree 的 loadData（用于显示 loading 效果）
+  const loadData = useCallback(async (node: any) => {
+    const dataNode = node as TreeNodeData & { key: string };
+    if (dataNode.type === 'project') {
+      await loadProjectRootTasks(dataNode.id, dataNode.key);
+    } else if (dataNode.type === 'task' && dataNode.projectId) {
+      await loadTaskChildren(dataNode.projectId, dataNode.id, dataNode.key);
+    }
+  }, [loadProjectRootTasks, loadTaskChildren]);
 
   useEffect(() => {
-    fetchProjectsAndTasks();
-  }, [fetchProjectsAndTasks, refreshKey]);
+    fetchProjectsOnly();
+  }, [fetchProjectsOnly, refreshKey]);
+
+
 
   const memoizedTreeData = useMemo(() => treeData, [treeData]);
 
@@ -483,12 +523,12 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
               <span>我的任务</span>
             </Space>
           }
-          style={{ height, width: '100%' }}
+          style={{ width: '100%' }}
         >
           <div className="hierarchical-task-loading">
             <Spin size="large" />
             <div className="loading-text">
-              <Text type="secondary">加载项目和任务中...</Text>
+              <Text type="secondary">加载项目中...</Text>
             </div>
           </div>
         </Card>
@@ -526,17 +566,16 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             <Button
               type="text"
               icon={<ReloadOutlined />}
-              onClick={handleRefresh}
+              onClick={() => setRefreshKey(prev => prev + 1)}
             >
               刷新
             </Button>
           </Space>
         }
-        style={{ height, width: '100%' }}
+        style={{ width: '100%' }}
         styles={{ 
           body: { 
             padding: compactMode ? '8px' : '16px',
-            height: 'calc(100% - 57px)',
             overflow: 'auto',
             width: '100%'
           } 
@@ -564,6 +603,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
           expandedKeys={expandedKeys}
           onExpand={handleExpand}
           onSelect={handleSelect}
+          loadData={loadData}
           switcherIcon={({ expanded }) => 
             expanded ? <CaretDownOutlined /> : <CaretRightOutlined />
           }

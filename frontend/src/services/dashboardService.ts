@@ -585,8 +585,12 @@ export class DashboardService {
    */
   static async getAllProjects(): Promise<Project[]> {
     try {
-      const response = await api.get('/projects?page=1&page_size=100');
-      return response.data?.data || [];
+      const payload: any = await api.get('/projects?page=1&page_size=100');
+      // axios interceptor in api.ts returns body.data directly when wrapped
+      // Normalize to array
+      if (Array.isArray(payload)) return payload;
+      if (payload?.data && Array.isArray(payload.data)) return payload.data;
+      return [];
     } catch (error) {
       console.error('Error fetching projects:', error);
       throw new Error('Failed to fetch projects');
@@ -600,8 +604,10 @@ export class DashboardService {
     try {
       // 先获取项目数据
       console.log('🔍 getAllTasks - 开始获取项目列表...');
-      const projectsResponse = await api.get('/projects?page=1&page_size=1000');
-      const projects = projectsResponse.data?.data || [];
+      const projectsResponse: any = await api.get('/projects?page=1&page_size=1000');
+      const projects = Array.isArray(projectsResponse)
+        ? projectsResponse
+        : (Array.isArray(projectsResponse?.data) ? projectsResponse.data : []);
       console.log(`✅ getAllTasks - 获取到 ${projects.length} 个项目`);
 
       if (projects.length === 0) {
@@ -622,10 +628,12 @@ export class DashboardService {
       const taskResponses = await Promise.all(taskPromises);
       
       // 合并所有任务数据
-      const allTasks = taskResponses.reduce((accumulator, response) => {
-        const projectTasks = response.data?.data || [];
+      const allTasks = taskResponses.reduce((accumulator: any[], response: any) => {
+        const projectTasks = Array.isArray(response)
+          ? response
+          : (Array.isArray(response?.data) ? response.data : []);
         return accumulator.concat(projectTasks);
-      }, []);
+      }, [] as any[]);
       
       console.log(`✅ getAllTasks - 合并完成，总共 ${allTasks.length} 个任务`);
       return allTasks;
@@ -640,8 +648,10 @@ export class DashboardService {
    */
   static async getProjectTasks(projectId: number): Promise<Task[]> {
     try {
-      const response = await api.get(`/projects/${projectId}/tasks?page=1&page_size=100`);
-      return response.data?.data || [];
+      const response: any = await api.get(`/projects/${projectId}/tasks?page=1&page_size=100`);
+      if (Array.isArray(response)) return response;
+      if (response?.data && Array.isArray(response.data)) return response.data;
+      return [];
     } catch (error) {
       console.error('Error fetching project tasks:', error);
       throw new Error('Failed to fetch project tasks');

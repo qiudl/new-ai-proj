@@ -16,10 +16,11 @@ import TimerStartButton from '../components/TimerStartButton';
 import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
 import ResizableTitle from '../components/ResizableTitle';
 import { useTimer } from '../contexts/TimerContext';
-import { Project } from '../types/project';
+import { Project, ProjectUser } from '../types/project';
 import { projectService } from '../services/projectService';
 import { formatRelativeTime, formatExactTime, getTimeStyle, getUpdateTimestamp } from '../utils/dateUtils';
 import { formatTaskStatus } from '../utils/formatters';
+import { TASK_STATUS_OPTIONS } from '../utils/bulkSubTaskConfig';
 import dayjs from 'dayjs';
 import '../styles/task-inline-edit.css';
 import '../styles/task-hierarchy.css';
@@ -60,6 +61,32 @@ const TasksPage: React.FC = () => {
   const [editingTitleValue, setEditingTitleValue] = useState<string>('');
   const [savingTitle, setSavingTitle] = useState<boolean>(false);
   
+  // 项目用户缓存用于负责人内联选择
+  const [projectUsersCache, setProjectUsersCache] = useState<Map<number, ProjectUser[]>>(new Map());
+  const [loadingProjectUsers, setLoadingProjectUsers] = useState<Set<number>>(new Set());
+
+  const loadProjectUsers = useCallback(async (pid: number) => {
+    if (!pid) return;
+    if (projectUsersCache.has(pid) || loadingProjectUsers.has(pid)) return;
+    setLoadingProjectUsers(prev => new Set(prev).add(pid));
+    try {
+      const users = await projectService.getProjectUsers(pid);
+      setProjectUsersCache(prev => {
+        const next = new Map(prev);
+        next.set(pid, Array.isArray(users) ? users : []);
+        return next;
+      });
+    } catch (e) {
+      console.error('Failed to load project users:', e);
+    } finally {
+      setLoadingProjectUsers(prev => {
+        const next = new Set(prev);
+        next.delete(pid);
+        return next;
+      });
+    }
+  }, [projectUsersCache, loadingProjectUsers]);
+
   // 批量选择相关状态
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
@@ -92,8 +119,8 @@ const TasksPage: React.FC = () => {
       maxWidth: 100,
       resizable: false
     },
-    // 全局任务列表：在任务名称前增加 ID 列
-    ...(!effectiveProjectId ? [{
+    // 在任务名称前增加 ID 列
+    {
       key: 'id',
       title: 'ID',
       visible: true,
@@ -103,7 +130,7 @@ const TasksPage: React.FC = () => {
       minWidth: 70,
       maxWidth: 120,
       resizable: true
-    }] : []),
+    },
     {
       key: 'title',
       title: '任务名称',
@@ -136,6 +163,17 @@ const TasksPage: React.FC = () => {
       width: 120,
       minWidth: 80,
       maxWidth: 160,
+      resizable: true
+    },
+    {
+      key: 'priority',
+      title: '优先级',
+      visible: true,
+      required: false,
+      description: '任务优先级',
+      width: 100,
+      minWidth: 80,
+      maxWidth: 140,
       resizable: true
     },
     // 全局任务列表：在截止时间前增加 开始时间 列
@@ -313,17 +351,19 @@ const reqFilters: any = {};
         if (typeof filters?.task_id === 'number') reqFilters.task_id = filters.task_id;
         response = await TaskService.getTasks(effectiveProjectId, {
           page,
-page_size: pageSize,
+          page_size: pageSize,
           ...reqFilters,
-          sort_by: 'updated_at',
-          sort_order: 'desc', // 默认按最后更新时间倒序
+          sort_by: 'created_at',
+          sort_order: 'desc', // 默认按创建时间倒序
+          only_roots: true, // 与前端根任务视图对齐，确保总数一致
         });
       } else {
 // 全局模式：加载全部任务（跨项目）
         // 预设：all/overdue/planning/on_hold。all 不传 preset 参数
         const params: any = {
           page,
-page_size: pageSize,
+          page_size: pageSize,
+          only_roots: true, // 全局列表默认展示根任务，保持计数一致
           ...(filters?.status ? { status: filters.status } : {}),
           ...(filters?.priority ? { priority: filters.priority } : {}),
           ...(typeof filters?.assignee_id === 'number' ? { assignee_id: filters.assignee_id } : {}),
@@ -335,16 +375,16 @@ page_size: pageSize,
           params.sort_order = 'asc';
           params.preset = 'overdue';
         } else if (preset === 'planning') {
-          params.sort_by = 'updated_at';
+          params.sort_by = 'created_at';
           params.sort_order = 'desc';
           params.preset = 'planning';
         } else if (preset === 'on_hold') {
-          params.sort_by = 'updated_at';
+          params.sort_by = 'created_at';
           params.sort_order = 'desc';
           params.preset = 'on_hold';
         } else {
-          // all：不传 preset，默认按更新时间倒序
-          params.sort_by = 'updated_at';
+          // all：不传 preset，默认按创建时间倒序
+          params.sort_by = 'created_at';
           params.sort_order = 'desc';
         }
         response = await TaskService.getAllTasks(params);
@@ -811,6 +851,8 @@ page_size: pageSize,
 
   // Handle status update - 内联编辑状态
   const handleStatusUpdate = async (taskId: number, newStatus: string, task: Task) => {
+    // 添加加载状态提示（确保在失败时也能关闭）
+    const hideLoading = message.loading('正在更新状态...', 0);
     try {
       const projectId = effectiveProjectId || task.project_id;
       if (!projectId) {
@@ -818,34 +860,35 @@ page_size: pageSize,
         return;
       }
 
-      // 添加加载状态提示
-      const hideLoading = message.loading('正在更新状态...', 0);
-
-await TaskService.updateTask(projectId, taskId, { 
+      await TaskService.updateTask(projectId, taskId, { 
         status: newStatus as unknown
       });
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'status_change', taskId, projectId, newStatus }); } catch {}
       
-      hideLoading();
       message.success('状态更新成功');
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Status update error:', error);
-      if (error.statusCode === 403) {
+      const status = error?.status ?? error?.statusCode;
+      if (status === 403) {
         message.error('权限不足，无法更新任务状态');
-      } else if (error.statusCode === 404) {
+      } else if (status === 404) {
         message.error('任务不存在或已被删除');
       } else {
-        message.error(error.message || '状态更新失败');
+        message.error(error?.message || '状态更新失败');
       }
+    } finally {
+      hideLoading();
     }
   };
 
   // Handle due date update - 内联编辑截止日期
   const handleDueDateUpdate = async (taskId: number, newDueDate: string | null, task: Task) => {
+    // 添加加载状态提示（确保在失败时也能关闭）
+    const hideLoading = message.loading('正在更新截止日期...', 0);
     try {
       const projectId = effectiveProjectId || task.project_id;
       if (!projectId) {
@@ -853,13 +896,9 @@ await TaskService.updateTask(projectId, taskId, {
         return;
       }
 
-      // 添加加载状态提示
-      const hideLoading = message.loading('正在更新截止日期...', 0);
-
       // 检查是否有变化
       const currentDueDate = task.due_date;
       if (currentDueDate === newDueDate) {
-        hideLoading();
         return; // 没有变化，不需要更新
       }
 
@@ -867,24 +906,64 @@ await TaskService.updateTask(projectId, taskId, {
         due_date: newDueDate || ""
       };
       
-await TaskService.updateTask(projectId, taskId, updateData);
+      await TaskService.updateTask(projectId, taskId, updateData);
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'due_date_change', taskId, projectId, newDueDate }); } catch {}
       
-      hideLoading();
       message.success('截止日期更新成功');
       
       // 刷新任务列表
       loadTasks(pagination.current, pagination.pageSize);
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Due date update error:', error);
-      if (error.statusCode === 403) {
+      const status = error?.status ?? error?.statusCode;
+      if (status === 403) {
         message.error('权限不足，无法更新截止日期');
-      } else if (error.statusCode === 404) {
+      } else if (status === 404) {
         message.error('任务不存在或已被删除');
       } else {
-        message.error(error.message || '截止日期更新失败');
+        message.error(error?.message || '截止日期更新失败');
       }
+    } finally {
+      hideLoading();
+    }
+  };
+
+  // Handle priority update - 内联编辑优先级
+  const handlePriorityUpdate = async (task: Task, newPriority: 'low' | 'medium' | 'high') => {
+    try {
+      const projectId = effectiveProjectId || task.project_id;
+      if (!projectId) {
+        message.error('无法更新优先级：缺少项目信息');
+        return;
+      }
+      const hide = message.loading('正在更新优先级...', 0);
+      await TaskService.updateTask(projectId, task.id, { priority: newPriority });
+      hide();
+      message.success('优先级更新成功');
+      loadTasks(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error('Priority update error:', error);
+      message.error(error?.message || '优先级更新失败');
+    }
+  };
+
+  // Handle assignee update - 内联编辑负责人
+  const handleAssigneeUpdate = async (task: Task, assigneeId: number | null) => {
+    try {
+      const projectId = effectiveProjectId || task.project_id;
+      if (!projectId) {
+        message.error('无法更新负责人：缺少项目信息');
+        return;
+      }
+      const hide = message.loading('正在更新负责人...', 0);
+      await TaskService.updateTask(projectId, task.id, { assignee_id: assigneeId });
+      hide();
+      message.success('负责人更新成功');
+      loadTasks(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error('Assignee update error:', error);
+      message.error(error?.message || '负责人更新失败');
     }
   };
 
@@ -1195,6 +1274,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
             dataIndex: 'id',
             key: 'id',
             width: config.width,
+            fixed: 'left',
             render: (id: number) => (
               <span style={{ color: '#595959', fontWeight: 500 }}>#{id}</span>
             ),
@@ -1229,6 +1309,8 @@ await TaskService.updateTask(projectId, taskId, updateData);
             dataIndex: 'title',
             key: 'title',
             width: config.width,
+            fixed: 'left',
+            ellipsis: true,
             render: (text: string, record: Task & { isSubTask?: boolean; depth?: number }) => {
               const depth = record.depth || 0;
               const hasChildren = (record.custom_fields?.children_count || 0) > 0;
@@ -1278,7 +1360,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
                         lineHeight: '1.4',
                         display: 'flex',
                         alignItems: 'center',
-                        flexWrap: 'wrap',
+                        flexWrap: 'nowrap',
                         gap: 8
                       }}>
                         <button
@@ -1295,7 +1377,11 @@ await TaskService.updateTask(projectId, taskId, updateData);
                             padding: 0,
                             font: 'inherit',
                             textAlign: 'left',
-                            wordBreak: 'break-word'
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: 'inline-block',
+                            maxWidth: '100%'
                           }}
                           title="点击查看任务详情"
                           onMouseEnter={(e) => {
@@ -1332,7 +1418,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
                           lineHeight: '1.3',
                           wordBreak: 'break-word'
                         }}>
-                          {record.project_name || `项目${record.project_id}`}
+                          {record.project_name}
                         </div>
                       )}
                     </div>
@@ -1368,7 +1454,6 @@ await TaskService.updateTask(projectId, taskId, updateData);
                                 gap: 8,
                                 fontSize: '14px'
                               }}>
-                                <span style={{ color: '#8c8c8c', fontSize: '12px', flexShrink: 0 }}>└─</span>
                                 <button
                                   onClick={() => handleViewTask(subTask)}
                                   style={{
@@ -1385,41 +1470,17 @@ await TaskService.updateTask(projectId, taskId, updateData);
                                 >
                                   {subTask.title}
                                 </button>
-                                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                                  <Tag 
-                                    color={formatTaskStatus(subTask.status).color}
-                                    style={{ fontSize: '10px', margin: 0 }}
-                                  >
-                                    {formatTaskStatus(subTask.status).text}
-                                  </Tag>
-                                  <button
-                                    onClick={() => handleEditTask(subTask)}
-                                    style={{
-                                      color: '#1890ff',
-                                      background: 'none',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      fontSize: '12px',
-                                      padding: '2px 4px'
-                                    }}
-                                  >
-                                    编辑
-                                  </button>
-                                </div>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <Tag 
+                              color={formatTaskStatus(subTask.status).color}
+                              style={{ fontSize: '10px', margin: 0 }}
+                            >
+                              {formatTaskStatus(subTask.status).text}
+                            </Tag>
+                          </div>
                               </div>
                             </div>
                           ))}
-                          <div style={{ marginTop: 8, textAlign: 'center' }}>
-                            <Button
-                              type="dashed"
-                              size="small"
-                              icon={<PlusOutlined />}
-                              onClick={() => handleCreateSubTask(record)}
-                              style={{ fontSize: '12px', height: '24px' }}
-                            >
-                              添加子任务
-                            </Button>
-                          </div>
                         </>
                       )}
                     </div>
@@ -1437,38 +1498,23 @@ await TaskService.updateTask(projectId, taskId, updateData);
             key: 'status',
             width: config.width,
             render: (status: TaskStatus, record: Task) => {
-              const statusConfig = {
-                todo: { color: 'default', text: '待办', bgColor: '#fafafa', dotColor: '#d9d9d9' },
-                in_progress: { color: 'processing', text: '进行中', bgColor: '#e6f7ff', dotColor: '#1890ff' },
-                completed: { color: 'success', text: '已完成', bgColor: '#f6ffed', dotColor: '#52c41a' },
-                cancelled: { color: 'error', text: '已取消', bgColor: '#fff2f0', dotColor: '#ff4d4f' }
-              };
-              
-              const configData = statusConfig[status] || statusConfig.todo;
-              
               return (
                 <Select
                   value={status}
                   onChange={(newStatus) => handleStatusUpdate(record.id, newStatus, record)}
                   style={{ 
                     width: '100%',
-                    backgroundColor: configData.bgColor,
-                    borderRadius: '4px'
+                    borderRadius: '4px',
+                    backgroundColor: '#fafafa'
                   }}
                   variant="borderless"
                   size="small"
                   suffixIcon={null}
                 >
-                  {Object.entries(statusConfig).map(([key, conf]) => (
-                    <Select.Option key={key} value={key}>
+                  {TASK_STATUS_OPTIONS.map(opt => (
+                    <Select.Option key={opt.value as string} value={opt.value as string}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <div style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          backgroundColor: conf.dotColor
-                        }} />
-                        <span style={{ fontWeight: 500 }}>{conf.text}</span>
+                        <span style={{ fontWeight: 500 }}>{opt.label}</span>
                       </div>
                     </Select.Option>
                   ))}
@@ -1483,30 +1529,24 @@ await TaskService.updateTask(projectId, taskId, updateData);
             dataIndex: 'assignee_name',
             key: 'assignee_name',
             width: config.width,
-            render: (name: string) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  backgroundColor: name ? '#1890ff' : '#d9d9d9',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  color: 'white',
-                  fontWeight: 500
-                }}>
-                  {name ? name.charAt(0).toUpperCase() : '?'}
-                </div>
-                <span style={{ 
-                  color: name ? '#262626' : '#8c8c8c',
-                  fontSize: '13px'
-                }}>
-                  {name || '未分配'}
-                </span>
-              </div>
-            ),
+            render: (_name: string, record: Task) => {
+              const pid = record.project_id;
+              const options = projectUsersCache.get(pid) || [];
+              return (
+                <Select
+                  value={record.assignee_id ?? undefined}
+                  placeholder="未分配"
+                  allowClear
+                  size="small"
+                  variant="borderless"
+                  style={{ width: '100%' }}
+                  loading={loadingProjectUsers.has(pid)}
+onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
+                  onChange={(val) => handleAssigneeUpdate(record, (val as number) ?? null)}
+                  options={options.map(u => ({ label: u.user_name, value: u.user_id }))}
+                />
+              );
+            },
           };
           
         case 'start_datetime':
@@ -1600,6 +1640,31 @@ await TaskService.updateTask(projectId, taskId, updateData);
             },
           };
           
+        case 'priority':
+          return {
+            title: createResizableTitle(config, '优先级'),
+            dataIndex: 'priority',
+            key: 'priority',
+            width: config.width,
+            render: (_: string, record: Task) => {
+              const current = (record as any).priority || (record.custom_fields?.priority as 'low' | 'medium' | 'high') || 'medium';
+              return (
+                <Select
+                  value={current}
+                  size="small"
+                  variant="borderless"
+                  style={{ width: '100%' }}
+                  onChange={(val) => handlePriorityUpdate(record, val as 'low' | 'medium' | 'high')}
+                  options={[
+                    { label: '高', value: 'high' },
+                    { label: '中', value: 'medium' },
+                    { label: '低', value: 'low' },
+                  ]}
+                />
+              );
+            },
+          };
+          
         case 'tags':
           return {
             title: createResizableTitle(config, '标签'),
@@ -1651,72 +1716,18 @@ await TaskService.updateTask(projectId, taskId, updateData);
             title: createResizableTitle(config, '操作'),
             key: 'action',
             width: config.width,
-            render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => {
-              const canStartTimer = !['completed', 'cancelled', 'archived'].includes(record.status);
-              
-              return (
-                <Space size="small">
-                  {canStartTimer && (
-                    <TimerStartButton
-                      task={record}
-                      size="small"
-                      type="text"
-                      className="task-list-timer-button"
-                    />
-                  )}
-                  
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<AppstoreAddOutlined />}
-                    onClick={() => handleCreateSubTask(record)}
-                    title="添加子任务"
-                  />
-                  
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<EyeOutlined />}
-                    onClick={() => handleViewTask(record)}
-                    title="查看详情"
-                  />
-                  
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'history',
-                          label: '更新历史',
-                          icon: <HistoryOutlined />,
-                          onClick: () => navigate(`/projects/${record.project_id}/tasks/${record.id}?tab=history`),
-                        },
-                        {
-                          key: 'edit',
-                          label: '编辑',
-                          icon: <EditOutlined />,
-                          onClick: () => handleEditTask(record),
-                        },
-                        {
-                          key: 'archive',
-                          label: '归档',
-                          icon: <InboxOutlined />,
-                          onClick: () => handleArchiveTask(record),
-                        },
-                        {
-                          key: 'delete',
-                          label: '删除',
-                          icon: <DeleteOutlined />,
-                          danger: true,
-                          onClick: () => handleDeleteTask(record),
-                        },
-                      ],
-                    }}
-                  >
-                    <Button type="text" size="small" icon={<MoreOutlined />} title="更多操作" />
-                  </Dropdown>
-                </Space>
-              );
-            },
+            fixed: 'right',
+            render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => (
+              <Space size="small">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EyeOutlined />}
+                  onClick={() => handleViewTask(record)}
+                  title="查看详情"
+                />
+              </Space>
+            ),
           };
           
         default:
@@ -1804,7 +1815,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
                   lineHeight: '1.4',
                   display: 'flex',
                   alignItems: 'center',
-                  flexWrap: 'wrap',
+                  flexWrap: 'nowrap',
                   gap: 8
                 }}>
                   <button
@@ -1821,7 +1832,11 @@ await TaskService.updateTask(projectId, taskId, updateData);
                       padding: 0,
                       font: 'inherit',
                       textAlign: 'left',
-                      wordBreak: 'break-word'
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: 'inline-block',
+                      maxWidth: '100%'
                     }}
                     title="点击查看任务详情"
                     onMouseEnter={(e) => {
@@ -1858,7 +1873,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
                     lineHeight: '1.3',
                     wordBreak: 'break-word'
                   }}>
-                    {record.project_name || `项目${record.project_id}`}
+                    {record.project_name}
                   </div>
                 )}
               </div>
@@ -1898,13 +1913,6 @@ await TaskService.updateTask(projectId, taskId, updateData);
                           gap: 8,
                           fontSize: '14px'
                         }}>
-                          <span style={{ 
-                            color: '#8c8c8c',
-                            fontSize: '12px',
-                            flexShrink: 0
-                          }}>
-                            └─
-                          </span>
                           <button
                             onClick={() => handleViewTask(subTask)}
                             style={{
@@ -2013,22 +2021,12 @@ await TaskService.updateTask(projectId, taskId, updateData);
       key: 'status',
       width: '12%',
       render: (status: TaskStatus, record: Task) => {
-        const statusConfig = {
-          todo: { color: 'default', text: '待办', bgColor: '#fafafa', dotColor: '#d9d9d9' },
-          in_progress: { color: 'processing', text: '进行中', bgColor: '#e6f7ff', dotColor: '#1890ff' },
-          completed: { color: 'success', text: '已完成', bgColor: '#f6ffed', dotColor: '#52c41a' },
-          cancelled: { color: 'error', text: '已取消', bgColor: '#fff2f0', dotColor: '#ff4d4f' }
-        };
-        
-        const config = statusConfig[status] || statusConfig.todo;
-        
         return (
           <Select
             value={status}
             onChange={(newStatus) => handleStatusUpdate(record.id, newStatus, record)}
             style={{ 
               width: '100%',
-              backgroundColor: config.bgColor,
               borderRadius: '4px'
             }}
             variant="borderless"
@@ -2036,16 +2034,10 @@ await TaskService.updateTask(projectId, taskId, updateData);
             styles={{ popup: { root: { minWidth: 140 } } }}
             suffixIcon={null}
           >
-            {Object.entries(statusConfig).map(([key, conf]) => (
-              <Select.Option key={key} value={key}>
+            {TASK_STATUS_OPTIONS.map(opt => (
+              <Select.Option key={opt.value as string} value={opt.value as string}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    backgroundColor: conf.dotColor
-                  }} />
-                  <span style={{ fontWeight: 500 }}>{conf.text}</span>
+                  <span style={{ fontWeight: 500 }}>{opt.label}</span>
                 </div>
               </Select.Option>
             ))}
@@ -2476,7 +2468,6 @@ await TaskService.updateTask(projectId, taskId, updateData);
                     ))}
                   </div>
                 )}
-                )}
               </div>
               
               
@@ -2685,6 +2676,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
                 columns={generateColumns()}
                 rowKey="id"
                 loading={loading}
+                scroll={{ x: 'max-content' }}
                 pagination={{
                   ...pagination,
                   showSizeChanger: true,
@@ -2736,6 +2728,7 @@ await TaskService.updateTask(projectId, taskId, updateData);
             columns={generateColumns()}
             rowKey="id"
             loading={loading}
+            scroll={{ x: 'max-content' }}
             pagination={{
               ...pagination,
               showSizeChanger: true,

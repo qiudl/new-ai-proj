@@ -464,6 +464,9 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			args = append(args, *opts.TaskID)
 			argIdx++
 		}
+		if opts.OnlyRoots {
+			conditions = append(conditions, "t.parent_id IS NULL")
+		}
 		if s := strings.TrimSpace(opts.Search); s != "" {
 			like := "%" + s + "%"
 			conditions = append(conditions, fmt.Sprintf("(t.title ILIKE $%d OR t.description ILIKE $%d)", argIdx, argIdx+1))

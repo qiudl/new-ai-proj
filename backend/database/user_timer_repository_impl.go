@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // PostgresUserTimerRepository implements UserTimerRepository using PostgreSQL
@@ -555,22 +556,282 @@ func (r *PostgresUserTimerRepository) GetTodayStats(ctx context.Context, userID 
 }
 
 func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID int, dateRange string) (*models.PersonalTimerAnalytics, error) {
-	analytics := &models.PersonalTimerAnalytics{
-		DateRange: dateRange,
-		TotalTime: models.PersonalTimeAnalytics{
-			TotalSeconds:  0,
-			FormattedTime: "00:00:00",
-		},
-		CategoryBreakdown: []models.PersonalCategoryAnalytics{},
-		WeeklyTrend:       []models.PersonalWeeklyTrend{},
-		ProductivityScore: models.PersonalProductivityScore{
-			OverallScore: 75.0,
-		},
-		Recommendations: []string{
-			"Keep up the great work!",
-			"Try setting daily goals",
-		},
+	// Determine date range
+	now := time.Now().UTC()
+	var days int
+	switch dateRange {
+	case "7days":
+		days = 7
+	case "90days":
+		days = 90
+	default:
+		// fallback to 30 days if not specified or unknown
+		days = 30
 	}
+	start := now.AddDate(0, 0, -days)
+	end := now
+
+	analytics := &models.PersonalTimerAnalytics{
+		DateRange:           dateRange,
+		TotalTime:           models.PersonalTimeAnalytics{},
+		CategoryBreakdown:   []models.PersonalCategoryAnalytics{},
+		WeeklyTrend:         []models.PersonalWeeklyTrend{},
+		HourlyDistribution:  []models.PersonalHourlyDistribution{},
+		TaskEfficiency:      []models.PersonalTaskEfficiency{},
+		ProductivityScore:   models.PersonalProductivityScore{OverallScore: 75.0},
+		Recommendations:    []string{"保持良好习惯，合理安排高效时段"},
+	}
+
+	// 1) Total time within range (use overlap within [start, end))
+	var totalSeconds int
+	{
+		query := `
+			SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (
+				LEAST(end_time, $3) - GREATEST(start_time, $2)
+			))), 0)::int AS total_seconds
+			FROM unified_timer_logs
+			WHERE user_id = $1
+			  AND end_time IS NOT NULL
+			  AND duration_seconds IS NOT NULL
+			  AND start_time < $3 AND end_time > $2`
+		if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&totalSeconds); err != nil {
+			return nil, fmt.Errorf("failed to compute total analytics time: %w", err)
+		}
+		if totalSeconds < 0 { totalSeconds = 0 }
+		analytics.TotalTime.TotalSeconds = totalSeconds
+		analytics.TotalTime.FormattedTime = models.FormatDuration(totalSeconds)
+		if days > 0 {
+			analytics.TotalTime.DailyAverage = totalSeconds / days
+		}
+		if days >= 7 {
+			analytics.TotalTime.WeeklyAverage = totalSeconds / (days / 7)
+		}
+		analytics.TotalTime.GrowthRate = 0 // 简化：暂不计算环比
+	}
+
+	// 2) Category breakdown (sum by overlap within [start, end))
+	{
+		query := `
+			SELECT COALESCE(category, '未分类') as category,
+			       COALESCE(SUM(EXTRACT(EPOCH FROM (
+			           LEAST(end_time, $3) - GREATEST(start_time, $2)
+			       ))),0)::int as total_seconds,
+			       COUNT(*) as sessions,
+			       COALESCE(MAX(NULLIF(target_metadata->>'color', '')), '') as color
+			FROM unified_timer_logs
+			WHERE user_id = $1
+			  AND end_time IS NOT NULL
+			  AND duration_seconds IS NOT NULL
+			  AND start_time < $3 AND end_time > $2
+			GROUP BY 1
+			ORDER BY total_seconds DESC`
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query category breakdown: %w", err)
+		}
+		defer rows.Close()
+
+		var breakdown []models.PersonalCategoryAnalytics
+		for rows.Next() {
+			var category string
+			var seconds int
+			var sessionCount int
+			var color sql.NullString
+			if err := rows.Scan(&category, &seconds, &sessionCount, &color); err != nil {
+				return nil, fmt.Errorf("failed to scan category breakdown: %w", err)
+			}
+			percent := 0.0
+			if totalSeconds > 0 {
+				percent = (float64(seconds) / float64(totalSeconds)) * 100.0
+			}
+			c := models.PersonalCategoryAnalytics{
+				Category:       category,
+				TotalSeconds:   seconds,
+				FormattedTime:  models.FormatDuration(seconds),
+				Percentage:     percent,
+				TaskCount:      sessionCount,
+				AveragePerTask: 0,
+				Color:          "",
+			}
+			if color.Valid && color.String != "" {
+				c.Color = color.String
+			} else {
+				// basic fallback colors by known categories
+				switch strings.ToLower(category) {
+				case "personal", "个人":
+					c.Color = "#1890ff"
+				case "work", "工作":
+					c.Color = "#52c41a"
+				case "study", "学习":
+					c.Color = "#722ed1"
+				case "fitness", "健身":
+					c.Color = "#fa8c16"
+				case "hobby", "爱好":
+					c.Color = "#eb2f96"
+				default:
+					c.Color = "#1890ff"
+				}
+			}
+			breakdown = append(breakdown, c)
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating category rows: %w", err)
+		}
+		analytics.CategoryBreakdown = breakdown
+	}
+
+	// 3) Daily trend (split overlap per day)
+	{
+		query := `
+			WITH days AS (
+			  SELECT generate_series(date_trunc('day', $2::timestamptz), date_trunc('day', $3::timestamptz) - interval '1 day', interval '1 day') AS d
+			)
+			SELECT d.d::date AS day,
+			       COALESCE(SUM(EXTRACT(EPOCH FROM (
+			         LEAST(utl.end_time, d.d + interval '1 day') - GREATEST(utl.start_time, d.d)
+			       ))), 0)::int AS total_seconds,
+			       COUNT(utl.id) AS sessions_count,
+			       COUNT(DISTINCT COALESCE(utl.target_id, 0)) AS tasks_count
+			FROM days d
+			LEFT JOIN unified_timer_logs utl
+			  ON utl.user_id = $1
+			 AND utl.end_time IS NOT NULL
+			 AND utl.duration_seconds IS NOT NULL
+			 AND utl.start_time < d.d + interval '1 day' AND utl.end_time > d.d
+			GROUP BY d.d
+			ORDER BY d.d`
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query daily trend: %w", err)
+		}
+		defer rows.Close()
+
+		var trends []models.PersonalWeeklyTrend
+		for rows.Next() {
+			var day time.Time
+			var seconds int
+			var sessionsCount int
+			var tasksCount int
+			if err := rows.Scan(&day, &seconds, &sessionsCount, &tasksCount); err != nil {
+				return nil, fmt.Errorf("failed to scan daily trend: %w", err)
+			}
+			trends = append(trends, models.PersonalWeeklyTrend{
+				WeekStart:        day.Format("2006-01-02"),
+				WeekEnd:          day.Format("2006-01-02"),
+				TotalSeconds:     seconds,
+				FormattedTime:    models.FormatDuration(seconds),
+				SessionsCount:    sessionsCount,
+				TasksCount:       tasksCount,
+				ComparisonPercent: 0,
+			})
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating daily trend rows: %w", err)
+		}
+		analytics.WeeklyTrend = trends
+	}
+
+	// 4) Hourly distribution across the selected range (UTC hours)
+	{
+		query := `
+			WITH hours AS (
+			  SELECT generate_series(0,23) AS h
+			)
+			SELECT h.h as hour,
+			       COALESCE(SUM(EXTRACT(EPOCH FROM (
+			         LEAST(utl.end_time, $3) - GREATEST(utl.start_time, $2)
+			       )) FILTER (WHERE EXTRACT(HOUR FROM utl.start_time AT TIME ZONE 'UTC') = h.h), 0))::int AS total_seconds,
+			       COUNT(utl.id) FILTER (WHERE EXTRACT(HOUR FROM utl.start_time AT TIME ZONE 'UTC') = h.h) AS session_count
+			FROM hours h
+			LEFT JOIN unified_timer_logs utl
+			  ON utl.user_id = $1
+			 AND utl.end_time IS NOT NULL
+			 AND utl.duration_seconds IS NOT NULL
+			 AND utl.start_time < $3 AND utl.end_time > $2
+			GROUP BY h.h
+			ORDER BY h.h`
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query hourly distribution: %w", err)
+		}
+		defer rows.Close()
+
+		var hourly []models.PersonalHourlyDistribution
+		for rows.Next() {
+			var hour, seconds, sessionCount int
+			if err := rows.Scan(&hour, &seconds, &sessionCount); err != nil {
+				return nil, fmt.Errorf("failed to scan hourly: %w", err)
+			}
+			hourly = append(hourly, models.PersonalHourlyDistribution{
+				Hour:           hour,
+				TotalSeconds:   seconds,
+				SessionCount:   sessionCount,
+				AvgEfficiency:  0, // placeholder until we have target/quality per session
+				PeakFocusScore: 0, // placeholder
+			})
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating hourly rows: %w", err)
+		}
+		analytics.HourlyDistribution = hourly
+	}
+
+	// 5) Task efficiency (aggregate by target_title as a proxy for task name)
+	{
+		query := `
+			SELECT target_title,
+			       COALESCE(SUM(EXTRACT(EPOCH FROM (
+			         LEAST(end_time, $3) - GREATEST(start_time, $2)
+			       ))),0)::int as total_seconds,
+			       COALESCE(SUM(COALESCE((target_metadata->>'target_minutes')::int, 0)),0) * 60 AS target_seconds
+			FROM unified_timer_logs
+			WHERE user_id = $1
+			  AND end_time IS NOT NULL
+			  AND duration_seconds IS NOT NULL
+			  AND start_time < $3 AND end_time > $2
+			GROUP BY target_title
+			ORDER BY total_seconds DESC
+			LIMIT 10`
+		rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query task efficiency: %w", err)
+		}
+		defer rows.Close()
+
+		var eff []models.PersonalTaskEfficiency
+		for rows.Next() {
+			var name string
+			var totalSec, targetSec int
+			if err := rows.Scan(&name, &totalSec, &targetSec); err != nil {
+				return nil, fmt.Errorf("failed to scan task efficiency: %w", err)
+			}
+			efficiency := 0
+			if targetSec > 0 {
+				ratio := float64(totalSec) / float64(targetSec)
+				// 简化效率计算：<=1 线性到100；>1 递减
+				if ratio <= 1 {
+					efficiency = int(100 * ratio)
+				} else {
+					v := 100 - int((ratio-1.0)*50)
+					if v < 0 { v = 0 }
+					efficiency = v
+				}
+			} else if totalSec > 0 {
+				efficiency = 75 // 无目标时给中等分
+			}
+			eff = append(eff, models.PersonalTaskEfficiency{
+				TaskName:   name,
+				TotalTime:  totalSec,
+				TargetTime: targetSec,
+				Efficiency: efficiency,
+			})
+		}
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterating efficiency rows: %w", err)
+		}
+		analytics.TaskEfficiency = eff
+	}
+
 	return analytics, nil
 }
 

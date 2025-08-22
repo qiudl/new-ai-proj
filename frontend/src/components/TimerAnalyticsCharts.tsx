@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Row, Col, Select, Typography, Space, Progress } from 'antd';
 import { BarChartOutlined, PieChartOutlined, LineChartOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
+import personalTimerService from '../services/personalTimerService';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -45,47 +47,75 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
     taskEfficiency: []
   });
 
-  // 模拟数据 - 实际使用时从API获取
+  // 从后端获取真实数据
   useEffect(() => {
-    const mockData: ChartData = {
-      categories: [
-        { name: '学习', value: 7200, color: '#722ed1', percentage: 40 },
-        { name: '工作', value: 5400, color: '#52c41a', percentage: 30 },
-        { name: '个人', value: 3600, color: '#1890ff', percentage: 20 },
-        { name: '健身', value: 1800, color: '#fa8c16', percentage: 10 }
-      ],
-      weeklyTrend: [
-        { day: '周一', value: 2800, sessions: 5 },
-        { day: '周二', value: 3200, sessions: 6 },
-        { day: '周三', value: 2400, sessions: 4 },
-        { day: '周四', value: 3600, sessions: 7 },
-        { day: '周五', value: 2000, sessions: 3 },
-        { day: '周六', value: 1800, sessions: 3 },
-        { day: '周日', value: 2200, sessions: 4 }
-      ],
-      hourlyDistribution: [
-        { hour: 9, value: 1800 },
-        { hour: 10, value: 2400 },
-        { hour: 11, value: 1200 },
-        { hour: 14, value: 3600 },
-        { hour: 15, value: 2800 },
-        { hour: 16, value: 1600 },
-        { hour: 19, value: 2200 },
-        { hour: 20, value: 2800 }
-      ],
-      taskEfficiency: [
-        { taskName: 'React学习', totalTime: 7200, targetTime: 7200, efficiency: 100 },
-        { taskName: '项目开发', totalTime: 5400, targetTime: 7200, efficiency: 75 },
-        { taskName: '代码复习', totalTime: 3600, targetTime: 3600, efficiency: 100 },
-        { taskName: '文档编写', totalTime: 1800, targetTime: 3600, efficiency: 50 }
-      ]
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        const data: any = await personalTimerService.getAnalytics({ range: timeRange });
+        const totalSeconds: number = (data && data.total_time && data.total_time.total_seconds) || 0;
+
+        const categories = (data?.category_breakdown || []).map((c: any) => ({
+          name: c.category || '未分类',
+          value: c.total_seconds || 0,
+          color: c.color || '#1890ff',
+          percentage: typeof c.percentage === 'number'
+            ? Math.round(c.percentage)
+            : (totalSeconds ? Math.round((c.total_seconds / totalSeconds) * 100) : 0)
+        }));
+
+        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const weeklyTrend = (data?.weekly_trend || []).map((w: any) => {
+          const dateStr = w.week_start || w.date || w.day;
+          const d = dayjs(dateStr);
+          return {
+            day: dayNames[d.day()],
+            value: w.total_seconds || 0,
+            sessions: w.sessions_count || 0,
+          };
+        });
+
+        const hourlyDistribution = (data?.hourly_distribution || []).map((h: any) => ({
+          hour: h.hour,
+          value: h.total_seconds || 0,
+        }));
+
+        const taskEfficiency = (data?.task_efficiency || []).map((t: any) => ({
+          taskName: t.task_name,
+          totalTime: t.total_time || 0,
+          targetTime: t.target_time || 0,
+          efficiency: t.efficiency || 0,
+        }));
+
+        const chart: ChartData = {
+          categories,
+          weeklyTrend,
+          hourlyDistribution,
+          taskEfficiency,
+        };
+
+        if (isMounted) setChartData(chart);
+      } catch (err) {
+        // 出错时使用空数据避免展示错误的模拟数据
+        if (isMounted) setChartData({ categories: [], weeklyTrend: [], hourlyDistribution: [], taskEfficiency: [] });
+      }
     };
-    setChartData(mockData);
+
+    fetchData();
+    return () => { isMounted = false; };
   }, [timeRange]);
 
   // 饼图组件
   const PieChart: React.FC<{ data: ChartData['categories'] }> = ({ data }) => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
+    if (!data.length || total <= 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>
+          无数据
+        </div>
+      );
+    }
     let currentAngle = 0;
     
     const center = 100;
@@ -161,6 +191,9 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
 
   // 柱状图组件
   const BarChart: React.FC<{ data: ChartData['weeklyTrend'] }> = ({ data }) => {
+    if (!data.length) {
+      return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无数据</div>;
+    }
     const maxValue = Math.max(...data.map(item => item.value));
     const chartHeight = 120;
     
@@ -213,6 +246,9 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
 
   // 折线图组件
   const LineChart: React.FC<{ data: ChartData['hourlyDistribution'] }> = ({ data }) => {
+    if (!data.length) {
+      return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无数据</div>;
+    }
     const maxValue = Math.max(...data.map(item => item.value));
     const chartHeight = 120;
     const chartWidth = 300;

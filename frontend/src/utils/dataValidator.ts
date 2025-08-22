@@ -178,24 +178,27 @@ export function validateTaskRequest(taskData: unknown): ValidationResult {
 
   const cleaned = { ...taskData };
 
-  // 验证必需字段
-  if (!cleaned.title || typeof cleaned.title !== 'string' || cleaned.title.trim() === '') {
-    return {
-      isValid: false,
-      error: 'Title is required and must be a non-empty string'
-    };
+  // 标题校验（可选）：如果提供则必须为非空字符串
+  if (cleaned.title !== undefined) {
+    if (typeof cleaned.title !== 'string' || cleaned.title.trim() === '') {
+      return {
+        isValid: false,
+        error: 'Title must be a non-empty string if provided'
+      };
+    }
+    // 清理title
+    cleaned.title = cleaned.title.trim();
   }
 
-  // 清理title
-  cleaned.title = cleaned.title.trim();
-
-  // 验证status
-  const validStatuses = ['todo', 'in_progress', 'completed', 'cancelled'];
-  if (cleaned.status && !validStatuses.includes(cleaned.status)) {
-    return {
-      isValid: false,
-      error: `Status must be one of: ${validStatuses.join(', ')}`
-    };
+  // 验证status（扩展为完整工作流，且为可选字段）
+  const validStatuses = ['draft','planning','todo','in_progress','testing','completed','cancelled','on_hold','suspended','blocked','archived'];
+  if (cleaned.status !== undefined && cleaned.status !== null) {
+    if (typeof cleaned.status !== 'string' || !validStatuses.includes(cleaned.status)) {
+      return {
+        isValid: false,
+        error: `Status must be one of: ${validStatuses.join(', ')}`
+      };
+    }
   }
 
   // 验证和清理CustomFields

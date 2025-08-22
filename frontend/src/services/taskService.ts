@@ -28,7 +28,7 @@ export async function fetchTaskDescendants(projectId: number, taskId: number, pa
   }
 }
 
-import { ValidationHelper } from '../utils/errorTypes';
+import { ValidationHelper, AppError } from '../utils/errorTypes';
 import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
 import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
 import {
@@ -309,8 +309,6 @@ const mergedRaw = { ...(params || {}) } as any;
     task: Partial<TaskRequest>
   ): Promise<Task> {
     try {
-      // Debug logging removed
-
       // 验证和清理任务数据
       const validationResult = validateTaskRequest(task);
       if (!validationResult.isValid) {
@@ -320,26 +318,62 @@ const mergedRaw = { ...(params || {}) } as any;
       // 清理数据格式
       const sanitizedTask = sanitizeForAPI(validationResult.cleanedData || task);
 
-      const response: APIResponse<Task> = await api.put(
+      const response: any = await api.put(
         `/projects/${projectId}/tasks/${taskId}`,
         sanitizedTask
       );
-      
-      if (!response.success) {
-        console.error('TaskService.updateTask - API returned error:', response.error);
-        throw new Error(response.error?.message || 'Failed to update task');
+
+      // 支持多种响应格式
+      // 1) 标准包装 { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          console.error('TaskService.updateTask - API returned error:', (response as any).error || response);
+          const err: any = new Error((response as any)?.error?.message || (response as any)?.message || 'Failed to update task');
+          err.status = (response as any)?.error?.status || (response as any)?.code;
+          err.statusCode = err.status;
+          err.data = (response as any)?.error;
+          throw err;
+        }
+        const data = (response as any).data;
+        return (sanitizeFromAPI ? (sanitizeFromAPI(data) as Task) : (data as Task));
       }
+
+      // 2) Axios拦截器已解包
+      // 2a) 直接是 Task 对象
+      if (response && typeof response === 'object' && !Array.isArray(response) && 'id' in response && 'title' in response) {
+        return (sanitizeFromAPI ? (sanitizeFromAPI(response) as Task) : (response as Task));
+      }
+      // 2b) 包在 data 字段内
+      if (response && typeof response === 'object' && 'data' in response && response.data) {
+        const maybeTask = (response as any).data;
+        if (maybeTask && typeof maybeTask === 'object' && 'id' in maybeTask && 'title' in maybeTask) {
+          return (sanitizeFromAPI ? (sanitizeFromAPI(maybeTask) as Task) : (maybeTask as Task));
+        }
+      }
+
+      // 3) 其他未知格式
+      console.warn('TaskService.updateTask: unexpected response shape', response);
+      throw new Error('Failed to update task');
       
-      return response.data!;
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('TaskService.updateTask - Error details:', {
-        error: (error as any).message,
-        status: (error as any).status,
-        data: (error as any).data,
+        error: error?.message,
+        status: error?.status,
+        data: error?.data,
         projectId,
         taskId,
         requestData: task
       });
+
+      // 规范化 AppError 以兼容调用方使用 statusCode/status 判断
+      if (error instanceof AppError) {
+        const normalized: any = new Error(error.message || 'Failed to update task');
+        normalized.status = error.status;
+        normalized.statusCode = error.status;
+        normalized.data = error.context;
+        throw normalized;
+      }
+
       throw error;
     }
   }

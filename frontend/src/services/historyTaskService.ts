@@ -12,7 +12,10 @@ export class HistoryTaskService {
       const response = await api.get(`/timer/history?limit=${limit}&order_by=last_updated&order=desc`);
       
       if (response?.data && Array.isArray(response.data)) {
-        return response.data.map(this.transformHistoryTask);
+        const items = response.data.map(this.transformHistoryTask);
+        // 健壮排序：按 last_updated 降序，无效时间置后
+        items.sort((a, b) => this.safeTime(b.last_updated) - this.safeTime(a.last_updated));
+        return items.slice(0, limit);
       }
       
       // 如果没有专门的API，从统计数据中获取
@@ -33,9 +36,11 @@ export class HistoryTaskService {
       const stats = statsResponse?.data;
       
       if (stats?.recent_tasks && Array.isArray(stats.recent_tasks)) {
-        return stats.recent_tasks
-          .map(this.transformFromRecentTask)
-          .slice(0, limit);
+        const items = stats.recent_tasks
+          .map(this.transformFromRecentTask);
+        // 健壮排序：按 last_updated 降序，无效时间置后
+        items.sort((a, b) => this.safeTime(b.last_updated) - this.safeTime(a.last_updated));
+        return items.slice(0, limit);
       }
 
       // 如果统计API也没有数据，从项目任务中筛选有计时记录的任务
@@ -95,7 +100,7 @@ export class HistoryTaskService {
 
       // 按最后更新时间排序并限制数量
       return historyTasks
-        .sort((a, b) => new Date(b.last_updated).getTime() - new Date(a.last_updated).getTime())
+        .sort((a, b) => this.safeTime(b.last_updated) - this.safeTime(a.last_updated))
         .slice(0, limit);
 
     } catch (error) {
@@ -107,33 +112,33 @@ export class HistoryTaskService {
   /**
    * 转换API返回的历史任务数据
    */
-  private static transformHistoryTask(apiData: unknown): HistoryTask {
+  private static transformHistoryTask(apiData: any): HistoryTask {
     return {
-      id: apiData.id || apiData.task_id,
-      task_id: apiData.task_id,
-      task_title: apiData.task_title || apiData.title,
-      project_name: apiData.project_name || 'Unknown Project',
-      total_seconds: apiData.total_seconds || 0,
-      formatted_time: apiData.formatted_time || this.formatDuration(apiData.total_seconds || 0),
-      last_updated: apiData.last_updated || apiData.updated_at || apiData.last_timed_at,
-      status: this.mapTaskStatus(apiData.status),
-      session_count: apiData.session_count || 1
+      id: apiData?.id || apiData?.task_id,
+      task_id: apiData?.task_id,
+      task_title: apiData?.task_title || apiData?.title,
+      project_name: apiData?.project_name || 'Unknown Project',
+      total_seconds: apiData?.total_seconds || 0,
+      formatted_time: apiData?.formatted_time || this.formatDuration(apiData?.total_seconds || 0),
+      last_updated: apiData?.last_updated || apiData?.updated_at || apiData?.last_timed_at || apiData?.created_at,
+      status: this.mapTaskStatus(apiData?.status),
+      session_count: apiData?.session_count || 1
     };
   }
 
   /**
    * 从RecentTimedTask转换为HistoryTask
    */
-  private static transformFromRecentTask(recentTask: unknown): HistoryTask {
+  private static transformFromRecentTask(recentTask: any): HistoryTask {
     return {
-      id: recentTask.task_id,
-      task_id: recentTask.task_id,
-      task_title: recentTask.task_title,
-      project_name: recentTask.project_name,
-      total_seconds: recentTask.total_seconds,
-      formatted_time: recentTask.formatted_time,
-      last_updated: recentTask.last_timed_at,
-      status: this.mapTaskStatus(recentTask.status),
+      id: recentTask?.task_id,
+      task_id: recentTask?.task_id,
+      task_title: recentTask?.task_title,
+      project_name: recentTask?.project_name,
+      total_seconds: recentTask?.total_seconds,
+      formatted_time: recentTask?.formatted_time,
+      last_updated: recentTask?.last_timed_at || recentTask?.updated_at || recentTask?.created_at,
+      status: this.mapTaskStatus(recentTask?.status),
       session_count: 1
     };
   }
@@ -167,6 +172,15 @@ export class HistoryTaskService {
     } else {
       return `${minutes}:${secs.toString().padStart(2, '0')}`;
     }
+  }
+
+  /**
+   * 将日期字符串或Date转换为时间戳；无效返回0
+   */
+  private static safeTime(value: any): number {
+    if (!value) return 0;
+    const t = new Date(value).getTime();
+    return Number.isFinite(t) ? t : 0;
   }
 
   /**
