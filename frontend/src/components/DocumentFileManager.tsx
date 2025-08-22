@@ -73,6 +73,8 @@ import dayjs from '../utils/dayjs';
 import { Document } from '../types/document';
 import unifiedDocumentService from '../services/unifiedDocumentService';
 
+type PresetStatusColor = 'success' | 'processing' | 'default' | 'error' | 'warning';
+
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
@@ -100,7 +102,7 @@ const DOCUMENT_TYPES = {
 };
 
 // 文档状态配置
-const DOCUMENT_STATUS = {
+const DOCUMENT_STATUS: Record<string, { label: string; color: PresetStatusColor }> = {
   draft: { label: '草稿', color: 'default' },
   published: { label: '已发布', color: 'success' },
   archived: { label: '已归档', color: 'warning' }
@@ -156,7 +158,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
     image: { label: 'Image', color: 'orange', icon: <FileOutlined /> }
   };
 
-  const DOCUMENT_STATUS = {
+  const DOCUMENT_STATUS: Record<string, { label: string; color: PresetStatusColor }> = {
     draft: { label: '草稿', color: 'default' },
     published: { label: '已发布', color: 'success' },
     archived: { label: '已归档', color: 'warning' }
@@ -257,8 +259,8 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 )}
                 <div style={{ marginTop: 8 }}>
                   <Space wrap>
-                    <Badge 
-                      status={DOCUMENT_STATUS[document.status]?.color as unknown} 
+<Badge 
+                      status={DOCUMENT_STATUS[document.status]?.color} 
                       text={DOCUMENT_STATUS[document.status]?.label}
                     />
                   </Space>
@@ -339,8 +341,8 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
             )}
             <div style={{ marginTop: '8px' }}>
               <Space wrap>
-                <Badge 
-                  status={DOCUMENT_STATUS[document.status]?.color as unknown} 
+<Badge 
+                  status={DOCUMENT_STATUS[document.status]?.color} 
                   text={DOCUMENT_STATUS[document.status]?.label}
                 />
                 {document.tags && document.tags.map(tag => (
@@ -571,7 +573,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
   };
 
   // 处理文档操作
-  const handleCreateDocument = async (values: unknown) => {
+const handleCreateDocument = async (values: any) => {
     try {
       const request = {
         folder_id: folderId,
@@ -597,13 +599,14 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: Error | unknown) {
+    } catch (error: unknown) {
       console.error('创建文档失败:', error);
-      message.error(error.message || '创建文档失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      message.error(msg || '创建文档失败');
     }
   };
 
-  const handleEditDocument = async (values: unknown) => {
+const handleEditDocument = async (values: any) => {
     try {
       if (!selectedDocument) return;
       
@@ -627,9 +630,10 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: Error | unknown) {
+    } catch (error: unknown) {
       console.error('更新文档失败:', error);
-      message.error(error.message || '更新文档失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      message.error(msg || '更新文档失败');
     }
   };
 
@@ -645,9 +649,10 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
       
       // 重新加载文档列表
       loadDocuments();
-    } catch (error: Error | unknown) {
+    } catch (error: unknown) {
       console.error('删除文档失败:', error);
-      message.error(error.message || '删除文档失败');
+      const msg = error instanceof Error ? error.message : String(error);
+      message.error(msg || '删除文档失败');
     }
   };
 
@@ -1850,8 +1855,8 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               <Tag color={DOCUMENT_TYPES[selectedDocument.type]?.color}>
                 {DOCUMENT_TYPES[selectedDocument.type]?.label}
               </Tag>
-              <Badge 
-                status={DOCUMENT_STATUS[selectedDocument.status]?.color as unknown} 
+<Badge 
+                status={DOCUMENT_STATUS[selectedDocument.status]?.color} 
                 text={DOCUMENT_STATUS[selectedDocument.status]?.label}
               />
               <Text type="secondary">
