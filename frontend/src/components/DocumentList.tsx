@@ -269,7 +269,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
               {record.visibility}
             </Tag>
             {record.tags.map(tag => (
-              <Tag key={tag} size="small">{tag}</Tag>
+              <Tag key={tag}>{tag}</Tag>
             ))}
           </Space>
         </Space>
@@ -279,7 +279,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
       title: '版本信息',
       key: 'version',
       width: 120,
-      render: (_, record: Document) => (
+      render: (_, record: DocItem) => (
         <Space direction="vertical" size={2}>
           <Badge 
             count={record.current_version} 

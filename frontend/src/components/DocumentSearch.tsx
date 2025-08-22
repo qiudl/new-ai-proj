@@ -113,7 +113,9 @@ const DOCUMENT_TYPES = {
   image: { label: 'Image', color: 'orange', icon: '🖼️' }
 };
 
-const DOCUMENT_STATUS = {
+type PresetStatusColor = 'success' | 'processing' | 'default' | 'error' | 'warning';
+
+const DOCUMENT_STATUS: Record<string, { label: string; color: PresetStatusColor }> = {
   draft: { label: '草稿', color: 'default' },
   published: { label: '已发布', color: 'success' },
   archived: { label: '已归档', color: 'warning' }
@@ -331,12 +333,12 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
     setSearchQuery(suggestion);
   };
 
-  const handleFilterChange = (key: keyof SearchFilters, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+const handleFilterChange = (key: keyof SearchFilters, value: any) => {
+  setFilters(prev => ({
+    ...prev,
+    [key]: value as any
+  }));
+};
 
   const clearFilters = () => {
     setFilters({});
@@ -571,8 +573,8 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                     style={{ width: '100%', marginTop: 8 }}
                     value={filters.date_range ? [dayjs(filters.date_range[0]), dayjs(filters.date_range[1])] : null}
                     onChange={(dates) => {
-                      if (dates) {
-                        handleFilterChange('date_range', [dates[0]?.toISOString(), dates[1]?.toISOString()]);
+                      if (dates && dates[0] && dates[1]) {
+                        handleFilterChange('date_range', [dates[0].toISOString(), dates[1].toISOString()]);
                       } else {
                         handleFilterChange('date_range', undefined);
                       }
@@ -686,8 +688,8 @@ const DocumentSearch: React.FC<DocumentSearchProps> = ({
                         <Tag color={DOCUMENT_TYPES[document.type]?.color} >
                           {DOCUMENT_TYPES[document.type]?.label}
                         </Tag>
-                        <Badge 
-                          status={DOCUMENT_STATUS[document.status]?.color as unknown} 
+<Badge 
+                          status={DOCUMENT_STATUS[document.status]?.color}
                           text={DOCUMENT_STATUS[document.status]?.label}
                         />
                       </Space>
