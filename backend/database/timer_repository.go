@@ -165,7 +165,7 @@ func (r *PostgresTimerRepository) GetByUserAndTaskToday(ctx context.Context, use
 func (r *PostgresTimerRepository) GetTodayTotalByUser(ctx context.Context, userID int) (int, error) {
 	var total sql.NullInt64
 	query := `
-		SELECT COALESCE(SUM(duration_seconds), 0) as total
+		SELECT COALESCE(SUM(GREATEST(duration_seconds, 0)), 0) as total
 		FROM task_time_logs
 		WHERE user_id = $1 
 		AND start_time >= CURRENT_DATE 
@@ -464,7 +464,7 @@ func (r *PostgresTimerRepository) GetWeeklyReport(ctx context.Context, userID in
 func (r *PostgresTimerRepository) getWeeklyStats(ctx context.Context, userID int, start, end time.Time) (*models.WeeklyStatsData, error) {
 	query := `
 		SELECT 
-			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
+			COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) as total_seconds,
 			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
 			COUNT(DISTINCT t.id) as total_tasks
 		FROM task_time_logs ttl
@@ -506,7 +506,7 @@ func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int,
 			SELECT 
 				-- 使用上海时区进行按天分组，避免跨天偏移
 				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
-				COALESCE(SUM(ttl.duration_seconds), 0) AS total_seconds
+				COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) AS total_seconds
 			FROM task_time_logs ttl
 			-- 仅统计当前用户的计时
 			WHERE ttl.user_id = $1
@@ -518,7 +518,7 @@ func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int,
 			SELECT 
 				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
 				t.title AS task_title,
-				SUM(ttl.duration_seconds) AS seconds
+				SUM(GREATEST(ttl.duration_seconds, 0)) AS seconds
 			FROM task_time_logs ttl
 			JOIN tasks t ON ttl.task_id = t.id
 			WHERE ttl.user_id = $1
@@ -600,7 +600,7 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 			ttl.id,
 			t.title as task_title,
 			p.name as project_name,
-			ttl.duration_seconds,
+			GREATEST(ttl.duration_seconds, 0) as duration_seconds,
 			DATE(ttl.start_time) as date,
 			t.status,
 			COALESCE(t.custom_fields->>'priority', 'medium') as priority
@@ -652,7 +652,7 @@ func (r *PostgresTimerRepository) getProjectStats(ctx context.Context, userID in
 	query := `
 		SELECT 
 			p.name as project_name,
-			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
+			COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) as total_seconds,
 			COUNT(DISTINCT t.id) as tasks_count,
 			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks
 		FROM task_time_logs ttl
