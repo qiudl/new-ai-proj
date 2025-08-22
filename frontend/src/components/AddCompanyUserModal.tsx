@@ -147,7 +147,7 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
       title={
         <Space>
           <UserOutlined />
-          {editUser ? `编辑用户 - ${editUser.name}` : `为 "${companyName}" 添加用户`}
+          {editUser ? `编辑用户 - ${editUser.name}` : `为 \"${companyName}\" 添加用户`}
         </Space>
       }
       open={visible}
@@ -155,7 +155,7 @@ const AddCompanyUserModal: React.FC<AddCompanyUserModalProps> = ({
       onOk={handleSubmit}
       confirmLoading={loading}
       width={800}
-      destroyOnHidden
+      destroyOnClose
       okText="添加用户"
       cancelText="取消"
     >

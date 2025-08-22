@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip } from 'antd';
+import { cleanupGlobalOverlays } from '../utils/overlayCleanup';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
@@ -134,6 +135,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     fetchUser();
   }, [navigate]);
+
+  // 全局兜底清理：在页面可见性/焦点变化与路由变化时清理遗留的全屏/遮罩状态
+  useEffect(() => {
+    const handleVisibilityOrFocus = () => cleanupGlobalOverlays();
+    window.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    cleanupGlobalOverlays();
+  }, [location.pathname]);
 
   // 获取当前选中的菜单项
   const getSelectedKeys = () => {

@@ -842,7 +842,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       
     } else {
       // 退出全屏时恢复body样式并显示其他元素
-      document.body.style.overflow = 'auto';
+      document.body.style.overflow = '';
       document.body.classList.remove('fullscreen-editor-active');
       
       // 恢复被隐藏的元素
@@ -858,7 +858,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     // 清理函数
     return () => {
       if (typeof document !== 'undefined' && document && document.body) {
-        document.body.style.overflow = 'auto';
+        document.body.style.overflow = '';
         document.body.classList.remove('fullscreen-editor-active');
         // 确保退出时恢复所有元素
         const hiddenElements = document.querySelectorAll('[data-hidden-by-fullscreen="true"]');

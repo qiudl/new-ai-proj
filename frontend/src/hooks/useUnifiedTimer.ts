@@ -115,11 +115,11 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
   };
 
   const startPolling = () => {
-    // 每30秒同步一次服务器状态（并更新活动列表）
+    // 每15秒同步一次服务器状态（并更新活动列表）
     pollIntervalRef.current = setInterval(() => {
       getCurrentStatus();
       refreshActiveTimers();
-    }, 30000);
+    }, 15000);
   };
 
   const stopPolling = () => {
@@ -165,14 +165,24 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
     try {
       const res = await unifiedTimerService.getActiveTimers();
       if (res.success && res.data) {
-        setActiveTimers(res.data.timers || []);
-        return res.data.timers || [];
+        const list = res.data.timers || [];
+        setActiveTimers(list);
+        if (process.env.NODE_ENV !== 'production') {
+          try { console.debug('[Timer] Active timers fetched:', list.length); } catch {}
+        }
+        return list;
       }
       setActiveTimers([]);
+      if (process.env.NODE_ENV !== 'production') {
+        try { console.debug('[Timer] Active timers fetched:', 0); } catch {}
+      }
       return [];
     } catch (err) {
       console.error('获取活动计时器失败:', err);
       setActiveTimers([]);
+      if (process.env.NODE_ENV !== 'production') {
+        try { console.debug('[Timer] Active timers fetched (error):', 0); } catch {}
+      }
       return [];
     }
   }, []);

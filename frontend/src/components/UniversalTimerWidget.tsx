@@ -8,7 +8,6 @@ import {
   Typography,
   Space,
   Dropdown,
-  Menu,
   Input,
   Select,
   Tag,
@@ -545,19 +544,18 @@ const renderMainControls = () => (
     <Space size="large" className="timer-main-controls">
       {(!isRunning && !isPaused) ? (
         <Dropdown
-          overlay={(
-            <Menu>
-              <Menu.Item key="start-default" onClick={() => handleStart()}>
-                并行启动新计时器（遵循默认设置）
-              </Menu.Item>
-              <Menu.Item key="start-parallel" onClick={() => handleStartWithOption(false)}>
-                并行启动新计时器（不停止其他）
-              </Menu.Item>
-              <Menu.Item key="start-stop-others" onClick={() => handleStartWithOption(true)}>
-                启动并自动停止其他计时器
-              </Menu.Item>
-            </Menu>
-          )}
+          menu={{
+            items: [
+              { key: 'start-default', label: '并行启动新计时器（遵循默认设置）' },
+              { key: 'start-parallel', label: '并行启动新计时器（不停止其他）' },
+              { key: 'start-stop-others', label: '启动并自动停止其他计时器' },
+            ],
+            onClick: ({ key }) => {
+              if (key === 'start-default') return handleStart();
+              if (key === 'start-parallel') return handleStartWithOption(false);
+              if (key === 'start-stop-others') return handleStartWithOption(true);
+            }
+          }}
         >
           <Button
             type="primary"
@@ -1041,7 +1039,7 @@ const renderMainControls = () => (
         </div>
         {!hasActive ? (
           <div style={{ marginTop: 8 }}>
-            <Text type="secondary" style={{ fontSize: 12 }}>暂无活动计时</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>无活动计时器（请尝试并行启动）</Text>
           </div>
         ) : (
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>

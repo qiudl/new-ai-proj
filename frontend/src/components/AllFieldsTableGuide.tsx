@@ -236,6 +236,7 @@ const AllFieldsTableGuide: React.FC<AllFieldsTableGuideProps> = ({ visible, onCl
         </Space>
       }
       width={600}
+      destroyOnClose
     >
       <Steps current={currentStep} size="small" style={{ marginBottom: '24px' }}>
         {steps.map((step, index) => (

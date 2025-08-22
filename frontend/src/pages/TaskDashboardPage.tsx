@@ -1043,7 +1043,7 @@ const TaskDashboardPage: React.FC = () => {
                               hoverable
                               style={{
                                 cursor: 'pointer',
-                                borderLeft: `4px solid ${getStatusColor(task.status)}`,
+                                borderLeft: `4px solid ${formatTaskStatus(task.status).color}`,
                                 transition: 'all 0.3s ease',
                                 backgroundColor: isOverdue ? '#fff2f0' : undefined
                               }}
@@ -1074,10 +1074,10 @@ const TaskDashboardPage: React.FC = () => {
                                   marginBottom: '4px'
                                 }}>
                                   <Tag 
-                                    color={getStatusColor(task.status)} 
+                                    color={formatTaskStatus(task.status).color} 
                                     style={{ fontSize: '10px', margin: 0, padding: '1px 4px' }}
                                   >
-                                    {getStatusText(task.status)}
+                                    {formatTaskStatus(task.status).text}
                                   </Tag>
                                   {task.custom_fields?.priority && (
                                     <Tag 
@@ -1182,7 +1182,7 @@ const TaskDashboardPage: React.FC = () => {
                     avatar={
                       <Avatar 
                         style={{ 
-                          backgroundColor: getStatusColor(task.status),
+                          backgroundColor: formatTaskStatus(task.status).color,
                           color: '#fff'
                         }}
                         icon={
@@ -1198,8 +1198,8 @@ const TaskDashboardPage: React.FC = () => {
                           {isOverdue && '⚠️ '}
                           {task.title}
                         </Text>
-                        <Tag color={getStatusColor(task.status)}>
-                          {getStatusText(task.status)}
+                        <Tag color={formatTaskStatus(task.status).color}>
+                          {formatTaskStatus(task.status).text}
                         </Tag>
                         {task.custom_fields?.priority && (
                           <Tag color={getPriorityColor(task.custom_fields.priority)}>

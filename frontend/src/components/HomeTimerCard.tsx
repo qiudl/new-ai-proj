@@ -57,6 +57,13 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
     refreshActiveTimers();
   }, [refreshActiveTimers]);
 
+  // 轻量日志：打印活动计时器数量（开发环境）
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') {
+      try { console.debug('[HomeTimerCard] activeTimers:', activeTimers?.length || 0); } catch {}
+    }
+  }, [activeTimers]);
+
   // 🎯 检查是否有任务正在计时
   const isTimerRunning = timerState.isRunning;
 
@@ -279,7 +286,7 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
           </div>
 
           {(!activeTimers || activeTimers.length === 0) ? (
-            <Text type="secondary" style={{ fontSize: 12 }}>暂无活动计时</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>无活动计时器（请尝试并行启动）</Text>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
               {activeTimers.map((t) => (
