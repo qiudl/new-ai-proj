@@ -118,9 +118,9 @@ const APIKeyDetail: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get(`/system/api-keys/${id}`);
-      console.log('API Key detail response:', response);
       setApiKey(response.data || response);
-    } catch (error) {
+    } catch (err: any) {
+      const error = err as any;
       console.error('Failed to load API key detail:', error);
       if (error?.message?.includes('UNAUTHORIZED') || error?.message?.includes('401')) {
         message.error('未授权访问，请先登录');
@@ -141,7 +141,6 @@ const APIKeyDetail: React.FC = () => {
     try {
       setStatsLoading(true);
       const response = await api.get(`/system/api-keys/${id}/stats`);
-      console.log('API Key stats response:', response);
       setUsageStats(response.data || response);
     } catch (error) {
       console.error('Failed to load usage stats:', error);
@@ -166,7 +165,6 @@ const APIKeyDetail: React.FC = () => {
     try {
       setLogsLoading(true);
       const response = await api.get(`/system/api-keys/${id}/logs`);
-      console.log('API Key logs response:', response);
       setUsageLogs(response.data || response || []);
     } catch (error) {
       console.error('Failed to load usage logs:', error);
@@ -203,12 +201,12 @@ const APIKeyDetail: React.FC = () => {
     
     try {
       const response = await api.post(`/system/api-keys/${apiKey.id}/regenerate`);
-      console.log('Regenerate response:', response);
       
       // 兼容不同的响应格式
-      const plainKey = response.data?.plain_key || response.plain_key;
-      const plainSecret = response.data?.plain_secret || response.plain_secret;
-      const newApiKey = response.data?.api_key || response.api_key;
+      const resp: any = response as any;
+      const plainKey = resp.data?.plain_key || resp.plain_key;
+      const plainSecret = resp.data?.plain_secret || resp.plain_secret;
+      const newApiKey = resp.data?.api_key || resp.api_key;
       
       if (plainKey) {
         Modal.info({
@@ -299,7 +297,8 @@ const APIKeyDetail: React.FC = () => {
       message.success('API Key已重新生成');
       loadAPIKeyDetail();
       loadUsageStats();
-    } catch (error) {
+    } catch (err: any) {
+      const error = err as any;
       message.error('重新生成失败');
       console.error('Failed to regenerate API key:', error);
     }
