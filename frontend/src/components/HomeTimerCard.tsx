@@ -57,12 +57,6 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
     refreshActiveTimers();
   }, [refreshActiveTimers]);
 
-  // 轻量日志：打印活动计时器数量（开发环境）
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
-      try { console.debug('[HomeTimerCard] activeTimers:', activeTimers?.length || 0); } catch {}
-    }
-  }, [activeTimers]);
 
   // 🎯 检查是否有任务正在计时
   const isTimerRunning = timerState.isRunning;

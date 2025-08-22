@@ -143,10 +143,8 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
       setApiError(null);
       
       // 优先调用真实API获取数据库统计
-      console.log('🚀 TaskAnalysisPanel优先调用真实API');
       const stats = await taskAnalysisService.getTagStatistics();
       setStatistics(stats);
-      console.log('✅ 成功获取API统计数据:', stats);
     } catch (error: any) {
       console.error('Failed to load statistics from API:', error);
       
@@ -155,7 +153,6 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
         const localStats = calculateLocalStatistics();
         setStatistics(localStats);
         setApiError('API暂时不可用，使用本地数据计算统计信息');
-        console.log('🔄 API失败，使用本地数据作为备用:', localStats);
         message.warning('API服务暂时不可用，已切换到本地计算模式');
         return;
       }
@@ -231,7 +228,6 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
       
       setWeeklyReport(safeReport);
       message.success('周报生成成功');
-      console.log('📊 周报数据结构:', safeReport);
     } catch (error: any) {
       console.error('Failed to generate report:', error);
       

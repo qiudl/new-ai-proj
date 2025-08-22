@@ -79,10 +79,14 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     
     // 对于已知的分析API错误，不在控制台显示错误
     if (isKnownAnalysisError) {
-      console.debug(`Analysis API temporarily unavailable: ${method} ${url} (Node.js environment needed)`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug(`Analysis API temporarily unavailable: ${method} ${url} (Node.js environment needed)`);
+      }
     } else if (!response.ok) {
       if (nonCritical) {
-        console.debug(`Non-critical API error: ${method} ${url} - ${response.status} ${response.statusText}`);
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug(`Non-critical API error: ${method} ${url} - ${response.status} ${response.statusText}`);
+        }
       } else {
         console.error(`API Error: ${method} ${url} - ${response.status} ${response.statusText}`);
       }
@@ -97,7 +101,9 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
     
     // 对于分析API或非关键API，使用debug级别日志
     if (isAnalysisApi(url) || isNonCriticalApi(url)) {
-      console.debug(`Non-critical network issue: ${method} ${url}`, error);
+      if (process.env.NODE_ENV !== 'production') {
+        console.debug(`Non-critical network issue: ${method} ${url}`, error);
+      }
     } else {
       console.error(`Network Error: ${method} ${url}`, error);
     }
