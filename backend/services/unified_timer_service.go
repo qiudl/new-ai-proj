@@ -43,7 +43,7 @@ type UnifiedStartTimerRequest struct {
 	EstimatedMinutes int                    `json:"estimated_minutes,omitempty"`
 	Context          string                 `json:"context"` // dashboard, task_detail, quick_start
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
-	AutoStopOthers   bool                   `json:"auto_stop_others"`
+	AutoStopOthers   *bool                  `json:"auto_stop_others,omitempty"`
 	TemplateID       *int                   `json:"template_id,omitempty"`
 }
 
@@ -184,8 +184,8 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 	}
 	defer tx.Rollback()
 
-	// 4. 停止其他活动计时器 (如果需要)
-	if req.AutoStopOthers {
+// 4. 停止其他活动计时器 (如果需要)
+	if req.AutoStopOthers != nil && *req.AutoStopOthers {
 		if err := s.stopActiveTimersInTx(ctx, tx, req.UserID); err != nil {
 			return &UnifiedTimerResponse{
 				Success: false,

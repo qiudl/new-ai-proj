@@ -44,11 +44,17 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	projects, total, err := h.db.Projects().GetPaginated(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder)
+	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
 		return
+	}
+
+	// Convert to response objects including company_name
+	responses := make([]models.ProjectResponse, 0, len(projectsWithCompany))
+	for _, pwc := range projectsWithCompany {
+		responses = append(responses, pwc.ToResponse())
 	}
 
     totalPages := (total + pageSize - 1) / pageSize
@@ -58,7 +64,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
     hasPrev := page > 1 && totalPages > 0
 
     responseData := map[string]interface{}{
-        "data": projects,
+        "data": responses,
         "pagination": map[string]interface{}{
             "page":        page,
             "page_size":   pageSize,

@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/services"
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -14,6 +15,18 @@ import (
 type UnifiedTimerHandler struct {
 	db           database.DB
 	timerService services.UnifiedTimerService
+}
+
+// UserTimerPreferences minimal struct for response
+type UserTimerPreferences struct {
+	DefaultCategory        string  `json:"default_category"`
+	AutoPauseOnIdle        *bool   `json:"auto_pause_on_idle,omitempty"`
+	PomodoroWorkMinutes    *int    `json:"pomodoro_work_minutes,omitempty"`
+	NotificationEnabled    *bool   `json:"notification_enabled,omitempty"`
+	PreferredTimerView     *string `json:"preferred_timer_view,omitempty"`
+	ShowProgressBar        *bool   `json:"show_progress_bar,omitempty"`
+	EnableAutoInference    *bool   `json:"enable_auto_inference,omitempty"`
+	AutoStopOthersDefault  *bool   `json:"auto_stop_others_default,omitempty"`
 }
 
 // NewUnifiedTimerHandler creates a new UnifiedTimerHandler
@@ -34,6 +47,70 @@ func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 // StartTimer handles POST /api/v1/user/timer/start
 // Unified endpoint for starting both personal and project timers
 func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
+	
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	var req services.UnifiedStartTimerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request format",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Set user ID in request
+	req.UserID = userID.(int)
+	
+	// Validate task ID if provided
+	if req.TaskID != nil && *req.TaskID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid task ID",
+			"details": "task_id must be a positive integer",
+		})
+		return
+	}
+
+	// If auto_stop_others not provided, read from user preferences
+	if req.AutoStopOthers == nil {
+		if pref, ok := h.getAutoStopOthersDefault(c.Request.Context(), req.UserID); ok {
+			req.AutoStopOthers = &pref
+		}
+	}
+
+	ctx := c.Request.Context()
+
+	response, err := h.timerService.StartTimer(ctx, &req)
+	if err != nil {
+		// Handle specific error types
+		if err.Error() == "no timer is currently running" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "Timer conflict",
+				"message": err.Error(),
+			})
+			return
+		}
+		if err.Error() == "another timer is already running" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":   "Timer conflict", 
+				"message": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to start timer",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
+}
 	
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -302,6 +379,116 @@ func (h *UnifiedTimerHandler) ResumeTimer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// GetUserTimerPreferences handles GET /api/v1/user/timer/preferences
+func (h *UnifiedTimerHandler) GetUserTimerPreferences(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+	var prefs UserTimerPreferences
+	prefs.DefaultCategory = "工作"
+	var autoStop *bool
+	// Read existing preferences if any
+	row := sqlDB.QueryRowContext(ctx, `
+		SELECT default_category,
+		       auto_pause_on_idle,
+		       pomodoro_work_minutes,
+		       notification_enabled,
+		       preferred_timer_view,
+		       show_progress_bar,
+		       enable_auto_inference,
+		       auto_stop_others_default
+		FROM user_timer_preferences WHERE user_id = $1`, uid)
+	var preferredView sql.NullString
+	var autoPause, notif, showBar, autoInfer sql.NullBool
+	var pomodoro sql.NullInt64
+	var autoStopVal sql.NullBool
+	if err := row.Scan(&prefs.DefaultCategory, &autoPause, &pomodoro, &notif, &preferredView, &showBar, &autoInfer, &autoStopVal); err == nil {
+		if autoPause.Valid { prefs.AutoPauseOnIdle = &autoPause.Bool }
+		if pomodoro.Valid { v := int(pomodoro.Int64); prefs.PomodoroWorkMinutes = &v }
+		if notif.Valid { prefs.NotificationEnabled = &notif.Bool }
+		if preferredView.Valid { v := preferredView.String; prefs.PreferredTimerView = &v }
+		if showBar.Valid { prefs.ShowProgressBar = &showBar.Bool }
+		if autoInfer.Valid { prefs.EnableAutoInference = &autoInfer.Bool }
+		if autoStopVal.Valid { v := autoStopVal.Bool; autoStop = &v }
+	} else {
+		// No row, use defaults
+		defaultFalse := false
+		autoStop = &defaultFalse
+	}
+	prefs.AutoStopOthersDefault = autoStop
+	c.JSON(http.StatusOK, prefs)
+}
+
+// UpdateUserTimerPreferences handles PUT /api/v1/user/timer/preferences
+func (h *UnifiedTimerHandler) UpdateUserTimerPreferences(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	var req UserTimerPreferences
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format", "details": err.Error()})
+		return
+	}
+
+	sqlDB := h.db.GetDB().(*sql.DB)
+	// Upsert minimal set of fields
+	_, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO user_timer_preferences (
+			user_id, default_category, auto_pause_on_idle, pomodoro_work_minutes,
+			notification_enabled, preferred_timer_view, show_progress_bar,
+			enable_auto_inference, auto_stop_others_default, created_at, updated_at
+		) VALUES (
+			$1, COALESCE($2,'工作'), $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
+		) ON CONFLICT (user_id) DO UPDATE SET
+			default_category = COALESCE(EXCLUDED.default_category, user_timer_preferences.default_category),
+			auto_pause_on_idle = COALESCE(EXCLUDED.auto_pause_on_idle, user_timer_preferences.auto_pause_on_idle),
+			pomodoro_work_minutes = COALESCE(EXCLUDED.pomodoro_work_minutes, user_timer_preferences.pomodoro_work_minutes),
+			notification_enabled = COALESCE(EXCLUDED.notification_enabled, user_timer_preferences.notification_enabled),
+			preferred_timer_view = COALESCE(EXCLUDED.preferred_timer_view, user_timer_preferences.preferred_timer_view),
+			show_progress_bar = COALESCE(EXCLUDED.show_progress_bar, user_timer_preferences.show_progress_bar),
+			enable_auto_inference = COALESCE(EXCLUDED.enable_auto_inference, user_timer_preferences.enable_auto_inference),
+			auto_stop_others_default = COALESCE(EXCLUDED.auto_stop_others_default, user_timer_preferences.auto_stop_others_default),
+			updated_at = NOW()
+	`, uid,
+		req.DefaultCategory,
+		req.AutoPauseOnIdle,
+		req.PomodoroWorkMinutes,
+		req.NotificationEnabled,
+		req.PreferredTimerView,
+		req.ShowProgressBar,
+		req.EnableAutoInference,
+		req.AutoStopOthersDefault,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update preferences", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+// internal helper
+func (h *UnifiedTimerHandler) getAutoStopOthersDefault(ctx context.Context, userID int) (bool, bool) {
+	sqlDB := h.db.GetDB().(*sql.DB)
+	var val sql.NullBool
+	if err := sqlDB.QueryRowContext(ctx, `SELECT auto_stop_others_default FROM user_timer_preferences WHERE user_id=$1`, userID).Scan(&val); err == nil {
+		if val.Valid {
+			return val.Bool, true
+		}
+	}
+	return false, false
 }
 
 // Health check endpoint

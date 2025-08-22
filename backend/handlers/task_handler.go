@@ -129,10 +129,8 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		if v, err := strconv.Atoi(taskIDParam); err == nil { taskIDPtr = &v }
 	}
 
-	// Default preset to "overdue" if none of the filters provided
-	if preset == "" && status == "" && projectID == "" && assigneeID == "" && search == "" && priority == "" {
-		preset = "overdue"
-		// If preset is overdue and client didn't specify sort, prefer due_date ASC
+	// If preset is overdue and client didn't specify sort, prefer due_date ASC
+	if preset == "overdue" {
 		if c.Query("sort_by") == "" { sortBy = "due_date" }
 		if c.Query("sort_order") == "" { sortOrder = "asc" }
 	}

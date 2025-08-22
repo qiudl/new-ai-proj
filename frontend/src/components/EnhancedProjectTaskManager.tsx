@@ -5,7 +5,6 @@ import {
   Button,
   Space,
   Dropdown,
-  Menu,
   Checkbox,
   Tooltip,
   Tag,
@@ -21,11 +20,11 @@ import {
   Drawer,
   Input,
   Form,
-  MenuProps,
   Row,
   Col,
   Statistic
 } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   SettingOutlined,
   DownloadOutlined,
@@ -1761,7 +1760,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   反选
                 </Button>
                 <Button
-                  size="small"
+                  size="小"
                   onClick={() => {
                     setSelectedRowKeys([]);
                     message.info('已取消选择');
@@ -1773,47 +1772,42 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             </Col>
             <Col>
               <Space>
+                {
+                  // 使用 Antd v5 Dropdown.menu API 替代 overlay + Menu 以避免 undefined 组件问题
+                }
                 <Dropdown
-                  overlay={
-                    <Menu onClick={({ key }) => handleBatchAction(key)}>
-                      <Menu.SubMenu key="updateStatus" title="批量更新状态" icon={<EditOutlined />}>
-                        <Menu.Item key="status-todo" icon={<ClockCircleOutlined />}>
-                          设为待开始
-                        </Menu.Item>
-                        <Menu.Item key="status-in_progress" icon={<SyncOutlined />}>
-                          设为进行中
-                        </Menu.Item>
-                        <Menu.Item key="status-completed" icon={<CheckCircleOutlined />}>
-                          设为已完成
-                        </Menu.Item>
-                        <Menu.Item key="status-cancelled" icon={<MinusCircleOutlined />}>
-                          设为已取消
-                        </Menu.Item>
-                      </Menu.SubMenu>
-                      <Menu.SubMenu key="setPriority" title="批量设置优先级" icon={<ExclamationCircleOutlined />}>
-                        <Menu.Item key="priority-low" icon={<Tag color="green">低</Tag>}>
-                          低优先级
-                        </Menu.Item>
-                        <Menu.Item key="priority-medium" icon={<Tag color="orange">中</Tag>}>
-                          中优先级
-                        </Menu.Item>
-                        <Menu.Item key="priority-high" icon={<Tag color="red">高</Tag>}>
-                          高优先级
-                        </Menu.Item>
-                        <Menu.Item key="priority-urgent" icon={<Tag color="purple">紧急</Tag>}>
-                          紧急
-                        </Menu.Item>
-                      </Menu.SubMenu>
-                      <Menu.Divider />
-                      <Menu.Item key="changeParent" icon={<NodeIndexOutlined />}>
-                        更改父任务
-                      </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item key="delete" icon={<DeleteOutlined />} danger>
-                        批量删除
-                      </Menu.Item>
-                    </Menu>
-                  }
+                  menu={{
+                    items: [
+                      {
+                        key: 'updateStatus',
+                        label: '批量更新状态',
+                        icon: <EditOutlined />,
+                        children: [
+                          { key: 'status-todo', label: '设为待开始', icon: <ClockCircleOutlined /> },
+                          { key: 'status-in_progress', label: '设为进行中', icon: <SyncOutlined /> },
+                          { key: 'status-completed', label: '设为已完成', icon: <CheckCircleOutlined /> },
+                          { key: 'status-cancelled', label: '设为已取消', icon: <MinusCircleOutlined /> },
+                        ],
+                      },
+                      { type: 'divider' },
+                      {
+                        key: 'setPriority',
+                        label: '批量设置优先级',
+                        icon: <ExclamationCircleOutlined />,
+                        children: [
+                          { key: 'priority-low', label: (<span><Tag color="green">低</Tag></span>) },
+                          { key: 'priority-medium', label: (<span><Tag color="orange">中</Tag></span>) },
+                          { key: 'priority-high', label: (<span><Tag color="red">高</Tag></span>) },
+                          { key: 'priority-urgent', label: (<span><Tag color="purple">紧急</Tag></span>) },
+                        ],
+                      },
+                      { type: 'divider' },
+                      { key: 'changeParent', label: '更改父任务', icon: <NodeIndexOutlined /> },
+                      { type: 'divider' },
+                      { key: 'delete', label: '批量删除', icon: <DeleteOutlined />, danger: true },
+                    ] as MenuProps['items'],
+                    onClick: ({ key }) => handleBatchAction(key as string),
+                  }}
                   trigger={['click']}
                   placement="bottomLeft"
                   disabled={batchLoading}

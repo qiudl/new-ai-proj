@@ -219,6 +219,111 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 	return projects, total, nil
 }
 
+// GetPaginatedWithCompany gets projects with pagination and joins company info (company_name)
+func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.ProjectWithCompany, int, error) {
+	// Build WHERE clause with conditions
+	whereConditions := []string{"p.deleted_at IS NULL"}
+	args := []interface{}{}
+	argIndex := 1
+
+	// Filter by ownership or membership if user ID provided
+	if userID > 0 {
+		// Include projects owned by the user OR where the user is a member in project_users
+		whereConditions = append(whereConditions, fmt.Sprintf("(p.owner_id = $%d OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id = p.id AND pu.user_id = $%d))", argIndex, argIndex+1))
+		args = append(args, userID, userID)
+		argIndex += 2
+	}
+
+	// Add search condition
+	if search != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("(p.name ILIKE $%d OR p.description ILIKE $%d)", argIndex, argIndex))
+		args = append(args, "%"+search+"%")
+		argIndex++
+	}
+
+	// Add status filter
+	if status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("p.status = $%d", argIndex))
+		args = append(args, status)
+		argIndex++
+	}
+
+	whereClause := "WHERE " + whereConditions[0]
+	for i := 1; i < len(whereConditions); i++ {
+		whereClause += " AND " + whereConditions[i]
+	}
+
+	// Get total count
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM projects p %s", whereClause)
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery, args...)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get project count: %w", err)
+	}
+
+	// Build ORDER BY clause
+	orderBy := "ORDER BY p.updated_at DESC" // default
+	if sortBy != "" {
+		validSortFields := map[string]bool{
+			"name": true, "status": true, "priority": true, "progress": true,
+			"created_at": true, "updated_at": true, "start_date": true, "end_date": true,
+		}
+		if validSortFields[sortBy] {
+			direction := "DESC"
+			if sortOrder == "asc" {
+				direction = "ASC"
+			}
+			orderBy = fmt.Sprintf("ORDER BY p.%s %s", sortBy, direction)
+		}
+	}
+
+	// Get projects with pagination and company join
+	query := fmt.Sprintf(`
+		SELECT 
+			p.id, p.project_number, p.name, p.description, p.owner_id, p.company_id, p.status, p.priority, p.progress, p.start_date, p.end_date, p.budget, p.created_at, p.updated_at, p.deleted_at,
+			c.company_name
+		FROM projects p
+		LEFT JOIN customers c ON p.company_id = c.id AND c.deleted_at IS NULL
+		%s
+		%s
+		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
+
+	args = append(args, pageSize, offset)
+
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list projects with company info: %w", err)
+	}
+	defer rows.Close()
+
+	projects := make([]*models.ProjectWithCompany, 0)
+	for rows.Next() {
+		projectWithCompany := &models.ProjectWithCompany{}
+
+		err := rows.Scan(
+			&projectWithCompany.ID, &projectWithCompany.ProjectNumber, &projectWithCompany.Name, &projectWithCompany.Description,
+			&projectWithCompany.OwnerID, &projectWithCompany.CompanyID, &projectWithCompany.Status,
+			&projectWithCompany.Priority, &projectWithCompany.Progress, &projectWithCompany.StartDate,
+			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt,
+			&projectWithCompany.UpdatedAt, &projectWithCompany.DeletedAt,
+			&projectWithCompany.CompanyName,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan project with company: %w", err)
+		}
+
+		projects = append(projects, projectWithCompany)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return projects, total, nil
+}
+
 // Update updates a project
 func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.Project) (*models.Project, error) {
 	query := `

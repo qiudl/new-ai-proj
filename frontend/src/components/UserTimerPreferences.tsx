@@ -175,7 +175,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
       default_task_type: 'project_task',
       default_duration_minutes: 25,
       auto_start_on_create: false,
-      auto_stop_others: true,
+      auto_stop_others: false,
       
       // 通知设置
       notification_enabled: true,
@@ -349,8 +349,9 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
             <Switch />
           </Form.Item>
           <Form.Item
-            name="auto_stop_others"
-            label="启动时自动停止其他计时器"
+            name="auto_stop_others_default"
+            label="启动新计时器时自动停止其他计时器（默认）"
+            tooltip="关闭后默认并行计时；可在开始按钮下拉菜单或快速开始中临时覆盖"
             valuePropName="checked"
           >
             <Switch />

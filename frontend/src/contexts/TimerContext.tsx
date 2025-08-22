@@ -27,7 +27,7 @@ interface TimerContextType {
   setMode: (mode: 'full' | 'simplified') => void;
   
   // 操作方法
-  startTimer: (taskId: number, taskTitle: string) => Promise<boolean>;
+startTimer: (taskId: number, taskTitle: string, taskType?: 'personal' | 'project', options?: { autoStopOthers?: boolean }) => Promise<boolean>;
   stopTimer: () => Promise<boolean>;
   pauseTimer: () => Promise<boolean>;
   resumeTimer: () => Promise<boolean>;
@@ -300,7 +300,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   }, [timerState, isLoading, connectionStatus, currentMode]);
 
   // 启动定时器
-  const startTimer = useCallback(async (taskId: number, taskTitle: string, taskType: 'personal' | 'project' = 'personal'): Promise<boolean> => {
+const startTimer = useCallback(async (taskId: number, taskTitle: string, taskType: 'personal' | 'project' = 'personal', options?: { autoStopOthers?: boolean }): Promise<boolean> => {
     if (isLoading) return false;
     
     setIsLoading(true);
@@ -313,7 +313,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
           task_id: taskId,
           title: taskTitle,
           context: 'dashboard',
-          auto_stop_others: true
+          ...(typeof options?.autoStopOthers === 'boolean' ? { auto_stop_others: options.autoStopOthers } : {})
         });
         } else {
         // 启动个人任务计时
@@ -322,7 +322,7 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
           task_id: taskId,
           title: taskTitle,
           context: 'dashboard',
-          auto_stop_others: true
+          ...(typeof options?.autoStopOthers === 'boolean' ? { auto_stop_others: options.autoStopOthers } : {})
         });
         }
       

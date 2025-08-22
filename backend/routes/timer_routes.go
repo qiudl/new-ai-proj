@@ -33,13 +33,17 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 
 	// Unified Timer routes (Phase 5: Current unified architecture)
 	// NOTE: These are the primary timer routes that handle both project and personal timers
-	unifiedTimer := authorized.Group("/user/timer")
+unifiedTimer := authorized.Group("/user/timer")
 	{
 		// Core timer operations
 		unifiedTimer.POST("/start", app.GetUnifiedTimerHandler().StartTimer)           // Unified start (project/personal)
 		unifiedTimer.POST("/pause", app.GetUnifiedTimerHandler().PauseTimer)          // Pause current timer
 		unifiedTimer.POST("/resume", app.GetUnifiedTimerHandler().ResumeTimer)        // Resume paused timer
 		unifiedTimer.POST("/stop", app.GetUnifiedTimerHandler().StopTimer)            // Stop current timer
+		
+		// Preferences
+		unifiedTimer.GET("/preferences", app.GetUnifiedTimerHandler().GetUserTimerPreferences)
+		unifiedTimer.PUT("/preferences", app.GetUnifiedTimerHandler().UpdateUserTimerPreferences)
 
 		// New: operate timer by id
 		unifiedTimer.POST("/:id/pause", app.GetUnifiedTimerHandler().PauseTimerByID)

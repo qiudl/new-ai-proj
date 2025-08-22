@@ -24,7 +24,7 @@ export class UnifiedTimerService {
         estimated_minutes: request.estimated_minutes,
         tags: request.tags,
         template_id: request.template_id,
-        auto_stop_others: request.auto_stop_others ?? true,
+        auto_stop_others: request.auto_stop_others ?? false,
         metadata: {
           estimated_minutes: request.estimated_minutes,
           category: request.category,
@@ -401,6 +401,15 @@ export class UnifiedTimerService {
     try {
       const response = await api.get('/api/v1/user/timer/preferences');
 
+      // 同时尝试合并本地覆盖（若有）
+      try {
+        const local = localStorage.getItem('userTimerPreferences');
+        if (local) {
+          const merged = { ...response.data, ...JSON.parse(local) };
+          return { success: true, data: merged, message: '获取用户偏好成功' };
+        }
+      } catch {}
+
       return {
         success: true,
         data: response.data,
@@ -415,7 +424,9 @@ export class UnifiedTimerService {
         notification_enabled: true,
         preferred_timer_view: 'normal',
         show_progress_bar: true,
-        enable_auto_inference: true
+        enable_auto_inference: true,
+        // 新增：默认不自动停止其他计时器（支持并行）
+        auto_stop_others_default: false
       };
 
       return {
@@ -430,12 +441,23 @@ export class UnifiedTimerService {
     try {
       const response = await api.put('/api/v1/user/timer/preferences', preferences);
 
+      // 同步写入本地存储，作为后备
+      try {
+        localStorage.setItem('userTimerPreferences', JSON.stringify(preferences));
+      } catch {}
+
       return {
         success: true,
         data: response.data,
         message: '更新用户偏好成功'
       };
     } catch (error: any) {
+      // API失败时，写入本地存储作为降级
+      try {
+        localStorage.setItem('userTimerPreferences', JSON.stringify(preferences));
+        return { success: true, data: preferences, message: '已在本地保存偏好设置（离线）' };
+      } catch {}
+
       return {
         success: false,
         error: error.response?.data?.error || error.message || '更新偏好设置失败',

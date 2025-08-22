@@ -238,6 +238,28 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
     }
   }, [quickTitle, selectedTemplate, presetTaskId, selectedCategory, estimatedMinutes, selectedTags, templates, startTimer, onTimerStart]);
 
+  const handleStartWithOption = useCallback(async (autoStopOthers: boolean) => {
+    if (!quickTitle.trim() && !selectedTemplate && !presetTaskId) {
+      setShowQuickStart(true);
+      return;
+    }
+    try {
+      const title = quickTitle || templates.find(t => t.id === selectedTemplate)?.default_title || '快速计时';
+      const taskId = presetTaskId || Math.floor(Math.random() * 2147483647);
+      const taskType = presetTaskId ? 'project' : 'personal';
+      const success = await startTimer(taskId, title, taskType, { autoStopOthers });
+      if (success) {
+        notification.success({ message: '计时器已启动', description: `开始计时: ${title}` });
+        if (onTimerStart) {
+          onTimerStart({ title, category: selectedCategory, estimated_minutes: estimatedMinutes, tags: selectedTags });
+        }
+        setShowQuickStart(false);
+      }
+    } catch (error) {
+      notification.error({ message: '启动失败', description: error instanceof Error ? error.message : '计时器启动失败' });
+    }
+  }, [quickTitle, selectedTemplate, presetTaskId, selectedCategory, estimatedMinutes, selectedTags, templates, startTimer, onTimerStart]);
+
   const handlePause = useCallback(async () => {
     try {
       await pauseTimer();
@@ -457,18 +479,42 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
     return '#d9d9d9'; // gray
   };
 
-  const renderMainControls = () => (
+const renderMainControls = () => (
     <Space size="large" className="timer-main-controls">
-      <Button
-        type="primary"
-        size={size === 'compact' ? 'middle' : 'large'}
-        icon={isRunning && !isPaused ? <PauseOutlined /> : <PlayCircleOutlined />}
-        onClick={handlePlayPause}
-        loading={false}
-        disabled={false}
-      >
-        {isRunning && !isPaused ? '暂停' : isPaused ? '恢复' : '开始'}
-      </Button>
+      {(!isRunning && !isPaused) ? (
+        <Dropdown
+          overlay={(
+            <Menu>
+              <Menu.Item key="start-default" onClick={() => handleStart()}>
+                并行启动新计时器（遵循默认设置）
+              </Menu.Item>
+              <Menu.Item key="start-parallel" onClick={() => handleStartWithOption(false)}>
+                并行启动新计时器（不停止其他）
+              </Menu.Item>
+              <Menu.Item key="start-stop-others" onClick={() => handleStartWithOption(true)}>
+                启动并自动停止其他计时器
+              </Menu.Item>
+            </Menu>
+          )}
+        >
+          <Button
+            type="primary"
+            size={size === 'compact' ? 'middle' : 'large'}
+            icon={<PlayCircleOutlined />}
+          >
+            开始
+          </Button>
+        </Dropdown>
+      ) : (
+        <Button
+          type="primary"
+          size={size === 'compact' ? 'middle' : 'large'}
+          icon={isRunning && !isPaused ? <PauseOutlined /> : <PlayCircleOutlined />}
+          onClick={handlePlayPause}
+        >
+          {isRunning && !isPaused ? '暂停' : '恢复'}
+        </Button>
+      )}
       
       {isRunning && (
         <Button
