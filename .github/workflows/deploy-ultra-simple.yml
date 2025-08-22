@@ -1,3 +1,5 @@
+# NOTE: Ultra simple deployment for demo/testing only.
+# No automated migrations; not suitable for production.
 name: Deploy to Lightweight Server (Ultra Simple)
 
 on:

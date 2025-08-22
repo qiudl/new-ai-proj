@@ -89,9 +89,22 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Jenkins (Dockerized)
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    ports:
+      - "8181:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
 
 volumes:
   postgres_data:
   go_mod_cache:
   frontend_node_modules:
+  jenkins_home:
 

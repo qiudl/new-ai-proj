@@ -1,3 +1,6 @@
+# Local Jenkins trigger secrets (do not commit)
+scripts/.jenkins.env
+
 # Dependencies
 node_modules/
 venv/

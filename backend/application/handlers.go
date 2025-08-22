@@ -71,6 +71,7 @@ func (app *Application) ImportTasksFromCSVHandler() gin.HandlerFunc { return app
 func (app *Application) BulkUpdateTaskStatusHandler() gin.HandlerFunc { return app.handlers.BulkOperationHandler.BulkUpdateTaskStatus }
 func (app *Application) BatchUpdateTasksHandler() gin.HandlerFunc { return app.handlers.BulkOperationHandler.BulkUpdateTaskStatus }
 func (app *Application) GetTaskChildrenHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.GetTaskChildren }
+func (app *Application) GetTaskDescendantsHandler() gin.HandlerFunc { return app.handlers.TaskHierarchyHandler.GetTaskDescendants }
 func (app *Application) GetProjectsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProjects }
 func (app *Application) CreateProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.CreateProject }
 func (app *Application) GetProjectHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetProject }

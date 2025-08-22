@@ -53,6 +53,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
+import { TaskDetailDescendantsTree } from '../components/TaskDetailDescendantsTree';
 import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
@@ -990,56 +991,40 @@ const TaskDetailPageNew: React.FC = () => {
             </Card>
           )}
 
-          {/* 子任务列表 */}
-          {subtasks.length > 0 && (
-            <Card 
-              title={
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <BranchesOutlined />
-                  <span>子任务列表</span>
-                  <Badge count={subtasks.length} style={{ backgroundColor: '#52c41a' }} />
-                </div>
-              }
-              style={{ marginBottom: '24px' }}
-              extra={
-                <Space size="small">
-                  <Button 
-                    type="primary" 
-                    icon={<PlusOutlined />} 
-                    size="small"
-                    onClick={handleCreateSubtask}
-                  >
-                    添加子任务
-                  </Button>
-                  <Button 
-                    type="default" 
-                    icon={<ImportOutlined />} 
-                    size="small"
-                    onClick={handleBulkImportSubtasks}
-                  >
-                    批量导入
-                  </Button>
-                </Space>
-              }
-            >
-              <Table
-                columns={subtaskColumns}
-                dataSource={subtasks}
-                rowKey="id"
-                pagination={false}
-                size="small"
-                loading={dataLoading}
-                onRow={(record) => ({
-                  onClick: () => {
-                    // 使用子任务自己的project_id，因为可能存在跨项目的任务关系
-                    const targetProjectId = record.project_id || projectId;
-                    navigate(`/projects/${targetProjectId}/tasks/${record.id}`);
-                  },
-                  style: { cursor: 'pointer' }
-                })}
-              />
-            </Card>
-          )}
+{/* 子任务树（懒加载） */}
+          <Card 
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BranchesOutlined />
+                <span>子任务树</span>
+              </div>
+            }
+            style={{ marginBottom: '24px' }}
+            extra={
+              <Space size="small">
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />} 
+                  size="small"
+                  onClick={handleCreateSubtask}
+                >
+                  添加子任务
+                </Button>
+                <Button 
+                  type="default" 
+                  icon={<ImportOutlined />} 
+                  size="small"
+                  onClick={handleBulkImportSubtasks}
+                >
+                  批量导入
+                </Button>
+              </Space>
+            }
+          >
+            <div style={{ padding: '4px 0' }}>
+              <TaskDetailDescendantsTree projectId={parseInt(projectId || '0')} rootTaskId={task.id} limit={200} />
+            </div>
+          </Card>
 
           {/* 任务详情Tabs */}
           <Card style={{ marginBottom: '24px' }}>

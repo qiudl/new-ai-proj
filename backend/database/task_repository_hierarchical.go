@@ -335,6 +335,64 @@ func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int)
 	return rootTasks, nil
 }
 
+// GetDescendants 使用递归CTE按层级返回指定任务的后代节点（从子任务开始，level 从1）
+func (r *PostgresTaskRepository) GetDescendants(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.TaskDescendantNode, error) {
+	if depth <= 0 {
+		depth = 2
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+
+	query := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.parent_id, t.project_id, t.title, t.status, t.sort_order,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: expand until depth
+			SELECT 
+				c.id, c.parent_id, c.project_id, c.title, c.status, c.sort_order,
+				d.level + 1 AS level
+			FROM tasks c
+			JOIN descendants d ON c.parent_id = d.id
+			WHERE d.level < $2 AND c.deleted_at IS NULL
+		)
+		SELECT d.id, d.parent_id, d.project_id, d.title, d.status, d.level, 
+			EXISTS (
+				SELECT 1 FROM tasks cc WHERE cc.parent_id = d.id AND cc.deleted_at IS NULL
+			) AS has_children,
+			d.sort_order
+		FROM descendants d
+		ORDER BY d.parent_id NULLS FIRST, d.sort_order ASC NULLS LAST, d.id ASC
+		LIMIT $3`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, rootTaskID, depth, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query descendants: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []*models.TaskDescendantNode
+	for rows.Next() {
+		n := &models.TaskDescendantNode{}
+		if err := rows.Scan(&n.ID, &n.ParentID, &n.ProjectID, &n.Title, &n.Status, &n.Level, &n.HasChildren, &n.SortOrder); err != nil {
+			return nil, fmt.Errorf("failed to scan descendant: %w", err)
+		}
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	return nodes, nil
+}
+
 // CreateTaskUpdate creates a task update history record
 func (r *PostgresTaskRepository) CreateTaskUpdate(ctx context.Context, update *models.TaskUpdate) error {
 	query := `

@@ -1,0 +1,80 @@
+openapi: 3.0.3
+info:
+  title: Task Dependencies API
+  version: '0.1.0'
+  description: |
+    CRUD for task dependencies and validation utilities (DAG/cycle/orphan checks).
+servers:
+  - url: http://localhost:8000
+paths:
+  /dependencies:
+    get:
+      summary: List dependencies
+      parameters:
+        - name: task_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by task_id
+        - name: depends_on_id
+          in: query
+          schema:
+            type: integer
+          description: Filter by depends_on_id
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create dependency edge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task_id, depends_on_id]
+              properties:
+                task_id:
+                  type: integer
+                depends_on_id:
+                  type: integer
+                dep_type:
+                  type: string
+                  enum: [FS, SS, FF, SF]
+                  default: FS
+                lag_minutes:
+                  type: integer
+                  minimum: 0
+                  default: 0
+      responses:
+        '201':
+          description: Created
+  /dependencies/{id}:
+    delete:
+      summary: Delete dependency edge
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: No Content
+  /validate/dag:
+    post:
+      summary: Validate DAG (no cycles)
+      description: Returns list of cycles if found; empty list means valid DAG.
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: Validation result
+  /validate/orphans:
+    get:
+      summary: Detect orphan edges
+      description: Edges referencing missing tasks (if tasks table is available).
+      responses:
+        '200':
+          description: OK
+

@@ -1,5 +1,8 @@
 name: Deploy to Tencent Cloud Production
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main, master ]
@@ -73,13 +76,28 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+    - name: Install psql client
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends postgresql-client
+
+    - name: Run DB migrations (Required)
+      env:
+        AI_TASKS_DB_URL: ${{ secrets.AI_TASKS_DB_URL }}
+      run: |
+        test -n "$AI_TASKS_DB_URL" || (echo "AI_TASKS_DB_URL secret is required for production migrations" && exit 1)
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1502__create_task_dependencies.sql
+        psql "$AI_TASKS_DB_URL" -f db/migrations/V20250821_1503__extend_task_dependencies.sql
+
     - name: Deploy to Tencent Cloud Server
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.TENCENT_HOST }}
         username: ${{ secrets.TENCENT_USERNAME }}
         key: ${{ secrets.TENCENT_SSH_KEY }}
-        port: ${{ secrets.SERVER_PORT || 22 }}
+        port: ${{ secrets.SERVER_PORT }}
         script: |
           # 设置变量
           export REGISTRY="${{ env.REGISTRY }}"
@@ -133,9 +151,24 @@ jobs:
           if curl -f http://localhost/health; then
             echo "✅ Deployment successful! Application is responding."
           else
-            echo "❌ Deployment may have issues. Check service logs."
-            docker-compose -f docker-compose.prod.yml logs --tail=50
-            exit 1
+            echo "❌ Deployment may have issues. Attempting rollback..."
+            docker-compose -f docker-compose.prod.yml logs --tail=50 || true
+            # Rollback strategy: if PREV_SHA provided, switch tags; else restart with :latest as fallback
+            if [ -n "${PREV_SHA}" ]; then
+              docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-backend:${PREV_SHA} || true
+              docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-frontend:${PREV_SHA} || true
+              docker pull ${REGISTRY}/${NAMESPACE}/${IMAGE_NAME}-mcp:${PREV_SHA} || true
+            fi
+            docker-compose -f docker-compose.prod.yml down || true
+            docker-compose -f docker-compose.prod.yml up -d || true
+            sleep 20
+            if curl -f http://localhost/health; then
+              echo "🟡 Rolled back or restarted; service responding now."
+            else
+              echo "🔴 Rollback attempt failed. Please check logs and compose file."
+              docker-compose -f docker-compose.prod.yml logs --tail=100 || true
+              exit 1
+            fi
           fi
 
     - name: Notify deployment status

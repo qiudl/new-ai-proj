@@ -1,0 +1,22 @@
+[
+  {"id": 391, "title": "Batch 0 任务对齐与基础设施", "status": "done", "meta": {"OwnerHint": "ai:planner", "ReadyWhen": []}},
+
+  {"id": 402, "title": "M1-1 数据模型与迁移（task_dependencies/task_attributes等）", "status": "in_progress", "meta": {"OwnerHint": "ai:infra", "ReadyWhen": [391], "Batch": "M1"}},
+  {"id": 403, "title": "M1-2 依赖API：增删改查 + 校验（DAG检测、环路与悬空检测）", "status": "todo", "meta": {"OwnerHint": "ai:backend", "ReadyWhen": [402], "Batch": "M1"}},
+
+  {"id": 407, "title": "402.1 迁移初始化与表设计（attributes/dependencies/milestones）", "status": "done", "meta": {"OwnerHint": "ai:infra", "ReadyWhen": [391], "Batch": "M1"}},
+  {"id": 408, "title": "402.2 枚举与字典（category/risk_level）", "status": "todo", "meta": {"OwnerHint": "ai:infra", "ReadyWhen": [407], "Batch": "M1"}},
+  {"id": 409, "title": "402.3 回滚与本地验证（Docker Postgres）", "status": "todo", "meta": {"OwnerHint": "ai:infra", "ReadyWhen": [408], "Batch": "M1"}},
+  {"id": 410, "title": "402.4 种子与兼容层（解析描述→结构化）", "status": "todo", "meta": {"OwnerHint": "ai:infra", "ReadyWhen": [409], "Batch": "M1"}},
+
+  {"id": 411, "title": "403.1 依赖API端点（CRUD/batch）", "status": "todo", "meta": {"OwnerHint": "ai:backend", "ReadyWhen": [402], "Batch": "M1"}},
+  {"id": 412, "title": "403.2 DAG/环路/悬空校验", "status": "todo", "meta": {"OwnerHint": "ai:backend", "ReadyWhen": [411], "Batch": "M1"}},
+  {"id": 413, "title": "403.3 双向同步器（描述 DependsOn ↔ 结构化依赖）", "status": "todo", "meta": {"OwnerHint": "ai:backend", "ReadyWhen": [411], "Batch": "M1"}},
+  {"id": 414, "title": "403.4 合同与测试（OpenAPI + 契约 + 性能基准）", "status": "todo", "meta": {"OwnerHint": "ai:backend", "ReadyWhen": [411], "Batch": "M1"}},
+
+  {"id": 404, "title": "M2-1 甘特图与依赖图可视化（前端模块与适配）", "status": "todo", "meta": {"OwnerHint": "ai:frontend", "ReadyWhen": [403], "Batch": "M2"}},
+  {"id": 405, "title": "M3-1 并行批次与关键路径调度器（FS/SS/FF/SF+lag）", "status": "todo", "meta": {"OwnerHint": "ai:planner", "ReadyWhen": [402,403], "Batch": "M3"}},
+  {"id": 406, "title": "M4-1 多AI分派与看板联动（类型归类/资源视图/冲突提示）", "status": "todo", "meta": {"OwnerHint": "ai:orchestrator", "ReadyWhen": [404,405], "Batch": "M4"}},
+  {"id": 415, "title": "405.1 AI 执行清单 v2 生成器（调度策略与并发控制）", "status": "todo", "meta": {"OwnerHint": "ai:planner", "ReadyWhen": [402,403], "Batch": "M3"}}
+]
+

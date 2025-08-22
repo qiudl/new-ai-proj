@@ -1,0 +1,145 @@
+name: CI - Migrate, Seed, Sync
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: ai
+          POSTGRES_PASSWORD: ai
+          POSTGRES_DB: ai_tasks
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ai -d ai_tasks" 
+          --health-interval=5s 
+          --health-timeout=5s 
+          --health-retries=12
+
+    env:
+      # Default to local service DB; can be overridden by repository/org secret AI_TASKS_DB_URL
+      DEFAULT_DB_URL: postgresql://ai:ai@localhost:5432/ai_tasks
+      EFFECTIVE_DB_URL: ${{ secrets.AI_TASKS_DB_URL }}
+      TASK_API_BASE: ${{ secrets.TASK_API_BASE }}
+      TASK_API_TOKEN: ${{ secrets.TASK_API_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r requirements.txt
+
+      - name: Wait for Postgres (when using default local service)
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U ai -d ai_tasks && break
+            sleep 2
+          done
+
+      - name: Migrate Up
+        env:
+          DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
+        run: |
+          psql "$DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql
+          psql "$DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql
+
+      - name: Sync Attributes from Descriptions
+        if: ${{ env.TASK_API_BASE != '' && env.TASK_API_TOKEN != '' }}
+        env:
+          DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
+        run: |
+          python scripts/sync_from_descriptions.py \
+            --db-url "$DB_URL" \
+            --api-base "$TASK_API_BASE" \
+            --api-token "$TASK_API_TOKEN" \
+            --dry-run=false
+
+      - name: Smoke Verify
+        env:
+          DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
+        run: |
+          psql "$DB_URL" -c "SELECT key,name FROM task_categories;"
+          psql "$DB_URL" -c "SELECT key,level FROM task_risk_levels;"
+
+      - name: Generate Execution Plan
+        env:
+          DB_URL: ${{ env.EFFECTIVE_DB_URL != '' && env.EFFECTIVE_DB_URL || env.DEFAULT_DB_URL }}
+          TASK_API_BASE: ${{ secrets.TASK_API_BASE }}
+          TASK_API_TOKEN: ${{ secrets.TASK_API_TOKEN }}
+        run: |
+          python scripts/generate_execution_plan.py \
+            --db-url "$DB_URL" \
+            --api-base "$TASK_API_BASE" \
+            --api-token "$TASK_API_TOKEN" \
+            --out artifacts/ai_execution_plan.json
+
+      - name: Upload Execution Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai_execution_plan
+          path: |
+            artifacts/ai_execution_plan.json
+            artifacts/batches.json
+            artifacts/critical_path.json
+
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          CP_TOP_N: ${{ vars.CP_TOP_N || '10' }}
+        run: |
+          python - << 'PY'
+          import json, os
+          top_n = int(os.getenv('CP_TOP_N','10'))
+          p = 'artifacts/ai_execution_plan.json'
+          if os.path.exists(p):
+              data = json.load(open(p))
+              counts = data.get('counts', {})
+              ready = counts.get('ready', 0)
+              blocked = counts.get('candidates', 0) - ready
+              cp_detail = data.get('critical_path_detail', [])
+              total_hours = data.get('critical_path_total_hours', 0)
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+                  f.write(f"\n### AI Execution Plan\n\n")
+                  f.write(f"- Ready: {ready}\n")
+                  f.write(f"- Candidates: {counts.get('candidates', 0)}\n")
+                  f.write(f"- Completed: {counts.get('completed', 0)}\n")
+                  f.write(f"- Total: {counts.get('total', 0)}\n")
+                  f.write(f"\n### Critical Path (top {top_n})\n")
+                  for item in cp_detail[:top_n]:
+                      f.write(f"- #{item['task_id']}: {item['title']} ({item.get('estimate_hours',1)}h)\n")
+                  f.write(f"\nTotal CP duration: {total_hours} hours\n")
+          else:
+              open(os.environ['GITHUB_STEP_SUMMARY'],'a').write('\n(no execution plan generated)\n')
+          PY
+

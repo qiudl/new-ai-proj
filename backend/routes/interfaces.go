@@ -47,7 +47,8 @@ type ApplicationInterface interface {
 	GetRootTasksHandler() gin.HandlerFunc
 	SearchParentTasksHandler() gin.HandlerFunc
 	BulkImportTasksHandler() gin.HandlerFunc
-	GetTaskChildrenHandler() gin.HandlerFunc
+GetTaskChildrenHandler() gin.HandlerFunc
+	GetTaskDescendantsHandler() gin.HandlerFunc
 	GetTaskUpdatesHandler() gin.HandlerFunc
 	UpdateTaskUpdateHandler() gin.HandlerFunc
 	DeleteTaskUpdateHandler() gin.HandlerFunc

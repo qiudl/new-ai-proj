@@ -49,6 +49,7 @@ projects.POST("/:id/tasks/bulk-import", app.BulkImportTasksHandler())
 	
 	// Task-specific hierarchical routes
 projects.GET("/:id/tasks/:taskId/children", app.GetTaskChildrenHandler())
+projects.GET("/:id/tasks/:taskId/descendants", app.GetTaskDescendantsHandler())
 projects.GET("/:id/tasks/:taskId/updates", app.GetTaskUpdatesHandler())
 projects.PUT("/:id/tasks/:taskId/updates/:updateId", app.UpdateTaskUpdateHandler())
 projects.DELETE("/:id/tasks/:taskId/updates/:updateId", app.DeleteTaskUpdateHandler())

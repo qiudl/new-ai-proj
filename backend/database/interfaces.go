@@ -70,10 +70,12 @@ type TaskRepository interface {
 	UpdateStatus(ctx context.Context, id int, status string) error
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Task, int, error)
 	
-	// Hierarchical task operations
+// Hierarchical task operations
 	GetChildren(ctx context.Context, parentID int) ([]*models.Task, error)
 	GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error)
 	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
+	// GetDescendants 按层级返回指定任务的后代节点（从子任务开始，level 从1起）
+	GetDescendants(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.TaskDescendantNode, error)
 	SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error)
 	CheckCircularDependency(ctx context.Context, taskID int, potentialParentID int) (bool, error)
 	

@@ -1,3 +1,5 @@
+# NOTE: Backup deployment flow intended for testing or fallback only.
+# It does not run database migrations. Do not use for production.
 name: Deploy to Lightweight Server (Backup Method)
 
 on:

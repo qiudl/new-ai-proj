@@ -1,3 +1,5 @@
+# NOTE: This workflow is intended for non-production/simple environments.
+# It does not perform database migrations automatically. For production, use deploy-production.yml.
 name: Deploy to Lightweight Server (Simple)
 
 on:

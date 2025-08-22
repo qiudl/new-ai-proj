@@ -27,6 +27,77 @@ func NewTaskHierarchyHandler(db database.DB, logger *log.Logger, validator *vali
 	}
 }
 
+// GetTaskDescendants 获取任务后代（平铺，含层级）
+func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
+	// path params
+	projectIDStr := c.Param("id")
+	_, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid project ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+	rootTaskIDStr := c.Param("taskId")
+	rootTaskID, err := strconv.Atoi(rootTaskIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// query params
+	depth := 2
+	limit := 200
+	if v := c.Query("depth"); v != "" {
+		if dv, err := strconv.Atoi(v); err == nil {
+			depth = dv
+		}
+	}
+	if v := c.Query("limit"); v != "" {
+		if lv, err := strconv.Atoi(v); err == nil {
+			limit = lv
+		}
+	}
+
+	// fetch root basic info
+	rootTask, err := h.db.Tasks().GetByID(c.Request.Context(), rootTaskID)
+	if err != nil {
+		h.logger.Printf("Error getting root task: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Root task not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	nodes, err := h.db.Tasks().GetDescendants(c.Request.Context(), rootTaskID, depth, limit)
+	if err != nil {
+		h.logger.Printf("Error getting descendants: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task descendants", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"root": map[string]interface{}{
+			"id":    rootTask.ID,
+			"title": rootTask.Title,
+		},
+		"data": nodes,
+		"page_info": map[string]interface{}{
+			"has_more":    false,
+			"next_cursor": nil,
+		},
+		"meta": map[string]interface{}{
+			"requested_depth":    depth,
+			"max_depth_reached":  true,
+			"truncated":          len(nodes) >= limit,
+			"total_returned":     len(nodes),
+			"hidden_nodes_truncated": false,
+		},
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(resp, "Task descendants retrieved successfully"))
+}
+
 // GetTaskTree 获取任务树结构
 func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
 	
