@@ -40,10 +40,9 @@ class MermaidStateManager {
           });
           
           this.initialized = true;
-          console.log('🎨 [MermaidStateManager] 初始化成功');
           return true;
         } catch (error) {
-          console.warn('🔄 [MermaidStateManager] 初始化重试', error);
+          // initialization retry (silenced)
         }
       }
       
@@ -51,7 +50,7 @@ class MermaidStateManager {
       await new Promise(resolve => setTimeout(resolve, 200));
     }
     
-    console.error('❌ [MermaidStateManager] 初始化失败');
+    // initialization failed (silenced in console)
     return false;
   }
   
@@ -96,14 +95,14 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id }) => {
       
       // 防止重复渲染
       if (stateManager.isRendering(componentId)) {
-        console.log('⚠️ [MermaidRenderer] 正在渲染中，跳过重复调用');
+        // skip duplicate rendering
         return;
       }
       
       stateManager.setRendering(componentId, true);
       
       try {
-        console.log(`🎨 [MermaidRenderer] 开始渲染: ${componentId}`);
+        // start rendering
         
         // 确保Mermaid库就绪
         const isReady = await stateManager.ensureMermaidReady();
@@ -112,7 +111,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id }) => {
         }
         
         if (!mounted || !containerRef.current) {
-          console.log('🚫 [MermaidRenderer] 组件已卸载');
+          // component unmounted
           return;
         }
         
@@ -120,14 +119,14 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id }) => {
         const result = await window.mermaid.render(chartId, chart);
         
         if (!mounted || !containerRef.current) {
-          console.log('🚫 [MermaidRenderer] 组件已卸载 (渲染完成后)');
+        // component unmounted after render
           return;
         }
         
         // 应用渲染结果
         containerRef.current.innerHTML = result.svg;
         setStatus('success');
-        console.log(`✅ [MermaidRenderer] 渲染成功: ${componentId}`);
+        // render success
         
       } catch (error: any) {
         if (!mounted) return;
@@ -135,11 +134,11 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id }) => {
         const retryCount = stateManager.getRetryCount(componentId);
         const maxRetries = 3;
         
-        console.error(`❌ [MermaidRenderer] 渲染失败 (第${retryCount + 1}次):`, error.message);
+        // render failed (attempt)
         
         if (retryCount < maxRetries) {
           stateManager.incrementRetry(componentId);
-          console.log(`🔄 [MermaidRenderer] 1秒后重试 (${retryCount + 1}/${maxRetries})`);
+          // retry after 1s
           timeoutId = setTimeout(() => {
             stateManager.setRendering(componentId, false);
             renderMermaid();
@@ -175,7 +174,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart, id }) => {
     // 设置全局超时保护
     const globalTimeout = setTimeout(() => {
       if (mounted && status === 'loading') {
-        console.warn('⏰ [MermaidRenderer] 全局超时保护触发');
+        // global timeout triggered
         setStatus('error');
         setErrorMessage('渲染超时');
         if (containerRef.current) {
