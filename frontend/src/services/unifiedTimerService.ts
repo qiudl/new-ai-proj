@@ -16,7 +16,7 @@ export class UnifiedTimerService {
   // 核心计时器操作
   async startTimer(request: StartTimerRequest): Promise<ApiResponse<TimerStatus>> {
     try {
-      const response = await api.post(`${API_BASE}/start`, {
+      const payload: any = {
         task_type: request.task_type,
         task_id: request.task_id,
         title: request.title,
@@ -24,7 +24,6 @@ export class UnifiedTimerService {
         estimated_minutes: request.estimated_minutes,
         tags: request.tags,
         template_id: request.template_id,
-        auto_stop_others: request.auto_stop_others ?? false,
         metadata: {
           estimated_minutes: request.estimated_minutes,
           category: request.category,
@@ -32,7 +31,11 @@ export class UnifiedTimerService {
           template_id: request.template_id,
           created_from: 'unified_widget'
         }
-      });
+      };
+      if (typeof request.auto_stop_others === 'boolean') {
+        payload.auto_stop_others = request.auto_stop_others;
+      }
+      const response = await api.post(`${API_BASE}/start`, payload);
 
       return {
         success: true,
