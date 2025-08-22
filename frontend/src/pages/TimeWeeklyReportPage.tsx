@@ -66,7 +66,6 @@ import { Task } from '../types/task';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-const { TabPane } = Tabs;
 const { Option } = Select;
 
 dayjs.extend(weekOfYear);
@@ -439,180 +438,213 @@ const TimeWeeklyReportPage: React.FC = () => {
 
       {/* 详细分析标签页 */}
       <Card>
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab={<span><BarChartOutlined />概览分析</span>} key="overview">
-            <Row gutter={[16, 16]}>
-              {/* 每日工作统计 */}
-              <Col xs={24} lg={12}>
-                <Card title="每日工作统计" size="small">
-                  <Table
-                    dataSource={dailyStats}
-                    rowKey="date"
-                    pagination={false}
-                    size="small"
-                    columns={[
-                      {
-                        title: '日期',
-                        dataIndex: 'date',
-                        render: (date) => dayjs(date).format('MM-DD dddd')
-                      },
-                      {
-                        title: '工作时长',
-                        dataIndex: 'totalHours',
-                        render: (hours) => `${hours}h`
-                      },
-                      {
-                        title: '完成任务',
-                        dataIndex: 'tasksCompleted',
-                        render: (count) => <Badge count={count} showZero />
-                      },
-                      {
-                        title: '效率',
-                        dataIndex: 'efficiency',
-                        render: (efficiency) => (
-                          <Progress
-                            percent={parseFloat(efficiency.toFixed(2))}
-                            size="small"
-                            status={efficiency >= 85 ? 'success' : efficiency >= 70 ? 'active' : 'exception'}
-                            showInfo={false}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'overview',
+              label: (
+                <span>
+                  <BarChartOutlined />概览分析
+                </span>
+              ),
+              children: (
+                <Row gutter={[16, 16]}>
+                  {/* 每日工作统计 */}
+                  <Col xs={24} lg={12}>
+                    <Card title="每日工作统计" size="small">
+                      <Table
+                        dataSource={dailyStats}
+                        rowKey="date"
+                        pagination={false}
+                        size="small"
+                        columns={[
+                          {
+                            title: '日期',
+                            dataIndex: 'date',
+                            render: (date) => dayjs(date).format('MM-DD dddd')
+                          },
+                          {
+                            title: '工作时长',
+                            dataIndex: 'totalHours',
+                            render: (hours) => `${hours}h`
+                          },
+                          {
+                            title: '完成任务',
+                            dataIndex: 'tasksCompleted',
+                            render: (count) => <Badge count={count} showZero />
+                          },
+                          {
+                            title: '效率',
+                            dataIndex: 'efficiency',
+                            render: (efficiency) => (
+                              <Progress
+                                percent={parseFloat(efficiency.toFixed(2))}
+                                size="small"
+                                status={efficiency >= 85 ? 'success' : efficiency >= 70 ? 'active' : 'exception'}
+                                showInfo={false}
+                              />
+                            )
+                          }
+                        ]}
+                      />
+                    </Card>
+                  </Col>
+
+                  {/* 项目时间分布 */}
+                  <Col xs={24} lg={12}>
+                    <Card title="项目时间分布" size="small">
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        {projectStats.map((project, index) => (
+                          <div key={index}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <Text strong>{project.projectName}</Text>
+                              <Text>{project.totalHours}h</Text>
+                            </div>
+                            <Progress
+                              percent={(project.totalHours / weeklyStats.totalHours) * 100}
+                              strokeColor={project.color}
+                              showInfo={false}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                              <span>{project.tasksCount} 个任务</span>
+                              <span>完成率 {project.completionRate.toFixed(2)}%</span>
+                            </div>
+                          </div>
+                        ))}
+                      </Space>
+                    </Card>
+                  </Col>
+
+                  {/* 工作亮点 */}
+                  <Col xs={24}>
+                    <Card title="本周亮点" size="small">
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} sm={8}>
+                          <Alert
+                            message="最高效的一天"
+                            description={
+                              <div>
+                                <Text strong>{dayjs(weekSummary.bestDay?.date).format('MM月DD日')}</Text>
+                                <br />
+                                <Text>效率达到 {weekSummary.bestDay?.efficiency?.toFixed(2) || '0.00'}%</Text>
+                                <br />
+                                <Text type="secondary">主要任务: {weekSummary.bestDay?.topTask}</Text>
+                              </div>
+                            }
+                            type="success"
+                            showIcon
                           />
-                        )
-                      }
-                    ]}
+                        </Col>
+                        <Col xs={24} sm={8}>
+                          <Alert
+                            message="工作时长统计"
+                            description={
+                              <div>
+                                <Text>总计 {weeklyStats.totalHours} 小时</Text>
+                                <br />
+                                <Text>超出计划 2.5 小时</Text>
+                                <br />
+                                <Text type="secondary">建议合理安排工作量</Text>
+                              </div>
+                            }
+                            type="info"
+                            showIcon
+                          />
+                        </Col>
+                        <Col xs={24} sm={8}>
+                          <Alert
+                            message="任务完成情况"
+                            description={
+                              <div>
+                                <Text>完成率 {weekSummary.completionRate.toFixed(2)}%</Text>
+                                <br />
+                                <Text>超额完成 3 个任务</Text>
+                                <br />
+                                <Text type="secondary">表现优秀</Text>
+                              </div>
+                            }
+                            type="warning"
+                            showIcon
+                          />
+                        </Col>
+                      </Row>
+                    </Card>
+                  </Col>
+                </Row>
+              ),
+            },
+            {
+              key: 'timeline',
+              label: (
+                <span>
+                  <LineChartOutlined />任务时间轴
+                </span>
+              ),
+              children: (
+                <Card title="任务执行时间轴" size="small">
+                  <Timeline items={timelineData} />
+                </Card>
+              ),
+            },
+            {
+              key: 'calendar',
+              label: (
+                <span>
+                  <CalendarOutlined />工作日历
+                </span>
+              ),
+              children: (
+                <Card title="工作日历视图" size="small">
+                  <Calendar
+                    value={currentWeek}
+                    onChange={setCurrentWeek}
+                    cellRender={(value) => {
+                      const key = value.format('YYYY-MM-DD');
+                      const list = tasksByDate.get(key) || [];
+                      if (!list.length) return null;
+                      return (
+                        <ul style={{ padding: '0 0 0 16px', margin: 0, fontSize: 12, lineHeight: 1.4 }}>
+                          {list.slice(0, 4).map((entry) => (
+                            <li
+                              key={entry.id}
+                              style={{
+                                margin: 0,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}
+                              title={entry.taskTitle}
+                            >
+                              {entry.taskTitle}
+                            </li>
+                          ))}
+                          {list.length > 4 && (
+                            <li style={{ color: '#8c8c8c', margin: 0 }}>+{list.length - 4} 更多</li>
+                          )}
+                        </ul>
+                      );
+                    }}
                   />
                 </Card>
-              </Col>
-
-              {/* 项目时间分布 */}
-              <Col xs={24} lg={12}>
-                <Card title="项目时间分布" size="small">
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {projectStats.map((project, index) => (
-                      <div key={index}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <Text strong>{project.projectName}</Text>
-                          <Text>{project.totalHours}h</Text>
-                        </div>
-                        <Progress
-                          percent={(project.totalHours / weeklyStats.totalHours) * 100}
-                          strokeColor={project.color}
-                          showInfo={false}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-                          <span>{project.tasksCount} 个任务</span>
-                          <span>完成率 {project.completionRate.toFixed(2)}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </Space>
+              ),
+            },
+            {
+              key: 'team',
+              label: (
+                <span>
+                  <TeamOutlined />团队对比
+                </span>
+              ),
+              children: (
+                <Card title="团队工作效率对比" size="small">
+                  <Empty description="团队数据正在开发中..." />
                 </Card>
-              </Col>
-
-              {/* 工作亮点 */}
-              <Col xs={24}>
-                <Card title="本周亮点" size="small">
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={8}>
-                      <Alert
-                        message="最高效的一天"
-                        description={
-                          <div>
-                            <Text strong>{dayjs(weekSummary.bestDay?.date).format('MM月DD日')}</Text>
-                            <br />
-                            <Text>效率达到 {weekSummary.bestDay?.efficiency?.toFixed(2) || '0.00'}%</Text>
-                            <br />
-                            <Text type="secondary">主要任务: {weekSummary.bestDay?.topTask}</Text>
-                          </div>
-                        }
-                        type="success"
-                        showIcon
-                      />
-                    </Col>
-                    <Col xs={24} sm={8}>
-                      <Alert
-                        message="工作时长统计"
-                        description={
-                          <div>
-                            <Text>总计 {weeklyStats.totalHours} 小时</Text>
-                            <br />
-                            <Text>超出计划 2.5 小时</Text>
-                            <br />
-                            <Text type="secondary">建议合理安排工作量</Text>
-                          </div>
-                        }
-                        type="info"
-                        showIcon
-                      />
-                    </Col>
-                    <Col xs={24} sm={8}>
-                      <Alert
-                        message="任务完成情况"
-                        description={
-                          <div>
-                            <Text>完成率 {weekSummary.completionRate.toFixed(2)}%</Text>
-                            <br />
-                            <Text>超额完成 3 个任务</Text>
-                            <br />
-                            <Text type="secondary">表现优秀</Text>
-                          </div>
-                        }
-                        type="warning"
-                        showIcon
-                      />
-                    </Col>
-                  </Row>
-                </Card>
-              </Col>
-            </Row>
-          </TabPane>
-
-          <TabPane tab={<span><LineChartOutlined />任务时间轴</span>} key="timeline">
-            <Card title="任务执行时间轴" size="small">
-              <Timeline items={timelineData} />
-            </Card>
-          </TabPane>
-
-          <TabPane tab={<span><CalendarOutlined />工作日历</span>} key="calendar">
-            <Card title="工作日历视图" size="small">
-              <Calendar
-                value={currentWeek}
-                onChange={setCurrentWeek}
-                cellRender={(value) => {
-                  const key = value.format('YYYY-MM-DD');
-                  const list = tasksByDate.get(key) || [];
-                  if (!list.length) return null;
-                  return (
-                    <ul style={{ padding: '0 0 0 16px', margin: 0, fontSize: 12, lineHeight: 1.4 }}>
-                      {list.slice(0, 4).map((entry) => (
-                        <li
-                          key={entry.id}
-                          style={{
-                            margin: 0,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
-                          }}
-                          title={entry.taskTitle}
-                        >
-                          {entry.taskTitle}
-                        </li>
-                      ))}
-                      {list.length > 4 && (
-                        <li style={{ color: '#8c8c8c', margin: 0 }}>+{list.length - 4} 更多</li>
-                      )}
-                    </ul>
-                  );
-                }}
-              />
-            </Card>
-          </TabPane>
-
-          <TabPane tab={<span><TeamOutlined />团队对比</span>} key="team">
-            <Card title="团队工作效率对比" size="small">
-              <Empty description="团队数据正在开发中..." />
-            </Card>
-          </TabPane>
-        </Tabs>
+              ),
+            },
+          ]}
+        />
       </Card>
 
       {/* 🔧 [任务#714] 打印预览模态框 */}
