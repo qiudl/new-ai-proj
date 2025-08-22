@@ -1006,7 +1006,7 @@ const DocumentFileManager: React.FC<DocumentFileManagerProps> = ({
               >
                 {record.title}
               </Text>
-...
+              {record.is_favorite && (
                 <StarFilled style={{ color: '#faad14' }} />
               )}
               {record.is_template && (

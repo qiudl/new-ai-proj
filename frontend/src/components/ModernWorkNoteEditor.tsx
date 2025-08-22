@@ -81,10 +81,12 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
         type: note.type || 'markdown'
       };
       setFormData(data);
-      form.setFieldsValue({
-        ...data,
-        tags: data.tags.join(', ')
-      });
+      if (visible) {
+        form.setFieldsValue({
+          ...data,
+          tags: data.tags.join(', ')
+        });
+      }
     } else {
       const data = {
         title: '',
@@ -96,10 +98,12 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
         type: 'markdown'
       };
       setFormData(data);
-      form.setFieldsValue({
-        ...data,
-        tags: ''
-      });
+      if (visible) {
+        form.setFieldsValue({
+          ...data,
+          tags: ''
+        });
+      }
     }
     setUnsavedChanges(false);
   }, [note, visible, form]);

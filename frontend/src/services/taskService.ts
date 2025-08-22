@@ -65,8 +65,9 @@ export class TaskService {
           throw new Error(response?.error?.message || 'Failed to fetch tasks');
         }
         const payload = response.data;
-        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
-          return payload as PaginatedResponse<Task>;
+        if (payload && typeof payload === 'object' && (payload as any).pagination) {
+          const d = Array.isArray((payload as any).data) ? (payload as any).data : [];
+          return { data: d, pagination: (payload as any).pagination } as PaginatedResponse<Task>;
         }
         // Fallback when payload missing/invalid
         return {
@@ -85,13 +86,15 @@ export class TaskService {
       // Case 2: Axios interceptor unwrapped to payload already
       if (response && typeof response === 'object') {
         // 2A) Direct PaginatedResponse shape
-        if (Array.isArray((response as any).data) && (response as any).pagination) {
-          return response as PaginatedResponse<Task>;
+        if ((response && typeof response === 'object') && ('data' in (response as any)) && ((response as any).pagination)) {
+          const d = Array.isArray((response as any).data) ? (response as any).data : [];
+          return { data: d, pagination: (response as any).pagination } as PaginatedResponse<Task>;
         }
         // 2B) Nested inside a data field: { data: { data: Task[], pagination: {...} } }
         const nested = (response as any).data;
-        if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
-          return nested as PaginatedResponse<Task>;
+        if (nested && typeof nested === 'object' && (nested as any).pagination) {
+          const d = Array.isArray((nested as any).data) ? (nested as any).data : [];
+          return { data: d, pagination: (nested as any).pagination } as PaginatedResponse<Task>;
         }
       }
 
