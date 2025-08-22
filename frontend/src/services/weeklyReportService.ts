@@ -90,16 +90,18 @@ class WeeklyReportService {
    * @param startDate 开始日期 (YYYY-MM-DD)
    * @param endDate 结束日期 (YYYY-MM-DD)
    */
-  async getWeeklyReport(startDate?: string, endDate?: string): Promise<WeeklyReportData> {
+  async getWeeklyReport(startDate?: string, endDate?: string, options?: { force?: boolean }): Promise<WeeklyReportData> {
     const userId = this.getCurrentUserId();
     const finalStartDate = startDate || this.getDefaultStartDate();
     const finalEndDate = endDate || this.getDefaultEndDate();
     
-    // 检查缓存
+    // 检查缓存（允许通过 options.force 跳过缓存）
     const cacheKey = CACHE_KEYS.WEEKLY_REPORT(userId, finalStartDate, finalEndDate);
-    const cached = timerCache.get<WeeklyReportData>(cacheKey);
-    if (cached) {
-      return cached;
+    if (!options?.force) {
+      const cached = timerCache.get<WeeklyReportData>(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
 
     try {

@@ -116,13 +116,13 @@ const TimeWeeklyReportPage: React.FC = () => {
   }, [weeklyStats, dailyStats]);
 
   // 加载周报数据
-  const loadWeeklyReport = async () => {
+  const loadWeeklyReport = async (force: boolean = false) => {
     try {
       setLoading(true);
       const startDate = selectedDateRange[0].format('YYYY-MM-DD');
       const endDate = selectedDateRange[1].format('YYYY-MM-DD');
       
-      const reportData = await weeklyReportService.getWeeklyReport(startDate, endDate);
+      const reportData = await weeklyReportService.getWeeklyReport(startDate, endDate, { force });
       
       setWeeklyStats(reportData.weeklyStats);
       setDailyStats(reportData.dailyStats);
@@ -266,7 +266,7 @@ const TimeWeeklyReportPage: React.FC = () => {
 
   // 刷新数据
   const handleRefresh = () => {
-    loadWeeklyReport();
+    loadWeeklyReport(true); // 强制跳过缓存，获取最新数据
   };
 
   // 时间轴数据
@@ -291,17 +291,17 @@ const TimeWeeklyReportPage: React.FC = () => {
     }));
   }, [taskTimeEntries]);
 
-  // 日历数据
-  const getCalendarData = (value: dayjs.Dayjs) => {
-    const dateStr = value.format('YYYY-MM-DD');
-    const dayData = dailyStats.find(day => day.date === dateStr);
-    if (!dayData || dayData.totalHours === 0) return null;
-    
-    return {
-      type: dayData.efficiency >= 85 ? 'success' : dayData.efficiency >= 70 ? 'warning' : 'error',
-      content: `${dayData.totalHours}h`
-    };
-  };
+  // 将任务按日期分组，供日历渲染使用（只展示任务标题，每行一个）
+  const tasksByDate = useMemo(() => {
+    const map = new Map<string, TaskTimeEntry[]>();
+    (taskTimeEntries || []).forEach(entry => {
+      const key = entry.date;
+      if (!key) return;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(entry);
+    });
+    return map;
+  }, [taskTimeEntries]);
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -578,13 +578,30 @@ const TimeWeeklyReportPage: React.FC = () => {
                 value={currentWeek}
                 onChange={setCurrentWeek}
                 cellRender={(value) => {
-                  const data = getCalendarData(value);
-                  return data ? (
-                    <Badge
-                      status={data.type as unknown}
-                      text={data.content}
-                    />
-                  ) : null;
+                  const key = value.format('YYYY-MM-DD');
+                  const list = tasksByDate.get(key) || [];
+                  if (!list.length) return null;
+                  return (
+                    <ul style={{ padding: '0 0 0 16px', margin: 0, fontSize: 12, lineHeight: 1.4 }}>
+                      {list.slice(0, 4).map((entry) => (
+                        <li
+                          key={entry.id}
+                          style={{
+                            margin: 0,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                          title={entry.taskTitle}
+                        >
+                          {entry.taskTitle}
+                        </li>
+                      ))}
+                      {list.length > 4 && (
+                        <li style={{ color: '#8c8c8c', margin: 0 }}>+{list.length - 4} 更多</li>
+                      )}
+                    </ul>
+                  );
                 }}
               />
             </Card>
