@@ -63,6 +63,8 @@ type TaskRepository interface {
 	GetByID(ctx context.Context, id int) (*models.Task, error)
 	GetByProjectID(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
 	GetAll(ctx context.Context, limit, offset int) ([]*models.Task, int, error)
+	// New: filtered global listing (status-driven presets etc.)
+	GetAllFiltered(ctx context.Context, opts *models.TaskListOptions, limit, offset int) ([]*models.Task, int, error)
 	Update(ctx context.Context, task *models.Task) (*models.Task, error)
 	Delete(ctx context.Context, id int) error
 	BulkDelete(ctx context.Context, ids []int) error

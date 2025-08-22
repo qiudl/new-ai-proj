@@ -25,7 +25,10 @@ const TasksPage = React.lazy(() => import('./pages/TasksPage'));
 const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
+const SmartSwimlanesPage = React.lazy(() => import('./pages/SmartSwimlanesPage'));
 const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
+const TaskCalendarPage = React.lazy(() => import('./pages/TaskCalendarPage'));
+const BatchCascadePage = React.lazy(() => import('./pages/BatchCascadePage'));
 const TimeWeeklyReportPage = React.lazy(() => import('./pages/TimeWeeklyReportPage'));
 // const TimeAnalysisPage = React.lazy(() => import('./pages/TimeAnalysisPage'));
 const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
@@ -224,10 +227,37 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
 
-            <Route path="/projects/:projectId/tasks" element={
+<Route path="/projects/:projectId/tasks" element={
               <PrivateRoute>
                 <Layout>
                   <TasksPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+{/* Beta MVP: 智能泳道视图 */}
+            <Route path="/projects/:projectId/tasks/swimlanes" element={
+              <PrivateRoute>
+                <Layout>
+                  <SmartSwimlanesPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Beta MVP: 任务日历视图 */}
+            <Route path="/projects/:projectId/tasks/calendar" element={
+              <PrivateRoute>
+                <Layout>
+                  <TaskCalendarPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            {/* Beta MVP: 批量级联页面 */}
+            <Route path="/projects/:projectId/tasks/batch-cascade" element={
+              <PrivateRoute>
+                <Layout>
+                  <BatchCascadePage />
                 </Layout>
               </PrivateRoute>
             } />

@@ -15,12 +15,19 @@
 - 新增方法：TaskService.getAllTasks(params)
 - 行为与 TaskService.getTasks 一致，返回 PaginatedResponse<Task>；包含失败降级。
 
-2) 修改 TasksPage 支持全局模式
+2) 修改 TasksPage 支持全局模式 + 筛选条与 URL 同步（Alpha）
 - 文件：frontend/src/pages/TasksPage.tsx
 - 在 loadTasks 中：
-  - 有 projectId 时：调用 TaskService.getTasks
-  - 无 projectId 时：调用 TaskService.getAllTasks
-- 全局模式下自动显示“所属项目”列；其他交互（状态/截止时间内联编辑、计时器、子任务展开、归档等）保持一致。
+  - 有 projectId 时：调用 TaskService.getTasks，并传入筛选项（status/priority/assignee_id/search）
+  - 无 projectId 时：调用 TaskService.getAllTasks，并传入筛选项与 preset（overdue/planning/on_hold）
+- 全局模式下自动显示“所属项目”列；其他交互（状态/截止日期内联编辑、计时器、子任务展开、归档等）保持一致。
+- 新增筛选条组件：frontend/src/components/TasksFilterBar.tsx
+- 新增 URL 状态 Hook：useTaskListUrlState（frontend/src/hooks/useUrlState.ts）
+  - URL 参数键：tfilters（内部为 querystring），支持键：
+    - status: todo/in_progress/completed/cancelled/planning/on_hold/blocked
+    - priority: low/medium/high
+    - assignee_id: number
+    - q: 关键字
 
 3) 新增路由 /tasks
 - 文件：frontend/src/App.tsx
@@ -34,10 +41,12 @@
 ## 验证步骤
 1. 打开 /tasks，应能正常加载任务并显示“所属项目”列。
 2. 切换分页、排序（默认按 updated_at desc）应正常工作。
-3. 点击任务标题进入 /projects/{pid}/tasks/{tid} 详情页。
-4. 内联编辑状态/截止日期、查看/编辑/归档/删除操作可用。
-5. 在全局模式顶部选择一个项目后，新建任务按钮可用，能在该项目下创建任务。
-6. 访问 /projects/:projectId/tasks，原项目内列表行为不受影响。
+3. 使用筛选条设置 status/priority/assignee/q，URL 同步到 tfilters 参数；刷新后筛选仍然生效。
+4. 切换 preset（逾期/规划中/搁置）影响全局排序策略；URL 中的 tfilters 不受影响。
+5. 点击任务标题进入 /projects/{pid}/tasks/{tid} 详情页。
+6. 内联编辑状态/截止日期、查看/编辑/归档/删除操作可用。
+7. 在全局模式顶部选择一个项目后，新建任务按钮可用，能在该项目下创建任务。
+8. 访问 /projects/:projectId/tasks，原项目内列表行为不受影响。
 
 ## 已知限制
 - 全局列表暂未提供跨项目的批量删除（需要项目ID），批量删除在单项目列表可用；全局模式下会提示先选择项目。

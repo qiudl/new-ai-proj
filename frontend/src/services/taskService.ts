@@ -102,11 +102,12 @@ export class TaskService {
    * Get all tasks across projects with pagination and filtering
    * Backend endpoint: GET /api/v1/tasks
    */
-  static async getAllTasks(
-    params?: PaginationParams & TaskFilter
+static async getAllTasks(
+    params?: (PaginationParams & TaskFilter & { preset?: 'overdue' | 'planning' | 'on_hold' })
   ): Promise<PaginatedResponse<Task>> {
     try {
-      const response: any = await api.get(`/tasks`, { params });
+const merged = { preset: 'overdue', ...(params || {}) };
+      const response: any = await api.get(`/tasks`, { params: merged });
 
       // Case 1: Wrapped APIResponse { success, data }
       if (response && typeof response === 'object' && 'success' in response) {

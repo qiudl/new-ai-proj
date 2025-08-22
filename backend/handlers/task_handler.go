@@ -90,7 +90,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
-	// Parse query parameters (for future implementation)
+	// Parse query parameters
 	search := c.Query("search")
 	status := c.Query("status")
 	projectID := c.Query("project_id")
@@ -98,27 +98,37 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	priority := c.Query("priority")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
+	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
 	_ = search
-	_ = status
-	_ = projectID
-	_ = assigneeID
 	_ = priority
-	_ = sortBy
-	_ = sortOrder
 
-	if page < 1 {
-		page = 1
+	var assigneePtr *int
+	if assigneeID != "" {
+		if v, err := strconv.Atoi(assigneeID); err == nil { assigneePtr = &v }
 	}
-	if pageSize < 1 || pageSize > 1000 {
-		pageSize = 50
+	var projectPtr *int
+	if projectID != "" {
+		if v, err := strconv.Atoi(projectID); err == nil { projectPtr = &v }
 	}
 
+	// Default preset to "overdue" if none of the filters provided
+	if preset == "" && status == "" && projectID == "" && assigneeID == "" && search == "" {
+		preset = "overdue"
+		// If preset is overdue and client didn't specify sort, prefer due_date ASC
+		if c.Query("sort_by") == "" { sortBy = "due_date" }
+		if c.Query("sort_order") == "" { sortOrder = "asc" }
+	}
+
+	if page < 1 { page = 1 }
+	if pageSize < 1 || pageSize > 1000 { pageSize = 50 }
+	
 	offset := (page - 1) * pageSize
 
+	options := &models.TaskListOptions{ Preset: preset, Status: status, Assignee: assigneePtr, ProjectID: projectPtr, SortBy: sortBy, SortOrder: sortOrder }
 
-	tasks, total, err := h.db.Tasks().GetAll(c.Request.Context(), pageSize, offset)
+	tasks, total, err := h.db.Tasks().GetAllFiltered(c.Request.Context(), options, pageSize, offset)
 	if err != nil {
-		log.Printf("Error getting all tasks: %v", err)
+		log.Printf("Error getting all tasks (filtered): %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务列表失败", nil))
 		return
 	}

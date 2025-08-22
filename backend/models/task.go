@@ -238,6 +238,16 @@ type TaskFilter struct {
 	Search     string `form:"search"`
 }
 
+// TaskListOptions provides server-side filter options for global listing
+type TaskListOptions struct {
+	Preset    string // overdue | planning | on_hold | ""
+	Status    string
+	Assignee  *int
+	ProjectID *int
+	SortBy    string // updated_at | due_date | created_at
+	SortOrder string // asc | desc
+}
+
 // BatchUpdateTasksRequest represents a batch update request for multiple tasks
 type BatchUpdateTasksRequest struct {
 	TaskIDs   []int   `json:"task_ids" validate:"required,min=1"`

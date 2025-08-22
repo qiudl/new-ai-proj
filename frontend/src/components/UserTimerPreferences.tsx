@@ -888,7 +888,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
       width={800}
       footer={null}
       destroyOnHidden
-    >
+    >
       {loading ? (
         <Card loading={true} title="加载设置中..." />
       ) : (

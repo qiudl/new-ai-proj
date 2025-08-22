@@ -41,6 +41,43 @@ export const useUrlState = <T>(config: UrlStateConfig<T>) => {
   return [state, updateState] as const;
 };
 
+// 任务列表筛选（Alpha）URL状态：status/priority/assignee/q
+export interface TaskListFilters {
+  status?: 'todo' | 'in_progress' | 'completed' | 'cancelled' | 'planning' | 'on_hold' | 'blocked';
+  priority?: 'low' | 'medium' | 'high';
+  assignee_id?: number;
+  q?: string;
+}
+
+const taskListFiltersConfig: UrlStateConfig<TaskListFilters> = {
+  defaultValue: {},
+  serialize: (filters) => {
+    const params = new URLSearchParams();
+    if (filters.status) params.set('status', filters.status);
+    if (filters.priority) params.set('priority', filters.priority);
+    if (typeof filters.assignee_id === 'number') params.set('assignee_id', String(filters.assignee_id));
+    if (filters.q) params.set('q', filters.q);
+    return params.toString();
+  },
+  deserialize: (value) => {
+    const params = new URLSearchParams(value);
+    const status = params.get('status') as TaskListFilters['status'] | null;
+    const priority = params.get('priority') as TaskListFilters['priority'] | null;
+    const assigneeParam = params.get('assignee_id');
+    const assignee_id = assigneeParam ? parseInt(assigneeParam, 10) : undefined;
+    const q = params.get('q') || undefined;
+    return {
+      status: status || undefined,
+      priority: priority || undefined,
+      assignee_id: Number.isFinite(assignee_id) ? assignee_id : undefined,
+      q,
+    };
+  },
+  paramName: 'tfilters',
+};
+
+export const useTaskListUrlState = () => useUrlState(taskListFiltersConfig);
+
 // 任务仪表板筛选状态类型
 export interface TaskDashboardFilters {
   selectedWeek: Dayjs;

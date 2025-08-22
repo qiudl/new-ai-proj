@@ -3,6 +3,8 @@ import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col,
 import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
+import { useTaskListUrlState, TaskListFilters } from '../hooks/useUrlState';
+import TasksFilterBar from '../components/TasksFilterBar';
 import { TaskService } from '../services/taskService';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
@@ -274,27 +276,52 @@ const TasksPage: React.FC = () => {
     }
   }, [effectiveProjectId, tasks]);
 
-  // Load tasks from API
-  const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
+// Load tasks from API
+  const [preset, setPreset] = useState<'overdue' | 'planning' | 'on_hold'>('overdue');
+
+const [filters, setFilters] = useTaskListUrlState();
+
+const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true);
     try {
       let response: any;
       if (effectiveProjectId) {
         // Load tasks for specific project
+const reqFilters: any = {};
+        if (filters?.status) reqFilters.status = filters.status;
+        if (filters?.priority) reqFilters.priority = filters.priority;
+        if (typeof filters?.assignee_id === 'number') reqFilters.assignee_id = filters.assignee_id;
+        if (filters?.q) reqFilters.search = filters.q;
         response = await TaskService.getTasks(effectiveProjectId, {
           page,
-          page_size: pageSize,
+page_size: pageSize,
+          ...reqFilters,
           sort_by: 'updated_at',
           sort_order: 'desc', // 默认按最后更新时间倒序
         });
       } else {
-        // 全局模式：加载全部任务（跨项目）
-        response = await TaskService.getAllTasks({
+// 全局模式：加载全部任务（跨项目）
+        // Alpha 默认 preset=overdue，可由顶部 Chips 切换
+        const params: any = {
           page,
-          page_size: pageSize,
-          sort_by: 'updated_at',
-          sort_order: 'desc',
-        });
+page_size: pageSize,
+          ...(filters?.status ? { status: filters.status } : {}),
+          ...(filters?.priority ? { priority: filters.priority } : {}),
+          ...(typeof filters?.assignee_id === 'number' ? { assignee_id: filters.assignee_id } : {}),
+          ...(filters?.q ? { q: filters.q } : {}),
+        };
+        if (preset === 'overdue') {
+          params.sort_by = 'due_date';
+          params.sort_order = 'asc';
+        } else if (preset === 'planning') {
+          params.sort_by = 'updated_at';
+          params.sort_order = 'desc';
+        } else if (preset === 'on_hold') {
+          params.sort_by = 'updated_at';
+          params.sort_order = 'desc';
+        }
+        params.preset = preset;
+        response = await TaskService.getAllTasks(params);
       }
       
       // Comprehensive validation of response structure
@@ -356,7 +383,17 @@ const TasksPage: React.FC = () => {
         return timestampB - timestampA; // 倒序：最新的在前
       });
       
-      setTasks(sortedTasks);
+// If preset is overdue, prefer due_date ASC among overdue subset
+      let finalSorted = sortedTasks;
+      if (!effectiveProjectId && preset === 'overdue') {
+        finalSorted = [...sortedTasks].sort((a: any, b: any) => {
+          const aDue = a?.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          const bDue = b?.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+          return aDue - bDue;
+        });
+      }
+
+      setTasks(finalSorted);
       
       // 修复分页计算，确保total不会超过实际需要的页数
       const actualTotal = response.pagination?.total || 0;
@@ -398,15 +435,15 @@ const TasksPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [effectiveProjectId]);
+}, [effectiveProjectId, filters]);
 
   // 获取全局统计数据
 
 
-  // Load tasks on component mount and load current timer
+// Load tasks on component mount and when preset or filters changes
   useEffect(() => {
     loadTasks();
-  }, [loadTasks]); // 当loadTasks函数变化时重新加载任务
+}, [loadTasks, preset, filters]); // 当loadTasks、preset或filters变化时重新加载任务
   
   
   // Initial load is handled by the loadTasks useEffect above
@@ -2368,6 +2405,34 @@ const TasksPage: React.FC = () => {
                    selectedProject ? `项目: ${selectedProject.name}` : 
                    '全部项目 - 跨项目任务管理'}
                 </p>
+
+                {/* 全局视图的状态 Chips (Overdue / Planning / On Hold) */}
+                {!effectiveProjectId && (
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                    {[
+                      { key: 'overdue', label: '逾期', color: '#ff4d4f' },
+                      { key: 'planning', label: '规划中', color: '#1890ff' },
+                      { key: 'on_hold', label: '搁置', color: '#faad14' },
+                    ].map((chip) => (
+                      <button
+                        key={chip.key}
+                        onClick={() => setPreset(chip.key as any)}
+                        style={{
+                          border: preset === chip.key ? `2px solid ${chip.color}` : '1px solid #d9d9d9',
+                          backgroundColor: preset === chip.key ? `${chip.color}14` : '#fff',
+                          color: preset === chip.key ? chip.color : '#595959',
+                          borderRadius: 16,
+                          padding: '4px 12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                        title={chip.key === 'on_hold' ? '状态为搁置或已设置snooze_until>现在' : ''}
+                      >
+                        {chip.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               
               
@@ -2386,6 +2451,11 @@ const TasksPage: React.FC = () => {
                 </div>
               )}
             </div>
+</Col>
+          
+          {/* 筛选条：全局与项目内均显示，和 URL 同步 */}
+          <Col span={24} style={{ marginTop: 12 }}>
+            <TasksFilterBar value={filters as TaskListFilters} onChange={setFilters} />
           </Col>
           
           <Col>

@@ -61,9 +61,11 @@ export interface TaskRequest {
 export interface TaskFilter {
   status?: TaskStatus;
   assignee_id?: number;
+  priority?: 'low' | 'medium' | 'high';
   due_after?: string;
   due_before?: string;
-  search?: string;
+  search?: string; // free-text search
+  q?: string; // alias for search used by some endpoints
 }
 
 export interface PaginationParams {

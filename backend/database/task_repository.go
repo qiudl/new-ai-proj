@@ -421,6 +421,189 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
+return tasks, total, nil
+}
+
+// GetAllFiltered gets all tasks with server-side filtering and sorting (status-driven presets)
+func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *models.TaskListOptions, limit, offset int) ([]*models.Task, int, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	// Build WHERE conditions
+	conditions := []string{"t.deleted_at IS NULL"}
+	args := []interface{}{}
+
+	// Exclude archived if the column exists; safe to reference as it's used elsewhere
+	conditions = append(conditions, "t.archived_at IS NULL")
+
+	if opts != nil {
+		if opts.Status != "" {
+			conditions = append(conditions, "t.status = $1")
+			args = append(args, opts.Status)
+		}
+
+		presetApplied := false
+		if opts.Preset != "" {
+			switch opts.Preset {
+			case "overdue":
+				// overdue: not in done/cancelled/archived and due_date < now()
+				conditions = append(conditions, "t.status NOT IN ('completed','cancelled','archived')")
+				conditions = append(conditions, "t.due_date IS NOT NULL AND t.due_date < NOW()")
+				presetApplied = true
+			case "planning":
+				conditions = append(conditions, "t.status = 'planning'")
+				presetApplied = true
+			case "on_hold":
+				// on_hold or snooze_until > now() if column exists
+				conditions = append(conditions, "(t.status = 'on_hold' OR (t.snooze_until IS NOT NULL AND t.snooze_until > NOW()))")
+				presetApplied = true
+			}
+		}
+
+		_ = presetApplied
+	}
+
+	where := ""
+	if len(conditions) > 0 {
+		where = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// Count first
+	countQuery := "SELECT COUNT(*) FROM tasks t " + where
+	exec := r.getExecer()
+	var total int
+	if len(args) > 0 {
+		if err := exec.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("failed to get task count: %w", err)
+		}
+	} else {
+		if err := exec.QueryRowContext(ctx, countQuery).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("failed to get task count: %w", err)
+		}
+	}
+
+	// Sorting
+	sortBy := "t.updated_at"
+	sortOrder := "DESC"
+	if opts != nil {
+		if opts.SortBy != "" {
+			switch opts.SortBy {
+			case "due_date":
+				sortBy = "t.due_date"
+			case "created_at":
+				sortBy = "t.created_at"
+			default:
+				sortBy = "t.updated_at"
+			}
+		}
+		if strings.ToLower(opts.SortOrder) == "asc" {
+			sortOrder = "ASC"
+		}
+	}
+
+	query := fmt.Sprintf(`
+		SELECT t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, t.due_date,
+		       t.custom_fields, t.parent_id, t.task_level, t.sort_order, t.total_time_seconds,
+		       t.start_datetime, t.due_datetime, t.estimated_minutes, t.actual_minutes,
+		       t.time_unit_preference, t.work_hours_per_day, t.time_tracking_mode,
+		       t.created_at, t.updated_at, t.deleted_at,
+		       p.name as project_name, u.username as assignee_name,
+		       COALESCE(c.children_count, 0) as children_count
+		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN users u ON t.assignee_id = u.id
+		LEFT JOIN (
+			SELECT parent_id, COUNT(*) as children_count
+			FROM tasks
+			WHERE deleted_at IS NULL AND parent_id IS NOT NULL
+			GROUP BY parent_id
+		) c ON t.id = c.parent_id
+		%s
+		ORDER BY %s %s
+		LIMIT $%d OFFSET $%d`, where, sortBy, sortOrder, len(args)+1, len(args)+2)
+
+	args = append(args, limit, offset)
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list filtered tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		task := &models.Task{}
+		var customFieldsJSON []byte
+		var assigneeID sql.NullInt64
+		var dueDate sql.NullTime
+		var parentID sql.NullInt64
+		var updatedAt sql.NullTime
+		var startDatetime sql.NullTime
+		var dueDatetime sql.NullTime
+		var timeUnitPreference sql.NullString
+		var workHoursPerDay sql.NullFloat64
+		var timeTrackingMode sql.NullString
+		var projectName sql.NullString
+		var assigneeName sql.NullString
+		var childrenCount int
+
+		if err := rows.Scan(
+			&task.ID, &task.ProjectID, &task.Title, &task.Description,
+			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
+			&parentID, &task.TaskLevel, &task.SortOrder, &task.TotalTimeSeconds,
+			&startDatetime, &dueDatetime, &task.EstimatedMinutes, &task.ActualMinutes,
+			&timeUnitPreference, &workHoursPerDay, &timeTrackingMode,
+			&task.CreatedAt, &updatedAt, &task.DeletedAt,
+			&projectName, &assigneeName, &childrenCount,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
+		}
+
+		if assigneeID.Valid {
+			v := int(assigneeID.Int64)
+			task.AssigneeID = &v
+		}
+		if dueDate.Valid {
+			task.DueDate = &dueDate.Time
+		}
+		if parentID.Valid {
+			v := int(parentID.Int64)
+			task.ParentID = &v
+		}
+		if updatedAt.Valid {
+			task.UpdatedAt = updatedAt.Time
+		} else {
+			task.UpdatedAt = task.CreatedAt
+		}
+
+		if startDatetime.Valid { task.StartDatetime = &startDatetime.Time }
+		if dueDatetime.Valid { task.DueDatetime = &dueDatetime.Time }
+		if timeUnitPreference.Valid { task.TimeUnitPreference = timeUnitPreference.String } else { task.TimeUnitPreference = "auto" }
+		if workHoursPerDay.Valid { task.WorkHoursPerDay = workHoursPerDay.Float64 } else { task.WorkHoursPerDay = 8.0 }
+		if timeTrackingMode.Valid { task.TimeTrackingMode = timeTrackingMode.String } else { task.TimeTrackingMode = "manual" }
+
+		if len(customFieldsJSON) > 0 {
+			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
+				return nil, 0, fmt.Errorf("failed to unmarshal custom fields: %w", err)
+			}
+		}
+
+		// Add project_name, assignee_name and children_count to custom fields for frontend display
+		if task.CustomFields == nil { task.CustomFields = make(models.CustomFields) }
+		if projectName.Valid { task.CustomFields["project_name"] = projectName.String }
+		if assigneeName.Valid { task.CustomFields["assignee_name"] = assigneeName.String }
+		task.CustomFields["children_count"] = childrenCount
+
+		tasks = append(tasks, task)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
 	return tasks, total, nil
 }
 
