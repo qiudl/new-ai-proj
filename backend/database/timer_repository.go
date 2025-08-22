@@ -499,51 +499,97 @@ func (r *PostgresTimerRepository) getWeeklyStats(ctx context.Context, userID int
 // getDailyStats gets daily statistics for a user in date range
 func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int, start, end time.Time) ([]models.DailyStatsData, error) {
 	query := `
+		WITH date_series AS (
+			SELECT generate_series($2::date, $3::date, INTERVAL '1 day')::date AS day
+		),
+		daily_time AS (
+			SELECT 
+				-- 使用上海时区进行按天分组，避免跨天偏移
+				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
+				COALESCE(SUM(ttl.duration_seconds), 0) AS total_seconds
+			FROM task_time_logs ttl
+			-- 仅统计当前用户的计时
+			WHERE ttl.user_id = $1
+			AND ttl.start_time >= $2
+			AND ttl.start_time < ($3::timestamp + INTERVAL '1 day')
+			GROUP BY (ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date
+		),
+		daily_top_task AS (
+			SELECT 
+				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
+				t.title AS task_title,
+				SUM(ttl.duration_seconds) AS seconds
+			FROM task_time_logs ttl
+			JOIN tasks t ON ttl.task_id = t.id
+			WHERE ttl.user_id = $1
+			AND ttl.start_time >= $2
+			AND ttl.start_time < ($3::timestamp + INTERVAL '1 day')
+			GROUP BY (ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date, t.id, t.title
+		),
+		daily_tasks_completed AS (
+			SELECT 
+				-- 使用上海时区将更新时间归入对应自然日
+				(t.updated_at AT TIME ZONE 'Asia/Shanghai')::date AS day,
+				COUNT(DISTINCT t.id) AS completed_count
+			FROM tasks t
+			WHERE t.assignee_id = $1
+			AND t.status = 'completed'
+			AND t.updated_at >= $2
+			AND t.updated_at < ($3::timestamp + INTERVAL '1 day')
+			GROUP BY (t.updated_at AT TIME ZONE 'Asia/Shanghai')::date
+		)
 		SELECT 
-			DATE(ttl.start_time) as date,
-			COALESCE(SUM(ttl.duration_seconds), 0) as total_seconds,
-			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
-			MAX(t.title) as top_task
-		FROM task_time_logs ttl
-		JOIN tasks t ON ttl.task_id = t.id
-		WHERE ttl.user_id = $1 
-		AND ttl.start_time >= $2 
-		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
-		GROUP BY DATE(ttl.start_time)
-		ORDER BY date`
-	
+			ds.day AS date,
+			COALESCE(dt.total_seconds, 0) AS total_seconds,
+			COALESCE(dc.completed_count, 0) AS completed_tasks,
+			COALESCE((
+				SELECT dtt.task_title 
+				FROM daily_top_task dtt 
+				WHERE dtt.day = ds.day 
+				ORDER BY dtt.seconds DESC 
+				LIMIT 1
+			), '') AS top_task
+		FROM date_series ds
+		LEFT JOIN daily_time dt ON dt.day = ds.day
+		LEFT JOIN daily_tasks_completed dc ON dc.day = ds.day
+		ORDER BY ds.day`
+
 	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var dailyStats []models.DailyStatsData
 	for rows.Next() {
 		var date time.Time
 		var totalSeconds, completedTasks int
-		var topTask string
-		
-		err := rows.Scan(&date, &totalSeconds, &completedTasks, &topTask)
-		if err != nil {
+		var topTask sql.NullString
+
+		if err := rows.Scan(&date, &totalSeconds, &completedTasks, &topTask); err != nil {
 			return nil, err
 		}
-		
+
 		totalHours := float64(totalSeconds) / 3600.0
-		efficiency := float64(80 + (completedTasks * 5)) // Simple efficiency calculation
+		efficiency := float64(80 + (completedTasks * 5)) // 保持原有的效率计算方式
 		if efficiency > 100 {
 			efficiency = 100
 		}
-		
+
+		topTaskStr := ""
+		if topTask.Valid {
+			topTaskStr = topTask.String
+		}
+
 		dailyStats = append(dailyStats, models.DailyStatsData{
 			Date:           date.Format("2006-01-02"),
 			TotalHours:     totalHours,
 			TasksCompleted: completedTasks,
 			Efficiency:     efficiency,
-			TopTask:        topTask,
+			TopTask:        topTaskStr,
 		})
 	}
-	
+
 	return dailyStats, nil
 }
 
