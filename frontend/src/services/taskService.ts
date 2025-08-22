@@ -106,7 +106,12 @@ static async getAllTasks(
     params?: (PaginationParams & TaskFilter & { preset?: 'overdue' | 'planning' | 'on_hold' })
   ): Promise<PaginatedResponse<Task>> {
     try {
-const merged = { preset: 'overdue', ...(params || {}) };
+// removed forced default preset to allow 'all' view
+const mergedRaw = { ...(params || {}) } as any;
+      if (mergedRaw.q && !mergedRaw.search) {
+        mergedRaw.search = mergedRaw.q;
+      }
+      const merged = mergedRaw;
       const response: any = await api.get(`/tasks`, { params: merged });
 
       // Case 1: Wrapped APIResponse { success, data }
@@ -513,10 +518,11 @@ const merged = { preset: 'overdue', ...(params || {}) };
   /**
    * Get children of a specific task
    */
-  static async getTaskChildren(projectId: number, taskId: number): Promise<Task[]> {
+  static async getTaskChildren(projectId: number, taskId: number, params?: PaginationParams): Promise<PaginatedResponse<Task> | Task[]> {
     try {
       const response: any = await api.get(
-        `/projects/${projectId}/tasks/${taskId}/children`
+        `/projects/${projectId}/tasks/${taskId}/children`,
+        { params }
       );
       
       // Handle wrapped APIResponse
@@ -525,6 +531,9 @@ const merged = { preset: 'overdue', ...(params || {}) };
           throw new Error(response?.error?.message || 'Failed to fetch task children');
         }
         const d = response.data;
+        if (d && typeof d === 'object' && Array.isArray(d.data) && d.pagination) {
+          return d as PaginatedResponse<Task>;
+        }
         const children = Array.isArray(d?.data)
           ? d.data
           : Array.isArray(d)
@@ -533,14 +542,23 @@ const merged = { preset: 'overdue', ...(params || {}) };
         return children as Task[];
       }
 
-      // Axios-unwrapped
-      const data = response && response.data ? response.data : response;
-      const children = Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-          ? data
-          : [];
-      return children as Task[];
+      // Axios-unwrapped (api.ts may unwrap to body or body.data)
+      if (response && typeof response === 'object') {
+        const body = (response as any).data ?? response;
+        if (body && typeof body === 'object') {
+          if (Array.isArray(body.data) && body.pagination) {
+            return body as PaginatedResponse<Task>;
+          }
+          const children = Array.isArray(body.data)
+            ? body.data
+            : Array.isArray(body)
+              ? (body as any)
+              : [];
+          return children as Task[];
+        }
+      }
+      // Fallback
+      return [] as Task[];
     } catch (error: Error | unknown) {
       console.error('TaskService.getTaskChildren error:', error);
       console.warn('Using fallback empty array for getTaskChildren due to API error');

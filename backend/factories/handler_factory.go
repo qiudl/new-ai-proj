@@ -38,8 +38,11 @@ func NewHandlerFactory(db database.DB, logger *log.Logger, validate *validator.V
 func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers := &AllHandlers{}
 	
-	// 认证处理器
+// 认证处理器
 	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.config.JWT.Secret)
+
+	// 分析埋点处理器
+	allHandlers.AnalyticsHandler = handlers.NewAnalyticsHandler(f.db)
 	
 	// 基础处理器
 	allHandlers.CustomerHandler = handlers.NewCustomerHandler(f.db, f.logger, f.validate)

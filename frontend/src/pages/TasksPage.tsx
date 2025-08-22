@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip } from 'antd';
-import { PlusOutlined, ImportOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined } from '@ant-design/icons';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Button, Table, Tag, Space, Dropdown, message, Modal, Switch, Card, Col, Row, Select, DatePicker, Checkbox, Tooltip, Alert } from 'antd';
+import { PlusOutlined, MoreOutlined, EditOutlined, DeleteOutlined, EyeOutlined, AppstoreAddOutlined, CaretRightOutlined, HistoryOutlined, MenuOutlined, AppstoreOutlined, BranchesOutlined, PlayCircleOutlined, PauseCircleOutlined, CloseOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { useTaskListUrlState, TaskListFilters } from '../hooks/useUrlState';
 import TasksFilterBar from '../components/TasksFilterBar';
 import { TaskService } from '../services/taskService';
+import SwimlaneBoard from '../components/SwimlaneBoard';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import HierarchicalTaskList from '../components/HierarchicalTaskList';
@@ -29,6 +30,8 @@ import '../styles/resizable-columns.css';
 const TasksPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isSwimlaneView = new URLSearchParams(location.search).get('view') === 'swimlane';
   
   // Global timer context
   const { timerState, isTaskTiming } = useTimer();
@@ -73,8 +76,8 @@ const TasksPage: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
   const projectIdNum = parseInt(projectId || '0');
   
-  // 使用URL中的项目ID（必需）
-  const effectiveProjectId = projectIdNum;
+  // 使用URL中的项目ID（必需）；在全局页选择了项目时也视为有效项目
+  const effectiveProjectId = projectIdNum || selectedProjectId || 0;
   
   // 列自定义配置状态 - 使用useMemo创建默认配置
   const defaultColumnConfigs = useMemo((): ColumnConfig[] => [
@@ -89,6 +92,18 @@ const TasksPage: React.FC = () => {
       maxWidth: 100,
       resizable: false
     },
+    // 全局任务列表：在任务名称前增加 ID 列
+    ...(!effectiveProjectId ? [{
+      key: 'id',
+      title: 'ID',
+      visible: true,
+      required: false,
+      description: '任务ID',
+      width: 90,
+      minWidth: 70,
+      maxWidth: 120,
+      resizable: true
+    }] : []),
     {
       key: 'title',
       title: '任务名称',
@@ -100,17 +115,7 @@ const TasksPage: React.FC = () => {
       maxWidth: 600,
       resizable: true
     },
-    ...(!effectiveProjectId ? [{
-      key: 'project_name',
-      title: '所属项目',
-      visible: true,
-      required: false,
-      description: '任务所属的项目',
-      width: 150,
-      minWidth: 100,
-      maxWidth: 200,
-      resizable: true
-    }] : []),
+    
     {
       key: 'status',
       title: '状态',
@@ -133,6 +138,18 @@ const TasksPage: React.FC = () => {
       maxWidth: 160,
       resizable: true
     },
+    // 全局任务列表：在截止时间前增加 开始时间 列
+    ...(!effectiveProjectId ? [{
+      key: 'start_datetime',
+      title: '开始时间',
+      visible: true,
+      required: false,
+      description: '任务计划开始时间',
+      width: 140,
+      minWidth: 100,
+      maxWidth: 180,
+      resizable: true
+    }] : []),
     {
       key: 'due_date',
       title: '截止时间',
@@ -155,6 +172,7 @@ const TasksPage: React.FC = () => {
       maxWidth: 160,
       resizable: true
     },
+    // 全局任务列表：可选显示创建时间
     ...(!effectiveProjectId ? [{
       key: 'created_at',
       title: '创建时间',
@@ -277,7 +295,7 @@ const TasksPage: React.FC = () => {
   }, [effectiveProjectId, tasks]);
 
 // Load tasks from API
-  const [preset, setPreset] = useState<'overdue' | 'planning' | 'on_hold'>('overdue');
+  const [preset, setPreset] = useState<'all' | 'overdue' | 'planning' | 'on_hold'>('all');
 
 const [filters, setFilters] = useTaskListUrlState();
 
@@ -292,6 +310,7 @@ const reqFilters: any = {};
         if (filters?.priority) reqFilters.priority = filters.priority;
         if (typeof filters?.assignee_id === 'number') reqFilters.assignee_id = filters.assignee_id;
         if (filters?.q) reqFilters.search = filters.q;
+        if (typeof filters?.task_id === 'number') reqFilters.task_id = filters.task_id;
         response = await TaskService.getTasks(effectiveProjectId, {
           page,
 page_size: pageSize,
@@ -301,7 +320,7 @@ page_size: pageSize,
         });
       } else {
 // 全局模式：加载全部任务（跨项目）
-        // Alpha 默认 preset=overdue，可由顶部 Chips 切换
+        // 预设：all/overdue/planning/on_hold。all 不传 preset 参数
         const params: any = {
           page,
 page_size: pageSize,
@@ -309,18 +328,25 @@ page_size: pageSize,
           ...(filters?.priority ? { priority: filters.priority } : {}),
           ...(typeof filters?.assignee_id === 'number' ? { assignee_id: filters.assignee_id } : {}),
           ...(filters?.q ? { q: filters.q } : {}),
+          ...(typeof filters?.task_id === 'number' ? { task_id: filters.task_id } : {}),
         };
         if (preset === 'overdue') {
           params.sort_by = 'due_date';
           params.sort_order = 'asc';
+          params.preset = 'overdue';
         } else if (preset === 'planning') {
           params.sort_by = 'updated_at';
           params.sort_order = 'desc';
+          params.preset = 'planning';
         } else if (preset === 'on_hold') {
           params.sort_by = 'updated_at';
           params.sort_order = 'desc';
+          params.preset = 'on_hold';
+        } else {
+          // all：不传 preset，默认按更新时间倒序
+          params.sort_by = 'updated_at';
+          params.sort_order = 'desc';
         }
-        params.preset = preset;
         response = await TaskService.getAllTasks(params);
       }
       
@@ -795,9 +821,11 @@ page_size: pageSize,
       // 添加加载状态提示
       const hideLoading = message.loading('正在更新状态...', 0);
 
-      await TaskService.updateTask(projectId, taskId, { 
+await TaskService.updateTask(projectId, taskId, { 
         status: newStatus as unknown
       });
+      // analytics
+      try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'status_change', taskId, projectId, newStatus }); } catch {}
       
       hideLoading();
       message.success('状态更新成功');
@@ -839,7 +867,9 @@ page_size: pageSize,
         due_date: newDueDate || ""
       };
       
-      await TaskService.updateTask(projectId, taskId, updateData);
+await TaskService.updateTask(projectId, taskId, updateData);
+      // analytics
+      try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'due_date_change', taskId, projectId, newDueDate }); } catch {}
       
       hideLoading();
       message.success('截止日期更新成功');
@@ -1159,6 +1189,17 @@ page_size: pageSize,
             ),
           };
           
+        case 'id':
+          return {
+            title: createResizableTitle(config, 'ID'),
+            dataIndex: 'id',
+            key: 'id',
+            width: config.width,
+            render: (id: number) => (
+              <span style={{ color: '#595959', fontWeight: 500 }}>#{id}</span>
+            ),
+          };
+          
         case 'updated_at':
           return {
             title: createResizableTitle(config, '最后更新'),
@@ -1283,7 +1324,7 @@ page_size: pageSize,
                           </Tag>
                         )}
                       </div>
-                      {record.description && (
+                      {!effectiveProjectId && (
                         <div style={{ 
                           color: '#8c8c8c', 
                           fontSize: 12,
@@ -1291,10 +1332,7 @@ page_size: pageSize,
                           lineHeight: '1.3',
                           wordBreak: 'break-word'
                         }}>
-                          {record.description.length > 50 
-                            ? `${record.description.substring(0, 50)}...` 
-                            : record.description
-                          }
+                          {record.project_name || `项目${record.project_id}`}
                         </div>
                       )}
                     </div>
@@ -1391,26 +1429,6 @@ page_size: pageSize,
             },
           };
           
-        case 'project_name':
-          return {
-            title: createResizableTitle(config, '所属项目'),
-            dataIndex: 'project_name',
-            key: 'project_name',
-            width: config.width,
-            render: (name: string, record: Task) => (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: `hsl(${(record.project_id * 137.5) % 360}, 70%, 60%)`
-                }} />
-                <span style={{ fontWeight: 500, color: '#262626' }}>
-                  {name || '未知项目'}
-                </span>
-              </div>
-            ),
-          };
           
         case 'status':
           return {
@@ -1489,6 +1507,23 @@ page_size: pageSize,
                 </span>
               </div>
             ),
+          };
+          
+        case 'start_datetime':
+          return {
+            title: createResizableTitle(config, '开始时间'),
+            dataIndex: 'start_datetime',
+            key: 'start_datetime',
+            width: config.width,
+            render: (dateTime: string) => {
+              if (!dateTime) return <span style={{ color: '#8c8c8c' }}>-</span>;
+              const dt = dayjs(dateTime);
+              return (
+                <Tooltip title={dt.format('YYYY-MM-DD HH:mm')}>
+                  <span>{dt.format('YYYY-MM-DD')}</span>
+                </Tooltip>
+              );
+            },
           };
           
         case 'due_date':
@@ -1815,7 +1850,7 @@ page_size: pageSize,
                     </Tag>
                   )}
                 </div>
-                {record.description && (
+                {!effectiveProjectId && (
                   <div style={{ 
                     color: '#8c8c8c', 
                     fontSize: 12,
@@ -1823,10 +1858,7 @@ page_size: pageSize,
                     lineHeight: '1.3',
                     wordBreak: 'break-word'
                   }}>
-                    {record.description.length > 50 
-                      ? `${record.description.substring(0, 50)}...` 
-                      : record.description
-                    }
+                    {record.project_name || `项目${record.project_id}`}
                   </div>
                 )}
               </div>
@@ -1973,29 +2005,6 @@ page_size: pageSize,
       },
     },
     
-    // 项目列 - 只在全局视图显示，并且优化样式
-    ...(!effectiveProjectId ? [{
-      title: '所属项目',
-      dataIndex: 'project_name',
-      key: 'project_name',
-      width: '12%', // 减少项目列宽度以给任务名称列更多空间
-      render: (name: string, record: Task) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            backgroundColor: `hsl(${(record.project_id * 137.5) % 360}, 70%, 60%)`
-          }} />
-          <span style={{ 
-            fontWeight: 500,
-            color: '#262626'
-          }}>
-            {name || '未知项目'}
-          </span>
-        </div>
-      ),
-    }] : []),
 
     // 状态列 - 增强版内联编辑
     {
@@ -2311,6 +2320,39 @@ page_size: pageSize,
     };
   }, []);
 
+  if (isSwimlaneView) {
+    return (
+      <div className="page-container">
+        <Card style={{ marginBottom: '16px' }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <div style={{ fontWeight: 600 }}>智能泳道视图（Beta）</div>
+            <Button
+              onClick={() => {
+                const sp = new URLSearchParams(location.search);
+                sp.delete('view');
+                navigate({ pathname: location.pathname, search: sp.toString() });
+              }}
+            >返回列表视图</Button>
+          </Space>
+        </Card>
+        {effectiveProjectId ? (
+          <SwimlaneBoard
+            projectId={effectiveProjectId}
+            tasks={tasks}
+            loading={loading}
+            initialGroupBy="status"
+            onUpdated={() => {
+              // 更新后刷新一次任务数据
+              loadTasks(pagination.current, pagination.pageSize);
+            }}
+          />
+        ) : (
+          <Alert type="info" message="泳道视图仅支持在具体项目内使用，请先选择项目。" />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="page-container">
       {/* 项目选择卡片 - 增强样式 */}
@@ -2406,10 +2448,11 @@ page_size: pageSize,
                    '全部项目 - 跨项目任务管理'}
                 </p>
 
-                {/* 全局视图的状态 Chips (Overdue / Planning / On Hold) */}
+                {/* 全局视图的状态 Chips (全部 / 逾期 / 规划中 / 搁置) */}
                 {!effectiveProjectId && (
                   <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
                     {[
+                      { key: 'all', label: '全部', color: '#8c8c8c' },
                       { key: 'overdue', label: '逾期', color: '#ff4d4f' },
                       { key: 'planning', label: '规划中', color: '#1890ff' },
                       { key: 'on_hold', label: '搁置', color: '#faad14' },
@@ -2426,18 +2469,19 @@ page_size: pageSize,
                           fontWeight: 600,
                           cursor: 'pointer'
                         }}
-                        title={chip.key === 'on_hold' ? '状态为搁置或已设置snooze_until>现在' : ''}
+                        title={chip.key === 'on_hold' ? '状态为搁置或已设置snooze_until>现在' : (chip.key === 'all' ? '显示全部任务（不使用预设过滤）' : '')}
                       >
                         {chip.label}
                       </button>
                     ))}
                   </div>
                 )}
+                )}
               </div>
               
               
               {/* 单项目任务数量徽章 */}
-              {effectiveProjectId && tasks.length > 0 && (
+              {effectiveProjectId > 0 && tasks.length > 0 && (
                 <div style={{
                   padding: '4px 12px',
                   backgroundColor: '#e6f7ff',
@@ -2455,13 +2499,31 @@ page_size: pageSize,
           
           {/* 筛选条：全局与项目内均显示，和 URL 同步 */}
           <Col span={24} style={{ marginTop: 12 }}>
-            <TasksFilterBar value={filters as TaskListFilters} onChange={setFilters} />
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap', overflowX: 'auto' }}>
+              <TasksFilterBar value={filters as TaskListFilters} onChange={setFilters} compact={!effectiveProjectId} />
+              <Button
+                icon={<SearchOutlined />}
+                onClick={() => loadTasks(1, pagination.pageSize)}
+              >
+                搜索
+              </Button>
+              <Button
+                onClick={() => {
+                  setFilters({} as TaskListFilters);
+                  setPreset('all');
+                  // 立即刷新，确保清除 task_id 等残留筛选
+                  loadTasks(1, pagination.pageSize);
+                }}
+              >
+                清空筛选
+              </Button>
+            </div>
           </Col>
           
           <Col>
             <Space size="large">
               {/* 视图切换 - 现代化设计 */}
-              {effectiveProjectId && (
+              {effectiveProjectId > 0 && (
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
@@ -2495,27 +2557,28 @@ page_size: pageSize,
                 </div>
               )}
 
+              {/* 显式切换到泳道视图（Beta） */}
+              {effectiveProjectId > 0 && (
+                <Button
+                  type="default"
+                  icon={<AppstoreOutlined />}
+                  onClick={() => {
+                    const sp = new URLSearchParams(location.search);
+                    sp.set('view', 'swimlane');
+                    navigate({ pathname: location.pathname, search: sp.toString() });
+                  }}
+                  style={{ height: '40px' }}
+                >
+                  泳道视图 (Beta)
+                </Button>
+              )}
+
               <ColumnCustomizer
                 columns={columnConfigs}
                 onChange={setColumnConfigs}
                 storageKey={`task-columns-${effectiveProjectId || 'global'}`}
               />
 
-              <Button
-                type="default"
-                icon={<ImportOutlined />}
-                onClick={() => {
-                  if (!effectiveProjectId) {
-                    message.warning('全局模式下请先从上方选择一个项目，然后进行批量导入');
-                    return;
-                  }
-                  navigate(`/projects/${effectiveProjectId}/bulk-import`);
-                }}
-                style={{ height: '40px' }}
-              >
-                批量导入
-              </Button>
-              
               {selectedTaskIds.length > 0 && (
                 <>
                   <Button
@@ -2538,26 +2601,32 @@ page_size: pageSize,
                   </Button>
                 </>
               )}
-              
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => {
-                  if (!effectiveProjectId) {
-                    message.warning('全局模式下请先从上方选择一个项目，然后新建任务');
-                    return;
-                  }
-                  handleNewTask();
-                }}
-                size="large"
-                style={{ 
-                  height: '40px',
-                  fontWeight: 600,
-                  boxShadow: '0 4px 12px rgba(24,144,255,0.3)'
-                }}
-              >
-                新建任务
-              </Button>
+
+              {/* 仅项目路由下显示：批量导入 和 新建任务 按钮 */}
+              {projectId && (
+                <>
+                  <Button
+                    type="default"
+                    onClick={() => navigate(`/projects/${projectId}/bulk-import`)}
+                    style={{ height: '40px' }}
+                  >
+                    批量导入
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleNewTask}
+                    size="large"
+                    style={{ 
+                      height: '40px',
+                      fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(24,144,255,0.3)'
+                    }}
+                  >
+                    新建任务
+                  </Button>
+                </>
+              )}
             </Space>
           </Col>
         </Row>
@@ -2616,12 +2685,12 @@ page_size: pageSize,
                 columns={generateColumns()}
                 rowKey="id"
                 loading={loading}
-                pagination={pagination.total > pagination.pageSize ? {
+                pagination={{
                   ...pagination,
                   showSizeChanger: true,
                   showQuickJumper: true,
                   showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-                } : false}
+                }}
                 onChange={handleTableChange}
                 rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
                   const depth = record.depth || 0;
@@ -2667,12 +2736,12 @@ page_size: pageSize,
             columns={generateColumns()}
             rowKey="id"
             loading={loading}
-            pagination={pagination.total > pagination.pageSize ? {
+            pagination={{
               ...pagination,
               showSizeChanger: true,
               showQuickJumper: true,
               showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
-            } : false}
+            }}
             onChange={handleTableChange}
             rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
               const depth = record.depth || 0;

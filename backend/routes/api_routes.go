@@ -39,13 +39,18 @@ func registerWebhookRoutes(router *gin.Engine, app ApplicationInterface) {
 // registerGlobalTaskRoutes 注册全局任务路由
 func registerGlobalTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// Global tasks routes (all projects) - for compatibility
-authorized.GET("/tasks", app.GetAllTasksHandler())
-authorized.GET("/tasks/today", app.GetTodayTasksHandler())
-authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
-authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
-authorized.POST("/tasks/:id/complete", app.MarkTodayTaskCompletedHandler())
-authorized.POST("/tasks/:id/postpone", app.PostponeTodayTaskHandler())
-authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
+	authorized.GET("/tasks", app.GetAllTasksHandler())
+	authorized.GET("/tasks/today", app.GetTodayTasksHandler())
+	authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
+	authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
+	authorized.POST("/tasks/:id/complete", app.MarkTodayTaskCompletedHandler())
+	authorized.POST("/tasks/:id/postpone", app.PostponeTodayTaskHandler())
+	authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
+
+	// 分析埋点回传（前端 fire-and-forget）
+	authorized.POST("/analytics/events", app.GetAnalyticsHandler().IngestEvents)
+	// KPI 查询占位
+	authorized.GET("/analytics/kpi/:name", app.GetAnalyticsHandler().GetKPI)
 }
 
 // registerFileRoutes 注册文件管理路由

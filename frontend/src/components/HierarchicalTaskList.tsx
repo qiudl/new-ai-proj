@@ -71,15 +71,20 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
 
     setLoadingChildren(prev => new Set(prev).add(parentTask.id));
     try {
-      const children = await TaskService.getTaskChildren(projectId, parentTask.id);
-      // Ensure children is an array and contains valid objects
-      const childrenArray = Array.isArray(children) ? children.filter(child => child && typeof child === 'object') : [];
-      const childrenWithLevel = childrenArray.map(child => ({
-        ...child,
-        level: (parentTask.level || 0) + 1,
-        expanded: false,
-        children: [],
-      }));
+      const childrenResp = await TaskService.getTaskChildren(projectId, parentTask.id, { page: 1, page_size: 100 });
+      const childrenArray: Task[] = Array.isArray((childrenResp as any)?.data)
+        ? (childrenResp as any).data
+        : Array.isArray(childrenResp)
+          ? (childrenResp as any)
+          : [];
+      const childrenWithLevel = childrenArray
+        .filter(child => child && typeof child === 'object')
+        .map(child => ({
+          ...child,
+          level: (parentTask.level || 0) + 1,
+          expanded: false,
+          children: [],
+        }));
 
       setTasks(prevTasks => {
         const updateTaskChildren = (taskList: ExpandedTaskItem[]): ExpandedTaskItem[] => {

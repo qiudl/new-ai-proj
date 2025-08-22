@@ -30,13 +30,21 @@ export const TasksFilterBar: React.FC<TasksFilterBarProps> = ({ value, onChange,
   const merged = useMemo(() => value || {}, [value]);
 
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: 8,
+        alignItems: 'center',
+        flexWrap: compact ? 'nowrap' : 'wrap',
+        overflowX: compact ? 'auto' : 'visible'
+      }}
+    >
       <Select
         allowClear
         placeholder="状态"
         value={merged.status}
         style={{ minWidth: 140 }}
-        onChange={(v) => onChange({ ...merged, status: v as any || undefined })}
+        onChange={(v) => onChange({ ...merged, status: (v as any) || undefined })}
         options={statusOptions}
       />
       <Select
@@ -44,8 +52,21 @@ export const TasksFilterBar: React.FC<TasksFilterBarProps> = ({ value, onChange,
         placeholder="优先级"
         value={merged.priority}
         style={{ minWidth: 120 }}
-        onChange={(v) => onChange({ ...merged, priority: v as any || undefined })}
+        onChange={(v) => onChange({ ...merged, priority: (v as any) || undefined })}
         options={priorityOptions}
+      />
+      <Input
+        allowClear
+        placeholder="任务ID"
+        value={merged.task_id?.toString()}
+        onChange={(e) => {
+          const v = e.target.value.trim();
+          const n = v === '' ? undefined : Number(v);
+          onChange({ ...merged, task_id: Number.isFinite(n) ? (n as number) : undefined });
+        }}
+        style={{ width: 120 }}
+        inputMode="numeric"
+        pattern="[0-9]*"
       />
       <Input
         allowClear

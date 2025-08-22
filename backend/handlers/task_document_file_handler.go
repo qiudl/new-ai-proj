@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"ai-project-backend/models"
 	"ai-project-backend/services"
-	"context"
 	"net/http"
 	"strconv"
 
@@ -273,49 +271,14 @@ func (h *TaskDocumentFileHandler) CompareDocumentVersions(c *gin.Context) {
 	})
 }
 
-// CreateTaskDocumentFromTask 根据任务信息创建文档
+// CreateTaskDocumentFromTask 根据任务信息创建文档（已废弃）
 // POST /api/v1/projects/:projectId/tasks/:taskId/document/create
 func (h *TaskDocumentFileHandler) CreateTaskDocumentFromTask(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("taskId"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
-		return
-	}
-
-	projectID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
-
-	// 这里需要从数据库获取任务信息，但由于我们没有直接的数据库访问
-	// 这个方法需要配合现有的任务服务使用
-	// 暂时返回成功状态，实际实现需要集成到现有的任务创建流程中
-	
-	// 创建一个基本的任务对象用于演示
-	task := &models.Task{
-		ID:          taskID,
-		Title:       "任务标题",
-		Description: "任务描述",
-		Status:      "todo",
-	}
-
-	ctx := context.Background()
-	if err := h.DocumentService.CreateTaskDocument(ctx, task, projectID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create task document",
-			"details": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "Task document created successfully",
-		"data": gin.H{
-			"task_id":    taskID,
-			"project_id": projectID,
-		},
+	// 旧的基于文件系统的任务文档创建方式已废弃，统一改用数据库“任务文档”API
+	c.JSON(http.StatusGone, gin.H{
+		"success": false,
+		"message": "File-based task document creation is deprecated. Please use the database-backed document API to create and attach documents to tasks.",
+		"code":    "TASK_DOC_FILE_CREATION_DEPRECATED",
 	})
 }
 

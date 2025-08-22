@@ -27,7 +27,6 @@ func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *T
 
 // GetTasks handles GET /api/v1/projects/:projectId/tasks
 func (h *TaskHandler) GetTasks(c *gin.Context) {
-	
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的项目ID", nil))
@@ -37,30 +36,45 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
-	// Parse query parameters (for future implementation)
+	// Parse query parameters
 	search := c.Query("search")
+	q := c.Query("q")
+	if search == "" { search = q }
 	status := c.Query("status")
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
+	taskIDParam := c.Query("task_id")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
-	_ = search
-	_ = status
-	_ = assigneeID
-	_ = priority
-	_ = sortBy
-	_ = sortOrder
 
-	if page < 1 {
-		page = 1
+	var assigneePtr *int
+	if assigneeID != "" {
+		if v, err := strconv.Atoi(assigneeID); err == nil { assigneePtr = &v }
 	}
-	if pageSize < 1 || pageSize > 1000 {
-		pageSize = 50
+	var taskIDPtr *int
+	if taskIDParam != "" {
+		if v, err := strconv.Atoi(taskIDParam); err == nil { taskIDPtr = &v }
 	}
+
+	if page < 1 { page = 1 }
+	if pageSize < 1 || pageSize > 1000 { pageSize = 50 }
 
 	offset := (page - 1) * pageSize
 
-	tasks, total, err := h.db.Tasks().GetByProjectID(c.Request.Context(), projectID, pageSize, offset)
+	// Delegate to filtered repository with project constraint
+	options := &models.TaskListOptions{ 
+		Preset:    "", // project内不使用预设
+		Status:    status,
+		Priority:  priority,
+		Search:    search,
+		Assignee:  assigneePtr,
+		ProjectID: &projectID,
+		TaskID:    taskIDPtr,
+		SortBy:    sortBy,
+		SortOrder: sortOrder,
+	}
+
+	tasks, total, err := h.db.Tasks().GetAllFiltered(c.Request.Context(), options, pageSize, offset)
 	if err != nil {
 		log.Printf("Error getting tasks: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务列表失败", nil))
@@ -92,15 +106,15 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
 	// Parse query parameters
 	search := c.Query("search")
+	if search == "" { search = c.Query("q") }
 	status := c.Query("status")
 	projectID := c.Query("project_id")
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
+	taskIDParam := c.Query("task_id")
 	sortBy := c.DefaultQuery("sort_by", "updated_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
-	_ = search
-	_ = priority
 
 	var assigneePtr *int
 	if assigneeID != "" {
@@ -110,9 +124,13 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	if projectID != "" {
 		if v, err := strconv.Atoi(projectID); err == nil { projectPtr = &v }
 	}
+	var taskIDPtr *int
+	if taskIDParam != "" {
+		if v, err := strconv.Atoi(taskIDParam); err == nil { taskIDPtr = &v }
+	}
 
 	// Default preset to "overdue" if none of the filters provided
-	if preset == "" && status == "" && projectID == "" && assigneeID == "" && search == "" {
+	if preset == "" && status == "" && projectID == "" && assigneeID == "" && search == "" && priority == "" {
 		preset = "overdue"
 		// If preset is overdue and client didn't specify sort, prefer due_date ASC
 		if c.Query("sort_by") == "" { sortBy = "due_date" }
@@ -124,7 +142,17 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	
 	offset := (page - 1) * pageSize
 
-	options := &models.TaskListOptions{ Preset: preset, Status: status, Assignee: assigneePtr, ProjectID: projectPtr, SortBy: sortBy, SortOrder: sortOrder }
+	options := &models.TaskListOptions{ 
+		Preset: preset, 
+		Status: status, 
+		Priority: priority,
+		Search: search,
+		Assignee: assigneePtr, 
+		ProjectID: projectPtr, 
+		TaskID: taskIDPtr,
+		SortBy: sortBy, 
+		SortOrder: sortOrder,
+	}
 
 	tasks, total, err := h.db.Tasks().GetAllFiltered(c.Request.Context(), options, pageSize, offset)
 	if err != nil {
@@ -183,6 +211,16 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "请求数据格式错误", nil))
 		return
+	}
+
+	// 默认负责人：如果未指定，则指派给用户名为 ai-pm 的用户
+	if req.AssigneeID == nil {
+		ctx := c.Request.Context()
+		if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
+			req.AssigneeID = &aiPM.ID
+		} else {
+			log.Printf("[CreateTask] default assignee 'ai-pm' not found or error: %v", err)
+		}
 	}
 
 	// Parse due date
@@ -290,7 +328,20 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	var createdTasks []models.TaskResponse
 	var errors []string
 
+	// 预取默认负责人ID（ai-pm），避免循环内重复查询
+	var defaultAssigneeID *int
+	if aiPM, err := h.db.Users().GetByUsername(c.Request.Context(), "ai-pm"); err == nil && aiPM != nil {
+		defaultAssigneeID = &aiPM.ID
+	} else {
+		log.Printf("[BulkImportTasks] default assignee 'ai-pm' not found or error: %v", err)
+	}
+
 	for i, taskReq := range req.Tasks {
+		// 若未指定负责人且存在默认负责人，则设置为 ai-pm
+		if taskReq.AssigneeID == nil && defaultAssigneeID != nil {
+			taskReq.AssigneeID = defaultAssigneeID
+		}
+
 		// Parse due date
 		var dueDate *time.Time
 		if taskReq.DueDate != nil && *taskReq.DueDate != "" {

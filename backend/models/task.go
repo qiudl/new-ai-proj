@@ -242,8 +242,11 @@ type TaskFilter struct {
 type TaskListOptions struct {
 	Preset    string // overdue | planning | on_hold | ""
 	Status    string
+	Priority  string
+	Search    string
 	Assignee  *int
 	ProjectID *int
+	TaskID    *int
 	SortBy    string // updated_at | due_date | created_at
 	SortOrder string // asc | desc
 }

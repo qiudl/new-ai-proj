@@ -5,6 +5,8 @@ import dayjs, { Dayjs } from 'dayjs';
 import { Task } from '../types/task';
 import { TaskService } from '../services/taskService';
 
+import { track } from '../utils/analytics';
+
 const TaskCalendarPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const projectIdNum = parseInt(projectId || '0');
@@ -64,6 +66,7 @@ const TaskCalendarPage: React.FC = () => {
       const url = window.location.href;
       navigator.clipboard?.writeText(url);
       message.success('已复制当前视图链接');
+      track('share_view', { page: 'task_calendar', projectId: projectIdNum || undefined });
     } catch (e) {
       message.warning('无法复制到剪贴板');
     }

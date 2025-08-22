@@ -154,6 +154,11 @@ func (app *Application) GetTaskAnalysisHandler() *handlers.TaskAnalysisHandler {
 	return app.handlers.TaskAnalysisHandler
 }
 
+// Analytics ingestion handler
+func (app *Application) GetAnalyticsHandler() *handlers.AnalyticsHandler {
+	return app.handlers.AnalyticsHandler
+}
+
 func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 	return app.handlers.APIKeyHandler
 }

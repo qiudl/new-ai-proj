@@ -46,6 +46,7 @@ export interface TaskListFilters {
   status?: 'todo' | 'in_progress' | 'completed' | 'cancelled' | 'planning' | 'on_hold' | 'blocked';
   priority?: 'low' | 'medium' | 'high';
   assignee_id?: number;
+  task_id?: number;
   q?: string;
 }
 
@@ -57,6 +58,7 @@ const taskListFiltersConfig: UrlStateConfig<TaskListFilters> = {
     if (filters.priority) params.set('priority', filters.priority);
     if (typeof filters.assignee_id === 'number') params.set('assignee_id', String(filters.assignee_id));
     if (filters.q) params.set('q', filters.q);
+    if (typeof filters.task_id === 'number') params.set('task_id', String(filters.task_id));
     return params.toString();
   },
   deserialize: (value) => {
@@ -65,11 +67,14 @@ const taskListFiltersConfig: UrlStateConfig<TaskListFilters> = {
     const priority = params.get('priority') as TaskListFilters['priority'] | null;
     const assigneeParam = params.get('assignee_id');
     const assignee_id = assigneeParam ? parseInt(assigneeParam, 10) : undefined;
+    const taskIdParam = params.get('task_id');
+    const task_id = taskIdParam ? parseInt(taskIdParam, 10) : undefined;
     const q = params.get('q') || undefined;
     return {
       status: status || undefined,
       priority: priority || undefined,
       assignee_id: Number.isFinite(assignee_id) ? assignee_id : undefined,
+      task_id: Number.isFinite(task_id) ? task_id : undefined,
       q,
     };
   },

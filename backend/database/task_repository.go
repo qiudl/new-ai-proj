@@ -434,37 +434,54 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 	}
 
 	// Build WHERE conditions
-	conditions := []string{"t.deleted_at IS NULL"}
+	conditions := []string{"t.deleted_at IS NULL", "t.archived_at IS NULL"}
 	args := []interface{}{}
-
-	// Exclude archived if the column exists; safe to reference as it's used elsewhere
-	conditions = append(conditions, "t.archived_at IS NULL")
+	argIdx := 1
 
 	if opts != nil {
+		if opts.ProjectID != nil {
+			conditions = append(conditions, fmt.Sprintf("t.project_id = $%d", argIdx))
+			args = append(args, *opts.ProjectID)
+			argIdx++
+		}
 		if opts.Status != "" {
-			conditions = append(conditions, "t.status = $1")
+			conditions = append(conditions, fmt.Sprintf("t.status = $%d", argIdx))
 			args = append(args, opts.Status)
+			argIdx++
+		}
+		if opts.Priority != "" {
+			conditions = append(conditions, fmt.Sprintf("t.priority = $%d", argIdx))
+			args = append(args, opts.Priority)
+			argIdx++
+		}
+		if opts.Assignee != nil {
+			conditions = append(conditions, fmt.Sprintf("t.assignee_id = $%d", argIdx))
+			args = append(args, *opts.Assignee)
+			argIdx++
+		}
+		if opts.TaskID != nil {
+			conditions = append(conditions, fmt.Sprintf("t.id = $%d", argIdx))
+			args = append(args, *opts.TaskID)
+			argIdx++
+		}
+		if s := strings.TrimSpace(opts.Search); s != "" {
+			like := "%" + s + "%"
+			conditions = append(conditions, fmt.Sprintf("(t.title ILIKE $%d OR t.description ILIKE $%d)", argIdx, argIdx+1))
+			args = append(args, like, like)
+			argIdx += 2
 		}
 
-		presetApplied := false
 		if opts.Preset != "" {
 			switch opts.Preset {
 			case "overdue":
-				// overdue: not in done/cancelled/archived and due_date < now()
 				conditions = append(conditions, "t.status NOT IN ('completed','cancelled','archived')")
 				conditions = append(conditions, "t.due_date IS NOT NULL AND t.due_date < NOW()")
-				presetApplied = true
 			case "planning":
 				conditions = append(conditions, "t.status = 'planning'")
-				presetApplied = true
 			case "on_hold":
-				// on_hold or snooze_until > now() if column exists
 				conditions = append(conditions, "(t.status = 'on_hold' OR (t.snooze_until IS NOT NULL AND t.snooze_until > NOW()))")
-				presetApplied = true
 			}
 		}
-
-		_ = presetApplied
 	}
 
 	where := ""

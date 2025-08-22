@@ -1154,6 +1154,14 @@ const TaskDetailPageNew: React.FC = () => {
           <Card title="基本信息" style={{ marginBottom: '16px' }}>
             <Descriptions column={1} size="small">
               <Descriptions.Item label="任务ID">#{task.id}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Space size="small">
+                  <div style={{ fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    {statusConfig.icon}
+                  </div>
+                  <Tag color={statusConfig.color} style={{ marginInlineStart: 0 }}>{statusConfig.text}</Tag>
+                </Space>
+              </Descriptions.Item>
               <Descriptions.Item label="所属项目">
                 {projectInfo ? (
                   <Button 

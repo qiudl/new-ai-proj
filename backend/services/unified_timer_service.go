@@ -18,9 +18,15 @@ type UnifiedTimerService interface {
 	PauseTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error)
 	ResumeTimer(ctx context.Context, userID int) (*UnifiedTimerResponse, error)
 	StopTimer(ctx context.Context, userID int, notes string) (*UnifiedTimerResponse, error)
+
+	// 新增：按计时器ID进行控制
+	PauseTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error)
+	ResumeTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error)
+	StopTimerByID(ctx context.Context, userID int, timerID int, notes string) (*UnifiedTimerResponse, error)
 	
 	// 状态查询
 	GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error)
+	GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error)
 	GetTimerHistory(ctx context.Context, userID int, filter *HistoryFilter) (*TimerHistory, error)
 	
 	// 智能功能
@@ -501,7 +507,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 	}, nil
 }
 
-// GetCurrentTimer 获取当前计时器状态
+// GetCurrentTimer 获取当前计时器状态（保留向后兼容：返回最近启动的一个活动计时器）
 func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error) {
 	query := `
 		SELECT 
@@ -566,7 +572,218 @@ func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID in
 		timer.ElapsedSeconds = 0
 	}
 
-	return &timer, nil
+return &timer, nil
+}
+
+// GetActiveTimers 获取所有活动（running/paused）的计时器列表
+func (s *unifiedTimerServiceImpl) GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error) {
+	query := `
+		SELECT 
+			utl.id, utl.user_id, utl.target_type, utl.target_id, utl.target_title,
+			utl.status, utl.start_time, utl.pause_count, utl.pause_total_seconds,
+			utl.category, COALESCE(utl.description, ''), 
+			COALESCE(utl.target_metadata, '{}')::text
+		FROM unified_timer_logs utl
+		WHERE utl.user_id = $1 
+			AND utl.status IN ('running', 'paused')
+		ORDER BY utl.start_time DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("查询活动计时器失败: %v", err)
+	}
+	defer rows.Close()
+
+	var timers []*TimerStatus
+	for rows.Next() {
+		var t TimerStatus
+		var metadataJSON string
+		if err := rows.Scan(
+			&t.ID, &t.UserID, &t.TargetType, &t.TargetID, &t.TargetTitle,
+			&t.Status, &t.StartTime, &t.PauseCount, &t.PauseTotalSeconds,
+			&t.Category, &t.Description, &metadataJSON,
+		); err != nil {
+			continue
+		}
+		if err := json.Unmarshal([]byte(metadataJSON), &t.Metadata); err != nil {
+			t.Metadata = make(map[string]interface{})
+		}
+		now := time.Now()
+		t.IsRunning = t.Status == "running"
+		t.IsPaused = t.Status == "paused"
+		if t.IsRunning {
+			t.ElapsedSeconds = int(now.Sub(t.StartTime).Seconds()) - t.PauseTotalSeconds
+		} else if t.IsPaused {
+			var lastPauseTime time.Time
+			_ = s.db.QueryRowContext(ctx, `
+				SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
+				FROM unified_timer_logs WHERE id = $1
+			`, t.ID).Scan(&lastPauseTime)
+			if !lastPauseTime.IsZero() {
+				t.ElapsedSeconds = int(lastPauseTime.Sub(t.StartTime).Seconds()) - t.PauseTotalSeconds
+			} else {
+				t.ElapsedSeconds = int(now.Sub(t.StartTime).Seconds()) - t.PauseTotalSeconds
+			}
+		}
+		if t.ElapsedSeconds < 0 {
+			t.ElapsedSeconds = 0
+		}
+		timers = append(timers, &t)
+	}
+
+	return timers, nil
+}
+
+// PauseTimerByID 按ID暂停计时器
+func (s *unifiedTimerServiceImpl) PauseTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error) {
+	// 确认计时器属于用户且处于运行中
+	var title string
+	row := s.db.QueryRowContext(ctx, `SELECT target_title FROM unified_timer_logs WHERE id = $1 AND user_id = $2 AND status = 'running'`, timerID, userID)
+	if err := row.Scan(&title); err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "未找到可暂停的计时器"}, fmt.Errorf("timer %d not running or not found", timerID)
+	}
+
+	pauseEventData := map[string]interface{}{
+		"paused_at": time.Now(),
+		"reason":    "user_action",
+	}
+	pauseEventJSON, _ := json.Marshal(pauseEventData)
+
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE unified_timer_logs 
+		SET status = 'paused', pause_count = pause_count + 1,
+			pause_events = pause_events || $1::jsonb, updated_at = NOW()
+		WHERE id = $2 AND user_id = $3 AND status = 'running'
+	`, string(pauseEventJSON), timerID, userID)
+	if err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "更新计时器状态失败"}, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return &UnifiedTimerResponse{Success: false, Message: "计时器状态更新失败"}, fmt.Errorf("no rows affected when pausing timer %d", timerID)
+	}
+	go s.notifyTimerPaused(userID, timerID, title)
+	return &UnifiedTimerResponse{Success: true, TimerID: timerID, Message: "计时器已暂停"}, nil
+}
+
+// ResumeTimerByID 按ID恢复计时器
+func (s *unifiedTimerServiceImpl) ResumeTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error) {
+	// 确认计时器属于用户且处于暂停中
+	var title string
+	row := s.db.QueryRowContext(ctx, `SELECT target_title FROM unified_timer_logs WHERE id = $1 AND user_id = $2 AND status = 'paused'`, timerID, userID)
+	if err := row.Scan(&title); err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "未找到可恢复的计时器"}, fmt.Errorf("timer %d not paused or not found", timerID)
+	}
+
+	now := time.Now()
+	var lastPauseTime time.Time
+	_ = s.db.QueryRowContext(ctx, `
+		SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
+		FROM unified_timer_logs WHERE id = $1
+	`, timerID).Scan(&lastPauseTime)
+	pauseDuration := int(now.Sub(lastPauseTime).Seconds())
+	if pauseDuration < 0 { pauseDuration = 0 }
+	resumeEventData := map[string]interface{}{"resumed_at": now, "pause_duration": pauseDuration}
+	resumeEventJSON, _ := json.Marshal(resumeEventData)
+
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE unified_timer_logs 
+		SET status = 'running',
+			pause_total_seconds = pause_total_seconds + $1,
+			pause_events = pause_events || $2::jsonb,
+			updated_at = NOW()
+		WHERE id = $3 AND user_id = $4 AND status = 'paused'
+	`, pauseDuration, string(resumeEventJSON), timerID, userID)
+	if err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "更新计时器状态失败"}, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return &UnifiedTimerResponse{Success: false, Message: "计时器状态更新失败"}, fmt.Errorf("no rows affected when resuming timer %d", timerID)
+	}
+	go s.notifyTimerResumed(userID, timerID, title)
+	return &UnifiedTimerResponse{Success: true, TimerID: timerID, Message: "计时器已恢复"}, nil
+}
+
+// StopTimerByID 按ID停止计时器
+func (s *unifiedTimerServiceImpl) StopTimerByID(ctx context.Context, userID int, timerID int, notes string) (*UnifiedTimerResponse, error) {
+	// 获取计时器基本信息
+	var t TimerStatus
+	var metadataJSON string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT id, user_id, target_type, target_id, target_title, status, start_time,
+		       pause_count, pause_total_seconds, category, COALESCE(description,''),
+		       COALESCE(target_metadata,'{}')::text
+		FROM unified_timer_logs
+		WHERE id = $1 AND user_id = $2 AND status IN ('running','paused')
+	`, timerID, userID).Scan(
+		&t.ID, &t.UserID, &t.TargetType, &t.TargetID, &t.TargetTitle, &t.Status, &t.StartTime,
+		&t.PauseCount, &t.PauseTotalSeconds, &t.Category, &t.Description, &metadataJSON,
+	)
+	if err == sql.ErrNoRows {
+		return &UnifiedTimerResponse{Success: false, Message: "没有运行中的计时器"}, fmt.Errorf("no active timer %d for user %d", timerID, userID)
+	}
+	if err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "获取计时器失败"}, err
+	}
+	_ = json.Unmarshal([]byte(metadataJSON), &t.Metadata)
+
+	now := time.Now()
+	totalDuration := int(now.Sub(t.StartTime).Seconds())
+	actualWorkDuration := totalDuration - t.PauseTotalSeconds
+	if t.Status == "paused" {
+		var lastPauseTime time.Time
+		_ = s.db.QueryRowContext(ctx, `
+			SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
+			FROM unified_timer_logs WHERE id = $1
+		`, t.ID).Scan(&lastPauseTime)
+		if !lastPauseTime.IsZero() {
+			finalPauseDuration := int(now.Sub(lastPauseTime).Seconds())
+			if finalPauseDuration < 0 { finalPauseDuration = 0 }
+			t.PauseTotalSeconds += finalPauseDuration
+		}
+		actualWorkDuration = totalDuration - t.PauseTotalSeconds
+	}
+	if actualWorkDuration < 0 { actualWorkDuration = 0 }
+	if actualWorkDuration > totalDuration { actualWorkDuration = totalDuration }
+
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE unified_timer_logs 
+		SET status = 'completed', end_time = $1, duration_seconds = $2,
+			actual_work_seconds = $3,
+			description = CASE 
+				WHEN $4 != '' THEN COALESCE(description, '') || 
+					CASE WHEN description IS NOT NULL AND description != '' THEN E'\n\n停止备注: ' ELSE '停止备注: ' END || $4
+				ELSE description
+			END,
+			updated_at = NOW()
+		WHERE id = $5 AND user_id = $6 AND status IN ('running','paused')
+	`, now, totalDuration, actualWorkDuration, notes, t.ID, userID)
+	if err != nil {
+		return &UnifiedTimerResponse{Success: false, Message: "更新计时器状态失败"}, err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return &UnifiedTimerResponse{Success: false, Message: "计时器停止失败"}, fmt.Errorf("no rows affected when stopping timer %d", t.ID)
+	}
+
+	// 如果该计时器是用户当前计时器，则清空
+	_, _ = s.db.ExecContext(ctx, `UPDATE users SET current_timer_id = NULL, updated_at = NOW() WHERE id = $1 AND current_timer_id = $2`, userID, t.ID)
+
+	go s.notifyTimerStopped(userID, t.ID, t.TargetTitle, actualWorkDuration)
+	return &UnifiedTimerResponse{
+		Success: true,
+		TimerID: t.ID,
+		Message: fmt.Sprintf("计时完成，实际工作时长 %s", s.formatDuration(actualWorkDuration)),
+		Data: map[string]interface{}{
+			"total_duration":       totalDuration,
+			"actual_work_duration": actualWorkDuration,
+			"pause_count":          t.PauseCount,
+			"pause_total":          t.PauseTotalSeconds,
+			"efficiency":           float64(actualWorkDuration) / float64(totalDuration) * 100,
+		},
+	}, nil
 }
 
 // 辅助方法

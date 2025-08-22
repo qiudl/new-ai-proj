@@ -7,6 +7,9 @@ type AllHandlers struct {
 	// 认证处理器
 	AuthHandler               *handlers.AuthHandler
 
+	// 分析埋点处理器
+	AnalyticsHandler         *handlers.AnalyticsHandler
+
 	// 基础业务处理器
 	CustomerHandler           *handlers.CustomerHandler
 	CompanyHandler            *handlers.CompanyHandler

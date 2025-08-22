@@ -8,17 +8,28 @@ import type { TimerStatus, TimerSuggestion, TimerTemplate, StartTimerRequest } f
 interface UseUnifiedTimerReturn {
   // 状态
   currentTimer: TimerStatus | null;
+  activeTimers: TimerStatus[];
   isRunning: boolean;
   isPaused: boolean;
   elapsedSeconds: number;
   localElapsedSeconds: number;
   
-  // 操作
+  // 操作（当前计时器）
   startTimer: (request: StartTimerRequest) => Promise<any>;
   pauseTimer: () => Promise<any>;
   resumeTimer: () => Promise<any>;
   stopTimer: () => Promise<any>;
   getCurrentStatus: () => Promise<TimerStatus | null>;
+
+  // 并行计时：列表与按ID操作
+  refreshActiveTimers: () => Promise<TimerStatus[]>;
+  pauseTimerById: (timerId: number) => Promise<any>;
+  resumeTimerById: (timerId: number) => Promise<any>;
+  stopTimerById: (timerId: number) => Promise<any>;
+  // 批量操作
+  pauseAll: () => Promise<{ success: boolean; paused: number; errors: number }>;
+  resumeAll: () => Promise<{ success: boolean; resumed: number; errors: number }>;
+  stopAll: () => Promise<{ success: boolean; stopped: number; errors: number }>;
   
   // 数据获取
   getSuggestions: () => Promise<TimerSuggestion[]>;
@@ -33,6 +44,7 @@ interface UseUnifiedTimerReturn {
 export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
   // 核心状态
   const [currentTimer, setCurrentTimer] = useState<TimerStatus | null>(null);
+  const [activeTimers, setActiveTimers] = useState<TimerStatus[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [localElapsedSeconds, setLocalElapsedSeconds] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -47,7 +59,7 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
   const isRunning = currentTimer?.status === 'running';
   const isPaused = currentTimer?.status === 'paused';
 
-  // 初始化：获取当前计时器状态
+  // 初始化：获取当前计时器状态与活动列表
   useEffect(() => {
     initializeTimer();
     startPolling();
@@ -71,7 +83,10 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
 
   const initializeTimer = async () => {
     try {
-      await getCurrentStatus();
+      await Promise.all([
+        getCurrentStatus(),
+        refreshActiveTimers()
+      ]);
     } catch (err) {
       console.error('初始化计时器失败:', err);
     }
@@ -100,11 +115,10 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
   };
 
   const startPolling = () => {
-    // 每30秒同步一次服务器状态
+    // 每30秒同步一次服务器状态（并更新活动列表）
     pollIntervalRef.current = setInterval(() => {
-      if (isRunning) {
-        getCurrentStatus();
-      }
+      getCurrentStatus();
+      refreshActiveTimers();
     }, 30000);
   };
 
@@ -145,6 +159,23 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
       setLocalElapsedSeconds(0);
     }
   };
+
+  // 刷新所有活动计时器
+  const refreshActiveTimers = useCallback(async (): Promise<TimerStatus[]> => {
+    try {
+      const res = await unifiedTimerService.getActiveTimers();
+      if (res.success && res.data) {
+        setActiveTimers(res.data.timers || []);
+        return res.data.timers || [];
+      }
+      setActiveTimers([]);
+      return [];
+    } catch (err) {
+      console.error('获取活动计时器失败:', err);
+      setActiveTimers([]);
+      return [];
+    }
+  }, []);
 
   // API 操作方法
   const startTimer = useCallback(async (request: StartTimerRequest) => {
@@ -188,7 +219,6 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
     
     try {
       const response = await unifiedTimerService.pauseTimer();
-      
       if (response.success) {
         await getCurrentStatus();
         message.info('计时器已暂停');
@@ -237,6 +267,7 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
       
       if (response.success) {
         updateTimerState(null); // 清除计时器状态
+        await refreshActiveTimers();
         message.success('计时器已停止');
         return response;
       } else {
@@ -250,16 +281,16 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
     } finally {
       setLoadingError(false);
     }
-  }, []);
+  }, [refreshActiveTimers]);
 
   const getCurrentStatus = useCallback(async (): Promise<TimerStatus | null> => {
     try {
       const response = await unifiedTimerService.getCurrentTimer();
       
-      if (response.success && response.data) {
-        updateTimerState(response.data);
+      if (response.success) {
+        updateTimerState(response.data || null);
         setError(null);
-        return response.data;
+        return response.data || null;
       } else {
         updateTimerState(null);
         return null;
@@ -302,9 +333,115 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
     }
   }, []);
 
+  // 并行计时：按ID控制
+  const pauseTimerById = useCallback(async (timerId: number) => {
+    setLoadingError(true);
+    try {
+      const res = await unifiedTimerService.pauseTimerById(timerId);
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      message.info('指定计时器已暂停');
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '暂停计时器失败';
+      setLoadingError(false, msg);
+      message.error(msg);
+      throw err;
+    } finally {
+      setLoadingError(false);
+    }
+  }, [getCurrentStatus, refreshActiveTimers]);
+
+  const resumeTimerById = useCallback(async (timerId: number) => {
+    setLoadingError(true);
+    try {
+      const res = await unifiedTimerService.resumeTimerById(timerId);
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      message.success('指定计时器已恢复');
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '恢复计时器失败';
+      setLoadingError(false, msg);
+      message.error(msg);
+      throw err;
+    } finally {
+      setLoadingError(false);
+    }
+  }, [getCurrentStatus, refreshActiveTimers]);
+
+  const stopTimerById = useCallback(async (timerId: number) => {
+    setLoadingError(true);
+    try {
+      const res = await unifiedTimerService.stopTimerById(timerId);
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      message.success('指定计时器已停止');
+      return res;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '停止计时器失败';
+      setLoadingError(false, msg);
+      message.error(msg);
+      throw err;
+    } finally {
+      setLoadingError(false);
+    }
+  }, [getCurrentStatus, refreshActiveTimers]);
+
+  // 批量操作：暂停所有运行中的计时器
+  const pauseAll = useCallback(async (): Promise<{ success: boolean; paused: number; errors: number }> => {
+    setLoadingError(true);
+    try {
+      const timers = await refreshActiveTimers();
+      const running = timers.filter(t => t.status === 'running');
+      const results = await Promise.allSettled(running.map(t => unifiedTimerService.pauseTimerById(t.id)));
+      const paused = results.filter(r => r.status === 'fulfilled').length;
+      const errors = results.length - paused;
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      if (paused > 0) message.info(`已暂停 ${paused} 个计时器`);
+      if (errors > 0) message.warning?.(`有 ${errors} 个计时器暂停失败` as any);
+      return { success: errors === 0, paused, errors };
+    } finally {
+      setLoadingError(false);
+    }
+  }, [refreshActiveTimers, getCurrentStatus]);
+
+  // 批量操作：恢复所有暂停的计时器
+  const resumeAll = useCallback(async (): Promise<{ success: boolean; resumed: number; errors: number }> => {
+    setLoadingError(true);
+    try {
+      const timers = await refreshActiveTimers();
+      const pausedList = timers.filter(t => t.status === 'paused');
+      const results = await Promise.allSettled(pausedList.map(t => unifiedTimerService.resumeTimerById(t.id)));
+      const resumed = results.filter(r => r.status === 'fulfilled').length;
+      const errors = results.length - resumed;
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      if (resumed > 0) message.success(`已恢复 ${resumed} 个计时器`);
+      if (errors > 0) message.warning?.(`有 ${errors} 个计时器恢复失败` as any);
+      return { success: errors === 0, resumed, errors };
+    } finally {
+      setLoadingError(false);
+    }
+  }, [refreshActiveTimers, getCurrentStatus]);
+
+  // 批量操作：停止所有活动计时器
+  const stopAll = useCallback(async (): Promise<{ success: boolean; stopped: number; errors: number }> => {
+    setLoadingError(true);
+    try {
+      const timers = await refreshActiveTimers();
+      const results = await Promise.allSettled(timers.map(t => unifiedTimerService.stopTimerById(t.id)));
+      const stopped = results.filter(r => r.status === 'fulfilled').length;
+      const errors = results.length - stopped;
+      await Promise.all([getCurrentStatus(), refreshActiveTimers()]);
+      if (stopped > 0) message.success(`已完成 ${stopped} 个计时器`);
+      if (errors > 0) message.warning?.(`有 ${errors} 个计时器完成失败` as any);
+      return { success: errors === 0, stopped, errors };
+    } finally {
+      setLoadingError(false);
+    }
+  }, [refreshActiveTimers, getCurrentStatus]);
+
   return {
     // 状态
     currentTimer,
+    activeTimers,
     isRunning,
     isPaused,
     elapsedSeconds: isRunning ? localElapsedSeconds : elapsedSeconds,
@@ -316,6 +453,16 @@ export const useUnifiedTimer = (): UseUnifiedTimerReturn => {
     resumeTimer,
     stopTimer,
     getCurrentStatus,
+
+    // 并行计时
+    refreshActiveTimers,
+    pauseTimerById,
+    resumeTimerById,
+    stopTimerById,
+    // 批量
+    pauseAll,
+    resumeAll,
+    stopAll,
     
     // 数据获取
     getSuggestions,

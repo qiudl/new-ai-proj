@@ -102,7 +102,7 @@ export class UnifiedTimerService {
     }
   }
 
-  async getCurrentTimer(): Promise<ApiResponse<TimerStatus>> {
+  async getCurrentTimer(): Promise<ApiResponse<TimerStatus | null>> {
     try {
       const response = await api.get(`${API_BASE}/current`);
 
@@ -112,7 +112,6 @@ export class UnifiedTimerService {
         message: '获取当前计时器状态成功'
       };
     } catch (error: any) {
-      // 404 表示没有活动计时器，这是正常情况
       if (error.response?.status === 404) {
         return {
           success: true,
@@ -126,6 +125,53 @@ export class UnifiedTimerService {
         error: error.response?.data?.error || error.message || '获取计时器状态失败',
         message: error.response?.data?.message || '网络错误'
       };
+    }
+  }
+
+  // 新增：获取所有活动计时器
+  async getActiveTimers(): Promise<ApiResponse<{ timers: TimerStatus[]; total: number }>> {
+    try {
+      const response = await api.get(`${API_BASE}/active`);
+      const timers = response.data?.timers || [];
+      return {
+        success: true,
+        data: { timers, total: timers.length },
+        message: '获取活动计时器成功'
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || '获取活动计时器失败',
+        message: error.response?.data?.message || '网络错误'
+      };
+    }
+  }
+
+  // 新增：按ID控制计时器
+  async pauseTimerById(timerId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await api.post(`${API_BASE}/${timerId}/pause`);
+      return { success: true, data: response.data, message: '计时器已暂停' };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || error.message || '暂停计时器失败' };
+    }
+  }
+
+  async resumeTimerById(timerId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await api.post(`${API_BASE}/${timerId}/resume`);
+      return { success: true, data: response.data, message: '计时器已恢复' };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || error.message || '恢复计时器失败' };
+    }
+  }
+
+  async stopTimerById(timerId: number): Promise<ApiResponse<any>> {
+    try {
+      const response = await api.post(`${API_BASE}/${timerId}/stop`);
+      return { success: true, data: response.data, message: '计时器已停止' };
+    } catch (error: any) {
+      return { success: false, error: error.response?.data?.error || error.message || '停止计时器失败' };
     }
   }
 

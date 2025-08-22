@@ -29,6 +29,8 @@ pipeline {
         sh 'test -n "$DB_URL" || (echo "DB_URL not set" && exit 1)'
         sh 'psql "$DB_URL" -f db/migrations/V20250821_1500__create_dictionaries.sql'
         sh 'psql "$DB_URL" -f db/migrations/V20250821_1501__seed_dictionaries.sql'
+        sh 'psql "$DB_URL" -f db/migrations/V20250822_1100__create_analytics_events.sql'
+        sh 'psql "$DB_URL" -f db/migrations/V20250822_1101__analytics_views.sql'
       }
     }
     stage('Sync Attributes from Descriptions') {

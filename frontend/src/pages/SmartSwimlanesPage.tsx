@@ -5,6 +5,8 @@ import { Task } from '../types/task';
 import { TaskService } from '../services/taskService';
 import SmartSwimlanes from '../components/SmartSwimlanes';
 
+import { track } from '../utils/analytics';
+
 const SmartSwimlanesPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const projectIdNum = parseInt(projectId || '0');
@@ -33,6 +35,7 @@ const SmartSwimlanesPage: React.FC = () => {
       const url = window.location.href;
       navigator.clipboard?.writeText(url);
       message.success('已复制当前视图链接');
+      track('share_view', { page: 'swimlanes', projectId: projectIdNum || undefined });
     } catch (e) {
       message.warning('无法复制到剪贴板');
     }

@@ -100,22 +100,14 @@ func (h *TaskDocumentHandler) GetTaskDocument(c *gin.Context) {
 	h.getDocumentGin(c, projectID, taskID)
 }
 
-// SaveTaskDocument 保存任务文档 (Gin版本)
+// SaveTaskDocument 保存任务文档 (Gin版本) — 已废弃（禁用基于文件的保存）
 func (h *TaskDocumentHandler) SaveTaskDocument(c *gin.Context) {
-	projectID := c.Param("id")
-	taskID := c.Param("taskId")
-
-	// 验证项目ID和任务ID是否为数字
-	if _, err := strconv.Atoi(projectID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
-		return
-	}
-	if _, err := strconv.Atoi(taskID); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid task ID"})
-		return
-	}
-
-	h.saveDocumentGin(c, projectID, taskID)
+	// 禁用旧的基于文件系统的保存方式，统一改用数据库“任务文档”API
+	c.JSON(http.StatusGone, gin.H{
+		"success": false,
+		"message": "File-based task document saving is deprecated. Please use the database-backed document API.",
+		"code":    "TASK_DOC_FILE_SAVE_DEPRECATED",
+	})
 }
 
 // CheckTaskDocument 检查任务文档是否存在 (Gin版本)

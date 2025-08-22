@@ -61,7 +61,7 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 		tasks := projects.Group("/:id/tasks")
 		{
 			// 单个任务文档管理 (文件系统存储)
-			// 已归档：GET 接口返回 410，避免误用；请使用 /projects/:id/tasks/:taskId/documents 下的新接口
+			// 已归档：GET/PUT 接口返回 410，避免误用；请使用 /projects/:id/tasks/:taskId/documents 下的新接口
 			tasks.GET("/:taskId/document", func(c *gin.Context) {
 				c.JSON(410, gin.H{
 					"success": false,
@@ -69,7 +69,13 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
 				})
 			})
-			tasks.PUT("/:taskId/document", app.GetTaskDocumentFileHandler().UpdateTaskDocument)
+			tasks.PUT("/:taskId/document", func(c *gin.Context) {
+				c.JSON(410, gin.H{
+					"success": false,
+					"message": "This file-based PUT endpoint is deprecated. Use database-backed documents under /projects/:id/tasks/:taskId/documents.",
+					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
+				})
+			})
 			
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{

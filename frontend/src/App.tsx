@@ -62,6 +62,7 @@ const TestCenter = React.lazy(() => import('./pages/TestCenter'));
 const HierarchicalGanttTestPage = React.lazy(() => import('./pages/HierarchicalGanttTestPage'));
 const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGanttTestPage'));
 const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
+const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -219,7 +220,7 @@ const AppContent: React.FC = () => {
             } />
             
             {/* 全部任务（跨项目） */}
-            <Route path="/tasks" element={
+<Route path="/tasks" element={
               <PrivateRoute>
                 <Layout>
                   <TasksPage />
@@ -227,7 +228,24 @@ const AppContent: React.FC = () => {
               </PrivateRoute>
             } />
 
-<Route path="/projects/:projectId/tasks" element={
+            {/* 全局洞察 */}
+            <Route path="/insights" element={
+              <PrivateRoute>
+                <Layout>
+                  <InsightsPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+<Route path="/projects/:projectId/insights" element={
+              <PrivateRoute>
+                <Layout>
+                  <InsightsPage />
+                </Layout>
+              </PrivateRoute>
+            } />
+
+            <Route path="/projects/:projectId/tasks" element={
               <PrivateRoute>
                 <Layout>
                   <TasksPage />

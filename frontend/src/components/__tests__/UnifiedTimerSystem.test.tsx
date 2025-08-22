@@ -42,6 +42,7 @@ describe('Unified Timer System', () => {
     // Default mock implementation
     mockUseUnifiedTimer.mockReturnValue({
       currentTimer: null,
+      activeTimers: [],
       isRunning: false,
       isPaused: false,
       elapsedSeconds: 0,
@@ -51,6 +52,13 @@ describe('Unified Timer System', () => {
       resumeTimer: jest.fn(),
       stopTimer: jest.fn(),
       getCurrentStatus: jest.fn(),
+      refreshActiveTimers: jest.fn().mockResolvedValue([]),
+      pauseTimerById: jest.fn(),
+      resumeTimerById: jest.fn(),
+      stopTimerById: jest.fn(),
+      pauseAll: jest.fn().mockResolvedValue({ success: true, paused: 0, errors: 0 }),
+      resumeAll: jest.fn().mockResolvedValue({ success: true, resumed: 0, errors: 0 }),
+      stopAll: jest.fn().mockResolvedValue({ success: true, stopped: 0, errors: 0 }),
       getSuggestions: jest.fn(),
       getTemplates: jest.fn(),
       getRecentTasks: jest.fn(),

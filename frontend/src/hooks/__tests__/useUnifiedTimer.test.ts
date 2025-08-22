@@ -550,6 +550,69 @@ describe('useUnifiedTimer', () => {
     });
   });
 
+  describe('Parallel timers & batch operations', () => {
+    it('应该获取活动计时器列表并进行单个控制', async () => {
+      const active = [
+        createMockTimerStatus({ id: 11, target_title: 'A', status: 'running' }),
+        createMockTimerStatus({ id: 12, target_title: 'B', status: 'paused' }),
+      ];
+      mockUnifiedTimerService.getActiveTimers.mockResolvedValue({ success: true, data: { timers: active, total: active.length }, message: 'ok' } as any);
+      mockUnifiedTimerService.pauseTimerById.mockResolvedValue({ success: true } as any);
+      mockUnifiedTimerService.resumeTimerById.mockResolvedValue({ success: true } as any);
+      mockUnifiedTimerService.stopTimerById.mockResolvedValue({ success: true } as any);
+
+      const { result } = renderHook(() => useUnifiedTimer());
+
+      const timers = await result.current.refreshActiveTimers();
+      expect(timers).toHaveLength(2);
+
+      await act(async () => {
+        await result.current.pauseTimerById(11);
+        await result.current.resumeTimerById(12);
+        await result.current.stopTimerById(11);
+      });
+
+      expect(mockUnifiedTimerService.pauseTimerById).toHaveBeenCalledWith(11);
+      expect(mockUnifiedTimerService.resumeTimerById).toHaveBeenCalledWith(12);
+      expect(mockUnifiedTimerService.stopTimerById).toHaveBeenCalledWith(11);
+    });
+
+    it('应该执行批量暂停/恢复/完成操作', async () => {
+      const active = [
+        createMockTimerStatus({ id: 21, status: 'running', target_title: 'X' }),
+        createMockTimerStatus({ id: 22, status: 'paused', target_title: 'Y' }),
+        createMockTimerStatus({ id: 23, status: 'running', target_title: 'Z' }),
+      ];
+      mockUnifiedTimerService.getActiveTimers.mockResolvedValue({ success: true, data: { timers: active, total: active.length }, message: 'ok' } as any);
+      mockUnifiedTimerService.pauseTimerById.mockResolvedValue({ success: true } as any);
+      mockUnifiedTimerService.resumeTimerById.mockResolvedValue({ success: true } as any);
+      mockUnifiedTimerService.stopTimerById.mockResolvedValue({ success: true } as any);
+
+      const { result } = renderHook(() => useUnifiedTimer());
+
+      await result.current.refreshActiveTimers();
+
+      await act(async () => {
+        const pa = await result.current.pauseAll();
+        const ra = await result.current.resumeAll();
+        const sa = await result.current.stopAll();
+        expect(pa.paused).toBeGreaterThanOrEqual(1);
+        expect(ra.resumed).toBeGreaterThanOrEqual(1);
+        expect(sa.stopped).toBeGreaterThanOrEqual(1);
+      });
+
+      // pauseAll should call pause for running timers (21, 23)
+      expect(mockUnifiedTimerService.pauseTimerById).toHaveBeenCalledWith(21);
+      expect(mockUnifiedTimerService.pauseTimerById).toHaveBeenCalledWith(23);
+      // resumeAll should call resume for paused timer (22)
+      expect(mockUnifiedTimerService.resumeTimerById).toHaveBeenCalledWith(22);
+      // stopAll should call stop for all active timers
+      expect(mockUnifiedTimerService.stopTimerById).toHaveBeenCalledWith(21);
+      expect(mockUnifiedTimerService.stopTimerById).toHaveBeenCalledWith(22);
+      expect(mockUnifiedTimerService.stopTimerById).toHaveBeenCalledWith(23);
+    });
+  });
+
   describe('Polling and Auto-refresh', () => {
     it('应该定期轮询计时器状态', async () => {
       const mockTimer = createMockTimerStatus();

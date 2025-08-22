@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/services"
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -148,6 +149,93 @@ func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, response)
+}
+
+// GetActiveTimers handles GET /api/v1/user/timer/active
+// Returns all active (running/paused) timers for the user
+func (h *UnifiedTimerHandler) GetActiveTimers(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	ctx := c.Request.Context()
+	uid := userID.(int)
+	timers, err := h.timerService.GetActiveTimers(ctx, uid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get active timers", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"timers": timers, "total": len(timers)})
+}
+
+// PauseTimerByID handles POST /api/v1/user/timer/:id/pause
+func (h *UnifiedTimerHandler) PauseTimerByID(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid := userID.(int)
+	idStr := c.Param("id")
+	var timerID int
+	if _, err := fmt.Sscanf(idStr, "%d", &timerID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid timer id"})
+		return
+	}
+	ctx := c.Request.Context()
+	resp, err := h.timerService.PauseTimerByID(ctx, uid, timerID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to pause timer", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// ResumeTimerByID handles POST /api/v1/user/timer/:id/resume
+func (h *UnifiedTimerHandler) ResumeTimerByID(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid := userID.(int)
+	idStr := c.Param("id")
+	var timerID int
+	if _, err := fmt.Sscanf(idStr, "%d", &timerID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid timer id"})
+		return
+	}
+	ctx := c.Request.Context()
+	resp, err := h.timerService.ResumeTimerByID(ctx, uid, timerID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to resume timer", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// StopTimerByID handles POST /api/v1/user/timer/:id/stop
+func (h *UnifiedTimerHandler) StopTimerByID(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+	uid := userID.(int)
+	idStr := c.Param("id")
+	var timerID int
+	if _, err := fmt.Sscanf(idStr, "%d", &timerID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid timer id"})
+		return
+	}
+	ctx := c.Request.Context()
+	resp, err := h.timerService.StopTimerByID(ctx, uid, timerID, "User requested stop")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to stop timer", "details": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 // PauseTimer handles POST /api/v1/user/timer/pause

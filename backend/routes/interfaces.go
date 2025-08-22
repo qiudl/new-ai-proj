@@ -105,6 +105,7 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetSmartTemplateHandler() *handlers.SmartTemplateHandler
 	GetCollaborationHandler() *handlers.DocumentCollaborationHandler
 	GetStatisticsHandler() *handlers.StatisticsHandlers
+	GetAnalyticsHandler() *handlers.AnalyticsHandler
 	GetAuditHandler() *handlers.AuditHandler
 	GetAIConfigHandler() *handlers.AIConfigHandler
 	GetAITaskGeneratorHandler() *handlers.AITaskGeneratorHandler

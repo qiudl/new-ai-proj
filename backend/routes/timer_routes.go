@@ -40,9 +40,15 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 		unifiedTimer.POST("/pause", app.GetUnifiedTimerHandler().PauseTimer)          // Pause current timer
 		unifiedTimer.POST("/resume", app.GetUnifiedTimerHandler().ResumeTimer)        // Resume paused timer
 		unifiedTimer.POST("/stop", app.GetUnifiedTimerHandler().StopTimer)            // Stop current timer
+
+		// New: operate timer by id
+		unifiedTimer.POST("/:id/pause", app.GetUnifiedTimerHandler().PauseTimerByID)
+		unifiedTimer.POST("/:id/resume", app.GetUnifiedTimerHandler().ResumeTimerByID)
+		unifiedTimer.POST("/:id/stop", app.GetUnifiedTimerHandler().StopTimerByID)
 		
 		// Timer status and information  
 		unifiedTimer.GET("/current", app.GetUnifiedTimerHandler().GetCurrentTimer)    // Get current timer state
+		unifiedTimer.GET("/active", app.GetUnifiedTimerHandler().GetActiveTimers)     // Get all active timers
 		unifiedTimer.GET("/health", app.GetUnifiedTimerHandler().HealthCheck)         // Health check
 		
 		// User timer analytics and history (using UserTimerHandler)

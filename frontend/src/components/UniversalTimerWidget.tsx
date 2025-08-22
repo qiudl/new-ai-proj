@@ -38,6 +38,7 @@ import {
 import { useTimer } from '../contexts/TimerContext';
 import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboardShortcuts';
 import { personalTimerService } from '../services/personalTimerService';
+import { useUnifiedTimer } from '../hooks/useUnifiedTimer';
 import type { TimerStatus, TimerSuggestion, TimerTemplate } from '../types/timer';
 
 const { Title, Text } = Typography;
@@ -79,6 +80,16 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
 }) => {
   // 计时器核心状态 - 使用统一的TimerContext
   const { timerState, startTimer, stopTimer, pauseTimer, resumeTimer } = useTimer();
+  const {
+    activeTimers,
+    refreshActiveTimers,
+    pauseTimerById,
+    resumeTimerById,
+    stopTimerById,
+    pauseAll,
+    resumeAll,
+    stopAll,
+  } = useUnifiedTimer();
   
   // 表单状态 - 先定义状态变量
   const [quickTitle, setQuickTitle] = useState('');
@@ -886,6 +897,79 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
     );
   }
 
+  // 活动计时列表渲染（并行计时）
+  const renderActiveTimers = () => {
+    const hasActive = !!activeTimers && activeTimers.length > 0;
+
+    const calcElapsed = (t: any) => {
+      try {
+        const start = new Date(t.start_time).getTime();
+        const now = Date.now();
+        const pause = t.pause_total_seconds || 0;
+        const raw = Math.max(0, Math.floor((now - start) / 1000) - pause);
+        return formatDuration(raw);
+      } catch {
+        return '00:00:00';
+      }
+    };
+
+    return (
+      <div style={{ marginTop: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text strong style={{ fontSize: '14px', color: '#595959' }}>
+            ⏱️ 活动计时（{activeTimers.length}）
+          </Text>
+          <Space size="small">
+            <Button size="small" disabled={!hasActive} onClick={pauseAll}>
+              全部暂停
+            </Button>
+            <Button size="small" type="primary" disabled={!hasActive} onClick={resumeAll}>
+              全部继续
+            </Button>
+            <Button size="small" danger disabled={!hasActive} onClick={stopAll}>
+              全部完成
+            </Button>
+          </Space>
+        </div>
+        {!hasActive ? (
+          <div style={{ marginTop: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>暂无活动计时</Text>
+          </div>
+        ) : (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {activeTimers.map((t) => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: '8px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Badge color={t.status === 'running' ? '#52c41a' : '#faad14'} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>{t.target_title}</div>
+                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.status === 'running' ? '运行中' : '已暂停'} · {calcElapsed(t)}</div>
+                  </div>
+                </div>
+                <Space size="small">
+                  {t.status === 'running' ? (
+                    <>
+                      <Button size="small" onClick={() => pauseTimerById(t.id)} icon={<PauseOutlined />}>暂停</Button>
+                      <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button size="small" type="primary" onClick={() => resumeTimerById(t.id)} icon={<PlayCircleOutlined />}>继续</Button>
+                      <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                    </>
+                  )}
+                </Space>
+              </div>
+            ))}
+            <div style={{ textAlign: 'right' }}>
+              <Button type="link" size="small" onClick={refreshActiveTimers} style={{ fontSize: 12 }}>刷新列表</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div ref={widgetRef} className={cardClass}>
       {embedded ? (
@@ -912,6 +996,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {renderTimerDisplay()}
             {renderMainControls()}
+            {renderActiveTimers()}
             {renderSuggestions()}
             {renderRecentTasks()}
           </div>
@@ -948,6 +1033,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
         >
           {renderTimerDisplay()}
           {renderMainControls()}
+          {renderActiveTimers()}
           {!isFullscreen && renderSuggestions()}
           {!isFullscreen && renderRecentTasks()}
           {renderQuickStartModal()}
