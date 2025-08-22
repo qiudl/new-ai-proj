@@ -155,7 +155,6 @@ export class DashboardService {
       const queryString = params.toString();
       const url = `/dashboard/weekly-stats${queryString ? `?${queryString}` : ''}`;
       
-      console.log('🔍 Fetching weekly stats from:', url);
       const response = await api.get(url);
       
       // 处理API响应结构：{ success: true, data: {...} }
@@ -174,8 +173,6 @@ export class DashboardService {
         console.error('Response missing summary field:', data);
         throw new Error('Weekly stats response missing summary field');
       }
-      
-      console.log('✅ Weekly stats fetched successfully:', data.summary);
       
       // 缓存结果
       timerCache.cacheWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId, data);
@@ -214,11 +211,9 @@ export class DashboardService {
       if (weeklyStats.summary) {
         // 标准结构：{ summary: {...} }
         summaryData = weeklyStats.summary;
-        console.log('✅ Using standard data structure with summary field');
       } else if (weeklyStats.total_tasks !== undefined) {
         // 扁平结构：直接就是summary数据
         summaryData = weeklyStats;
-        console.log('✅ Using flat data structure (direct summary data)');
       } else {
         console.warn('Weekly stats has unexpected structure:', weeklyStats);
         throw new Error('Invalid weekly stats response structure');
@@ -234,8 +229,6 @@ export class DashboardService {
         overdueTasks: summaryData.overdue_tasks || 0,
         completionRate: Math.round(summaryData.completion_rate || 0)
       };
-      
-      console.log('🎯 Mapped dashboard stats:', dashboardStats);
       
       // 缓存结果
       timerCache.cacheDashboard(userId, dashboardStats);

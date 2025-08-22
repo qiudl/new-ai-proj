@@ -179,9 +179,6 @@ export const handleQueryError = (error: Error | unknown, context?: string) => {
 
 // 成功处理
 export const handleQuerySuccess = (data: Record<string, unknown>, context?: string) => {
-  if (context) {
-    console.log(`Query success in ${context}:`, data);
-  }
-  
+  // Optionally handle success (no console output to keep console clean)
   return data;
 };
