@@ -46,7 +46,6 @@ import {
   ImportResult
 } from '../utils/documentImportExport';
 
-const { TabPane } = Tabs;
 const { Text, Title } = Typography;
 const { Option } = Select;
 
@@ -504,85 +503,87 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
         activeKey={activeTab} 
         onChange={(key) => setActiveTab(key as 'export' | 'import')}
         style={{ minHeight: '400px' }}
-      >
-        <TabPane
-          tab={
-            <span>
-              <DownloadOutlined />
-              导出文档
-            </span>
+        items={[
+          {
+            key: 'export',
+            label: (
+              <span>
+                <DownloadOutlined />
+                导出文档
+              </span>
+            ),
+            children: (
+              <div style={{ padding: '16px 0' }}>
+                <Alert
+                  message="导出说明"
+                  description="选择要导出的文档范围、格式和字段，系统将生成相应格式的文件供下载。"
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 24 }}
+                />
+                
+                {renderExportForm()}
+                
+                <div style={{ textAlign: 'right', marginTop: 24 }}>
+                  <Space>
+                    <Button onClick={onCancel}>
+                      取消
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<DownloadOutlined />}
+                      loading={exportLoading}
+                      onClick={handleExport}
+                    >
+                      开始导出
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            )
+          },
+          {
+            key: 'import',
+            label: (
+              <span>
+                <UploadOutlined />
+                导入文档
+              </span>
+            ),
+            children: (
+              <div style={{ padding: '16px 0' }}>
+                <Alert
+                  message="导入说明"
+                  description="支持 Excel、CSV、JSON 格式文件导入。请确保文件包含必要的字段（如标题），系统会自动验证和处理数据。"
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 24 }}
+                />
+                
+                {renderImportForm()}
+                {renderImportResult()}
+                
+                <div style={{ textAlign: 'right', marginTop: 24 }}>
+                  <Space>
+                    <Button onClick={onCancel}>
+                      取消
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<UploadOutlined />}
+                      loading={importLoading}
+                      disabled={fileList.length === 0}
+                      onClick={handleImport}
+                    >
+                      开始导入
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            )
           }
-          key="export"
-        >
-          <div style={{ padding: '16px 0' }}>
-            <Alert
-              message="导出说明"
-              description="选择要导出的文档范围、格式和字段，系统将生成相应格式的文件供下载。"
-              type="info"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
-            
-            {renderExportForm()}
-            
-            <div style={{ textAlign: 'right', marginTop: 24 }}>
-              <Space>
-                <Button onClick={onCancel}>
-                  取消
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  loading={exportLoading}
-                  onClick={handleExport}
-                >
-                  开始导出
-                </Button>
-              </Space>
-            </div>
-          </div>
-        </TabPane>
-
-        <TabPane
-          tab={
-            <span>
-              <UploadOutlined />
-              导入文档
-            </span>
-          }
-          key="import"
-        >
-          <div style={{ padding: '16px 0' }}>
-            <Alert
-              message="导入说明"
-              description="支持 Excel、CSV、JSON 格式文件导入。请确保文件包含必要的字段（如标题），系统会自动验证和处理数据。"
-              type="info"
-              showIcon
-              style={{ marginBottom: 24 }}
-            />
-            
-            {renderImportForm()}
-            {renderImportResult()}
-            
-            <div style={{ textAlign: 'right', marginTop: 24 }}>
-              <Space>
-                <Button onClick={onCancel}>
-                  取消
-                </Button>
-                <Button
-                  type="primary"
-                  icon={<UploadOutlined />}
-                  loading={importLoading}
-                  disabled={fileList.length === 0}
-                  onClick={handleImport}
-                >
-                  开始导入
-                </Button>
-              </Space>
-            </div>
-          </div>
-        </TabPane>
-      </Tabs>
+        ]}
+      />
     </Modal>
   );
 };

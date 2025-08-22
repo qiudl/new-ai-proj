@@ -327,14 +327,16 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
       }
     >
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        {/* 设置区域 */}
-        <Card size="small" style={{ margin: 0, borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
-          <Form
-            form={form}
-            layout="vertical"
-            onValuesChange={handleFormChange}
-            size="small"
-          >
+        {/* 将单一 Form 包裹设置 + 编辑区域，避免多实例或未绑定警告 */}
+        <Form
+          form={form}
+          layout="vertical"
+          onValuesChange={handleFormChange}
+          size="small"
+          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+        >
+          {/* 设置区域 */}
+          <Card size="small" style={{ margin: 0, borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item name="title" label="标题" style={{ marginBottom: 8 }}>
@@ -373,15 +375,13 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
                 </Form.Item>
               </Col>
             </Row>
-          </Form>
-        </Card>
+          </Card>
 
-        {/* 编辑/预览区域 */}
-        <div style={{ flex: 1, padding: 16 }}>
-          {previewMode ? (
-            renderPreview()
-          ) : (
-            <Form form={form} onValuesChange={handleFormChange}>
+          {/* 编辑/预览区域 */}
+          <div style={{ flex: 1, padding: 16 }}>
+            {previewMode ? (
+              renderPreview()
+            ) : (
               <Form.Item name="content" style={{ marginBottom: 0 }}>
                 <TextArea
                   placeholder="开始写作..."
@@ -395,20 +395,20 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
                   autoSize={false}
                 />
               </Form.Item>
-            </Form>
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* 快捷提示 */}
-        {!previewMode && (
-          <Alert
-            message="快捷键提示"
-            description="Ctrl+S 保存，Ctrl+P 预览，支持 Markdown 语法"
-            type="info"
-            showIcon
-            style={{ margin: '0 16px 16px 16px', fontSize: 12 }}
-          />
-        )}
+          {/* 快捷提示 */}
+          {!previewMode && (
+            <Alert
+              message="快捷键提示"
+              description="Ctrl+S 保存，Ctrl+P 预览，支持 Markdown 语法"
+              type="info"
+              showIcon
+              style={{ margin: '0 16px 16px 16px', fontSize: 12 }}
+            />
+          )}
+        </Form>
       </div>
     </Drawer>
   );

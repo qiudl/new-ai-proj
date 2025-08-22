@@ -20,7 +20,6 @@ import {
   List,
   Badge,
   Tooltip,
-  Icon,
   Spin,
   Result,
   Button
@@ -264,10 +263,10 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
                 <Text>{task.title}</Text>
                 {task.parent_id && (
                   <Tooltip title={`当前父任务ID: ${task.parent_id}`}>
-                    <Tag color="orange" size="small">子任务</Tag>
+<Tag color="orange">子任务</Tag>
                   </Tooltip>
                 )}
-                <Tag color={task.status === 'completed' ? 'green' : task.status === 'in_progress' ? 'blue' : 'default'} size="small">
+<Tag color={task.status === 'completed' ? 'green' : task.status === 'in_progress' ? 'blue' : 'default'}>
                   {task.status === 'todo' ? '待开始' : 
                    task.status === 'in_progress' ? '进行中' :
                    task.status === 'completed' ? '已完成' : '已取消'}

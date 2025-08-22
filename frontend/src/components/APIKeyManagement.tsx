@@ -472,7 +472,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
         </Space>
       }
       variant={bordered ? "outlined" : undefined}
-      size={size}
+      size={size === 'small' ? 'small' : undefined}
       extra={
         <Space>
           <Button
@@ -523,7 +523,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           <Card size="small">
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#faad14' }}>
-                {apiKeys.filter(key => key.expiresAt && dayjs(key.expiresAt).isBefore(dayjs().add(7, 'day'))).length}
+                {apiKeys.filter(key => key.expires_at && dayjs(key.expires_at).isBefore(dayjs().add(7, 'day'))).length}
               </Title>
               <Text type="secondary">即将过期</Text>
             </div>
@@ -533,7 +533,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           <Card size="small">
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#ff4d4f' }}>
-                {apiKeys.filter(key => key.expiresAt && dayjs(key.expiresAt).isBefore(dayjs())).length}
+                {apiKeys.filter(key => key.expires_at && dayjs(key.expires_at).isBefore(dayjs())).length}
               </Title>
               <Text type="secondary">已过期</Text>
             </div>

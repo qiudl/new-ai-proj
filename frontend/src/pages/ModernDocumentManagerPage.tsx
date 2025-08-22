@@ -45,20 +45,29 @@ import { workNotesService, WorkNote } from '../services/workNotesService';
 import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
 import '../styles/ModernDocumentManager.css';
+import { useSearchParams } from 'react-router-dom';
+import type { MenuProps } from 'antd';
 
 const { Content, Sider } = Layout;
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
 const { Option } = Select;
 
+// URL & localStorage keys
+const STORAGE_KEY_VIEWMODE = 'documentManager.viewMode';
+const STORAGE_KEY_FILTERS = 'documentManager.filters';
+
 interface ModernDocumentManagerPageProps {}
 
 const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () => {
+  // URL params
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // 核心状态
   const [workNotes, setWorkNotes] = useState<WorkNote[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedNote, setSelectedNote] = useState<WorkNote | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // 编辑器状态
@@ -148,6 +157,127 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     loadWorkNotes();
   }, [searchQuery, statusFilter, favoriteFilter, selectedTags, sortBy]);
 
+  // 初始化与监听 URL 参数变化，优先 URL -> 其次 localStorage -> 默认值
+  useEffect(() => {
+    // viewMode
+    let nextMode: 'grid' | 'list' | null = null;
+    const viewParam = searchParams.get('view');
+    if (viewParam === 'grid' || viewParam === 'list') {
+      nextMode = viewParam;
+    } else {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_VIEWMODE);
+        if (stored === 'grid' || stored === 'list') {
+          nextMode = stored as 'grid' | 'list';
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+    if (!nextMode) nextMode = 'list';
+    if (nextMode !== viewMode) {
+      setViewMode(nextMode);
+    }
+
+    // sortBy
+    let nextSort: 'updated' | 'created' | 'title' | null = null;
+    const sortParam = searchParams.get('sort');
+    if (sortParam === 'updated' || sortParam === 'created' || sortParam === 'title') {
+      nextSort = sortParam;
+    } else {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_FILTERS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.sortBy === 'updated' || parsed?.sortBy === 'created' || parsed?.sortBy === 'title') {
+            nextSort = parsed.sortBy;
+          }
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+    if (!nextSort) nextSort = 'updated';
+    if (nextSort !== sortBy) {
+      setSortBy(nextSort);
+    }
+
+    // statusFilter
+    let nextStatus: 'all' | 'draft' | 'published' | 'archived' | null = null;
+    const statusParam = searchParams.get('status');
+    if (statusParam === 'all' || statusParam === 'draft' || statusParam === 'published' || statusParam === 'archived') {
+      nextStatus = statusParam;
+    } else {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_FILTERS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const s = parsed?.status;
+          if (s === 'all' || s === 'draft' || s === 'published' || s === 'archived') {
+            nextStatus = s;
+          }
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+    if (!nextStatus) nextStatus = 'all';
+    if (nextStatus !== statusFilter) {
+      setStatusFilter(nextStatus);
+    }
+
+    // selectedTags (CSV in URL)
+    let nextTags: string[] | null = null;
+    const tagsParam = searchParams.get('tags');
+    if (tagsParam) {
+      nextTags = tagsParam
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean)
+        .map(t => decodeURIComponent(t));
+    } else {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_FILTERS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed?.tags)) {
+            nextTags = parsed.tags.filter((t: unknown) => typeof t === 'string');
+          }
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+    if (!nextTags) nextTags = [];
+    const tagsEqual = nextTags.length === selectedTags.length && nextTags.every((t, i) => t === selectedTags[i]);
+    if (!tagsEqual) {
+      setSelectedTags(nextTags);
+    }
+
+    // searchQuery
+    let nextQ: string | null = null;
+    const qParam = searchParams.get('q');
+    if (qParam !== null) {
+      nextQ = qParam;
+    } else {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY_FILTERS);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.q === 'string') {
+            nextQ = parsed.q;
+          }
+        }
+      } catch (e) {
+        // ignore storage errors
+      }
+    }
+    if (nextQ === null) nextQ = '';
+    if (nextQ !== searchQuery) {
+      setSearchQuery(nextQ);
+    }
+  }, [searchParams]);
+
   // 获取所有标签
   const getAllTags = () => {
     const tags = new Set<string>();
@@ -171,6 +301,24 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const handleViewNote = (note: WorkNote) => {
     setSelectedNote(note);
     setViewerVisible(true);
+  };
+
+  // 切换视图并持久化（URL + localStorage）
+  const handleSetViewMode = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(STORAGE_KEY_VIEWMODE, mode);
+    } catch (e) {
+      // ignore storage errors
+    }
+    const next = new URLSearchParams(searchParams);
+    if (mode === 'list') {
+      // 默认视图为 list，避免冗余参数
+      next.delete('view');
+    } else {
+      next.set('view', mode);
+    }
+    setSearchParams(next, { replace: true });
   };
 
   const handleDeleteNote = async (note: WorkNote) => {
@@ -223,27 +371,13 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
 
   // 渲染网格视图笔记卡片
   const renderNoteCard = (note: WorkNote) => {
-    const dropdownMenu = (
-      <Menu>
-        <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEditNote(note)}>
-          编辑
-        </Menu.Item>
-        <Menu.Item key="copy" icon={<CopyOutlined />} onClick={() => handleCopyNote(note)}>
-          复制
-        </Menu.Item>
-        <Menu.Item 
-          key="favorite" 
-          icon={note.is_template ? <StarFilled /> : <StarOutlined />}
-          onClick={() => handleToggleFavorite(note)}
-        >
-          {note.is_template ? '取消收藏' : '添加收藏'}
-        </Menu.Item>
-        <Menu.Divider />
-        <Menu.Item key="delete" icon={<DeleteOutlined />} danger onClick={() => handleDeleteNote(note)}>
-          删除
-        </Menu.Item>
-      </Menu>
-    );
+    const dropdownItems: MenuProps['items'] = [
+      { key: 'edit', icon: <EditOutlined />, label: '编辑' },
+      { key: 'copy', icon: <CopyOutlined />, label: '复制' },
+      { key: 'favorite', icon: note.is_template ? <StarFilled /> : <StarOutlined />, label: note.is_template ? '取消收藏' : '添加收藏' },
+      { type: 'divider' as const },
+      { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
+    ];
 
     return (
       <Card
@@ -272,7 +406,19 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
               <Text strong style={{ color: 'white', fontSize: '16px' }} ellipsis>
                 {note.title}
               </Text>
-              <Dropdown overlay={dropdownMenu} trigger={['click']} placement="bottomRight">
+              <Dropdown 
+                menu={{
+                  items: dropdownItems,
+                  onClick: ({ key }) => {
+                    if (key === 'edit') return handleEditNote(note);
+                    if (key === 'copy') return handleCopyNote(note);
+                    if (key === 'favorite') return handleToggleFavorite(note);
+                    if (key === 'delete') return handleDeleteNote(note);
+                  },
+                }} 
+                trigger={['click']} 
+                placement="bottomRight"
+              >
                 <Button 
                   type="text" 
                   icon={<MoreOutlined />} 
@@ -329,27 +475,13 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
 
   // 渲染列表视图笔记项
   const renderNoteListItem = (note: WorkNote) => {
-    const dropdownMenu = (
-      <Menu>
-        <Menu.Item key="edit" icon={<EditOutlined />} onClick={() => handleEditNote(note)}>
-          编辑
-        </Menu.Item>
-        <Menu.Item key="copy" icon={<CopyOutlined />} onClick={() => handleCopyNote(note)}>
-          复制
-        </Menu.Item>
-        <Menu.Item 
-          key="favorite" 
-          icon={note.is_template ? <StarFilled /> : <StarOutlined />}
-          onClick={() => handleToggleFavorite(note)}
-        >
-          {note.is_template ? '取消收藏' : '添加收藏'}
-        </Menu.Item>
-        <Menu.Divider />
-        <Menu.Item key="delete" icon={<DeleteOutlined />} danger onClick={() => handleDeleteNote(note)}>
-          删除
-        </Menu.Item>
-      </Menu>
-    );
+    const dropdownItems: MenuProps['items'] = [
+      { key: 'edit', icon: <EditOutlined />, label: '编辑' },
+      { key: 'copy', icon: <CopyOutlined />, label: '复制' },
+      { key: 'favorite', icon: note.is_template ? <StarFilled /> : <StarOutlined />, label: note.is_template ? '取消收藏' : '添加收藏' },
+      { type: 'divider' as const },
+      { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
+    ];
 
     return (
       <Card
@@ -393,7 +525,19 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
               </div>
             </div>
           </div>
-          <Dropdown overlay={dropdownMenu} trigger={['click']} placement="bottomRight">
+          <Dropdown 
+            menu={{
+              items: dropdownItems,
+              onClick: ({ key }) => {
+                if (key === 'edit') return handleEditNote(note);
+                if (key === 'copy') return handleCopyNote(note);
+                if (key === 'favorite') return handleToggleFavorite(note);
+                if (key === 'delete') return handleDeleteNote(note);
+              },
+            }}
+            trigger={['click']} 
+            placement="bottomRight"
+          >
             <Button 
               type="text" 
               icon={<MoreOutlined />} 
@@ -405,6 +549,51 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       </Card>
     );
   };
+
+  // 将排序/状态/标签写回 URL 和 localStorage（避免多余参数，保持默认值精简）
+  useEffect(() => {
+    // Persist to localStorage
+    try {
+      const payload = {
+        sortBy,
+        status: statusFilter,
+        tags: selectedTags,
+        q: searchQuery,
+      };
+      localStorage.setItem(STORAGE_KEY_FILTERS, JSON.stringify(payload));
+    } catch (e) {
+      // ignore storage errors
+    }
+
+    // Sync URL params
+    const next = new URLSearchParams(searchParams);
+    // sort
+    if (sortBy === 'updated') {
+      next.delete('sort');
+    } else {
+      next.set('sort', sortBy);
+    }
+    // status
+    if (statusFilter === 'all') {
+      next.delete('status');
+    } else {
+      next.set('status', statusFilter);
+    }
+    // tags
+    if (!selectedTags || selectedTags.length === 0) {
+      next.delete('tags');
+    } else {
+      next.set('tags', selectedTags.map(t => encodeURIComponent(t)).join(','));
+    }
+    // q (search)
+    if (!searchQuery || searchQuery.trim() === '') {
+      next.delete('q');
+    } else {
+      next.set('q', searchQuery);
+    }
+
+    setSearchParams(next, { replace: true });
+  }, [sortBy, statusFilter, selectedTags, searchQuery]);
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f5f5' }}>
@@ -534,12 +723,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                     <Button
                       type={viewMode === 'grid' ? 'primary' : 'default'}
                       icon={<AppstoreOutlined />}
-                      onClick={() => setViewMode('grid')}
+                      onClick={() => handleSetViewMode('grid')}
                     />
                     <Button
                       type={viewMode === 'list' ? 'primary' : 'default'}
                       icon={<BarsOutlined />}
-                      onClick={() => setViewMode('list')}
+                      onClick={() => handleSetViewMode('list')}
                     />
                   </Space.Compact>
                 </div>
@@ -616,6 +805,8 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       />
     </Layout>
   );
+
+  // eslint-disable-next-line no-unreachable
 };
 
 export default ModernDocumentManagerPage;

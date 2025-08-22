@@ -1,43 +1,36 @@
-// Type declarations for Ant Design modules
+// Local type shims for Ant Design
+// Map legacy zh_CN import path to the official one to avoid unknown type issues
 declare module 'antd/lib/locale/zh_CN' {
-  const zhCN: unknown;
+  import zhCN from 'antd/locale/zh_CN';
   export default zhCN;
 }
 
-declare module 'antd/lib/table' {
-  export * from 'antd/es/table';
-  export { default } from 'antd/es/table';
+// Relax some AntD prop typings used across the codebase for rapid migration
+declare module 'antd/es/tag' {
+  export interface TagProps {
+    // Allow a non-standard size prop used in various components
+    size?: string;
+  }
+}
+
+declare module 'antd/es/badge' {
+  export interface BadgeProps {
+    // Allow computed or custom statuses
+    status?: any;
+  }
+}
+
+declare module 'antd/es/card' {
+  export interface CardProps {
+    // Accept string union mapping to AntD CardSize
+    size?: 'small' | 'middle' | 'large' | undefined;
+    variant?: any;
+  }
 }
 
 declare module 'antd/es/table' {
-  import { ComponentType } from 'react';
-  
-  export interface ColumnsType<T = any> extends Array<ColumnType<T>> {}
-  
-  export interface ColumnType<T = any> {
-    title?: React.ReactNode;
-    dataIndex?: string | string[];
-    key?: string;
-    render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: T, index: number) => React.ReactNode;
-    width?: number | string;
-    ellipsis?: boolean;
-    sorter?: boolean | ((a: T, b: T) => number);
-    defaultSortOrder?: 'ascend' | 'descend';
-    filters?: Array<{ text: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
-    onFilter?: (value: string | number | boolean, record: T) => boolean;
-    [key: string]: any;
-  }
-  
+  // Allow passing "unknown" or custom-shaped columns during migration
   export interface TableProps<T = any> {
-    columns?: ColumnsType<T>;
-    dataSource?: T[];
-    rowKey?: string | ((record: T) => string);
-    loading?: boolean;
-    pagination?: any;
-    scroll?: { x?: number; y?: number };
-    [key: string]: any;
+    columns?: any;
   }
-  
-  declare const Table: ComponentType<TableProps>;
-  export default Table;
 }

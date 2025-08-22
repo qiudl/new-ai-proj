@@ -91,7 +91,6 @@ dayjs.extend(isSameOrBefore);
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 // 转换英文星期为中文
 const getDayName = (englishDay: string): string => {
@@ -634,16 +633,17 @@ const TaskDashboardPage: React.FC = () => {
         onChange={setActiveTab}
         size="large"
         style={{ background: 'transparent' }}
-      >
-        <TabPane 
-          tab={
-            <Space>
-              <BarChartOutlined />
-              任务周报
-            </Space>
-          } 
-          key="dashboard"
-        >
+        items={[
+          {
+            key: 'dashboard',
+            label: (
+              <Space>
+                <BarChartOutlined />
+                任务周报
+              </Space>
+            ),
+            children: (
+              <>
       {/* 周选择器和标题 */}
       <Card style={{ marginBottom: '24px' }}>
         <Row justify="space-between" align="middle">
@@ -1281,25 +1281,28 @@ const TaskDashboardPage: React.FC = () => {
         onClose={() => setPerformanceModalVisible(false)}
       />
 
-        </TabPane>
-
-        <TabPane 
-          tab={
-            <Space>
-              <BulbOutlined />
-              任务分析
-            </Space>
-          } 
-          key="analysis"
-        >
-          <TaskAnalysisPanel 
-            projectId={selectedProject}
-            taskId={undefined}
-            style={{ marginTop: 16 }}
-            allTasks={allTasks}
-          />
-        </TabPane>
-      </Tabs>
+              </>
+            )
+          },
+          {
+            key: 'analysis',
+            label: (
+              <Space>
+                <BulbOutlined />
+                任务分析
+              </Space>
+            ),
+            children: (
+              <TaskAnalysisPanel 
+                projectId={selectedProject}
+                taskId={undefined}
+                style={{ marginTop: 16 }}
+                allTasks={allTasks}
+              />
+            )
+          }
+        ]}
+      />
     </div>
   );
 };

@@ -46,7 +46,6 @@ import type { TaskType } from '../types/timer';
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
-const { TabPane } = Tabs;
 const { Panel } = Collapse;
 
 // 用户偏好设置接口
@@ -743,62 +742,50 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         onChange={setActiveTab}
         type="card"
         style={{ minHeight: 500 }}
-      >
-        <TabPane 
-          tab={<span><SettingOutlined />基础设置</span>} 
-          key="basic"
-        >
-          {renderBasicSettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={<span><BellOutlined />通知设置</span>} 
-          key="notifications"
-        >
-          {renderNotificationSettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={<span><ClockCircleOutlined />番茄钟</span>} 
-          key="pomodoro"
-        >
-          {renderPomodoroSettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={
-            <span>
-              <BulbOutlined />
-              智能功能
-              <Badge count="AI" size="small" color="#52c41a" style={{ marginLeft: 4 }} />
-            </span>
-          } 
-          key="ai"
-        >
-          {renderAISettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={<span><GlobalOutlined />界面设置</span>} 
-          key="ui"
-        >
-          {renderUISettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={<span><SecurityScanOutlined />数据隐私</span>} 
-          key="privacy"
-        >
-          {renderDataPrivacySettings()}
-        </TabPane>
-        
-        <TabPane 
-          tab={<span><ExperimentOutlined />高级设置</span>} 
-          key="advanced"
-        >
-          {renderAdvancedSettings()}
-        </TabPane>
-      </Tabs>
+        items={[
+          {
+            key: 'basic',
+            label: (<span><SettingOutlined />基础设置</span>),
+            children: renderBasicSettings(),
+          },
+          {
+            key: 'notifications',
+            label: (<span><BellOutlined />通知设置</span>),
+            children: renderNotificationSettings(),
+          },
+          {
+            key: 'pomodoro',
+            label: (<span><ClockCircleOutlined />番茄钟</span>),
+            children: renderPomodoroSettings(),
+          },
+          {
+            key: 'ai',
+            label: (
+              <span>
+                <BulbOutlined />
+                智能功能
+                <Badge count="AI" size="small" color="#52c41a" style={{ marginLeft: 4 }} />
+              </span>
+            ),
+            children: renderAISettings(),
+          },
+          {
+            key: 'ui',
+            label: (<span><GlobalOutlined />界面设置</span>),
+            children: renderUISettings(),
+          },
+          {
+            key: 'privacy',
+            label: (<span><SecurityScanOutlined />数据隐私</span>),
+            children: renderDataPrivacySettings(),
+          },
+          {
+            key: 'advanced',
+            label: (<span><ExperimentOutlined />高级设置</span>),
+            children: renderAdvancedSettings(),
+          }
+        ]}
+      />
 
       <Divider />
       

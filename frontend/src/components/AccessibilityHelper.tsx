@@ -136,7 +136,7 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({
       key: 'h',
       altKey: true,
       action: () => {
-        document.querySelector('h1, h2, h3')?.focus();
+        (document.querySelector('h1, h2, h3') as HTMLElement | null)?.focus();
         voiceAnnouncer.announce('跳转到主标题', 'medium');
       },
       description: '跳转到主标题',
@@ -468,7 +468,7 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({
       </Modal>
 
       {/* 无障碍样式 */}
-      <style jsx global>{`
+      <style>{`
         /* 高对比度模式 */
         .high-contrast {
           --primary-color: #000;

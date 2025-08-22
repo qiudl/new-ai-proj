@@ -34,7 +34,6 @@ import { jwtDebugger } from '../utils/jwtDebugger';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
-const { TabPane } = Tabs;
 
 const UnifiedDebugPanel: React.FC = () => {
   const [visible, setVisible] = useState(false);
@@ -766,32 +765,34 @@ LocalStorage: ${timerDebugInfo.hasLocalStorage ? '正常' : '异常'}
         ]}
       >
         <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane 
-              tab={
-                <Space>
-                  <ClockCircleOutlined />
-                  定时器调试
-                  {hasTimerIssues && <Badge dot />}
-                </Space>
-              } 
-              key="timer"
-            >
-              {renderTimerDebug()}
-            </TabPane>
-            <TabPane 
-              tab={
-                <Space>
-                  <KeyOutlined />
-                  JWT调试
-                  {hasJWTIssues && <Badge dot />}
-                </Space>
-              } 
-              key="jwt"
-            >
-              {renderJWTDebug()}
-            </TabPane>
-          </Tabs>
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'timer',
+                label: (
+                  <Space>
+                    <ClockCircleOutlined />
+                    定时器调试
+                    {hasTimerIssues && <Badge dot />}
+                  </Space>
+                ),
+                children: renderTimerDebug()
+              },
+              {
+                key: 'jwt',
+                label: (
+                  <Space>
+                    <KeyOutlined />
+                    JWT调试
+                    {hasJWTIssues && <Badge dot />}
+                  </Space>
+                ),
+                children: renderJWTDebug()
+              }
+            ]}
+          />
         </div>
       </Modal>
     </>

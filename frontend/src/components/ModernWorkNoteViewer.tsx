@@ -31,6 +31,7 @@ import {
   CloseOutlined
 } from '@ant-design/icons';
 import { WorkNote, workNotesService } from '../services/workNotesService';
+import type { MenuProps } from 'antd';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -111,28 +112,14 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
     );
   };
 
-  // 更多操作菜单
-  const moreMenu = (
-    <Menu>
-      <Menu.Item 
-        key="favorite" 
-        icon={note.is_template ? <StarFilled /> : <StarOutlined />}
-        onClick={handleToggleFavorite}
-      >
-        {note.is_template ? '取消收藏' : '添加收藏'}
-      </Menu.Item>
-      <Menu.Item key="copy" icon={<CopyOutlined />} onClick={handleCopy}>
-        复制笔记
-      </Menu.Item>
-      <Menu.Item key="share" icon={<ShareAltOutlined />} onClick={handleShare}>
-        分享链接
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item key="delete" icon={<DeleteOutlined />} danger>
-        删除笔记
-      </Menu.Item>
-    </Menu>
-  );
+  // 更多操作菜单（使用 menu API 替代 overlay）
+  const moreMenuItems: MenuProps['items'] = [
+    { key: 'favorite', icon: note.is_template ? <StarFilled /> : <StarOutlined />, label: note.is_template ? '取消收藏' : '添加收藏' },
+    { key: 'copy', icon: <CopyOutlined />, label: '复制笔记' },
+    { key: 'share', icon: <ShareAltOutlined />, label: '分享链接' },
+    { type: 'divider' as const },
+    { key: 'delete', icon: <DeleteOutlined />, label: '删除笔记', danger: true },
+  ];
 
   return (
     <Drawer
@@ -187,7 +174,19 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
             >
               编辑
             </Button>
-            <Dropdown overlay={moreMenu} trigger={['click']} placement="topRight">
+            <Dropdown 
+              menu={{
+                items: moreMenuItems,
+                onClick: ({ key }) => {
+                  if (key === 'favorite') return handleToggleFavorite();
+                  if (key === 'copy') return handleCopy();
+                  if (key === 'share') return handleShare();
+                  if (key === 'delete') return message.info('删除功能稍后提供');
+                },
+              }}
+              trigger={['click']} 
+              placement="topRight"
+            >
               <Button icon={<MoreOutlined />} />
             </Dropdown>
           </Space>

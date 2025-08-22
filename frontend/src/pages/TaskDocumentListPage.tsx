@@ -99,47 +99,68 @@ const TaskDocumentListPage: React.FC = () => {
         }
       }
 
-      // 检查每个任务的文档状态
-      const tasksWithDocumentStatus = await Promise.all(
-        allTasks.map(async (task) => {
-          try {
-            // 使用统一文档处理器API检查文档状态
-            const response = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents`, {
+      // 检查每个任务的文档状态（限流，避免请求风暴导致 504）
+      const CONCURRENCY = 8;
+      const checkTaskDoc = async (task: TaskDocumentInfo) => {
+        try {
+          // 先用“是否存在”端点，响应极小
+          const hasResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents/has`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          let documentExists = false;
+          if (hasResp.ok) {
+            try {
+              const hasData = await hasResp.json();
+              documentExists = !!(hasData?.data?.has_document);
+            } catch {}
+          }
+
+          let lastModified: string | undefined = undefined;
+          if (documentExists) {
+            // 仅在存在文档时，再取一次列表，拿到最新更新时间（已按更新时间降序）
+            const listResp = await fetch(`/api/v1/projects/${task.project_id}/tasks/${task.id}/documents/list`, {
               method: 'GET',
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 'Content-Type': 'application/json',
               },
             });
-            
-            // 检查响应状态，200表示文档存在，404表示不存在
-            const documentExists = response.ok;
-            let lastModified = undefined;
-            
-            if (documentExists) {
+            if (listResp.ok) {
               try {
-                const data = await response.json();
-                if (data.success && data.data) {
-                  lastModified = data.data.last_updated;
+                const listData = await listResp.json();
+                const docs = listData?.data?.documents || [];
+                if (Array.isArray(docs) && docs.length > 0) {
+                  // 后端已按 updated_at 降序，取第一个
+                  lastModified = docs[0]?.updated_at;
                 }
-              } catch (e) {
-                // 忽略JSON解析错误，只要HTTP状态正确即可
-              }
+              } catch {}
             }
-            
-            return {
-              ...task,
-              documentExists,
-              lastModified
-            };
-          } catch (error) {
-            return {
-              ...task,
-              documentExists: false
-            };
           }
-        })
-      );
+
+          return {
+            ...task,
+            documentExists,
+            lastModified,
+          };
+        } catch (error) {
+          return {
+            ...task,
+            documentExists: false,
+          };
+        }
+      };
+
+      const tasksWithDocumentStatus: TaskDocumentInfo[] = [];
+      for (let i = 0; i < allTasks.length; i += CONCURRENCY) {
+        const chunk = allTasks.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(chunk.map(checkTaskDoc));
+        tasksWithDocumentStatus.push(...results);
+      }
 
       setTasks(tasksWithDocumentStatus);
       setFilteredTasks(tasksWithDocumentStatus);

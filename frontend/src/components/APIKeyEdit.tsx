@@ -47,7 +47,7 @@ interface APIKeyFormData {
   name: string;
   description?: string;
   permissions: string[];
-  expiresAt?: string;
+  expiresAt?: dayjs.Dayjs;
   usageLimit?: number;
   rateLimitCount: number;
   rateLimitWindow: string;

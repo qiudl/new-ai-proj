@@ -41,7 +41,6 @@ import taskAnalysisService, {
 } from '../services/taskAnalysisService';
 import dayjs from 'dayjs';
 
-const { TabPane } = Tabs;
 const { Title, Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
 
@@ -867,57 +866,52 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
         }
       >
         <Spin spinning={loading}>
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            <TabPane
-              tab={
-                <span>
-                  <BarChartOutlined />
-                  概览
-                </span>
-              }
-              key="overview"
-            >
-              {renderOverviewTab()}
-            </TabPane>
-
-            <TabPane
-              tab={
-                <span>
-                  <TagsOutlined />
-                  标签统计
-                </span>
-              }
-              key="tags"
-            >
-              {renderTagsTab()}
-            </TabPane>
-
-            <TabPane
-              tab={
-                <span>
-                  <BarChartOutlined />
-                  周报
-                </span>
-              }
-              key="reports"
-            >
-              {renderReportsTab()}
-            </TabPane>
-
-            {projectId && taskId && (
-              <TabPane
-                tab={
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'overview',
+                label: (
+                  <span>
+                    <BarChartOutlined />
+                    概览
+                  </span>
+                ),
+                children: renderOverviewTab(),
+              },
+              {
+                key: 'tags',
+                label: (
+                  <span>
+                    <TagsOutlined />
+                    标签统计
+                  </span>
+                ),
+                children: renderTagsTab(),
+              },
+              {
+                key: 'reports',
+                label: (
+                  <span>
+                    <BarChartOutlined />
+                    周报
+                  </span>
+                ),
+                children: renderReportsTab(),
+              },
+              ...(projectId && taskId ? [{
+                key: 'task-analysis',
+                label: (
                   <span>
                     <BulbOutlined />
                     任务分析
                   </span>
-                }
-                key="task-analysis"
-              >
-                {renderTaskAnalysisTab()}
-              </TabPane>
-            )}
-          </Tabs>
+                ),
+                children: renderTaskAnalysisTab(),
+              }] : [])
+            ]}
+          />
         </Spin>
       </Card>
     </div>

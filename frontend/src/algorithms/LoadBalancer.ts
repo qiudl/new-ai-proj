@@ -336,7 +336,7 @@ class LoadBalancer {
     
     // 优先使用高容量资源
     for (const allocation of balancedAllocations) {
-      let selectedResource = null;
+      let selectedResource: Resource | null = null;
       
       for (const resource of sortedResources) {
         const currentUsage = resourceUsage.get(resource.id) || 0;
@@ -357,8 +357,10 @@ class LoadBalancer {
         });
       }
       
-      allocation.resourceId = selectedResource.id;
-      resourceUsage.set(selectedResource.id, (resourceUsage.get(selectedResource.id) || 0) + allocation.allocatedHours);
+      if (selectedResource) {
+        allocation.resourceId = selectedResource.id;
+        resourceUsage.set(selectedResource.id, (resourceUsage.get(selectedResource.id) || 0) + allocation.allocatedHours);
+      }
     }
 
     const utilizationStats = this.calculateUtilizationStats(balancedAllocations, resources);

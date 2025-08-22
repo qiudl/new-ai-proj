@@ -33,7 +33,6 @@ import { systemValidator, runSystemValidation } from '../utils/systemValidator';
 import type { SystemValidationReport, ValidationResult } from '../utils/systemValidator';
 
 const { Text, Title, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 interface SystemValidationPanelProps {
   visible: boolean;
@@ -212,9 +211,15 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
         )}
 
         {report && !loading && (
-          <Tabs activeKey={activeTab} onChange={setActiveTab}>
-            {/* 概览标签页 */}
-            <TabPane tab={<><DashboardOutlined /> 概览</>} key="overview">
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'overview',
+                label: (<><DashboardOutlined /> 概览</>),
+                children: (
+                  <>
               {/* 总体统计 */}
               <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
                 <Col span={6}>
@@ -322,10 +327,14 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
                   style={{ marginTop: '16px' }}
                 />
               )}
-            </TabPane>
-
-            {/* 详细测试结果 */}
-            <TabPane tab={<><BugOutlined /> 详细结果</>} key="details">
+                  </>
+                )
+              },
+              {
+                key: 'details',
+                label: (<><BugOutlined /> 详细结果</>),
+                children: (
+                  <>
               {Object.entries(report.categories).map(([category, tests]) => (
                 <Card
                   key={category}
@@ -348,10 +357,14 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
                   />
                 </Card>
               ))}
-            </TabPane>
-
-            {/* 时间线 */}
-            <TabPane tab={<><ClockCircleOutlined /> 执行时间线</>} key="timeline">
+                  </>
+                )
+              },
+              {
+                key: 'timeline',
+                label: (<><ClockCircleOutlined /> 执行时间线</>),
+                children: (
+                  <>
               <Timeline>
                 {Object.entries(report.categories).map(([category, tests]) => (
                   <Timeline.Item
@@ -382,8 +395,11 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
                   </Timeline.Item>
                 ))}
               </Timeline>
-            </TabPane>
-          </Tabs>
+                  </>
+                )
+              }
+            ]}
+          />
         )}
 
         {!report && !loading && (

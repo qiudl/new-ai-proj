@@ -54,35 +54,109 @@ export class TaskService {
     params?: PaginationParams & TaskFilter
   ): Promise<PaginatedResponse<Task>> {
     try {
-      const response: APIResponse<PaginatedResponse<Task>> = await api.get(
+      const response: any = await api.get(
         `/projects/${projectId}/tasks`,
         { params }
       );
-      
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to fetch tasks');
-      }
-      
-      // Ensure response.data has the correct structure
-      if (!response.data) {
+
+      // Case 1: Wrapped APIResponse { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch tasks');
+        }
+        const payload = response.data;
+        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
+          return payload as PaginatedResponse<Task>;
+        }
+        // Fallback when payload missing/invalid
         return {
-          data: [],
+          data: Array.isArray(payload) ? payload : [],
           pagination: {
             page: params?.page || 1,
             page_size: params?.page_size || 20,
-            total: 0,
-            total_pages: 0,
+            total: Array.isArray(payload) ? payload.length : 0,
+            total_pages: Array.isArray(payload) ? 1 : 0,
             has_next: false,
-            has_prev: false
-          }
+            has_prev: false,
+          },
         };
       }
-      
-      return response.data;
+
+      // Case 2: Axios interceptor unwrapped to payload already
+      if (response && typeof response === 'object') {
+        // 2A) Direct PaginatedResponse shape
+        if (Array.isArray((response as any).data) && (response as any).pagination) {
+          return response as PaginatedResponse<Task>;
+        }
+        // 2B) Nested inside a data field: { data: { data: Task[], pagination: {...} } }
+        const nested = (response as any).data;
+        if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
+          return nested as PaginatedResponse<Task>;
+        }
+      }
+
+      // 2C) Plain array (no pagination)
+      if (Array.isArray(response)) {
+        return {
+          data: response as Task[],
+          pagination: {
+            page: params?.page || 1,
+            page_size: params?.page_size || 20,
+            total: (response as Task[]).length,
+            total_pages: 1,
+            has_next: false,
+            has_prev: false,
+          },
+        };
+      }
+
+      // Additional tolerant shapes
+      const respObj: any = response;
+      // 2D) { items: Task[], pagination? }
+      if (respObj && Array.isArray(respObj.items)) {
+        const items = respObj.items as Task[];
+        const pg = respObj.pagination || {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: items.length,
+          total_pages: 1,
+          has_next: false,
+          has_prev: false,
+        };
+        return { data: items, pagination: pg };
+      }
+      // 2E) { data: { items: Task[], pagination? } }
+      const inner = respObj?.data;
+      if (inner && Array.isArray(inner?.items)) {
+        const items = inner.items as Task[];
+        const pg = inner.pagination || {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: items.length,
+          total_pages: 1,
+          has_next: false,
+          has_prev: false,
+        };
+        return { data: items, pagination: pg };
+      }
+
+      // Unknown shape -> fallback
+      console.warn('TaskService.getTasks: unexpected response shape', response);
+      return {
+        data: [],
+        pagination: {
+          page: params?.page || 1,
+          page_size: params?.page_size || 20,
+          total: 0,
+          total_pages: 0,
+          has_next: false,
+          has_prev: false,
+        },
+      };
     } catch (error: Error | unknown) {
       console.error('TaskService.getTasks error:', error);
       console.warn('Using fallback empty data for getTasks due to API error');
-      
+
       // Return empty data instead of throwing for graceful degradation
       return {
         data: [],
@@ -92,8 +166,8 @@ export class TaskService {
           total: 0,
           total_pages: 0,
           has_next: false,
-          has_prev: false
-        }
+          has_prev: false,
+        },
       };
     }
   }

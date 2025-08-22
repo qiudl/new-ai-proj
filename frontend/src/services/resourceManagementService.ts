@@ -50,7 +50,7 @@ export interface ResourceDemand {
 
 export interface LoadBalancingResult {
   allocations: ResourceAllocation[];
-  utilizationStats: ResourceUtilizationStats;
+  utilizationStats: ResourceUtilizationStats[];
   conflicts: ResourceConflict[];
   suggestions: LoadBalancingSuggestion[];
   efficiency: number;

@@ -67,6 +67,7 @@ import { Task } from '../types/task';
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
+const { TabPane } = Tabs;
 
 dayjs.extend(weekOfYear);
 dayjs.extend(isoWeek);
@@ -438,27 +439,23 @@ const TimeWeeklyReportPage: React.FC = () => {
 
       {/* 详细分析标签页 */}
       <Card>
-        <Tabs
-          activeKey={activeTab}
+        <Tabs 
+          activeKey={activeTab} 
           onChange={setActiveTab}
           items={[
             {
               key: 'overview',
-              label: (
-                <span>
-                  <BarChartOutlined />概览分析
-                </span>
-              ),
+              label: (<span><BarChartOutlined />概览分析</span>),
               children: (
                 <Row gutter={[16, 16]}>
                   {/* 每日工作统计 */}
                   <Col xs={24} lg={12}>
-                    <Card title="每日工作统计" size="small">
+                    <Card title="每日工作统计" size="小">
                       <Table
                         dataSource={dailyStats}
                         rowKey="date"
                         pagination={false}
-                        size="small"
+                        size="小"
                         columns={[
                           {
                             title: '日期',
@@ -481,7 +478,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                             render: (efficiency) => (
                               <Progress
                                 percent={parseFloat(efficiency.toFixed(2))}
-                                size="small"
+                                size="小"
                                 status={efficiency >= 85 ? 'success' : efficiency >= 70 ? 'active' : 'exception'}
                                 showInfo={false}
                               />
@@ -494,7 +491,7 @@ const TimeWeeklyReportPage: React.FC = () => {
 
                   {/* 项目时间分布 */}
                   <Col xs={24} lg={12}>
-                    <Card title="项目时间分布" size="small">
+                    <Card title="项目时间分布" size="小">
                       <Space direction="vertical" style={{ width: '100%' }}>
                         {projectStats.map((project, index) => (
                           <div key={index}>
@@ -507,7 +504,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                               strokeColor={project.color}
                               showInfo={false}
                             />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+                            <div style={{ display: 'flex', justifyContent: '空间-between', fontSize: '12px', color: '#666' }}>
                               <span>{project.tasksCount} 个任务</span>
                               <span>完成率 {project.completionRate.toFixed(2)}%</span>
                             </div>
@@ -519,7 +516,7 @@ const TimeWeeklyReportPage: React.FC = () => {
 
                   {/* 工作亮点 */}
                   <Col xs={24}>
-                    <Card title="本周亮点" size="small">
+                    <Card title="本周亮点" size="小">
                       <Row gutter={[16, 16]}>
                         <Col xs={24} sm={8}>
                           <Alert
@@ -573,30 +570,22 @@ const TimeWeeklyReportPage: React.FC = () => {
                     </Card>
                   </Col>
                 </Row>
-              ),
+              )
             },
             {
               key: 'timeline',
-              label: (
-                <span>
-                  <LineChartOutlined />任务时间轴
-                </span>
-              ),
+              label: (<span><LineChartOutlined />任务时间轴</span>),
               children: (
-                <Card title="任务执行时间轴" size="small">
+                <Card title="任务执行时间轴" size="小">
                   <Timeline items={timelineData} />
                 </Card>
-              ),
+              )
             },
             {
               key: 'calendar',
-              label: (
-                <span>
-                  <CalendarOutlined />工作日历
-                </span>
-              ),
+              label: (<span><CalendarOutlined />工作日历</span>),
               children: (
-                <Card title="工作日历视图" size="small">
+                <Card title="工作日历视图" size="小">
                   <Calendar
                     value={currentWeek}
                     onChange={setCurrentWeek}
@@ -628,21 +617,17 @@ const TimeWeeklyReportPage: React.FC = () => {
                     }}
                   />
                 </Card>
-              ),
+              )
             },
             {
               key: 'team',
-              label: (
-                <span>
-                  <TeamOutlined />团队对比
-                </span>
-              ),
+              label: (<span><TeamOutlined />团队对比</span>),
               children: (
-                <Card title="团队工作效率对比" size="small">
+                <Card title="团队工作效率对比" size="小">
                   <Empty description="团队数据正在开发中..." />
                 </Card>
-              ),
-            },
+              )
+            }
           ]}
         />
       </Card>
