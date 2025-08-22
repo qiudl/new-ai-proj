@@ -168,7 +168,7 @@ const ColumnCustomizer: React.FC<ColumnCustomizerProps> = ({
         onClose={() => setVisible(false)}
         open={visible}
         width={380}
-        bodyStyle={{ padding: '20px' }}
+        styles={{ body: { padding: '20px' } }}
       >
         <div style={{ marginBottom: '20px' }}>
           <Text type="secondary">
