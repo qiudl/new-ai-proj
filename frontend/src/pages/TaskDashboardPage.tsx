@@ -851,11 +851,6 @@ const TaskDashboardPage: React.FC = () => {
           data={weeklyTasks}
           skeleton={<DashboardStatsSkeleton />}
         >
-          {(() => {
-            console.log('🎨 UI渲染时的weeklyStats:', weeklyStats);
-            console.log('🎨 UI渲染时的加载状态:', { tasksLoading, hasAllTasks: !!allTasks, hasWeeklyTasks: !!weeklyTasks });
-            return null;
-          })()}
           <Row gutter={[16, 16]}>
         <Col xs={24} sm={6}>
           <Card>
@@ -867,7 +862,6 @@ const TaskDashboardPage: React.FC = () => {
               suffix="个"
               precision={0}
               formatter={(value) => {
-                console.log('🔢 Statistic formatter called with value:', value, typeof value);
                 return value?.toString() || '0';
               }}
             />

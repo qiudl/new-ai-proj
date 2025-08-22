@@ -603,12 +603,10 @@ export class DashboardService {
   static async getAllTasks(): Promise<Task[]> {
     try {
       // 先获取项目数据
-      console.log('🔍 getAllTasks - 开始获取项目列表...');
       const projectsResponse: any = await api.get('/projects?page=1&page_size=1000');
       const projects = Array.isArray(projectsResponse)
         ? projectsResponse
         : (Array.isArray(projectsResponse?.data) ? projectsResponse.data : []);
-      console.log(`✅ getAllTasks - 获取到 ${projects.length} 个项目`);
 
       if (projects.length === 0) {
         console.warn('⚠️ getAllTasks - 没有项目，返回空任务列表');
@@ -616,7 +614,6 @@ export class DashboardService {
       }
 
       // 为每个项目获取任务数据，使用Promise.allSettled避免单个失败影响全部
-      console.log('🔍 getAllTasks - 开始获取各项目任务...');
       const taskPromises = projects.map((project: any) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=1000`)
           .catch(error => {
@@ -635,7 +632,6 @@ export class DashboardService {
         return accumulator.concat(projectTasks);
       }, [] as any[]);
       
-      console.log(`✅ getAllTasks - 合并完成，总共 ${allTasks.length} 个任务`);
       return allTasks;
     } catch (error) {
       console.error('❌ getAllTasks - 获取任务失败:', error);
