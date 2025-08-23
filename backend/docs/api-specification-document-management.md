@@ -238,6 +238,7 @@ GET /projects/{project_id}/tasks/{task_id}/documents
 - page_size: 每页大小 (可选，默认20)
 - type: 文档类型过滤 (可选)
 - visibility: 可见性过滤 (可选)
+- archived: 是否仅返回已归档文档 [true, false] (可选，默认false 返回未归档)
 - created_after: 创建时间过滤 (可选)
 - created_before: 创建时间过滤 (可选)
 ```
@@ -257,6 +258,8 @@ GET /projects/{project_id}/tasks/{task_id}/documents
         "file_type": "markdown",
         "file_size": 2048,
         "version": 1,
+        "archived": false,
+        "archived_at": null,
         "visibility": "team",
         "uploaded_by": 1,
         "uploaded_at": "2025-08-04T12:35:00Z",
@@ -294,6 +297,66 @@ DELETE /projects/{project_id}/tasks/{task_id}/documents/{document_id}
 
 参数:
 - permanent: 是否永久删除 [true, false] (可选，默认false为软删除)
+```
+
+##### 文档归档
+```http
+POST /projects/{project_id}/tasks/{task_id}/documents/{document_id}/archive
+```
+
+请求体:
+```json
+{
+  "reason": "不再活跃的需求，归档保存"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "归档成功",
+  "data": {
+    "document_id": 456,
+    "title": "任务需求文档",
+    "version": 1,
+    "archived": true,
+    "archived_at": "2025-08-23T01:50:00Z",
+    "archived_by": 1
+  }
+}
+```
+
+> 注意: 归档后的文档内容变为只读，仅支持解归档恢复后再编辑。
+
+##### 文档解归档
+```http
+POST /projects/{project_id}/tasks/{task_id}/documents/{document_id}/unarchive
+```
+
+请求体:
+```json
+{
+  "reason": "恢复编辑"
+}
+```
+
+**响应示例:**
+```json
+{
+  "success": true,
+  "code": 200,
+  "message": "解归档成功",
+  "data": {
+    "document_id": 456,
+    "title": "任务需求文档",
+    "version": 1,
+    "archived": false,
+    "unarchived_at": "2025-08-23T02:00:00Z",
+    "unarchived_by": 1
+  }
+}
 ```
 
 #### 4. 文档版本管理接口
@@ -660,6 +723,51 @@ const cacheStrategy = {
 };
 ```
 
+### 📡 监控与指标
+
+#### 指标定义
+- document_archive_requests_total (counter)
+  - 维度: status [success, error], source [api, mcp, batch]
+  - 含义: 文档归档请求次数
+- document_unarchive_requests_total (counter)
+  - 维度: status [success, error], source [api, mcp, batch]
+  - 含义: 文档解归档请求次数
+- document_archive_duration_seconds (histogram)
+  - 维度: status [success, error]
+  - 含义: 归档操作耗时
+- document_unarchive_duration_seconds (histogram)
+  - 维度: status [success, error]
+  - 含义: 解归档操作耗时
+- documents_archived (gauge)
+  - 维度: project_id, task_id
+  - 含义: 当前已归档文档数量
+
+#### Prometheus 暴露示例
+```prometheus
+# HELP document_archive_requests_total Total archive requests
+# TYPE document_archive_requests_total counter
+document_archive_requests_total{status="success",source="api"} 12
+# HELP document_archive_duration_seconds Archive latency in seconds
+# TYPE document_archive_duration_seconds histogram
+document_archive_duration_seconds_bucket{status="success",le="0.05"} 3
+document_archive_duration_seconds_bucket{status="success",le="0.1"} 7
+document_archive_duration_seconds_bucket{status="success",le="0.25"} 10
+document_archive_duration_seconds_bucket{status="success",le="0.5"} 12
+document_archive_duration_seconds_bucket{status="success",le="1"} 12
+document_archive_duration_seconds_bucket{status="success",le="+Inf"} 12
+document_archive_duration_seconds_sum{status="success"} 1.83
+document_archive_duration_seconds_count{status="success"} 12
+
+# HELP documents_archived Current archived documents
+# TYPE documents_archived gauge
+documents_archived{project_id="1",task_id="123"} 5
+```
+
+#### SLO 建议
+- 归档/解归档 99p 延迟 < 300ms
+- 错误率 < 0.1%
+- 指标抓取周期: 15s
+
 ### 📖 OpenAPI规范
 
 #### Swagger配置
@@ -684,6 +792,95 @@ servers:
 
 security:
   - BearerAuth: []
+
+paths:
+  /projects/{project_id}/tasks/{task_id}/documents:
+    get:
+      summary: 获取任务文档列表
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: archived
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: 是否仅返回已归档文档
+      responses:
+        '200':
+          description: 成功
+  /projects/{project_id}/tasks/{task_id}/documents/{document_id}/archive:
+    post:
+      summary: 文档归档
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+      responses:
+        '200':
+          description: 归档成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchiveActionResponse'
+  /projects/{project_id}/tasks/{task_id}/documents/{document_id}/unarchive:
+    post:
+      summary: 文档解归档
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArchiveRequest'
+      responses:
+        '200':
+          description: 解归档成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArchiveActionResponse'
 
 components:
   securitySchemes:
@@ -749,6 +946,63 @@ components:
           format: date-time
           description: 更新时间
           example: "2025-08-04T12:35:00Z"
+        archived:
+          type: boolean
+          description: 是否已归档
+          example: false
+        archived_at:
+          type: string
+          format: date-time
+          description: 归档时间
+          nullable: true
+          example: null
+        archived_by:
+          type: integer
+          description: 归档操作者用户ID
+          example: 1
+        unarchived_at:
+          type: string
+          format: date-time
+          description: 解归档时间
+          nullable: true
+          example: null
+        unarchived_by:
+          type: integer
+          description: 解归档操作者用户ID
+          example: 1
+    ArchiveRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: 归档/解归档原因
+    ArchiveActionResponse:
+      type: object
+      properties:
+        document_id:
+          type: integer
+          description: 文档ID
+        title:
+          type: string
+        version:
+          type: integer
+        archived:
+          type: boolean
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        archived_by:
+          type: integer
+          nullable: true
+        unarchived_at:
+          type: string
+          format: date-time
+          nullable: true
+        unarchived_by:
+          type: integer
+          nullable: true
 ```
 
 ### 🧪 API测试示例
@@ -768,14 +1022,26 @@ curl -X POST "http://localhost:8080/api/v1/projects/1/tasks/123/documents/upload
   -F "title=测试文档" \
   -F "description=这是一个测试文档"
 
-# 3. 获取文档列表
-curl -X GET "http://localhost:8080/api/v1/projects/1/tasks/123/documents" \
+# 3. 获取文档列表（仅未归档）
+curl -X GET "http://localhost:8080/api/v1/projects/1/tasks/123/documents?archived=false" \
   -H "Authorization: Bearer $TOKEN"
 
 # 4. 下载文档
 curl -X GET "http://localhost:8080/api/v1/projects/1/tasks/123/documents/456?download=true" \
   -H "Authorization: Bearer $TOKEN" \
   -o downloaded-document.md
+
+# 5. 归档文档
+curl -X POST "http://localhost:8080/api/v1/projects/1/tasks/123/documents/456/archive" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"不再活跃的需求，归档保存"}'
+
+# 6. 解归档文档
+curl -X POST "http://localhost:8080/api/v1/projects/1/tasks/123/documents/456/unarchive" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"恢复编辑"}'
 ```
 
 #### 使用JavaScript测试
@@ -869,6 +1135,31 @@ tester.uploadDocument(1, 123, file, {
 - ✅ 错误码定义完备
 - ✅ 示例代码可用
 - ✅ 测试用例覆盖全面
+
+### 🧪 集成验证记录（任务 517）
+
+本次验证覆盖 MCP stdio 任务文档桥接与 HTTP API：
+- MCP 服务稳定性: 版本 1.0.1，增加健壮参数解析、错误返回与 keepalive，移除强制退出，稳定运行。
+- 工具校验: 新增 create-and-attach 工具用于“总是创建并关联”任务文档；get_task_document 工具可读取文档内容。
+- 端到端验证: 通过宿主客户端重新加载提供者后，成功执行创建 → 读取 → 归档 → 解归档完整链路。
+
+步骤与示例：
+1) 创建并关联（MCP 工具）
+- 输入: { task_id: 517, title: "验证文档", content: "..." }
+- 期望: 返回 success=true，包含新 document_id
+
+2) 读取验证（MCP 工具）
+- 输入: { task_id: 517 }
+- 期望: 返回文档内容与元数据
+
+3) 归档/解归档（HTTP API）
+- 参考上文 curl 第 5、6 步；成功返回 code=200，archived 状态正确切换
+
+4) 指标校验（Prometheus）
+- document_archive_requests_total、document_unarchive_requests_total 计数随操作递增
+- duration 直方图产生样本，documents_archived gauge 随解归档减少
+
+结论：MCP 与 HTTP API 集成链路恢复正常，文档归档能力可用，指标监控可观测。
 
 ---
 

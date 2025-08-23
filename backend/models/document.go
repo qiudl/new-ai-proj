@@ -90,6 +90,12 @@ type Document struct {
 	CreatedAt   time.Time        `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time        `json:"updated_at" db:"updated_at"`
 	DeletedAt   *time.Time       `json:"deleted_at" db:"deleted_at"`
+
+	Archived    bool       `json:"archived" db:"archived"`
+	ArchivedAt  *time.Time `json:"archived_at" db:"archived_at"`
+	ArchivedBy  *int       `json:"archived_by" db:"archived_by"`
+	UnarchivedAt *time.Time `json:"unarchived_at" db:"unarchived_at"`
+	UnarchivedBy *int       `json:"unarchived_by" db:"unarchived_by"`
 	
 	// 关联字段
 	OwnerName   *string `json:"owner_name,omitempty" db:"owner_name"`
@@ -360,6 +366,7 @@ type DocumentFilter struct {
 	Visibility string  `json:"visibility,omitempty"`
 	FolderID   *int    `json:"folder_id,omitempty"`
 	OwnerID    *int    `json:"owner_id,omitempty"`
+	Archived   *bool   `json:"archived,omitempty"`
 	SortBy     string  `json:"sort_by,omitempty"`
 	Order      string  `json:"order,omitempty"`
 	Page       int     `json:"page,omitempty"`

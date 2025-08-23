@@ -80,6 +80,7 @@ func (r *documentRepository) GetByID(ctx context.Context, id int) (*models.Docum
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
 		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
+		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by,
 		       u.username as owner_name
 		FROM documents d
 		LEFT JOIN users u ON d.owner_id = u.id
@@ -94,6 +95,7 @@ func (r *documentRepository) GetByID(ctx context.Context, id int) (*models.Docum
 		&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
 		&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
 		&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
+		&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
 		&ownerName,
 	)
 
@@ -204,6 +206,13 @@ func (r *documentRepository) Delete(ctx context.Context, id int) error {
 // List 获取文档列表
 func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFilter) ([]*models.Document, int, error) {
 	whereParts := []string{"d.deleted_at IS NULL"}
+	if filter.Archived != nil {
+		if *filter.Archived {
+			whereParts = append(whereParts, "d.archived = TRUE")
+		} else {
+			whereParts = append(whereParts, "d.archived = FALSE")
+		}
+	}
 	args := []interface{}{}
 	argIndex := 1
 
@@ -267,6 +276,7 @@ func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFi
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
 		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
+		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by,
 		       u.username as owner_name
 		FROM documents d
 		LEFT JOIN users u ON d.owner_id = u.id
@@ -294,6 +304,7 @@ func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFi
 			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
 			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
 			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
+			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
 			&ownerName,
 		)
 		if err != nil {
@@ -314,16 +325,19 @@ func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFi
 // Search 搜索文档
 func (r *documentRepository) Search(ctx context.Context, req *models.DocumentSearchRequest) ([]*models.Document, int, error) {
 	filter := &models.DocumentFilter{
-		Search:   req.Query,
-		Type:     string(*req.Type),
-		Status:   string(*req.Status),
-		OwnerID:  req.OwnerID,
-		SortBy:   req.SortBy,
-		Order:    req.Order,
-		Page:     req.Page,
-		Limit:    req.Limit,
+		Search:  req.Query,
+		OwnerID: req.OwnerID,
+		SortBy:  req.SortBy,
+		Order:   req.Order,
+		Page:    req.Page,
+		Limit:   req.Limit,
 	}
-
+	if req.Type != nil {
+		filter.Type = string(*req.Type)
+	}
+	if req.Status != nil {
+		filter.Status = string(*req.Status)
+	}
 	return r.List(ctx, filter)
 }
 
@@ -362,6 +376,7 @@ func (r *documentRepository) GetTaskDocuments(ctx context.Context, taskID int) (
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
 		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
+		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by,
 		       u.username as owner_name, td.relationship_type
 		FROM documents d
 		INNER JOIN task_documents td ON d.id = td.document_id
@@ -387,6 +402,7 @@ func (r *documentRepository) GetTaskDocuments(ctx context.Context, taskID int) (
 			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
 			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
 			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
+			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
 			&ownerName, &relationshipType,
 		)
 		if err != nil {

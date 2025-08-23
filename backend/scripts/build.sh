@@ -35,6 +35,7 @@ build_docker() {
         --build-arg VERSION=${VERSION} \
         --build-arg BUILD_TIME=${BUILD_TIME} \
         --build-arg GIT_COMMIT=${GIT_COMMIT} \
+        --build-arg REGISTRY_PREFIX=${REGISTRY_PREFIX:-} \
         -t ${tag} \
         .
     

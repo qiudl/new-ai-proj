@@ -701,13 +701,14 @@ export class TaskMCPServer {
             }
             if (!hasDoc) {
                 // 不存在文档：创建并关联（原子）
-                const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
+                const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`, {
                     title: task.title ? `${task.title} 文档` : `Task ${taskId} 文档`,
                     content: content,
                     type: 'markdown',
                     status: 'draft',
                     visibility: 'team',
-                    relationship_type: 'attachment'
+                    relationship_type: 'attachment',
+                    tags: []
                 }, {
                     headers: this.getHeaders(),
                     proxy: false
@@ -729,13 +730,14 @@ export class TaskMCPServer {
             const docs = listResp.data?.data?.documents || [];
             if (!docs.length) {
                 // 防御性：无文档则走创建
-                const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
+                const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`, {
                     title: task.title ? `${task.title} 文档` : `Task ${taskId} 文档`,
                     content: content,
                     type: 'markdown',
                     status: 'draft',
                     visibility: 'team',
-                    relationship_type: 'attachment'
+                    relationship_type: 'attachment',
+                    tags: []
                 }, {
                     headers: this.getHeaders(),
                     proxy: false
@@ -789,18 +791,24 @@ export class TaskMCPServer {
             // 验证任务存在并确定项目ID
             const task = await this.findTaskById(taskId);
             const actualProjectId = task.project_id || projectId;
+
+            // 统一构造满足后端校验的请求体
             const payload = {
                 title: title || (task.title ? `${task.title} 文档` : `Task ${taskId} 文档`),
                 content: content,
                 type: 'markdown',
                 status: 'draft',
                 visibility: 'team',
-                relationship_type: 'attachment'
+                relationship_type: 'attachment',
+                tags: [] // 避免 tags 列为 NOT NULL 时出错
             };
-            const resp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, payload, {
+
+            const url = `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`;
+            const resp = await axios.post(url, payload, {
                 headers: this.getHeaders(),
                 proxy: false
             });
+
             const data = resp.data?.data || resp.data || {};
             return {
                 success: true,

@@ -5,6 +5,7 @@ import (
 	"ai-project-backend/middleware"
 	"os"
 	"github.com/gin-gonic/gin"
+	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // SetupRouter 创建并配置主路由器
@@ -50,6 +51,8 @@ func SetupMiddleware(router *gin.Engine, cfg *config.Config, app ApplicationInte
 func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册基础健康检查路由（无需认证）
 	registerBasicRoutes(router, app)
+	// Prometheus metrics endpoint
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// 静态API文档挂载（/docs）
 	mountDocs(router)

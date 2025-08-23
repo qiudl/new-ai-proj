@@ -14,12 +14,19 @@ import (
 	"ai-project-backend/models"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // DocumentHandler 基于数据库的文档处理器
 type DocumentHandler struct {
 	db database.DB
 	docRepo database.DocumentRepositoryNew
+	// metrics
+	metricArchiveReq    *prometheus.CounterVec
+	metricUnarchiveReq  *prometheus.CounterVec
+	metricArchiveDur    *prometheus.HistogramVec
+	metricUnarchiveDur  *prometheus.HistogramVec
+	gaugeArchived       *prometheus.GaugeVec
 }
 
 // CreateAndAttachDocumentRequest 原子创建并关联的请求体
@@ -39,10 +46,37 @@ type CreateAndAttachDocumentRequest struct {
 
 // NewDocumentHandler 创建新的文档处理器
 func NewDocumentHandler(db database.DB) *DocumentHandler {
-	return &DocumentHandler{
-		db: db, 
+	h := &DocumentHandler{
+		db: db,
 		docRepo: db.(*database.PostgresDB).NewDocuments(),
+		metricArchiveReq: prometheus.NewCounterVec(
+			prometheus.CounterOpts{Name: "document_archive_requests_total", Help: "Total archive requests"},
+			[]string{"status", "source"},
+		),
+		metricUnarchiveReq: prometheus.NewCounterVec(
+			prometheus.CounterOpts{Name: "document_unarchive_requests_total", Help: "Total unarchive requests"},
+			[]string{"status", "source"},
+		),
+		metricArchiveDur: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{Name: "document_archive_duration_seconds", Help: "Archive duration seconds"},
+			[]string{"status"},
+		),
+		metricUnarchiveDur: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{Name: "document_unarchive_duration_seconds", Help: "Unarchive duration seconds"},
+			[]string{"status"},
+		),
+		gaugeArchived: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{Name: "documents_archived", Help: "Current archived documents count"},
+			[]string{"project_id", "task_id"},
+		),
 	}
+	// register metrics (ignore duplicate registration errors in production setups)
+	prometheus.MustRegister(h.metricArchiveReq)
+	prometheus.MustRegister(h.metricUnarchiveReq)
+	prometheus.MustRegister(h.metricArchiveDur)
+	prometheus.MustRegister(h.metricUnarchiveDur)
+	prometheus.MustRegister(h.gaugeArchived)
+	return h
 }
 
 // CreateDocument 创建文档
@@ -203,6 +237,13 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 	filter.Visibility = c.Query("visibility")
 	filter.SortBy = c.DefaultQuery("sort_by", "updated_at")
 	filter.Order = c.DefaultQuery("order", "desc")
+	if archivedStr := c.Query("archived"); archivedStr != "" {
+		if archivedStr == "true" {
+			b := true; filter.Archived = &b
+		} else if archivedStr == "false" {
+			b := false; filter.Archived = &b
+		}
+	}
 
 	if pageStr := c.Query("page"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil {
@@ -648,7 +689,7 @@ func (h *DocumentHandler) UpsertTaskDocument(c *gin.Context) {
 			pick = d
 		}
 	}
-	upd := &models.UpdateDocumentRequest{Content: body.Content}
+	upd := &models.UpdateDocumentRequest{Content: &body.Content}
 	updated, err := h.docRepo.Update(c.Request.Context(), pick.ID, upd)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update document", "error": err.Error()})
@@ -817,6 +858,86 @@ func (h *DocumentHandler) GetDocumentVersions(c *gin.Context) {
 		"message": "Document versions retrieved successfully",
 		"data":    versions,
 	})
+}
+
+// ArchiveDocument 归档文档
+func (h *DocumentHandler) ArchiveDocument(c *gin.Context) {
+	start := time.Now()
+	statusLabel := "success"
+	defer func() {
+		h.metricArchiveDur.WithLabelValues(statusLabel).Observe(time.Since(start).Seconds())
+	}()
+	idStr := c.Param("documentId")
+	if idStr == "" { idStr = c.Param("id") }
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid document ID"})
+		return
+	}
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	var req struct { Reason string `json:"reason"` }
+	_ = c.ShouldBindJSON(&req)
+
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok || sqlDB == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "DB not initialized"})
+		return
+	}
+	query := `UPDATE documents SET archived = TRUE, archived_at = CURRENT_TIMESTAMP, archived_by = $2 WHERE id = $1 AND deleted_at IS NULL AND archived = FALSE RETURNING archived_at`
+	var archivedAt time.Time
+	err = sqlDB.QueryRowContext(c.Request.Context(), query, id, userID.(int)).Scan(&archivedAt)
+	if err != nil {
+		statusLabel = "error"
+		h.metricArchiveReq.WithLabelValues("error", "api").Inc()
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Archive failed or already archived", "error": err.Error()})
+		return
+	}
+	h.metricArchiveReq.WithLabelValues("success", "api").Inc()
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Archived", "data": gin.H{"document_id": id, "archived": true, "archived_at": archivedAt}})
+}
+
+// UnarchiveDocument 解归档文档
+func (h *DocumentHandler) UnarchiveDocument(c *gin.Context) {
+	start := time.Now()
+	statusLabel := "success"
+	defer func() {
+		h.metricUnarchiveDur.WithLabelValues(statusLabel).Observe(time.Since(start).Seconds())
+	}()
+	idStr := c.Param("documentId")
+	if idStr == "" { idStr = c.Param("id") }
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid document ID"})
+		return
+	}
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	var req struct { Reason string `json:"reason"` }
+	_ = c.ShouldBindJSON(&req)
+
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok || sqlDB == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "DB not initialized"})
+		return
+	}
+	query := `UPDATE documents SET archived = FALSE, unarchived_at = CURRENT_TIMESTAMP, unarchived_by = $2 WHERE id = $1 AND deleted_at IS NULL AND archived = TRUE RETURNING unarchived_at`
+	var unarchivedAt time.Time
+	err = sqlDB.QueryRowContext(c.Request.Context(), query, id, userID.(int)).Scan(&unarchivedAt)
+	if err != nil {
+		statusLabel = "error"
+		h.metricUnarchiveReq.WithLabelValues("error", "api").Inc()
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Unarchive failed or not archived", "error": err.Error()})
+		return
+	}
+	h.metricUnarchiveReq.WithLabelValues("success", "api").Inc()
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Unarchived", "data": gin.H{"document_id": id, "archived": false, "unarchived_at": unarchivedAt}})
 }
 
 // CreateDocumentVersion 手动创建文档版本

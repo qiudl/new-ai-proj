@@ -1,10 +1,13 @@
 # Multi-stage Dockerfile for Go Backend
 # Supports both development and production builds
 
+# Allow overriding base image registry (e.g., ccr.ccs.tencentyun.com/library/)
+ARG REGISTRY_PREFIX=
+
 # ======================================
 # Stage 1: Base Dependencies
 # ======================================
-FROM golang:1.24-alpine AS base
+FROM ${REGISTRY_PREFIX}golang:1.24-alpine AS base
 
 # Install essential packages
 RUN apk --no-cache add \
@@ -33,7 +36,7 @@ ENV GOPATH=/go
 ENV GOCACHE=/go/cache
 RUN mkdir -p /go/cache /go/pkg/mod && \
     chmod -R 777 /go && \
-    go mod download && go mod verify
+    go mod download all && go mod tidy && go mod verify
 
 # ======================================
 # Stage 2: Development Environment
@@ -73,6 +76,9 @@ FROM base AS builder
 # Copy source code
 COPY . .
 
+# Ensure module files updated for all imports in source
+RUN go mod tidy && go mod download all
+
 # Build args
 ARG VERSION=dev
 ARG BUILD_TIME
@@ -87,7 +93,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
 # ======================================
 # Stage 4: Production Runtime
 # ======================================
-FROM alpine:latest AS production
+FROM ${REGISTRY_PREFIX}alpine:latest AS production
 
 # Install runtime dependencies
 RUN apk --no-cache add \

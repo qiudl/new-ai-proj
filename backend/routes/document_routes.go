@@ -37,6 +37,9 @@ func registerDocumentCRUDRoutes(authorized *gin.RouterGroup, app ApplicationInte
 	authorized.GET("/documents/:id", app.GetDocumentHandler().GetDocument)
 	authorized.PUT("/documents/:id", app.GetDocumentHandler().UpdateDocument)
 	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
+	// Archive/Unarchive
+	authorized.POST("/documents/:id/archive", app.GetDocumentHandler().ArchiveDocument)
+	authorized.POST("/documents/:id/unarchive", app.GetDocumentHandler().UnarchiveDocument)
 	
 	// Batch operations
 	authorized.POST("/documents/batch", app.GetDocumentHandler().CreateBatchDocuments)
@@ -95,6 +98,10 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 					
 					// 更新特定任务文档 (便捷路由，实际调用标准文档更新)
 					taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
+					
+					// 文档归档/解归档（便捷路由）
+					taskDocuments.POST("/:documentId/archive", app.GetDocumentHandler().ArchiveDocument)
+					taskDocuments.POST("/:documentId/unarchive", app.GetDocumentHandler().UnarchiveDocument)
 					
 					// 将现有文档关联到任务
 					taskDocuments.POST("/:documentId/attach", app.GetDocumentHandler().AttachDocumentToTask)
