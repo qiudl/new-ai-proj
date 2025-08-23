@@ -446,8 +446,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
           </div>
         </div>
-        <div className="user-info" style={{ display: 'flex', alignItems: 'center' }}>
-          <Space size="middle" align="center">
+        <div className="user-info" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: '100%' }}>
             <Tooltip title={isFullscreen ? '退出全屏' : '进入全屏'}>
               <Button
                 type="text"
@@ -465,23 +465,25 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </Tooltip>
             {/* 任务ID快速跳转：右对齐，位于头像前 */}
-            <Input.Search
-              aria-label="任务ID快速跳转"
-              placeholder="输入任务ID，按回车跳转"
-              enterButton="跳转"
-              allowClear
-              size="middle"
-              loading={quickJumpLoading}
-              onSearch={handleTaskQuickJump}
-              style={{ width: 240 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+              <Input.Search
+                aria-label="任务ID快速跳转"
+                placeholder="输入任务ID，按回车跳转"
+                enterButton="跳转"
+                allowClear
+                size="middle"
+                loading={quickJumpLoading}
+                onSearch={handleTaskQuickJump}
+                style={{ width: 240 }}
+              />
+            </div>
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space>
                 <Avatar icon={<UserOutlined />} />
                 <span>{currentUser?.username || '加载中...'}</span>
               </Space>
             </Dropdown>
-          </Space>
+          </div>
         </div>
       </Header>
       <AntLayout>
