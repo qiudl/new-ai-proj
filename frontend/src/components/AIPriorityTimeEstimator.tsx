@@ -370,7 +370,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                   <Text strong>预估工时 (小时)</Text>
                   <InputNumber
                     value={manualHours}
-                    onChange={setManualHours}
+                    onChange={(v) => setManualHours(typeof v === 'number' ? v : undefined)}
                     min={0.1}
                     max={200}
                     step={0.5}

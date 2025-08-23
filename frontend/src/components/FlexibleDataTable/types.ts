@@ -1,6 +1,5 @@
 import { ReactNode } from 'react';
-import type { SorterResult } from 'antd/es/table/interface';
-import type { TableProps } from 'antd';
+import type { SorterResult, TableProps as AntTableProps, ColumnType } from 'antd/es/table/interface';
 
 // 列配置接口
 export interface FlexibleColumnConfig {
@@ -17,10 +16,10 @@ export interface FlexibleColumnConfig {
   draggable: boolean;
   required?: boolean; // 必须显示的列，无法隐藏
   customField?: boolean; // 自定义字段标识
-  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown, index: number) => ReactNode;
+  render?: (value: any, record: unknown, index: number) => ReactNode;
   sorter?: boolean | ((a: unknown, b: unknown) => number);
-  filters?: Array<{ text: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
-  onFilter?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: unknown) => boolean;
+  filters?: Array<{ text: string; value: string | number | boolean | null }>;
+  onFilter?: (value: string | number | boolean | null, record: unknown) => boolean;
   ellipsis?: boolean;
   align?: 'left' | 'center' | 'right';
   className?: string;
@@ -69,7 +68,7 @@ export interface FilterConfig {
     key: string;
     title: string;
     type: 'select' | 'dateRange' | 'numberRange' | 'text';
-    options?: Array<{ label: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement> }>;
+    options?: Array<{ label: string; value: string | number | boolean | null }>;
     placeholder?: string;
     defaultValue?: any;
   }>;
@@ -98,7 +97,7 @@ interface SortState {
 // 表格主配置接口
 export interface FlexibleDataTableProps {
   // 数据相关
-  dataSource: React.FormEvent | React.ChangeEvent<HTMLInputElement>[];
+  dataSource: Record<string, unknown>[];
   loading?: boolean;
   rowKey?: string | ((record: unknown) => string);
   
