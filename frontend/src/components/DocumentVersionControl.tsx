@@ -28,7 +28,6 @@ import {
   UploadOutlined,
   DownloadOutlined,
   RollbackOutlined,
-  CompareOutlined,
   DeleteOutlined,
   DiffOutlined,
   FileTextOutlined,
@@ -716,7 +715,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
             创建新版本
           </Button>
           <Button
-            icon={<CompareOutlined />}
+            icon={<DiffOutlined />}
             onClick={handleCompareVersions}
             disabled={selectedVersions.length !== 2}
           >

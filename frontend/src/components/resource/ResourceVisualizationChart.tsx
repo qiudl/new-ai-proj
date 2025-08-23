@@ -26,8 +26,8 @@ import {
   SettingOutlined,
   DownloadOutlined,
   InfoCircleOutlined,
-  TrendingUpOutlined,
-  TrendingDownOutlined,
+  RiseOutlined,
+  FallOutlined,
   MinusOutlined
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
@@ -250,8 +250,8 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
                 precision={1}
                 suffix="%"
                 prefix={
-                  avgUtilization > 0.8 ? <TrendingUpOutlined style={{ color: '#fa8c16' }} /> :
-                  avgUtilization < 0.5 ? <TrendingDownOutlined style={{ color: '#1890ff' }} /> :
+                  avgUtilization > 0.8 ? <RiseOutlined style={{ color: '#fa8c16' }} /> :
+                  avgUtilization < 0.5 ? <FallOutlined style={{ color: '#1890ff' }} /> :
                   <MinusOutlined style={{ color: '#52c41a' }} />
                 }
                 valueStyle={{ 
@@ -339,8 +339,8 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
             [SuggestionType.REBALANCE_ALLOCATION]: { color: 'blue', text: '重新分配' },
             [SuggestionType.ADD_RESOURCES]: { color: 'orange', text: '增加资源' },
             [SuggestionType.COST_OPTIMIZATION]: { color: 'green', text: '成本优化' },
-            [SuggestionType.SKILL_MATCHING]: { color: 'purple', text: '技能匹配' },
-            [SuggestionType.SCHEDULE_ADJUSTMENT]: { color: 'red', text: '调度调整' }
+            [SuggestionType.SKILL_OPTIMIZATION]: { color: 'purple', text: '技能匹配' },
+            [SuggestionType.ADJUST_TIMELINE]: { color: 'red', text: '调度调整' }
           };
           const config = typeConfig[type];
           return <Tag color={config.color}>{config.text}</Tag>;

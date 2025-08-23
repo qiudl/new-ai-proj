@@ -488,10 +488,10 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                   <div className="flex justify-between items-center mb-2">
                     <Text strong>总体进度</Text>
                     <Space>
-                      <Text size="small" type="secondary">
+                      <Text type="secondary">
                         {uploadStats.completedFiles}/{uploadStats.totalFiles} 文件
                       </Text>
-                      <Text size="small" type="secondary">
+                      <Text type="secondary">
                         {taskDocumentService.formatFileSize(uploadStats.averageSpeed)}/s
                       </Text>
                     </Space>
@@ -507,21 +507,21 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                 {uploadProgress.map((progress, index) => (
                   <div key={index} className="mb-2">
                     <div className="flex justify-between items-center mb-1">
-                      <Text size="small" className="flex-1 truncate">
+<Text className="flex-1 truncate">
                         {progress.fileName}
                       </Text>
                       <Space size="small">
                         {progress.status === 'uploading' && progress.speed && (
-                          <Text size="small" type="secondary">
+<Text type="secondary">
                             {taskDocumentService.formatFileSize(progress.speed)}/s
                           </Text>
                         )}
                         {progress.status === 'uploading' && progress.eta && progress.eta > 0 && (
-                          <Text size="small" type="secondary">
+<Text type="secondary">
                             剩余 {Math.ceil(progress.eta)}s
                           </Text>
                         )}
-                        <Text size="small" type="secondary">
+                        <Text type="secondary">
                           {progress.progress}%
                         </Text>
                         {progress.status === 'success' && (
@@ -542,7 +542,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                       showInfo={false}
                     />
                     {progress.status === 'error' && progress.error && (
-                      <Text size="small" type="danger" className="block mt-1">
+<Text type="secondary" className="block mt-1">
                         {progress.error}
                       </Text>
                     )}
@@ -601,12 +601,12 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                       <div key={index} className="flex justify-between items-center py-1">
                         <div className="flex items-center space-x-2">
                           {getFileIcon(taskDocumentService.getMimeTypeFromFileName(file.name))}
-                          <Text size="small" className="truncate max-w-xs">
+<Text className="truncate max-w-xs">
                             {file.name}
                           </Text>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Text size="small" type="secondary">
+<Text type="secondary">
                             {taskDocumentService.formatFileSize(file.originFileObj?.size || 0)}
                           </Text>
                           <Button
@@ -837,13 +837,13 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
             {/* 预览统计信息 */}
             <div className="mt-4 pt-4 border-t">
               <Space split={<Divider type="vertical" />}>
-                <Text type="secondary" size="small">
+<Text type="secondary">
                   字符数: {previewContent.length}
                 </Text>
-                <Text type="secondary" size="small">
+<Text type="secondary">
                   行数: {previewContent.split('\n').length}
                 </Text>
-                <Text type="secondary" size="small">
+                <Text type="secondary">
                   字数: {previewContent.replace(/\s+/g, '').length}
                 </Text>
               </Space>

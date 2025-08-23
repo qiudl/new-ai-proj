@@ -18,14 +18,14 @@ import {
   Modal,
   Divider,
   Alert,
-  notification
+  notification,
+  Input
 } from 'antd';
 import {
   BulbOutlined,
   ClockCircleOutlined,
   TrophyOutlined,
   StarOutlined,
-  LightningBoltOutlined,
   RobotOutlined,
   ThunderboltOutlined,
   CheckCircleOutlined,
@@ -261,7 +261,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
             <Text strong>{suggestion.title}</Text>
             {showConfidence && (
               <Tooltip title={`置信度: ${Math.round(suggestion.confidence * 100)}%`}>
-                <Tag color={getConfidenceColor(suggestion.confidence)} size="small">
+<Tag color={getConfidenceColor(suggestion.confidence)}>
                   {getConfidenceText(suggestion.confidence)}
                 </Tag>
               </Tooltip>
@@ -270,14 +270,14 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
         }
         description={
           <Space wrap>
-            <Tag color="blue" size="small">
+<Tag color="blue">
               <ClockCircleOutlined /> {suggestion.estimated_minutes}分钟
             </Tag>
-            <Tag color="cyan" size="small">
+<Tag color="cyan">
               {suggestion.category}
             </Tag>
             {suggestion.priority && (
-              <Tag color={getPriorityColor(suggestion.priority)} size="small">
+<Tag color={getPriorityColor(suggestion.priority)}>
                 {getPriorityText(suggestion.priority)}
               </Tag>
             )}

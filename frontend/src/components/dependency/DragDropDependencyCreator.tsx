@@ -292,9 +292,9 @@ const DragDropDependencyCreator: React.FC<DragDropDependencyCreatorProps> = ({
     
     // 为每个节点绑定拖拽事件
     svg.selectAll('.dependency-node')
-      .on('mousedown', function(event: MouseEvent, d: DependencyGraphNode) {
+      .on('mousedown', function(event: any, d: any) {
         if (dragMode) {
-          handleDragStart(event, d);
+          handleDragStart(event as MouseEvent, d as DependencyGraphNode);
         }
       });
 
@@ -530,7 +530,7 @@ const DragDropDependencyCreator: React.FC<DragDropDependencyCreatorProps> = ({
         </Form>
       </Modal>
 
-      <style jsx>{`
+      <style>{`
         .drag-source {
           filter: drop-shadow(0 4px 12px rgba(24, 144, 255, 0.4));
           stroke: #1890ff !important;

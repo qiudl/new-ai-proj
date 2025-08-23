@@ -88,7 +88,7 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
         onTaskSelect(task.task_id);
       } else {
         // 如果没有传递选择回调，直接开始计时
-        await startTimer(task.task_id);
+        await startTimer(task.task_id, task.task_title);
       }
     } catch (error) {
       console.error('开始任务计时失败:', error);
@@ -208,8 +208,7 @@ const renderTaskItem = (task: RecentTimedTask) => {
               {task.project_name}
             </Text>
             
-            <Tag 
-              size="small" 
+                      <Tag 
               color={getStatusColor(task.status)}
             >
               {getStatusText(task.status)}

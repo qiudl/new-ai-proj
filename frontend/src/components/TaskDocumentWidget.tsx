@@ -137,23 +137,23 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
       const typeComponents = [];
       if (stats.byType['text/markdown']) {
         typeComponents.push(
-          <Text key="md" type="secondary">
+<span key="md" className="ant-typography ant-typography-secondary">
             MD: {stats.byType['text/markdown']}
-          </Text>
+          </span>
         );
       }
       if (stats.byType['application/pdf']) {
         typeComponents.push(
-          <Text key="pdf" type="secondary">
+<span key="pdf" className="ant-typography ant-typography-secondary">
             PDF: {stats.byType['application/pdf']}
-          </Text>
+          </span>
         );
       }
       if (stats.byType['text/plain']) {
         typeComponents.push(
-          <Text key="txt" type="secondary">
+<span key="txt" className="ant-typography ant-typography-secondary">
             TXT: {stats.byType['text/plain']}
-          </Text>
+          </span>
         );
       }
       return typeComponents;
@@ -380,7 +380,20 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                       <div style={{ flex: 1 }}>
                         <Text strong>{doc.title}</Text>
-                        <Tag size="small" style={{ marginLeft: '8px' }}>{doc.type}</Tag>
+                        <Tag style={{ marginLeft: '8px' }}>{doc.type}</Tag>
+                        {/* 质量检查指示 */}
+                        {(() => {
+                          const qc = (doc as any)?.metadata?.quality_check;
+                          if (!qc) return null;
+                          const passed = !!qc.passed;
+                          return passed ? (
+                            <Tag color="green" style={{ marginLeft: 8 }}>达标</Tag>
+                          ) : (
+                            <Tooltip title={(qc.issues || []).join('\n')}>
+                              <Tag color="red" style={{ marginLeft: 8 }}>需完善</Tag>
+                            </Tooltip>
+                          );
+                        })()}
                       </div>
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <Tooltip title="预览文档">

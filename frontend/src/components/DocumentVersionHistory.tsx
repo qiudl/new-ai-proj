@@ -314,7 +314,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                   <Space>
                     {formatFileSize(version.file_size)}
                     {sizeDiff !== 0 && (
-                      <Tag color={sizeDiff > 0 ? 'red' : 'green'} size="small">
+                      <Tag color={sizeDiff > 0 ? 'red' : 'green'}>
                         {sizeDiff > 0 ? '+' : ''}{formatFileSize(Math.abs(sizeDiff))}
                       </Tag>
                     )}

@@ -140,7 +140,7 @@ const STATUS_CONFIG = {
   }
 };
 
-const PRIORITY_CONFIG = {
+const PRIORITY_CONFIG: Record<'high'|'medium'|'low', { color: string; text: string }> = {
   high: { color: '#e74c3c', text: '🔥 高' },
   medium: { color: '#f39c12', text: '⚡ 中' },
   low: { color: '#95a5a6', text: '💡 低' }

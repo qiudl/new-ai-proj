@@ -45,7 +45,6 @@ import {
   CheckOutlined,
   CloseOutlined,
   SelectOutlined,
-  FolderMoveOutlined,
   TagOutlined,
   UndoOutlined,
   HistoryOutlined,
@@ -1677,13 +1676,13 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           {/* 预览统计信息 */}
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #f0f0f0' }}>
             <Space split={<Divider type="vertical" />}>
-              <Text type="secondary" size="small">
+<Text type="secondary">
                 字符数: {previewContent.length}
               </Text>
-              <Text type="secondary" size="small">
+<Text type="secondary">
                 行数: {previewContent.split('\n').length}
               </Text>
-              <Text type="secondary" size="small">
+              <Text type="secondary">
                 字数: {previewContent.replace(/\s+/g, '').length}
               </Text>
             </Space>

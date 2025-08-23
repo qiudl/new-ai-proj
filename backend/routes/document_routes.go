@@ -60,52 +60,48 @@ func registerTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInte
 	{
 		tasks := projects.Group("/:id/tasks")
 		{
-			// 单个任务文档管理 (文件系统存储)
-			// 已归档：GET/PUT 接口返回 410，避免误用；请使用 /projects/:id/tasks/:taskId/documents 下的新接口
+			// 单个任务文档管理（兼容旧的单数路由，改为走数据库文档Upsert，而非文件系统）
 			tasks.GET("/:taskId/document", func(c *gin.Context) {
 				c.JSON(410, gin.H{
 					"success": false,
-					"message": "This file-based GET endpoint is deprecated. Use /projects/:id/tasks/:taskId/documents instead.",
+					"message": "This GET endpoint is deprecated. Use /projects/:id/tasks/:taskId/documents instead.",
 					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
 				})
 			})
-			tasks.PUT("/:taskId/document", func(c *gin.Context) {
-				c.JSON(410, gin.H{
-					"success": false,
-					"message": "This file-based PUT endpoint is deprecated. Use database-backed documents under /projects/:id/tasks/:taskId/documents.",
-					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
-				})
-			})
+			tasks.POST("/:taskId/document", app.GetDocumentHandler().UpsertTaskDocument)
+			tasks.PUT("/:taskId/document", app.GetDocumentHandler().UpsertTaskDocument)
 			
-			taskDocuments := tasks.Group("/:taskId/documents")
-			{
-				// 获取任务的所有文档
-				taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
-				// 一致性读取：是否存在文档、列出文档
-				taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
-				taskDocuments.GET("/list", app.GetDocumentHandler().ListTaskDocuments)
-				
-				// 原子：创建文档并关联到任务（单事务）
-				taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
-				
-				// 批量更新任务文档关联 (暂时返回成功，需要实现具体逻辑)
-				taskDocuments.PUT("", func(c *gin.Context) {
-					c.JSON(200, gin.H{
-						"success": true,
-						"message": "批量更新功能开发中，请使用单个文档更新接口",
-						"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档",
+				taskDocuments := tasks.Group("/:taskId/documents")
+				{
+					// 获取任务的所有文档
+					taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
+					// 一致性读取：是否存在文档、列出文档
+					taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
+					taskDocuments.GET("/list", app.GetDocumentHandler().ListTaskDocuments)
+					
+					// 原子：创建文档并关联到任务（单事务）
+					taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
+					// 别名路由：与文档一致的 REST 设计（POST 空路径）
+					taskDocuments.POST("", app.GetDocumentHandler().CreateAndAttachDocument)
+					
+					// 批量更新任务文档关联 (暂时返回成功，需要实现具体逻辑)
+					taskDocuments.PUT("", func(c *gin.Context) {
+						c.JSON(200, gin.H{
+							"success": true,
+							"message": "批量更新功能开发中，请使用单个文档更新接口",
+							"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档",
+						})
 					})
-				})
-				
-				// 更新特定任务文档 (便捷路由，实际调用标准文档更新)
-				taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
-				
-				// 将现有文档关联到任务
-				taskDocuments.POST("/:documentId/attach", app.GetDocumentHandler().AttachDocumentToTask)
-				
-				// 从任务中移除文档
-				taskDocuments.DELETE("/:documentId", app.GetDocumentHandler().DetachDocumentFromTask)
-			}
+					
+					// 更新特定任务文档 (便捷路由，实际调用标准文档更新)
+					taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
+					
+					// 将现有文档关联到任务
+					taskDocuments.POST("/:documentId/attach", app.GetDocumentHandler().AttachDocumentToTask)
+					
+					// 从任务中移除文档
+					taskDocuments.DELETE("/:documentId", app.GetDocumentHandler().DetachDocumentFromTask)
+				}
 		}
 	}
 }

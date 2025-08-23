@@ -589,7 +589,23 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // 处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const { name, arguments: args } = request.params;
+  let { name, arguments: args } = request.params as any;
+
+  // Robust arguments handling: allow stringified JSON
+  if (typeof args === 'string') {
+    try {
+      args = JSON.parse(args);
+    } catch (e: any) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Invalid arguments JSON: ${e.message}` }) }]
+      };
+    }
+  }
+  if (args == null || typeof args !== 'object') {
+    return {
+      content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Arguments must be an object' }) }]
+    };
+  }
 
   try {
     let result: any;
@@ -724,7 +740,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       default:
-        throw new Error(`Unknown tool: ${name}`);
+        return {
+          content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${name}` }) }]
+        };
     }
 
     return {
@@ -743,7 +761,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           type: 'text',
           text: JSON.stringify({
             success: false,
-            error: `工具调用失败: ${error.message}`
+            error: `工具调用失败: ${error?.message || String(error)}`
           }, null, 2)
         }
       ]
@@ -756,20 +774,21 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('Task MCP Server started successfully');
+
+  // Keep the server alive until stdio is closed by the host
+  await new Promise(() => {});
 }
 
-// 错误处理
+// 错误处理（不强制退出，避免关闭stdio通道）
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
 });
 
 main().catch((error) => {
   console.error('Failed to start MCP Server:', error);
-  process.exit(1);
+  // do not exit; let host manage lifecycle
 });

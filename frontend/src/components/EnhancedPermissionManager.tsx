@@ -534,7 +534,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
       render: (recommended) => (
         <Space wrap>
           {recommended.map((item: string, index: number) => (
-            <Tag key={index} size="small">{item}</Tag>
+<Tag key={index}>{item}</Tag>
           ))}
         </Space>
       ),
@@ -736,7 +736,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
       render: (codes) => (
         <Space wrap>
           {codes.map((code: string, index: number) => (
-            <Tag key={index} size="small">{code}</Tag>
+<Tag key={index}>{code}</Tag>
           ))}
         </Space>
       ),
@@ -983,7 +983,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                             <Space wrap>
                               <Text strong>相关权限:</Text>
                               {suggestion.permissions.map((perm, index) => (
-                                <Tag key={index} size="small">{perm}</Tag>
+<Tag key={index}>{perm}</Tag>
                               ))}
                             </Space>
                           )}
@@ -1077,7 +1077,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                             <Text strong>适用场景:</Text>
                             <br />
                             {template.use_cases.map((useCase, index) => (
-                              <Tag key={index} size="small" style={{ marginTop: 4 }}>
+<Tag key={index} style={{ marginTop: 4 }}>
                                 {useCase}
                               </Tag>
                             ))}

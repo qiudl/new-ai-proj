@@ -30,7 +30,6 @@ import {
   BugOutlined,
   ThunderboltOutlined,
   GlobalOutlined,
-  ComponentOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
@@ -261,7 +260,12 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                 <RangePicker
                   size="small"
                   value={timeRange}
-                  onChange={(dates) => dates && setTimeRange(dates)}
+                  onChange={(dates) => {
+                    if (!dates) return;
+                    // dates is [Dayjs|null, Dayjs|null]; normalize to [Dayjs, Dayjs]
+                    const [start, end] = dates;
+                    if (start && end) setTimeRange([start, end]);
+                  }}
                   showTime
                   format="MM-DD HH:mm"
                 />

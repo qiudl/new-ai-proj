@@ -222,7 +222,7 @@ export const TaskTreeList: React.FC<TaskTreeListProps> = ({
         renderTasks()
       )}
 
-      <style jsx global>{`
+      <style>{`
         .task-tree-list {
           max-height: 400px;
           overflow-y: auto;

@@ -141,15 +141,15 @@ const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
             
             <Space size={4} wrap>
               {task.project_name && (
-                <Tag size="small" color="blue">{task.project_name}</Tag>
+<Tag color="blue">{task.project_name}</Tag>
               )}
               {estimatedTime && (
-                <Tag size="small" icon={<ClockCircleOutlined />}>
+<Tag icon={<ClockCircleOutlined />}>
                   {estimatedTime}
                 </Tag>
               )}
               {(task.priority || task.custom_fields?.priority) && (
-                <Tag size="small" color={priorityColor} icon={<FlagOutlined />}>
+<Tag color={priorityColor} icon={<FlagOutlined />}>
                   {(task.priority || task.custom_fields?.priority)?.toUpperCase()}
                 </Tag>
               )}
@@ -346,7 +346,7 @@ const DragDropTaskManager: React.FC<DragDropTaskManagerProps> = ({
         )}
       </DndContext>
 
-      <style jsx>{`
+      <style>{`
         .draggable-task-item.dragging {
           z-index: 999;
         }

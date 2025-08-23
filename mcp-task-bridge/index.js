@@ -387,13 +387,215 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ['siblingId', 'title']
                 }
+            },
+            {
+                name: 'create_batch_documents',
+                description: '批量创建文档并自动关联到任务',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        documents: {
+                            type: 'array',
+                            description: '文档列表',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    title: { type: 'string', description: '文档标题' },
+                                    content: { type: 'string', description: '文档内容' },
+                                    description: { type: 'string', description: '文档描述' },
+                                    type: {
+                                        type: 'string',
+                                        enum: ['markdown', 'txt', 'pdf'],
+                                        description: '文档类型',
+                                        default: 'markdown'
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: ['draft', 'published', 'archived'],
+                                        description: '文档状态',
+                                        default: 'draft'
+                                    },
+                                    visibility: {
+                                        type: 'string',
+                                        enum: ['private', 'team', 'public'],
+                                        description: '可见性',
+                                        default: 'team'
+                                    },
+                                    tags: {
+                                        type: 'array',
+                                        items: { type: 'string' },
+                                        description: '标签列表'
+                                    },
+                                    taskId: { type: 'number', description: '关联任务ID（可选）' },
+                                    projectId: { type: 'number', description: '项目ID（可选）' },
+                                    attachToTask: { type: 'boolean', description: '是否自动关联到任务', default: false },
+                                    relationType: {
+                                        type: 'string',
+                                        enum: ['attachment', 'main', 'reference'],
+                                        description: '关联类型',
+                                        default: 'attachment'
+                                    },
+                                    isTemplate: { type: 'boolean', description: '是否为模板', default: false }
+                                },
+                                required: ['title', 'content']
+                            }
+                        }
+                    },
+                    required: ['documents']
+                }
+            },
+            {
+                name: 'generate_document_from_template',
+                description: '基于模板生成智能文档内容',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        templateType: {
+                            type: 'string',
+                            enum: ['bug_report', 'feature_spec', 'meeting_notes', 'project_plan', 'api_documentation', 'test_plan', 'user_story', 'technical_design'],
+                            description: '文档模板类型'
+                        },
+                        context: {
+                            type: 'object',
+                            description: '上下文信息',
+                            properties: {
+                                taskId: { type: 'number', description: '任务ID' },
+                                projectId: { type: 'number', description: '项目ID' },
+                                title: { type: 'string', description: '文档标题' },
+                                requirements: { type: 'string', description: '具体需求或描述' },
+                                priority: {
+                                    type: 'string',
+                                    enum: ['low', 'medium', 'high'],
+                                    description: '优先级'
+                                },
+                                deadline: { type: 'string', description: '截止日期' },
+                                assignee: { type: 'string', description: '负责人' },
+                                tags: {
+                                    type: 'array',
+                                    items: { type: 'string' },
+                                    description: '相关标签'
+                                }
+                            }
+                        },
+                        autoCreate: {
+                            type: 'boolean',
+                            description: '是否自动创建文档',
+                            default: false
+                        }
+                    },
+                    required: ['templateType', 'context']
+                }
+            },
+            {
+                name: 'auto_fill_task_context',
+                description: '自动填充任务上下文到文档模板',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        taskIds: {
+                            type: 'array',
+                            items: { type: 'number' },
+                            description: '任务ID列表'
+                        },
+                        templateType: {
+                            type: 'string',
+                            enum: ['progress_report', 'task_summary', 'completion_report', 'status_update'],
+                            description: '报告模板类型'
+                        },
+                        includeSubtasks: {
+                            type: 'boolean',
+                            description: '是否包含子任务',
+                            default: true
+                        },
+                        includeDocuments: {
+                            type: 'boolean',
+                            description: '是否包含相关文档',
+                            default: true
+                        },
+                        includeTimeLogs: {
+                            type: 'boolean',
+                            description: '是否包含时间记录',
+                            default: true
+                        },
+                        dateRange: {
+                            type: 'object',
+                            description: '日期范围',
+                            properties: {
+                                startDate: { type: 'string', description: '开始日期 (YYYY-MM-DD)' },
+                                endDate: { type: 'string', description: '结束日期 (YYYY-MM-DD)' }
+                            }
+                        }
+                    },
+                    required: ['taskIds', 'templateType']
+                }
+            },
+            {
+                name: 'create_task_docs',
+                description: '批量为任务创建技术文档（Claude Code专用命令）',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        task_ids: {
+                            type: 'array',
+                            items: { type: 'number' },
+                            description: '指定任务ID列表（可选，与date_filter二选一）'
+                        },
+                        date_filter: {
+                            type: 'string',
+                            enum: ['today', 'yesterday', 'this_week', 'last_week', 'this_month', 'last_month'],
+                            description: '按日期过滤任务（可选，与task_ids二选一）'
+                        },
+                        template_type: {
+                            type: 'string',
+                            enum: ['auto', 'bug_fix', 'feature', 'project_phase', 'technical_design', 'api_documentation'],
+                            description: '文档模板类型',
+                            default: 'auto'
+                        },
+                        auto_attach: {
+                            type: 'boolean',
+                            description: '是否自动关联文档到任务',
+                            default: true
+                        },
+                        skip_existing: {
+                            type: 'boolean',
+                            description: '是否跳过已有文档的任务',
+                            default: true
+                        },
+                        project_id: {
+                            type: 'number',
+                            description: '项目ID（可选，默认为1）',
+                            default: 1
+                        },
+                        batch_size: {
+                            type: 'number',
+                            description: '批量处理大小',
+                            default: 10
+                        }
+                    }
+                }
             }
         ]
     };
 });
 // 处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
+    let { name, arguments: args } = request.params;
+    // Robust arguments handling: allow stringified JSON
+    if (typeof args === 'string') {
+        try {
+            args = JSON.parse(args);
+        }
+        catch (e) {
+            return {
+                content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Invalid arguments JSON: ${e.message}` }) }]
+            };
+        }
+    }
+    if (args == null || typeof args !== 'object') {
+        return {
+            content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Arguments must be an object' }) }]
+        };
+    }
     try {
         let result;
         switch (name) {
@@ -460,8 +662,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'create_sibling_task':
                 result = await taskServer.createSiblingTask(args.siblingId, args.title, args.description, args.status, args.priority);
                 break;
+            case 'create_batch_documents':
+                result = await taskServer.createBatchDocuments(args.documents);
+                break;
+            case 'generate_document_from_template':
+                result = await taskServer.generateDocumentFromTemplate(args.templateType, args.context, args.autoCreate);
+                break;
+            case 'auto_fill_task_context':
+                result = await taskServer.autoFillTaskContext(args.taskIds, args.templateType, args.includeSubtasks, args.includeDocuments, args.includeTimeLogs, args.dateRange);
+                break;
+            case 'create_task_docs':
+                result = await taskServer.createTaskDocs({
+                    task_ids: args.task_ids,
+                    date_filter: args.date_filter,
+                    template_type: args.template_type,
+                    auto_attach: args.auto_attach,
+                    skip_existing: args.skip_existing,
+                    project_id: args.project_id,
+                    batch_size: args.batch_size
+                });
+                break;
             default:
-                throw new Error(`Unknown tool: ${name}`);
+                return {
+                    content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${name}` }) }]
+                };
         }
         return {
             content: [
@@ -480,7 +704,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     type: 'text',
                     text: JSON.stringify({
                         success: false,
-                        error: `工具调用失败: ${error.message}`
+                        error: `工具调用失败: ${error?.message || String(error)}`
                     }, null, 2)
                 }
             ]
@@ -492,17 +716,17 @@ async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error('Task MCP Server started successfully');
+    // Keep the server alive until stdio is closed by the host
+    await new Promise(() => { });
 }
-// 错误处理
+// 错误处理（不强制退出，避免关闭stdio通道）
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
-    process.exit(1);
 });
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    process.exit(1);
 });
 main().catch((error) => {
     console.error('Failed to start MCP Server:', error);
-    process.exit(1);
+    // do not exit; let host manage lifecycle
 });

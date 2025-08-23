@@ -1,4 +1,4 @@
-package handlers
+package handlers_test
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	apphandlers "ai-project-backend/handlers"
 	"ai-project-backend/database"
 	"github.com/gin-gonic/gin"
 )
@@ -53,7 +54,7 @@ func TestCreateAndAttachDocument_Success(t *testing.T) {
 
 	projectID, taskID := ensurePrerequisites(t, sqlDB)
 
-	h := NewDocumentHandler(pdb)
+	h := apphandlers.NewDocumentHandler(pdb)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/projects/:id/tasks/:taskId/documents/create-and-attach", func(c *gin.Context) {
@@ -84,7 +85,7 @@ func TestCreateAndAttachDocument_RollbackOnAttachError(t *testing.T) {
 
 	projectID, _ := ensurePrerequisites(t, sqlDB)
 
-	h := NewDocumentHandler(pdb)
+	h := apphandlers.NewDocumentHandler(pdb)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/api/v1/projects/:id/tasks/:taskId/documents/create-and-attach", func(c *gin.Context) {

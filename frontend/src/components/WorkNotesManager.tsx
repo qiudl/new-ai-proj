@@ -333,7 +333,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       width: 150,
       render: (tags: string[]) =>
         tags?.map(tag => (
-          <Tag key={tag} size="small">{tag}</Tag>
+          <Tag key={tag}>{tag}</Tag>
         )),
     },
     {
@@ -456,8 +456,6 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 pageSizeOptions: ['10', '20', '50', '100'],
               }}
               size="small"
-              defaultSortField="updated_at"
-              defaultSortOrder="descend"
             />
           )}
         </Spin>

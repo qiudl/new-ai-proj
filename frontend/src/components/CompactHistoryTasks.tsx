@@ -25,7 +25,16 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
   onTaskSelect,
   compact = true
 }) => {
-  const [tasks, setTasks] = useState<any[]>([]);
+  interface RecentTask {
+    task_id: number;
+    task_title: string;
+    project_name: string;
+    last_timed_at?: string;
+    total_seconds: number;
+    status: string;
+    is_deleted?: boolean;
+  }
+  const [tasks, setTasks] = useState<RecentTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
@@ -68,7 +77,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
         setError(null);
         setHasMore(false);
       } else {
-        setError(error.message || '加载失败');
+        setError((error as any)?.message || '加载失败');
         setTasks([]);
         setHasMore(false);
       }
@@ -118,7 +127,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
   }, [loadHistoryTasks]);
 
   // 处理任务点击
-  const handleTaskClick = useCallback(async (task: unknown) => {
+  const handleTaskClick = useCallback(async (task: RecentTask) => {
     if (onTaskSelect && !task.is_deleted) {
       try {
         const result = onTaskSelect(task.task_id, task.task_title);
@@ -210,7 +219,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
           {tasks.length > 0 ? (
             <List
               dataSource={tasks}
-              renderItem={(task: unknown) => (
+              renderItem={(task: RecentTask) => (
                 <List.Item 
                   className={`compact-task-item ${task.is_deleted ? 'task-deleted' : ''}`}
                   onMouseEnter={(e) => {
@@ -240,7 +249,6 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                       <div className="compact-task-actions">
                         {task.is_deleted && (
                           <Tag 
-                            size="small" 
                             color="red"
                             className="compact-task-status"
                           >
@@ -248,7 +256,6 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                           </Tag>
                         )}
                         <Tag 
-                          size="small" 
                           color={getStatusColor(task.status)}
                           className="compact-task-status"
                         >

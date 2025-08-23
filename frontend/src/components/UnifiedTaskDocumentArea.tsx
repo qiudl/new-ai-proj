@@ -144,7 +144,7 @@ const DocumentListItem: React.FC<{
     switch (document.type) {
       case 'markdown': return <FileTextOutlined style={{ color: '#1890ff' }} />;
       case 'pdf': return <FileTextOutlined style={{ color: '#ff4d4f' }} />;
-      case 'text': return <FileTextOutlined style={{ color: '#52c41a' }} />;
+      case 'txt': return <FileTextOutlined style={{ color: '#52c41a' }} />;
       default: return <FileTextOutlined />;
     }
   };
@@ -195,10 +195,10 @@ const DocumentListItem: React.FC<{
           title={
             <Space>
               <Text strong>{document.title}</Text>
-              <Tag size="small">{document.type.toUpperCase()}</Tag>
-              {document.is_template && <Tag color="purple" size="small">模板</Tag>}
+              <Tag>{document.type.toUpperCase()}</Tag>
+              {document.is_template && <Tag color="purple">模板</Tag>}
               {document.sourceTaskId && currentTaskId && document.sourceTaskId !== currentTaskId && (
-                <Tag color="geekblue" size="small">子任务 #{document.sourceTaskId}</Tag>
+                <Tag color="geekblue">子任务 #{document.sourceTaskId}</Tag>
               )}
             </Space>
           }
@@ -458,7 +458,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   const shortcutGroups = useMemo(() => createDocumentShortcuts(shortcutCallbacks), [shortcutCallbacks]);
   
   // 注册快捷键
-  const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroups, true);
+const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroups);
 
   // 配置拖拽功能
   const dragDropConfig = useMemo(() => ({
@@ -621,7 +621,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         ? '# ' + newDocumentForm.title.trim() + '\n\n请在这里编写文档内容...'
         : '请在这里编写文档内容...';
         
-      const response = await documentService.createDocument(
+      const newDoc = await documentService.createDocument(
         newDocumentForm.title.trim(),
         content,
         {
@@ -639,8 +639,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       await loadDocuments();
       
       // 自动选中新创建的文档
-      if (response.document) {
-        setSelectedDocument(response.document);
+      if (newDoc) {
+        setSelectedDocument(newDoc);
         setViewMode('edit');
       }
     } catch (error) {
@@ -658,7 +658,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
         ? `# ${defaultTitle}\n\n请在这里编写文档内容...`
         : '请在这里编写文档内容...';
         
-      const response = await documentService.createDocument(
+      const newDoc = await documentService.createDocument(
         defaultTitle,
         content,
         {
@@ -674,8 +674,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       await loadDocuments();
       
       // 自动选中新创建的文档并切换到编辑模式
-      if (response.document) {
-        setSelectedDocument(response.document);
+      if (newDoc) {
+        setSelectedDocument(newDoc);
         setViewMode('edit');
       }
     } catch (error) {
@@ -770,7 +770,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
                         {doc.title}
                       </Text>
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                        {doc.is_template && <Tag color="purple" size="small" style={{ margin: 0, fontSize: '10px' }}>模板</Tag>}
+                        {doc.is_template && <Tag color="purple" style={{ margin: 0, fontSize: '10px' }}>模板</Tag>}
                         <Button
                           type="text"
                           icon={<EditOutlined />}
@@ -842,7 +842,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
                 >
                   <div style={{ marginRight: '12px' }}>
                     {doc.type === 'markdown' && <FileTextOutlined style={{ color: '#1890ff' }} />}
-                    {doc.type === 'text' && <FileTextOutlined style={{ color: '#52c41a' }} />}
+                    {doc.type === 'txt' && <FileTextOutlined style={{ color: '#52c41a' }} />}
                     {doc.type === 'pdf' && <FileTextOutlined style={{ color: '#ff4d4f' }} />}
                   </div>
                   <div style={{ flex: 1 }}>
@@ -889,7 +889,7 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
               >
                 <div style={{ marginBottom: '8px' }}>
                   {doc.type === 'markdown' && <FileTextOutlined style={{ fontSize: '24px', color: '#1890ff' }} />}
-                  {doc.type === 'text' && <FileTextOutlined style={{ fontSize: '24px', color: '#52c41a' }} />}
+                  {doc.type === 'txt' && <FileTextOutlined style={{ fontSize: '24px', color: '#52c41a' }} />}
                   {doc.type === 'pdf' && <FileTextOutlined style={{ fontSize: '24px', color: '#ff4d4f' }} />}
                 </div>
                 <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>

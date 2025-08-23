@@ -75,12 +75,12 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
           title: '当前有正在进行的计时',
           content: '开始新的计时会停止当前计时，是否继续？',
           onOk: async () => {
-            await startTimer(task.task_id);
+            await startTimer(task.task_id, task.task_title);
             message.success(`开始计时: ${task.task_title}`);
           }
         });
       } else {
-        await startTimer(task.task_id);
+        await startTimer(task.task_id, task.task_title);
         message.success(`开始计时: ${task.task_title}`);
       }
     } catch (error) {

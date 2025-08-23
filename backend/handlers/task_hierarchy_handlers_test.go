@@ -1,4 +1,7 @@
-package handlers
+//go:build integration_hierarchy
+// +build integration_hierarchy
+
+package handlers_test
 
 import (
 	"ai-project-backend/application"

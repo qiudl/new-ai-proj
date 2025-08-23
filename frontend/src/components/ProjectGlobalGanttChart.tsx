@@ -383,7 +383,7 @@ const ProjectGlobalGanttChart: React.FC<ProjectGlobalGanttChartProps> = ({
               
               {/* 关键路径标记 */}
               {task.isCriticalPath && (
-                <Tag color="red" size="small">
+<Tag color="red">
                   <FireOutlined style={{ fontSize: '10px' }} />
                   关键
                 </Tag>
@@ -391,7 +391,7 @@ const ProjectGlobalGanttChart: React.FC<ProjectGlobalGanttChartProps> = ({
               
               {/* 里程碑标记 */}
               {task.isMilestone && (
-                <Tag color="gold" size="small">
+<Tag color="gold">
                   <TrophyOutlined style={{ fontSize: '10px' }} />
                   里程碑
                 </Tag>

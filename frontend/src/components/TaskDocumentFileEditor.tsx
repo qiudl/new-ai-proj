@@ -7,11 +7,11 @@ import {
   EditOutlined,
   FileTextOutlined,
   GitlabOutlined,
-  ArchiveBoxOutlined
+  InboxOutlined
 } from '@ant-design/icons';
 import { taskDocumentFileService, TaskDocumentContent, GitCommit, DocumentDiff } from '../services/taskDocumentFileService';
-import { MarkdownEditor } from './MarkdownEditor';
-import { MarkdownPreview } from '../components/MarkdownPreview';
+import MarkdownEditor from './MarkdownEditor';
+import MarkdownRenderer from './MarkdownRenderer';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -294,7 +294,7 @@ updated_date: "${now}"
             </Button>
             {!isPersonalTask && (
               <Button
-                icon={<ArchiveBoxOutlined />}
+                icon={<InboxOutlined />}
                 onClick={archiveDocument}
                 size="small"
               >
@@ -329,14 +329,14 @@ updated_date: "${now}"
       <div style={{ minHeight: '600px', border: '1px solid #d9d9d9', borderRadius: '6px' }}>
         {previewMode ? (
           <div style={{ padding: '24px' }}>
-            <MarkdownPreview content={content} />
+            <MarkdownRenderer content={content} />
           </div>
         ) : (
           <MarkdownEditor
             value={content}
             onChange={handleContentChange}
             readOnly={readOnly}
-            height="600px"
+            height={600}
             placeholder="请输入文档内容..."
           />
         )}

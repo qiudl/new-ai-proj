@@ -224,10 +224,10 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
             >
               {task.title}
             </Text>
-            <Tag color={PRIORITY_COLORS[task.priority]} size="small">
+<Tag color={PRIORITY_COLORS[task.priority]}>
               {task.priority}
             </Tag>
-            <Tag color={STATUS_COLORS[task.status]} size="small">
+<Tag color={STATUS_COLORS[task.status]}>
               {task.status}
             </Tag>
             {task.warning && (

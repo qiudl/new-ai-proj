@@ -458,12 +458,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
         {note.tags && note.tags.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {note.tags.slice(0, 3).map(tag => (
-              <Tag key={tag} size="small" style={{ margin: 0 }}>
+              <Tag key={tag} style={{ margin: 0 }}>
                 {tag}
               </Tag>
             ))}
             {note.tags.length > 3 && (
-              <Tag size="small" style={{ margin: 0 }}>
+              <Tag style={{ margin: 0 }}>
                 +{note.tags.length - 3}
               </Tag>
             )}

@@ -481,6 +481,41 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                     </Descriptions.Item>
                   )}
                   
+                  {/* 文档质量检查展示 */}
+                  {docDetail.metadata && (docDetail.metadata as any).quality_check && (
+                    <Descriptions.Item label="质量检查" span={2}>
+                      {(() => {
+                        const qc = (docDetail.metadata as any).quality_check || {};
+                        const passed = !!qc.passed;
+                        const issues: string[] = qc.issues || [];
+                        return (
+                          <Space direction="vertical" size={4}>
+                            <Space>
+                              <Text>状态：</Text>
+                              {passed ? (
+                                <Tag color="green">达标</Tag>
+                              ) : (
+                                <Tag color="red">需完善</Tag>
+                              )}
+                            </Space>
+                            {!passed && issues.length > 0 && (
+                              <div>
+                                <Text type="secondary">问题：</Text>
+                                <ul style={{ margin: '4px 0 0 16px' }}>
+                                  {issues.map((it, idx) => (
+                                    <li key={idx}>
+                                      <Text type="secondary">{it}</Text>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </Space>
+                        );
+                      })()}
+                    </Descriptions.Item>
+                  )}
+                  
                   {docDetail.tags.length > 0 && (
                     <Descriptions.Item label="标签" span={2}>
                       <Space wrap>

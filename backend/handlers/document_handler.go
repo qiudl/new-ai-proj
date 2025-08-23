@@ -281,9 +281,13 @@ func (h *DocumentHandler) GetDocument(c *gin.Context) {
 
 // UpdateDocument 更新文档
 func (h *DocumentHandler) UpdateDocument(c *gin.Context) {
-	idStr := c.Param("id")
+	// 优先使用便捷路由上的 :documentId，其次回退到标准路由的 :id
+	idStr := c.Param("documentId")
+	if idStr == "" {
+		idStr = c.Param("id")
+	}
 	id, err := strconv.Atoi(idStr)
-	if err != nil {
+	if err != nil || id <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Invalid document ID",
@@ -561,6 +565,97 @@ func (h *DocumentHandler) SearchDocuments(c *gin.Context) {
 }
 
 // 任务文档相关API
+
+// UpsertTaskDocument 兼容旧的单数路由：当任务无文档则创建并关联；存在则更新首选文档内容
+// 支持：POST /api/v1/projects/:id/tasks/:taskId/document 与 PUT /api/v1/projects/:id/tasks/:taskId/document
+func (h *DocumentHandler) UpsertTaskDocument(c *gin.Context) {
+	// 路径参数
+	projectIDStr := c.Param("id")
+	taskIDStr := c.Param("taskId")
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil || projectID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid project ID"})
+		return
+	}
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil || taskID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid task ID"})
+		return
+	}
+
+	// 用户
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+	uid := userID.(int)
+
+	// 请求体
+	var body struct {
+		Title   string `json:"title"`
+		Content string `json:"content" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request format", "error": err.Error()})
+		return
+	}
+
+	// 读取当前任务文档
+	docs, err := h.docRepo.GetTaskDocuments(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read task documents", "error": err.Error()})
+		return
+	}
+
+	if len(docs) == 0 {
+		// 创建并关联（非事务最小实现）
+		// 默认元数据
+		title := body.Title
+		if strings.TrimSpace(title) == "" {
+			title = "Task Document"
+		}
+		content := body.Content
+		doc := &models.Document{
+			ProjectID:  &projectID,
+			Title:      title,
+			Content:    &content,
+			Type:       models.DocumentTypeMarkdown,
+			Status:     models.DocumentStatusDraft,
+			OwnerID:    uid,
+			Visibility: models.VisibilityTeam,
+			Version:    1,
+			IsTemplate: false,
+			CreatedBy:  uid,
+		}
+		created, err := h.docRepo.Create(c.Request.Context(), doc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create document", "error": err.Error()})
+			return
+		}
+		if err := h.docRepo.AttachToTask(c.Request.Context(), taskID, created.ID, "attachment", uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Document created but failed to attach to task", "error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Document created and attached successfully", "data": gin.H{"document_id": created.ID, "task_id": taskID, "project_id": projectID}})
+		return
+	}
+
+	// 选择一个要更新的文档（按 UpdatedAt 最大）
+	pick := docs[0]
+	for _, d := range docs {
+		if d.UpdatedAt.After(pick.UpdatedAt) {
+			pick = d
+		}
+	}
+	upd := &models.UpdateDocumentRequest{Content: body.Content}
+	updated, err := h.docRepo.Update(c.Request.Context(), pick.ID, upd)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update document", "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Document updated successfully", "data": updated})
+}
 
 // GetTaskDocuments 获取任务的文档列表
 func (h *DocumentHandler) GetTaskDocuments(c *gin.Context) {

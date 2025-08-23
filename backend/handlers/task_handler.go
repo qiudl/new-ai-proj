@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -296,6 +297,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
+	// Lifecycle trigger: Auto-create Task Description document upon task creation
+	go func() {
+		ctx := c.Request.Context()
+		if err := h.autoCreateTaskDescription(ctx, createdTask, userID); err != nil {
+			log.Printf("[AutoDoc] failed to create task description for task %d: %v", createdTask.ID, err)
+		}
+	}()
+
 	c.JSON(http.StatusCreated, models.NewSuccessResponse(createdTask.ToResponse(), "任务创建成功"))
 }
 
@@ -556,6 +565,17 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		}
 	}
 
+	// Lifecycle trigger: When status transitions to in_progress, auto-create Task Document if not exists
+	if originalStatus != "in_progress" && updatedTask.Status == "in_progress" {
+		uid := c.GetInt("user_id")
+		go func() {
+			ctx := c.Request.Context()
+			if err := h.autoCreateTaskMainDoc(ctx, updatedTask, uid); err != nil {
+				log.Printf("[AutoDoc] failed to create task main doc for task %d: %v", updatedTask.ID, err)
+			}
+		}()
+	}
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), "任务更新成功"))
 }
 
@@ -808,6 +828,237 @@ func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.
 		user.ID, taskID, models.FormatDuration(durationSeconds))
 
 	return nil
+}
+
+// ===== Auto document generation and quality checks =====
+
+// autoCreateTaskDescription creates an initial task description document and attaches it to the task.
+func (h *TaskHandler) autoCreateTaskDescription(ctx context.Context, task *models.Task, userID int) error {
+	// Build content using a standard template
+	projectName := ""
+	if p, err := h.db.Projects().GetByID(ctx, task.ProjectID); err == nil && p != nil {
+		projectName = p.Name
+	}
+
+	title := fmt.Sprintf("任务描述 - %s", task.Title)
+	content := h.renderTaskDescriptionTemplate(task, projectName)
+	metadata := models.DocumentMetadata{
+		"doc_kind":        "task_description",
+		"generated_by":    "lifecycle_trigger",
+		"generated_reason": "task_created",
+	}
+	issues, passed := h.runQualityCheck(content, "task_description")
+	metadata["quality_check"] = map[string]interface{}{
+		"passed":     passed,
+		"issues":     issues,
+		"checked_at": time.Now().Format(time.RFC3339),
+	}
+
+	// Create and attach via repository
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok {
+		return fmt.Errorf("sql.DB not available")
+	}
+	docRepo := database.NewDocumentRepository(sqlDB)
+	projID := task.ProjectID
+	doc := &models.Document{
+		ProjectID:  &projID,
+		Title:      title,
+		Content:    &content,
+		Type:       models.DocumentTypeMarkdown,
+		Status:     models.DocumentStatusDraft,
+		Tags:       []string{"auto_generated", "task_description"},
+		Metadata:   metadata,
+		OwnerID:    userID,
+		Visibility: models.VisibilityTeam,
+		Version:    1,
+		IsTemplate: false,
+		CreatedBy:  userID,
+	}
+	created, err := docRepo.Create(ctx, doc)
+	if err != nil {
+		return err
+	}
+	// Attach as main document
+	if err := docRepo.AttachToTask(ctx, task.ID, created.ID, "main", userID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// autoCreateTaskMainDoc creates a main task document when task moves to in_progress, if not exists.
+func (h *TaskHandler) autoCreateTaskMainDoc(ctx context.Context, task *models.Task, userID int) error {
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok {
+		return fmt.Errorf("sql.DB not available")
+	}
+	docRepo := database.NewDocumentRepository(sqlDB)
+	// Check existing docs to avoid duplicates
+	docs, err := docRepo.GetTaskDocuments(ctx, task.ID)
+	if err == nil {
+		for _, d := range docs {
+			if d != nil && d.Metadata != nil {
+				if kind, ok := d.Metadata["doc_kind"].(string); ok && kind == "task_doc" {
+					return nil // already exists
+				}
+			}
+			if strings.HasPrefix(d.Title, "任务文档 -") {
+				return nil
+			}
+		}
+	}
+	// Build content
+	projectName := ""
+	if p, err := h.db.Projects().GetByID(ctx, task.ProjectID); err == nil && p != nil {
+		projectName = p.Name
+	}
+	title := fmt.Sprintf("任务文档 - %s", task.Title)
+	content := h.renderTaskMainDocTemplate(task, projectName)
+	metadata := models.DocumentMetadata{
+		"doc_kind":        "task_doc",
+		"generated_by":    "lifecycle_trigger",
+		"generated_reason": "status_in_progress",
+	}
+	issues, passed := h.runQualityCheck(content, "task_doc")
+	metadata["quality_check"] = map[string]interface{}{
+		"passed":     passed,
+		"issues":     issues,
+		"checked_at": time.Now().Format(time.RFC3339),
+	}
+
+	projID := task.ProjectID
+	doc := &models.Document{
+		ProjectID:  &projID,
+		Title:      title,
+		Content:    &content,
+		Type:       models.DocumentTypeMarkdown,
+		Status:     models.DocumentStatusDraft,
+		Tags:       []string{"auto_generated", "task_doc"},
+		Metadata:   metadata,
+		OwnerID:    userID,
+		Visibility: models.VisibilityTeam,
+		Version:    1,
+		IsTemplate: false,
+		CreatedBy:  userID,
+	}
+	created, err := docRepo.Create(ctx, doc)
+	if err != nil {
+		return err
+	}
+	if err := docRepo.AttachToTask(ctx, task.ID, created.ID, "main", userID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// renderTaskDescriptionTemplate returns markdown content for task description
+func (h *TaskHandler) renderTaskDescriptionTemplate(task *models.Task, projectName string) string {
+	assignee := ""
+	if task.AssigneeID != nil {
+		if u, err := h.db.Users().GetByID(context.Background(), *task.AssigneeID); err == nil && u != nil {
+			assignee = u.Username
+		}
+	}
+	due := ""
+	if task.DueDate != nil {
+		due = task.DueDate.Format("2006-01-02")
+	}
+	b := &strings.Builder{}
+	fmt.Fprintf(b, "# 任务描述 - %s\n\n", task.Title)
+	fmt.Fprintf(b, "- 任务ID: %d\n", task.ID)
+	fmt.Fprintf(b, "- 项目: %s (#%d)\n", projectName, task.ProjectID)
+	if assignee != "" { fmt.Fprintf(b, "- 负责人: %s\n", assignee) }
+	fmt.Fprintf(b, "- 状态: %s\n", task.Status)
+	if due != "" { fmt.Fprintf(b, "- 期望截止: %s\n", due) }
+	b.WriteString("\n## 背景与目标\n- 背景：\n- 业务目标：\n- 技术目标：\n\n")
+	b.WriteString("## 范围定义\n- 在范围：\n- 不在范围：\n\n")
+	b.WriteString("## 验收标准\n- [ ] Given ..., When ..., Then ...\n- [ ] Given ..., When ..., Then ...\n- [ ] Given ..., When ..., Then ...\n\n")
+	b.WriteString("## 依赖与风险\n- 依赖：\n- 风险与对策：\n\n")
+	b.WriteString("## 里程碑计划\n- M1（设计冻结）：\n- M2（开发完成）：\n- M3（测试通过）：\n- M4（发布上线）：\n\n")
+	b.WriteString("## 成功指标\n- 指标与口径：\n")
+	return b.String()
+}
+
+// renderTaskMainDocTemplate returns markdown content for task main document
+func (h *TaskHandler) renderTaskMainDocTemplate(task *models.Task, projectName string) string {
+	b := &strings.Builder{}
+	fmt.Fprintf(b, "# 任务文档 - %s\n\n", task.Title)
+	fmt.Fprintf(b, "- 任务ID: %d\n- 项目: %s (#%d)\n", task.ID, projectName, task.ProjectID)
+	b.WriteString("- 环境要求：\n  - 开发：Docker PostgreSQL\n  - 生产：PostgreSQL\n  - CI：Jenkins（Docker-based Agent）\n\n")
+	b.WriteString("## 概览\n- 背景与目标（链接任务描述）：\n- 架构/流程图（占位）：\n\n")
+	b.WriteString("## 需求说明\n- 用户故事/用例：\n- 约束与合规：\n\n")
+	b.WriteString("## 技术方案\n- 系统架构：\n- 数据模型（ER/DDL摘要）：\n- 接口设计（REST/gRPC/GraphQL）：\n- 配置 & Feature Flags：\n\n")
+	b.WriteString("## 安全与合规\n- 身份与权限：\n- 数据安全（加密/脱敏）：\n- 审计与留痕：\n\n")
+	b.WriteString("## 测试计划\n- 单元/集成/端到端：\n- 回归清单与准入准出标准：\n\n")
+	b.WriteString("## 发布与运维\n- 部署流程：\n- 监控与告警（SLO/SLA）：\n- 回滚预案：\n\n")
+	b.WriteString("## 风险评估\n- 风险清单与应对：\n")
+	return b.String()
+}
+
+// runQualityCheck validates content structure and returns issues and pass flag
+func (h *TaskHandler) runQualityCheck(content string, kind string) ([]string, bool) {
+	issues := []string{}
+	minAccept := 3
+	minRisks := 1
+
+	// Required sections by kind
+	requiredSections := []string{}
+	switch kind {
+	case "task_description":
+		requiredSections = []string{"## 背景与目标", "## 范围定义", "## 验收标准", "## 依赖与风险"}
+	case "task_doc":
+		requiredSections = []string{"## 技术方案", "## 测试计划", "## 发布与运维", "## 风险评估"}
+	}
+	for _, sec := range requiredSections {
+		if !strings.Contains(content, sec) {
+			issues = append(issues, fmt.Sprintf("缺少必要章节: %s", sec))
+		}
+	}
+	// Count acceptance criteria
+	if strings.Contains(content, "## 验收标准") {
+		count := 0
+		lines := strings.Split(content, "\n")
+		inSec := false
+		for _, ln := range lines {
+			if strings.HasPrefix(strings.TrimSpace(ln), "## ") {
+				inSec = strings.HasPrefix(strings.TrimSpace(ln), "## 验收标准")
+				continue
+			}
+			if inSec {
+				trim := strings.TrimSpace(ln)
+				if strings.HasPrefix(trim, "- ") || strings.HasPrefix(trim, "- [ ]") || strings.HasPrefix(trim, "- [x]") {
+					count++
+				}
+			}
+		}
+		if count < minAccept {
+			issues = append(issues, fmt.Sprintf("验收标准条目过少: 期望≥%d, 实际=%d", minAccept, count))
+		}
+	}
+	// Count risks entries
+	if strings.Contains(content, "## 风险评估") || strings.Contains(content, "## 依赖与风险") {
+		count := 0
+		lines := strings.Split(content, "\n")
+		inSec := false
+		for _, ln := range lines {
+			if strings.HasPrefix(strings.TrimSpace(ln), "## ") {
+				inSec = strings.HasPrefix(strings.TrimSpace(ln), "## 风险评估") || strings.HasPrefix(strings.TrimSpace(ln), "## 依赖与风险")
+				continue
+			}
+			if inSec {
+				trim := strings.TrimSpace(ln)
+				if strings.HasPrefix(trim, "- ") || strings.HasPrefix(trim, "- [ ]") || strings.HasPrefix(trim, "- [x]") {
+					count++
+				}
+			}
+		}
+		if count < minRisks {
+			issues = append(issues, fmt.Sprintf("风险清单条目过少: 期望≥%d, 实际=%d", minRisks, count))
+		}
+	}
+
+	passed := len(issues) == 0
+	return issues, passed
 }
 
 // Helper functions for handling nullable values in task creation/update

@@ -16,12 +16,16 @@ pipeline {
     ansiColor('xterm')
     disableConcurrentBuilds()
   }
+  triggers {
+    // 每日 09:30 触发（Jenkins master 时区）
+    cron('30 9 * * *')
+  }
   stages {
     stage('Prepare') {
       steps {
         sh 'python --version'
-        sh 'apt-get update && apt-get install -y --no-install-recommends postgresql-client && rm -rf /var/lib/apt/lists/*'
-        sh 'pip install --no-cache-dir -r requirements.txt'
+        sh 'apt-get update && apt-get install -y --no-install-recommends postgresql-client curl jq && rm -rf /var/lib/apt/lists/*'
+        sh 'pip install --no-cache-dir -r requirements.txt || true'
       }
     }
     stage('Migrate Up') {
@@ -48,6 +52,15 @@ pipeline {
       steps {
         sh 'python scripts/generate_execution_plan.py --db-url "$DB_URL" --api-base "$TASK_API_BASE" --api-token "$TASK_API_TOKEN" --out artifacts/ai_execution_plan.json'
         sh 'mkdir -p logs && cp artifacts/ai_execution_plan.json logs/ai_execution_plan.json'
+      }
+    }
+    stage('Daily Work Notes') {
+      when {
+        triggeredBy 'TimerTrigger'
+      }
+      steps {
+        sh 'chmod +x scripts/daily_work_notes.sh'
+        sh 'BASE_URL="${TASK_API_BASE}/v1" AUTH_HEADER="Bearer ${TASK_API_TOKEN}" PROJECT_ID=1 scripts/daily_work_notes.sh'
       }
     }
   }

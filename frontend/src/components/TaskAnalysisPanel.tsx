@@ -504,7 +504,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
                   />
                   <div style={{ marginTop: 8 }}>
                     {Object.entries(stats.tags).slice(0, 3).map(([tag, count]) => (
-                      <Tag key={tag} size="small" style={{ marginBottom: 2 }}>
+<Tag key={tag} style={{ marginBottom: 2 }}>
                         {tag}: {count}
                       </Tag>
                     ))}
@@ -551,7 +551,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
                   </Tag>
                   <Space>
                     <Text>{item.count} 次</Text>
-                    <Tag color="blue" size="small">{item.trend}</Tag>
+<Tag color="blue">{item.trend}</Tag>
                   </Space>
                 </div>
               </List.Item>
@@ -828,7 +828,6 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
                                 <Tag
                                   key={tag}
                                   color={taskAnalysisService.getTagColor(tag)}
-                                  size="small"
                                 >
                                   {tag}
                                 </Tag>

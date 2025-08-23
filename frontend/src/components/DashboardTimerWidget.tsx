@@ -444,7 +444,6 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
                       task.priority === 'high' ? 'red' :
                       task.priority === 'medium' ? 'orange' : 'default'
 } 
-                    size="small"
                   >
                     {task.priority === 'high' ? '高' :
                      task.priority === 'medium' ? '中' : '低'}

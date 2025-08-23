@@ -133,7 +133,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                       <Text strong ellipsis style={{ maxWidth: 200 }}>
                         {result.title}
                       </Text>
-                      <Tag color={getStatusColor(result.status)} size="small">
+<Tag color={getStatusColor(result.status)}>
                         {result.status}
                       </Tag>
                     </Space>
@@ -272,7 +272,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
   };
 
   // 快捷搜索下拉菜单
-  const quickSearchMenu = {
+  const quickSearchMenu: import('antd').MenuProps = {
     items: [
       {
         key: 'documents',
@@ -302,7 +302,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
         }
       },
       {
-        type: 'divider'
+        type: 'divider' as const
       },
       {
         key: 'advanced',

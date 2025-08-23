@@ -1094,7 +1094,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           
           // 使用新的批量更新API
           const taskIds = selectedRowKeys.map(id => Number(id));
-          const result = await TaskService.batchUpdateTasks(projectId, taskIds, status);
+          const result = await TaskService.batchUpdateTasks(projectId, taskIds, { status });
           
           // 处理结果
           if (result.failed_tasks && result.failed_tasks.length > 0) {
@@ -1137,7 +1137,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             targetStatus: status,
             component: 'EnhancedProjectTaskManager'
           });
-          const errorMessage = error?.message || error?.error?.message || '批量更新状态失败';
+          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量更新状态失败';
           message.error(`批量更新状态失败: ${errorMessage}`);
         } finally {
           setBatchLoading(false);
@@ -1167,7 +1167,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           loadData();
         } catch (error: Error | unknown) {
           console.error('Error in batch priority update:', error);
-          const errorMessage = error?.message || error?.error?.message || '批量设置优先级失败';
+          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量设置优先级失败';
           message.error(`批量设置优先级失败: ${errorMessage}`);
         }
       }
@@ -1238,7 +1238,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           }
         } catch (error: Error | unknown) {
           console.error('Error in batch parent change:', error);
-          const errorMessage = error?.message || error?.error?.message || '批量更改父任务失败';
+          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量更改父任务失败';
           message.error(`批量更改父任务失败: ${errorMessage}`);
         } finally {
           setBatchLoading(false);
@@ -1277,7 +1277,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
           loadData();
         } catch (error: Error | unknown) {
           console.error('Error in batch delete:', error);
-          const errorMessage = error?.message || error?.error?.message || '批量删除失败';
+          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量删除失败';
           message.error(`批量删除失败: ${errorMessage}`);
         }
       }
@@ -1760,7 +1760,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   反选
                 </Button>
                 <Button
-                  size="小"
+size="small"
                   onClick={() => {
                     setSelectedRowKeys([]);
                     message.info('已取消选择');

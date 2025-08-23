@@ -285,12 +285,12 @@ func (h *AuditEnhancedHandler) formatAuditLogCSVRow(log *models.AuditLog) string
 		return field
 	}
 
-	return fmt.Sprintf("%d,%d,%s,%s,%d,%s\n",
+	return fmt.Sprintf("%d,%d,%s,%s,%s,%s\n",
 		log.ID,
 		log.UserID,
 		escapeCSV(log.Action),
 		escapeCSV(log.ResourceType),
-		log.ResourceID,
+		escapeCSV(log.ResourceID),
 		log.CreatedAt.Format(time.RFC3339),
 	)
 }

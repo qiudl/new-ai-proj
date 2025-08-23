@@ -472,10 +472,10 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
     >
       <Spin spinning={loading}>
         {showTabs ? (
-          <Tabs 
+            <Tabs 
             activeKey={activeTab} 
             onChange={setActiveTab}
-            size={compactMode ? 'small' : 'default'}
+            size={compactMode ? 'small' : 'middle'}
             items={[
               {
                 key: 'today',
