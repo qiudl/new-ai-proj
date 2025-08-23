@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip } from 'antd';
+import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip, Input, message } from 'antd';
 import { cleanupGlobalOverlays } from '../utils/overlayCleanup';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
+import { TaskService } from '../services/taskService';
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -47,6 +48,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return saved ? JSON.parse(saved) : false;
   });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [quickJumpLoading, setQuickJumpLoading] = useState(false);
 
   const handleMenuClick = (key: string) => {
     navigate(key);
@@ -77,6 +79,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }).catch((err) => {
         console.error('退出全屏失败:', err);
       });
+    }
+  };
+
+  // 任务ID快速跳转
+  const handleTaskQuickJump = async (raw: string) => {
+    const value = (raw || '').trim();
+    if (!value) {
+      message.warning('请输入任务ID');
+      return;
+    }
+    const match = value.match(/\d+/);
+    const taskId = match ? parseInt(match[0], 10) : NaN;
+    if (!taskId || Number.isNaN(taskId)) {
+      message.warning('请输入有效的任务ID');
+      return;
+    }
+
+    setQuickJumpLoading(true);
+    try {
+      // 通过全局任务接口解析项目ID
+      const resp = await TaskService.getAllTasks({ task_id: taskId, page: 1, page_size: 1 });
+      const task = Array.isArray(resp?.data) && resp.data.length > 0 ? resp.data[0] : null;
+      if (!task) {
+        message.error(`未找到任务 #${taskId}`);
+        return;
+      }
+      const projectId = (task as any).project_id;
+      if (!projectId) {
+        message.error('未获取到项目ID，无法跳转');
+        return;
+      }
+      navigate(`/projects/${projectId}/tasks/${taskId}`);
+    } catch (err) {
+      console.error('Quick jump failed:', err);
+      message.error('跳转失败，请稍后重试');
+    } finally {
+      setQuickJumpLoading(false);
     }
   };
 
@@ -406,6 +445,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </span>
             )}
           </div>
+          {/* 任务ID快速跳转 */}
+          <Input.Search
+            aria-label="任务ID快速跳转"
+            placeholder="输入任务ID，按回车跳转"
+            enterButton="跳转"
+            allowClear
+            size="middle"
+            loading={quickJumpLoading}
+            onSearch={handleTaskQuickJump}
+            style={{ width: 240 }}
+          />
         </div>
         <div className="user-info">
           <Space size="middle">
