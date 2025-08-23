@@ -446,8 +446,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             )}
           </div>
         </div>
-        <div className="user-info">
-          <Space size="middle">
+        <div className="user-info" style={{ display: 'flex', alignItems: 'center' }}>
+          <Space size="middle" align="center">
             <Tooltip title={isFullscreen ? '退出全屏' : '进入全屏'}>
               <Button
                 type="text"
