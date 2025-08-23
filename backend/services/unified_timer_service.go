@@ -201,7 +201,28 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 	}
 	defer tx.Rollback()
 
-// 4. 停止其他活动计时器 (如果需要)
+	// 3.1 家族互斥：若为项目任务并指定了 TaskID，则在事务内对同一家族的运行中计时器进行互斥处理
+	var pausedIDs []int
+	var familyRootID *int
+	if inferenceResult.Type == "project_task" && req.TaskID != nil && *req.TaskID > 0 {
+		rootID, familyIDs, err := s.getTaskFamilyRootAndIDs(ctx, tx, *req.TaskID)
+		if err != nil {
+			return &UnifiedTimerResponse{Success: false, Message: fmt.Sprintf("解析任务家族失败: %v", err)}, err
+		}
+		// 获取基于 user_id 与 rootID 的事务级建议锁，避免竞态
+		lockKey := computeAdvisoryKey(req.UserID, rootID)
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, lockKey); err != nil {
+			return &UnifiedTimerResponse{Success: false, Message: fmt.Sprintf("获取互斥锁失败: %v", err)}, err
+		}
+		// 暂停同一家族下当前用户的其它运行中计时器
+		pausedIDs, err = s.pauseFamilyRunningTimersInTx(ctx, tx, req.UserID, familyIDs)
+		if err != nil {
+			return &UnifiedTimerResponse{Success: false, Message: fmt.Sprintf("暂停家族内计时器失败: %v", err)}, err
+		}
+		familyRootID = &rootID
+	}
+
+	// 4. 停止其他活动计时器 (如果需要)
 	if req.AutoStopOthers != nil && *req.AutoStopOthers {
 		if err := s.stopActiveTimersInTx(ctx, tx, req.UserID); err != nil {
 			return &UnifiedTimerResponse{
@@ -211,8 +232,8 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 		}
 	}
 
-	// 5. 创建新计时记录
-	timerID, err := s.createTimerInTx(ctx, tx, req, inferenceResult)
+	// 5. 创建新计时记录（附带 family_key）
+	timerID, err := s.createTimerInTx(ctx, tx, req, inferenceResult, familyRootID)
 	if err != nil {
 		return &UnifiedTimerResponse{
 			Success: false,
@@ -239,17 +260,26 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 	// 8. 发送通知
 	go s.notifyTimerStarted(req.UserID, timerID, inferenceResult.Type, req.Title)
 
+	data := map[string]interface{}{
+		"inference_confidence": inferenceResult.Confidence,
+		"inference_reasoning":  inferenceResult.Reasoning,
+		"suggested_category":   inferenceResult.SuggestedCategory,
+	}
+	if len(pausedIDs) > 0 {
+		data["paused_timer_ids"] = pausedIDs
+		data["conflict_resolved"] = true
+	}
+	if familyRootID != nil {
+		data["family_root_task_id"] = *familyRootID
+	}
+
 	return &UnifiedTimerResponse{
 		Success:   true,
 		TimerID:   timerID,
 		TimerType: inferenceResult.Type,
 		Message:   fmt.Sprintf("%s计时已开始", s.getTimerTypeDisplayName(inferenceResult.Type)),
 		StartedAt: time.Now(),
-		Data: map[string]interface{}{
-			"inference_confidence": inferenceResult.Confidence,
-			"inference_reasoning":  inferenceResult.Reasoning,
-			"suggested_category":   inferenceResult.SuggestedCategory,
-		},
+		Data:      data,
 	}, nil
 }
 
@@ -923,7 +953,7 @@ func (s *unifiedTimerServiceImpl) stopActiveTimersInTx(ctx context.Context, tx *
 	return nil
 }
 
-func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.Tx, req *UnifiedStartTimerRequest, inference *InferenceResult) (int, error) {
+func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.Tx, req *UnifiedStartTimerRequest, inference *InferenceResult, familyKey *int) (int, error) {
 	// 处理metadata
 	metadataJSON := "{}"
 	if req.Metadata != nil {
@@ -940,19 +970,27 @@ func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.T
 		}
 	}
 
+	// 选择 family_key 值
+	var familyKeyVal interface{}
+	if familyKey != nil {
+		familyKeyVal = *familyKey
+	} else {
+		familyKeyVal = nil
+	}
+
 	// 1. 创建计时器记录
 	query := `
 		INSERT INTO unified_timer_logs (
 			user_id, target_type, target_id, target_title, target_metadata,
 			start_time, status, category, 
-			project_id, template_id,
+			project_id, template_id, family_key,
 			inference_confidence, inference_reasoning,
 			created_at, updated_at, created_by, source_type
 		) VALUES (
 			$1, $2, $3, $4, $5::jsonb,
 			NOW(), 'running', $6,
-			$7, $8,
-			$9, $10::jsonb,
+			$7, $8, $9,
+			$10, $11::jsonb,
 			NOW(), NOW(), $1, 'unified'
 		) RETURNING id
 	`
@@ -967,6 +1005,7 @@ func (s *unifiedTimerServiceImpl) createTimerInTx(ctx context.Context, tx *sql.T
 		inference.SuggestedCategory,
 		inference.ProjectID,
 		req.TemplateID,
+		familyKeyVal,
 		inference.Confidence,
 		reasoningJSON,
 	).Scan(&timerID)
@@ -1076,6 +1115,107 @@ func (s *unifiedTimerServiceImpl) formatDuration(seconds int) string {
 		return fmt.Sprintf("%d小时", hours)
 	}
 	return fmt.Sprintf("%d小时%d分钟", hours, remainingMinutes)
+}
+
+// ---- 家族互斥相关辅助方法 ----
+
+// getTaskFamilyRootAndIDs 解析某任务的根祖先ID以及全家族（根及其所有子孙）ID集合
+func (s *unifiedTimerServiceImpl) getTaskFamilyRootAndIDs(ctx context.Context, tx *sql.Tx, taskID int) (int, []int, error) {
+	// 1) 找根祖先
+	var rootID int
+	ancQuery := `
+		WITH RECURSIVE anc AS (
+			SELECT id, parent_id FROM tasks WHERE id = $1
+			UNION ALL
+			SELECT t.id, t.parent_id FROM tasks t JOIN anc ON t.id = anc.parent_id
+		)
+		SELECT id FROM anc WHERE parent_id IS NULL LIMIT 1
+	`
+	if err := tx.QueryRowContext(ctx, ancQuery, taskID).Scan(&rootID); err != nil {
+		return 0, nil, fmt.Errorf("无法定位任务根祖先: %w", err)
+	}
+	// 2) 找全家族（根及所有后代）
+	descQuery := `
+		WITH RECURSIVE tree AS (
+			SELECT $1::int AS id
+			UNION ALL
+			SELECT t.id FROM tasks t JOIN tree ON t.parent_id = tree.id
+		)
+		SELECT id FROM tree
+	`
+	rows, err := tx.QueryContext(ctx, descQuery, rootID)
+	if err != nil {
+		return 0, nil, fmt.Errorf("查询任务家族失败: %w", err)
+	}
+	defer rows.Close()
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return rootID, ids, nil
+}
+
+// pauseFamilyRunningTimersInTx 暂停当前用户在家族内的其他运行中计时器，返回被暂停的计时器ID列表
+func (s *unifiedTimerServiceImpl) pauseFamilyRunningTimersInTx(ctx context.Context, tx *sql.Tx, userID int, familyIDs []int) ([]int, error) {
+	if len(familyIDs) == 0 {
+		return nil, nil
+	}
+	// 构造 IN 子句
+	placeholders := make([]string, 0, len(familyIDs))
+	args := make([]interface{}, 0, 1+len(familyIDs))
+	args = append(args, userID)
+	for i, id := range familyIDs {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i+2))
+		args = append(args, id)
+	}
+	selectSQL := fmt.Sprintf(`
+		SELECT id FROM unified_timer_logs
+		WHERE user_id = $1
+		  AND status = 'running'
+		  AND target_type = 'project_task'
+		  AND target_id IN (%s)
+	`, strings.Join(placeholders, ","))
+	rows, err := tx.QueryContext(ctx, selectSQL, args...)
+	if err != nil {
+		return nil, fmt.Errorf("查询家族内运行中计时器失败: %w", err)
+	}
+	defer rows.Close()
+	var timerIDs []int
+	for rows.Next() {
+		var tid int
+		if err := rows.Scan(&tid); err == nil {
+			timerIDs = append(timerIDs, tid)
+		}
+	}
+	if len(timerIDs) == 0 {
+		return nil, nil
+	}
+	// 逐个暂停（记录事件）
+	now := time.Now()
+	evt := map[string]interface{}{"paused_at": now, "reason": "family_mutex"}
+	evtJSON, _ := json.Marshal(evt)
+	for _, tid := range timerIDs {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE unified_timer_logs
+			SET status = 'paused',
+			    pause_count = pause_count + 1,
+			    pause_events = COALESCE(pause_events, '[]'::jsonb) || $1::jsonb,
+			    updated_at = NOW()
+			WHERE id = $2 AND user_id = $3 AND status = 'running'
+		`, string(evtJSON), tid, userID); err != nil {
+			return nil, fmt.Errorf("暂停计时器 %d 失败: %w", tid, err)
+		}
+	}
+	return timerIDs, nil
+}
+
+// computeAdvisoryKey 组合 userID 与 familyRootID 生成 BIGINT 锁键
+func computeAdvisoryKey(userID, rootID int) int64 {
+	// 高32位 userID，低32位 rootID
+	return (int64(userID) << 32) | int64(uint32(rootID))
 }
 
 // extractProjectIDFromMetadata 尝试从metadata中提取project_id（支持多种键名和类型）
