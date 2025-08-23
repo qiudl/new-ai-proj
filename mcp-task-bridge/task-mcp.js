@@ -782,6 +782,43 @@ export class TaskMCPServer {
             };
         }
     }
+    // 始终创建并关联任务文档（不走更新路径）
+    async createAndAttachTaskDocument(taskId, content, projectId = 1, title) {
+        try {
+            console.error(`[DEBUG] 创建并关联任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+            // 验证任务存在并确定项目ID
+            const task = await this.findTaskById(taskId);
+            const actualProjectId = task.project_id || projectId;
+            const payload = {
+                title: title || (task.title ? `${task.title} 文档` : `Task ${taskId} 文档`),
+                content: content,
+                type: 'markdown',
+                status: 'draft',
+                visibility: 'team',
+                relationship_type: 'attachment'
+            };
+            const resp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, payload, {
+                headers: this.getHeaders(),
+                proxy: false
+            });
+            const data = resp.data?.data || resp.data || {};
+            return {
+                success: true,
+                task_id: taskId,
+                project_id: actualProjectId,
+                document_id: data.document_id,
+                created: true,
+                message: `✅ 已创建并关联任务文档 (task #${taskId})`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 创建并关联任务文档失败:`, error.response?.data || error.message);
+            return {
+                success: false,
+                error: `创建并关联任务文档失败: ${error.response?.data?.error || error.message}`
+            };
+        }
+    }
     // 获取任务文档内容（使用统一文档API）
     async getTaskDocument(taskId, projectId = 1) {
         try {

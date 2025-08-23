@@ -195,8 +195,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
-        name: 'create_or_update_task_document',
-        description: '创建或更新任务文档',
+        name: 'create-and-attach',
+        description: '创建并关联任务文档（总是创建新文档并关联到任务）',
         inputSchema: {
           type: 'object',
           properties: {
@@ -207,6 +207,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             content: { 
               type: 'string', 
               description: '文档内容（Markdown格式）' 
+            },
+            title: {
+              type: 'string',
+              description: '文档标题（可选）'
             },
             projectId: { 
               type: 'number', 
@@ -596,18 +600,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       args = JSON.parse(args);
     } catch (e: any) {
+      console.error(`[MCP] Invalid arguments JSON for tool ${name}:`, e?.message || e);
       return {
         content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Invalid arguments JSON: ${e.message}` }) }]
       };
     }
   }
   if (args == null || typeof args !== 'object') {
+    console.error(`[MCP] Bad arguments for tool ${name}: not an object`);
     return {
       content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Arguments must be an object' }) }]
     };
   }
 
   try {
+    console.error(`[MCP] Tool call received: ${name}`);
     let result: any;
 
     switch (name) {
@@ -646,11 +653,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.moveTask(args.id as number, args.targetProjectId as number);
         break;
       
-      case 'create_or_update_task_document':
-        result = await taskServer.createOrUpdateTaskDocument(
-          args.taskId as number, 
-          args.content as string, 
-          args.projectId as number
+      case 'create-and-attach':
+        result = await taskServer.createAndAttachTaskDocument(
+          args.taskId as number,
+          args.content as string,
+          args.projectId as number,
+          args.title as string
         );
         break;
       
@@ -745,16 +753,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
     }
 
-    return {
+    const response = {
       content: [
         {
           type: 'text',
           text: JSON.stringify(result, null, 2)
         }
       ]
-    };
+    } as any;
+    console.error(`[MCP] Tool call succeeded: ${name}`);
+    return response;
   } catch (error: any) {
-    console.error(`[ERROR] Tool call failed:`, error);
+    console.error(`[MCP] Tool call failed: ${name}`, error?.message || error);
     return {
       content: [
         {

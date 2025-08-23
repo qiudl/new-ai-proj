@@ -186,8 +186,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
-                name: 'create_or_update_task_document',
-                description: '创建或更新任务文档',
+                name: 'create-and-attach',
+                description: '创建并关联任务文档（总是创建新文档并关联到任务）',
                 inputSchema: {
                     type: 'object',
                     properties: {
@@ -198,6 +198,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         content: {
                             type: 'string',
                             description: '文档内容（Markdown格式）'
+                        },
+                        title: {
+                            type: 'string',
+                            description: '文档标题（可选）'
                         },
                         projectId: {
                             type: 'number',
@@ -586,17 +590,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             args = JSON.parse(args);
         }
         catch (e) {
+            console.error(`[MCP] Invalid arguments JSON for tool ${name}:`, e?.message || e);
             return {
                 content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Invalid arguments JSON: ${e.message}` }) }]
             };
         }
     }
     if (args == null || typeof args !== 'object') {
+        console.error(`[MCP] Bad arguments for tool ${name}: not an object`);
         return {
             content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Arguments must be an object' }) }]
         };
     }
     try {
+        console.error(`[MCP] Tool call received: ${name}`);
         let result;
         switch (name) {
             case 'create_task':
@@ -626,8 +633,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'move_task':
                 result = await taskServer.moveTask(args.id, args.targetProjectId);
                 break;
-            case 'create_or_update_task_document':
-                result = await taskServer.createOrUpdateTaskDocument(args.taskId, args.content, args.projectId);
+            case 'create-and-attach':
+                result = await taskServer.createAndAttachTaskDocument(args.taskId, args.content, args.projectId, args.title);
                 break;
             case 'get_task_document':
                 result = await taskServer.getTaskDocument(args.taskId, args.projectId);
@@ -687,7 +694,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                     content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${name}` }) }]
                 };
         }
-        return {
+        const response = {
             content: [
                 {
                     type: 'text',
@@ -695,9 +702,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }
             ]
         };
+        console.error(`[MCP] Tool call succeeded: ${name}`);
+        return response;
     }
     catch (error) {
-        console.error(`[ERROR] Tool call failed:`, error);
+        console.error(`[MCP] Tool call failed: ${name}`, error?.message || error);
         return {
             content: [
                 {
