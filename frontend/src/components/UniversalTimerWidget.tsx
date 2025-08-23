@@ -107,6 +107,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   const [hasMoreTasks, setHasMoreTasks] = useState(false);
   const [loadingMoreTasks, setLoadingMoreTasks] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [hoveredTimerId, setHoveredTimerId] = useState<number | null>(null);
   
   // 从timerState提取状态 - 在状态变量定义之后
   const isRunning = timerState.isRunning;
@@ -1019,6 +1020,14 @@ const renderMainControls = () => (
       }
     };
 
+    const formatStart = (t: any) => {
+      try {
+        return t.start_time ? dayjs(t.start_time).format('YYYY-MM-DD HH:mm') : '';
+      } catch {
+        return '';
+      }
+    };
+
     return (
       <div style={{ marginTop: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1026,15 +1035,10 @@ const renderMainControls = () => (
             ⏱️ 活动计时（{activeTimers.length}）
           </Text>
           <Space size="small">
-            <Button size="small" disabled={!hasActive} onClick={pauseAll}>
-              全部暂停
-            </Button>
-            <Button size="small" type="primary" disabled={!hasActive} onClick={resumeAll}>
-              全部继续
-            </Button>
-            <Button size="small" danger disabled={!hasActive} onClick={stopAll}>
-              全部完成
-            </Button>
+            <Button size="small" disabled={!hasActive} onClick={pauseAll}>全部暂停</Button>
+            <Button size="small" type="primary" disabled={!hasActive} onClick={resumeAll}>全部继续</Button>
+            <Button size="small" danger disabled={!hasActive} onClick={stopAll}>全部完成</Button>
+            <Button type="link" size="small" onClick={refreshActiveTimers} style={{ fontSize: 12 }}>刷新</Button>
           </Space>
         </div>
         {!hasActive ? (
@@ -1043,33 +1047,67 @@ const renderMainControls = () => (
           </div>
         ) : (
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {activeTimers.map((t) => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: '8px 12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Badge color={t.status === 'running' ? '#52c41a' : '#faad14'} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>{t.target_title}</div>
-                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>{t.status === 'running' ? '运行中' : '已暂停'} · {calcElapsed(t)}</div>
+            {activeTimers.map((t) => {
+              const startText = formatStart(t);
+              const elapsedText = calcElapsed(t);
+              const projectId = (t as any).project_id;
+              const taskId = (t as any).target_id;
+              const linkable = projectId && taskId;
+
+              return (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: '8px 12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Badge color={t.status === 'running' ? '#52c41a' : '#faad14'} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {linkable ? (
+                        <a
+                          href={`/projects/${projectId}/tasks/${taskId}`}
+                          onClick={(e) => { e.preventDefault(); window.location.href = `/projects/${projectId}/tasks/${taskId}`; }}
+                          style={{ color: '#1890ff', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}
+                          onMouseEnter={() => setHoveredTimerId(t.id)}
+                          onMouseLeave={() => setHoveredTimerId(null)}
+                        >
+                          {t.target_title}
+                        </a>
+                      ) : (
+                        <span
+                          style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}
+                          onMouseEnter={() => setHoveredTimerId(t.id)}
+                          onMouseLeave={() => setHoveredTimerId(null)}
+                        >
+                          {t.target_title}
+                        </span>
+                      )}
+                      {/* 悬停时显示图标操作 */}
+                      <span
+                        onMouseEnter={() => setHoveredTimerId(t.id)}
+                        onMouseLeave={() => setHoveredTimerId(null)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      >
+                        {hoveredTimerId === t.id && (
+                          <>
+                            <Tooltip title={t.status === 'running' ? '暂停' : '继续'}>
+                              <Button
+                                size="small"
+                                type={t.status === 'running' ? 'default' : 'primary'}
+                                icon={t.status === 'running' ? <PauseOutlined /> : <PlayCircleOutlined />}
+                                onClick={() => (t.status === 'running' ? pauseTimerById(t.id) : resumeTimerById(t.id))}
+                              />
+                            </Tooltip>
+                            <Tooltip title="完成">
+                              <Button size="small" danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
+                            </Tooltip>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                      {startText && <span style={{ marginRight: 6 }}>{startText}</span>}已用时 {elapsedText}
+                    </div>
                   </div>
                 </div>
-                <Space size="small">
-                  {t.status === 'running' ? (
-                    <>
-                      <Button size="small" onClick={() => pauseTimerById(t.id)} icon={<PauseOutlined />}>暂停</Button>
-                      <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button size="small" type="primary" onClick={() => resumeTimerById(t.id)} icon={<PlayCircleOutlined />}>继续</Button>
-                      <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
-                    </>
-                  )}
-                </Space>
-              </div>
-            ))}
-            <div style={{ textAlign: 'right' }}>
-              <Button type="link" size="small" onClick={refreshActiveTimers} style={{ fontSize: 12 }}>刷新列表</Button>
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
