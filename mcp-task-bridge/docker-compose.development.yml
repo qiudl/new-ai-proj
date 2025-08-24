@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库服务
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcp-task-bridge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mcp_task_bridge_dev
+      POSTGRES_USER: mcp_user
+      POSTGRES_PASSWORD: mcp_dev_password_2024
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      # 数据持久化卷
+      - postgres_data:/var/lib/postgresql/data
+      # 初始化脚本
+      - ./database/init:/docker-entrypoint-initdb.d
+      # 配置文件
+      - ./database/config/postgresql.conf:/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcp_user -d mcp_task_bridge_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    command: >
+      postgres 
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c log_statement=all
+      -c log_min_duration_statement=100ms
+      -c shared_preload_libraries=pg_stat_statements
+    networks:
+      - mcp-network
+
+  # Redis 缓存服务 (为后续API开发准备)
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-task-bridge-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./database/config/redis.conf:/etc/redis/redis.conf
+    command: redis-server /etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - mcp-network
+
+  # 应用开发容器 (热重载支持)
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mcp-task-bridge-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://mcp_user:mcp_dev_password_2024@postgres:5432/mcp_task_bridge_dev
+      REDIS_URL: redis://redis:6379
+      MCP_API_BASE: http://localhost:8787/mcp
+      TASK_API_BASE: http://localhost:8080/api/v1
+      LOG_LEVEL: debug
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js调试端口
+    volumes:
+      # 源代码映射 (热重载)
+      - .:/app
+      - /app/node_modules
+      # 日志持久化
+      - app_logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["npm", "run", "dev"]
+    networks:
+      - mcp-network
+
+  # pgAdmin 数据库管理工具
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: mcp-task-bridge-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@mcp-bridge.local
+      PGADMIN_DEFAULT_PASSWORD: pgadmin_dev_2024
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      # 预配置服务器连接
+      - ./database/pgadmin/servers.json:/pgadmin4/servers.json
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - mcp-network
+
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/postgres
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/redis
+  app_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  pgadmin_data:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# 开发环境标签
+x-dev-environment: &dev-env
+  NODE_ENV: development
+  DEBUG: "mcp:*"
+  LOG_LEVEL: debug

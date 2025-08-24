@@ -1,0 +1,66 @@
+# 基础Jenkins插件
+configuration-as-code:latest
+workflow-aggregator:latest
+git:latest
+credentials-binding:latest
+ssh-agent:latest
+matrix-auth:latest
+timestamper:latest
+credentials:latest
+
+# Docker支持
+docker-plugin:latest
+docker-workflow:latest
+
+# Pipeline和DSL
+job-dsl:latest
+pipeline-stage-view:latest
+pipeline-graph-analysis:latest
+pipeline-milestone-step:latest
+
+# 并行处理和任务管理
+parallel-test-executor:latest
+build-timeout:latest
+throttle-concurrents:latest
+lockable-resources:latest
+
+# AI开发专用插件
+# 任务依赖管理
+parameterized-trigger:latest
+conditional-buildstep:latest
+join:latest
+
+# 通知和集成
+slack:latest
+email-ext:latest
+http_request:latest
+
+# 监控和报告
+build-monitor-plugin:latest
+dashboard-view:latest
+build-pipeline-plugin:latest
+
+# GitHub集成
+github:latest
+github-branch-source:latest
+pipeline-github-lib:latest
+
+# Blue Ocean界面
+blueocean:latest
+
+# 性能和监控
+prometheus:latest
+influxdb:latest
+
+# 脚本和自动化
+groovy:latest
+scriptler:latest
+active-choices:latest
+
+# 文件和工作空间管理
+workspace-cleanup:latest
+copy-artifact:latest
+
+# 安全增强
+role-strategy:latest
+authorize-project:latest

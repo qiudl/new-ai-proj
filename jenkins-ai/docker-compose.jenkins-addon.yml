@@ -1,0 +1,92 @@
+# AI Jenkins 插件式集成配置
+# 集成到现有的 docker-compose.dev.yml 开发环境中
+
+services:
+  # AI增强的Jenkins服务 - 集成到现有环境
+  ai-jenkins:
+    build:
+      context: ./jenkins-ai
+      dockerfile: Dockerfile
+    container_name: ai_jenkins
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      # Jenkins基础配置
+      JENKINS_OPTS: "--httpPort=8080"
+      JAVA_OPTS: >
+        -Xmx2g -Xms512m
+        -Djava.awt.headless=true
+        -Djenkins.install.runSetupWizard=false
+        -Dcasc.jenkins.config=/var/jenkins_home/casc/jenkins.yaml
+        
+      # 集成现有服务
+      AI_BACKEND_URL: http://backend:8080/api/v1
+      AI_MCP_URL: http://mcp-server:3000
+      AI_DB_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db
+      
+      # AI开发专用配置
+      AI_MAX_CONCURRENT_AGENTS: 4
+      AI_TASK_TIMEOUT: 3600
+      AI_DEPENDENCY_CHECK_INTERVAL: 30
+      
+      # 访问现有服务的Token
+      AI_BACKEND_TOKEN: ${AI_BACKEND_TOKEN:-dev-token-for-jenkins}
+      
+      # Docker集成（访问宿主Docker）
+      DOCKER_HOST: unix:///var/run/docker.sock
+      
+    ports:
+      - "8080:8080"  # Jenkins Web界面
+      - "50000:50000"  # Jenkins Agent端口
+    
+    volumes:
+      # Jenkins持久化
+      - jenkins_home:/var/jenkins_home
+      
+      # 配置文件
+      - ./jenkins-ai/casc:/var/jenkins_home/casc:ro
+      - ./jenkins-ai/jobs:/var/jenkins_home/jobs:ro
+      - ./jenkins-ai/ai-scripts:/var/jenkins_home/ai-scripts:ro
+      
+      # 访问项目代码（只读）
+      - ./backend:/workspace/backend:ro
+      - ./frontend:/workspace/frontend:ro
+      - ./mcp-task-bridge:/workspace/mcp:ro
+      - ./scripts:/workspace/scripts:ro
+      
+      # Docker socket（用于构建和部署）
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Git配置
+      - ~/.gitconfig:/var/jenkins_home/.gitconfig:ro
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    
+    restart: unless-stopped
+    
+    # 加入现有开发网络
+    networks:
+      - ai_dev_network
+    
+    # 用户配置（避免权限问题）
+    user: "1000:1000"
+
+# 扩展现有网络（不创建新网络）
+networks:
+  ai_dev_network:
+    external: true
+
+# 新增数据卷
+volumes:
+  jenkins_home:
+    driver: local

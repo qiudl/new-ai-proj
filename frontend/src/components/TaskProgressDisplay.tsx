@@ -10,7 +10,7 @@ import {
   WarningOutlined 
 } from '@ant-design/icons';
 import { useProgress, useRecomputeProgress, formatProgress, getProgressColor } from '../hooks/useProgress';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns/formatDistanceToNow';
 import { zhCN } from 'date-fns/locale';
 
 const { Panel } = Collapse;

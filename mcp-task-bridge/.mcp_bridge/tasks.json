@@ -1,13 +1,22 @@
 {
   "579": {
     "id": 579,
-    "status": "in_progress",
-    "updatedAt": 1755992812
+    "status": "completed",
+    "updatedAt": 1755997658,
+    "progress": 100,
+    "completed_at": "2025-08-24T01:07:35Z",
+    "deliverables": [
+      "测试框架完成",
+      "验收标准建立",
+      "性能基准验证"
+    ]
   },
   "578": {
     "id": 578,
-    "status": "in_progress",
-    "updatedAt": 1755992806
+    "status": "completed",
+    "updatedAt": 1755997649,
+    "progress": 100,
+    "completed_at": "2025-08-24T01:07:27Z"
   },
   "574": {
     "id": 574,
@@ -16,27 +25,102 @@
   },
   "576": {
     "id": 576,
-    "status": "in_progress",
-    "updatedAt": 1755992794
+    "status": "completed",
+    "updatedAt": 1755997633,
+    "progress": 100,
+    "current_phase": "prisma_schema_completed",
+    "deliverables": [
+      "Prisma Schema完成",
+      "数据库迁移脚本",
+      "基线数据验证"
+    ],
+    "completed_at": "2025-08-24T01:07:11Z"
   },
   "577": {
     "id": 577,
-    "status": "in_progress",
-    "updatedAt": 1755992801
+    "status": "completed",
+    "updatedAt": 1755997641,
+    "progress": 100,
+    "completed_at": "2025-08-24T01:07:18Z"
   },
   "580": {
     "id": 580,
-    "status": "in_progress",
-    "updatedAt": 1755992819
+    "status": "completed",
+    "updatedAt": 1755997669,
+    "progress": 100,
+    "completed_at": "2025-08-24T01:07:46Z",
+    "deliverables": [
+      "Jenkins流水线配置",
+      "Docker自动化构建",
+      "CI/CD集成完成"
+    ]
   },
   "575": {
     "id": 575,
-    "status": "in_progress",
-    "updatedAt": 1755992789
+    "status": "completed",
+    "updatedAt": 1755997396,
+    "completed_at": "2025-08-24T01:03:14Z",
+    "deliverables": [
+      "Docker Compose配置完成",
+      "PostgreSQL+Redis环境就绪",
+      "开发环境验证通过"
+    ]
   },
   "523": {
     "id": 523,
+    "status": "completed",
+    "updatedAt": 1755997678,
+    "progress": 100,
+    "completed_at": "2025-08-24T01:07:55Z",
+    "completion_summary": "M1里程碑7个子任务全部完成，多AI并行开发成功"
+  },
+  "619901": {
+    "id": 619901,
+    "title": "修复任务619项目总结文档中的 Mermaid 流程图不显示",
+    "type": "bug",
     "status": "in_progress",
-    "updatedAt": 1755991578
+    "priority": "high",
+    "projectId": 619,
+    "parentId": 619,
+    "assignee": "documentor",
+    "co_assignees": [
+      "devops"
+    ],
+    "labels": [
+      "bug",
+      "documentation",
+      "mermaid"
+    ],
+    "reported_by": "user",
+    "reported_at": "2025-08-24T01:28:27Z",
+    "context": {
+      "doc_title": "任务619项目总结：多AI并行开发清理任务文档创建接口",
+      "doc_path": null,
+      "symptom": "Mermaid 流程图未渲染，仅以纯文本形式显示",
+      "environment": [
+        "VSCode 预览",
+        "静态HTML预览/导出",
+        "PDF 导出(如有)"
+      ]
+    },
+    "repro_steps": [
+      "打开项目目录，查找包含文档标题的markdown文件",
+      "在文档中定位 ```mermaid 代码块",
+      "在VSCode或浏览器静态预览中打开，观察mermaid未渲染",
+      "导出为HTML/PDF时也未正确渲染"
+    ],
+    "acceptance_criteria": [
+      "在VSCode内预览可正确渲染mermaid图",
+      "在静态HTML预览/导出中可正确渲染mermaid图",
+      "若需PDF导出，保证通过合适的工具链可渲染mermaid (如 mermaid-cli 或 puppeteer 渲染)"
+    ],
+    "updatedAt": 1756006722,
+    "deliverables": [
+      "docs/export/mermaid-inject.js",
+      "docs/export/mermaid-static.js",
+      "docs/export/export-pdf.js",
+      "package.json scripts: render:md, render:md:static, render:pdf",
+      "devDependencies: @mermaid-js/mermaid-cli, puppeteer"
+    ]
   }
 }

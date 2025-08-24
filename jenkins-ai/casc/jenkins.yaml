@@ -1,0 +1,182 @@
+# Jenkins Configuration as Code (JCasC)
+# AI并行开发专用配置
+
+jenkins:
+  systemMessage: "AI Parallel Development Jenkins - Powered by Claude Code"
+  numExecutors: 2
+  mode: NORMAL
+  quietPeriod: 5
+  scmCheckoutRetryCount: 3
+  
+  # 全局安全配置
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: "AI_BACKEND_URL"
+            value: "${AI_BACKEND_URL:-http://backend:8080/api/v1}"
+          - key: "AI_MCP_URL" 
+            value: "${AI_MCP_URL:-http://mcp-bridge:3000}"
+          - key: "AI_DB_URL"
+            value: "${AI_DB_URL}"
+          - key: "AI_MAX_CONCURRENT_AGENTS"
+            value: "${AI_MAX_CONCURRENT_AGENTS:-4}"
+          - key: "CLAUDE_CODE_BINARY"
+            value: "${CLAUDE_CODE_BINARY:-/usr/local/bin/claude}"
+
+security:
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
+  
+  # 授权策略
+  authorizationStrategy:
+    roleBased:
+      roles:
+        global:
+          - name: "admin"
+            description: "AI Development Administrator"
+            permissions:
+              - "Overall/Administer"
+            assignments:
+              - "admin"
+          - name: "ai-developer"
+            description: "AI Development Team"
+            permissions:
+              - "Overall/Read"
+              - "Job/Build"
+              - "Job/Cancel"
+              - "Job/Configure"
+              - "Job/Create"
+              - "Job/Delete"
+              - "Job/Discover"
+              - "Job/Read"
+              - "Job/Workspace"
+              - "Run/Delete"
+              - "Run/Update"
+              - "View/Configure"
+              - "View/Create"
+              - "View/Delete"
+              - "View/Read"
+            assignments:
+              - "authenticated"
+
+# 工具配置
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "/usr/bin/git"
+  
+  # Node.js for MCP Bridge
+  nodejs:
+    installations:
+      - name: "NodeJS-18"
+        home: "/usr/bin/node"
+        
+  # Python for AI scripts
+  python:
+    installations:
+      - name: "Python3"
+        home: "/usr/bin/python3"
+
+# Credential配置
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              id: "ai-backend-token"
+              description: "AI Backend API Token"
+              secret: "${AI_BACKEND_TOKEN:-default-token}"
+          - string:
+              id: "claude-api-key"
+              description: "Claude API Key"
+              secret: "${CLAUDE_API_KEY:-}"
+          - usernamePassword:
+              id: "ai-db-credentials"
+              description: "AI Database Credentials"
+              username: "${DB_USER:-dev_user}"
+              password: "${DB_PASSWORD:-dev_password_2024}"
+
+# 视图配置
+views:
+  - all:
+      name: "All Jobs"
+  - buildPipeline:
+      name: "AI Development Pipeline"
+      description: "AI并行开发流水线视图"
+      filterBuildQueue: false
+      filterExecutors: false
+      title: "AI Development Pipeline"
+      displayedBuilds: 10
+      selectedJob: "AI-Task-Coordinator"
+      consoleOutputLinkStyle: "Lightbox"
+      cssUrl: ""
+      triggerOnlyLatestJob: true
+      alwaysAllowManualTrigger: false
+      showPipelineParameters: true
+      showPipelineParametersInHeaders: true
+      showPipelineDefinitionHeader: true
+      startsWithParameters: false
+      refreshFrequency: 10
+
+# 全局库配置 (用于AI开发流水线)
+unclassified:
+  globalLibraries:
+    libraries:
+      - name: "ai-development-lib"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://github.com/your-org/jenkins-ai-lib.git"
+        implicit: false
+        allowVersionOverride: true
+        includeInChangesets: false
+
+  # Slack通知配置
+  slackNotifier:
+    teamDomain: "${SLACK_TEAM_DOMAIN:-}"
+    token: "${SLACK_TOKEN:-}"
+    room: "${SLACK_CHANNEL:-#ai-development}"
+    
+  # 邮件配置
+  mailer:
+    smtpHost: "${SMTP_HOST:-localhost}"
+    smtpPort: "${SMTP_PORT:-587}"
+    useSsl: false
+    useTls: true
+    charset: "UTF-8"
+    
+  # 并发构建配置
+  throttleJobProperty:
+    maxConcurrentPerNode: 4
+    maxConcurrentTotal: 8
+    throttleEnabled: true
+    throttleOption: "project"
+
+# Job DSL种子任务
+jobs:
+  - script: |
+      // AI任务协调器种子任务
+      job('AI-Task-Coordinator-Seed') {
+          description('生成AI并行开发任务的种子任务')
+          scm {
+              git {
+                  remote {
+                      url('${WORKSPACE}')
+                  }
+                  branch('*/develop')
+              }
+          }
+          steps {
+              dsl {
+                  external('jenkins-ai/jobs/*.groovy')
+                  removeAction('DELETE')
+                  removeViewAction('DELETE')
+              }
+          }
+          triggers {
+              scm('H/5 * * * *') // 每5分钟检查一次
+          }
+      }

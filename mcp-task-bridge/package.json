@@ -7,7 +7,10 @@
     "dev": "tsx watch index.ts",
     "build": "tsc",
     "test": "node test-mcp.js",
-    "test:create-attach": "node test-create-and-attach.js"
+    "test:create-attach": "node test-create-and-attach.js",
+    "render:md": "node docs/export/mermaid-inject.js",
+    "render:md:static": "node docs/export/mermaid-static.js",
+    "render:pdf": "node docs/export/export-pdf.js"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +26,9 @@
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
+    "@mermaid-js/mermaid-cli": "^10.9.1",
+    "markdown-it": "^14.1.0",
+    "puppeteer": "^23.6.0",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   },

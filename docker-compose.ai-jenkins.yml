@@ -1,0 +1,146 @@
+# AI并行开发专用的Jenkins配置
+# 基于集成环境，增强AI协作功能
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database (共享)
+  db:
+    image: postgres:16
+    container_name: ai_postgres_db
+    environment:
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_password_2024
+      POSTGRES_DB: ai_project_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ai_postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d ai_project_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Go Backend API (共享)
+  backend:
+    image: golang:1.24-alpine
+    container_name: ai_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/.env.docker
+    environment:
+      APP_ENV: development
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: dev_user
+      DB_PASSWORD: dev_password_2024
+      DB_NAME: ai_project_db
+    volumes:
+      - ./backend:/app:delegated
+      - go_mod_cache:/go/pkg/mod
+    working_dir: /app
+    command: sh -c "go mod download && go run main.go"
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # MCP Task Bridge (AI协调器)
+  mcp-bridge:
+    build:
+      context: ./mcp-task-bridge
+      dockerfile: Dockerfile
+    container_name: ai_mcp_bridge
+    depends_on:
+      - backend
+      - db
+    environment:
+      - NODE_ENV=development
+      - API_BASE_URL=http://backend:8080/api/v1
+      - POSTGRES_URL=postgresql://dev_user:dev_password_2024@db:5432/ai_project_db
+      - JENKINS_URL=http://jenkins:8080
+      - JENKINS_USER=admin
+      - JENKINS_TOKEN=${JENKINS_API_TOKEN}
+    ports:
+      - "3100:3000"
+    volumes:
+      - ./mcp-task-bridge:/app:cached
+      - mcp_node_modules:/app/node_modules
+    restart: unless-stopped
+
+  # AI-Enhanced Jenkins
+  jenkins:
+    build:
+      context: ./jenkins-ai
+      dockerfile: Dockerfile
+    container_name: ai_jenkins
+    depends_on:
+      - db
+      - backend
+      - mcp-bridge
+    environment:
+      # 基础配置
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2g -Xms1g
+      - JENKINS_ADMIN_ID=admin
+      - JENKINS_ADMIN_PASSWORD=admin123
+      
+      # AI开发环境配置
+      - AI_BACKEND_URL=http://backend:8080/api/v1
+      - AI_MCP_URL=http://mcp-bridge:3000
+      - AI_DB_URL=postgresql://dev_user:dev_password_2024@db:5432/ai_project_db
+      
+      # AI专家配置
+      - AI_MAX_CONCURRENT_AGENTS=4
+      - AI_TASK_TIMEOUT=3600
+      - AI_DEPENDENCY_CHECK_INTERVAL=30
+      
+      # Claude Code 集成
+      - CLAUDE_CODE_BINARY=/usr/local/bin/claude
+      - CLAUDE_CODE_CONFIG=/var/jenkins_home/claude-config
+    ports:
+      - "8080:8080"    # Jenkins Web UI
+      - "50000:50000"  # Jenkins Agent连接
+    volumes:
+      # Jenkins数据持久化
+      - ai_jenkins_home:/var/jenkins_home
+      
+      # 项目代码挂载 (用于AI开发)
+      - ./:/workspace:cached
+      
+      # Docker socket (用于容器化AI执行环境)
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Claude Code配置
+      - ~/.claude:/var/jenkins_home/.claude:ro
+      
+      # AI开发工具
+      - ./scripts:/var/jenkins_home/ai-scripts:ro
+    restart: unless-stopped
+    
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  ai_postgres_data:
+  ai_jenkins_home:
+  go_mod_cache:
+  mcp_node_modules:
+
+networks:
+  default:
+    name: ai-dev-network

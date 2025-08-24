@@ -1,21 +1,30 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { ListToolsRequestSchema, CallToolRequestSchema, } from '@modelcontextprotocol/sdk/types.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { TaskMCPServerFixed } from './task-mcp-fixed.js';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// 使用新的独立MCP服务器，而不是有问题的TaskMCPServer
-import { IndependentMCPServer } from './independent-mcp-server.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// 初始化独立的MCP服务器 - 不依赖Jenkins
-console.error('[MCP] 使用独立MCP服务器架构 - 不依赖外部系统');
-const taskServer = new IndependentMCPServer({
-    storagePath: './.mcp-documents',  // 使用本地存储
-    taskLinking: 'optional'  // 任务关联是可选功能
-});
+// 加载环境变量
+dotenv.config({ path: join(__dirname, '.env') });
+
+// 初始化修复后的连接后端的MCP服务器
+console.error('[MCP] 初始化修复后的TaskMCPServer（连接后端模式）');
+console.error('[MCP] API基础URL:', process.env.TASK_API_BASE || 'http://localhost:8081/api/v1');
+
+// 使用修复后的TaskMCPServer
+const taskServer = new TaskMCPServerFixed(
+    process.env.TASK_API_BASE || 'http://localhost:8081/api/v1'
+);
 
 // 创建 MCP Server
 const server = new Server({
-    name: 'task-manager-independent',
-    version: '2.0.0',  // 版本升级表示架构改进
+    name: 'task-manager-backend-fixed',
+    version: '3.1.0',  // 修复版本
 }, {
     capabilities: {
         tools: {},
@@ -32,14 +41,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        title: {
-                            type: 'string',
-                            description: '任务标题'
-                        },
-                        projectId: {
-                            type: 'number',
-                            description: '项目ID（可选，默认为1）'
-                        }
+                        title: { type: 'string', description: '任务标题' },
+                        projectId: { type: 'number', description: '项目ID（可选，默认为1）' }
                     },
                     required: ['title']
                 }
@@ -50,10 +53,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        id: {
-                            type: 'number',
-                            description: '任务ID'
-                        }
+                        id: { type: 'number', description: '任务ID' }
                     },
                     required: ['id']
                 }
@@ -64,10 +64,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        id: {
-                            type: 'number',
-                            description: '任务ID'
-                        }
+                        id: { type: 'number', description: '任务ID' }
                     },
                     required: ['id']
                 }
@@ -78,27 +75,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        projectId: {
-                            type: 'number',
-                            description: '项目ID（可选，不指定则显示所有任务）'
-                        }
+                        projectId: { type: 'number', description: '项目ID（可选，默认为1）' }
                     }
                 }
             },
             {
                 name: 'find_task',
-                description: '根据名称或ID搜索任务',
+                description: '根据ID或标题搜索任务',
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        titlePattern: {
-                            type: 'string',
-                            description: '任务标题搜索关键词（可选）'
-                        },
-                        id: {
-                            type: 'number',
-                            description: '任务ID（可选，优先使用）'
-                        }
+                        id: { type: 'number', description: '任务ID（优先使用）' },
+                        titlePattern: { type: 'string', description: '任务标题搜索关键词' }
                     }
                 }
             },
@@ -108,28 +96,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        id: {
-                            type: 'number',
-                            description: '要更新的任务ID'
-                        },
+                        id: { type: 'number', description: '任务ID' },
                         updates: {
                             type: 'object',
-                            description: '更新字段对象',
                             properties: {
-                                title: { type: 'string', description: '新标题' },
-                                description: { type: 'string', description: '新描述' },
-                                status: {
-                                    type: 'string',
-                                    enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'],
-                                    description: '新状态',
-                                    default: 'todo'
-                                },
-                                priority: {
-                                    type: 'string',
-                                    enum: ['low', 'medium', 'high'],
-                                    description: '新优先级',
-                                    default: 'low'
-                                }
+                                title: { type: 'string' },
+                                description: { type: 'string' },
+                                status: { type: 'string', enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived'] },
+                                priority: { type: 'string', enum: ['low', 'medium', 'high'] }
                             }
                         }
                     },
@@ -138,65 +112,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: 'create-and-attach',
-                description: '创建并关联任务文档（修复版 - 不依赖Jenkins验证）',
+                description: '创建并关联任务文档（修复版）',
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        taskId: {
-                            type: 'number',
-                            description: '任务ID（作为元数据存储，不需要预先存在）'
-                        },
-                        content: {
-                            type: 'string',
-                            description: '文档内容（Markdown格式）'
-                        },
-                        projectId: {
-                            type: 'number',
-                            description: '项目ID（可选，默认为1）',
-                            default: 1
-                        },
-                        title: {
-                            type: 'string',
-                            description: '文档标题（可选）'
-                        }
+                        taskId: { type: 'number', description: '任务ID' },
+                        content: { type: 'string', description: '文档内容（Markdown格式）' },
+                        projectId: { type: 'number', description: '项目ID（可选，默认为1）' },
+                        title: { type: 'string', description: '文档标题（可选）' }
                     },
                     required: ['taskId', 'content']
-                }
-            },
-            {
-                name: 'create_batch_documents',
-                description: '批量创建文档并自动关联到任务（修复版 - 不依赖Jenkins验证）',
-                inputSchema: {
-                    type: 'object',
-                    properties: {
-                        documents: {
-                            type: 'array',
-                            description: '文档列表',
-                            items: {
-                                type: 'object',
-                                properties: {
-                                    taskId: {
-                                        type: 'number',
-                                        description: '任务ID（作为元数据）'
-                                    },
-                                    title: {
-                                        type: 'string',
-                                        description: '文档标题'
-                                    },
-                                    content: {
-                                        type: 'string',
-                                        description: '文档内容'
-                                    },
-                                    projectId: {
-                                        type: 'number',
-                                        description: '项目ID（可选）'
-                                    }
-                                },
-                                required: ['taskId', 'title', 'content']
-                            }
-                        }
-                    },
-                    required: ['documents']
                 }
             },
             {
@@ -205,15 +130,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        taskId: {
-                            type: 'number',
-                            description: '任务ID'
-                        },
-                        projectId: {
-                            type: 'number',
-                            description: '项目ID（可选，默认为1）',
-                            default: 1
-                        }
+                        taskId: { type: 'number', description: '任务ID' },
+                        projectId: { type: 'number', description: '项目ID（可选，默认为1）' }
                     },
                     required: ['taskId']
                 }
@@ -224,15 +142,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 inputSchema: {
                     type: 'object',
                     properties: {
-                        taskId: {
-                            type: 'number',
-                            description: '任务ID'
-                        },
-                        projectId: {
-                            type: 'number',
-                            description: '项目ID（可选，默认为1）',
-                            default: 1
-                        }
+                        taskId: { type: 'number', description: '任务ID' },
+                        projectId: { type: 'number', description: '项目ID（可选，默认为1）' }
                     },
                     required: ['taskId']
                 }
@@ -243,108 +154,107 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // 处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    let { name, arguments: args } = request.params;
-    
-    // Robust arguments handling: allow stringified JSON
-    if (typeof args === 'string') {
-        try {
-            args = JSON.parse(args);
-        }
-        catch (e) {
-            console.error(`[MCP] Invalid arguments JSON for tool ${name}:`, e?.message || e);
-            return {
-                content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Invalid arguments JSON: ${e.message}` }) }]
-            };
-        }
-    }
-    
-    if (args == null || typeof args !== 'object') {
-        console.error(`[MCP] Bad arguments for tool ${name}: not an object`);
-        return {
-            content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'Arguments must be an object' }) }]
-        };
-    }
-    
+    const { name, arguments: args } = request.params;
+    let result;
+
     try {
-        console.error(`[MCP-INDEPENDENT] Tool call received: ${name}`);
-        let result;
+        console.error(`[MCP] 调用工具: ${name}`, args);
         
         switch (name) {
-            // 任务管理功能
             case 'create_task':
                 result = await taskServer.createTask(args.title, args.projectId);
                 break;
+                
             case 'start_task':
-                result = await taskServer.startTask(args.id);
+                result = await taskServer.updateTask(args.id, { status: 'in_progress' });
                 break;
+                
             case 'complete_task':
-                result = await taskServer.completeTask(args.id);
+                result = await taskServer.updateTask(args.id, { status: 'completed' });
                 break;
+                
             case 'list_tasks':
                 result = await taskServer.listTasks(args.projectId);
                 break;
+                
             case 'find_task':
-                result = await taskServer.findTask({ id: args.id, titlePattern: args.titlePattern });
+                result = await taskServer.findTask(args);
                 break;
+                
             case 'update_task':
                 result = await taskServer.updateTask(args.id, args.updates);
                 break;
                 
-            // 文档管理功能 - 修复版本
             case 'create-and-attach':
-                console.error(`[MCP-INDEPENDENT] 创建并关联文档: 任务 ${args.taskId}`);
-                result = await taskServer.createAndAttachTaskDocument(
-                    args.taskId, 
-                    args.content, 
-                    args.projectId || 1, 
+                result = await taskServer.createAndAttachDocument(
+                    args.taskId,
+                    args.content,
+                    args.projectId || 1,
                     args.title
                 );
                 break;
                 
-            case 'create_batch_documents':
-                console.error(`[MCP-INDEPENDENT] 批量创建文档: ${args.documents.length} 个`);
-                result = await taskServer.createBatchDocuments(args.documents);
-                break;
-                
             case 'get_task_document':
-                result = await taskServer.getTaskDocument(args.taskId, args.projectId);
+                // 暂时返回本地文档
+                const fs = await import('fs');
+                const path = await import('path');
+                const docPath = path.join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
+                
+                if (fs.existsSync(docPath)) {
+                    const content = fs.readFileSync(docPath, 'utf8');
+                    result = {
+                        success: true,
+                        task_id: args.taskId,
+                        content: content,
+                        message: '文档内容已获取'
+                    };
+                } else {
+                    result = {
+                        success: false,
+                        task_id: args.taskId,
+                        error: `任务 ${args.taskId} 暂无文档`,
+                        not_found: true
+                    };
+                }
                 break;
                 
             case 'has_task_document':
-                result = await taskServer.hasTaskDocument(args.taskId, args.projectId);
+                // 检查本地文档是否存在
+                const fs2 = await import('fs');
+                const path2 = await import('path');
+                const docPath2 = path2.join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
+                
+                result = {
+                    success: true,
+                    task_id: args.taskId,
+                    has_document: fs2.existsSync(docPath2),
+                    document_count: fs2.existsSync(docPath2) ? 1 : 0,
+                    message: fs2.existsSync(docPath2) ? `任务 ${args.taskId} 有文档` : `任务 ${args.taskId} 没有文档`
+                };
                 break;
                 
             default:
-                console.error(`[MCP-INDEPENDENT] 未知工具: ${name}`);
-                return {
-                    content: [{ type: 'text', text: JSON.stringify({ success: false, error: `Unknown tool: ${name}` }) }]
-                };
+                result = { success: false, error: `Unknown tool: ${name}` };
         }
         
-        const response = {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify(result, null, 2)
-                }
-            ]
-        };
+        console.error(`[MCP] 工具 ${name} 执行结果:`, result?.success ? '成功' : '失败');
         
-        console.error(`[MCP-INDEPENDENT] Tool call succeeded: ${name}`);
-        return response;
-        
-    } catch (error) {
-        console.error(`[MCP-INDEPENDENT] Tool call failed: ${name}`, error?.message || error);
         return {
-            content: [
-                {
-                    type: 'text',
-                    text: JSON.stringify({
-                        success: false,
-                        error: `工具调用失败: ${error?.message || String(error)}`
-                    }, null, 2)
-                }
-            ]
+            content: [{
+                type: 'text',
+                text: JSON.stringify(result)
+            }]
+        };
+    } catch (error) {
+        console.error(`[MCP] 工具 ${name} 执行错误:`, error);
+        return {
+            content: [{
+                type: 'text',
+                text: JSON.stringify({
+                    success: false,
+                    error: error.message
+                })
+            }]
         };
     }
 });
@@ -353,29 +263,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error('🚀 独立MCP服务器启动成功 - 无需Jenkins依赖！');
-    console.error('   - 文档创建功能完全独立');
-    console.error('   - create-and-attach 已修复');
-    console.error('   - create_batch_documents 已修复');
-    
-    // 执行健康检查
-    const health = await taskServer.healthCheck();
-    console.error(`[HEALTH] ${health.message}`);
-    
-    // Keep the server alive until stdio is closed by the host
-    await new Promise(() => { });
+    console.error('[MCP] TaskMCPServerFixed (后端连接模式) 已启动');
+    console.error('[MCP] 连接到:', process.env.TASK_API_BASE || 'http://localhost:8081/api/v1');
+    console.error('[MCP] 文档存储路径:', join(process.cwd(), '.mcp-documents'));
 }
 
-// 错误处理（不强制退出，避免关闭stdio通道）
-process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-main().catch((error) => {
-    console.error('Failed to start Independent MCP Server:', error);
-    // do not exit; let host manage lifecycle
-});
+main().catch(console.error);

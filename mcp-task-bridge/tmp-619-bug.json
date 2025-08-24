@@ -1,0 +1,33 @@
+{
+  "id": 619901,
+  "updates": {
+    "title": "修复任务619项目总结文档中的 Mermaid 流程图不显示",
+    "type": "bug",
+    "status": "todo",
+    "priority": "high",
+    "projectId": 619,
+    "parentId": 619,
+    "assignee": "documentor",
+    "co_assignees": ["devops"],
+    "labels": ["bug", "documentation", "mermaid"],
+    "reported_by": "user",
+    "reported_at": "2025-08-24T01:28:27Z",
+    "context": {
+      "doc_title": "任务619项目总结：多AI并行开发清理任务文档创建接口",
+      "doc_path": null,
+      "symptom": "Mermaid 流程图未渲染，仅以纯文本形式显示",
+      "environment": ["VSCode 预览", "静态HTML预览/导出", "PDF 导出(如有)"]
+    },
+    "repro_steps": [
+      "打开项目目录，查找包含文档标题的markdown文件",
+      "在文档中定位 ```mermaid 代码块",
+      "在VSCode或浏览器静态预览中打开，观察mermaid未渲染",
+      "导出为HTML/PDF时也未正确渲染"
+    ],
+    "acceptance_criteria": [
+      "在VSCode内预览可正确渲染mermaid图",
+      "在静态HTML预览/导出中可正确渲染mermaid图",
+      "若需PDF导出，保证通过合适的工具链可渲染mermaid (如 mermaid-cli 或 puppeteer 渲染)"
+    ]
+  }
+}

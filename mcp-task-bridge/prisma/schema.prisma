@@ -1,0 +1,365 @@
+// MCP Task Bridge - Prisma Schema
+// 基于任务574的数据模型规范和架构师指导
+// AI-数据库专家设计 - 2025-08-24T01:05:00Z
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表 - 基础实体
+model User {
+  id         Int      @id @default(autoincrement())
+  uuid       String   @unique @default(uuid()) @db.Uuid
+  email      String   @unique @db.VarChar(255)
+  username   String   @unique @db.VarChar(100)
+  full_name  String?  @db.VarChar(255)
+  avatar_url String?  @db.Text
+  
+  // 认证信息
+  password_hash String?  @db.VarChar(255)
+  email_verified Boolean @default(false)
+  last_login_at DateTime?
+  
+  // 用户状态
+  status     UserStatus @default(ACTIVE)
+  role       UserRole   @default(USER)
+  
+  // 时间戳 (架构师要求)
+  created_at DateTime @default(now()) @db.Timestamptz
+  updated_at DateTime @updatedAt @db.Timestamptz
+  deleted_at DateTime? @db.Timestamptz
+  
+  // 关系
+  owned_projects     Project[]    @relation("ProjectOwner")
+  project_members    ProjectMember[]
+  assigned_tasks     Task[]       @relation("TaskAssignee")
+  created_tasks      Task[]       @relation("TaskCreator")
+  documents          Document[]   @relation("DocumentAuthor")
+  time_logs          TimeLog[]
+  
+  @@map("users")
+  @@index([email])
+  @@index([username])
+  @@index([status])
+  @@index([deleted_at])
+}
+
+// 项目表
+model Project {
+  id           Int     @id @default(autoincrement())
+  uuid         String  @unique @default(uuid()) @db.Uuid
+  name         String  @db.VarChar(255)
+  description  String? @db.Text
+  
+  // 项目状态和优先级
+  status       ProjectStatus @default(ACTIVE)
+  priority     Priority      @default(MEDIUM)
+  
+  // 项目设置
+  is_public    Boolean @default(false)
+  color        String? @db.VarChar(7) // HEX color code
+  
+  // 项目归属
+  owner_id     Int
+  owner        User    @relation("ProjectOwner", fields: [owner_id], references: [id], onDelete: Cascade)
+  
+  // 时间管理
+  start_date   DateTime? @db.Date
+  end_date     DateTime? @db.Date
+  
+  // 时间戳
+  created_at   DateTime @default(now()) @db.Timestamptz
+  updated_at   DateTime @updatedAt @db.Timestamptz
+  deleted_at   DateTime? @db.Timestamptz
+  
+  // 关系
+  members      ProjectMember[]
+  tasks        Task[]
+  documents    Document[]    @relation("ProjectDocuments")
+  
+  @@map("projects")
+  @@index([owner_id])
+  @@index([status])
+  @@index([priority])
+  @@index([start_date])
+  @@index([deleted_at])
+}
+
+// 项目成员表 (多对多关系)
+model ProjectMember {
+  id         Int    @id @default(autoincrement())
+  project_id Int
+  user_id    Int
+  
+  // 成员角色和权限
+  role       ProjectRole @default(MEMBER)
+  permissions String[]   // JSON array of permissions
+  
+  // 加入时间
+  joined_at  DateTime @default(now()) @db.Timestamptz
+  
+  // 关系
+  project    Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  @@unique([project_id, user_id])
+  @@map("project_members")
+  @@index([project_id])
+  @@index([user_id])
+  @@index([role])
+}
+
+// 任务表 - 支持无限层级树结构
+model Task {
+  id           Int     @id @default(autoincrement())
+  uuid         String  @unique @default(uuid()) @db.Uuid
+  title        String  @db.VarChar(500)
+  description  String? @db.Text
+  
+  // 任务层级关系 (支持无限嵌套)
+  parent_id    Int?
+  parent       Task?   @relation("TaskHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+  children     Task[]  @relation("TaskHierarchy")
+  
+  // 任务归属
+  project_id   Int
+  project      Project @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  
+  // 任务分配
+  assignee_id  Int?
+  assignee     User?   @relation("TaskAssignee", fields: [assignee_id], references: [id], onDelete: SetNull)
+  creator_id   Int
+  creator      User    @relation("TaskCreator", fields: [creator_id], references: [id], onDelete: Restrict)
+  
+  // 任务状态和优先级
+  status       TaskStatus @default(TODO)
+  priority     Priority   @default(MEDIUM)
+  
+  // 时间管理
+  due_date     DateTime? @db.Timestamptz
+  start_date   DateTime? @db.Timestamptz
+  completed_at DateTime? @db.Timestamptz
+  
+  // 任务进度 (0-100)
+  progress     Int @default(0) @db.SmallInt
+  
+  // 时间估算 (分钟)
+  estimated_hours Decimal? @db.Decimal(8,2)
+  actual_hours    Decimal? @db.Decimal(8,2)
+  
+  // 任务标签 (JSON array)
+  tags         String[] @default([])
+  
+  // 时间戳
+  created_at   DateTime @default(now()) @db.Timestamptz
+  updated_at   DateTime @updatedAt @db.Timestamptz
+  deleted_at   DateTime? @db.Timestamptz
+  
+  // 关系
+  documents    Document[] @relation("TaskDocuments")
+  time_logs    TimeLog[]
+  
+  @@map("tasks")
+  @@index([project_id])
+  @@index([parent_id])
+  @@index([assignee_id])
+  @@index([creator_id])
+  @@index([status])
+  @@index([priority])
+  @@index([due_date])
+  @@index([deleted_at])
+  @@index([tags])
+}
+
+// 文档表
+model Document {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @default(uuid()) @db.Uuid
+  title       String   @db.VarChar(500)
+  content     String?  @db.Text
+  
+  // 文档类型和格式
+  type        DocumentType @default(MARKDOWN)
+  file_path   String?      @db.Text
+  file_size   Int?         @db.Integer
+  mime_type   String?      @db.VarChar(100)
+  
+  // 文档归属 (可属于项目或任务)
+  project_id  Int?
+  project     Project? @relation("ProjectDocuments", fields: [project_id], references: [id], onDelete: Cascade)
+  
+  task_id     Int?
+  task        Task?    @relation("TaskDocuments", fields: [task_id], references: [id], onDelete: Cascade)
+  
+  // 文档作者
+  author_id   Int
+  author      User     @relation("DocumentAuthor", fields: [author_id], references: [id], onDelete: Restrict)
+  
+  // 文档状态
+  status      DocumentStatus @default(DRAFT)
+  is_public   Boolean        @default(false)
+  
+  // 版本控制
+  version     String   @default("1.0") @db.VarChar(50)
+  
+  // 时间戳
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
+  deleted_at  DateTime? @db.Timestamptz
+  
+  @@map("documents")
+  @@index([project_id])
+  @@index([task_id])
+  @@index([author_id])
+  @@index([type])
+  @@index([status])
+  @@index([deleted_at])
+  
+  // 确保文档至少属于一个项目或任务
+  @@check("project_id IS NOT NULL OR task_id IS NOT NULL")
+}
+
+// 时间记录表
+model TimeLog {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @default(uuid()) @db.Uuid
+  
+  // 时间记录归属
+  task_id     Int
+  task        Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  
+  user_id     Int
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  
+  // 时间记录
+  start_time  DateTime @db.Timestamptz
+  end_time    DateTime? @db.Timestamptz
+  duration    Int?     @db.Integer // 秒数
+  
+  // 工作描述
+  description String?  @db.Text
+  
+  // 工作类型
+  work_type   WorkType @default(DEVELOPMENT)
+  
+  // 是否计费
+  billable    Boolean  @default(true)
+  
+  // 时间戳
+  created_at  DateTime @default(now()) @db.Timestamptz
+  updated_at  DateTime @updatedAt @db.Timestamptz
+  
+  @@map("time_logs")
+  @@index([task_id])
+  @@index([user_id])
+  @@index([start_time])
+  @@index([work_type])
+  @@index([billable])
+  
+  // 复合索引 - 优化常用查询
+  @@index([task_id, user_id])
+  @@index([user_id, start_time])
+}
+
+// 枚举定义 - 基于架构师标准
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  DELETED
+  
+  @@map("user_status")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+  GUEST
+  
+  @@map("user_role")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+  
+  @@map("project_status")
+}
+
+enum ProjectRole {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+  
+  @@map("project_role")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  TESTING
+  DONE
+  CANCELLED
+  ON_HOLD
+  
+  @@map("task_status")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+  
+  @@map("priority")
+}
+
+enum DocumentType {
+  MARKDOWN
+  PDF
+  IMAGE
+  VIDEO
+  AUDIO
+  SPREADSHEET
+  PRESENTATION
+  TEXT
+  OTHER
+  
+  @@map("document_type")
+}
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DELETED
+  
+  @@map("document_status")
+}
+
+enum WorkType {
+  DEVELOPMENT
+  TESTING
+  DESIGN
+  DOCUMENTATION
+  MEETING
+  RESEARCH
+  SUPPORT
+  OTHER
+  
+  @@map("work_type")
+}
