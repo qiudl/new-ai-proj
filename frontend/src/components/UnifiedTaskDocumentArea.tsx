@@ -52,6 +52,7 @@ import TaskDocumentEditor from './TaskDocumentEditor';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
 import { TaskService } from '../services/taskService';
+import api from '../services/api';
 
 // 导入快捷键Hook
 import { useKeyboardShortcuts, createDocumentShortcuts } from '../hooks/useKeyboardShortcuts';
@@ -621,17 +622,19 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         ? '# ' + newDocumentForm.title.trim() + '\n\n请在这里编写文档内容...'
         : '请在这里编写文档内容...';
         
-      const newDoc = await documentService.createDocument(
-        newDocumentForm.title.trim(),
-        content,
-        {
-          type: newDocumentForm.type as 'markdown' | 'text',
-          description: newDocumentForm.description,
-          project_id: projectId,
-          task_id: taskId,
-          is_template: false
-        }
-      );
+      // 使用专门的任务文档创建接口，确保正确关联到任务
+      const response = await api.post(`/projects/${projectId}/tasks/${taskId}/documents/create-and-attach`, {
+        title: newDocumentForm.title.trim(),
+        content: content,
+        type: newDocumentForm.type as 'markdown' | 'text',
+        description: newDocumentForm.description,
+        status: 'draft',
+        visibility: 'team',
+        is_template: false,
+        relationship_type: 'attachment'
+      });
+      
+      const newDoc = response.data;
       
       message.success('文档创建成功');
       setNewDocumentModalVisible(false);
@@ -658,17 +661,19 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         ? `# ${defaultTitle}\n\n请在这里编写文档内容...`
         : '请在这里编写文档内容...';
         
-      const newDoc = await documentService.createDocument(
-        defaultTitle,
-        content,
-        {
-          type,
-          description: '',
-          project_id: projectId,
-          task_id: taskId,
-          is_template: false
-        }
-      );
+      // 使用专门的任务文档创建接口，确保正确关联到任务
+      const response = await api.post(`/projects/${projectId}/tasks/${taskId}/documents/create-and-attach`, {
+        title: defaultTitle,
+        content: content,
+        type: type,
+        description: '',
+        status: 'draft',
+        visibility: 'team',
+        is_template: false,
+        relationship_type: 'attachment'
+      });
+      
+      const newDoc = response.data;
       
       message.success('文档创建成功');
       await loadDocuments();

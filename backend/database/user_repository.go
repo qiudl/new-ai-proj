@@ -589,3 +589,38 @@ func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID 
 
 	return users, nil
 }
+
+// GetFirstAdminUser gets the first available admin user (fallback for task assignment)
+func (r *PostgresUserRepository) GetFirstAdminUser(ctx context.Context) (*models.User, error) {
+	query := `
+		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
+		       role, status, profile, last_login_at,
+		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
+		       created_at, updated_at
+		FROM users 
+		WHERE role = 'admin' AND status = 'active'
+		ORDER BY created_at ASC
+		LIMIT 1`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query)
+
+	user := &models.User{}
+
+	err := row.Scan(
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.UserType, &user.CompanyID, &user.CompanyUserID,
+		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+		&user.CurrentTimingTaskID, &user.CurrentUserTimerTaskID, &user.TimingStartTime, &user.TimingStatus,
+		&user.CreatedAt, &user.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("no admin users found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get first admin user: %w", err)
+	}
+
+	return user, nil
+}

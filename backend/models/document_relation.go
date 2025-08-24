@@ -1,3 +1,7 @@
+// Model Version: v1.0.0-frozen
+// Architecture Freeze: 2024-08-24
+// DO NOT make breaking changes to this model without version bump
+// See ARCHITECTURE-BLUEPRINT-V1.md for change policies
 package models
 
 import (

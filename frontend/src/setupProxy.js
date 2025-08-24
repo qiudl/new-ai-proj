@@ -21,8 +21,18 @@ module.exports = function(app) {
       // Bypass any external proxies for localhost
       agent: false,
       // Additional options for development
-      logLevel: process.env.NODE_ENV === 'development' ? 'info' : 'warn',
+      logLevel: process.env.NODE_ENV === 'development' ? 'debug' : 'warn',
       // No pathRewrite - keep the original path
+      pathRewrite: {
+        '^/api': '/api' // 确保路径正确
+      },
+      // 添加调试日志
+      onProxyReq: (proxyReq, req, res) => {
+        console.log(`[PROXY] ${req.method} ${req.url} -> ${backendUrl}${req.url}`);
+      },
+      onError: (err, req, res) => {
+        console.error(`[PROXY ERROR] ${req.method} ${req.url}:`, err.message);
+      }
     })
   );
 };

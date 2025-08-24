@@ -89,3 +89,55 @@ Thumbs.db
 *.bak
 *.backup
 *.orig
+
+# Debug files
+debug_files/
+*/debug_files/
+
+# Build executables  
+main
+*/main
+app
+*/app
+
+# Additional temp files
+temp_build
+test_build
+*/temp_build
+*/test_build
+nohup.out
+
+# Design tool secrets (do not commit)
+# Figma tokens/credentials
+.figma-token
+.figma-token-*
+.figma-credentials
+.figma-credentials-*
+figma-token
+figma-token.*
+figma-credentials.*
+figma.secrets.*
+figma.credentials.*
+figma.config.local.*
+figma.env.local
+figma.*.local
+
+# Generic design secret files
+design-secrets.*
+design.secrets.*
+design-credentials.*
+design.credentials.*
+
+# Zeplin/Sketch/Adobe design tools
+zeplin.secrets.*
+zeplin.credentials.*
+sketch.secrets.*
+sketch.credentials.*
+adobe.secrets.*
+adobe.credentials.*
+
+# Optional secret directories for design
+secrets/design/
+.design-secrets/
+design_secrets/
+config/design/*.secrets.*

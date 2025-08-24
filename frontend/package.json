@@ -62,7 +62,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true react-scripts start",
+    "start": "PORT=3001 GENERATE_SOURCEMAP=false TSC_COMPILE_ON_ERROR=true react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "start:craco": "craco start",

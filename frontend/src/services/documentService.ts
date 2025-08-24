@@ -97,7 +97,13 @@ export class DocumentService {
       }
       
       const response = await api.get(`/documents/${documentId}`);
-      const document = this.normalizeDocument(response.data);
+      
+      const documentData = response.data || response;
+      if (!documentData) {
+        throw new Error('获取文档失败：服务器未返回文档数据');
+      }
+      
+      const document = this.normalizeDocument(documentData);
       
       // 缓存结果 (5分钟)
       apiCache.set(cacheKey, document, 5 * 60 * 1000);
@@ -145,7 +151,15 @@ export class DocumentService {
       };
       
       const response = await api.post('/documents', requestData);
-      const document = this.normalizeDocument(response.data);
+      
+      // API 拦截器已经自动解包响应，response.data 直接是文档对象或 null
+      const documentData = response.data || response;
+      
+      if (!documentData) {
+        throw new Error('创建文档失败：服务器未返回文档数据');
+      }
+      
+      const document = this.normalizeDocument(documentData);
       
       // 清除列表缓存
       this.clearListCache();
@@ -179,7 +193,13 @@ export class DocumentService {
       performanceMonitor.startMeasure('update_document', { documentId });
       
       const response = await api.put(`/documents/${documentId}`, updates);
-      const document = this.normalizeDocument(response.data);
+      
+      const documentData = response.data || response;
+      if (!documentData) {
+        throw new Error('更新文档失败：服务器未返回文档数据');
+      }
+      
+      const document = this.normalizeDocument(documentData);
       
       // 更新缓存
       const cacheKey = `document_${documentId}`;
@@ -230,7 +250,13 @@ export class DocumentService {
       }
       
       const response = await api.get(`/projects/${projectId}/tasks/${taskId}/document`);
-      const document = response.data ? this.normalizeDocument(response.data) : null;
+      let document = null;
+      if (response.data || response) {
+        const documentData = response.data || response;
+        if (documentData) {
+          document = this.normalizeDocument(documentData);
+        }
+      }
       
       // 缓存结果 (3分钟)
       apiCache.set(cacheKey, document, 3 * 60 * 1000);
@@ -259,7 +285,13 @@ export class DocumentService {
       const response = await api.put(`/projects/${projectId}/tasks/${taskId}/document`, {
         content
       });
-      const document = this.normalizeDocument(response.data);
+      
+      const documentData = response.data || response;
+      if (!documentData) {
+        throw new Error('保存任务文档失败：服务器未返回文档数据');
+      }
+      
+      const document = this.normalizeDocument(documentData);
       
       // 更新缓存
       const cacheKey = `task_document_${projectId}_${taskId}`;
@@ -466,6 +498,15 @@ export class DocumentService {
    * 标准化文档数据格式
    */
   private normalizeDocument(data: any): UnifiedDocument {
+    // 检查数据有效性
+    if (!data || typeof data !== 'object') {
+      throw new Error('无效的文档数据格式');
+    }
+    
+    if (!data.id) {
+      throw new Error('文档数据缺少必需的 id 字段');
+    }
+
     return {
       id: data.id,
       title: data.title || `文档-${data.id}`,

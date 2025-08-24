@@ -219,13 +219,36 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 默认负责人：如果未指定，则指派给用户名为 ai-pm 的用户
+	// 默认负责人：使用智能fallback策略
 	if req.AssigneeID == nil {
 		ctx := c.Request.Context()
+		
+		// 优先级1: 查找ai-pm用户
 		if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
 			req.AssigneeID = &aiPM.ID
+			log.Printf("[CreateTask] Assigned to default user 'ai-pm' (ID: %d)", aiPM.ID)
 		} else {
-			log.Printf("[CreateTask] default assignee 'ai-pm' not found or error: %v", err)
+			// 优先级2: 查找admin用户作为fallback
+			if admin, err := h.db.Users().GetByUsername(ctx, "admin"); err == nil && admin != nil {
+				req.AssigneeID = &admin.ID
+				log.Printf("[CreateTask] ai-pm not found, fallback to admin user (ID: %d)", admin.ID)
+			} else {
+				// 优先级3: 使用当前创建任务的用户
+				currentUserID := c.GetInt("user_id")
+				if currentUserID > 0 {
+					req.AssigneeID = &currentUserID
+					log.Printf("[CreateTask] admin not found, fallback to current user (ID: %d)", currentUserID)
+				} else {
+					// 优先级4: 查找任何可用的管理员用户
+					if anyAdmin, err := h.db.Users().GetFirstAdminUser(ctx); err == nil && anyAdmin != nil {
+						req.AssigneeID = &anyAdmin.ID
+						log.Printf("[CreateTask] fallback to first available admin user (ID: %d)", anyAdmin.ID)
+					} else {
+						// 最后兜底：创建未分配任务
+						log.Printf("[CreateTask] No assignee found, creating unassigned task")
+					}
+				}
+			}
 		}
 	}
 
@@ -342,12 +365,36 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	var createdTasks []models.TaskResponse
 	var errors []string
 
-	// 预取默认负责人ID（ai-pm），避免循环内重复查询
+	// 预取默认负责人ID，使用智能fallback策略
 	var defaultAssigneeID *int
-	if aiPM, err := h.db.Users().GetByUsername(c.Request.Context(), "ai-pm"); err == nil && aiPM != nil {
+	ctx := c.Request.Context()
+	
+	// 优先级1: 查找ai-pm用户
+	if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
 		defaultAssigneeID = &aiPM.ID
+		log.Printf("[BulkImportTasks] Default assignee set to 'ai-pm' (ID: %d)", aiPM.ID)
 	} else {
-		log.Printf("[BulkImportTasks] default assignee 'ai-pm' not found or error: %v", err)
+		// 优先级2: 查找admin用户作为fallback
+		if admin, err := h.db.Users().GetByUsername(ctx, "admin"); err == nil && admin != nil {
+			defaultAssigneeID = &admin.ID
+			log.Printf("[BulkImportTasks] ai-pm not found, fallback to admin user (ID: %d)", admin.ID)
+		} else {
+			// 优先级3: 使用当前创建任务的用户
+			currentUserID := c.GetInt("user_id")
+			if currentUserID > 0 {
+				defaultAssigneeID = &currentUserID
+				log.Printf("[BulkImportTasks] admin not found, fallback to current user (ID: %d)", currentUserID)
+			} else {
+				// 优先级4: 查找任何可用的管理员用户
+				if anyAdmin, err := h.db.Users().GetFirstAdminUser(ctx); err == nil && anyAdmin != nil {
+					defaultAssigneeID = &anyAdmin.ID
+					log.Printf("[BulkImportTasks] fallback to first available admin user (ID: %d)", anyAdmin.ID)
+				} else {
+					// 最后兜底：不设置默认负责人
+					log.Printf("[BulkImportTasks] No default assignee found, tasks will be unassigned")
+				}
+			}
+		}
 	}
 
 	for i, taskReq := range req.Tasks {
