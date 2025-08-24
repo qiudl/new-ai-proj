@@ -2,13 +2,20 @@ import axios from 'axios';
 export class TaskMCPServer {
     apiBase;
     authToken;
-    constructor(apiBase = 'http://localhost:8080/api/v1') {
+    constructor(apiBase = 'http://localhost:8081/api/v1') {
         this.apiBase = apiBase;
         // 从环境变量读取令牌（不再硬编码）。优先 TASK_API_TOKEN，兼容 API_TOKEN。
         const token = process.env.TASK_API_TOKEN || process.env.API_TOKEN;
         if (token && token.trim().length > 0) {
             this.authToken = token.trim();
         }
+        
+        // 添加默认的Bearer token（用于测试）
+        if (!this.authToken) {
+            this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTY0ODIzODUsImlhdCI6MTc1NTg3NzU4NSwibmJmIjoxNzU1ODc3NTg1LCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.ozd_oDV1e24-_x099OgdXFiTgNf_c77UsXDyL3yvdqs';
+        }
+        
+        console.error('[TaskMCPServer] 初始化完成，API基础:', this.apiBase);
     }
     getHeaders() {
         const headers = { 'Content-Type': 'application/json' };

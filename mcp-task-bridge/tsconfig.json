@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": ".",
+    "declaration": true,
+    "sourceMap": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "strict": false,
@@ -10,7 +14,14 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false
   },
-  "ts-node": {
-    "esm": true
-  }
+  "include": [
+    "index.ts",
+    "task-mcp.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "_archive*",
+    "**/_archive*/**"
+  ]
 }

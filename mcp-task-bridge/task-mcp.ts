@@ -840,38 +840,33 @@ export class TaskMCPServer {
       const actualProjectId = task.project_id || projectId;
 
       // 先检查是否存在文档
-      let hasDoc = false;
+      let existingDocuments: any[] = [];
       try {
-        const hasResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/has`, {
+        const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
           headers: this.getHeaders(),
           proxy: false
         });
-        hasDoc = !!(hasResp.data && hasResp.data.data && hasResp.data.data.has_document);
+        existingDocuments = listResp.data?.data?.documents || [];
       } catch (e: any) {
-        // 如果 has 接口不可用，则回退到 list 判断
-        try {
-          const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
-            headers: this.getHeaders(),
-            proxy: false
-          });
-          const docs = listResp.data?.data?.documents || [];
-          hasDoc = docs.length > 0;
-        } catch (listErr) {
-          // 忽略，继续按照创建流程
-          hasDoc = false;
-        }
+        // 如果无法获取文档列表，说明可能没有文档，继续创建流程
+        console.error('[DEBUG] 无法获取现有文档列表，将创建新文档');
       }
 
-      if (!hasDoc) {
-        // 不存在文档：创建并关联（原子）
-        const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`, {
-          title: task.title ? `${task.title} 文档` : `Task ${taskId} 文档`,
-          content: content,
-          type: 'markdown',
-          status: 'draft',
-          visibility: 'team',
-          relationship_type: 'attachment',
-          tags: []
+      if (existingDocuments.length === 0) {
+        // 不存在文档：创建并关联（原子操作）
+        return await this.createAndAttachTaskDocument(taskId, content, actualProjectId);
+      } else {
+        // 已存在文档：选择最新一个更新
+        let latest = existingDocuments[0];
+        for (const doc of existingDocuments) {
+          if (doc.updated_at && latest.updated_at && new Date(doc.updated_at) > new Date(latest.updated_at)) {
+            latest = doc;
+          }
+        }
+
+        // 使用标准文档更新API
+        await axios.put(`${this.apiBase}/documents/${latest.id}`, {
+          content: content
         }, {
           headers: this.getHeaders(),
           proxy: false
@@ -881,68 +876,12 @@ export class TaskMCPServer {
           success: true,
           task_id: taskId,
           project_id: actualProjectId,
+          document_id: latest.id,
           content_length: content.length,
-          created: true,
-          message: `📄 任务 #${taskId} 文档已创建并关联 (${content.length} 字符)`
+          created: false,
+          message: `📄 任务 #${taskId} 文档已更新 (文档ID: ${latest.id}, ${content.length} 字符)`
         };
       }
-
-      // 已存在文档：获取列表，选择最新一个更新
-      const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      const docs = listResp.data?.data?.documents || [];
-      if (!docs.length) {
-        // 防御性：无文档则走创建
-        const createResp = await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`, {
-          title: task.title ? `${task.title} 文档` : `Task ${taskId} 文档`,
-          content: content,
-          type: 'markdown',
-          status: 'draft',
-          visibility: 'team',
-          relationship_type: 'attachment',
-          tags: []
-        }, {
-          headers: this.getHeaders(),
-          proxy: false
-        });
-        return {
-          success: true,
-          task_id: taskId,
-          project_id: actualProjectId,
-          content_length: content.length,
-          created: true,
-          message: `📄 任务 #${taskId} 文档已创建并关联 (${content.length} 字符)`
-        };
-      }
-
-      // 选择 updated_at 最近的文档
-      let latest = docs[0];
-      for (const d of docs) {
-        if (d.updated_at && latest.updated_at && new Date(d.updated_at) > new Date(latest.updated_at)) {
-          latest = d;
-        }
-      }
-      const docId = latest.id;
-
-      // 使用标准文档更新路由
-      await axios.put(`${this.apiBase}/documents/${docId}`, {
-        content: content
-      }, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-
-      return {
-        success: true,
-        task_id: taskId,
-        project_id: actualProjectId,
-        document_id: docId,
-        content_length: content.length,
-        created: false,
-        message: `📄 任务 #${taskId} 文档已更新 (${content.length} 字符)`
-      };
     } catch (error: any) {
       console.error(`[ERROR] 保存任务文档失败:`, error.response?.data || error.message);
       return {
@@ -961,58 +900,64 @@ export class TaskMCPServer {
       const task = await this.findTaskById(taskId);
       const actualProjectId = task.project_id || projectId;
 
-      // 统一构造满足后端校验的请求体
-      const payload: any = {
-        title: title || (task.title ? `${task.title} 文档` : `Task ${taskId} 文档`),
+      // 构造请求体 - 与后端 CreateAndAttachDocumentRequest 结构匹配
+      const requestData = {
+        title: title || (task.title ? `${task.title} - 文档` : `Task ${taskId} 文档`),
         content: content,
-        type: 'markdown',
-        status: 'draft',
-        visibility: 'team',
-        relationship_type: 'attachment',
-        tags: []
+        type: 'markdown',                    // models.DocumentType
+        status: 'draft',                     // models.DocumentStatus  
+        description: `任务 #${taskId} 的关联文档`,
+        tags: ['mcp-generated'],             // 添加标记表明通过MCP生成
+        visibility: 'team',                  // models.Visibility
+        is_template: false,                  // 不是模板
+        relationship_type: 'attachment',     // 关联类型
+        metadata: {
+          source: 'claude-code-mcp',
+          created_by: 'mcp-bridge',
+          task_id: taskId.toString()
+        }
       };
 
-      const url = `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`;
-      try {
-        const resp = await axios.post(url, payload, {
+      // 调用后端的原子创建并关联接口
+      const response = await axios.post(
+        `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`,
+        requestData,
+        {
           headers: this.getHeaders(),
           proxy: false
-        });
-        const data = resp.data?.data || resp.data || {};
-        return {
-          success: true,
-          task_id: taskId,
-          project_id: actualProjectId,
-          document_id: data.document_id || data.id,
-          created: true,
-          message: `✅ 已创建并关联任务文档 (task #${taskId})`
-        };
-      } catch (primaryErr: any) {
-        const status = primaryErr?.response?.status;
-        if (status === 404 || status === 405) {
-          console.error('[INFO] 主端点不可用，尝试兼容端点 POST /documents');
-          const altUrl = `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`;
-          const altResp = await axios.post(altUrl, payload, {
-            headers: this.getHeaders(),
-            proxy: false
-          });
-          const altData = altResp.data?.data || altResp.data || {};
-          return {
-            success: true,
-            task_id: taskId,
-            project_id: actualProjectId,
-            document_id: altData.document_id || altData.id,
-            created: true,
-            message: '✅ 已通过兼容端点创建并关联任务文档'
-          };
         }
-        throw primaryErr;
-      }
+      );
+
+      const data = response.data?.data || response.data || {};
+      
+      return {
+        success: true,
+        task_id: taskId,
+        project_id: actualProjectId,
+        document_id: data.document_id || data.id,
+        title: requestData.title,
+        content_length: content.length,
+        created: true,
+        message: `✅ 任务文档已创建并关联到数据库 (任务#${taskId}, 文档ID: ${data.document_id || data.id})`
+      };
     } catch (error: any) {
       console.error(`[ERROR] 创建并关联任务文档失败:`, error.response?.data || error.message);
+      
+      // 提供更好的错误信息
+      let errorMessage = '创建并关联任务文档失败';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 401) {
+        errorMessage = '认证失败，请检查API令牌';
+      } else if (error.response?.status === 404) {
+        errorMessage = '任务或项目不存在';
+      } else if (error.response?.status === 400) {
+        errorMessage = '请求参数无效';
+      }
+
       return {
         success: false,
-        error: `创建并关联任务文档失败: ${error.response?.data?.error || error.message}`
+        error: `${errorMessage}: ${error.response?.data?.error || error.message}`
       };
     }
   }
@@ -1888,6 +1833,156 @@ export class TaskMCPServer {
     }
   }
 
+  // 📝 工作笔记管理功能
+
+  // 创建工作笔记
+  async createWorkNote(title: string, content: string, options: {
+    type?: string,
+    tags?: string[],
+    visibility?: string,
+    status?: string
+  } = {}) {
+    try {
+      const requestData = {
+        title,
+        content,
+        type: options.type || 'markdown',
+        tags: options.tags || [],
+        visibility: options.visibility || 'private',
+        status: options.status || 'draft',
+        created_by: 'mcp_bridge'
+      };
+
+      const response = await axios.post(`${this.apiBase}/work-notes`, requestData);
+      
+      return {
+        success: true,
+        id: response.data.id,
+        title: response.data.title,
+        type: response.data.type,
+        status: response.data.status,
+        visibility: response.data.visibility,
+        created_at: response.data.created_at,
+        message: `✅ 工作笔记 "${title}" 已创建成功 (ID: ${response.data.id})`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `创建工作笔记失败: ${error.response?.data?.message || error.message}`
+      };
+    }
+  }
+
+  // 列出工作笔记
+  async listWorkNotes(options: {
+    page?: number,
+    limit?: number,
+    status?: string,
+    type?: string
+  } = {}) {
+    try {
+      const params = new URLSearchParams();
+      if (options.page) params.append('page', options.page.toString());
+      if (options.limit) params.append('limit', options.limit.toString());
+      if (options.status) params.append('status', options.status);
+      if (options.type) params.append('type', options.type);
+
+      const response = await axios.get(`${this.apiBase}/work-notes?${params.toString()}`);
+      
+      return {
+        success: true,
+        data: response.data.data || response.data.items || response.data,
+        total: response.data.total || response.data.length,
+        page: response.data.page || options.page || 1,
+        limit: response.data.limit || options.limit || 10,
+        message: `📋 共找到 ${response.data.total || response.data.length || 0} 个工作笔记`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取工作笔记列表失败: ${error.response?.data?.message || error.message}`
+      };
+    }
+  }
+
+  // 搜索工作笔记
+  async searchWorkNotes(query: string, options: {
+    tags?: string[],
+    limit?: number
+  } = {}) {
+    try {
+      const params = new URLSearchParams();
+      params.append('q', query);
+      if (options.limit) params.append('limit', options.limit.toString());
+      if (options.tags && options.tags.length > 0) {
+        options.tags.forEach(tag => params.append('tags', tag));
+      }
+
+      const response = await axios.get(`${this.apiBase}/work-notes/search?${params.toString()}`);
+      
+      return {
+        success: true,
+        data: response.data.data || response.data.items || response.data,
+        total: response.data.total || response.data.length,
+        query,
+        message: `🔍 找到 ${response.data.total || response.data.length || 0} 个匹配的工作笔记`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `搜索工作笔记失败: ${error.response?.data?.message || error.message}`
+      };
+    }
+  }
+
+  // 获取工作笔记详情
+  async getWorkNote(id: number) {
+    try {
+      const response = await axios.get(`${this.apiBase}/work-notes/${id}`);
+      
+      return {
+        success: true,
+        data: response.data,
+        id: response.data.id,
+        title: response.data.title,
+        content: response.data.content,
+        type: response.data.type,
+        status: response.data.status,
+        visibility: response.data.visibility,
+        tags: response.data.tags,
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at,
+        message: `📝 已获取工作笔记 "${response.data.title}"`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取工作笔记失败: ${error.response?.data?.message || error.message}`
+      };
+    }
+  }
+
+  // 更新工作笔记
+  async updateWorkNote(id: number, updates: any) {
+    try {
+      const response = await axios.put(`${this.apiBase}/work-notes/${id}`, updates);
+      
+      return {
+        success: true,
+        id: response.data.id,
+        title: response.data.title,
+        updated_fields: Object.keys(updates),
+        updated_at: response.data.updated_at,
+        message: `✅ 工作笔记 "${response.data.title}" 已更新成功`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `更新工作笔记失败: ${error.response?.data?.message || error.message}`
+      };
+    }
+  }
+
   // 辅助方法：格式化时长
   private formatDuration(seconds: number): string {
     const hours = Math.floor(seconds / 3600);
@@ -1902,5 +1997,210 @@ export class TaskMCPServer {
     const startTime = new Date(startedAt).getTime();
     const currentTime = new Date().getTime();
     return Math.floor((currentTime - startTime) / 1000);
+  }
+
+  // 🚀 核心功能1：智能启动任务并开始计时
+  async startTaskWithTimer(taskIdOrTitle: string | number, projectId: number = 1) {
+    try {
+      // 如果传入的是标题，先搜索任务
+      let taskId = taskIdOrTitle;
+      if (typeof taskIdOrTitle === 'string') {
+        const searchResult = await this.findTaskByTitle(taskIdOrTitle, projectId);
+        if (searchResult.error) {
+          return { error: `找不到任务: ${taskIdOrTitle}` };
+        }
+        taskId = searchResult.task.id;
+      }
+
+      // 获取任务详情
+      const getResponse = await axios.get(`${this.apiBase}/tasks/${taskId}`);
+      const task = getResponse.data;
+      
+      // 更新任务状态为进行中，并记录开始时间
+      const updateData = {
+        ...task,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        // 如果有 work_log 字段，添加工作日志
+        work_log: [
+          ...(task.work_log || []),
+          {
+            action: 'started',
+            timestamp: new Date().toISOString(),
+            source: 'claude_code',
+            message: '通过 Claude Code 开始执行任务'
+          }
+        ]
+      };
+
+      const response = await axios.put(`${this.apiBase}/tasks/${taskId}`, updateData);
+      
+      return {
+        id: taskId,
+        title: task.title,
+        status: 'in_progress',
+        started_at: updateData.started_at,
+        message: `🚀 任务 "${task.title}" 已开始执行，计时器启动！`,
+        timer_started: true
+      };
+    } catch (error: any) {
+      return {
+        error: `启动任务失败: ${error.message}`
+      };
+    }
+  }
+
+  // 🔄 核心功能2：智能工作切换（核心功能）
+  async switchToTask(newTaskTitle: string, projectId: number = 1) {
+    try {
+      // 1. 查找当前正在进行的任务
+      const currentTasksResponse = await axios.get(`${this.apiBase}/tasks?project_id=${projectId}`);
+      const allTasks = currentTasksResponse.data;
+      const currentTask = allTasks.find((task: any) => task.status === 'in_progress');
+      
+      // 2. 完成当前任务（如果有的话）
+      if (currentTask) {
+        await this.completeTaskWithTimer(currentTask.id);
+      }
+      
+      // 3. 开始新任务
+      const result = await this.startTaskWithTimer(newTaskTitle, projectId);
+      
+      const switchMessage = currentTask 
+        ? `🔄 从 "${currentTask.title}" 切换到 "${newTaskTitle}"`
+        : `🚀 开始新任务 "${newTaskTitle}"`;
+      
+      return {
+        ...result,
+        previous_task: currentTask ? currentTask.title : null,
+        message: switchMessage
+      };
+    } catch (error: any) {
+      return {
+        error: `任务切换失败: ${error.message}`
+      };
+    }
+  }
+
+  // 📈 核心功能3：生成今日工作报告
+  async getDailyWorkReport(projectId: number = 1) {
+    try {
+      const response = await axios.get(`${this.apiBase}/tasks?project_id=${projectId}`);
+      const tasks = response.data;
+      
+      const today = new Date().toISOString().split('T')[0];
+      
+      // 筛选今天有活动的任务
+      const todayTasks = tasks.filter((task: any) => {
+        const taskDate = task.updated_at ? task.updated_at.split('T')[0] : null;
+        return taskDate === today;
+      });
+
+      // 计算总工作时间
+      let totalMinutes = 0;
+      const taskSummary = todayTasks.map((task: any) => {
+        const duration = task.duration_minutes || 0;
+        totalMinutes += duration;
+        
+        return {
+          title: task.title,
+          status: task.status,
+          duration_minutes: duration,
+          duration_display: duration > 0 ? `${Math.floor(duration/60)}h ${duration%60}m` : '未计时'
+        };
+      });
+
+      const totalHours = Math.floor(totalMinutes / 60);
+      const remainingMinutes = totalMinutes % 60;
+
+      return {
+        date: today,
+        total_tasks: todayTasks.length,
+        total_time: `${totalHours}h ${remainingMinutes}m`,
+        tasks: taskSummary,
+        message: `📊 今日工作报告：${todayTasks.length}个任务，总计${totalHours}h ${remainingMinutes}m`
+      };
+    } catch (error: any) {
+      return {
+        error: `生成工作报告失败: ${error.message}`
+      };
+    }
+  }
+
+  // 辅助方法：根据标题搜索任务
+  async findTaskByTitle(title: string, projectId: number = 1) {
+    try {
+      const response = await axios.get(`${this.apiBase}/tasks?project_id=${projectId}`);
+      const tasks = response.data;
+      
+      // 模糊匹配任务标题
+      const matchedTask = tasks.find((task: any) => 
+        task.title.toLowerCase().includes(title.toLowerCase()) ||
+        title.toLowerCase().includes(task.title.toLowerCase())
+      );
+      
+      if (!matchedTask) {
+        return {
+          error: `未找到包含 "${title}" 的任务`
+        };
+      }
+
+      return {
+        task: matchedTask,
+        message: `🎯 找到匹配任务: "${matchedTask.title}"`
+      };
+    } catch (error: any) {
+      return {
+        error: `搜索任务失败: ${error.message}`
+      };
+    }
+  }
+
+  // 辅助方法：完成任务并计算耗时
+  async completeTaskWithTimer(taskId: number) {
+    try {
+      const getResponse = await axios.get(`${this.apiBase}/tasks/${taskId}`);
+      const task = getResponse.data;
+      
+      // 计算耗时
+      let duration = null;
+      if (task.started_at) {
+        const startTime = new Date(task.started_at);
+        const endTime = new Date();
+        duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // 分钟
+      }
+
+      const updateData = {
+        ...task,
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        duration_minutes: duration,
+        work_log: [
+          ...(task.work_log || []),
+          {
+            action: 'completed',
+            timestamp: new Date().toISOString(),
+            source: 'claude_code',
+            message: `任务完成${duration ? `，耗时 ${duration} 分钟` : ''}`,
+            duration_minutes: duration
+          }
+        ]
+      };
+
+      const response = await axios.put(`${this.apiBase}/tasks/${taskId}`, updateData);
+      
+      return {
+        id: taskId,
+        title: task.title,
+        status: 'completed',
+        duration_minutes: duration,
+        message: `✅ 任务 "${task.title}" 已完成！${duration ? ` 耗时: ${duration} 分钟` : ''}`,
+        timer_stopped: true
+      };
+    } catch (error: any) {
+      return {
+        error: `完成任务失败: ${error.message}`
+      };
+    }
   }
 }

@@ -204,11 +204,12 @@ export class TaskMCPServerFixed {
             // 尝试通过API创建文档
             try {
                 const response = await axios.post(
-                    `${this.apiBase}/projects/${projectId}/tasks/${taskId}/documents`,
+                    `${this.apiBase}/documents`,
                     {
                         title: title || `任务#${taskId}文档`,
                         content: content,
-                        type: 'markdown'
+                        type: 'markdown',
+                        project_id: projectId
                     },
                     { headers: this.getHeaders() }
                 );
@@ -216,14 +217,16 @@ export class TaskMCPServerFixed {
                 return {
                     success: true,
                     task_id: taskId,
-                    message: `文档已关联到任务 ${taskId}`
+                    document_id: response.data.data.id,
+                    message: `文档已创建并关联到任务 ${taskId} (文档ID: ${response.data.data.id})`
                 };
             } catch (apiError) {
                 // 如果API不支持，保存到本地
                 const fs = await import('fs');
                 const path = await import('path');
                 
-                const docDir = path.join(process.cwd(), '.mcp-documents');
+                // 使用绝对路径确保正确
+                const docDir = path.join('/Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge', '.mcp-documents');
                 if (!fs.existsSync(docDir)) {
                     fs.mkdirSync(docDir, { recursive: true });
                 }
@@ -242,6 +245,62 @@ export class TaskMCPServerFixed {
             return {
                 success: false,
                 error: error.message
+            };
+        }
+    }
+    
+    // 批量创建文档
+    async createBatchDocuments(documents) {
+        try {
+            console.error(`[TaskMCPServerFixed] 批量创建 ${documents.length} 个文档`);
+            
+            const results = [];
+            
+            // 逐个创建文档以确保稳定性
+            for (const doc of documents) {
+                try {
+                    const response = await axios.post(
+                        `${this.apiBase}/documents`,
+                        {
+                            title: doc.title,
+                            content: doc.content,
+                            type: doc.type || 'markdown',
+                            project_id: doc.project_id || 1,
+                            description: doc.description || null
+                        },
+                        { headers: this.getHeaders() }
+                    );
+                    
+                    results.push({
+                        success: true,
+                        id: response.data.data.id,
+                        title: doc.title,
+                        message: `文档创建成功 (ID: ${response.data.data.id})`
+                    });
+                } catch (docError) {
+                    console.error(`[TaskMCPServerFixed] 创建文档失败: ${doc.title}`, docError.message);
+                    results.push({
+                        success: false,
+                        title: doc.title,
+                        error: docError.message
+                    });
+                }
+            }
+            
+            const successCount = results.filter(r => r.success).length;
+            
+            return {
+                success: true,
+                data: results,
+                total: documents.length,
+                successful: successCount,
+                failed: documents.length - successCount,
+                message: `批量文档创建完成：成功 ${successCount}/${documents.length}`
+            };
+        } catch (error) {
+            return {
+                success: false,
+                error: `批量文档创建失败: ${error.message}`
             };
         }
     }

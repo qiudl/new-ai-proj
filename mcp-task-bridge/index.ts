@@ -5,10 +5,32 @@ import {
   CallToolRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { TaskMCPServer } from './task-mcp.js';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { existsSync } from 'fs';
+
+// __dirname for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 加载环境变量（优先 index 所在目录，其次上级目录，兼容编译到 dist 的情况）
+const envCandidates = [
+  join(__dirname, '.env'),
+  join(__dirname, '..', '.env')
+];
+for (const p of envCandidates) {
+  if (existsSync(p)) {
+    dotenv.config({ path: p });
+    break;
+  }
+}
 
 // 初始化任务服务器 - 从环境变量读取API地址
-// 优先使用 TASK_API_BASE，其次兼容 API_BASE_URL；默认对齐后端 8080 端口
-const apiBaseUrl = process.env.TASK_API_BASE || process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
+// 优先使用 TASK_API_BASE，其次兼容 API_BASE_URL；默认对齐后端 8081 端口（与 index.js 一致）
+const apiBaseUrl = process.env.TASK_API_BASE || process.env.API_BASE_URL || 'http://localhost:8081/api/v1';
+console.error('[MCP] 初始化 TaskMCPServer（连接后端模式）');
+console.error('[MCP] API基础URL:', apiBaseUrl);
 const taskServer = new TaskMCPServer(apiBaseUrl);
 
 // 创建 MCP Server
@@ -197,7 +219,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: 'create-and-attach',
-        description: '创建并关联任务文档（总是创建新文档并关联到任务）',
+        description: '创建任务文档并关联到数据库（原子操作：在事务中创建文档记录并建立任务关联关系）',
         inputSchema: {
           type: 'object',
           properties: {
@@ -211,11 +233,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             title: {
               type: 'string',
-              description: '文档标题（可选）'
+              description: '文档标题（可选，默认根据任务标题生成）'
             },
             projectId: { 
               type: 'number', 
-              description: '项目ID（可选，默认为1）' 
+              description: '项目ID（可选，默认使用任务所在项目）' 
             }
           },
           required: ['taskId', 'content']
@@ -273,20 +295,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             }
           },
           required: ['taskId']
-        }
-      },
-      {
-        name: 'pause_task',
-        description: '暂停任务',
-        inputSchema: {
-          type: 'object',
-          properties: {
-            id: { 
-              type: 'number', 
-              description: '任务ID' 
-            }
-          },
-          required: ['id']
         }
       },
       {
@@ -602,6 +610,220 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           }
         }
       },
+      
+      // 📝 工作笔记管理工具
+      {
+        name: 'create_work_note',
+        description: '创建工作笔记',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: {
+              type: 'string',
+              description: '笔记标题'
+            },
+            content: {
+              type: 'string', 
+              description: '笔记内容（支持Markdown格式）'
+            },
+            type: {
+              type: 'string',
+              enum: ['markdown', 'text', 'html'],
+              description: '笔记类型',
+              default: 'markdown'
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: '标签列表'
+            },
+            visibility: {
+              type: 'string',
+              enum: ['private', 'team', 'public'],
+              description: '可见性',
+              default: 'private'
+            },
+            status: {
+              type: 'string',
+              enum: ['draft', 'published', 'archived'],
+              description: '状态',
+              default: 'draft'
+            }
+          },
+          required: ['title', 'content']
+        }
+      },
+      
+      {
+        name: 'list_work_notes',
+        description: '列出工作笔记',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            page: {
+              type: 'number',
+              description: '页码（从1开始）',
+              default: 1
+            },
+            limit: {
+              type: 'number', 
+              description: '每页数量',
+              default: 10
+            },
+            status: {
+              type: 'string',
+              enum: ['draft', 'published', 'archived'],
+              description: '按状态筛选'
+            },
+            type: {
+              type: 'string',
+              enum: ['markdown', 'text', 'html'],
+              description: '按类型筛选'
+            }
+          }
+        }
+      },
+      
+      {
+        name: 'search_work_notes',
+        description: '搜索工作笔记',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: '搜索关键词（搜索标题和内容）'
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+              description: '按标签筛选'
+            },
+            limit: {
+              type: 'number',
+              description: '返回结果数量限制',
+              default: 10
+            }
+          },
+          required: ['query']
+        }
+      },
+      
+      {
+        name: 'get_work_note',
+        description: '获取工作笔记详情',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '工作笔记ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      
+      {
+        name: 'update_work_note',
+        description: '更新工作笔记',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '工作笔记ID'
+            },
+            updates: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', description: '新标题' },
+                content: { type: 'string', description: '新内容' },
+                type: { 
+                  type: 'string', 
+                  enum: ['markdown', 'text', 'html'],
+                  description: '笔记类型' 
+                },
+                tags: { 
+                  type: 'array', 
+                  items: { type: 'string' },
+                  description: '标签列表' 
+                },
+                visibility: { 
+                  type: 'string', 
+                  enum: ['private', 'team', 'public'],
+                  description: '可见性' 
+                },
+                status: { 
+                  type: 'string', 
+                  enum: ['draft', 'published', 'archived'],
+                  description: '状态' 
+                }
+              }
+            }
+          },
+          required: ['id', 'updates']
+        }
+      },
+      
+      // 🚀 核心功能1：智能启动任务并开始计时
+      {
+        name: 'start_task_with_timer',
+        description: '启动任务并开始计时（支持标题模糊匹配）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskIdOrTitle: { 
+              anyOf: [
+                { type: 'number' },
+                { type: 'string' }
+              ],
+              description: '任务ID或任务标题（支持模糊匹配）' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['taskIdOrTitle']
+        }
+      },
+      
+      // 🔄 核心功能2：智能工作切换
+      {
+        name: 'switch_to_task',
+        description: '从当前任务切换到新任务（自动完成当前任务，启动新任务）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            newTaskTitle: { 
+              type: 'string', 
+              description: '要切换到的任务标题（支持模糊匹配）' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          },
+          required: ['newTaskTitle']
+        }
+      },
+      
+      // 📊 核心功能3：工作报告生成
+      {
+        name: 'get_daily_work_report',
+        description: '生成今日工作报告',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            }
+          }
+        }
+      },
+      
       {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
@@ -669,6 +891,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.findTask({ id: args.id as number, titlePattern: args.titlePattern as string });
         break;
       
+      // 📝 工作笔记管理工具
+      case 'create_work_note':
+        result = await taskServer.createWorkNote(args.title as string, args.content as string, {
+          type: args.type as string,
+          tags: args.tags as string[],
+          visibility: args.visibility as string,
+          status: args.status as string
+        });
+        break;
+      
+      case 'list_work_notes':
+        result = await taskServer.listWorkNotes({
+          page: args.page as number,
+          limit: args.limit as number,
+          status: args.status as string,
+          type: args.type as string
+        });
+        break;
+      
+      case 'search_work_notes':
+        result = await taskServer.searchWorkNotes(args.query as string, {
+          tags: args.tags as string[],
+          limit: args.limit as number
+        });
+        break;
+      
+      case 'get_work_note':
+        result = await taskServer.getWorkNote(args.id as number);
+        break;
+      
+      case 'update_work_note':
+        result = await taskServer.updateWorkNote(args.id as number, args.updates as any);
+        break;
+      
       case 'delete_task':
         result = await taskServer.deleteTask(args.id as number, args.force as boolean);
         break;
@@ -691,11 +947,66 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       case 'get_task_document':
-        result = await taskServer.getTaskDocument(args.taskId as number, args.projectId as number);
+        try {
+          result = await taskServer.getTaskDocument(args.taskId as number, args.projectId as number);
+        } catch (e: any) {
+          result = { success: false, error: e?.message || String(e) };
+        }
+        // 本地回退：若后端无文档或失败，尝试读取 .mcp-documents/task-<id>.md
+        if (!result?.success || (result && (result as any).not_found)) {
+          try {
+            const fs = await import('fs');
+            const docPath = join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
+            if ((fs as any).existsSync(docPath)) {
+              const content = (fs as any).readFileSync(docPath, 'utf8');
+              result = {
+                success: true,
+                task_id: args.taskId,
+                project_id: args.projectId,
+                content,
+                message: '文档内容已从本地 .mcp-documents 读取'
+              };
+            }
+          } catch (fallbackErr: any) {
+            // 忽略本地回退错误，保持原始结果
+          }
+        }
         break;
       
       case 'has_task_document':
-        result = await taskServer.hasTaskDocument(args.taskId as number, args.projectId as number);
+        try {
+          result = await taskServer.hasTaskDocument(args.taskId as number, args.projectId as number);
+        } catch (e: any) {
+          result = { success: false, error: e?.message || String(e) };
+        }
+        // 本地回退检查
+        try {
+          const fs = await import('fs');
+          const docPath2 = join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
+          const hasLocal = (fs as any).existsSync(docPath2);
+          if (hasLocal && (!result?.success || (result && (result as any).has_document === false))) {
+            result = {
+              success: true,
+              task_id: args.taskId,
+              project_id: args.projectId,
+              has_document: true,
+              document_count: 1,
+              message: `任务 ${args.taskId} 有本地文档（.mcp-documents）`
+            };
+          } else if (!result?.success && !hasLocal) {
+            // 若两边都无，则返回统一格式
+            result = {
+              success: true,
+              task_id: args.taskId,
+              project_id: args.projectId,
+              has_document: false,
+              document_count: 0,
+              message: `任务 ${args.taskId} 没有文档`
+            };
+          }
+        } catch (fallbackErr: any) {
+          // 忽略本地回退错误
+        }
         break;
       
       case 'delete_task_document':
@@ -779,6 +1090,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
         break;
       
+      // 🚀 核心功能1：智能启动任务并开始计时
+      case 'start_task_with_timer':
+        result = await taskServer.startTaskWithTimer(args.taskIdOrTitle, args.projectId as number);
+        break;
+      
+      // 🔄 核心功能2：智能工作切换
+      case 'switch_to_task':
+        result = await taskServer.switchToTask(args.newTaskTitle as string, args.projectId as number);
+        break;
+      
+      // 📊 核心功能3：工作报告生成
+      case 'get_daily_work_report':
+        result = await taskServer.getDailyWorkReport(args.projectId as number);
+        break;
+      
       case 'dev_quick_login':
         result = await taskServer.devQuickLogin(args.username as string);
         break;
@@ -819,7 +1145,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('Task MCP Server started successfully');
+  console.error('[MCP] Task MCP Server 已启动');
+  console.error('[MCP] 连接到:', apiBaseUrl);
+  console.error('[MCP] 文档存储路径:', join(process.cwd(), '.mcp-documents'));
 
   // Keep the server alive until stdio is closed by the host
   await new Promise(() => {});

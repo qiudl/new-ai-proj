@@ -8,7 +8,7 @@ CREATE USER repl_user WITH REPLICATION ENCRYPTED PASSWORD 'repl_password_2024';
 SELECT pg_create_physical_replication_slot('replica_slot');
 
 -- 授权复制用户访问主数据库
-GRANT CONNECT ON DATABASE main_db TO repl_user;
+GRANT CONNECT ON DATABASE ai_project_db TO repl_user;
 
 -- 显示当前WAL位置（用于手动同步时参考）
 SELECT pg_current_wal_lsn();

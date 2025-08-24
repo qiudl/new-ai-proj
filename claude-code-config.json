@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "task-manager": {
+      "command": "npx",
+      "args": ["tsx", "./mcp-task-bridge/index.ts"],
+      "env": {
+        "NODE_ENV": "development"
+      }
+    }
+  }
+}
