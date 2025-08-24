@@ -506,17 +506,27 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		}
 	}
 
-	// Sorting
+	// Sorting (whitelisted to prevent SQL injection)
 	sortBy := "t.updated_at"
 	sortOrder := "DESC"
 	if opts != nil {
 		if opts.SortBy != "" {
 			switch opts.SortBy {
+			case "id":
+				sortBy = "t.id"
+			case "title":
+				sortBy = "t.title"
+			case "status":
+				sortBy = "t.status"
 			case "due_date":
 				sortBy = "t.due_date"
 			case "created_at":
 				sortBy = "t.created_at"
+			case "updated_at":
+				// explicit mapping for clarity
+				sortBy = "t.updated_at"
 			default:
+				// fallback to updated_at for unknown values
 				sortBy = "t.updated_at"
 			}
 		}

@@ -1067,7 +1067,7 @@ const renderMainControls = () => (
                           onMouseEnter={() => setHoveredTimerId(t.id)}
                           onMouseLeave={() => setHoveredTimerId(null)}
                         >
-                          {t.target_title}
+                          {taskId ? `#${taskId} ` : ''}{t.target_title}
                         </a>
                       ) : (
                         <span
@@ -1075,7 +1075,7 @@ const renderMainControls = () => (
                           onMouseEnter={() => setHoveredTimerId(t.id)}
                           onMouseLeave={() => setHoveredTimerId(null)}
                         >
-                          {t.target_title}
+                          {taskId ? `#${taskId} ` : ''}{t.target_title}
                         </span>
                       )}
                       {/* 悬停时显示图标操作 */}

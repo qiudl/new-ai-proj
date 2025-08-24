@@ -162,6 +162,17 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// API密钥管理处理器
 	allHandlers.APIKeyHandler = handlers.NewAPIKeyHandler(f.db.GetDB())
 	
+	// 进度计算处理器
+	progressHandler, err := handlers.NewProgressHandler(f.db, f.logger, f.validate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create progress handler: %w", err)
+	}
+	allHandlers.ProgressHandler = progressHandler
+
+	// 任务关系处理器
+	relService := services.NewTaskRelationshipService(f.db.GetDB().(*sql.DB))
+	allHandlers.TaskRelationshipHandler = handlers.NewTaskRelationshipHandler(relService)
+	
 	// Google日历集成服务和处理器
 	googleCalendarService := services.NewGoogleCalendarService()
 	allHandlers.GoogleAuthHandler = handlers.NewGoogleAuthHandler(googleCalendarService, f.db.Users(), f.db.GoogleAuth())

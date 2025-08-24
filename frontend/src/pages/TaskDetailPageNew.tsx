@@ -71,9 +71,11 @@ import TaskGanttChart from '../components/TaskGanttChart';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
 import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
+import { TaskProgressDisplay } from '../components/TaskProgressDisplay';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
+import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgressBar';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -86,6 +88,73 @@ interface TaskCompletionStats {
   inProgressSubtasks: number;
   todoSubtasks: number;
   completionRate: number;
+}
+
+// 内联任务进度条容器（数据加载 + 展示）
+const TaskProgressInline: React.FC<{ taskId: number; status: 'todo'|'in_progress'|'blocked'|'completed'; style?: React.CSSProperties }>= ({ taskId, status, style }) => {
+  const [data, setData] = useState<{ percent_raw: number; percent_display: number; estimate_minutes: number|null; actual_minutes: number; overrun_percent: number; breakdown?: TaskProgressBarProps['breakdown'] } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const fmt = (mins: number | null | undefined) => {
+    if (mins == null) return null
+    const m = Math.max(0, mins)
+    if (m < 60) return `${m}m`
+    const h = (m/60)
+    return `${h.toFixed(1)} 小时`
+  }
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      // Try legacy first (will be suppressed internally if unavailable), fallback to zeros
+      const resp = await TaskService.getTaskProgress(taskId).catch(() => ({
+        percent_raw: 0,
+        percent_display: 0,
+        estimate_minutes: null,
+        actual_minutes: 0,
+        overrun_percent: 0,
+        breakdown: []
+      }))
+      const breakdown = Array.isArray((resp as any).breakdown ?? (resp as any).Breakdown) ? ((resp as any).breakdown ?? (resp as any).Breakdown) : undefined
+      setData({
+        percent_raw: (resp as any).percent_raw ?? (resp as any).PercentRaw ?? 0,
+        percent_display: (resp as any).percent_display ?? (resp as any).PercentDisplay ?? Math.round(((resp as any).percent_raw ?? 0)*100),
+        estimate_minutes: (resp as any).estimate_minutes ?? (resp as any).EstimateMinutes ?? null,
+        actual_minutes: (resp as any).actual_minutes ?? (resp as any).ActualMinutes ?? 0,
+        overrun_percent: (resp as any).overrun_percent ?? (resp as any).OverrunPercent ?? 0,
+        breakdown,
+      })
+    } catch (e) {
+      // 静默失败以免打扰详情页
+      console.warn('load task progress failed', e)
+      setData({
+        percent_raw: 0,
+        percent_display: 0,
+        estimate_minutes: null,
+        actual_minutes: 0,
+        overrun_percent: 0,
+        breakdown: []
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [taskId])
+  useEffect(() => { load() }, [load])
+  if (loading && !data) {
+    return <div style={{ padding: '8px 0', ...style }}><Spin size="small" /></div>
+  }
+  if (!data) return null
+  return (
+    <div style={style}>
+      <TaskProgressBar
+        percent={data.percent_raw}
+        percentDisplay={data.percent_display}
+        estimateText={fmt(data.estimate_minutes) ?? undefined}
+        actualText={fmt(data.actual_minutes) ?? undefined}
+        overrunPercent={data.overrun_percent}
+        status={status}
+        breakdown={data.breakdown ?? undefined}
+      />
+    </div>
+  )
 }
 
 const TaskDetailPageNew: React.FC = () => {
@@ -196,9 +265,19 @@ const TaskDetailPageNew: React.FC = () => {
       setTask(taskData);
       // 并行加载其他数据，直接传递taskData
       loadAllTaskDataWithTask(taskData);
-    } catch (error) {
-      message.error('获取任务详情失败');
+    } catch (error: any) {
       console.error('Error loading task:', error);
+      
+      // Check if it's a 404 error
+      const status = error?.status || error?.response?.status || error?.statusCode;
+      if (status === 404) {
+        // Don't show error message for 404, just set task to null
+        // The component will render the "task not found" UI
+        setTask(null);
+      } else {
+        // For other errors, show the error message
+        message.error('获取任务详情失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -849,6 +928,16 @@ const TaskDetailPageNew: React.FC = () => {
                   )}
                 </div>
 
+                {/* 任务进度条 - 使用新的进度显示组件 */}
+                <TaskProgressDisplay 
+                  taskId={task.id} 
+                  taskType="task"
+                  displayMode="compact"
+                  showBreakdown={false}
+                  autoRefresh={false}
+                  style={{ marginBottom: '16px' }} 
+                />
+
                 {/* 任务摘要（AI提炼） */}
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
@@ -1048,6 +1137,27 @@ const TaskDetailPageNew: React.FC = () => {
                         onViewModeChange={(mode) => {
                           // no-op
                         }}
+                      />
+                    </div>
+                  )
+                },
+                {
+                  key: 'progress',
+                  label: (
+                    <Space>
+                      <BarChartOutlined />
+                      <span>进度分析</span>
+                    </Space>
+                  ),
+                  children: (
+                    <div style={{ minHeight: '400px' }}>
+                      <TaskProgressDisplay 
+                        taskId={task.id} 
+                        taskType="task"
+                        displayMode="full"
+                        showBreakdown={true}
+                        autoRefresh={true}
+                        refreshInterval={30000}
                       />
                     </div>
                   )

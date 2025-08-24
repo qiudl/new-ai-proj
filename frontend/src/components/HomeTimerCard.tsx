@@ -288,8 +288,8 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                     <Badge color={t.status === 'running' ? '#52c41a' : '#faad14'} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: '#262626', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }} title={t.target_title}>
-                        {t.target_title}
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#262626', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 280 }} title={(t as any).target_id ? `#${(t as any).target_id} ${t.target_title}` : t.target_title}>
+                        {(t as any).target_id ? `#${(t as any).target_id} ` : ''}{t.target_title}
                       </div>
                       <div style={{ fontSize: 11, color: '#8c8c8c' }}>
                         {t.status === 'running' ? '运行中' : '已暂停'} · {formatElapsed(t.start_time, t.pause_total_seconds)}

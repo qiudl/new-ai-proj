@@ -26,6 +26,7 @@ export async function fetchTaskDescendants(projectId: number, taskId: number, pa
     const payload = e?.response?.data ? JSON.stringify(e.response.data) : e?.message || '';
     throw new Error(`Failed to fetch descendants: ${status ?? ''} ${payload}`.trim());
   }
+
 }
 
 import { ValidationHelper, AppError } from '../utils/errorTypes';
@@ -45,7 +46,58 @@ import {
   TimelineEvent,
 } from '../types/task';
 
+// Cache capability detection to avoid repeated 404s when backend endpoint is unavailable
+let LEGACY_PROGRESS_AVAILABLE: boolean | null = false;
+
 export class TaskService {
+  /**
+   * 获取任务进度（全局路由）：GET /api/v1/tasks/:taskId/progress
+   */
+  static async getTaskProgress(taskId: number): Promise<{
+    percent_raw: number;
+    percent_display: number;
+    estimate_minutes: number | null;
+    actual_minutes: number;
+    overrun_percent: number;
+    completed: boolean;
+    breakdown?: Array<{ id: number | string; title: string; weight: number; progress: number; status: string }>;
+  }> {
+    // If we've detected the endpoint is not available, return a benign fallback immediately
+    if (LEGACY_PROGRESS_AVAILABLE === false) {
+      return {
+        percent_raw: 0,
+        percent_display: 0,
+        estimate_minutes: null,
+        actual_minutes: 0,
+        overrun_percent: 0,
+        completed: false,
+        breakdown: []
+      };
+    }
+
+    try {
+      const resp: any = await api.get(`/tasks/${taskId}/progress`);
+      LEGACY_PROGRESS_AVAILABLE = true;
+      return resp as any;
+    } catch (err: any) {
+      const status = err?.status ?? err?.response?.status;
+      if (status === 404) {
+        // Mark as unavailable to suppress further calls in this session
+        LEGACY_PROGRESS_AVAILABLE = false;
+        return {
+          percent_raw: 0,
+          percent_display: 0,
+          estimate_minutes: null,
+          actual_minutes: 0,
+          overrun_percent: 0,
+          completed: false,
+          breakdown: []
+        };
+      }
+      throw err;
+    }
+  }
+
   /**
    * Get tasks for a project with pagination and filtering
    */
@@ -312,7 +364,6 @@ const mergedRaw = { ...(params || {}) } as any;
       throw error;
     }
   }
-
   /**
    * Create a new task
    */

@@ -70,6 +70,27 @@ func registerAPIKeyRoutes(api *gin.RouterGroup, app ApplicationInterface) {
 			externalProjects.GET("", app.GetProjectsHandler())
 			externalProjects.GET("/:id", app.GetProjectHandler())
 		}
+
+		// Document management for API consumers (external)
+		// 需要任务写权限，并限制到指定项目范围
+		externalDocs := external.Group("/projects")
+		externalDocs.Use(middleware.RequirePermission(models.PermissionTasksWrite))
+		externalDocs.Use(middleware.RequireProjectAccess())
+		{
+			tasks := externalDocs.Group("/:id/tasks")
+			{
+				taskDocuments := tasks.Group("/:taskId/documents")
+				{
+					// 原子：创建文档并关联到任务（单事务）
+					taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
+					// 别名路由：与文档一致的 REST 设计（POST 空路径）
+					taskDocuments.POST("", app.GetDocumentHandler().CreateAndAttachDocument)
+					// 只读校验端点：是否存在文档、列出文档
+					taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
+					taskDocuments.GET("/list", app.GetDocumentHandler().ListTaskDocuments)
+				}
+			}
+		}
 	}
 }
 

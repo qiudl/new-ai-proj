@@ -32,20 +32,50 @@ ADD CONSTRAINT check_datetime_order CHECK (start_datetime IS NULL OR due_datetim
 -- 第二部分：数据迁移和兼容性处理
 -- ========================================
 
--- 迁移现有的due_date到due_datetime（设置为当天23:59）
-UPDATE tasks 
-SET due_datetime = due_date + INTERVAL '23 hours 59 minutes'
-WHERE due_date IS NOT NULL AND due_datetime IS NULL;
+-- 迁移现有的due_date到due_datetime（设置为当天23:59），在缺少列时跳过
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'tasks' AND column_name = 'due_date'
+    ) THEN
+        UPDATE tasks 
+        SET due_datetime = due_date + INTERVAL '23 hours 59 minutes'
+        WHERE due_date IS NOT NULL AND due_datetime IS NULL;
+    ELSE
+        RAISE NOTICE 'Column tasks.due_date not found; skipping due_date -> due_datetime migration';
+    END IF;
+END $$;
 
--- 迁移现有的estimated_hours到estimated_minutes
-UPDATE tasks 
-SET estimated_minutes = ROUND(estimated_hours * 60)
-WHERE estimated_hours IS NOT NULL AND estimated_hours > 0 AND estimated_minutes = 0;
+-- 迁移现有的estimated_hours到estimated_minutes（如不存在 estimated_hours 列则跳过）
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'tasks' AND column_name = 'estimated_hours'
+    ) THEN
+        UPDATE tasks 
+        SET estimated_minutes = ROUND(estimated_hours * 60)
+        WHERE estimated_hours IS NOT NULL AND estimated_hours > 0 AND estimated_minutes = 0;
+    ELSE
+        RAISE NOTICE 'Column tasks.estimated_hours not found; skipping estimated_hours -> estimated_minutes migration';
+    END IF;
+END $$;
 
--- 迁移现有的total_time_seconds到actual_minutes
-UPDATE tasks 
-SET actual_minutes = ROUND(total_time_seconds / 60.0)
-WHERE total_time_seconds IS NOT NULL AND total_time_seconds > 0 AND actual_minutes = 0;
+-- 迁移现有的total_time_seconds到actual_minutes（如不存在则跳过）
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'tasks' AND column_name = 'total_time_seconds'
+    ) THEN
+        UPDATE tasks 
+        SET actual_minutes = ROUND(total_time_seconds / 60.0)
+        WHERE total_time_seconds IS NOT NULL AND total_time_seconds > 0 AND actual_minutes = 0;
+    ELSE
+        RAISE NOTICE 'Column tasks.total_time_seconds not found; skipping total_time_seconds -> actual_minutes migration';
+    END IF;
+END $$;
 
 -- ========================================
 -- 第三部分：创建时间管理配置表

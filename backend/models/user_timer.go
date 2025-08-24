@@ -96,6 +96,27 @@ type PersonalTimerTodayStats struct {
 	ProductiveHours    []int    `json:"productive_hours"` // 每小时的工作时长（24个元素）
 	EfficiencyScore    float64  `json:"efficiency_score"` // 效率评分 (0-100)
 	LongestSession     int      `json:"longest_session"`  // 最长单次计时（秒）
+	TopTasks           []PersonalTopTask        `json:"top_tasks"`
+	CategoryBreakdown  []PersonalCategoryItem   `json:"category_breakdown"`
+}
+
+// PersonalTopTask represents a top task item for today
+ type PersonalTopTask struct {
+	TaskTitle     string `json:"task_title"`
+	Category      string `json:"category"`
+	Color         string `json:"color"`
+	TotalSeconds  int    `json:"total_seconds"`
+	FormattedTime string `json:"formatted_time"`
+	Sessions      int    `json:"sessions"`
+}
+
+// PersonalCategoryItem represents today's category aggregation
+ type PersonalCategoryItem struct {
+	Category      string  `json:"category"`
+	TotalSeconds  int     `json:"total_seconds"`
+	FormattedTime string  `json:"formatted_time"`
+	Percentage    float64 `json:"percentage"`
+	Color         string  `json:"color"`
 }
 
 // PersonalTimerSession represents a personal timer session

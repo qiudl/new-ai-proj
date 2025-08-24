@@ -62,6 +62,23 @@ export interface PersonalTimerCurrent {
   formatted_time?: string;
 }
 
+export interface PersonalTopTask {
+  task_title: string;
+  category: string;
+  color: string;
+  total_seconds: number;
+  formatted_time: string;
+  sessions: number;
+}
+
+export interface PersonalCategoryItem {
+  category: string;
+  total_seconds: number;
+  formatted_time: string;
+  percentage: number;
+  color: string;
+}
+
 export interface PersonalTimerTodayStats {
   total_seconds: number;
   formatted_time: string;
@@ -71,6 +88,8 @@ export interface PersonalTimerTodayStats {
   productive_hours: number[];
   efficiency_score: number;
   longest_session: number;
+  top_tasks?: PersonalTopTask[];
+  category_breakdown?: PersonalCategoryItem[];
 }
 
 export interface PersonalTimerSession {
@@ -269,7 +288,9 @@ export const personalTimerService = {
       }
     }
 
-    const response = await api.get('/user/timer/dashboard') as PersonalTimerDashboard;
+    // 传递客户端时区，确保“今日”统计准确
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const response = await api.get('/user/timer/dashboard', { params: { tz } }) as PersonalTimerDashboard;
     
     // 缓存结果 - response已经被axios拦截器处理，直接使用response
     if (userId) {

@@ -1,0 +1,71 @@
+# Prisma commands for the unified development environment
+# Usage: make -f Makefile.prisma <target>
+
+# Docker compose file
+COMPOSE := docker compose -f docker-compose.dev.yml
+
+# Default shell
+SHELL := /bin/sh
+
+.PHONY: help prisma.up prisma.pull prisma.generate prisma.migrate.dev prisma.migrate.deploy prisma.studio prisma.validate prisma.format prisma.reset
+
+## Show this help message
+help:
+	@echo "Prisma Management Commands:"
+	@echo ""
+	@echo "  prisma.up            - Start prisma container"
+	@echo "  prisma.pull          - Pull schema from database"
+	@echo "  prisma.generate      - Generate Prisma client"
+	@echo "  prisma.migrate.dev   - Create and apply dev migrations"
+	@echo "  prisma.migrate.deploy- Apply migrations in production"
+	@echo "  prisma.studio        - Open Prisma Studio (GUI)"
+	@echo "  prisma.validate      - Validate schema"
+	@echo "  prisma.format        - Format schema file"
+	@echo "  prisma.reset         - Reset database and apply migrations"
+	@echo ""
+
+## Start prisma container
+prisma.up:
+	$(COMPOSE) up -d prisma
+	@echo "Prisma container started. Waiting for it to be ready..."
+	@sleep 2
+
+## Pull database schema into prisma/schema.prisma
+prisma.pull: prisma.up
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 db pull
+
+## Generate Prisma client
+prisma.generate: prisma.up
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 generate
+
+## Create new migration from schema changes
+prisma.migrate.dev: prisma.up
+	@read -p "Enter migration name: " name; \
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 migrate dev --name $$name
+
+## Apply existing migrations to database
+prisma.migrate.deploy: prisma.up
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 migrate deploy
+
+## Open Prisma Studio (browser UI) on port 5555
+prisma.studio: prisma.up
+	@echo "Opening Prisma Studio at http://localhost:5555"
+	$(COMPOSE) exec -T -e BROWSER=none prisma npx -y prisma@5.16.1 studio --port 5555 --host 0.0.0.0
+
+## Validate Prisma schema
+prisma.validate: prisma.up
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 validate
+
+## Format Prisma schema file
+prisma.format: prisma.up
+	$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 format
+
+## Reset database and reapply all migrations (WARNING: This will delete all data!)
+prisma.reset: prisma.up
+	@echo "WARNING: This will DELETE ALL DATA in the database!"
+	@read -p "Are you sure? Type 'yes' to continue: " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		$(COMPOSE) exec -T prisma npx -y prisma@5.16.1 migrate reset --force; \
+	else \
+		echo "Operation cancelled."; \
+	fi

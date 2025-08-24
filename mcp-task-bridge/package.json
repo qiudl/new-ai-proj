@@ -6,7 +6,8 @@
     "start": "node index.js",
     "dev": "tsx watch index.ts",
     "build": "tsc",
-    "test": "node test-mcp.js"
+    "test": "node test-mcp.js",
+    "test:create-attach": "node test-create-and-attach.js"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +15,11 @@
   "description": "",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.1",
-    "axios": "^1.11.0"
+    "axios": "^1.11.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",

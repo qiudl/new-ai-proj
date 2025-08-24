@@ -3,14 +3,14 @@
 -- Description: Adds fields for managing enterprise users according to the design document
 
 -- Add enterprise user specific fields
-ALTER TABLE users ADD COLUMN IF NOT EXISTS 
-    contact_person_name VARCHAR(100),        -- 联系人真实姓名
-    contact_phone VARCHAR(50),               -- 联系电话
-    department_title VARCHAR(100),           -- 职务/部门
-    is_primary_contact BOOLEAN DEFAULT FALSE, -- 是否企业主要联系人
-    account_expires_at TIMESTAMPTZ,          -- 账号过期时间
-    last_project_access TIMESTAMPTZ,         -- 最后访问项目时间
-    notes TEXT;                              -- 备注信息
+ALTER TABLE users 
+    ADD COLUMN IF NOT EXISTS contact_person_name VARCHAR(100),        -- 联系人真实姓名
+    ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(50),               -- 联系电话
+    ADD COLUMN IF NOT EXISTS department_title VARCHAR(100),           -- 职务/部门
+    ADD COLUMN IF NOT EXISTS is_primary_contact BOOLEAN DEFAULT FALSE, -- 是否企业主要联系人
+    ADD COLUMN IF NOT EXISTS account_expires_at TIMESTAMPTZ,          -- 账号过期时间
+    ADD COLUMN IF NOT EXISTS last_project_access TIMESTAMPTZ,         -- 最后访问项目时间
+    ADD COLUMN IF NOT EXISTS notes TEXT;                              -- 备注信息
 
 -- Update constraint to match design document requirements
 -- Remove old constraint if exists

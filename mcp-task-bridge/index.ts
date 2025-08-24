@@ -7,7 +7,8 @@ import {
 import { TaskMCPServer } from './task-mcp.js';
 
 // 初始化任务服务器 - 从环境变量读取API地址
-const apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:8081/api/v1';
+// 优先使用 TASK_API_BASE，其次兼容 API_BASE_URL；默认对齐后端 8080 端口
+const apiBaseUrl = process.env.TASK_API_BASE || process.env.API_BASE_URL || 'http://localhost:8080/api/v1';
 const taskServer = new TaskMCPServer(apiBaseUrl);
 
 // 创建 MCP Server
@@ -329,6 +330,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: 'get_detailed_task_info',
+        description: '获取任务详细信息（包含格式化的父任务、同级任务和子任务，任务名称前显示ID）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      {
         name: 'start_timer',
         description: '开始任务计时',
         inputSchema: {
@@ -586,6 +601,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             }
           }
         }
+      },
+      {
+        name: 'dev_quick_login',
+        description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            username: {
+              type: 'string',
+              description: '登录用户名（可选，默认 admin 或 DEV_LOGIN_USERNAME 环境变量）'
+            }
+          }
+        }
       }
     ]
   };
@@ -690,6 +718,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.getTaskChildren(args.parentId as number);
         break;
       
+      case 'get_detailed_task_info':
+        result = await taskServer.getDetailedTaskInfo(args.taskId as number);
+        break;
+      
       case 'start_timer':
         result = await taskServer.startTimer(args.taskId as number, args.description as string);
         break;
@@ -745,6 +777,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           project_id: args.project_id as number,
           batch_size: args.batch_size as number
         });
+        break;
+      
+      case 'dev_quick_login':
+        result = await taskServer.devQuickLogin(args.username as string);
         break;
       
       default:

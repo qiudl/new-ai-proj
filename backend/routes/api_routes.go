@@ -43,9 +43,11 @@ func registerGlobalTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 	authorized.GET("/tasks/today", app.GetTodayTasksHandler())
 	authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
 	authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
-	authorized.POST("/tasks/:id/complete", app.MarkTodayTaskCompletedHandler())
-	authorized.POST("/tasks/:id/postpone", app.PostponeTodayTaskHandler())
+	authorized.POST("/tasks/:task_id/complete", app.MarkTodayTaskCompletedHandler())
+	authorized.POST("/tasks/:task_id/postpone", app.PostponeTodayTaskHandler())
 	authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
+	// Task progress endpoint
+	authorized.GET("/tasks/:task_id/progress", app.GetTaskProgressHandler())
 
 	// 分析埋点回传（前端 fire-and-forget）
 	authorized.POST("/analytics/events", app.GetAnalyticsHandler().IngestEvents)
@@ -156,5 +158,26 @@ func registerAdminCalendarSyncRoutes(admin *gin.RouterGroup, app ApplicationInte
 	{
 		calendarSyncAdmin.POST("/process-queue", app.GetCalendarSyncHandler().ProcessSyncQueue)
 		calendarSyncAdmin.GET("/queue-status", app.GetCalendarSyncHandler().GetSyncQueueStatus)
+	}
+}
+
+// registerProgressRoutesHere registers progress calculation routes directly
+func registerProgressRoutesHere(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// Only register if handler is available
+	if app.GetProgressHandler() == nil {
+		return
+	}
+	
+	// Progress routes group
+	progress := authorized.Group("/progress")
+	{
+		// Get progress configuration
+		progress.GET("/config", app.GetProgressHandler().GetProgressConfig)
+		// Calculate progress for an entity
+		progress.GET("/:entityType/:id", app.GetProgressHandler().GetProgress)
+		// Get historical snapshots  
+		progress.GET("/:entityType/:id/snapshots", app.GetProgressHandler().GetProgressSnapshots)
+		// Force recalculation
+		progress.POST("/recompute", app.GetProgressHandler().RecomputeProgress)
 	}
 }

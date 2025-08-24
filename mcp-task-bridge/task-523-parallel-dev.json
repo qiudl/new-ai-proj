@@ -1,0 +1,381 @@
+{
+  "project": {
+    "id": 523,
+    "title": "M1：数据模型与迁移脚本（Prisma 初始化与对现有表的对齐）",
+    "priority": "high",
+    "status": "in_progress",
+    "estimated_duration": "7 days",
+    "start_date": "2025-08-24",
+    "end_date": "2025-08-30"
+  },
+  "ai_agents": {
+    "architect": {
+      "id": "ai-architect",
+      "name": "AI-架构师",
+      "role": "Architecture AI",
+      "color": "#4A90E2",
+      "responsibilities": [
+        "整体架构设计与决策",
+        "数据模型规范制定",
+        "技术选型与标准化",
+        "跨模块依赖关系梳理"
+      ],
+      "assigned_tasks": [574, 576],
+      "status": "active"
+    },
+    "database": {
+      "id": "ai-database",
+      "name": "AI-数据库专家",
+      "role": "Database AI",
+      "color": "#50C878",
+      "responsibilities": [
+        "数据库设计与优化",
+        "迁移脚本编写",
+        "数据完整性验证",
+        "性能优化建议"
+      ],
+      "assigned_tasks": [576, 577, 578],
+      "status": "ready"
+    },
+    "testing": {
+      "id": "ai-testing",
+      "name": "AI-测试工程师",
+      "role": "Testing AI",
+      "color": "#FF6B35",
+      "responsibilities": [
+        "测试策略设计",
+        "自动化测试脚本",
+        "验收标准制定",
+        "质量保证"
+      ],
+      "assigned_tasks": [579],
+      "status": "ready"
+    },
+    "devops": {
+      "id": "ai-devops",
+      "name": "AI-DevOps工程师",
+      "role": "DevOps AI",
+      "color": "#9B59B6",
+      "responsibilities": [
+        "CI/CD流水线设计",
+        "Docker容器化",
+        "Jenkins配置",
+        "部署自动化"
+      ],
+      "assigned_tasks": [580],
+      "status": "active"
+    }
+  },
+  "tasks": [
+    {
+      "id": 574,
+      "task_id": "M1-1",
+      "title": "现状盘点与对齐准则",
+      "assignee": "ai-architect",
+      "status": "in_progress",
+      "progress": 20,
+      "phase": "phase1",
+      "dependencies": [],
+      "blocking": [576],
+      "priority": "medium",
+      "start_date": "2025-08-24",
+      "end_date": "2025-08-25",
+      "deliverables": [
+        "现有数据库结构分析报告",
+        "数据模型设计规范",
+        "命名约定标准"
+      ]
+    },
+    {
+      "id": 576,
+      "task_id": "M1-3",
+      "title": "Prisma 初始化与基线迁移",
+      "assignee": "ai-database",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase2",
+      "dependencies": [574],
+      "blocking": [577],
+      "priority": "medium",
+      "start_date": "2025-08-26",
+      "end_date": "2025-08-27",
+      "deliverables": [
+        "Prisma schema文件",
+        "初始迁移脚本",
+        "基线数据验证"
+      ]
+    },
+    {
+      "id": 577,
+      "task_id": "M1-4",
+      "title": "差异对齐与增量迁移",
+      "assignee": "ai-database",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase2",
+      "dependencies": [576],
+      "blocking": [578],
+      "priority": "medium",
+      "start_date": "2025-08-27",
+      "end_date": "2025-08-28",
+      "deliverables": [
+        "差异分析报告",
+        "增量迁移脚本",
+        "回滚机制"
+      ]
+    },
+    {
+      "id": 578,
+      "task_id": "M1-5",
+      "title": "种子数据与生成脚本（可选）",
+      "assignee": "ai-database",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase2",
+      "dependencies": [577],
+      "blocking": [579],
+      "priority": "medium",
+      "start_date": "2025-08-28",
+      "end_date": "2025-08-28",
+      "deliverables": [
+        "种子数据模板",
+        "数据生成器",
+        "数据验证脚本"
+      ]
+    },
+    {
+      "id": 579,
+      "task_id": "M1-6",
+      "title": "测试与验收（空库/旧库/集成）",
+      "assignee": "ai-testing",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase3",
+      "dependencies": [578, "test-prep"],
+      "blocking": [580],
+      "priority": "medium",
+      "start_date": "2025-08-29",
+      "end_date": "2025-08-29",
+      "deliverables": [
+        "完整测试报告",
+        "验收结果文档",
+        "性能基准测试"
+      ]
+    },
+    {
+      "id": 580,
+      "task_id": "M1-7",
+      "title": "CI/CD 集成（Jenkins Docker agent）",
+      "assignee": "ai-devops",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase3",
+      "dependencies": [579, "ci-prep"],
+      "blocking": [],
+      "priority": "medium",
+      "start_date": "2025-08-30",
+      "end_date": "2025-08-30",
+      "deliverables": [
+        "Jenkins流水线配置",
+        "Docker构建脚本",
+        "自动化部署配置"
+      ]
+    },
+    {
+      "id": "test-prep",
+      "task_id": "M1-6-prep",
+      "title": "测试框架搭建",
+      "assignee": "ai-testing",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase1",
+      "dependencies": [],
+      "blocking": [579],
+      "priority": "medium",
+      "start_date": "2025-08-24",
+      "end_date": "2025-08-25",
+      "deliverables": [
+        "测试环境框架",
+        "测试数据集",
+        "测试用例模板"
+      ]
+    },
+    {
+      "id": "ci-prep",
+      "task_id": "M1-7-prep",
+      "title": "CI/CD环境准备",
+      "assignee": "ai-devops",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase1",
+      "dependencies": [],
+      "blocking": [580],
+      "priority": "medium",
+      "start_date": "2025-08-24",
+      "end_date": "2025-08-25",
+      "deliverables": [
+        "Jenkins Docker环境配置",
+        "代码仓库设置",
+        "分支策略文档"
+      ]
+    },
+    {
+      "id": "test-dev",
+      "task_id": "M1-6-dev",
+      "title": "测试脚本开发",
+      "assignee": "ai-testing",
+      "status": "todo",
+      "progress": 0,
+      "phase": "phase2",
+      "dependencies": ["test-prep"],
+      "blocking": [579],
+      "priority": "medium",
+      "start_date": "2025-08-26",
+      "end_date": "2025-08-28",
+      "deliverables": [
+        "单元测试套件",
+        "集成测试脚本",
+        "自动化验证流程"
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase1",
+      "name": "基础准备阶段",
+      "duration": "2天",
+      "start_date": "2025-08-24",
+      "end_date": "2025-08-25",
+      "description": "初始环境设置与要求分析阶段，团队并行工作准备基础设施"
+    },
+    {
+      "id": "phase2",
+      "name": "核心开发阶段",
+      "duration": "3天",
+      "start_date": "2025-08-26",
+      "end_date": "2025-08-28",
+      "description": "主要实施阶段，完成Prisma初始化、迁移脚本和测试开发"
+    },
+    {
+      "id": "phase3",
+      "name": "集成测试阶段",
+      "duration": "2天",
+      "start_date": "2025-08-29",
+      "end_date": "2025-08-30",
+      "description": "整合与验证阶段，确保所有组件完成验收测试并部署自动化"
+    }
+  ],
+  "dependencies_graph": {
+    "nodes": [
+      { "id": 574, "label": "M1-1: 现状盘点", "group": "phase1" },
+      { "id": "test-prep", "label": "测试框架搭建", "group": "phase1" },
+      { "id": "ci-prep", "label": "CI/CD环境准备", "group": "phase1" },
+      { "id": 576, "label": "M1-3: Prisma初始化", "group": "phase2" },
+      { "id": 577, "label": "M1-4: 差异对齐", "group": "phase2" },
+      { "id": 578, "label": "M1-5: 种子数据", "group": "phase2" },
+      { "id": "test-dev", "label": "测试脚本开发", "group": "phase2" },
+      { "id": 579, "label": "M1-6: 测试验收", "group": "phase3" },
+      { "id": 580, "label": "M1-7: CI/CD集成", "group": "phase3" }
+    ],
+    "edges": [
+      { "from": 574, "to": 576, "label": "提供设计规范" },
+      { "from": 576, "to": 577, "label": "基线迁移完成" },
+      { "from": 577, "to": 578, "label": "增量迁移完成" },
+      { "from": 578, "to": 579, "label": "数据准备完成" },
+      { "from": 579, "to": 580, "label": "测试通过" },
+      { "from": "test-prep", "to": "test-dev", "label": "框架就绪" },
+      { "from": "test-dev", "to": 579, "label": "测试脚本就绪" },
+      { "from": "ci-prep", "to": 580, "label": "环境就绪" }
+    ]
+  },
+  "communication": {
+    "daily_sync": {
+      "time": "09:00",
+      "participants": ["ai-architect", "ai-database", "ai-testing", "ai-devops"],
+      "agenda": ["进度同步", "问题讨论", "依赖关系确认"]
+    },
+    "collaboration_channels": {
+      "code_review": "Git Pull Request",
+      "issue_tracking": "Project Issues",
+      "documentation": "Shared Document System"
+    }
+  },
+  "quality_gates": {
+    "code_review": {
+      "flow": "开发者提交 → 同行评审 → 架构师审批 → 合并主分支",
+      "required_approvals": 2
+    },
+    "testing_thresholds": {
+      "unit_test_coverage": "≥80%",
+      "integration_test_pass_rate": "100%",
+      "performance_response_time": "<200ms"
+    }
+  },
+  "tech_stack": {
+    "database": {
+      "development": "Docker PostgreSQL",
+      "production": "PostgreSQL"
+    },
+    "frameworks": ["Prisma ORM", "Node.js", "TypeScript"],
+    "testing": "Jest",
+    "cicd": "Jenkins (Docker-based agent)",
+    "containerization": "Docker"
+  },
+  "branching_strategy": {
+    "main_branch": "master",
+    "dev_branch": "develop",
+    "feature_branches": [
+      "feature/m1-1-assessment",
+      "feature/m1-3-prisma-init",
+      "feature/m1-4-migration",
+      "feature/m1-5-seed-data",
+      "feature/m1-6-testing",
+      "feature/m1-7-cicd"
+    ]
+  },
+  "success_metrics": {
+    "technical": {
+      "prisma_init_success_rate": "100%",
+      "data_migration_integrity": "100%",
+      "test_coverage": "≥80%",
+      "performance_benchmark": "<200ms"
+    },
+    "efficiency": {
+      "parallel_dev_improvement": "≥50%",
+      "code_conflict_rate": "<5%",
+      "rework_rate": "<10%",
+      "on_time_delivery": "100%"
+    }
+  },
+  "risk_management": {
+    "technical_risks": [
+      {
+        "risk": "数据库兼容性",
+        "impact": "high",
+        "mitigation": "提前兼容性测试，准备回滚方案"
+      },
+      {
+        "risk": "迁移数据丢失",
+        "impact": "high",
+        "mitigation": "完整备份策略，分阶段迁移验证"
+      },
+      {
+        "risk": "性能瓶颈",
+        "impact": "medium",
+        "mitigation": "性能基准测试，索引优化"
+      }
+    ],
+    "collaboration_risks": [
+      {
+        "risk": "AI间通信延迟",
+        "impact": "medium",
+        "mitigation": "异步通信机制，清晰接口定义"
+      },
+      {
+        "risk": "依赖关系冲突",
+        "impact": "medium",
+        "mitigation": "依赖关系图可视化，提前识别阻塞点"
+      }
+    ]
+  }
+}

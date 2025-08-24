@@ -9,6 +9,7 @@ import PersonalTimerTaskList from '../components/PersonalTimerTaskList';
 import PersonalTimerTaskForm from '../components/PersonalTimerTaskForm';
 import KeyboardShortcutsHelp from '../components/KeyboardShortcutsHelp';
 import useKeyboardShortcuts, { createTimerShortcuts } from '../hooks/useKeyboardShortcuts';
+import LastThreeDaysCard from '../components/LastThreeDaysCard';
 import '../styles/personal-timer.css';
 
 const { Title, Text } = Typography;
@@ -25,6 +26,8 @@ interface PersonalTimerCurrent {
   formatted_time: string;
 }
 
+interface PersonalTopTask { task_title: string; category: string; color: string; total_seconds: number; formatted_time: string; sessions: number; }
+interface PersonalCategoryItem { category: string; total_seconds: number; formatted_time: string; percentage: number; color: string; }
 interface PersonalTimerTodayStats {
   total_seconds: number;
   formatted_time: string;
@@ -34,6 +37,8 @@ interface PersonalTimerTodayStats {
   productive_hours: number[];
   efficiency_score: number;
   longest_session: number;
+  top_tasks?: PersonalTopTask[];
+  category_breakdown?: PersonalCategoryItem[];
 }
 
 interface UserTimerTaskResponse {
@@ -123,7 +128,9 @@ const PersonalTimerPage: React.FC = () => {
           most_worked_task: '',
           productive_hours: Array(24).fill(0),
           efficiency_score: 0,
-          longest_session: 0
+          longest_session: 0,
+          top_tasks: [],
+          category_breakdown: []
         },
         timer_tasks: [],
         recent_sessions: [],
@@ -405,8 +412,116 @@ const PersonalTimerPage: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 任务列表区域 */}
+      {/* 今日详细与最近3天 */}
       <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card title="🗓️ 今日会话与时间分布" style={{ height: '100%' }}>
+            {/* 小型小时分布条形图 */}
+            <div style={{ marginBottom: 12 }}>
+              <Text type="secondary">按小时分布</Text>
+              <div style={{ display: 'flex', gap: 2, marginTop: 8 }}>
+                {dashboardData.today_stats.productive_hours.map((sec, idx, arr) => {
+                  const max = Math.max(...arr, 1);
+                  const h = Math.round((sec / max) * 40) + 2; // 高度最小 2
+                  return (
+                    <div key={idx} title={`${idx}:00 - ${sec}s`} style={{
+                      width: 10,
+                      height: h,
+                      background: '#1890ff',
+                      opacity: sec > 0 ? 0.9 : 0.2,
+                      borderRadius: 2,
+                      alignSelf: 'flex-end'
+                    }} />
+                  );
+                })}
+              </div>
+            </div>
+            {/* 今日会话列表（来自 recent_sessions 过滤近24小时内的） */}
+            <div style={{ maxHeight: 260, overflow: 'auto' }}>
+              {(dashboardData.recent_sessions as any[])
+                .filter((s: any) => {
+                  const start = new Date(s.start_time || s.startTime || s.StartTime || s.start);
+                  const now = new Date();
+                  const diff = now.getTime() - start.getTime();
+                  return diff >= 0 && diff <= 24 * 3600 * 1000;
+                })
+                .slice(0, 8)
+                .map((s: any) => (
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{s.task_title || s.taskTitle}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{new Date(s.start_time || s.startTime).toLocaleTimeString()} - {s.end_time ? new Date(s.end_time).toLocaleTimeString() : '进行中'}</Text>
+                    </div>
+                    <div style={{ fontFamily: 'monospace', color: '#1890ff' }}>{s.formatted_time || s.formattedTime}</div>
+                  </div>
+                ))}
+              {(!dashboardData.recent_sessions || (dashboardData.recent_sessions as any[]).length === 0) && (
+                <Text type="secondary">暂无会话数据</Text>
+              )}
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <LastThreeDaysCard />
+        </Col>
+      </Row>
+
+      {/* 今日 Top 任务 与 按分类 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card title="🏆 今日 Top 任务">
+            {dashboardData.today_stats.top_tasks && dashboardData.today_stats.top_tasks.length > 0 ? (
+              <div>
+                {dashboardData.today_stats.top_tasks.map((t: any, idx: number, arr: any[]) => {
+                  const max = Math.max(...arr.map(x => x.total_seconds || 0), 1);
+                  const width = Math.round((t.total_seconds / max) * 100);
+                  return (
+                    <div key={idx} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text ellipsis style={{ maxWidth: 220 }}>{t.task_title}</Text>
+                        <Text style={{ fontFamily: 'monospace', color: '#1890ff' }}>{t.formatted_time}</Text>
+                      </div>
+                      <div style={{ background: '#f5f5f5', borderRadius: 6, height: 8 }}>
+                        <div style={{ width: `${width}%`, background: t.color || '#1890ff', height: 8, borderRadius: 6 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Text type="secondary">暂无数据</Text>
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="📈 按分类">
+            {dashboardData.today_stats.category_breakdown && dashboardData.today_stats.category_breakdown.length > 0 ? (
+              <div>
+                {dashboardData.today_stats.category_breakdown.map((c: any, idx: number, arr: any[]) => {
+                  const max = Math.max(...arr.map(x => x.total_seconds || 0), 1);
+                  const width = Math.round((c.total_seconds / max) * 100);
+                  return (
+                    <div key={idx} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text>{c.category}</Text>
+                        <Text style={{ fontFamily: 'monospace', color: '#722ed1' }}>{c.formatted_time}</Text>
+                      </div>
+                      <div style={{ background: '#f5f5f5', borderRadius: 6, height: 8 }}>
+                        <div style={{ width: `${width}%`, background: c.color || '#722ed1', height: 8, borderRadius: 6 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <Text type="secondary">暂无数据</Text>
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 任务列表区域 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={24}>
           <PersonalTimerTaskList
             tasks={dashboardData.timer_tasks}

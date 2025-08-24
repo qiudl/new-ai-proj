@@ -27,6 +27,7 @@
     "axios": "^1.4.0",
     "bcryptjs": "^3.0.2",
     "core-js": "^3.44.0",
+    "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
     "echarts": "^5.6.0",
     "echarts-for-react": "^3.0.2",

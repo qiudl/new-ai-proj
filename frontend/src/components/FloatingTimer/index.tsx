@@ -501,7 +501,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                   title={`${timerState.taskTitle} - 点击查看详情`}
                   onClick={handleViewTaskDetail}
                 >
-                  {timerState.taskTitle || '未知任务'}
+{timerState.taskId ? `#${timerState.taskId} ` : ''}{timerState.taskTitle || '未知任务'}
                 </Text>
                 {taskDetailInfo && (
                   <Text 

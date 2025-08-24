@@ -8,9 +8,10 @@ import (
 
 // ServiceManager manages all application services
 type ServiceManager struct {
-	db           database.DB
-	auditService *AuditService
-	asyncLogger  *AsyncAuditLogger
+	db                 database.DB
+	auditService       *AuditService
+	asyncLogger        *AsyncAuditLogger
+	taskProgressService *TaskProgressService
 }
 
 // NewServiceManager creates a new service manager
@@ -20,10 +21,14 @@ func NewServiceManager(db database.DB) *ServiceManager {
 	// Create async logger with default settings
 	asyncLogger := NewAsyncAuditLogger(auditService, 50, 5*time.Second)
 	
+	// Initialize task progress service
+	taskProgress := NewTaskProgressService(db)
+	
 	return &ServiceManager{
-		db:           db,
-		auditService: auditService,
-		asyncLogger:  asyncLogger,
+		db:                  db,
+		auditService:        auditService,
+		asyncLogger:         asyncLogger,
+		taskProgressService: taskProgress,
 	}
 }
 
@@ -35,6 +40,11 @@ func (sm *ServiceManager) AuditService() *AuditService {
 // AsyncLogger returns the async audit logger
 func (sm *ServiceManager) AsyncLogger() *AsyncAuditLogger {
 	return sm.asyncLogger
+}
+
+// TaskProgressService returns the task progress service
+func (sm *ServiceManager) TaskProgressService() *TaskProgressService {
+	return sm.taskProgressService
 }
 
 // InitializeServices initializes all services with default configurations

@@ -437,7 +437,7 @@ type UserTimerRepository interface {
 	
 	// Statistics and analytics
 	GetUserTimerStats(ctx context.Context, userID int) (*models.PersonalTimerSummary, error)
-	GetDashboardData(ctx context.Context, userID int) (*models.PersonalTimerDashboard, error)
+	GetDashboardData(ctx context.Context, userID int, tz string) (*models.PersonalTimerDashboard, error)
 	GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error)
 	GetTodayStats(ctx context.Context, userID int) (*models.PersonalTimerTodayStats, error)
 	GetAnalytics(ctx context.Context, userID int, dateRange string, tz string) (*models.PersonalTimerAnalytics, error)
@@ -470,6 +470,14 @@ type DB interface {
 	GetDB() interface{} // Access to underlying database connection
 	Close() error
 	Ping() error
+
+	// Minimal SQL helpers used by services
+	Select(dest interface{}, query string, args ...interface{}) error
+	Get(dest interface{}, query string, args ...interface{}) error
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+
 	BeginTx(ctx context.Context) (Tx, error)
 }
 
@@ -491,6 +499,12 @@ type Tx interface {
 	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository
+
+	// Minimal helpers in transaction
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+
 	Commit() error
 	Rollback() error
 }

@@ -141,6 +141,8 @@ api.interceptors.response.use(
           ErrorType.NOT_FOUND,
           404
         );
+        // Don't log 404 errors to console to avoid noise
+        console.debug('Resource not found (404):', error.config?.url);
         break;
       case 500:
       case 502:

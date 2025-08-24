@@ -1,0 +1,13 @@
+pipeline {
+  agent { label 'docker' }
+  options { timestamps() }
+  stages {
+    stage('Checkout') {
+      steps { checkout scm }
+    }
+    stage('Build') {
+      steps { sh 'echo "Hello from Docker agent"' }
+    }
+  }
+}
+

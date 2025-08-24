@@ -55,6 +55,7 @@ import { projectService } from '../services/projectService';
 import companyService from '../services/companyService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
 import { useTimer } from '../contexts/TimerContext';
+import { ProjectProgressDisplay } from '../components/ProjectProgressDisplay';
 // 🎯 移除：不再需要SimplifiedTimerProvider，使用统一定时器系统
 // import DocumentList from '../components/DocumentList'; // 已归档，保持MVP简洁
 import EnhancedProjectTaskManager from '../components/EnhancedProjectTaskManager';
@@ -137,6 +138,18 @@ const ProjectDetailPage: React.FC = () => {
       label: '项目概览',
       children: (
         <Row gutter={[24, 24]}>
+          {/* 项目进度总览 */}
+          <Col xs={24}>
+            <Card title="项目进度总览" extra={<BarChartOutlined />}>
+              {projectId && (
+                <ProjectProgressDisplay 
+                  projectId={Number(projectId)} 
+                  showTopTasks={true}
+                  maxTopTasks={5}
+                />
+              )}
+            </Card>
+          </Col>
           {/* 项目基础信息 */}
           <Col xs={24} lg={16}>
             <Card title="项目基础信息" extra={<FundProjectionScreenOutlined />}>

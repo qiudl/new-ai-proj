@@ -162,6 +162,25 @@ services:
       - ai_dev_network
     # MCP服务器不需要健康检查 - 使用stdio通信
 
+  # Prisma CLI 工具 (数据库管理)
+  prisma:
+    image: node:20
+    container_name: ai_prisma
+    working_dir: /app
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    environment:
+      # 连接到主数据库
+      DATABASE_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
+    volumes:
+      # 挂载 backend 目录以访问 prisma schema
+      - ./backend:/app:cached
+    command: ["sh", "-lc", "tail -f /dev/null"]
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
   # Redis (缓存和会话存储)
   redis:
     image: redis:7-alpine

@@ -425,6 +425,52 @@ class TaskManager {
   async updateParentChildren(parentId, childId, operation) {
     // 实现更新父任务的子任务列表
   }
+
+  /**
+   * 获取所有任务列表
+   * @param {Object} filters - 过滤条件
+   * @returns {Array} 任务列表
+   */
+  async getAllTasks(filters = {}) {
+    const { status, projectId, assigneeId } = filters;
+    let tasks = [];
+
+    if (this.db) {
+      // 从数据库获取任务
+      let query = 'SELECT * FROM tasks WHERE 1=1';
+      const params = [];
+      let paramIndex = 1;
+
+      if (status) {
+        query += ` AND status = $${paramIndex++}`;
+        params.push(status);
+      }
+      if (projectId) {
+        query += ` AND project_id = $${paramIndex++}`;
+        params.push(projectId);
+      }
+      if (assigneeId) {
+        query += ` AND assignee_id = $${paramIndex++}`;
+        params.push(assigneeId);
+      }
+
+      const result = await this.db.query(query, params);
+      tasks = result.rows.map(row => {
+        row.custom_fields = JSON.parse(row.custom_fields || '{}');
+        return row;
+      });
+    } else {
+      // 从内存获取任务
+      for (const task of this.tasks.values()) {
+        if (status && task.status !== status) continue;
+        if (projectId && task.project_id !== projectId) continue;
+        if (assigneeId && task.assignee_id !== assigneeId) continue;
+        tasks.push(task);
+      }
+    }
+
+    return tasks.map(task => this.enrichTask(task));
+  }
 }
 
 module.exports = TaskManager;

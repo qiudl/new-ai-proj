@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  # 开发环境数据库
+  postgres:
+    image: postgres:14-alpine
+    container_name: task_versioning_db
+    environment:
+      POSTGRES_DB: taskdb
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskuser"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 测试环境数据库（使用 tmpfs 提高测试速度）
+  postgres-test:
+    image: postgres:14-alpine
+    container_name: task_versioning_test_db
+    environment:
+      POSTGRES_DB: taskdb_test
+      POSTGRES_USER: taskuser
+      POSTGRES_PASSWORD: taskpass
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+
+volumes:
+  postgres_data:

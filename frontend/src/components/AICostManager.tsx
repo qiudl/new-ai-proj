@@ -729,7 +729,7 @@ const AICostManager: React.FC = () => {
         width={800}
       >
         <Table
-          columns={alertColumns as unknown}
+          columns={alertColumns}
           dataSource={budgetAlerts}
           rowKey="id"
           pagination={{ pageSize: 10 }}

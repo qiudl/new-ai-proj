@@ -3,16 +3,55 @@ package database
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
-	// "github.com/jmoiron/sqlx" // 临时注释，避免未使用导入错误
 	_ "github.com/lib/pq"
 )
 
 // PostgresDB implements the DB interface using PostgreSQL
 type PostgresDB struct {
 	db *sql.DB
+}
+
+// Select scans multiple rows into dest slice pointer
+func (pdb *PostgresDB) Select(dest interface{}, query string, args ...interface{}) error {
+	rows, err := pdb.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	return scanRows(dest, rows)
+}
+
+// Get scans a single row into dest pointer
+func (pdb *PostgresDB) Get(dest interface{}, query string, args ...interface{}) error {
+	rows, err := pdb.db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return sql.ErrNoRows
+	}
+	return scanRow(dest, rows)
+}
+
+// Exec executes a query without returning any rows
+func (pdb *PostgresDB) Exec(query string, args ...interface{}) (sql.Result, error) {
+	return pdb.db.Exec(query, args...)
+}
+
+// Query wraps db.Query
+func (pdb *PostgresDB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return pdb.db.Query(query, args...)
+}
+
+// QueryRow wraps db.QueryRow
+func (pdb *PostgresDB) QueryRow(query string, args ...interface{}) *sql.Row {
+	return pdb.db.QueryRow(query, args...)
 }
 
 // NewPostgresDB creates a new PostgreSQL database connection
@@ -178,8 +217,73 @@ func (pdb *PostgresDB) BeginTx(ctx context.Context) (Tx, error) {
 
 
 // PostgresTx implements the Tx interface using PostgreSQL transaction
+
+// scan helpers
+func scanRows(dest interface{}, rows *sql.Rows) error {
+	dv := reflect.ValueOf(dest)
+	if dv.Kind() != reflect.Ptr || dv.Elem().Kind() != reflect.Slice {
+		return fmt.Errorf("dest must be pointer to slice")
+	}
+	sliceVal := dv.Elem()
+	elemType := sliceVal.Type().Elem()
+	cols, err := rows.Columns()
+	if err != nil { return err }
+	for rows.Next() {
+		vals := make([]interface{}, len(cols))
+		scanTargets := make([]interface{}, len(cols))
+		for i := range vals { scanTargets[i] = &vals[i] }
+		if err := rows.Scan(scanTargets...); err != nil { return err }
+		m := make(map[string]interface{}, len(cols))
+		for i, c := range cols {
+			v := vals[i]
+			if b, ok := v.([]byte); ok { m[c] = string(b) } else { m[c] = v }
+		}
+		elemPtr := reflect.New(elemType)
+		b, _ := json.Marshal(m)
+		if err := json.Unmarshal(b, elemPtr.Interface()); err != nil {
+			return err
+		}
+		sliceVal.Set(reflect.Append(sliceVal, elemPtr.Elem()))
+	}
+	return rows.Err()
+}
+
+func scanRow(dest interface{}, rows *sql.Rows) error {
+	dv := reflect.ValueOf(dest)
+	if dv.Kind() != reflect.Ptr {
+		return fmt.Errorf("dest must be pointer")
+	}
+	cols, err := rows.Columns()
+	if err != nil { return err }
+	vals := make([]interface{}, len(cols))
+	scanTargets := make([]interface{}, len(cols))
+	for i := range vals { scanTargets[i] = &vals[i] }
+	if err := rows.Scan(scanTargets...); err != nil { return err }
+	m := make(map[string]interface{}, len(cols))
+	for i, c := range cols {
+		v := vals[i]
+		if b, ok := v.([]byte); ok { m[c] = string(b) } else { m[c] = v }
+	}
+	b, _ := json.Marshal(m)
+	return json.Unmarshal(b, dest)
+}
 type PostgresTx struct {
 	tx *sql.Tx
+}
+
+// Exec wraps tx.Exec
+func (ptx *PostgresTx) Exec(query string, args ...interface{}) (sql.Result, error) {
+	return ptx.tx.Exec(query, args...)
+}
+
+// Query wraps tx.Query
+func (ptx *PostgresTx) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	return ptx.tx.Query(query, args...)
+}
+
+// QueryRow wraps tx.QueryRow
+func (ptx *PostgresTx) QueryRow(query string, args ...interface{}) *sql.Row {
+	return ptx.tx.QueryRow(query, args...)
 }
 
 // Users returns the user repository for transaction

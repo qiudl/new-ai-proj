@@ -64,4 +64,6 @@ type AllHandlers struct {
 	DashboardHandler           *handlers.DashboardHandler
 	TaskAnalysisHandler        *handlers.TaskAnalysisHandler
 	APIKeyHandler              *handlers.APIKeyHandler
+	ProgressHandler            *handlers.ProgressHandler
+	TaskRelationshipHandler    *handlers.TaskRelationshipHandler
 }

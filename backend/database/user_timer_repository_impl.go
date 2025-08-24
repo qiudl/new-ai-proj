@@ -401,64 +401,320 @@ func (r *PostgresUserTimerRepository) GetUserTimerStats(ctx context.Context, use
 	return &stats, nil
 }
 
-// GetDashboardData retrieves comprehensive dashboard data (simplified implementation)
-func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, userID int) (*models.PersonalTimerDashboard, error) {
+// GetDashboardData retrieves comprehensive dashboard data with accurate today stats and recent sessions
+func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, userID int, tz string) (*models.PersonalTimerDashboard, error) {
+	loc, err := time.LoadLocation(tz)
+	if err != nil || loc == nil {
+		loc = time.FixedZone("UTC", 0)
+	}
+	// Compute start/end of today in requested timezone
+	nowTZ := time.Now().In(loc)
+	tzStart := time.Date(nowTZ.Year(), nowTZ.Month(), nowTZ.Day(), 0, 0, 0, 0, loc)
+	tzEnd := tzStart.Add(24 * time.Hour)
+	startUTC := tzStart.UTC()
+	endUTC := tzEnd.UTC()
+
 	dashboard := &models.PersonalTimerDashboard{
 		TimerTasks:     make([]models.UserTimerTaskResponse, 0),
 		RecentSessions: make([]models.PersonalTimerSession, 0),
 		FavoriteTasks:  make([]models.UserTimerTaskResponse, 0),
 	}
 
-	// Get current timer status (placeholder)
-	dashboard.CurrentTimer = &models.PersonalTimerCurrent{
-		IsRunning:     false,
-		ElapsedSeconds: 0,
-		FormattedTime: "00:00:00",
+	// 1) Current timer (running or paused)
+	{
+		query := `
+			SELECT id, target_type, target_id, target_title,
+			       COALESCE(target_metadata->>'color', '#1890ff') as task_color,
+			       COALESCE(category, 'general') as task_category,
+			       start_time, status, COALESCE(pause_total_seconds, 0)
+			FROM unified_timer_logs
+			WHERE user_id = $1 AND status IN ('running','paused')
+			ORDER BY start_time DESC
+			LIMIT 1`
+		row := r.db.QueryRowContext(ctx, query, userID)
+		var (
+			id int
+			typeStr string
+			maybeTargetID sql.NullInt64
+			title string
+			color string
+			category string
+			start time.Time
+			status string
+			pauseTotal int
+		)
+		if err := row.Scan(&id, &typeStr, &maybeTargetID, &title, &color, &category, &start, &status, &pauseTotal); err == nil {
+			elapsed := int(time.Since(start).Seconds())
+			if elapsed < 0 { elapsed = 0 }
+			dashboard.CurrentTimer = &models.PersonalTimerCurrent{
+				IsRunning:      status == "running",
+				TaskType:       map[string]string{"project_task":"project", "personal_task":"personal"}[typeStr],
+				TaskTitle:      &title,
+				TaskColor:      &color,
+				TaskCategory:   &category,
+				StartTime:      &start,
+				ElapsedSeconds: elapsed,
+				FormattedTime:  models.FormatDuration(elapsed),
+			}
+		}
 	}
 
-	// Get today stats (placeholder)
-	dashboard.TodayStats = models.PersonalTimerTodayStats{
-		TotalSeconds:    0,
-		FormattedTime:   "00:00:00",
-		SessionsCount:   0,
-		TasksWorkedOn:   0,
-		MostWorkedTask:  "",
-		ProductiveHours: make([]int, 24),
-		EfficiencyScore: 75.0,
-		LongestSession:  0,
+	// 2) Today stats (completed + running overlap)
+	{
+		stats := models.PersonalTimerTodayStats{
+			TotalSeconds:    0,
+			FormattedTime:   "00:00:00",
+			SessionsCount:   0,
+			TasksWorkedOn:   0,
+			MostWorkedTask:  "",
+			ProductiveHours: make([]int, 24),
+			EfficiencyScore: 75.0,
+			LongestSession:  0,
+		}
+		// Sum of completed sessions overlapped with today
+		{
+			query := `
+				SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(end_time, $3) - GREATEST(start_time, $2)))), 0)::int AS total_seconds
+				FROM unified_timer_logs
+				WHERE user_id = $1
+				  AND end_time IS NOT NULL
+				  AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2`
+			var completed int
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&completed); err == nil {
+				stats.TotalSeconds = completed
+			}
+		}
+		// Add running overlap (till now)
+		{
+			query := `
+				SELECT start_time
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND status = 'running'
+				ORDER BY start_time DESC LIMIT 1`
+			var start time.Time
+			if err := r.db.QueryRowContext(ctx, query, userID).Scan(&start); err == nil {
+				ovStart := start
+				if ovStart.Before(startUTC) { ovStart = startUTC }
+				ovEnd := time.Now().UTC()
+				if ovEnd.After(endUTC) { ovEnd = endUTC }
+				if ovEnd.After(ovStart) {
+					stats.TotalSeconds += int(ovEnd.Sub(ovStart).Seconds())
+				}
+			}
+		}
+		// Sessions count (started today in tz)
+		{
+			query := `
+				SELECT COUNT(*)
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time >= $2 AND start_time < $3`
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&stats.SessionsCount); err != nil {
+				stats.SessionsCount = 0
+			}
+		}
+		// Tasks worked on (distinct target within today overlap)
+		{
+			query := `
+				SELECT COUNT(DISTINCT target_title)
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2`
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&stats.TasksWorkedOn); err != nil {
+				stats.TasksWorkedOn = 0
+			}
+		}
+		// Most worked task today (by overlapped seconds)
+		{
+			query := `
+				SELECT target_title, COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(end_time, $3) - GREATEST(start_time, $2)))),0)::int AS sec
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2
+				GROUP BY target_title
+				ORDER BY sec DESC
+				LIMIT 1`
+			var topTitle sql.NullString
+			var topSec int
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&topTitle, &topSec); err == nil {
+				if topTitle.Valid { stats.MostWorkedTask = topTitle.String }
+			}
+		}
+		// Productive hours distribution (timezone aware)
+		{
+			query := `
+				SELECT EXTRACT(HOUR FROM timezone($4, start_time))::int AS h,
+				       COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(end_time, $3) - GREATEST(start_time, $2)))),0)::int AS sec
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2
+				GROUP BY h
+				ORDER BY h`
+			rows, qerr := r.db.QueryContext(ctx, query, userID, startUTC, endUTC, tz)
+			if qerr == nil {
+				defer rows.Close()
+				for rows.Next() {
+					var h, sec int
+					if err := rows.Scan(&h, &sec); err == nil {
+						if h >= 0 && h < 24 { stats.ProductiveHours[h] = sec }
+					}
+				}
+			}
+		}
+		// Efficiency score (sum actual_work_seconds / sum duration_seconds)
+		{
+			query := `
+				SELECT COALESCE(SUM(actual_work_seconds),0)::int AS work_sec, COALESCE(SUM(duration_seconds),0)::int AS total_sec
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2`
+			var work, total int
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&work, &total); err == nil && total > 0 {
+				score := (float64(work) / float64(total)) * 100.0
+				if score < 0 { score = 0 }
+				if score > 100 { score = 100 }
+				stats.EfficiencyScore = score
+			}
+		}
+		// Longest session today
+		{
+			query := `
+				SELECT COALESCE(MAX(duration_seconds),0)
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time >= $2 AND start_time < $3`
+			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&stats.LongestSession); err != nil {
+				stats.LongestSession = 0
+			}
+		}
+		stats.FormattedTime = models.FormatDuration(stats.TotalSeconds)
+		// Compute today's top tasks (by overlapped seconds)
+		{
+			query := `
+				SELECT target_title,
+				       COALESCE(category, 'general') AS category,
+				       COALESCE(NULLIF(target_metadata->>'color',''), '#1890ff') AS color,
+				       COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(end_time, $3) - GREATEST(start_time, $2)))),0)::int AS sec,
+				       COUNT(*) AS sessions
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2
+				GROUP BY target_title, category, color
+				ORDER BY sec DESC
+				LIMIT 5`
+			rows, qerr := r.db.QueryContext(ctx, query, userID, startUTC, endUTC)
+			if qerr == nil {
+				defer rows.Close()
+				var list []models.PersonalTopTask
+				for rows.Next() {
+					var title, category, color string
+					var sec, sessions int
+					if err := rows.Scan(&title, &category, &color, &sec, &sessions); err == nil {
+						list = append(list, models.PersonalTopTask{
+							TaskTitle:     title,
+							Category:      category,
+							Color:         color,
+							TotalSeconds:  sec,
+							FormattedTime: models.FormatDuration(sec),
+							Sessions:      sessions,
+						})
+					}
+				}
+				stats.TopTasks = list
+			}
+		}
+		// Compute today's category breakdown
+		{
+			query := `
+				SELECT COALESCE(category, '未分类') AS category,
+				       COALESCE(SUM(EXTRACT(EPOCH FROM (LEAST(end_time, $3) - GREATEST(start_time, $2)))),0)::int AS sec,
+				       COALESCE(MAX(NULLIF(target_metadata->>'color','')), '') AS color
+				FROM unified_timer_logs
+				WHERE user_id = $1 AND end_time IS NOT NULL AND duration_seconds IS NOT NULL
+				  AND start_time < $3 AND end_time > $2
+				GROUP BY category
+				ORDER BY sec DESC`
+			rows, qerr := r.db.QueryContext(ctx, query, userID, startUTC, endUTC)
+			if qerr == nil {
+				defer rows.Close()
+				var list []models.PersonalCategoryItem
+				for rows.Next() {
+					var category string
+					var sec int
+					var color sql.NullString
+					if err := rows.Scan(&category, &sec, &color); err == nil {
+						percent := 0.0
+						if stats.TotalSeconds > 0 { percent = (float64(sec) / float64(stats.TotalSeconds)) * 100.0 }
+						c := models.PersonalCategoryItem{
+							Category:      category,
+							TotalSeconds:  sec,
+							FormattedTime: models.FormatDuration(sec),
+							Percentage:    percent,
+							Color:         "",
+						}
+						if color.Valid && color.String != "" {
+							c.Color = color.String
+						} else {
+							switch strings.ToLower(category) {
+							case "personal", "个人":
+								c.Color = "#1890ff"
+							case "work", "工作":
+								c.Color = "#52c41a"
+							case "study", "学习":
+								c.Color = "#722ed1"
+							case "fitness", "健身":
+								c.Color = "#fa8c16"
+							case "hobby", "爱好":
+								c.Color = "#eb2f96"
+							default:
+								c.Color = "#1890ff"
+							}
+						}
+						list = append(list, c)
+					}
+				}
+				stats.CategoryBreakdown = list
+			}
+		}
+		dashboard.TodayStats = stats
 	}
 
-	// Get timer tasks
+	// 3) Timer tasks (active)
 	tasks, _, err := r.GetByUserID(ctx, userID, &models.UserTimerFilter{Status: "active"}, 10, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get timer tasks: %w", err)
 	}
-
 	for _, task := range tasks {
 		response := task.ToResponse()
 		dashboard.TimerTasks = append(dashboard.TimerTasks, response)
 	}
 
-	// Get favorite tasks
+	// 4) Favorite tasks
 	favoriteTasks, err := r.GetFavoritesByUserID(ctx, userID, 5)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get favorite tasks: %w", err)
 	}
-
 	for _, task := range favoriteTasks {
 		response := task.ToResponse()
 		dashboard.FavoriteTasks = append(dashboard.FavoriteTasks, response)
 	}
 
-	// Get summary
+	// 5) Summary
 	summary, err := r.GetUserTimerStats(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get summary: %w", err)
 	}
 	dashboard.Summary = *summary
 
-	// Placeholder for recent sessions
-	dashboard.RecentSessions = []models.PersonalTimerSession{}
+	// 6) Recent sessions (last 10 completed)
+	{
+		limit := 10
+		sessions, err := r.GetTimerSessions(ctx, userID, limit, 0)
+		if err == nil && sessions != nil {
+			dashboard.RecentSessions = *sessions
+		}
+	}
 
 	return dashboard, nil
 }

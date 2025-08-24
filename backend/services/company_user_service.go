@@ -53,7 +53,11 @@ func (s *CompanyUserService) CreateCompanyUser(ctx context.Context, req *models.
 	if req.IsPrimaryContact {
 		existing, err := s.GetPrimaryContactForCompany(ctx, req.CompanyID)
 		if err == nil && existing != nil {
-			return nil, "", fmt.Errorf("company already has a primary contact: %s", existing.ContactPersonName)
+			name := ""
+			if existing.ContactPersonName != nil {
+				name = *existing.ContactPersonName
+			}
+			return nil, "", fmt.Errorf("company already has a primary contact: %s", name)
 		}
 	}
 

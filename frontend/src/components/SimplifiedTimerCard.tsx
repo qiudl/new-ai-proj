@@ -101,7 +101,7 @@ const SimplifiedTimerCard: React.FC<SimplifiedTimerCardProps> = memo(() => {
             color: timerState.isPaused ? '#faad14' : '#1890ff',
             fontSize: '18px'
           }}>
-            {timerState.taskTitle}
+{timerState.taskId ? `#${timerState.taskId} ` : ''}{timerState.taskTitle}
           </Title>
           <Title level={1} style={{ 
             fontSize: '42px', 

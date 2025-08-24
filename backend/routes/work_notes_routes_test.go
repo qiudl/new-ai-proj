@@ -52,10 +52,12 @@ func (d *dummyApp) GetRootTasksHandler() gin.HandlerFunc        { return func(c 
 func (d *dummyApp) SearchParentTasksHandler() gin.HandlerFunc   { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) BulkImportTasksHandler() gin.HandlerFunc     { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) GetTaskChildrenHandler() gin.HandlerFunc     { return func(c *gin.Context) { c.Status(http.StatusOK) } }
+func (d *dummyApp) GetTaskDescendantsHandler() gin.HandlerFunc  { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) GetTaskUpdatesHandler() gin.HandlerFunc      { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) UpdateTaskUpdateHandler() gin.HandlerFunc    { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) DeleteTaskUpdateHandler() gin.HandlerFunc    { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 func (d *dummyApp) GetTaskTimelineHandler() gin.HandlerFunc     { return func(c *gin.Context) { c.Status(http.StatusOK) } }
+func (d *dummyApp) GetTaskProgressHandler() gin.HandlerFunc    { return func(c *gin.Context) { c.Status(http.StatusOK) } }
 
 // Project handlers
 func (d *dummyApp) GetProjectsHandler() gin.HandlerFunc   { return func(c *gin.Context) { c.Status(http.StatusOK) } }
@@ -114,6 +116,9 @@ func (d *dummyApp) GetAITaskGeneratorHandler() *handlers.AITaskGeneratorHandler 
 func (d *dummyApp) GetDashboardHandler() *handlers.DashboardHandler   { return &handlers.DashboardHandler{} }
 func (d *dummyApp) GetTaskAnalysisHandler() *handlers.TaskAnalysisHandler { return &handlers.TaskAnalysisHandler{} }
 func (d *dummyApp) GetAPIKeyHandler() *handlers.APIKeyHandler         { return &handlers.APIKeyHandler{} }
+func (d *dummyApp) GetAnalyticsHandler() *handlers.AnalyticsHandler   { return &handlers.AnalyticsHandler{} }
+func (d *dummyApp) GetProgressHandler() *handlers.ProgressHandler     { return &handlers.ProgressHandler{} }
+func (d *dummyApp) GetTaskRelationshipHandler() *handlers.TaskRelationshipHandler { return &handlers.TaskRelationshipHandler{} }
 
 // Audit log handlers (gin.HandlerFunc getters)
 func (d *dummyApp) GetAuditLogsHandler() gin.HandlerFunc  { return func(c *gin.Context) { c.Status(http.StatusOK) } }

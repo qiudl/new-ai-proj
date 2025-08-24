@@ -1,0 +1,179 @@
+[
+  {
+    "id": "535-pm",
+    "name": "产品需求与拆解",
+    "icon": "🧭",
+    "role": "ai-pm",
+    "startDelayMs": 0,
+    "stages": [
+      { "name": "需求澄清", "duration": 1800, "progress": 20 },
+      { "name": "用户故事与验收标准", "duration": 2500, "progress": 45 },
+      { "name": "里程碑与风险评估", "duration": 2000, "progress": 70 },
+      { "name": "PRD冻结", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-arch",
+    "name": "系统架构与设计",
+    "icon": "🏗️",
+    "role": "ai-architect",
+    "dependsOn": ["535-pm"],
+    "startDelayMs": 300,
+    "stages": [
+      { "name": "领域建模", "duration": 2000, "progress": 20 },
+      { "name": "服务切分与接口", "duration": 3000, "progress": 50 },
+      { "name": "数据模型与一致性", "duration": 2500, "progress": 75 },
+      { "name": "架构评审", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-dba",
+    "name": "数据库与Schema（Postgres）",
+    "icon": "🗄️",
+    "role": "ai-dba",
+    "dependsOn": ["535-arch"],
+    "startDelayMs": 300,
+    "stages": [
+      { "name": "规范与约束（生产使用Postgres）", "duration": 2000, "progress": 25 },
+      { "name": "表/索引设计", "duration": 3000, "progress": 55 },
+      { "name": "迁移脚本（Docker Postgres）", "duration": 2500, "progress": 80 },
+      { "name": "性能基线", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-devops",
+    "name": "CI/CD 与环境（Jenkins Docker Agent）",
+    "icon": "☁️",
+    "role": "ai-devops",
+    "dependsOn": ["535-arch"],
+    "startDelayMs": 200,
+    "stages": [
+      { "name": "Docker化与多阶段构建", "duration": 2200, "progress": 30 },
+      { "name": "Jenkins流水线（Docker Agent）", "duration": 3200, "progress": 65 },
+      { "name": "预生产部署", "duration": 2500, "progress": 90 },
+      { "name": "回滚策略", "duration": 1600, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-backend",
+    "name": "后端API与服务（Go + Postgres in Docker）",
+    "icon": "⚙️",
+    "role": "ai-golang-engineer",
+    "dependsOn": ["535-arch", "535-dba", "535-devops"],
+    "startDelayMs": 200,
+    "stages": [
+      { "name": "接口契约与proto", "duration": 2500, "progress": 25 },
+      { "name": "业务实现", "duration": 4000, "progress": 60 },
+      { "name": "数据存取层（Docker Postgres）", "duration": 3000, "progress": 85 },
+      { "name": "单元测试", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-frontend",
+    "name": "前端应用（React/Vue）",
+    "icon": "🎨",
+    "role": "ai-frontend",
+    "dependsOn": ["535-pm", "535-backend"],
+    "startDelayMs": 400,
+    "stages": [
+      { "name": "组件设计", "duration": 3000, "progress": 35 },
+      { "name": "状态管理", "duration": 3000, "progress": 70 },
+      { "name": "API集成", "duration": 2500, "progress": 90 },
+      { "name": "UI测试", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-obs",
+    "name": "可观测性与告警",
+    "icon": "📈",
+    "role": "ai-devops",
+    "dependsOn": ["535-backend", "535-devops"],
+    "startDelayMs": 300,
+    "stages": [
+      { "name": "指标埋点", "duration": 2000, "progress": 30 },
+      { "name": "日志追踪", "duration": 2000, "progress": 60 },
+      { "name": "仪表盘", "duration": 2000, "progress": 90 },
+      { "name": "告警规则", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-security",
+    "name": "安全审计",
+    "icon": "🔒",
+    "role": "ai-sec",
+    "dependsOn": ["535-backend", "535-frontend"],
+    "startDelayMs": 300,
+    "stages": [
+      { "name": "依赖扫描", "duration": 2000, "progress": 30 },
+      { "name": "OWASP检查", "duration": 2500, "progress": 60 },
+      { "name": "密钥与配置治理", "duration": 2000, "progress": 85 },
+      { "name": "安全基线", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-qa",
+    "name": "质量与测试",
+    "icon": "✅",
+    "role": "ai-qa",
+    "dependsOn": ["535-backend", "535-frontend", "535-devops"],
+    "startDelayMs": 400,
+    "stages": [
+      { "name": "测试计划", "duration": 2000, "progress": 30 },
+      { "name": "自动化测试", "duration": 4000, "progress": 65 },
+      { "name": "性能压测", "duration": 3000, "progress": 90 },
+      { "name": "验收测试", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-docs",
+    "name": "文档与移交",
+    "icon": "📚",
+    "role": "ai-docs",
+    "dependsOn": ["535-backend", "535-frontend", "535-qa"],
+    "startDelayMs": 300,
+    "stages": [
+      { "name": "API与架构文档", "duration": 2200, "progress": 35 },
+      { "name": "运行手册（含Docker/PG/Jenkins）", "duration": 2500, "progress": 70 },
+      { "name": "交付清单", "duration": 1800, "progress": 90 },
+      { "name": "知识移交", "duration": 1500, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-release",
+    "name": "发布与变更管理",
+    "icon": "🚀",
+    "role": "ai-release",
+    "dependsOn": ["535-qa", "535-security", "535-docs", "535-devops"],
+    "startDelayMs": 400,
+    "stages": [
+      { "name": "变更评审", "duration": 2000, "progress": 50 },
+      { "name": "发布计划与回滚演练", "duration": 2200, "progress": 75 },
+      { "name": "生产验证（Postgres）", "duration": 2000, "progress": 100 }
+    ]
+  },
+  {
+    "id": "535-core-sum",
+    "name": "核心研发汇总",
+    "icon": "📦",
+    "role": "Summary",
+    "summaryOf": ["535-arch", "535-dba", "535-backend", "535-frontend"]
+  },
+  {
+    "id": "535-ready-sum",
+    "name": "发布就绪汇总",
+    "icon": "🧪",
+    "role": "Summary",
+    "summaryOf": ["535-devops", "535-obs", "535-security", "535-qa", "535-docs"]
+  },
+  {
+    "id": "535",
+    "name": "任务 #535 总览",
+    "icon": "📊",
+    "role": "Summary",
+    "summaryOf": [
+      "535-pm", "535-arch", "535-dba", "535-backend", "535-frontend",
+      "535-devops", "535-obs", "535-security", "535-qa", "535-docs", "535-release"
+    ]
+  }
+]
+

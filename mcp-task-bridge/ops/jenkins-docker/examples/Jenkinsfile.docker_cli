@@ -1,0 +1,25 @@
+pipeline {
+  agent { label 'docker-cli' }
+  options { timestamps() }
+  stages {
+    stage('Docker info') {
+      steps {
+        sh 'docker version && docker info | head -n 50'
+      }
+    }
+    stage('Build image') {
+      steps {
+        sh '''
+          cat > Dockerfile <<'EOF'
+          FROM alpine:3.19
+          RUN echo "built at $(date -u)" > /build.txt
+          CMD ["cat", "/build.txt"]
+          EOF
+          docker build -t demo:local .
+          docker run --rm demo:local
+        '''
+      }
+    }
+  }
+}
+

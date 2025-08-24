@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Table, Tag, Button, Space, Input, Select, DatePicker, Tooltip, Modal, message } from 'antd';
 import { EditOutlined, DeleteOutlined, EyeOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
-import { ColumnsType, TableProps } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import { Task } from '../types/task';
 import dayjs from 'dayjs';
 
@@ -16,7 +16,7 @@ interface EnhancedTaskTableProps {
   onView: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
-  pagination?: TableProps<Task>['pagination'];
+  pagination?: any;
 }
 
 interface FilterState {
@@ -137,7 +137,7 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
     }
   };
 
-  const columns: unknown[] = [
+  const columns: ColumnsType<Task> = [
     {
       title: 'ID',
       dataIndex: 'id',

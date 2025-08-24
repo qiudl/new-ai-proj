@@ -693,7 +693,7 @@ const AIBatchOptimizer: React.FC = () => {
                       )}
 
                       <Table
-                        columns={taskGroupColumns as unknown}
+                        columns={taskGroupColumns}
                         dataSource={group.optimizedTasks}
                         rowKey={(record, index) => `${record.title}-${index}`}
                         pagination={false}
@@ -818,7 +818,7 @@ const AIBatchOptimizer: React.FC = () => {
                 <Divider />
 
                 <Table
-                  columns={taskGroupColumns as unknown}
+                  columns={taskGroupColumns}
                   dataSource={group.tasks}
                   rowKey={(record, index) => `${record.title}-${index}`}
                   pagination={false}

@@ -31,6 +31,7 @@ This is an AI-powered project management system with task management, timer func
 - **Key features**: Task management, timer widgets, document editing, dashboard
 
 ### Infrastructure
+
 - **Database**: PostgreSQL 16
 - **Deployment**: Docker Compose
 - **Reverse Proxy**: Nginx
@@ -39,6 +40,7 @@ This is an AI-powered project management system with task management, timer func
 ## Development Commands
 
 ### 🐳 Docker开发环境 (推荐)
+
 ```bash
 # 启动完整开发环境
 ./scripts/dev-env.sh start
@@ -64,6 +66,7 @@ This is an AI-powered project management system with task management, timer func
 ```
 
 ### 🚀 自动化脚本工具
+
 ```bash
 # 批量生成任务文档 (配置驱动)
 python3 scripts/create-task-docs.py
@@ -79,59 +82,17 @@ python3 scripts/create-task-docs.py --config custom-config.yaml
 ```
 
 ### 访问地址
+
 - **前端**: http://localhost:3001
 - **后端API**: http://localhost:8081
 - **MCP服务器**: http://localhost:3100
 - **PostgreSQL主库**: localhost:5433
 - **PostgreSQL从库**: localhost:5432 (本机备份)
 
-### 传统开发方式 (不推荐)
-```bash
-# 后端
-cd backend
-go run main.go
-go build -o main .             # Build binary
-
-# 前端
-cd frontend  
-npm start                      # Development server
-npm run build                  # Production build
-
-# Docker服务
-docker-compose up db           # 仅启动数据库
-```
-
-### MCP Server
-```bash
-cd mcp-task-bridge
-npm start                      # Start MCP server
-npm run dev                    # Start with tsx watch mode
-npm test                       # Run MCP server tests
-```
-
-## Build and Quality Commands
-
-### Backend Build
-```bash
-cd backend
-go build -o main .             # Build binary
-go mod tidy                    # Clean up dependencies
-go fmt ./...                   # Format code
-go vet ./...                   # Static analysis
-```
-
-### Frontend Build
-```bash
-cd frontend
-npm run build                  # Production build
-npm run analyze               # Bundle size analysis
-npm run lint                  # Run ESLint
-npm run lint:fix             # Auto-fix ESLint issues
-npm run type-check           # TypeScript type checking
-npm run format              # Format with Prettier
-```
+### 传统开发方式 （不使用本机开发环境）
 
 ### Docker Build
+
 ```bash
 # Build all services
 ./scripts/dev-env.sh build
@@ -144,6 +105,7 @@ docker-compose build frontend
 ## Key File Locations
 
 ### Backend Structure
+
 - `main.go` - Application entry point and dependency injection
 - `handlers/` - HTTP request handlers organized by module (Gin framework)
 - `models/` - Data models and domain entities (GORM/SQL structs)
@@ -157,6 +119,7 @@ docker-compose build frontend
 - `utils/` - Shared utilities (JWT, validation, encryption)
 
 ### Frontend Structure
+
 - `src/App.tsx` - Main application component with routing
 - `src/pages/` - Page components organized by feature
 - `src/components/` - Reusable UI components
@@ -169,6 +132,7 @@ docker-compose build frontend
 ## Database Schema
 
 Key tables include:
+
 - `users` - User accounts and authentication
 - `projects` - Project management
 - `tasks` - Task management with hierarchical support (includes flexible time management: estimated_minutes, actual_minutes, time_unit_preference)
@@ -181,6 +145,7 @@ Key tables include:
 ## API Architecture
 
 The backend follows RESTful API conventions:
+
 - `/api/v1/auth/*` - Authentication endpoints
 - `/api/v1/projects/*` - Project management
 - `/api/v1/projects/{id}/tasks/*` - Task management (project-scoped)
@@ -193,8 +158,9 @@ The backend follows RESTful API conventions:
 ## Authentication
 
 The system uses JWT tokens for authentication:
+
 - Login endpoint: `POST /api/v1/auth/login`
-- Token validation through middleware
+- Token validation through middleware，使用admin, admin123作为账号密码去获得token
 - Role-based access control
 - Development quick login for `admin` and `qiudl` users
 
@@ -205,6 +171,7 @@ The system uses JWT tokens for authentication:
 Docker环境使用预配置的环境变量，无需手动设置：
 
 #### 数据库配置 (自动)
+
 - **主库(Docker)**: 
   - 容器内访问: `postgres-master:5432`
   - 主机访问: `localhost:5433`
@@ -214,6 +181,7 @@ Docker环境使用预配置的环境变量，无需手动设置：
 - **数据库**: `ai_project_db`
 
 #### API配置 (自动)
+
 - **后端**: `http://localhost:8081`
 - **前端**: `http://localhost:3001`
 - **MCP服务器**: `http://localhost:3100`
@@ -221,15 +189,19 @@ Docker环境使用预配置的环境变量，无需手动设置：
 ### 手动环境变量 (如需自定义)
 
 #### Backend (.env)
+
 **容器内运行时 (推荐)**:
+
 - `DB_HOST=postgres-master` - 数据库主机
 - `DB_PORT=5432` - 数据库端口
 
 **主机运行时**:
+
 - `DB_HOST=localhost` - 数据库主机
 - `DB_PORT=5433` - 数据库端口
 
 **通用配置**:
+
 - `DB_USER=dev_user` - 数据库用户
 - `DB_PASSWORD=dev_password_2024` - 数据库密码
 - `DB_NAME=ai_project_db` - 数据库名
@@ -237,6 +209,7 @@ Docker环境使用预配置的环境变量，无需手动设置：
 - `PORT=8081` - 服务器端口
 
 #### Frontend (.env)
+
 - `REACT_APP_API_URL=http://localhost:8081/api/v1` - API地址
 - `REACT_APP_ENV=development` - 环境标识
 
@@ -262,29 +235,34 @@ npm run format              # Format code with Prettier
 ```
 
 ### Test File Patterns
+
 - Backend: `*_test.go` files alongside source code
 - Frontend: Tests in `src/__tests__/` and `src/components/__tests__/` directories
 
 ## Development Guidelines
 
 ### Code Organization
+
 - Follow existing directory structure and naming conventions
 - Keep components focused and reusable
 - Use TypeScript for type safety
 - Implement proper error handling and validation
 
 ### Database Migrations
+
 - New migrations go in `backend/migrations/`
 - Use sequential numbering for migration files
 - Always provide both up and down migrations
 
 ### API Development
+
 - Follow RESTful conventions
 - Use appropriate HTTP status codes
 - Implement consistent error response format
 - Add proper request validation
 
 ### Frontend Development
+
 - Use Ant Design components consistently
 - Implement responsive design patterns
 - Follow React best practices (hooks, context)
@@ -294,6 +272,7 @@ npm run format              # Format code with Prettier
 - ESLint + Prettier for code quality
 
 ### Go Development Patterns
+
 - Clean architecture with repository pattern
 - Interface-driven design for testability
 - GORM for ORM operations, sqlx for complex queries
@@ -303,6 +282,7 @@ npm run format              # Format code with Prettier
 ## Common Development Tasks
 
 ### Adding New API Endpoints
+
 1. Create handler in `backend/handlers/`
 2. Add route in `backend/routes/`
 3. Update service layer if needed
@@ -310,12 +290,14 @@ npm run format              # Format code with Prettier
 5. Update frontend service files
 
 ### Adding New Frontend Pages
+
 1. Create page component in `src/pages/`
 2. Add route in `src/App.tsx`
 3. Create corresponding service functions
 4. Add to navigation if needed
 
 ### Database Changes
+
 1. Create migration file in `backend/migrations/` (use sequential numbering)
 2. Update model structs in `backend/models/`
 3. Update repository interfaces and implementations
@@ -335,12 +317,14 @@ The system is containerized with Docker:
 The `mcp-task-bridge` directory contains an MCP server that enables Claude Code to interact with the task management system. This provides enhanced productivity features when using Claude Code for development.
 
 ### MCP Server Configuration
+
 - **Server**: Node.js TypeScript server with MCP SDK
 - **Port**: 3100 (configurable)
 - **Tools**: Task creation, project management, document handling
 - **Dependencies**: axios for API communication
 
 ### Claude Code Integration Benefits
+
 - **Seamless Task Management**: Create, update, and manage tasks directly from Claude Code
 - **Automated Documentation**: Generate task documentation using the batch creation system
 - **Project Context**: Access project statistics, task relationships, and status information
@@ -350,6 +334,7 @@ The `mcp-task-bridge` directory contains an MCP server that enables Claude Code 
 ## 🚀 快速开始
 
 ### 首次设置
+
 ```bash
 # 1. 给脚本执行权限
 chmod +x scripts/dev-env.sh scripts/setup-replica-database.sh
@@ -365,6 +350,7 @@ chmod +x scripts/dev-env.sh scripts/setup-replica-database.sh
 ```
 
 ### 日常开发
+
 ```bash
 # 启动环境
 ./scripts/dev-env.sh start
@@ -381,6 +367,7 @@ chmod +x scripts/dev-env.sh scripts/setup-replica-database.sh
 ```
 
 ### 重要说明
+
 - 开发环境完全基于Docker，避免本机环境污染
 - PostgreSQL主从架构保证数据安全
 - 支持热重载，代码修改即时生效

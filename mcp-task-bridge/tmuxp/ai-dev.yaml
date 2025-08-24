@@ -1,0 +1,125 @@
+session_name: ai-dev
+start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+
+# Global options
+global_options:
+  default-terminal: screen-256color
+  prefix: C-a
+
+windows:
+  - window_name: planner
+    layout: even-horizontal
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "🤖 AI Planner ready - Strategic planning and task coordination"
+        - echo "Available commands:"
+        - echo "  • plan <goal> - Break down high-level goals"
+        - echo "  • assign <task> <agent> - Assign tasks to agents"
+        - echo "  • status - Show project status"
+        - echo "  • priorities - Review and set priorities"
+        focus: true
+
+  - window_name: coder
+    layout: even-horizontal
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "💻 AI Coder #1 ready - Implementation and development"
+        - echo "Available commands:"
+        - echo "  • implement <feature> - Code implementation"
+        - echo "  • review <file> - Code review"
+        - echo "  • refactor <module> - Code refactoring"
+        focus: true
+      - shell_command:
+        - echo "💻 AI Coder #2 ready - Code review and refactoring"
+        - echo "Specialized in:"
+        - echo "  • Code quality assessment"
+        - echo "  • Architecture improvements"
+        - echo "  • Performance optimization"
+
+  - window_name: tester
+    layout: even-horizontal
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "🧪 AI Tester #1 ready - Unit tests and validation"
+        - echo "Testing focus:"
+        - echo "  • Unit tests"
+        - echo "  • API testing"
+        - echo "  • Code coverage"
+        focus: true
+      - shell_command:
+        - echo "🧪 AI Tester #2 ready - Integration and E2E tests"
+        - echo "Testing focus:"
+        - echo "  • Integration tests"
+        - echo "  • End-to-end testing"
+        - echo "  • Performance testing"
+
+  - window_name: runner
+    layout: main-horizontal
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "🚀 AI Runner ready - Execution, debugging and deployment"
+        - echo "Capabilities:"
+        - echo "  • Application execution"
+        - echo "  • Debugging and troubleshooting"
+        - echo "  • Deployment coordination"
+        - echo "  • Performance monitoring"
+        focus: true
+      - shell_command:
+        - echo "📊 Status monitor ready"
+        - echo "Monitoring:"
+        - echo "  • System resources"
+        - echo "  • Application health"
+        - echo "  • Error tracking"
+
+  - window_name: observer
+    layout: main-vertical
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "👁️  AI Observer ready - Monitoring and task bridge integration"
+        - echo "Responsibilities:"
+        - echo "  • Project oversight"
+        - echo "  • Progress tracking"
+        - echo "  • Quality assurance"
+        focus: true
+      - shell_command:
+        - echo "📋 MCP Task Bridge integration ready"
+        - echo "Bridge capabilities:"
+        - echo "  • Task synchronization"
+        - echo "  • Progress reporting"
+        - echo "  • Context sharing"
+      - shell_command:
+        - echo "📝 Log monitor ready"
+        - echo "Commands to try:"
+        - echo "  • tail -f logs/*.log"
+        - echo "  • tail -f logs/broadcast.log"
+
+  - window_name: misc
+    layout: even-horizontal
+    start_directory: /Users/johnqiu/coding/www/projects/new-ai-proj/mcp-task-bridge
+    panes:
+      - shell_command:
+        - echo "🛠️  Misc workspace ready - Experiments and temporary tasks"
+        - echo "Use this space for:"
+        - echo "  • Experimental work"
+        - echo "  • Temporary scripts"
+        - echo "  • Ad-hoc testing"
+        - echo "  • Quick prototypes"
+        focus: true
+
+# Custom key bindings (applied after session creation)
+options:
+  synchronize-panes: false
+  mouse: true
+  status-keys: emacs
+  mode-keys: vi
+
+# Environment variables
+environment:
+  AI_SESSION: ai-dev
+  TMUX_SESSION: ai-dev
+  LOG_DIR: logs

@@ -8,7 +8,9 @@ import {
   Modal,
   Statistic,
   Badge,
-  Alert
+  Alert,
+  Dropdown,
+  Tooltip
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -17,9 +19,10 @@ import {
   CheckCircleOutlined,
   WarningOutlined,
   PauseCircleOutlined,
-  LinkOutlined
+  PauseOutlined
 } from '@ant-design/icons';
 import { useTimer } from '../contexts/TimerContext';
+import { useUnifiedTimer } from '../hooks/useUnifiedTimer';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 
@@ -44,13 +47,40 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
   style = {},
   className = ''
 }) => {
-  const { timerState, isLoading, startTimer, stopTimer } = useTimer();
+  const { timerState, isLoading, startTimer, stopTimer, pauseTimer, resumeTimer } = useTimer();
   const navigate = useNavigate();
+
+  // 统一计时器：用于读取所有活动计时器列表
+  const { 
+    activeTimers, 
+    refreshActiveTimers,
+    pauseTimerById,
+    resumeTimerById,
+    stopTimerById,
+    pauseAll,
+    resumeAll,
+    stopAll
+  } = useUnifiedTimer();
+
+  // 触发每秒重渲染以刷新显示用时
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(i);
+  }, []);
+
+  // 初始刷新一次活动计时器列表
+  useEffect(() => {
+    refreshActiveTimers();
+  }, [refreshActiveTimers]);
   
   // 本地计时状态 - 用于实时更新
   const [localElapsedSeconds, setLocalElapsedSeconds] = useState(0);
   const [localFormattedTime, setLocalFormattedTime] = useState('00:00:00');
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 悬停控制显示的计时器行ID
+  const [hoveredTimerId, setHoveredTimerId] = useState<number | null>(null);
 
   // 🎯 检查是否是当前任务正在计时
   const isCurrentTaskTiming = timerState.isRunning && timerState.taskId === taskId;
@@ -118,61 +148,56 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
   }, [isCurrentTaskTiming, timerState.startTime, formatElapsedTime]);
 
 
-  // 🎯 简化的开始计时
-  const handleStartTimer = useCallback(async () => {
-    if (isOtherTaskTiming) {
-      Modal.confirm({
-        title: '切换计时任务',
-        content: (
-          <div>
-            <p>当前正在为其他任务计时：</p>
-            <p><strong>{timerState.taskTitle}</strong></p>
-            <p>是否停止当前计时并开始为本任务计时？</p>
-          </div>
-        ),
-        okText: '确认切换',
-        cancelText: '取消',
-        onOk: async () => {
-          try {
-            // 先停止当前计时，等待完成
-            const stopSuccess = await stopTimer();
-            if (!stopSuccess) {
-              message.error('停止当前计时失败');
-              return;
-            }
-            
-            // 等待一小段时间确保状态同步
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            // 再开始新的计时
-            const startSuccess = await startTimer(taskId, taskTitle);
-            if (startSuccess) {
-              message.success(`已切换到任务"${taskTitle}"计时`);
-            } else {
-              message.error('开始新计时失败');
-            }
-          } catch (error) {
-            console.error('计时切换失败:', error);
-            message.error('计时切换失败');
-          }
-        }
-      });
-    } else {
-      try {
-        const success = await startTimer(taskId, taskTitle, taskType);
-        if (success) {
-          message.success(`开始为任务"${taskTitle}"计时`);
-        } else {
-          message.error('启动计时失败');
-        }
-      } catch (error) {
-        console.error('❌ MVPTaskDetailTimer 开始计时失败:', error);
-        message.error('开始计时失败');
+  // 🎯 开始计时（带选项）
+  const handleStartWithOption = useCallback(async (autoStopOthers: boolean) => {
+    try {
+      const success = await startTimer(taskId, taskTitle, taskType, { autoStopOthers });
+      if (success) {
+        message.success(`开始为任务"${taskTitle}"计时${autoStopOthers ? '（并停止其他）' : ''}`);
+      } else {
+        message.error('启动计时失败');
       }
+    } catch (error) {
+      console.error('❌ MVPTaskDetailTimer 开始计时失败:', error);
+      message.error('开始计时失败');
     }
-  }, [isOtherTaskTiming, timerState.taskTitle, stopTimer, startTimer, taskId, taskTitle]);
+  }, [startTimer, taskId, taskTitle, taskType]);
 
-  // 🎯 简化的停止计时
+  // 🎯 默认策略：尊重用户偏好（不显式传递 autoStopOthers，交由后端读取用户偏好），若无偏好则后端默认为并行
+  const handleStartDefault = useCallback(async () => {
+    try {
+      const success = await startTimer(taskId, taskTitle, taskType);
+      if (success) {
+        message.success(`开始为任务"${taskTitle}"计时（默认设置）`);
+      } else {
+        message.error('启动计时失败');
+      }
+    } catch (error) {
+      console.error('❌ MVPTaskDetailTimer 默认开始计时失败:', error);
+      message.error('开始计时失败');
+    }
+  }, [startTimer, taskId, taskTitle, taskType]);
+
+  // 🎯 暂停/继续当前计时
+  const handlePause = useCallback(async () => {
+    try {
+      const ok = await pauseTimer();
+      if (ok) message.info('计时已暂停');
+    } catch (e) {
+      message.error('暂停失败');
+    }
+  }, [pauseTimer]);
+
+  const handleResume = useCallback(async () => {
+    try {
+      const ok = await resumeTimer();
+      if (ok) message.success('计时已恢复');
+    } catch (e) {
+      message.error('恢复失败');
+    }
+  }, [resumeTimer]);
+
+  // 🎯 停止当前计时
   const handleStopTimer = useCallback(async () => {
     Modal.confirm({
       title: '停止计时',
@@ -199,14 +224,24 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
       if (e.target && (e.target as HTMLElement).tagName === 'INPUT') return;
       if (e.target && (e.target as HTMLElement).tagName === 'TEXTAREA') return;
       
-      // Ctrl/Cmd + Space: 开始/停止计时
+      // Ctrl/Cmd + Space: 开始/暂停/继续（未在当前任务计时时为开始-默认并行）
       if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
         e.preventDefault();
         if (isCurrentTaskTiming) {
-          handleStopTimer();
+          if (timerState.isPaused) {
+            handleResume();
+          } else {
+            handlePause();
+          }
         } else {
-          handleStartTimer();
+          handleStartDefault();
         }
+      }
+
+      // Ctrl/Cmd + E: 停止当前计时
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        handleStopTimer();
       }
     };
 
@@ -214,7 +249,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isCurrentTaskTiming, handleStartTimer, handleStopTimer]);
+  }, [isCurrentTaskTiming, handleStartDefault, handleStopTimer, handlePause, handleResume, timerState.isPaused]);
 
   // 🎯 获取计时状态显示
   const getTimerStatus = () => {
@@ -242,31 +277,60 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
     }
   };
 
-  // 🎯 获取按钮配置
-  const getButtonConfig = () => {
-    if (isCurrentTaskTiming) {
-      return {
-        type: 'primary' as const,
-        danger: true,
-        icon: <StopOutlined />,
-        text: '停止计时',
-        onClick: handleStopTimer,
-        disabled: isLoading
-      };
-    } else {
-      return {
-        type: 'primary' as const,
-        danger: false,
-        icon: <PlayCircleOutlined />,
-        text: isOtherTaskTiming ? '切换计时' : '开始计时',
-        onClick: handleStartTimer,
-        disabled: isLoading || taskStatus === 'completed'
-      };
-    }
-  };
-
   const timerStatus = getTimerStatus();
-  const buttonConfig = getButtonConfig();
+
+  // 🎯 渲染操作控制区
+  const renderControls = () => {
+    if (taskStatus === 'completed') return null;
+
+    if (isCurrentTaskTiming) {
+      return (
+        <Space>
+          <Button
+            type={timerState.isPaused ? 'primary' : 'default'}
+            icon={timerState.isPaused ? <PlayCircleOutlined /> : <PauseOutlined />}
+            onClick={timerState.isPaused ? handleResume : handlePause}
+            loading={isLoading}
+          >
+            {timerState.isPaused ? '继续' : '暂停'}
+          </Button>
+          <Button
+            danger
+            type="primary"
+            icon={<StopOutlined />}
+            onClick={handleStopTimer}
+            loading={isLoading}
+          >
+            完成
+          </Button>
+        </Space>
+      );
+    }
+
+    // 未在当前任务计时时：提供开始（默认=并行）+ 下拉选项
+    const menuItems = [
+      { key: 'start-default', label: '按默认设置启动（并行）' },
+      { key: 'start-parallel', label: '并行启动（不停止其他）' },
+      { key: 'start-stop-others', label: '启动并自动停止其他' }
+    ];
+
+    return (
+      <Dropdown
+        menu={{
+          items: menuItems,
+          onClick: async ({ key }) => {
+            if (key === 'start-default') return handleStartDefault();
+            if (key === 'start-parallel') return handleStartWithOption(false);
+            if (key === 'start-stop-others') return handleStartWithOption(true);
+          }
+        }}
+      >
+        <Button type="primary" icon={<PlayCircleOutlined />} loading={isLoading}>
+          开始
+        </Button>
+      </Dropdown>
+    );
+  };
 
   // 🎯 如果任务已完成，显示简化界面
   if (taskStatus === 'completed') {
@@ -410,18 +474,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
 
         {/* 🎯 操作按钮 */}
         <div style={{ textAlign: 'center' }}>
-          <Button
-            type={buttonConfig.type}
-            danger={buttonConfig.danger}
-            icon={buttonConfig.icon}
-            onClick={buttonConfig.onClick}
-            loading={isLoading}
-            disabled={buttonConfig.disabled}
-            size="large"
-            style={{ width: '100%', height: '40px' }}
-          >
-            {buttonConfig.text}
-          </Button>
+          {renderControls()}
         </div>
 
         {/* 🎯 简化的帮助提示 */}
@@ -439,6 +492,104 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
             <Text type="secondary" style={{ fontSize: '11px', color: '#8c8c8c' }}>
               ⌨️ 快捷键：Ctrl/Cmd + 空格 开始/停止计时
             </Text>
+          </div>
+        )}
+
+        {/* 🎯 正在计时的任务列表（并行计时） */}
+        {activeTimers && activeTimers.filter(t => t.status === 'running').length > 0 && (
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text strong style={{ fontSize: 13 }}>
+                ⏱️ 正在计时的任务（{activeTimers.filter(t => t.status === 'running').length}）
+              </Text>
+              <Space size="small">
+                <Button size="small" onClick={pauseAll}>全部暂停</Button>
+                <Button size="small" type="primary" onClick={resumeAll}>全部继续</Button>
+                <Button size="small" danger onClick={stopAll}>全部完成</Button>
+                <Button type="link" size="small" onClick={refreshActiveTimers} style={{ padding: 0 }}>
+                  刷新
+                </Button>
+              </Space>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {activeTimers.filter(t => t.status === 'running').map((t) => {
+                const projectId = (t as any).project_id;
+                const taskId = (t as any).target_id;
+                const startText = t.start_time ? dayjs(t.start_time).format('YYYY-MM-DD HH:mm') : '';
+                const elapsedText = (() => {
+                  try {
+                    const start = t.start_time ? new Date(t.start_time).getTime() : Date.now();
+                    const raw = Math.max(0, Math.floor((Date.now() - start) / 1000) - (((t as any).pause_total_seconds) || 0));
+                    const hours = Math.floor(raw / 3600);
+                    const minutes = Math.floor((raw % 3600) / 60);
+                    const secs = raw % 60;
+                    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                  } catch {
+                    return '00:00:00';
+                  }
+                })();
+
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: '#fafafa',
+                      border: '1px solid #f0f0f0',
+                      borderRadius: 6,
+                      padding: '8px 10px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Badge color="#52c41a" />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {projectId && taskId ? (
+                          <a
+                            href={`/projects/${projectId}/tasks/${taskId}`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate(`/projects/${projectId}/tasks/${taskId}`);
+                            }}
+                            style={{ fontSize: 13, fontWeight: 500, color: '#1890ff', textDecoration: 'none' }}
+                          >
+                            {t.target_title}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#262626' }}>{t.target_title}</span>
+                        )}
+                        {/* 悬停时显示的图标按钮 */}
+                        <span
+                          onMouseEnter={() => setHoveredTimerId(t.id)}
+                          onMouseLeave={() => setHoveredTimerId(null)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                        >
+                          {hoveredTimerId === t.id && (
+                            <>
+                              <Tooltip title={t.status === 'running' ? '暂停' : '继续'}>
+                                <Button 
+                                  size="small" 
+                                  type={t.status === 'running' ? 'default' : 'primary'} 
+                                  icon={t.status === 'running' ? <PauseOutlined /> : <PlayCircleOutlined />} 
+                                  onClick={() => (t.status === 'running' ? pauseTimerById(t.id) : resumeTimerById(t.id))}
+                                />
+                              </Tooltip>
+                              <Tooltip title="完成">
+                                <Button size="small" danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
+                              </Tooltip>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: '#8c8c8c' }}>
+                        {startText && <span style={{ marginRight: 6 }}>{startText}</span>}已用时 {elapsedText}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </Space>

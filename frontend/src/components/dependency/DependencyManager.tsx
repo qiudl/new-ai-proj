@@ -41,7 +41,8 @@ import {
   DependencyStatistics,
   DependencyValidation
 } from '../../types/dependency';
-import { Project, Task } from '../../types/task';
+import { Task } from '../../types/task';
+import type { Project } from '../../types/project';
 import DependencyService from '../../services/dependencyService';
 
 const { Option } = Select;

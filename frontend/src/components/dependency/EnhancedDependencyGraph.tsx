@@ -110,7 +110,51 @@ const EnhancedDependencyGraph: React.FC<EnhancedDependencyGraphProps> = ({
     setError(null);
 
     try {
-      const graph = await DependencyService.getDependencyGraph(project.id);
+      const raw = await DependencyService.getDependencyGraph(project.id);
+
+      // 规范化服务端返回的数据，确保类型与本地定义一致
+      const mapType = (t: any): DependencyType => {
+        switch (t) {
+          case 'FS':
+            return DependencyType.FINISH_TO_START;
+          case 'SS':
+            return DependencyType.START_TO_START;
+          case 'FF':
+            return DependencyType.FINISH_TO_FINISH;
+          case 'SF':
+            return DependencyType.START_TO_FINISH;
+          default:
+            return t as DependencyType;
+        }
+      };
+      const mapStrength = (s: any): DependencyStrength => {
+        switch (s) {
+          case 'mandatory':
+            return DependencyStrength.MANDATORY;
+          case 'preferred':
+            return DependencyStrength.PREFERRED;
+          case 'optional':
+            return DependencyStrength.OPTIONAL;
+          default:
+            return s as DependencyStrength;
+        }
+      };
+
+      const graph: DependencyGraph = {
+        nodes: (raw?.nodes || []).map((n: any) => ({
+          ...n,
+          startDate: n.startDate instanceof Date ? n.startDate : new Date(n.startDate),
+          endDate: n.endDate instanceof Date ? n.endDate : new Date(n.endDate),
+        })),
+        edges: (raw?.edges || []).map((e: any) => ({
+          ...e,
+          type: mapType(e.type),
+          strength: mapStrength(e.strength),
+        })),
+        criticalPath: raw?.criticalPath || [],
+        projectDuration: raw?.projectDuration || 0,
+      };
+
       setDependencyGraph(graph);
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载依赖关系图失败');

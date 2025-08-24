@@ -1,0 +1,15 @@
+configuration-as-code:latest
+docker-plugin:latest
+docker-workflow:latest
+workflow-aggregator:latest
+git:latest
+credentials-binding:latest
+ssh-agent:latest
+matrix-auth:latest
+job-dsl:latest
+timestamper:latest
+credentials:latest
+pipeline-github-lib:latest
+github:latest
+blueocean:latest
+

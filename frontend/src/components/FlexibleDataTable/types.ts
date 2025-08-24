@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import type { SorterResult, TableProps as AntTableProps, ColumnType } from 'antd/es/table/interface';
+import type { SorterResult } from 'antd/es/table/interface';
 
 // 列配置接口
 export interface FlexibleColumnConfig {

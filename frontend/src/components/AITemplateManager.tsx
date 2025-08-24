@@ -144,8 +144,8 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('加载模板失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('加载模板失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('加载模板失败: ' + (error?.message || '未知错误'));
       console.error('Failed to load templates:', error);
     } finally {
       setLoading(false);
@@ -164,8 +164,8 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('模板创建失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('模板创建失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('模板创建失败: ' + (error?.message || '未知错误'));
       console.error('Failed to create template:', error);
     }
   };
@@ -185,8 +185,8 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('模板更新失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('模板更新失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('模板更新失败: ' + (error?.message || '未知错误'));
       console.error('Failed to update template:', error);
     }
   };
@@ -201,8 +201,8 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('模板删除失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('模板删除失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('模板删除失败: ' + (error?.message || '未知错误'));
       console.error('Failed to delete template:', error);
     }
   };
@@ -226,13 +226,13 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('模板复制失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('模板复制失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('模板复制失败: ' + (error?.message || '未知错误'));
       console.error('Failed to duplicate template:', error);
     }
   };
 
-  const handleGenerateFromTemplate = async (values: unknown) => {
+  const handleGenerateFromTemplate = async (values: any) => {
     if (!generatingTemplate) return;
 
     try {
@@ -261,8 +261,8 @@ const AITemplateManager: React.FC = () => {
       } else {
         message.error('基于模板生成任务失败');
       }
-    } catch (error: Error | unknown) {
-      message.error('基于模板生成任务失败: ' + (error.message || '未知错误'));
+    } catch (error: any) {
+      message.error('基于模板生成任务失败: ' + (error?.message || '未知错误'));
       console.error('Failed to generate from template:', error);
     }
   };
@@ -537,7 +537,7 @@ const AITemplateManager: React.FC = () => {
       {/* 模板列表 */}
       <Card>
         <Table
-          columns={columns as unknown}
+          columns={columns}
           dataSource={templates}
           rowKey="id"
           loading={loading}

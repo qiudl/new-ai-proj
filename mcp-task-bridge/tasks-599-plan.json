@@ -1,0 +1,181 @@
+{
+  "mainTask": {
+    "id": 599,
+    "title": "tmux 作为多 AI 并行开发工具：方案设计与落地",
+    "assignee": "ai-pm",
+    "priority": "high",
+    "estimatedTime": "4-6小时"
+  },
+  "agents": [
+    {
+      "name": "AI架构师",
+      "role": "system-architect", 
+      "color": "#2563EB",
+      "expertise": "系统架构设计、技术选型、整体方案规划"
+    },
+    {
+      "name": "AI开发者",
+      "role": "developer",
+      "color": "#059669", 
+      "expertise": "代码实现、脚本编写、工具集成"
+    },
+    {
+      "name": "AI运维",
+      "role": "devops",
+      "color": "#DC2626",
+      "expertise": "部署配置、环境管理、工具集成"
+    },
+    {
+      "name": "AI测试",
+      "role": "qa-engineer",
+      "color": "#7C3AED",
+      "expertise": "测试验证、质量保证、用户体验"
+    }
+  ],
+  "tasks": [
+    {
+      "id": 600,
+      "title": "角色与工作流设计：多 AI 协作模型与职责划分",
+      "assignee": "AI架构师",
+      "status": "pending",
+      "phase": "设计阶段",
+      "estimatedTime": "1小时",
+      "priority": "high",
+      "dependencies": [],
+      "description": "定义多AI协作模型，明确各AI角色职责和工作流程"
+    },
+    {
+      "id": 601,
+      "title": "tmux 会话拓扑与快捷键方案设计（窗口/面板/广播）",
+      "assignee": "AI架构师", 
+      "status": "pending",
+      "phase": "设计阶段",
+      "estimatedTime": "1.5小时",
+      "priority": "high",
+      "dependencies": [600],
+      "description": "设计tmux会话结构、窗口布局、面板配置和快捷键方案"
+    },
+    {
+      "id": 602,
+      "title": "AI CLI 网关选择与封装（OpenAI/Anthropic/Ollama/LiteLLM 可选）",
+      "assignee": "AI开发者",
+      "status": "pending", 
+      "phase": "技术选型",
+      "estimatedTime": "2小时",
+      "priority": "high",
+      "dependencies": [600],
+      "description": "选择和封装AI CLI工具，支持多种AI服务提供商"
+    },
+    {
+      "id": 603,
+      "title": "会话模板实现（tmuxp / tmuxinator + 纯 tmux 脚本）",
+      "assignee": "AI开发者",
+      "status": "pending",
+      "phase": "实现阶段", 
+      "estimatedTime": "2小时",
+      "priority": "medium",
+      "dependencies": [601, 602],
+      "description": "实现tmux会话模板，支持自动化会话创建和管理"
+    },
+    {
+      "id": 610,
+      "title": "多AI通信协议设计（消息格式、同步机制）",
+      "assignee": "AI架构师",
+      "status": "pending",
+      "phase": "设计阶段",
+      "estimatedTime": "1.5小时", 
+      "priority": "high",
+      "dependencies": [600],
+      "description": "设计AI间通信协议，包括消息格式和同步机制"
+    },
+    {
+      "id": 611,
+      "title": "tmux 广播命令实现（同步执行、结果收集）",
+      "assignee": "AI开发者",
+      "status": "pending",
+      "phase": "实现阶段",
+      "estimatedTime": "1.5小时",
+      "priority": "medium", 
+      "dependencies": [601, 610],
+      "description": "实现tmux广播命令功能，支持多面板同步执行"
+    },
+    {
+      "id": 612,
+      "title": "AI角色脚本实现（不同AI的工作模式脚本）",
+      "assignee": "AI开发者", 
+      "status": "pending",
+      "phase": "实现阶段",
+      "estimatedTime": "2小时",
+      "priority": "medium",
+      "dependencies": [602, 610],
+      "description": "为不同AI角色创建专用工作模式脚本"
+    },
+    {
+      "id": 613,
+      "title": "环境配置与依赖管理（Python/Node 环境、工具安装）",
+      "assignee": "AI运维",
+      "status": "pending",
+      "phase": "环境准备",
+      "estimatedTime": "1小时",
+      "priority": "medium",
+      "dependencies": [602],
+      "description": "配置开发环境，安装必要的工具和依赖"
+    },
+    {
+      "id": 614,
+      "title": "自动化部署脚本（一键启动多AI会话）",
+      "assignee": "AI运维",
+      "status": "pending", 
+      "phase": "部署阶段",
+      "estimatedTime": "1.5小时",
+      "priority": "medium",
+      "dependencies": [603, 613],
+      "description": "创建一键启动脚本，自动化多AI会话的创建和配置"
+    },
+    {
+      "id": 615,
+      "title": "协作测试与验证（多AI同时工作场景测试）",
+      "assignee": "AI测试",
+      "status": "pending",
+      "phase": "测试阶段", 
+      "estimatedTime": "2小时",
+      "priority": "medium",
+      "dependencies": [611, 612, 614],
+      "description": "测试多AI并行协作场景，验证工作流程和通信效果"
+    },
+    {
+      "id": 616,
+      "title": "使用文档与最佳实践编写",
+      "assignee": "AI测试",
+      "status": "pending",
+      "phase": "文档化",
+      "estimatedTime": "1小时", 
+      "priority": "low",
+      "dependencies": [615],
+      "description": "编写使用指南、最佳实践和故障排查文档"
+    },
+    {
+      "id": 617,
+      "title": "性能优化与资源管理",
+      "assignee": "AI运维",
+      "status": "pending",
+      "phase": "优化阶段",
+      "estimatedTime": "1.5小时",
+      "priority": "low", 
+      "dependencies": [615],
+      "description": "优化系统性能，管理资源使用，确保稳定运行"
+    }
+  ],
+  "summary": {
+    "totalTasks": 9,
+    "estimatedDuration": "4-6小时",
+    "phases": ["设计阶段", "技术选型", "环境准备", "实现阶段", "部署阶段", "测试阶段", "文档化", "优化阶段"],
+    "keyDeliverables": [
+      "完整的多AI协作工作流程",
+      "tmux会话自动化管理工具",
+      "AI间通信协议实现",
+      "一键启动部署方案",
+      "全面的测试验证"
+    ]
+  }
+}

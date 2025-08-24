@@ -37,7 +37,8 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
-import { Project, Task } from '../../types/task';
+import { Task } from '../../types/task';
+import type { Project } from '../../types/project';
 import { TaskDependency, DependencyType, DependencyStrength } from '../../types/dependency';
 import DependencyGraphVisualization from './DependencyGraphVisualization';
 import AutoSchedulingManager from '../scheduling/AutoSchedulingManager';
@@ -71,7 +72,8 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
     id: 1,
     name: '依赖管理测试项目',
     description: '综合测试依赖关系管理、冲突检测和自动调度功能',
-    status: 'in_progress',
+    owner_id: 1,
+    status: 'active',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   });
@@ -115,8 +117,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '分析项目需求和功能规格',
           status: 'completed',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 1,
           estimated_hours: 16,
-          start_date: '2025-01-01T09:00:00Z',
+          start_datetime: '2025-01-01T09:00:00Z',
           due_date: '2025-01-03T17:00:00Z',
           custom_fields: { priority: 'high', complexity: 'medium' },
           created_at: new Date().toISOString(),
@@ -128,8 +132,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '设计系统架构和技术方案',
           status: 'in_progress',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 2,
           estimated_hours: 24,
-          start_date: '2025-01-04T09:00:00Z',
+          start_datetime: '2025-01-04T09:00:00Z',
           due_date: '2025-01-07T17:00:00Z',
           custom_fields: { priority: 'high', complexity: 'high' },
           created_at: new Date().toISOString(),
@@ -141,8 +147,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '开发用户界面和前端逻辑',
           status: 'todo',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 3,
           estimated_hours: 40,
-          start_date: '2025-01-08T09:00:00Z',
+          start_datetime: '2025-01-08T09:00:00Z',
           due_date: '2025-01-15T17:00:00Z',
           custom_fields: { priority: 'medium', complexity: 'high' },
           created_at: new Date().toISOString(),
@@ -154,8 +162,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '开发API和后端服务',
           status: 'todo',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 4,
           estimated_hours: 32,
-          start_date: '2025-01-08T09:00:00Z',
+          start_datetime: '2025-01-08T09:00:00Z',
           due_date: '2025-01-14T17:00:00Z',
           custom_fields: { priority: 'medium', complexity: 'high' },
           created_at: new Date().toISOString(),
@@ -167,8 +177,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '集成测试和端到端测试',
           status: 'todo',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 5,
           estimated_hours: 16,
-          start_date: '2025-01-16T09:00:00Z',
+          start_datetime: '2025-01-16T09:00:00Z',
           due_date: '2025-01-18T17:00:00Z',
           custom_fields: { priority: 'high', complexity: 'medium' },
           created_at: new Date().toISOString(),
@@ -180,8 +192,10 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
           description: '生产环境部署和上线',
           status: 'todo',
           project_id: project.id,
+          task_level: 1,
+          sort_order: 6,
           estimated_hours: 8,
-          start_date: '2025-01-19T09:00:00Z',
+          start_datetime: '2025-01-19T09:00:00Z',
           due_date: '2025-01-20T17:00:00Z',
           custom_fields: { priority: 'critical', complexity: 'low' },
           created_at: new Date().toISOString(),
@@ -193,69 +207,69 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
       const testDependencies: TaskDependency[] = [
         {
           id: 1,
-          project_id: project.id,
           predecessor_id: 1,
           successor_id: 2,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 1,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         },
         {
           id: 2,
-          project_id: project.id,
           predecessor_id: 2,
           successor_id: 3,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 0,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         },
         {
           id: 3,
-          project_id: project.id,
           predecessor_id: 2,
           successor_id: 4,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 0,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         },
         {
           id: 4,
-          project_id: project.id,
           predecessor_id: 3,
           successor_id: 5,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 0,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         },
         {
           id: 5,
-          project_id: project.id,
           predecessor_id: 4,
           successor_id: 5,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 0,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         },
         {
           id: 6,
-          project_id: project.id,
           predecessor_id: 5,
           successor_id: 6,
           type: DependencyType.FINISH_TO_START,
           strength: DependencyStrength.MANDATORY,
           lag_days: 0,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          created_by: 1,
         }
       ];
 
@@ -345,26 +359,26 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
       // 创建循环依赖：任务3 -> 任务2
       {
         id: 7,
-        project_id: project.id,
         predecessor_id: 3,
         successor_id: 2,
         type: DependencyType.FINISH_TO_START,
         strength: DependencyStrength.MANDATORY,
         lag_days: 0,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        created_by: 1,
       },
       // 创建时间冲突：过长的滞后时间
       {
         id: 8,
-        project_id: project.id,
         predecessor_id: 1,
         successor_id: 6,
         type: DependencyType.FINISH_TO_START,
         strength: DependencyStrength.PREFERRED,
         lag_days: 50, // 超过限制
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        created_by: 1,
       }
     ];
 

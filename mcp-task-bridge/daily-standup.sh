@@ -1,0 +1,21 @@
+#!/bin/bash
+echo "🕘 多AI团队每日站会"
+echo "=================="
+echo "时间: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "📊 各AI团队进度汇报:"
+echo "1. AI-分析师 - 接口依赖分析进度"
+echo "2. AI-架构师 - API设计方案进度"  
+echo "3. AI-开发者A - create-and-attach开发进度"
+echo "4. AI-开发者B - create_batch_documents开发进度"
+echo "5. AI-测试工程师 - 测试套件开发进度"
+echo "6. AI-文档工程师 - 文档制作进度"
+echo "7. AI-DevOps - 工具和流水线进度"
+echo "8. AI-项目经理 - 整体协调情况"
+echo ""
+
+echo "⚠️  今日风险和阻碍:"
+echo "💡 今日关键决策:"
+echo "🔄 需要协调的依赖:"
+echo ""

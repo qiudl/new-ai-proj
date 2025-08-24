@@ -4,14 +4,18 @@ export class TaskMCPServer {
     authToken;
     constructor(apiBase = 'http://localhost:8080/api/v1') {
         this.apiBase = apiBase;
-        // 使用系统 JWT token (2025-08-18 更新)
-        this.authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTYxNDQ2ODAsImlhdCI6MTc1NTUzOTg4MCwibmJmIjoxNzU1NTM5ODgwLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJhZG1pbiIsInVzZXJfaWQiOjEsInVzZXJfdHlwZSI6InN5c3RlbSIsInVzZXJuYW1lIjoiYWRtaW4ifQ.huC0kTWXh_OzoOUfApPNTXroiv9u31BX7ZQBrXcX0a4';
+        // 从环境变量读取令牌（不再硬编码）。优先 TASK_API_TOKEN，兼容 API_TOKEN。
+        const token = process.env.TASK_API_TOKEN || process.env.API_TOKEN;
+        if (token && token.trim().length > 0) {
+            this.authToken = token.trim();
+        }
     }
     getHeaders() {
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.authToken}`
-        };
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.authToken) {
+            headers['Authorization'] = `Bearer ${this.authToken}`;
+        }
+        return headers;
     }
     // 辅助方法：通过ID查找任务
     async findTaskById(id) {
@@ -791,7 +795,6 @@ export class TaskMCPServer {
             // 验证任务存在并确定项目ID
             const task = await this.findTaskById(taskId);
             const actualProjectId = task.project_id || projectId;
-
             // 统一构造满足后端校验的请求体
             const payload = {
                 title: title || (task.title ? `${task.title} 文档` : `Task ${taskId} 文档`),
@@ -800,24 +803,45 @@ export class TaskMCPServer {
                 status: 'draft',
                 visibility: 'team',
                 relationship_type: 'attachment',
-                tags: [] // 避免 tags 列为 NOT NULL 时出错
+                tags: []
             };
-
             const url = `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`;
-            const resp = await axios.post(url, payload, {
-                headers: this.getHeaders(),
-                proxy: false
-            });
-
-            const data = resp.data?.data || resp.data || {};
-            return {
-                success: true,
-                task_id: taskId,
-                project_id: actualProjectId,
-                document_id: data.document_id,
-                created: true,
-                message: `✅ 已创建并关联任务文档 (task #${taskId})`
-            };
+            try {
+                const resp = await axios.post(url, payload, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+                const data = resp.data?.data || resp.data || {};
+                return {
+                    success: true,
+                    task_id: taskId,
+                    project_id: actualProjectId,
+                    document_id: data.document_id || data.id,
+                    created: true,
+                    message: `✅ 已创建并关联任务文档 (task #${taskId})`
+                };
+            }
+            catch (primaryErr) {
+                const status = primaryErr?.response?.status;
+                if (status === 404 || status === 405) {
+                    console.error('[INFO] 主端点不可用，尝试兼容端点 POST /documents');
+                    const altUrl = `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`;
+                    const altResp = await axios.post(altUrl, payload, {
+                        headers: this.getHeaders(),
+                        proxy: false
+                    });
+                    const altData = altResp.data?.data || altResp.data || {};
+                    return {
+                        success: true,
+                        task_id: taskId,
+                        project_id: actualProjectId,
+                        document_id: altData.document_id || altData.id,
+                        created: true,
+                        message: '✅ 已通过兼容端点创建并关联任务文档'
+                    };
+                }
+                throw primaryErr;
+            }
         }
         catch (error) {
             console.error(`[ERROR] 创建并关联任务文档失败:`, error.response?.data || error.message);
@@ -1201,6 +1225,113 @@ export class TaskMCPServer {
             };
         }
     }
+    // 获取任务详细信息（包含格式化的父任务、同级任务和子任务）
+    async getDetailedTaskInfo(taskId) {
+        try {
+            console.error(`[DEBUG] 获取任务详细信息: 任务ID ${taskId}`);
+            // 获取目标任务
+            const task = await this.findTaskById(taskId);
+            if (!task) {
+                return {
+                    success: false,
+                    error: `未找到任务 ID: ${taskId}`
+                };
+            }
+            const detailedInfo = {
+                id: task.id,
+                title: task.title,
+                status: task.status,
+                project_id: task.project_id,
+                parent_id: task.parent_id,
+                created_at: task.created_at,
+                updated_at: task.updated_at,
+                description: task.description,
+                priority: task.custom_fields?.priority || 'low',
+                estimated_hours: task.estimated_hours,
+                actual_hours: task.actual_hours,
+                custom_fields: task.custom_fields
+            };
+            // 获取父任务信息
+            if (task.parent_id || task.parent_task_id) {
+                const parentId = task.parent_id || task.parent_task_id;
+                try {
+                    const parentTask = await this.findTaskById(parentId);
+                    detailedInfo.parent_task = {
+                        id: parentTask.id,
+                        // 在任务名称前添加ID
+                        title: `#${parentTask.id} ${parentTask.title}`,
+                        status: parentTask.status,
+                        priority: parentTask.custom_fields?.priority || 'low'
+                    };
+                }
+                catch (error) {
+                    detailedInfo.parent_task = {
+                        id: parentId,
+                        title: `#${parentId} (无法获取详情)`,
+                        error: '无法获取父任务信息'
+                    };
+                }
+            }
+            // 获取同级任务
+            try {
+                const allTasksResponse = await axios.get(`${this.apiBase}/projects/${task.project_id}/tasks`, {
+                    headers: this.getHeaders(),
+                    proxy: false
+                });
+                const allTasks = allTasksResponse.data.data?.data || [];
+                const parentId = task.parent_id || task.parent_task_id;
+                // 筛选具有相同parent_id的任务（排除自己）
+                const siblingTasks = allTasks.filter((t) => (t.parent_id === parentId || t.parent_task_id === parentId) &&
+                    t.id !== taskId);
+                detailedInfo.sibling_tasks = siblingTasks.map((sibling) => ({
+                    id: sibling.id,
+                    // 在任务名称前添加ID
+                    title: `#${sibling.id} ${sibling.title}`,
+                    status: sibling.status,
+                    priority: sibling.custom_fields?.priority || 'low'
+                }));
+                detailedInfo.sibling_count = siblingTasks.length;
+            }
+            catch (error) {
+                detailedInfo.sibling_tasks = [];
+                detailedInfo.sibling_error = '获取同级任务失败';
+            }
+            // 获取子任务
+            try {
+                const childrenResult = await this.getTaskChildren(taskId);
+                if (childrenResult.success && childrenResult.children) {
+                    detailedInfo.child_tasks = childrenResult.children.map((child) => ({
+                        id: child.id,
+                        // 在任务名称前添加ID
+                        title: `#${child.id} ${child.title}`,
+                        status: child.status,
+                        priority: child.priority || 'low'
+                    }));
+                    detailedInfo.child_count = childrenResult.children.length;
+                }
+                else {
+                    detailedInfo.child_tasks = [];
+                    detailedInfo.child_count = 0;
+                }
+            }
+            catch (error) {
+                detailedInfo.child_tasks = [];
+                detailedInfo.child_error = '获取子任务失败';
+            }
+            return {
+                success: true,
+                data: detailedInfo,
+                message: `📋 任务详情已获取 - #${task.id} ${task.title}`
+            };
+        }
+        catch (error) {
+            console.error(`[ERROR] 获取任务详情失败:`, error.message);
+            return {
+                success: false,
+                error: `获取任务详情失败: ${error.message}`
+            };
+        }
+    }
     // 5. 开始任务计时
     async startTimer(taskId, description) {
         try {
@@ -1372,6 +1503,39 @@ export class TaskMCPServer {
                 success: false,
                 error: `获取当前计时状态失败: ${error.response?.data?.error || error.message}`
             };
+        }
+    }
+    // 开发环境快速登录（仅当后端 APP_ENV=development/dev 时有效）
+    async devQuickLogin(username) {
+        try {
+            const uname = (username || process.env.DEV_LOGIN_USERNAME || 'admin').trim();
+            console.error(`[DEBUG] 开发环境快速登录: username=${uname}`);
+            const url = `${this.apiBase}/auth/dev-quick-login`;
+            // 不强制携带 Authorization，避免使用过期/无效 token 干扰
+            const resp = await axios.post(url, { username: uname }, {
+                headers: { 'Content-Type': 'application/json' },
+                proxy: false
+            });
+            const payload = resp.data?.data || resp.data || {};
+            const token = payload.token;
+            if (!token || typeof token !== 'string') {
+                return { success: false, error: '未从响应中获取到 token。请确认后端处于开发模式(APP_ENV=development)且端点可用。' };
+            }
+            this.authToken = token;
+            return {
+                success: true,
+                token,
+                username: uname,
+                expires_at: payload.expires_at,
+                message: '开发环境快速登录成功，已更新内存中的 Authorization 令牌'
+            };
+        }
+        catch (error) {
+            const status = error?.response?.status;
+            if (status === 404) {
+                return { success: false, error: '后端未开启开发登录端点（APP_ENV != development）。请在开发环境下重试。' };
+            }
+            return { success: false, error: `开发环境登录失败: ${error.response?.data?.error || error.message}` };
         }
     }
     // ========== 兼容 index.ts 中的扩展工具方法（最小实现以通过构建） ==========

@@ -192,13 +192,21 @@ CREATE INDEX IF NOT EXISTS idx_unified_timer_tags ON unified_timer_logs USING GI
 CREATE INDEX IF NOT EXISTS idx_unified_timer_metadata ON unified_timer_logs USING GIN(target_metadata);
 CREATE INDEX IF NOT EXISTS idx_unified_timer_search ON unified_timer_logs USING GIN(search_vector);
 
--- 时间模式分析索引
-CREATE INDEX IF NOT EXISTS idx_unified_timer_time_analysis ON unified_timer_logs(
-    user_id, 
-    EXTRACT(HOUR FROM start_time), 
-    EXTRACT(DOW FROM start_time),
-    target_type
-) WHERE status IN ('completed', 'cancelled');
+-- 时间模式分析索引（注意：在某些环境下，基于 timestamptz 的 EXTRACT 被标记为 STABLE，无法用于表达式索引）
+-- 为兼容性，将创建包裹在 DO 块中，若数据库拒绝（如函数非 IMMUTABLE），则跳过并给出 NOTICE。
+DO $$
+BEGIN
+  BEGIN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_unified_timer_time_analysis ON unified_timer_logs(
+      user_id,
+      EXTRACT(HOUR FROM start_time),
+      EXTRACT(DOW FROM start_time),
+      target_type
+    ) WHERE status IN (''completed'',''cancelled'')';
+  EXCEPTION WHEN others THEN
+    RAISE NOTICE 'Skip idx_unified_timer_time_analysis due to immutability constraints: %', SQLERRM;
+  END;
+END $$;
 
 -- 模板相关索引
 CREATE INDEX IF NOT EXISTS idx_timer_templates_user ON timer_templates(user_id, target_type);
@@ -305,85 +313,143 @@ COMMENT ON VIEW inference_accuracy_stats IS '智能推断准确率统计视图';
 -- ====================================================================
 
 -- 首先确保有一个系统用户（ID=1），如果没有则创建
-INSERT INTO users (id, username, password_hash, email, role, user_type)
-VALUES (1, 'system', '$2a$10$dummy.hash', 'system@internal', 'admin', 'system')
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM users WHERE id = 1) THEN
+    INSERT INTO users (id, username, password_hash, email, role, user_type)
+    VALUES (1, 'system', '$2a$10$dummy.hash', 'system@internal', 'admin', 'system');
+  END IF;
+END $$;
 
 -- 插入系统预设模板
-INSERT INTO timer_templates (
-    user_id, name, description, target_type, 
-    default_title, default_category, default_duration_minutes, 
-    is_system_template, is_shared
-) VALUES
-(1, '番茄工作法', '25分钟专注工作，5分钟休息的经典时间管理方法', 'pomodoro', 
- '番茄钟工作', '专注', 25, true, true),
+DO $$
+BEGIN
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='番茄工作法';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '番茄工作法', '25分钟专注工作，5分钟休息的经典时间管理方法', 'pomodoro', '番茄钟工作', '专注', 25, true, true);
+  END IF;
 
-(1, '深度工作', '90分钟深度专注工作时间，适合复杂任务', 'personal_task', 
- '深度工作时间', '专注', 90, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='深度工作';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '深度工作', '90分钟深度专注工作时间，适合复杂任务', 'personal_task', '深度工作时间', '专注', 90, true, true);
+  END IF;
 
-(1, '快速任务', '15分钟内完成的小任务或临时工作', 'quick_timer', 
- '快速任务', '日常', 15, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='快速任务';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '快速任务', '15分钟内完成的小任务或临时工作', 'quick_timer', '快速任务', '日常', 15, true, true);
+  END IF;
 
-(1, '学习时间', '专门的学习和技能提升时间', 'personal_task', 
- '学习时间', '学习', 60, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='学习时间';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '学习时间', '专门的学习和技能提升时间', 'personal_task', '学习时间', '学习', 60, true, true);
+  END IF;
 
-(1, '会议时间', '各类会议和沟通协调时间', 'personal_task', 
- '会议', '沟通', 30, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='会议时间';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '会议时间', '各类会议和沟通协调时间', 'personal_task', '会议', '沟通', 30, true, true);
+  END IF;
 
-(1, '代码开发', '软件开发和编程相关的工作时间', 'project_task', 
- '代码开发', '开发', 120, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='代码开发';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '代码开发', '软件开发和编程相关的工作时间', 'project_task', '代码开发', '开发', 120, true, true);
+  END IF;
 
-(1, '文档编写', '文档、报告、方案等写作时间', 'personal_task', 
- '文档编写', '写作', 45, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='文档编写';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '文档编写', '文档、报告、方案等写作时间', 'personal_task', '文档编写', '写作', 45, true, true);
+  END IF;
 
-(1, '测试调试', '软件测试、调试和质量保证时间', 'project_task', 
- '测试调试', '测试', 60, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='测试调试';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '测试调试', '软件测试、调试和质量保证时间', 'project_task', '测试调试', '测试', 60, true, true);
+  END IF;
 
-(1, '休息放松', '短暂休息和放松时间', 'quick_timer', 
- '休息时间', '休息', 10, true, true),
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='休息放松';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '休息放松', '短暂休息和放松时间', 'quick_timer', '休息时间', '休息', 10, true, true);
+  END IF;
 
-(1, '邮件处理', '处理邮件和消息的专门时间', 'personal_task', 
- '邮件处理', '沟通', 20, true, true)
-
-ON CONFLICT (user_id, name) DO NOTHING;
+  PERFORM 1 FROM timer_templates WHERE user_id=1 AND name='邮件处理';
+  IF NOT FOUND THEN
+    INSERT INTO timer_templates (user_id, name, description, target_type, default_title, default_category, default_duration_minutes, is_system_template, is_shared)
+    VALUES (1, '邮件处理', '处理邮件和消息的专门时间', 'personal_task', '邮件处理', '沟通', 20, true, true);
+  END IF;
+END $$;
 
 -- ====================================================================
 -- 9. 创建数据完整性约束
 -- ====================================================================
 
--- 确保计时器有结束时间时必须有时长
-ALTER TABLE unified_timer_logs 
-ADD CONSTRAINT chk_timer_duration 
-CHECK (
-    (end_time IS NULL AND duration_seconds IS NULL) OR
-    (end_time IS NOT NULL AND duration_seconds IS NOT NULL AND duration_seconds >= 0)
-);
+-- 确保计时器有结束时间时必须有时长（如已存在则跳过）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_timer_duration' AND conrelid = 'unified_timer_logs'::regclass
+  ) THEN
+    ALTER TABLE unified_timer_logs 
+    ADD CONSTRAINT chk_timer_duration 
+    CHECK (
+        (end_time IS NULL AND duration_seconds IS NULL) OR
+        (end_time IS NOT NULL AND duration_seconds IS NOT NULL AND duration_seconds >= 0)
+    );
+  END IF;
+END $$;
 
--- 确保实际工作时长不超过总时长
-ALTER TABLE unified_timer_logs 
-ADD CONSTRAINT chk_actual_work_duration 
-CHECK (
-    actual_work_seconds IS NULL OR 
-    duration_seconds IS NULL OR 
-    actual_work_seconds <= duration_seconds
-);
+-- 确保实际工作时长不超过总时长（如已存在则跳过）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_actual_work_duration' AND conrelid = 'unified_timer_logs'::regclass
+  ) THEN
+    ALTER TABLE unified_timer_logs 
+    ADD CONSTRAINT chk_actual_work_duration 
+    CHECK (
+        actual_work_seconds IS NULL OR 
+        duration_seconds IS NULL OR 
+        actual_work_seconds <= duration_seconds
+    );
+  END IF;
+END $$;
 
--- 确保暂停总时长不超过总时长
-ALTER TABLE unified_timer_logs 
-ADD CONSTRAINT chk_pause_total_duration 
-CHECK (
-    pause_total_seconds IS NULL OR 
-    duration_seconds IS NULL OR 
-    pause_total_seconds <= duration_seconds
-);
+-- 确保暂停总时长不超过总时长（如已存在则跳过）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_pause_total_duration' AND conrelid = 'unified_timer_logs'::regclass
+  ) THEN
+    ALTER TABLE unified_timer_logs 
+    ADD CONSTRAINT chk_pause_total_duration 
+    CHECK (
+        pause_total_seconds IS NULL OR 
+        duration_seconds IS NULL OR 
+        pause_total_seconds <= duration_seconds
+    );
+  END IF;
+END $$;
 
--- 确保推断置信度在有效范围内
-ALTER TABLE unified_timer_logs 
-ADD CONSTRAINT chk_inference_confidence 
-CHECK (
-    inference_confidence IS NULL OR 
-    (inference_confidence >= 0.0 AND inference_confidence <= 1.0)
-);
+-- 确保推断置信度在有效范围内（如已存在则跳过）
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'chk_inference_confidence' AND conrelid = 'unified_timer_logs'::regclass
+  ) THEN
+    ALTER TABLE unified_timer_logs 
+    ADD CONSTRAINT chk_inference_confidence 
+    CHECK (
+        inference_confidence IS NULL OR 
+        (inference_confidence >= 0.0 AND inference_confidence <= 1.0)
+    );
+  END IF;
+END $$;
 
 -- ====================================================================
 -- 10. 创建数据迁移辅助函数 (为下一步数据迁移做准备)

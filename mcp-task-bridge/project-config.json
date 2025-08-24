@@ -1,0 +1,36 @@
+{
+  "project": {
+    "name": "清理任务文档创建接口项目",
+    "id": 619,
+    "mainTaskId": 612,
+    "startTime": "2025-08-24 08:18:12",
+    "mode": "multi-ai-parallel",
+    "estimatedDuration": "2-3 weeks",
+    "targetInterfaces": ["create-and-attach", "create_batch_documents"],
+    "deprecatedInterfaces": ["create_task_docs", "generate_document_from_template", "auto_fill_task_context"]
+  },
+  "aiTeam": {
+    "analyst": { "taskId": 620, "phase": "analysis", "duration": "3 days" },
+    "architect": { "taskId": 621, "phase": "design", "duration": "4 days" },
+    "developerA": { "taskId": 622, "phase": "development", "duration": "7 days" },
+    "developerB": { "taskId": 623, "phase": "development", "duration": "7 days" },
+    "tester": { "taskId": 624, "phase": "testing", "duration": "8 days" },
+    "documentor": { "taskId": 625, "phase": "documentation", "duration": "10 days" },
+    "devops": { "taskId": 626, "phase": "deployment", "duration": "8 days" },
+    "manager": { "taskId": 627, "phase": "coordination", "duration": "21 days" }
+  },
+  "phases": {
+    "week1": {
+      "name": "分析和设计阶段",
+      "parallel": ["analyst", "architect", "documentor", "manager"]
+    },
+    "week1-2": {
+      "name": "开发和测试阶段", 
+      "parallel": ["developerA", "developerB", "tester", "devops"]
+    },
+    "week2-3": {
+      "name": "集成和发布阶段",
+      "parallel": ["all teams"]
+    }
+  }
+}

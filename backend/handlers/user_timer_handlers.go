@@ -447,8 +447,10 @@ func (h *UserTimerHandler) GetUserTimerDashboard(c *gin.Context) {
 	uid := userID.(int)
 	ctx := c.Request.Context()
 
+	// Timezone parameter (IANA name), default to Asia/Shanghai for local usage
+	tz := c.DefaultQuery("tz", "Asia/Shanghai")
 	// Get dashboard data
-	dashboard, err := h.db.UserTimer().GetDashboardData(ctx, uid)
+	dashboard, err := h.db.UserTimer().GetDashboardData(ctx, uid, tz)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to get dashboard data",

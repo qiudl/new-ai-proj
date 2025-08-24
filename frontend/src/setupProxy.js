@@ -8,7 +8,7 @@ module.exports = function(app) {
   
   // In local development, backend listens on 8081
   const backendUrl = isInDocker 
-    ? 'http://backend:8080'    // Docker container name when running in container
+    ? 'http://backend:8080'    // Docker service name when running in container
     : 'http://localhost:8081'; // Host machine when running locally
   
   // Backend URL logging removed to reduce debug noise

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"net"
 	"net/http"
@@ -221,21 +222,29 @@ func (am *APIKeyAuthMiddleware) validateAndLoadAPIKey(ctx context.Context, apiKe
 	return apiKeyModel, nil
 }
 
-// extractKeyPrefix extracts the prefix from an API key
+// extractKeyPrefix extracts the known static prefix from an API key
 func (am *APIKeyAuthMiddleware) extractKeyPrefix(apiKey string) string {
-	// Expected format: prefix_randomstring
-	parts := strings.SplitN(apiKey, "_", 2)
-	if len(parts) != 2 {
-		return ""
+	// The system uses fixed prefixes returned by APIKeyService.GenerateKeyPrefix
+	// Recognize only known prefixes to avoid ambiguity with base64 characters
+	for _, p := range []string{"ak_admin_", "ak_rw_", "ak_ro_"} {
+		if strings.HasPrefix(apiKey, p) {
+			return p
+		}
 	}
-	return parts[0]
+	return ""
 }
 
-// validateAPIKeyHash validates the API key against the stored hash
+// validateAPIKeyHash validates the presented API key against the stored hash
 func (am *APIKeyAuthMiddleware) validateAPIKeyHash(apiKey, storedHash string) bool {
-	// Use simple hash comparison for now
-	// TODO: Implement proper password hashing validation
-	return apiKey == storedHash
+	// The stored hash is a SHA-256 of the random key part (without the prefix)
+	prefix := am.extractKeyPrefix(apiKey)
+	if prefix == "" {
+		return false
+	}
+	keyPart := strings.TrimPrefix(apiKey, prefix)
+	h := sha256.Sum256([]byte(keyPart))
+	presented := fmt.Sprintf("%x", h)
+	return presented == storedHash
 }
 
 // performSecurityValidations performs various security validations

@@ -53,6 +53,8 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	UpdateTaskUpdateHandler() gin.HandlerFunc
 	DeleteTaskUpdateHandler() gin.HandlerFunc
 	GetTaskTimelineHandler() gin.HandlerFunc
+	// 新增：任务进度计算接口
+	GetTaskProgressHandler() gin.HandlerFunc
 
 	// 项目相关
 	GetProjectsHandler() gin.HandlerFunc
@@ -112,6 +114,8 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetDashboardHandler() *handlers.DashboardHandler
 	GetTaskAnalysisHandler() *handlers.TaskAnalysisHandler
 	GetAPIKeyHandler() *handlers.APIKeyHandler
+	GetProgressHandler() *handlers.ProgressHandler
+	GetTaskRelationshipHandler() *handlers.TaskRelationshipHandler
 
 	// 回收站相关处理器方法
 	GetRecycledProjectsHandler() gin.HandlerFunc

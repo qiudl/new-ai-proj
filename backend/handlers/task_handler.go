@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -719,6 +720,35 @@ func (h *TaskHandler) DeleteTaskUpdate(c *gin.Context) {
 }
 
 // GetTaskTimeline handles GET /api/v1/projects/:projectId/tasks/:taskId/timeline
+// GetTaskProgress handles GET /api/v1/tasks/:id/progress and /api/v1/projects/:projectId/tasks/:taskId/progress
+func (h *TaskHandler) GetTaskProgress(c *gin.Context) {
+	// Try to parse task ID from different params
+	taskIDStr := c.Param("id")
+	if taskIDStr == "" {
+		taskIDStr = c.Param("taskId")
+	}
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil || taskID <= 0 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
+		return
+	}
+
+	// Compute progress using service
+	svc := services.NewTaskProgressService(h.db)
+	prog, err := svc.ComputeForTask(c.Request.Context(), taskID)
+	if err != nil {
+		log.Printf("Error computing task progress for %d: %v", taskID, err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "计算任务进度失败", nil))
+		return
+	}
+	if prog == nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeInternal, "任务不存在", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(prog, "获取任务进度成功"))
+}
+
 func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
 	_, err := strconv.Atoi(c.Param("taskId")) // taskID for future implementation
 	if err != nil {
@@ -752,17 +782,72 @@ func (h *TaskHandler) ValidateParent(c *gin.Context) {
 
 // stopTimerForCompletedTask stops any running timer for the specified task
 func (h *TaskHandler) stopTimerForCompletedTask(ctx context.Context, taskID int) error {
-	// Find users who are currently timing this task
+	// 1) Stop legacy per-user timers (users.current_timing_task_id) if any
 	users, err := h.db.Users().GetUsersTimingTask(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to get users timing task %d: %w", taskID, err)
 	}
-
-	// Stop timer for each user timing this task
 	for _, user := range users {
 		if err := h.stopCurrentTimerForUser(ctx, &user, taskID); err != nil {
-			log.Printf("Warning: Failed to stop timer for user %d on task %d: %v", user.ID, taskID, err)
+			log.Printf("Warning: Failed to stop legacy timer for user %d on task %d: %v", user.ID, taskID, err)
 			// Continue with other users even if one fails
+		}
+	}
+
+	// 2) Stop unified timers (unified_timer_logs) for this task across all users
+	if err := h.stopUnifiedTimersForTask(ctx, taskID); err != nil {
+		log.Printf("Warning: Failed to stop unified timers for task %d: %v", taskID, err)
+	}
+
+	return nil
+}
+
+// stopUnifiedTimersForTask stops any active unified timers linked to the given task across all users
+func (h *TaskHandler) stopUnifiedTimersForTask(ctx context.Context, taskID int) error {
+	// Access underlying *sql.DB
+	sqlDB, ok := h.db.GetDB().(*sql.DB)
+	if !ok || sqlDB == nil {
+		return fmt.Errorf("sql.DB not available")
+	}
+
+	// Query active unified timers for this task
+	rows, err := sqlDB.QueryContext(ctx, `
+		SELECT id, user_id
+		FROM unified_timer_logs
+		WHERE target_type = 'project_task'
+		  AND target_id = $1
+		  AND status IN ('running', 'paused')
+	`, taskID)
+	if err != nil {
+		return fmt.Errorf("query active unified timers: %w", err)
+	}
+	defer rows.Close()
+
+	type timerRef struct{ id, userID int }
+	var timers []timerRef
+	for rows.Next() {
+		var t timerRef
+		if err := rows.Scan(&t.id, &t.userID); err != nil {
+			return fmt.Errorf("scan unified timer row: %w", err)
+		}
+		timers = append(timers, t)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate unified timers: %w", err)
+	}
+
+	if len(timers) == 0 {
+		return nil // nothing to do
+	}
+
+	// Instantiate unified timer service to leverage existing stop logic
+	inference := services.NewTypeInferenceEngine(sqlDB)
+	notif := services.NewNotificationService()
+	svc := services.NewUnifiedTimerService(sqlDB, inference, notif)
+
+	for _, t := range timers {
+		if _, err := svc.StopTimerByID(ctx, t.userID, t.id, "Auto-stopped due to task completion"); err != nil {
+			log.Printf("Warning: Failed to stop unified timer %d for user %d on task %d: %v", t.id, t.userID, taskID, err)
 		}
 	}
 

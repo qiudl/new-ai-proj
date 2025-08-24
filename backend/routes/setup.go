@@ -83,11 +83,45 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	RegisterSearchRoutes(authorized, app)
 	RegisterEnhancedPermissionRoutes(authorized, app)
 	
+	// Debug: Check if ProgressHandler is available
+	if app.GetProgressHandler() == nil {
+		println("[WARNING] ProgressHandler is nil, skipping progress routes registration")
+	} else {
+		println("[DEBUG] Registering progress routes with handler:", app.GetProgressHandler())
+		RegisterProgressRoutes(authorized, app)
+	}
+	
+	// 注册任务关系路由（依赖、并行组等）
+	RegisterTaskRelationshipRoutes(authorized, app)
+	
 	// 注册API和其他杂项路由（包含公共路由、webhooks、全局任务等）
 	RegisterAPIRoutes(router, authorized, app)
 
 	// 注册文档健康检查附加路由（确保可用）
 	RegisterDocumentHealthRoute(router, app)
+}
+
+// RegisterTaskRelationshipRoutes 注册任务关系相关路由
+func RegisterTaskRelationshipRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 任务关系主路由
+	rel := authorized.Group("/task-relationships")
+	{
+		// 创建单条关系
+		rel.POST("", app.GetTaskRelationshipHandler().CreateRelationship)
+		// 批量创建关系
+		rel.POST("/batch", app.GetTaskRelationshipHandler().BulkCreateRelationships)
+		// 更新/删除关系
+		rel.PUT("/:id", app.GetTaskRelationshipHandler().UpdateRelationship)
+		rel.DELETE("/:id", app.GetTaskRelationshipHandler().DeleteRelationship)
+	}
+	// 获取某任务的所有关系
+	authorized.GET("/tasks/:task_id/relationships", app.GetTaskRelationshipHandler().GetTaskRelationships)
+	// 获取某任务及其关系总览
+	authorized.GET("/tasks/:task_id/with-relationships", app.GetTaskRelationshipHandler().GetTaskWithAllRelationships)
+	// 并行开发相关
+	authorized.GET("/parallel-groups", app.GetTaskRelationshipHandler().GetParallelDevelopmentGroups)
+	authorized.POST("/parallel-groups/validate", app.GetTaskRelationshipHandler().ValidateParallelTasksCanStart)
+	authorized.GET("/task-dependency-graph", app.GetTaskRelationshipHandler().GetTaskDependencyGraph)
 }
 
 // mountDocs 尝试挂载静态OpenAPI文档到 /docs

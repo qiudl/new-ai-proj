@@ -49,6 +49,8 @@ const TasksPage: React.FC = () => {
     pageSize: 20,
     total: 0,
   });
+  // 排序状态（服务端排序），默认按ID倒序
+  const [tableSort, setTableSort] = useState<{ sortBy: string; sortOrder: 'asc' | 'desc' }>({ sortBy: 'id', sortOrder: 'desc' });
   const [taskModalVisible, setTaskModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [modalLoading, setModalLoading] = useState(false);
@@ -332,18 +334,54 @@ const TasksPage: React.FC = () => {
     }
   }, [effectiveProjectId, tasks]);
 
-// Load tasks from API
+  // Load tasks from API
   const [preset, setPreset] = useState<'all' | 'overdue' | 'planning' | 'on_hold'>('all');
 
-const [filters, setFilters] = useTaskListUrlState();
+  const [filters, setFilters] = useTaskListUrlState();
 
-const loadTasks = useCallback(async (page = 1, pageSize = 20) => {
+  // 加载排序首选项（localStorage），按项目隔离
+  useEffect(() => {
+    const storageKey = `task-sort-${effectiveProjectId || 'global'}`;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed.sortBy === 'string' && (parsed.sortOrder === 'asc' || parsed.sortOrder === 'desc')) {
+          setTableSort(parsed);
+        }
+      } else {
+        // 默认：按ID倒序
+        setTableSort({ sortBy: 'id', sortOrder: 'desc' });
+      }
+    } catch {
+      setTableSort({ sortBy: 'id', sortOrder: 'desc' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveProjectId]);
+
+  // 持久化排序状态
+  useEffect(() => {
+    const storageKey = `task-sort-${effectiveProjectId || 'global'}`;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(tableSort));
+    } catch {}
+  }, [tableSort, effectiveProjectId]);
+
+  const loadTasks = useCallback(async (
+    page = 1,
+    pageSize = 20,
+    sortOverride?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }
+  ) => {
     setLoading(true);
     try {
       let response: any;
+      // 计算最终排序（允许按需覆盖）
+      const effectiveSortBy = sortOverride?.sortBy || tableSort.sortBy || 'id';
+      const effectiveSortOrder = sortOverride?.sortOrder || tableSort.sortOrder || 'desc';
+
       if (effectiveProjectId) {
         // Load tasks for specific project
-const reqFilters: any = {};
+        const reqFilters: any = {};
         if (filters?.status) reqFilters.status = filters.status;
         if (filters?.priority) reqFilters.priority = filters.priority;
         if (typeof filters?.assignee_id === 'number') reqFilters.assignee_id = filters.assignee_id;
@@ -353,12 +391,12 @@ const reqFilters: any = {};
           page,
           page_size: pageSize,
           ...reqFilters,
-          sort_by: 'created_at',
-          sort_order: 'desc', // 默认按创建时间倒序
+          sort_by: effectiveSortBy,
+          sort_order: effectiveSortOrder,
           only_roots: true, // 与前端根任务视图对齐，确保总数一致
         });
       } else {
-// 全局模式：加载全部任务（跨项目）
+        // 全局模式：加载全部任务（跨项目）
         // 预设：all/overdue/planning/on_hold。all 不传 preset 参数
         const params: any = {
           page,
@@ -383,13 +421,13 @@ const reqFilters: any = {};
           params.sort_order = 'desc';
           params.preset = 'on_hold';
         } else {
-          // all：不传 preset，默认按创建时间倒序
-          params.sort_by = 'created_at';
-          params.sort_order = 'desc';
+          // all：默认按ID倒序（从服务端排序）
+          params.sort_by = effectiveSortBy || 'id';
+          params.sort_order = effectiveSortOrder || 'desc';
         }
         response = await TaskService.getAllTasks(params);
       }
-      
+
       // Comprehensive validation of response structure
       if (!response) {
         console.warn('Response is null or undefined');
@@ -401,7 +439,7 @@ const reqFilters: any = {};
         });
         return;
       }
-      
+
       // Validate response.data exists and is properly structured
       if (!response.data || typeof response.data !== 'object') {
         console.warn('Invalid response.data structure:', response);
@@ -413,7 +451,7 @@ const reqFilters: any = {};
         });
         return;
       }
-      
+
       // Ensure the data field is an array
       let tasksData: unknown[] = [];
       if (Array.isArray(response.data)) {
@@ -426,50 +464,33 @@ const reqFilters: any = {};
         console.warn('Tasks data is not an array:', response.data);
         tasksData = [];
       }
-      
+
       // Additional validation - filter out invalid task objects
-      const validTasks = tasksData.filter((task: unknown) => 
-        task && 
-        typeof task === 'object' && 
-        typeof task.id === 'number' && 
+      const validTasks = tasksData.filter((task: any) =>
+        task &&
+        typeof task === 'object' &&
+        typeof task.id === 'number' &&
         typeof task.title === 'string'
       );
-      
+
       if (validTasks.length !== tasksData.length) {
         console.warn(`Filtered out ${tasksData.length - validTasks.length} invalid tasks`);
       }
-      
-      // 确保设置有效的数组并按最后更新时间排序
-      const finalTasks = Array.isArray(validTasks) ? validTasks : [];
-      
-      // 客户端排序：按最后更新时间倒序（最新的在前面）
-      const sortedTasks = finalTasks.sort((a, b) => {
-        const timestampA = getUpdateTimestamp(a.updated_at);
-        const timestampB = getUpdateTimestamp(b.updated_at);
-        return timestampB - timestampA; // 倒序：最新的在前
-      });
-      
-// If preset is overdue, prefer due_date ASC among overdue subset
-      let finalSorted = sortedTasks;
-      if (!effectiveProjectId && preset === 'overdue') {
-        finalSorted = [...sortedTasks].sort((a: any, b: any) => {
-          const aDue = a?.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
-          const bDue = b?.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
-          return aDue - bDue;
-        });
-      }
 
-      setTasks(finalSorted);
-      
+      // 直接使用服务端排序结果，不再在前端强制改为按更新时间排序
+      const finalTasks = Array.isArray(validTasks) ? validTasks : [];
+
+      setTasks(finalTasks);
+
       // 修复分页计算，确保total不会超过实际需要的页数
       const actualTotal = response.pagination?.total || 0;
       const currentPageData = validTasks.length;
-      
+
       // 如果当前页数据少于pageSize且不是第一页，说明这是最后一页
-      const adjustedTotal = (page > 1 && currentPageData < pageSize) 
-        ? (page - 1) * pageSize + currentPageData 
+      const adjustedTotal = (page > 1 && currentPageData < pageSize)
+        ? (page - 1) * pageSize + currentPageData
         : actualTotal;
-      
+
       setPagination({
         current: response.pagination?.page || page,
         pageSize: response.pagination?.page_size || pageSize,
@@ -477,19 +498,19 @@ const reqFilters: any = {};
       });
     } catch (error: Error | unknown) {
       console.error('Error loading tasks:', error);
-      
+
       // 提供更详细的错误信息
       let errorMessage = '获取任务列表失败';
-      if (error.message?.includes('Network')) {
+      if ((error as any).message?.includes('Network')) {
         errorMessage = '网络连接失败，请检查网络状态';
-      } else if (error.message?.includes('timeout')) {
+      } else if ((error as any).message?.includes('timeout')) {
         errorMessage = '请求超时，请稍后重试';
-      } else if (error.message?.includes('404')) {
+      } else if ((error as any).message?.includes('404')) {
         errorMessage = '项目不存在或已被删除';
-      } else if (error.message?.includes('401') || error.message?.includes('403')) {
+      } else if ((error as any).message?.includes('401') || (error as any).message?.includes('403')) {
         errorMessage = '权限不足，请重新登录';
       }
-      
+
       message.error(errorMessage);
       // Set empty array on error to prevent undefined state
       setTasks([]);
@@ -501,7 +522,7 @@ const reqFilters: any = {};
     } finally {
       setLoading(false);
     }
-}, [effectiveProjectId, filters]);
+  }, [effectiveProjectId, filters, preset, tableSort]);
 
   // 获取全局统计数据
 
@@ -746,8 +767,43 @@ const reqFilters: any = {};
   };
 
   // Handle pagination change
-  const handleTableChange = (paginationParams: unknown) => {
-    loadTasks(paginationParams.current, paginationParams.pageSize);
+  const handleTableChange = (
+    paginationParams: { current: number; pageSize: number },
+    _filters: any,
+    sorter: any
+  ) => {
+    // 解析表头排序
+    let sortBy: string | undefined;
+    let sortOrder: 'asc' | 'desc' | undefined;
+
+    const resolveSort = (s: any) => {
+      if (!s) return;
+      const order = s.order === 'ascend' ? 'asc' : s.order === 'descend' ? 'desc' : undefined;
+      if (!order) return;
+      // 使用 dataIndex 或 field 或 columnKey
+      const field = s.dataIndex || s.field || s.columnKey;
+      if (!field) return;
+      // 允许的字段映射
+      const allowed = new Set(['id', 'title', 'status', 'due_date', 'created_at', 'updated_at']);
+      if (allowed.has(field)) {
+        sortBy = field;
+        sortOrder = order as 'asc' | 'desc';
+      }
+    };
+
+    if (Array.isArray(sorter)) {
+      sorter.forEach(resolveSort);
+    } else {
+      resolveSort(sorter);
+    }
+
+    if (sortBy && sortOrder) {
+      setTableSort({ sortBy, sortOrder });
+      loadTasks(paginationParams.current, paginationParams.pageSize, { sortBy, sortOrder });
+    } else {
+      // 无排序改变，仅分页
+      loadTasks(paginationParams.current, paginationParams.pageSize);
+    }
   };
 
   // Handle task expand/collapse
@@ -1275,6 +1331,8 @@ const reqFilters: any = {};
             key: 'id',
             width: config.width,
             fixed: 'left',
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'id' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (id: number) => (
               <span style={{ color: '#595959', fontWeight: 500 }}>#{id}</span>
             ),
@@ -1286,6 +1344,8 @@ const reqFilters: any = {};
             dataIndex: 'updated_at',
             key: 'updated_at',
             width: config.width,
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'updated_at' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (date: string) => {
               if (!date) return '-';
               
@@ -1311,6 +1371,8 @@ const reqFilters: any = {};
             width: config.width,
             fixed: 'left',
             ellipsis: true,
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'title' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (text: string, record: Task & { isSubTask?: boolean; depth?: number }) => {
               const depth = record.depth || 0;
               const hasChildren = (record.custom_fields?.children_count || 0) > 0;
@@ -1497,6 +1559,8 @@ const reqFilters: any = {};
             dataIndex: 'status',
             key: 'status',
             width: config.width,
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'status' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (status: TaskStatus, record: Task) => {
               return (
                 <Select
@@ -1572,6 +1636,8 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             dataIndex: 'due_date',
             key: 'due_date',
             width: config.width,
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'due_date' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (date: string, record: Task) => {
               const currentDate = date ? dayjs(date) : null;
               const now = dayjs();
@@ -1623,6 +1689,8 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             dataIndex: 'created_at',
             key: 'created_at',
             width: config.width,
+            sorter: true,
+            sortOrder: tableSort.sortBy === 'created_at' ? (tableSort.sortOrder === 'asc' ? 'ascend' : 'descend') : null,
             render: (date: string) => {
               if (!date) return '-';
               
@@ -1734,7 +1802,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
           return null;
       }
     }).filter(Boolean) as unknown[];
-  }, [columnConfigs, selectedTaskIds, stableDataSource, effectiveProjectId, expandedTasks, loadingChildren, subTasks]);
+  }, [columnConfigs, selectedTaskIds, stableDataSource, effectiveProjectId, expandedTasks, loadingChildren, subTasks, tableSort]);
 
   // 保留原有的静态columns定义作为备用（当前使用generateColumns）
   const columns = [
@@ -2684,6 +2752,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                   showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
                 }}
                 onChange={handleTableChange}
+                sortDirections={['ascend', 'descend']}
                 rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
                   const depth = record.depth || 0;
                   const classes = ['task-hierarchy-item'];
@@ -2736,6 +2805,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条/共 ${total} 条`,
             }}
             onChange={handleTableChange}
+            sortDirections={['ascend', 'descend']}
             rowClassName={(record: Task & { isSubTask?: boolean; depth?: number }) => {
               const depth = record.depth || 0;
               const classes = ['task-hierarchy-item'];

@@ -121,6 +121,8 @@ func (app *Application) GetTaskUpdatesHandler() gin.HandlerFunc { return app.han
 func (app *Application) UpdateTaskUpdateHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.UpdateTaskUpdate }
 func (app *Application) DeleteTaskUpdateHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.DeleteTaskUpdate }
 func (app *Application) GetTaskTimelineHandler() gin.HandlerFunc { return app.handlers.TaskUpdateHandler.GetTaskTimeline }
+// 新增：任务进度
+func (app *Application) GetTaskProgressHandler() gin.HandlerFunc { return app.handlers.TaskHandler.GetTaskProgress }
 
 // Today tasks handlers
 func (app *Application) GetTodayTasksHandler() gin.HandlerFunc { return app.handlers.TodayTasksHandler.GetTodayTasks }
@@ -162,6 +164,9 @@ func (app *Application) GetAnalyticsHandler() *handlers.AnalyticsHandler {
 func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 	return app.handlers.APIKeyHandler
 }
+
+func (app *Application) GetProgressHandler() *handlers.ProgressHandler { return app.handlers.ProgressHandler }
+func (app *Application) GetTaskRelationshipHandler() *handlers.TaskRelationshipHandler { return app.handlers.TaskRelationshipHandler }
 
 func (app *Application) GetStatisticsHandler() *handlers.StatisticsHandlers {
 	return app.handlers.StatisticsHandler

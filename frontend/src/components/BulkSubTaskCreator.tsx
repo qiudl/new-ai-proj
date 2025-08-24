@@ -93,6 +93,8 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
         (_, index) => ({
           key: `subtask-${Date.now()}-${index}`,
           ...DEFAULT_SUBTASK_TEMPLATE,
+          // Ensure priority matches the union type
+          priority: DEFAULT_SUBTASK_TEMPLATE.priority as 'low' | 'medium' | 'high' | 'urgent' | undefined,
         })
       );
       setSubTasks(initialRows);
@@ -109,6 +111,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
     const newRow: SubTaskRow = {
       key: `subtask-${Date.now()}`,
       ...DEFAULT_SUBTASK_TEMPLATE,
+      priority: DEFAULT_SUBTASK_TEMPLATE.priority as 'low' | 'medium' | 'high' | 'urgent' | undefined,
     };
     setSubTasks(prev => [...prev, newRow]);
     message.success('已添加新任务行');
@@ -139,6 +142,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
       (_, index) => ({
         key: `subtask-${Date.now()}-${index}`,
         ...DEFAULT_SUBTASK_TEMPLATE,
+        priority: DEFAULT_SUBTASK_TEMPLATE.priority as 'low' | 'medium' | 'high' | 'urgent' | undefined,
       })
     );
     setSubTasks(emptyRows);
