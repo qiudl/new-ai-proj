@@ -16,22 +16,22 @@ interface MermaidDiagramProps {
 const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const renderingRef = useRef(false); // 防止重复渲染
 
   useEffect(() => {
     const renderMermaid = async () => {
+      // 始终渲染到同一个容器，避免加载态使用另一个元素导致 ref 不存在
       if (!ref.current || renderingRef.current) return;
-      
-      setIsLoading(true);
+
+      // 先显示加载占位内容
+      ref.current.innerHTML = createLoadingContainer();
       setError(null);
       renderingRef.current = true;
-      
+
       try {
-        
         // 使用统一的渲染工具
         const result = await renderMermaidDiagram(chart, id);
-        
+
         if (result.error) {
           // 渲染失败
           setError(result.error);
@@ -49,12 +49,11 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
         const errorMessage = err.message || '图表渲染失败';
         console.error('❌ [TaskMarkdownEditor] Mermaid 渲染错误:', errorMessage);
         setError(errorMessage);
-        
+
         if (ref.current) {
           ref.current.innerHTML = createErrorContainer(errorMessage, chart);
         }
       } finally {
-        setIsLoading(false);
         renderingRef.current = false;
       }
     };
@@ -62,25 +61,9 @@ const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, id }) => {
     renderMermaid();
   }, [chart, id]);
 
-  if (isLoading) {
-    return (
-      <div 
-        dangerouslySetInnerHTML={{ __html: createLoadingContainer() }}
-      />
-    );
-  }
-
-  if (error) {
-    return (
-      <div 
-        dangerouslySetInnerHTML={{ __html: createErrorContainer(error, chart) }}
-      />
-    );
-  }
-
   return (
-    <div 
-      ref={ref} 
+    <div
+      ref={ref}
       style={{
         textAlign: 'center',
         margin: '16px 0',
@@ -230,9 +213,11 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             minHeight: style?.flex === 1 ? '400px' : `${rows * 22}px`,
             border: '1px solid #d9d9d9',
             borderRadius: '6px',
-            padding: '8px 12px',
+            padding: '15px 50px',
             backgroundColor: '#fafafa',
             overflow: 'auto',
+            zIndex: 9999, // 设置z-index为最大
+            position: 'relative', // 需要设置position才能生效z-index
             // 全屏时让预览区域也占满空间
             ...(style?.flex === 1 ? {
               height: '100%',
@@ -244,117 +229,117 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                code: ({ node, inline, className, children, ...props }) => {
-                  const match = /language-(\w+)/.exec(className || '');
-                  const language = match ? match[1] : '';
-                  
-                  // 处理Mermaid图表
-                  if (!inline && language === 'mermaid') {
-                    const chartCode = String(children).replace(/\n$/, '');
-                    return (
-                      <MermaidDiagram 
-                        chart={chartCode} 
-                        id={`preview-mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`}
-                      />
-                    );
-                  }
-                  
-                  // 处理其他代码块
-                  return !inline && match ? (
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={language}
-                      PreTag="div"
-                      customStyle={{ fontSize: '12px', margin: '8px 0' }}
-                      {...props}
-                    >
-                      {String(children).replace(/\n$/, '')}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code 
-                      className={className} 
-                      style={{
-                        background: '#f5f5f5',
-                        padding: '2px 4px',
-                        borderRadius: '3px',
-                        fontSize: '12px'
-                      }}
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                  );
-                },
-                a: ({ href, children, ...props }) => (
-                  <a 
-                    href={href} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    style={{ color: '#1890ff' }}
-                    {...props}
-                  >
-                    {children}
-                  </a>
-                ),
-                img: ({ src, alt, ...props }) => (
-                  <img 
-                    src={src} 
-                    alt={alt} 
-                    style={{ 
-                      maxWidth: '100%', 
-                      height: 'auto',
-                      borderRadius: '4px',
-                      margin: '8px 0'
-                    }}
-                    {...props}
-                  />
-                ),
-                blockquote: ({ children, ...props }) => (
-                  <blockquote 
-                    style={{ 
-                      borderLeft: '3px solid #1890ff',
-                      paddingLeft: '12px',
-                      margin: '8px 0',
-                      color: '#666',
-                      backgroundColor: '#f9f9f9',
-                      padding: '8px 12px',
-                      borderRadius: '0 4px 4px 0'
-                    }}
-                    {...props}
-                  >
-                    {children}
-                  </blockquote>
-                ),
-                h1: ({ children, ...props }) => (
-                  <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', color: '#262626' }} {...props}>
-                    {children}
-                  </h1>
-                ),
-                h2: ({ children, ...props }) => (
-                  <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', color: '#262626' }} {...props}>
-                    {children}
-                  </h2>
-                ),
-                h3: ({ children, ...props }) => (
-                  <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', color: '#262626' }} {...props}>
-                    {children}
-                  </h3>
-                ),
-                ul: ({ children, ...props }) => (
-                  <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props}>
-                    {children}
-                  </ul>
-                ),
-                ol: ({ children, ...props }) => (
-                  <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props}>
-                    {children}
-                  </ol>
-                ),
-                p: ({ children, ...props }) => (
-                  <p style={{ margin: '6px 0', lineHeight: '1.6' }} {...props}>
-                    {children}
-                  </p>
-                ),
+          code: ({ node, inline, className, children, ...props }) => {
+            const match = /language-(\w+)/.exec(className || '');
+            const language = match ? match[1] : '';
+            
+            // 处理Mermaid图表
+            if (!inline && language === 'mermaid') {
+              const chartCode = String(children).replace(/\n$/, '');
+              return (
+                <MermaidDiagram 
+            chart={chartCode} 
+            id={`preview-mermaid-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`}
+                />
+              );
+            }
+            
+            // 处理其他代码块
+            return !inline && match ? (
+              <SyntaxHighlighter
+                style={tomorrow}
+                language={language}
+                PreTag="div"
+                customStyle={{ fontSize: '12px', margin: '8px 0' }}
+                {...props}
+              >
+                {String(children).replace(/\n$/, '')}
+              </SyntaxHighlighter>
+            ) : (
+              <code 
+                className={className} 
+                style={{
+            background: '#f5f5f5',
+            padding: '2px 4px',
+            borderRadius: '3px',
+            fontSize: '12px'
+                }}
+                {...props}
+              >
+                {children}
+              </code>
+            );
+          },
+          a: ({ href, children, ...props }) => (
+            <a 
+              href={href} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              style={{ color: '#1890ff' }}
+              {...props}
+            >
+              {children}
+            </a>
+          ),
+          img: ({ src, alt, ...props }) => (
+            <img 
+              src={src} 
+              alt={alt} 
+              style={{ 
+                maxWidth: '100%', 
+                height: 'auto',
+                borderRadius: '4px',
+                margin: '8px 0'
+              }}
+              {...props}
+            />
+          ),
+          blockquote: ({ children, ...props }) => (
+            <blockquote 
+              style={{ 
+                borderLeft: '3px solid #1890ff',
+                paddingLeft: '12px',
+                margin: '8px 0',
+                color: '#666',
+                backgroundColor: '#f9f9f9',
+                padding: '8px 12px',
+                borderRadius: '0 4px 4px 0'
+              }}
+              {...props}
+            >
+              {children}
+            </blockquote>
+          ),
+          h1: ({ children, ...props }) => (
+            <h1 style={{ fontSize: '18px', margin: '12px 0 8px 0', color: '#262626' }} {...props}>
+              {children}
+            </h1>
+          ),
+          h2: ({ children, ...props }) => (
+            <h2 style={{ fontSize: '16px', margin: '10px 0 6px 0', color: '#262626' }} {...props}>
+              {children}
+            </h2>
+          ),
+          h3: ({ children, ...props }) => (
+            <h3 style={{ fontSize: '14px', margin: '8px 0 4px 0', color: '#262626' }} {...props}>
+              {children}
+            </h3>
+          ),
+          ul: ({ children, ...props }) => (
+            <ul style={{ margin: '8px 0', paddingLeft: '20px' }} {...props}>
+              {children}
+            </ul>
+          ),
+          ol: ({ children, ...props }) => (
+            <ol style={{ margin: '8px 0', paddingLeft: '20px' }} {...props}>
+              {children}
+            </ol>
+          ),
+          p: ({ children, ...props }) => (
+            <p style={{ margin: '6px 0', lineHeight: '1.6' }} {...props}>
+              {children}
+            </p>
+          ),
               }}
             >
               {value}

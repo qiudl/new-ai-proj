@@ -38,7 +38,7 @@ interface DocumentRequest {
 interface TaskDocumentEditorProps {
   taskId: number;
   projectId: number;
-  document?: {
+  taskDocument?: {
     id: number;
     title: string;
     content: string;
@@ -52,7 +52,7 @@ interface TaskDocumentEditorProps {
 const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
   taskId,
   projectId,
-  document,
+  taskDocument,
   onSave,
   style = {},
   className = 'task-document-editor'
@@ -71,7 +71,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
 
   // 加载文档内容
   const loadDocument = useCallback(async () => {
-    if (!document) {
+    if (!taskDocument) {
       setContent('');
       setOriginalContent('');
       setTitle('');
@@ -84,8 +84,8 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     
     try {
       // 使用传入的document数据，而不是从API加载
-      const documentContent = document.content || '';
-      const documentTitle = document.title || '';
+      const documentContent = taskDocument.content || '';
+      const documentTitle = taskDocument.title || '';
       setContent(documentContent);
       setOriginalContent(documentContent);
       setTitle(documentTitle);
@@ -108,7 +108,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
       return;
     }
 
-    if (!document) {
+    if (!taskDocument) {
       message.error('未选择文档');
       return;
     }
@@ -119,10 +119,10 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     try {
       const requestData = { 
         content,
-        title: title.trim() || document.title,
-        type: document.type
+        title: title.trim() || taskDocument.title,
+        type: taskDocument.type
       };
-      await api.put(`/documents/${document.id}`, requestData);
+      await api.put(`/documents/${taskDocument.id}`, requestData);
       
       setOriginalContent(content);
       setOriginalTitle(title);
