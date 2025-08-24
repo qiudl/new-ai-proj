@@ -20,11 +20,11 @@ services:
       # 数据持久化
       - postgres_master_data:/var/lib/postgresql/data
       # 初始化脚本
-      - ./docker/postgres/init-master.sql:/docker-entrypoint-initdb.d/01-init-master.sql
-      - ./docker/postgres/init-migrations.sql:/docker-entrypoint-initdb.d/02-init-migrations.sql
+      - ./infrastructure/docker/postgres/init-master.sql:/docker-entrypoint-initdb.d/01-init-master.sql
+      - ./infrastructure/docker/postgres/init-migrations.sql:/docker-entrypoint-initdb.d/02-init-migrations.sql
       # PostgreSQL配置文件
-      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
-      - ./docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
+      - ./infrastructure/docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./infrastructure/docker/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf", "-c", "hba_file=/etc/postgresql/pg_hba.conf"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_user -d ai_project_db"]
