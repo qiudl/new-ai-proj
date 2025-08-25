@@ -394,20 +394,22 @@ func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
 	
 	userID := c.GetInt("user_id")
 	
-	// Get all projects for the user (simplified implementation)
-	projects, _, err := h.db.Projects().GetByUserID(c.Request.Context(), userID, 100, 0)
+	// 获取当前用户可访问的项目（包含拥有者或成员身份）
+	projectsWithCompany, _, err := h.db.Projects().GetPaginatedWithCompany(
+		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc",
+	)
 	if err != nil {
 		log.Printf("Error getting document projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目选项失败", nil))
 		return
 	}
 	
-	// Convert to simple options format
+	// 转为精简选项格式，仅返回 id 和 name
 	var options []map[string]interface{}
-	for _, project := range projects {
+	for _, pwc := range projectsWithCompany {
 		options = append(options, map[string]interface{}{
-			"id":   project.ID,
-			"name": project.Name,
+			"id":   pwc.ID,
+			"name": pwc.Name,
 		})
 	}
 	

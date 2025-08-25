@@ -252,13 +252,12 @@ class ProjectService {
    */
   async getProjectsForDocumentMetadata(): Promise<ProjectOption[]> {
     try {
-      const response = await api.get('/projects/metadata');
-      return response.data.map((project: any) => ({
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        status: project.status
-      }));
+      // 使用后端提供的精简选项接口，仅返回 [{ id, name }]
+      const data = await api.get('/document-metadata/projects');
+      // 担保返回类型，避免后端结构变化导致前端崩溃
+      return Array.isArray(data)
+        ? data.map((p: any) => ({ id: p.id, name: p.name }))
+        : [];
     } catch (error) {
       console.error('获取项目元数据失败:', error);
       throw error;

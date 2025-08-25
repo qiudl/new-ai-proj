@@ -82,7 +82,7 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 	// Get projects with pagination
 	query := `
-		SELECT id, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
+		SELECT id, project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
 		FROM projects 
 		WHERE owner_id = $1 AND deleted_at IS NULL
 		ORDER BY created_at DESC

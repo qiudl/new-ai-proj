@@ -507,8 +507,11 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 	}
 
 	// Sorting (whitelisted to prevent SQL injection)
+	// 为了实现根任务按时间倒序的需求，我们需要特殊的排序逻辑
 	sortBy := "t.updated_at"
 	sortOrder := "DESC"
+	useRootTaskOrder := false // 是否使用根任务优先排序
+	
 	if opts != nil {
 		if opts.SortBy != "" {
 			switch opts.SortBy {
@@ -522,6 +525,7 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 				sortBy = "t.due_date"
 			case "created_at":
 				sortBy = "t.created_at"
+				useRootTaskOrder = true // 对于创建时间排序，使用根任务优先排序
 			case "updated_at":
 				// explicit mapping for clarity
 				sortBy = "t.updated_at"
@@ -533,6 +537,21 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		if strings.ToLower(opts.SortOrder) == "asc" {
 			sortOrder = "ASC"
 		}
+	}
+	
+	// 构建ORDER BY子句
+	var orderByClause string
+	if useRootTaskOrder {
+		// 使用根任务优先的复杂排序逻辑：
+		// 1. 先按是否为根任务排序（根任务在前）
+		// 2. 再按指定字段和顺序排序
+		if sortOrder == "ASC" {
+			orderByClause = "CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END ASC, " + sortBy + " ASC"
+		} else {
+			orderByClause = "CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END ASC, " + sortBy + " DESC"
+		}
+	} else {
+		orderByClause = fmt.Sprintf("%s %s", sortBy, sortOrder)
 	}
 
 	query := fmt.Sprintf(`
@@ -553,8 +572,8 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			GROUP BY parent_id
 		) c ON t.id = c.parent_id
 		%s
-		ORDER BY %s %s
-		LIMIT $%d OFFSET $%d`, where, sortBy, sortOrder, len(args)+1, len(args)+2)
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d`, where, orderByClause, len(args)+1, len(args)+2)
 
 	args = append(args, limit, offset)
 	rows, err := exec.QueryContext(ctx, query, args...)

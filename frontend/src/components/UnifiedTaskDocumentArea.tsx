@@ -999,7 +999,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             key={selectedDocument.id}
             taskId={taskId}
             projectId={projectId}
-            document={selectedDocument}
+            taskDocument={selectedDocument}
             onSave={() => loadDocuments()}
           />
         ) : (

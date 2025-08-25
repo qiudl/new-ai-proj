@@ -46,7 +46,7 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
-	sortBy := c.DefaultQuery("sort_by", "updated_at")
+	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	onlyRootsParam := c.DefaultQuery("only_roots", "false")
 	onlyRoots := onlyRootsParam == "true" || onlyRootsParam == "1"
@@ -117,7 +117,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
-	sortBy := c.DefaultQuery("sort_by", "updated_at")
+	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
 	onlyRootsParam := c.DefaultQuery("only_roots", "false")

@@ -3,6 +3,15 @@ import { Task, TimelineEvent, TaskStatus } from '../types/task';
 import { Project } from '../types/project';
 import { timerCache, CACHE_KEYS, CACHE_TTL } from '../utils/cache';
 
+// Helper to robustly extract arrays from various API response shapes
+function extractArray<T = any>(payload: any): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && Array.isArray(payload.data)) return payload.data as T[];
+  if (payload && payload.data && Array.isArray(payload.data.data)) return payload.data.data as T[];
+  if (payload && Array.isArray(payload.items)) return payload.items as T[];
+  return [] as T[];
+}
+
 export interface DashboardStats {
   totalProjects: number;
   totalTasks: number;
@@ -248,7 +257,7 @@ export class DashboardService {
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
-      const projects = projectsResponse.data?.data || [];
+      const projects: Project[] = extractArray<Project>(projectsResponse);
 
       // 如果没有项目，返回空统计
       if (projects.length === 0) {
@@ -266,10 +275,10 @@ export class DashboardService {
       const taskResponses = await Promise.all(taskPromises);
       
       // 合并所有任务数据
-      const tasks = taskResponses.reduce((allTasks, response) => {
-        const projectTasks = response.data?.data || [];
+      const tasks: Task[] = taskResponses.reduce((allTasks: Task[], response: any) => {
+        const projectTasks = extractArray<Task>(response);
         return allTasks.concat(projectTasks);
-      }, []);
+      }, [] as Task[]);
 
       // 计算统计数据
       const totalProjects = projects.length;
@@ -411,20 +420,20 @@ export class DashboardService {
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
-      const projects = projectsResponse.data?.data || [];
+      const projects: any[] = extractArray<any>(projectsResponse);
 
       // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: unknown) => 
+      const taskPromises = projects.map((project: any) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
       const taskResponses = await Promise.all(taskPromises);
       
       // 合并所有任务数据
-      const tasks = taskResponses.reduce((allTasks, response) => {
-        const projectTasks = response.data?.data || [];
+      const tasks: Task[] = taskResponses.reduce((allTasks: Task[], response: any) => {
+        const projectTasks = extractArray<Task>(response);
         return allTasks.concat(projectTasks);
-      }, []);
+      }, [] as Task[]);
 
       const tasksByStatus = {
         todo: tasks.filter((task: Task) => task.status === 'todo'),
@@ -457,12 +466,12 @@ export class DashboardService {
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
-      const projects = projectsResponse.data?.data || [];
+      const projects: any[] = extractArray<any>(projectsResponse);
 
       // 为每个项目获取任务数据并计算进度
-      const progressPromises = projects.map(async (project: unknown) => {
+      const progressPromises = projects.map(async (project: any) => {
         const tasksResponse = await api.get(`/projects/${project.id}/tasks?page=1&page_size=100`);
-        const projectTasks = tasksResponse.data?.data || [];
+        const projectTasks: Task[] = extractArray<Task>(tasksResponse);
         
         const completedTasks = projectTasks.filter((task: Task) => task.status === 'completed');
         const totalTasks = projectTasks.length;
@@ -503,20 +512,20 @@ export class DashboardService {
     try {
       // 先获取项目数据
       const projectsResponse = await api.get('/projects?page=1&page_size=100');
-      const projects = projectsResponse.data?.data || [];
+      const projects: any[] = extractArray<any>(projectsResponse);
 
       // 为每个项目获取任务数据
-      const taskPromises = projects.map((project: unknown) => 
+      const taskPromises = projects.map((project: any) => 
         api.get(`/projects/${project.id}/tasks?page=1&page_size=100`)
       );
       
       const taskResponses = await Promise.all(taskPromises);
       
       // 合并所有任务数据
-      const tasks = taskResponses.reduce((allTasks, response) => {
-        const projectTasks = response.data?.data || [];
+      const tasks: Task[] = taskResponses.reduce((allTasks: Task[], response: any) => {
+        const projectTasks = extractArray<Task>(response);
         return allTasks.concat(projectTasks);
-      }, []);
+      }, [] as Task[]);
 
       // 按负责人分组任务
       const userTasksMap = new Map<number, {

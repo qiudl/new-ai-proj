@@ -252,7 +252,10 @@ func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int)
 		       custom_fields, parent_id, task_level, sort_order, created_at, updated_at, deleted_at
 		FROM tasks 
 		WHERE project_id = $1 AND deleted_at IS NULL
-		ORDER BY task_level ASC, sort_order ASC, created_at ASC`
+		ORDER BY 
+			CASE WHEN parent_id IS NULL THEN 0 ELSE 1 END ASC,  -- 根任务优先
+			CASE WHEN parent_id IS NULL THEN created_at ELSE NULL END DESC,  -- 根任务按创建时间倒序
+			task_level ASC, sort_order ASC, created_at ASC`
 
 	exec := r.getExecer()
 	rows, err := exec.QueryContext(ctx, query, projectID)

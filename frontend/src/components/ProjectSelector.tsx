@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Select, Spin, Empty } from 'antd';
 import { ProjectOutlined } from '@ant-design/icons';
-import { projectService } from '../services/projectService';
+import { projectService, ProjectOption } from '../services/projectService';
 import { Project } from '../types/project';
 
 interface ProjectSelectorProps {
@@ -19,7 +19,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   style,
   allowClear = false
 }) => {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -27,12 +27,22 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   }, []);
 
   const loadProjects = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await projectService.getProjects();
-      setProjects(response.data);
+      // 首选：使用精简接口，仅获取 id 和 name
+      const options = await projectService.getProjectsForDocumentMetadata();
+      setProjects(Array.isArray(options) ? options : []);
     } catch (error) {
-      console.error('Failed to load projects:', error);
+      console.error('Failed to load projects (metadata endpoint):', error);
+      // 兜底：使用分页项目列表，仅提取 id 和 name
+      try {
+        const resp = await projectService.getProjects({ page: 1, pageSize: 100 });
+        const items = Array.isArray(resp?.data) ? resp.data : [];
+        setProjects(items.map((p: any) => ({ id: p.id, name: p.name })));
+      } catch (e2) {
+        console.error('Fallback loading projects failed:', e2);
+        setProjects([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -40,7 +50,8 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
 
   const handleChange = (projectId: number) => {
     const selectedProject = projects.find(p => p.id === projectId);
-    onChange(projectId, selectedProject);
+    // 维持对外类型兼容，最小化返回值（仅 id/name）
+    onChange(projectId, selectedProject as unknown as Project);
   };
 
   return (
