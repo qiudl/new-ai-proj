@@ -39,6 +39,9 @@ build/
 .env
 .env.local
 .env.*.local
+# direnv (do not commit)
+.envrc
+mcp-task-bridge/.envrc
 
 # Logs
 logs/

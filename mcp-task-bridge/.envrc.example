@@ -1,0 +1,17 @@
+# Copy to .envrc and set real values locally. Do NOT commit .envrc
+
+# Export variables for direnv
+# See: https://direnv.net/
+
+# AI providers (example placeholders)
+export OPENAI_API_KEY="{{OPENAI_API_KEY}}"
+export ANTHROPIC_API_KEY="{{ANTHROPIC_API_KEY}}"
+
+# Other optional config
+# export DEEPSEEK_API_KEY="{{DEEPSEEK_API_KEY}}"
+# export VERTEX_AI_PROJECT="{{GCP_PROJECT_ID}}"
+
+# Local dev toggles
+# export NODE_ENV=development
+# export DEBUG=1
+
