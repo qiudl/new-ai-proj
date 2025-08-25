@@ -1543,3 +1543,512 @@ func (h *DocumentHandler) checkTaskHasDocuments(taskID int) (bool, error) {
 	// TODO: 实现实际的查询逻辑
 	return false, nil
 }
+
+// =============================================================================
+// 工作笔记转任务文档功能
+// =============================================================================
+
+// ConvertWorkNoteToTaskDocumentRequest 工作笔记转任务文档请求
+type ConvertWorkNoteToTaskDocumentRequest struct {
+	TargetTaskID      int                         `json:"target_task_id" validate:"required"`
+	ConversionOptions ConversionOptions           `json:"conversion_options"`
+}
+
+// ConversionOptions 转换选项
+type ConversionOptions struct {
+	PreserveOriginal bool                      `json:"preserve_original"`       // 是否保留原工作笔记
+	CopyRelations    bool                      `json:"copy_relations"`          // 是否复制关联关系
+	ConvertFormat    models.DocumentType       `json:"convert_format"`          // 转换格式
+	Visibility       models.Visibility         `json:"visibility"`              // 可见性
+	RelationType     string                   `json:"relation_type"`           // 关联类型，默认attachment
+}
+
+// ConversionResult 转换结果
+type ConversionResult struct {
+	OriginalWorkNoteID   int                    `json:"original_work_note_id"`
+	CreatedTaskDocument  TaskDocumentInfo       `json:"created_task_document"`
+	ConversionSummary    ConversionSummary      `json:"conversion_summary"`
+}
+
+// TaskDocumentInfo 任务文档信息
+type TaskDocumentInfo struct {
+	ID        int                `json:"id"`
+	TaskID    int                `json:"task_id"`
+	Title     string             `json:"title"`
+	Format    models.DocumentType `json:"format"`
+	CreatedAt time.Time          `json:"created_at"`
+}
+
+// ConversionSummary 转换摘要
+type ConversionSummary struct {
+	ContentMigrated   bool `json:"content_migrated"`
+	RelationsCopied   int  `json:"relations_copied"`
+	AttachmentsMoved  int  `json:"attachments_moved"`
+}
+
+// ConvertWorkNoteToTaskDocument 将工作笔记转换为任务文档
+func (h *DocumentHandler) ConvertWorkNoteToTaskDocument(c *gin.Context) {
+	workNoteIDStr := c.Param("id")
+	workNoteID, err := strconv.Atoi(workNoteIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid work note ID",
+			"error":   "INVALID_ID",
+		})
+		return
+	}
+
+	var req ConvertWorkNoteToTaskDocumentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   "INVALID_REQUEST",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 设置默认选项
+	if req.ConversionOptions.ConvertFormat == "" {
+		req.ConversionOptions.ConvertFormat = models.DocumentTypeMarkdown
+	}
+	if req.ConversionOptions.Visibility == "" {
+		req.ConversionOptions.Visibility = models.VisibilityTeam
+	}
+	if req.ConversionOptions.RelationType == "" {
+		req.ConversionOptions.RelationType = "attachment"
+	}
+
+	// 验证工作笔记是否存在
+	workNote, err := h.docRepo.GetDocumentByID(workNoteID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Work note not found",
+				"error":   "WORK_NOTE_NOT_FOUND",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to retrieve work note",
+			"error":   "DATABASE_ERROR",
+		})
+		return
+	}
+
+	// 验证目标任务是否存在
+	taskExists, err := h.validateTaskExists(req.TargetTaskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to validate target task",
+			"error":   "DATABASE_ERROR",
+		})
+		return
+	}
+	if !taskExists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Target task not found",
+			"error":   "TARGET_TASK_NOT_FOUND",
+		})
+		return
+	}
+
+	// 验证任务状态是否允许添加文档
+	taskValid, err := h.validateTaskStatus(req.TargetTaskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to validate task status",
+			"error":   "DATABASE_ERROR",
+		})
+		return
+	}
+	if !taskValid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Task status does not allow adding documents",
+			"error":   "TASK_STATUS_INVALID",
+		})
+		return
+	}
+
+	// 开始转换过程
+	result, err := h.performConversion(workNote, req.TargetTaskID, req.ConversionOptions, c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Conversion failed",
+			"error":   "CONVERSION_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+		"message": "Work note successfully converted to task document",
+	})
+}
+
+// ConvertWorkNotePreview 预览工作笔记转换结果
+func (h *DocumentHandler) ConvertWorkNotePreview(c *gin.Context) {
+	workNoteIDStr := c.Param("id")
+	workNoteID, err := strconv.Atoi(workNoteIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid work note ID",
+			"error":   "INVALID_ID",
+		})
+		return
+	}
+
+	var req struct {
+		TargetTaskID      int               `json:"target_task_id" validate:"required"`
+		ConversionOptions ConversionOptions `json:"conversion_options"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   "INVALID_REQUEST",
+		})
+		return
+	}
+
+	// 验证工作笔记是否存在
+	workNote, err := h.docRepo.GetDocumentByID(workNoteID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"message": "Work note not found",
+				"error":   "WORK_NOTE_NOT_FOUND",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to retrieve work note",
+			"error":   "DATABASE_ERROR",
+		})
+		return
+	}
+
+	// 生成预览数据
+	preview := h.generateConversionPreview(workNote, req.TargetTaskID, req.ConversionOptions)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    preview,
+		"message": "Conversion preview generated",
+	})
+}
+
+// BatchConvertWorkNotesToTaskDocuments 批量转换工作笔记为任务文档
+func (h *DocumentHandler) BatchConvertWorkNotesToTaskDocuments(c *gin.Context) {
+	var req struct {
+		Conversions   []ConversionItem  `json:"conversions" validate:"required,min=1,max=50"`
+		GlobalOptions GlobalOptions     `json:"global_options"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body",
+			"error":   "INVALID_REQUEST",
+		})
+		return
+	}
+
+	results := make([]BatchConversionResult, 0, len(req.Conversions))
+	successCount := 0
+	errorCount := 0
+
+	for i, conversion := range req.Conversions {
+		result := h.performSingleConversion(conversion, req.GlobalOptions, c)
+		results = append(results, BatchConversionResult{
+			Index:  i,
+			Result: result,
+		})
+
+		if result.Success {
+			successCount++
+		} else {
+			errorCount++
+			// 如果是事务模式且有错误，回滚所有操作
+			if req.GlobalOptions.TransactionMode {
+				// TODO: 实现回滚逻辑
+				break
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":       errorCount == 0,
+		"success_count": successCount,
+		"error_count":   errorCount,
+		"results":       results,
+		"message":       fmt.Sprintf("Batch conversion completed: %d successful, %d failed", successCount, errorCount),
+	})
+}
+
+// =============================================================================
+// 辅助方法
+// =============================================================================
+
+// validateTaskExists 验证任务是否存在
+func (h *DocumentHandler) validateTaskExists(taskID int) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM tasks WHERE id = $1 AND deleted_at IS NULL)`
+	var exists bool
+	err := h.db.GetDB().QueryRow(query, taskID).Scan(&exists)
+	return exists, err
+}
+
+// validateTaskStatus 验证任务状态是否允许添加文档
+func (h *DocumentHandler) validateTaskStatus(taskID int) (bool, error) {
+	query := `SELECT status FROM tasks WHERE id = $1 AND deleted_at IS NULL`
+	var status string
+	err := h.db.GetDB().QueryRow(query, taskID).Scan(&status)
+	if err != nil {
+		return false, err
+	}
+	
+	// 不允许给已完成或取消的任务添加文档
+	invalidStatuses := []string{"completed", "cancelled", "archived"}
+	for _, invalidStatus := range invalidStatuses {
+		if status == invalidStatus {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// performConversion 执行转换过程
+func (h *DocumentHandler) performConversion(workNote *models.Document, targetTaskID int, options ConversionOptions, c *gin.Context) (*ConversionResult, error) {
+	// 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// 创建任务文档
+	taskDoc := &models.Document{
+		ProjectID:   workNote.ProjectID,
+		Title:       workNote.Title,
+		Content:     workNote.Content,
+		Type:        options.ConvertFormat,
+		Status:      models.DocumentStatusDraft,
+		Description: workNote.Description,
+		Tags:        workNote.Tags,
+		Metadata:    workNote.Metadata,
+		Visibility:  options.Visibility,
+		OwnerID:     userID.(int),
+		CreatedBy:   userID.(int),
+	}
+
+	// 创建文档
+	createdDoc, err := h.docRepo.CreateDocument(taskDoc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create task document: %w", err)
+	}
+
+	// 创建任务关联
+	err = h.createTaskDocumentRelation(createdDoc.ID, targetTaskID, options.RelationType, userID.(int))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create task relation: %w", err)
+	}
+
+	// 复制关联关系（如果需要）
+	relationsCopied := 0
+	if options.CopyRelations {
+		relationsCopied, err = h.copyDocumentRelations(workNote.ID, createdDoc.ID, userID.(int))
+		if err != nil {
+			return nil, fmt.Errorf("failed to copy relations: %w", err)
+		}
+	}
+
+	// 如果不保留原文档，删除原工作笔记
+	if !options.PreserveOriginal {
+		err = h.docRepo.Delete(c.Request.Context(), workNote.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to delete original work note: %w", err)
+		}
+	}
+
+	// 构建转换结果
+	result := &ConversionResult{
+		OriginalWorkNoteID: workNote.ID,
+		CreatedTaskDocument: TaskDocumentInfo{
+			ID:        createdDoc.ID,
+			TaskID:    targetTaskID,
+			Title:     createdDoc.Title,
+			Format:    createdDoc.Type,
+			CreatedAt: createdDoc.CreatedAt,
+		},
+		ConversionSummary: ConversionSummary{
+			ContentMigrated:  true,
+			RelationsCopied:  relationsCopied,
+			AttachmentsMoved: 0, // TODO: 实现附件迁移
+		},
+	}
+
+	return result, nil
+}
+
+// createTaskDocumentRelation 创建任务文档关联
+func (h *DocumentHandler) createTaskDocumentRelation(documentID, taskID int, relationType string, userID int) error {
+	query := `
+		INSERT INTO document_task_relations (document_id, task_id, relation_type, created_by, created_at)
+		VALUES ($1, $2, $3, $4, NOW())
+	`
+	_, err := h.db.GetDB().Exec(query, documentID, taskID, relationType, userID)
+	return err
+}
+
+// copyDocumentRelations 复制文档关联关系
+func (h *DocumentHandler) copyDocumentRelations(sourceDocID, targetDocID int, userID int) (int, error) {
+	// 复制项目关联
+	projectQuery := `
+		INSERT INTO document_project_relations (document_id, project_id, relation_type, description, created_by, created_at)
+		SELECT $1, project_id, relation_type, description, $2, NOW()
+		FROM document_project_relations
+		WHERE document_id = $3
+	`
+	result1, err := h.db.GetDB().Exec(projectQuery, targetDocID, userID, sourceDocID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 复制客户关联
+	customerQuery := `
+		INSERT INTO document_customer_relations (document_id, customer_id, relation_type, description, created_by, created_at)
+		SELECT $1, customer_id, relation_type, description, $2, NOW()
+		FROM document_customer_relations
+		WHERE document_id = $3
+	`
+	result2, err := h.db.GetDB().Exec(customerQuery, targetDocID, userID, sourceDocID)
+	if err != nil {
+		return 0, err
+	}
+
+	// 计算总共复制的关联数量
+	projectRelations, _ := result1.RowsAffected()
+	customerRelations, _ := result2.RowsAffected()
+	
+	return int(projectRelations + customerRelations), nil
+}
+
+// generateConversionPreview 生成转换预览
+func (h *DocumentHandler) generateConversionPreview(workNote *models.Document, targetTaskID int, options ConversionOptions) map[string]interface{} {
+	preview := map[string]interface{}{
+		"source_document": map[string]interface{}{
+			"id":          workNote.ID,
+			"title":       workNote.Title,
+			"type":        workNote.Type,
+			"size":        len(*workNote.Content),
+			"created_at":  workNote.CreatedAt,
+		},
+		"target_task_id": targetTaskID,
+		"conversion_settings": map[string]interface{}{
+			"format":            options.ConvertFormat,
+			"visibility":        options.Visibility,
+			"preserve_original": options.PreserveOriginal,
+			"copy_relations":    options.CopyRelations,
+		},
+		"preview_content": h.generatePreviewContent(workNote, options),
+		"estimated_relations": h.countExistingRelations(workNote.ID),
+	}
+
+	return preview
+}
+
+// generatePreviewContent 生成预览内容
+func (h *DocumentHandler) generatePreviewContent(workNote *models.Document, options ConversionOptions) string {
+	if workNote.Content == nil {
+		return ""
+	}
+	
+	content := *workNote.Content
+	if len(content) > 500 {
+		return content[:497] + "..."
+	}
+	return content
+}
+
+// countExistingRelations 统计现有关联关系数量
+func (h *DocumentHandler) countExistingRelations(documentID int) int {
+	query := `
+		SELECT 
+			(SELECT COUNT(*) FROM document_project_relations WHERE document_id = $1) +
+			(SELECT COUNT(*) FROM document_customer_relations WHERE document_id = $1) +
+			(SELECT COUNT(*) FROM document_task_relations WHERE document_id = $1)
+	`
+	var count int
+	h.db.GetDB().QueryRow(query, documentID).Scan(&count)
+	return count
+}
+
+// performSingleConversion 执行单个转换
+func (h *DocumentHandler) performSingleConversion(conversion ConversionItem, globalOptions GlobalOptions, c *gin.Context) SingleConversionResult {
+	workNote, err := h.docRepo.GetDocumentByID(conversion.WorkNoteID)
+	if err != nil {
+		return SingleConversionResult{
+			Success: false,
+			Error:   "WORK_NOTE_NOT_FOUND",
+			Message: "Work note not found",
+		}
+	}
+
+	result, err := h.performConversion(workNote, conversion.TargetTaskID, conversion.Options, c)
+	if err != nil {
+		return SingleConversionResult{
+			Success: false,
+			Error:   "CONVERSION_FAILED",
+			Message: err.Error(),
+		}
+	}
+
+	return SingleConversionResult{
+		Success: true,
+		Data:    result,
+		Message: "Conversion successful",
+	}
+}
+
+// =============================================================================
+// 数据结构定义
+// =============================================================================
+
+// ConversionItem 批量转换项
+type ConversionItem struct {
+	WorkNoteID    int               `json:"work_note_id" validate:"required"`
+	TargetTaskID  int               `json:"target_task_id" validate:"required"`
+	Options       ConversionOptions `json:"options"`
+}
+
+// GlobalOptions 全局选项
+type GlobalOptions struct {
+	TransactionMode bool   `json:"transaction_mode"` // 事务模式：全部成功或全部失败
+	ErrorHandling   string `json:"error_handling"`   // continue | stop
+}
+
+// BatchConversionResult 批量转换结果
+type BatchConversionResult struct {
+	Index  int                   `json:"index"`
+	Result SingleConversionResult `json:"result"`
+}
+
+// SingleConversionResult 单个转换结果
+type SingleConversionResult struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Error   string      `json:"error,omitempty"`
+	Message string      `json:"message,omitempty"`
+}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Token设置和测试</title>
+</head>
+<body>
+    <h1>开发环境Token设置</h1>
+    <button onclick="setToken()">设置开发Token</button>
+    <button onclick="testAPI()">测试项目API</button>
+    <button onclick="clearToken()">清除Token</button>
+    <button onclick="openProjects()">打开项目页面</button>
+    
+    <div id="output" style="margin-top: 20px; padding: 10px; background: #f5f5f5; font-family: monospace;"></div>
+
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            console.log(message);
+            output.innerHTML += message + '<br>';
+        }
+        
+        async function setToken() {
+            try {
+                output.innerHTML = '';
+                log('开始获取开发Token...');
+                
+                const response = await fetch('/api/v1/auth/dev-quick-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin' })
+                });
+                
+                const data = await response.json();
+                log('响应: ' + JSON.stringify(data, null, 2));
+                
+                if (data.success && data.data.token) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('currentUser', JSON.stringify(data.data.user));
+                    log('✅ Token设置成功!');
+                } else {
+                    log('❌ 获取Token失败');
+                }
+            } catch (e) {
+                log('💥 错误: ' + e.message);
+            }
+        }
+        
+        async function testAPI() {
+            try {
+                log('测试项目API...');
+                const token = localStorage.getItem('token');
+                if (!token) {
+                    log('❌ 没有找到Token');
+                    return;
+                }
+                
+                const response = await fetch('/api/v1/projects', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                
+                const data = await response.json();
+                log('项目API响应: ' + JSON.stringify(data, null, 2));
+                log('项目数量: ' + (data.data?.data?.length || 0));
+            } catch (e) {
+                log('💥 API测试失败: ' + e.message);
+            }
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            log('🗑️  Token已清除');
+        }
+        
+        function openProjects() {
+            window.open('/projects', '_blank');
+        }
+        
+        // 页面加载时检查当前状态
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            log('当前Token状态: ' + (token ? '存在' : '不存在'));
+        };
+    </script>
+</body>
+</html>

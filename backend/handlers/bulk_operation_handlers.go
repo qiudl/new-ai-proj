@@ -346,7 +346,7 @@ func (h *BulkOperationHandler) ImportTasksFromCSV(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
-// BulkUpdateTaskStatus 批量更新任务状态
+// BulkUpdateTaskStatus 批量更新任务状态 (保持向后兼容)
 func (h *BulkOperationHandler) BulkUpdateTaskStatus(c *gin.Context) {
 	var req struct {
 		TaskIDs   []int  `json:"task_ids" validate:"required,min=1"`
@@ -387,4 +387,141 @@ func (h *BulkOperationHandler) BulkUpdateTaskStatus(c *gin.Context) {
 
 	response := models.NewSuccessResponse(result, "Bulk status update completed")
 	c.JSON(http.StatusOK, response)
+}
+
+// BulkUpdateTasks 批量更新任务 (支持状态和父任务更新)
+func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
+	var req models.BatchUpdateTasksRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Printf("Error binding request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		h.logger.Printf("Validation error: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", map[string]interface{}{
+			"validation_errors": err.Error(),
+		})
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	h.logger.Printf("Processing batch update request: taskIds=%v, status=%v, parentId=%v", 
+		req.TaskIDs, req.Status, req.ParentID)
+
+	var updatedCount int
+	var failedTasks []models.BatchTaskError
+
+	// 处理每个任务
+	for _, taskID := range req.TaskIDs {
+		h.logger.Printf("Processing task ID: %d", taskID)
+		
+		// 获取当前任务信息
+		currentTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+		if err != nil {
+			h.logger.Printf("Error getting task %d: %v", taskID, err)
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  "Task not found",
+			})
+			continue
+		}
+
+		// 更新父任务
+		if req.ParentID != nil {
+			h.logger.Printf("Updating parent for task %d: %v -> %v", taskID, currentTask.ParentID, *req.ParentID)
+			
+			// 验证父任务是否存在（如果不是设置为null）
+			if *req.ParentID != 0 {
+				parentTask, err := h.db.Tasks().GetByID(c.Request.Context(), *req.ParentID)
+				if err != nil {
+					h.logger.Printf("Parent task %d not found for task %d: %v", *req.ParentID, taskID, err)
+					failedTasks = append(failedTasks, models.BatchTaskError{
+						TaskID: taskID,
+						Error:  "Parent task not found",
+					})
+					continue
+				}
+				
+				// 验证不能设置自己为父任务
+				if *req.ParentID == taskID {
+					h.logger.Printf("Task %d cannot be its own parent", taskID)
+					failedTasks = append(failedTasks, models.BatchTaskError{
+						TaskID: taskID,
+						Error:  "Task cannot be its own parent",
+					})
+					continue
+				}
+				
+				// 验证项目一致性
+				if parentTask.ProjectID != currentTask.ProjectID {
+					h.logger.Printf("Parent task %d is in different project than task %d", *req.ParentID, taskID)
+					failedTasks = append(failedTasks, models.BatchTaskError{
+						TaskID: taskID,
+						Error:  "Parent task must be in the same project",
+					})
+					continue
+				}
+			}
+		}
+
+		// 执行更新
+		// 先获取完整的任务信息用于更新
+		taskToUpdate, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+		if err != nil {
+			h.logger.Printf("Error re-getting task %d for update: %v", taskID, err)
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  "Failed to get task for update",
+			})
+			continue
+		}
+
+		// 应用更新
+		if req.Status != nil {
+			taskToUpdate.Status = *req.Status
+		}
+
+		if req.ParentID != nil {
+			if *req.ParentID == 0 {
+				taskToUpdate.ParentID = nil
+			} else {
+				taskToUpdate.ParentID = req.ParentID
+			}
+		}
+
+		taskToUpdate.UpdatedAt = time.Now()
+
+		// 使用完整的Update方法
+		_, err = h.db.Tasks().Update(c.Request.Context(), taskToUpdate)
+		if err != nil {
+			h.logger.Printf("Error updating task %d: %v", taskID, err)
+			failedTasks = append(failedTasks, models.BatchTaskError{
+				TaskID: taskID,
+				Error:  err.Error(),
+			})
+			continue
+		}
+
+		updatedCount++
+		h.logger.Printf("Successfully updated task %d", taskID)
+	}
+
+	// 构建响应
+	response := models.BatchUpdateTasksResponse{
+		UpdatedCount: updatedCount,
+		FailedTasks:  failedTasks,
+		Message:      "Batch update completed",
+	}
+
+	if len(failedTasks) > 0 {
+		h.logger.Printf("Batch update completed with errors: %d success, %d failed", updatedCount, len(failedTasks))
+	} else {
+		h.logger.Printf("Batch update completed successfully: %d tasks updated", updatedCount)
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(response, response.Message))
 }

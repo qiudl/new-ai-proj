@@ -80,17 +80,27 @@ const ProjectsPage: React.FC = () => {
   const loadProjects = async () => {
     try {
       setLoading(true);
+      
+      // Debug: 检查认证状态
+      const token = localStorage.getItem('token');
+      console.log('当前token状态:', token ? '存在' : '不存在');
+      
       const response = await projectService.getProjects();
       
-      // Validate that response.data is an array
-      if (!response || !response.data) {
+      // Debug: 打印响应结构
+      console.log('API响应结构:', response);
+      console.log('项目数据长度:', response?.data?.length || 0);
+      
+      // axios interceptor已经解包，response结构是 { data: [...], pagination: {...} }
+      // 所以 response.data 就是项目数组
+      if (!response || !Array.isArray(response.data)) {
         console.warn('Invalid response structure:', response);
         setProjects([]);
         return;
       }
       
-      // Ensure data is an array
-      const projectsData = Array.isArray(response.data) ? response.data : [];
+      // response.data 就是项目数组
+      const projectsData = response.data;
       
       // Filter out invalid project objects and add project numbers
       const validProjects = projectsData.filter(project => 

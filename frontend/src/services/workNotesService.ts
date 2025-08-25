@@ -75,6 +75,55 @@ export interface APIResponse<T> {
   error?: string;
 }
 
+// 转换相关类型（需在类外声明以通过 TS 编译）
+export interface ConversionOptions {
+  preserve_original: boolean;
+  copy_relations: boolean;
+  convert_format: 'markdown' | 'txt' | 'html';
+  visibility: 'private' | 'team' | 'public';
+  relation_type?: string;
+}
+
+export interface ConvertToTaskDocumentRequest {
+  target_task_id: number;
+  conversion_options: ConversionOptions;
+}
+
+export interface ConversionResult {
+  original_work_note_id: number;
+  created_task_document: {
+    id: number;
+    task_id: number;
+    title: string;
+    format: string;
+    created_at: string;
+  };
+  conversion_summary: {
+    content_migrated: boolean;
+    relations_copied: number;
+    attachments_moved: number;
+  };
+}
+
+export interface ConvertPreviewRequest {
+  target_task_id: number;
+  conversion_options: ConversionOptions;
+}
+
+export interface BatchConversionItem {
+  work_note_id: number;
+  target_task_id: number;
+  options: ConversionOptions;
+}
+
+export interface BatchConvertRequest {
+  conversions: BatchConversionItem[];
+  global_options: {
+    transaction_mode: boolean;
+    error_handling: 'continue' | 'stop';
+  };
+}
+
 class WorkNotesService {
   private getAuthHeaders() {
     const token = localStorage.getItem('token') || 'dummy-token-for-testing';
@@ -272,6 +321,70 @@ class WorkNotesService {
     } catch (error: any) {
       console.error('Error getting folder work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder work notes');
+    }
+  }
+
+  // =============================================================================
+  // 工作笔记转任务文档功能
+  // =============================================================================
+
+  // 单个工作笔记转任务文档
+  async convertToTaskDocument(workNoteId: number, request: ConvertToTaskDocumentRequest): Promise<ConversionResult> {
+    try {
+      const response = await axios.post<APIResponse<ConversionResult>>(
+        `${API_BASE_URL}/work-notes/${workNoteId}/convert-to-task-document`,
+        request,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to convert work note to task document');
+      }
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error converting work note to task document:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to convert work note');
+    }
+  }
+
+  // 转换预览
+  async getConversionPreview(workNoteId: number, request: ConvertPreviewRequest): Promise<any> {
+    try {
+      const response = await axios.post<APIResponse<any>>(
+        `${API_BASE_URL}/work-notes/${workNoteId}/convert-preview`,
+        request,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to get conversion preview');
+      }
+      
+      return response.data.data;
+    } catch (error: any) {
+      console.error('Error getting conversion preview:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to get conversion preview');
+    }
+  }
+
+  // 批量转换
+  async batchConvertToTaskDocuments(request: BatchConvertRequest): Promise<any> {
+    try {
+      const response = await axios.post<APIResponse<any>>(
+        `${API_BASE_URL}/work-notes/batch-convert-to-task-documents`,
+        request,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to batch convert work notes');
+      }
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('Error batch converting work notes:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to batch convert work notes');
     }
   }
 }

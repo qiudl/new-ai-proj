@@ -15,13 +15,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // 加载环境变量（优先 index 所在目录，其次上级目录，兼容编译到 dist 的情况）
+// 禁用 dotenv 调试输出
 const envCandidates = [
   join(__dirname, '.env'),
   join(__dirname, '..', '.env')
 ];
 for (const p of envCandidates) {
   if (existsSync(p)) {
-    dotenv.config({ path: p });
+    dotenv.config({ path: p, debug: false });
     break;
   }
 }

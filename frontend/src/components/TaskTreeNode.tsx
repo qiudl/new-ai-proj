@@ -185,6 +185,11 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           {level === 0 ? '根任务' : `L${level + 1}`}
         </span>
         
+        {/* Task ID */}
+        <span className="task-id">
+          #{task.id}
+        </span>
+        
         {/* Task title with tooltip */}
         <Tooltip title={task.description || task.title}>
           <span className="task-title">
@@ -315,6 +320,18 @@ export const TaskTreeNode: React.FC<TaskTreeNodeProps> = memo(({
           background-color: #f9f0ff;
           color: #722ed1;
           border: 1px solid #d3adf7;
+        }
+
+        .task-id {
+          color: #8c8c8c;
+          font-size: 11px;
+          font-weight: 500;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          background-color: #f5f5f5;
+          padding: 1px 4px;
+          border-radius: 3px;
+          flex-shrink: 0;
+          border: 1px solid #e8e8e8;
         }
 
         .task-status-inline {

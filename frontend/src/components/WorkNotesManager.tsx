@@ -14,7 +14,10 @@ import {
   Card,
   Empty,
   Spin,
-  Typography
+  Typography,
+  Checkbox,
+  Dropdown,
+  Menu
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,9 +28,13 @@ import {
   SearchOutlined,
   FileMarkdownOutlined,
   StarOutlined,
-  StarFilled
+  StarFilled,
+  SwapOutlined,
+  DownOutlined,
+  ExportOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
+import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -47,8 +54,12 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [conversionModalVisible, setConversionModalVisible] = useState(false);
+  const [batchConversionModalVisible, setBatchConversionModalVisible] = useState(false);
   const [currentWorkNote, setCurrentWorkNote] = useState<WorkNote | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([]);
+  const [selectedWorkNotes, setSelectedWorkNotes] = useState<WorkNote[]>([]);
 
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -103,12 +114,11 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     }
   };
 
-  // 组件加载和文件夹变化时重新加载
   useEffect(() => {
     loadWorkNotes();
-  }, [selectedFolderId]);
+  }, [selectedFolderId, searchQuery]);
 
-  // 搜索功能
+  // 搜索处理
   const handleSearch = () => {
     loadWorkNotes();
   };
@@ -116,53 +126,43 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   // 创建工作笔记
   const handleCreate = async (values: any) => {
     try {
-      const request: CreateWorkNoteRequest = {
-        title: values.title,
-        content: values.content,
-        description: values.description,
+      const createRequest: CreateWorkNoteRequest = {
+        ...values,
         type: values.type || 'markdown',
         status: values.status || 'draft',
-        visibility: values.visibility || 'team',
-        tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()) : [],
-        folder_id: selectedFolderId || undefined,
-        is_template: values.is_template || false,
+        visibility: values.visibility || 'private',
+        is_template: false,
       };
 
-      await workNotesService.createWorkNote(request);
+      await workNotesService.createWorkNote(createRequest);
       message.success('工作笔记创建成功');
       setModalVisible(false);
       form.resetFields();
       loadWorkNotes();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to create work note:', error);
-      message.error(error.message || '创建工作笔记失败');
+      message.error('创建失败');
     }
   };
 
-  // 编辑工作笔记
-  const handleEdit = async (values: any) => {
-    if (!currentWorkNote) return;
-
+  // 更新工作笔记
+  const handleUpdate = async (values: any) => {
     try {
-      const request: UpdateWorkNoteRequest = {
-        title: values.title,
-        content: values.content,
-        description: values.description,
-        status: values.status,
-        visibility: values.visibility,
-        tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()) : [],
-        folder_id: values.folder_id,
+      if (!currentWorkNote) return;
+
+      const updateRequest: UpdateWorkNoteRequest = {
+        ...values,
       };
 
-      await workNotesService.updateWorkNote(currentWorkNote.id, request);
+      await workNotesService.updateWorkNote(currentWorkNote.id, updateRequest);
       message.success('工作笔记更新成功');
       setEditModalVisible(false);
-      setCurrentWorkNote(null);
       editForm.resetFields();
+      setCurrentWorkNote(null);
       loadWorkNotes();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to update work note:', error);
-      message.error(error.message || '更新工作笔记失败');
+      message.error('更新失败');
     }
   };
 
@@ -172,9 +172,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       await workNotesService.deleteWorkNote(id);
       message.success('工作笔记删除成功');
       loadWorkNotes();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to delete work note:', error);
-      message.error(error.message || '删除工作笔记失败');
+      message.error('删除失败');
     }
   };
 
@@ -184,9 +184,9 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       await workNotesService.copyWorkNote(id);
       message.success('工作笔记复制成功');
       loadWorkNotes();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to copy work note:', error);
-      message.error(error.message || '复制工作笔记失败');
+      message.error('复制失败');
     }
   };
 
@@ -196,48 +196,113 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       await workNotesService.toggleTemplate(id);
       message.success('模板状态更新成功');
       loadWorkNotes();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Failed to toggle template:', error);
-      message.error(error.message || '更新模板状态失败');
+      message.error('更新失败');
     }
   };
 
   // 查看工作笔记
-  const handleView = (record: WorkNote) => {
-    setCurrentWorkNote(record);
+  const handleView = (workNote: WorkNote) => {
+    setCurrentWorkNote(workNote);
     setViewModalVisible(true);
     if (onDocumentSelect) {
-      onDocumentSelect(record);
+      onDocumentSelect(workNote);
     }
   };
 
   // 打开编辑对话框
-  const openEditModal = (record: WorkNote) => {
-    setCurrentWorkNote(record);
+  const openEditModal = (workNote: WorkNote) => {
+    setCurrentWorkNote(workNote);
     editForm.setFieldsValue({
-      title: record.title,
-      content: record.content,
-      description: record.description,
-      status: record.status,
-      visibility: record.visibility,
-      tags: record.tags?.join(', '),
-      folder_id: record.folder_id,
+      title: workNote.title,
+      description: workNote.description,
+      content: workNote.content,
+      type: workNote.type,
+      status: workNote.status,
+      visibility: workNote.visibility,
+      tags: workNote.tags,
     });
     setEditModalVisible(true);
   };
 
-  // 获取状态标签颜色
+  // 打开转换对话框
+  const openConversionModal = (workNote: WorkNote) => {
+    setCurrentWorkNote(workNote);
+    setConversionModalVisible(true);
+  };
+
+  // 转换成功回调
+  const handleConversionSuccess = (result: any) => {
+    message.success('转换成功！任务文档已创建');
+    setConversionModalVisible(false);
+    loadWorkNotes();
+  };
+
+  // 处理行选择
+  const handleRowSelection = {
+    selectedRowKeys,
+    onChange: (selectedRowKeys: React.Key[], selectedRows: WorkNote[]) => {
+      setSelectedRowKeys(selectedRowKeys as number[]);
+      setSelectedWorkNotes(selectedRows);
+    },
+  };
+
+  // 批量操作菜单
+  const batchActionsMenu = (
+    <Menu>
+      <Menu.Item 
+        key="batchConvert"
+        icon={<SwapOutlined />}
+        onClick={() => setBatchConversionModalVisible(true)}
+        disabled={selectedRowKeys.length === 0}
+      >
+        批量转换为任务文档
+      </Menu.Item>
+      <Menu.Item 
+        key="batchDelete"
+        icon={<DeleteOutlined />}
+        disabled={selectedRowKeys.length === 0}
+        onClick={() => {
+          Modal.confirm({
+            title: '确认批量删除',
+            content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可撤销。`,
+            okText: '确认删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: async () => {
+              try {
+                for (const id of selectedRowKeys) {
+                  await workNotesService.deleteWorkNote(id);
+                }
+                message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
+                setSelectedRowKeys([]);
+                setSelectedWorkNotes([]);
+                loadWorkNotes();
+              } catch (error) {
+                message.error('批量删除失败');
+              }
+            }
+          });
+        }}
+      >
+        批量删除
+      </Menu.Item>
+    </Menu>
+  );
+
+  // 获取状态颜色
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'published': return 'green';
       case 'draft': return 'orange';
-      case 'archived': return 'gray';
-      case 'template': return 'blue';
+      case 'archived': return 'red';
+      case 'template': return 'purple';
       default: return 'default';
     }
   };
 
-  // 获取可见性标签颜色
+  // 获取可见性颜色
   const getVisibilityColor = (visibility: string) => {
     switch (visibility) {
       case 'public': return 'green';
@@ -307,15 +372,32 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       ),
     },
     {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 100,
+      filters: [
+        { text: 'Markdown', value: 'markdown' },
+        { text: 'HTML', value: 'html' },
+        { text: '文本', value: 'txt' },
+        { text: 'PDF', value: 'pdf' },
+      ],
+      onFilter: (value: any, record: WorkNote) => record.type === value,
+      render: (type: string) => (
+        <Tag>
+          {type.toUpperCase()}
+        </Tag>
+      ),
+    },
+    {
       title: '可见性',
       dataIndex: 'visibility',
       key: 'visibility',
       width: 100,
-      sorter: (a: WorkNote, b: WorkNote) => a.visibility.localeCompare(b.visibility),
       filters: [
-        { text: '私有', value: 'private' },
-        { text: '团队', value: 'team' },
         { text: '公开', value: 'public' },
+        { text: '团队', value: 'team' },
+        { text: '私有', value: 'private' },
       ],
       onFilter: (value: any, record: WorkNote) => record.visibility === value,
       render: (visibility: string) => (
@@ -347,7 +429,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     {
       title: '操作',
       key: 'actions',
-      width: 180,
+      width: 220,
       render: (_, record: WorkNote) => (
         <Space size="small">
           <Tooltip title="查看">
@@ -362,6 +444,15 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
               icon={<EditOutlined />}
               size="small"
               onClick={() => openEditModal(record)}
+            />
+          </Tooltip>
+          <Tooltip title="转换为任务文档">
+            <Button
+              icon={<SwapOutlined />}
+              size="small"
+              type="primary"
+              ghost
+              onClick={() => openConversionModal(record)}
             />
           </Tooltip>
           <Tooltip title="复制">
@@ -410,6 +501,15 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
             >
               新建工作笔记
             </Button>
+            <Dropdown 
+              overlay={batchActionsMenu} 
+              disabled={selectedRowKeys.length === 0}
+            >
+              <Button>
+                批量操作 {selectedRowKeys.length > 0 && `(${selectedRowKeys.length})`}
+                <DownOutlined />
+              </Button>
+            </Dropdown>
             <Text type="secondary">
               {selectedFolderId ? `文件夹 ${selectedFolderId}` : '所有工作笔记'}
               - 共 {workNotes.length} 条
@@ -445,6 +545,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
             />
           ) : (
             <Table
+              rowSelection={handleRowSelection}
               columns={columns}
               dataSource={workNotes}
               rowKey="id"
@@ -461,241 +562,16 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
         </Spin>
       </Card>
 
-      {/* 创建工作笔记对话框 */}
-      <Modal
-        title="新建工作笔记"
-        open={modalVisible}
-        onOk={() => form.submit()}
-        onCancel={() => {
-          setModalVisible(false);
-          form.resetFields();
-        }}
-        width={600}
-        destroyOnHidden
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreate}
-        >
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="请输入工作笔记标题" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input placeholder="请输入简短描述（可选）" />
-          </Form.Item>
-
-          <Form.Item
-            name="content"
-            label="内容"
-          >
-            <TextArea
-              placeholder="请输入工作笔记内容（支持Markdown）"
-              rows={6}
-            />
-          </Form.Item>
-
-          <Space style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Form.Item
-              name="type"
-              label="类型"
-              initialValue="markdown"
-            >
-              <Select style={{ width: 120 }}>
-                <Option value="markdown">Markdown</Option>
-                <Option value="txt">纯文本</Option>
-                <Option value="html">HTML</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              name="status"
-              label="状态"
-              initialValue="draft"
-            >
-              <Select style={{ width: 120 }}>
-                <Option value="draft">草稿</Option>
-                <Option value="published">发布</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              name="visibility"
-              label="可见性"
-              initialValue="team"
-            >
-              <Select style={{ width: 120 }}>
-                <Option value="private">私有</Option>
-                <Option value="team">团队</Option>
-                <Option value="public">公开</Option>
-              </Select>
-            </Form.Item>
-          </Space>
-
-          <Form.Item
-            name="tags"
-            label="标签"
-          >
-            <Input placeholder="输入标签，用逗号分隔（可选）" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 编辑工作笔记对话框 */}
-      <Modal
-        title="编辑工作笔记"
-        open={editModalVisible}
-        onOk={() => editForm.submit()}
-        onCancel={() => {
-          setEditModalVisible(false);
+      {/* 转换为任务文档对话框 */}
+      <WorkNoteConversionModal
+        visible={conversionModalVisible}
+        workNote={currentWorkNote}
+        onClose={() => {
+          setConversionModalVisible(false);
           setCurrentWorkNote(null);
-          editForm.resetFields();
         }}
-        width={600}
-        destroyOnHidden
-      >
-        <Form
-          form={editForm}
-          layout="vertical"
-          onFinish={handleEdit}
-        >
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="请输入工作笔记标题" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input placeholder="请输入简短描述（可选）" />
-          </Form.Item>
-
-          <Form.Item
-            name="content"
-            label="内容"
-          >
-            <TextArea
-              placeholder="请输入工作笔记内容（支持Markdown）"
-              rows={6}
-            />
-          </Form.Item>
-
-          <Space style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Form.Item
-              name="status"
-              label="状态"
-            >
-              <Select style={{ width: 120 }}>
-                <Option value="draft">草稿</Option>
-                <Option value="published">发布</Option>
-                <Option value="archived">归档</Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              name="visibility"
-              label="可见性"
-            >
-              <Select style={{ width: 120 }}>
-                <Option value="private">私有</Option>
-                <Option value="team">团队</Option>
-                <Option value="public">公开</Option>
-              </Select>
-            </Form.Item>
-          </Space>
-
-          <Form.Item
-            name="tags"
-            label="标签"
-          >
-            <Input placeholder="输入标签，用逗号分隔（可选）" />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 查看工作笔记对话框 */}
-      <Modal
-        title={currentWorkNote?.title}
-        open={viewModalVisible}
-        footer={[
-          <Button
-            key="edit"
-            type="primary"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setViewModalVisible(false);
-              openEditModal(currentWorkNote!);
-            }}
-          >
-            编辑
-          </Button>,
-          <Button key="close" onClick={() => setViewModalVisible(false)}>
-            关闭
-          </Button>,
-        ]}
-        onCancel={() => setViewModalVisible(false)}
-        width={800}
-      >
-        {currentWorkNote && (
-          <div>
-            <Space style={{ marginBottom: 16 }}>
-              <Tag color={getStatusColor(currentWorkNote.status)}>
-                {currentWorkNote.status === 'published' ? '已发布' :
-                 currentWorkNote.status === 'draft' ? '草稿' :
-                 currentWorkNote.status === 'archived' ? '已归档' :
-                 currentWorkNote.status === 'template' ? '模板' : currentWorkNote.status}
-              </Tag>
-              <Tag color={getVisibilityColor(currentWorkNote.visibility)}>
-                {currentWorkNote.visibility === 'public' ? '公开' :
-                 currentWorkNote.visibility === 'team' ? '团队' :
-                 currentWorkNote.visibility === 'private' ? '私有' : currentWorkNote.visibility}
-              </Tag>
-              {currentWorkNote.tags?.map(tag => (
-                <Tag key={tag}>{tag}</Tag>
-              ))}
-            </Space>
-            
-            {currentWorkNote.description && (
-              <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-                {currentWorkNote.description}
-              </Paragraph>
-            )}
-            
-            <div style={{ 
-              border: '1px solid #f0f0f0', 
-              borderRadius: 6, 
-              padding: 16,
-              backgroundColor: '#fafafa',
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'monospace'
-            }}>
-              {currentWorkNote.content || '暂无内容'}
-            </div>
-            
-            <div style={{ marginTop: 16, fontSize: 12, color: '#999' }}>
-              <Text type="secondary">
-                创建时间: {new Date(currentWorkNote.created_at).toLocaleString('zh-CN')}
-                &nbsp;&nbsp;|&nbsp;&nbsp;
-                更新时间: {new Date(currentWorkNote.updated_at).toLocaleString('zh-CN')}
-                &nbsp;&nbsp;|&nbsp;&nbsp;
-                版本: v{currentWorkNote.version}
-              </Text>
-            </div>
-          </div>
-        )}
-      </Modal>
+        onConversionSuccess={handleConversionSuccess}
+      />
     </div>
   );
 };

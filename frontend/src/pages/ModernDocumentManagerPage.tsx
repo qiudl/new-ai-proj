@@ -39,11 +39,13 @@ import {
   ClockCircleOutlined,
   UserOutlined,
   TagOutlined,
-  FolderOutlined
+  FolderOutlined,
+  SwapOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote } from '../services/workNotesService';
 import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
+import WorkNoteConversionModal from '../components/conversion/WorkNoteConversionModal';
 import '../styles/ModernDocumentManager.css';
 import { useSearchParams } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -74,6 +76,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const [editorVisible, setEditorVisible] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
   const [editingNote, setEditingNote] = useState<WorkNote | null>(null);
+  
+  // 转换状态
+  const [conversionVisible, setConversionVisible] = useState(false);
+  const [convertingNote, setConvertingNote] = useState<WorkNote | null>(null);
   
   // 筛选和搜索状态
   const [searchQuery, setSearchQuery] = useState('');
@@ -357,6 +363,28 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     }
   };
 
+  const handleConvertToTaskDocument = (note: WorkNote) => {
+    setConvertingNote(note);
+    setConversionVisible(true);
+  };
+
+  const handleConversionSuccess = () => {
+    message.success('转换成功！工作笔记已转换为任务文档');
+    loadWorkNotes(); // 重新加载列表
+    setConversionVisible(false);
+    setConvertingNote(null);
+  };
+
+  const handleCopyNote = async (note: WorkNote) => {
+    try {
+      await workNotesService.copyWorkNote(note.id);
+      message.success('复制成功');
+      loadWorkNotes();
+    } catch (error) {
+      message.error('复制失败');
+    }
+  };
+
   // 渲染状态标签
   const renderStatusTag = (status: string) => {
     const statusConfig = {
@@ -374,6 +402,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     const dropdownItems: MenuProps['items'] = [
       { key: 'edit', icon: <EditOutlined />, label: '编辑' },
       { key: 'copy', icon: <CopyOutlined />, label: '复制' },
+      { key: 'convert', icon: <SwapOutlined />, label: '转为任务文档' },
       { key: 'favorite', icon: note.is_template ? <StarFilled /> : <StarOutlined />, label: note.is_template ? '取消收藏' : '添加收藏' },
       { type: 'divider' as const },
       { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
@@ -412,6 +441,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   onClick: ({ key }) => {
                     if (key === 'edit') return handleEditNote(note);
                     if (key === 'copy') return handleCopyNote(note);
+                    if (key === 'convert') return handleConvertToTaskDocument(note);
                     if (key === 'favorite') return handleToggleFavorite(note);
                     if (key === 'delete') return handleDeleteNote(note);
                   },
@@ -478,6 +508,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     const dropdownItems: MenuProps['items'] = [
       { key: 'edit', icon: <EditOutlined />, label: '编辑' },
       { key: 'copy', icon: <CopyOutlined />, label: '复制' },
+      { key: 'convert', icon: <SwapOutlined />, label: '转为任务文档' },
       { key: 'favorite', icon: note.is_template ? <StarFilled /> : <StarOutlined />, label: note.is_template ? '取消收藏' : '添加收藏' },
       { type: 'divider' as const },
       { key: 'delete', icon: <DeleteOutlined />, label: '删除', danger: true },
@@ -531,6 +562,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
               onClick: ({ key }) => {
                 if (key === 'edit') return handleEditNote(note);
                 if (key === 'copy') return handleCopyNote(note);
+                if (key === 'convert') return handleConvertToTaskDocument(note);
                 if (key === 'favorite') return handleToggleFavorite(note);
                 if (key === 'delete') return handleDeleteNote(note);
               },
@@ -802,6 +834,16 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
           setViewerVisible(false);
           handleEditNote(note);
         }}
+      />
+
+      <WorkNoteConversionModal
+        visible={conversionVisible}
+        workNote={convertingNote}
+        onClose={() => {
+          setConversionVisible(false);
+          setConvertingNote(null);
+        }}
+        onConversionSuccess={handleConversionSuccess}
       />
     </Layout>
   );

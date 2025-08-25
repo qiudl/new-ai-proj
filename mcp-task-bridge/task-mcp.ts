@@ -1850,10 +1850,14 @@ export class TaskMCPServer {
         tags: options.tags || [],
         visibility: options.visibility || 'private',
         status: options.status || 'draft',
+        project_id: 1, // 工作笔记默认放在项目1中
         created_by: 'mcp_bridge'
       };
 
-      const response = await axios.post(`${this.apiBase}/work-notes`, requestData);
+      const response = await axios.post(`${this.apiBase}/work-notes`, requestData, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
       
       return {
         success: true,
@@ -1887,7 +1891,10 @@ export class TaskMCPServer {
       if (options.status) params.append('status', options.status);
       if (options.type) params.append('type', options.type);
 
-      const response = await axios.get(`${this.apiBase}/work-notes?${params.toString()}`);
+      const response = await axios.get(`${this.apiBase}/work-notes?${params.toString()}`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
       
       return {
         success: true,
@@ -1918,7 +1925,10 @@ export class TaskMCPServer {
         options.tags.forEach(tag => params.append('tags', tag));
       }
 
-      const response = await axios.get(`${this.apiBase}/work-notes/search?${params.toString()}`);
+      const response = await axios.get(`${this.apiBase}/work-notes/search?${params.toString()}`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
       
       return {
         success: true,
@@ -1938,7 +1948,10 @@ export class TaskMCPServer {
   // 获取工作笔记详情
   async getWorkNote(id: number) {
     try {
-      const response = await axios.get(`${this.apiBase}/work-notes/${id}`);
+      const response = await axios.get(`${this.apiBase}/work-notes/${id}`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
       
       return {
         success: true,
@@ -1965,7 +1978,10 @@ export class TaskMCPServer {
   // 更新工作笔记
   async updateWorkNote(id: number, updates: any) {
     try {
-      const response = await axios.put(`${this.apiBase}/work-notes/${id}`, updates);
+      const response = await axios.put(`${this.apiBase}/work-notes/${id}`, updates, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
       
       return {
         success: true,

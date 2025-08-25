@@ -152,6 +152,11 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）
 		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
+		
+		// 工作笔记转任务文档功能
+		workNotes.POST("/:id/convert-to-task-document", app.GetDocumentHandler().ConvertWorkNoteToTaskDocument)
+		workNotes.POST("/:id/convert-preview", app.GetDocumentHandler().ConvertWorkNotePreview)
+		workNotes.POST("/batch-convert-to-task-documents", app.GetDocumentHandler().BatchConvertWorkNotesToTaskDocuments)
 	}
 }
 
