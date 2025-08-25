@@ -805,6 +805,13 @@ const mergedRaw = { ...(params || {}) } as any;
     message: string;
   }> {
     try {
+      console.log('[DEBUG] batchUpdateTasks 开始', {
+        projectId,
+        taskIds,
+        updates,
+        taskCount: taskIds.length
+      });
+      
       // 修正参数映射，确保与后端期望的格式一致
       const requestData = {
         task_ids: taskIds,
@@ -812,6 +819,8 @@ const mergedRaw = { ...(params || {}) } as any;
         parent_id: updates.parent_id !== undefined ? (updates.parent_id === null ? null : updates.parent_id) : undefined,
         updated_by: 1 // TODO: Get from auth context
       };
+
+      console.log('[DEBUG] API请求数据', requestData);
 
       const response: APIResponse<{
         updated_count: number;
@@ -822,17 +831,63 @@ const mergedRaw = { ...(params || {}) } as any;
         requestData
       );
       
-      if (!response || !response.success) {
-        throw new Error(response?.error?.message || 'Failed to batch update tasks');
+      console.log('[DEBUG] API响应原始数据', response);
+      
+      // 增强响应处理，适配不同的响应格式
+      let responseData = response;
+      
+      // 如果response有data属性，说明被axios拦截器解包了，但可能还有嵌套
+      if (response && typeof response === 'object' && 'data' in response) {
+        responseData = (response as any).data;
+        console.log('[DEBUG] 解包后的响应数据', responseData);
       }
+      
+      // 检查多种可能的成功标识
+      const isSuccess = 
+        (response as any)?.success === true ||
+        responseData?.success === true ||
+        (responseData?.updated_count !== undefined) ||
+        (responseData?.UpdatedCount !== undefined);
+      
+      if (!isSuccess) {
+        console.error('[DEBUG] API响应失败', {
+          response: response,
+          responseData: responseData,
+          success: (response as any)?.success,
+          hasUpdatedCount: responseData?.updated_count !== undefined,
+          hasUpdatedCountCamel: responseData?.UpdatedCount !== undefined
+        });
+        throw new Error(responseData?.message || (response as any)?.error?.message || 'Failed to batch update tasks');
+      }
+      
+      // 标准化返回格式，处理大小写不一致问题
+      const result = {
+        updated_count: responseData?.updated_count || responseData?.UpdatedCount || 0,
+        failed_tasks: responseData?.failed_tasks || responseData?.FailedTasks || [],
+        message: responseData?.message || 'Batch update completed successfully'
+      };
+      
+      console.log('[DEBUG] 标准化结果', result);
       
       // Log successful batch operation
       const updateType = updates.status && updates.parent_id !== undefined ? 'batch_update_status_parent' : 
                         updates.status ? 'batch_update_status' : 'batch_update_parent';
       logTaskAction(updateType, taskIds.join(','), projectId);
       
-      return response.data!;
+      return result;
     } catch (error) {
+      console.error('[DEBUG] batchUpdateTasks 错误', {
+        error,
+        errorMessage: (error as any)?.message,
+        errorResponse: (error as any)?.response?.data,
+        errorStatus: (error as any)?.response?.status,
+        errorType: typeof error,
+        errorName: (error as any)?.name,
+        projectId,
+        taskIds,
+        updates
+      });
+      
       logApiError('batchUpdateTasks', error);
       throw error;
     }

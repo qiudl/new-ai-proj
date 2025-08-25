@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -183,8 +184,9 @@ func (h *TaskHierarchyHandler) GetRootTasks(c *gin.Context) {
 // SearchParentTasks 搜索可用作父任务的任务列表
 func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 	query := c.Query("query")
-	// Allow empty query - return all potential parent tasks when no search term provided
-
+	taskIDStr := c.Query("task_id")  // 新增：支持任务ID精确搜索
+	excludeTaskIDsStr := c.Query("exclude_task_ids")  // 新增：支持批量排除任务
+	
 	// Get project ID from path parameter
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
@@ -194,23 +196,93 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 		return
 	}
 
+	// 处理排除的任务ID列表
+	var excludeTaskIDs []int
+	
+	// 从 exclude_task_ids 参数解析
+	if excludeTaskIDsStr != "" {
+		for _, idStr := range strings.Split(excludeTaskIDsStr, ",") {
+			if id, err := strconv.Atoi(strings.TrimSpace(idStr)); err == nil {
+				excludeTaskIDs = append(excludeTaskIDs, id)
+			}
+		}
+	}
+	
+	// 保持对旧参数的兼容性
 	currentTaskIDStr := c.Query("current_task_id")
-	var currentTaskID *int
 	if currentTaskIDStr != "" {
 		if ctid, err := strconv.Atoi(currentTaskIDStr); err == nil {
-			currentTaskID = &ctid
+			// 避免重复添加
+			found := false
+			for _, id := range excludeTaskIDs {
+				if id == ctid {
+					found = true
+					break
+				}
+			}
+			if !found {
+				excludeTaskIDs = append(excludeTaskIDs, ctid)
+			}
 		}
 	}
 
-	// Search for potential parent tasks - use default values for missing parameters
-	excludeTaskIDs := []int{}
-	if currentTaskID != nil {
-		excludeTaskIDs = append(excludeTaskIDs, *currentTaskID)
+	// 如果提供了 task_id 参数，优先进行精确搜索
+	if taskIDStr != "" {
+		if taskID, err := strconv.Atoi(taskIDStr); err == nil {
+			// 获取指定的任务
+			task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+			if err == nil && task != nil && task.ProjectID == projectID {
+				// 检查是否在排除列表中
+				isExcluded := false
+				for _, excludeID := range excludeTaskIDs {
+					if task.ID == excludeID {
+						isExcluded = true
+						break
+					}
+				}
+				
+				// 检查层级限制 (默认最大层级为3)
+				maxLevel := 3
+				if maxLevelStr := c.Query("max_level"); maxLevelStr != "" {
+					if ml, err := strconv.Atoi(maxLevelStr); err == nil {
+						maxLevel = ml
+					}
+				}
+				
+				if !isExcluded && task.TaskLevel <= maxLevel {
+					response := models.NewSuccessResponse([]*models.Task{task}, "Task found by ID")
+					c.JSON(http.StatusOK, response)
+					return
+				}
+			}
+		}
 	}
 	
-	searchProjectID := projectID
+	// 解析分页参数
+	page := 1
+	pageSize := 50
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+	offset := (page - 1) * pageSize
 	
-	tasks, _, err := h.db.Tasks().SearchParentTasks(c.Request.Context(), searchProjectID, query, excludeTaskIDs, 5, 50, 0)
+	// 解析最大层级参数
+	maxLevel := 3
+	if maxLevelStr := c.Query("max_level"); maxLevelStr != "" {
+		if ml, err := strconv.Atoi(maxLevelStr); err == nil {
+			maxLevel = ml
+		}
+	}
+	
+	// 使用标题搜索
+	tasks, total, err := h.db.Tasks().SearchParentTasks(c.Request.Context(), projectID, query, excludeTaskIDs, maxLevel, pageSize, offset)
 	if err != nil {
 		h.logger.Printf("Error searching parent tasks: %v", err)
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to search parent tasks", nil)
@@ -218,7 +290,18 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 		return
 	}
 
-	response := models.NewSuccessResponse(tasks, "Parent tasks search completed successfully")
+	// 构建分页响应
+	result := map[string]interface{}{
+		"data": tasks,
+		"pagination": map[string]interface{}{
+			"page":       page,
+			"page_size":  pageSize,
+			"total":      total,
+			"total_pages": (total + pageSize - 1) / pageSize,
+		},
+	}
+
+	response := models.NewSuccessResponse(result, "Parent tasks search completed successfully")
 	c.JSON(http.StatusOK, response)
 }
 

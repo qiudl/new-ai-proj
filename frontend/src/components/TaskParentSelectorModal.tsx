@@ -57,6 +57,11 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
   const { searchResults, searchParentTasks, clearResults, loadMore } = useTaskParentSearch();
   const { validateParentSelection, validateTaskLevel } = useParentValidation();
 
+  // 检测是否为纯数字（任务ID）
+  const isTaskId = React.useCallback((keyword: string): boolean => {
+    return /^\d+$/.test(keyword.trim());
+  }, []);
+
   // Intelligent task recommendation algorithm
   const generateRecommendations = React.useCallback((currentTaskId?: number, tasks: Task[] = []) => {
     if (!currentTaskId || tasks.length === 0) {
@@ -346,18 +351,22 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         {/* Search section */}
         <div className="search-section">
           <Search
-            placeholder="搜索父任务..."
+            placeholder="搜索父任务（支持任务标题或任务ID）..."
             value={searchKeyword}
             onChange={(e) => handleSearchChange(e.target.value)}
             allowClear
             size="large"
             className="parent-search"
+            prefix={<SearchOutlined />}
           />
           
           {searchKeyword && (
             <div className="search-info">
               <Text type="secondary" style={{ fontSize: '13px' }}>
-                找到 {searchResults.total} 个匹配的任务
+                {isTaskId(searchKeyword) 
+                  ? `🔍 按任务ID搜索: ${searchKeyword} - 找到 ${searchResults.total} 个匹配的任务`
+                  : `🔍 按标题搜索: "${searchKeyword}" - 找到 ${searchResults.total} 个匹配的任务`
+                }
               </Text>
             </div>
           )}

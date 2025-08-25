@@ -39,9 +39,12 @@ build/
 .env
 .env.local
 .env.*.local
+.env.mcp-token
 # direnv (do not commit)
 .envrc
 mcp-task-bridge/.envrc
+# MCP specific environment files
+mcp-task-bridge/.env
 
 # Logs
 logs/

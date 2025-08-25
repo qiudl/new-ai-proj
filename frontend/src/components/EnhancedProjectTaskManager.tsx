@@ -1192,9 +1192,19 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         try {
           setBatchLoading(true);
           
+          // 添加详细日志
+          console.log('[DEBUG] 批量更改父任务开始', {
+            taskIds: selectedRowKeys,
+            parentId: parentId,
+            parentName: parentName,
+            taskCount: selectedRowKeys.length
+          });
+          
           // 使用批量更新API，避免title验证问题
           const taskIds = selectedRowKeys.map(id => Number(id));
           const result = await TaskService.batchUpdateTasks(projectId, taskIds, { parent_id: parentId });
+          
+          console.log('[DEBUG] 批量更改父任务结果', result);
           
           // 处理结果
           if (result.failed_tasks && result.failed_tasks.length > 0) {
@@ -1237,8 +1247,38 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             loadData();
           }
         } catch (error: Error | unknown) {
-          console.error('Error in batch parent change:', error);
-          const errorMessage = (error as any)?.message || (error as any)?.error?.message || '批量更改父任务失败';
+          console.error('[DEBUG] 批量更改父任务异常捕获', error);
+          
+          // 添加更详细的错误日志
+          if (error instanceof Error) {
+            console.log('[DEBUG] 批量更改父任务错误详情', {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+              selectedTaskIds: selectedRowKeys,
+              parentId: parentId
+            });
+          }
+          
+          if ((error as any)?.response) {
+            console.log('[DEBUG] API响应错误详情', {
+              status: (error as any).response.status,
+              statusText: (error as any).response.statusText,
+              data: (error as any).response.data,
+              headers: (error as any).response.headers
+            });
+          }
+          
+          // 改进错误消息提取
+          let errorMessage = '批量更改父任务失败';
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          } else if ((error as any)?.response?.data?.message) {
+            errorMessage = (error as any).response.data.message;
+          } else if ((error as any)?.message) {
+            errorMessage = (error as any).message;
+          }
+          
           message.error(`批量更改父任务失败: ${errorMessage}`);
         } finally {
           setBatchLoading(false);

@@ -61,6 +61,11 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
     };
   }, []);
 
+  // 检测是否为纯数字（任务ID）
+  const isTaskId = useCallback((keyword: string): boolean => {
+    return /^\d+$/.test(keyword.trim());
+  }, []);
+
   // Generate cache key for search params
   const getCacheKey = useCallback((params: ParentSearchParams): string => {
     // 合并单个和批量排除的任务IDs
@@ -129,13 +134,24 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
         allExcludeIds.push(params.excludeTaskId);
       }
       
-      const searchParams = {
-        query: params.keyword || '',  // Backend expects 'query' parameter, not 'keyword'
+      const keyword = params.keyword?.trim() || '';
+      
+      // 构建搜索参数 - 支持任务ID和标题搜索
+      const searchParams: any = {
         exclude_task_ids: allExcludeIds.length > 0 ? allExcludeIds.join(',') : undefined,
         max_level: params.maxLevel || 3,
         page: Math.floor((params.offset || 0) / (params.limit || 20)) + 1,
         page_size: params.limit || 20,
       };
+      
+      // 如果输入是纯数字，添加task_id参数进行精确搜索
+      // 同时保留query参数以支持混合搜索
+      if (isTaskId(keyword)) {
+        searchParams.task_id = parseInt(keyword);
+      }
+      if (keyword) {
+        searchParams.query = keyword;
+      }
       const response = await api.get(
         `/projects/${params.projectId}/tasks/search-parents`,
         { 
