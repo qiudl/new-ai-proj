@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strings"
 	"time"
 )
 
@@ -306,12 +305,6 @@ func (p *PermissionPredictor) AnalyzePermissionCorrelations(ctx context.Context)
 
 // GetPermissionRecommendations provides permission recommendations for a user
 func (p *PermissionPredictor) GetPermissionRecommendations(ctx context.Context, companyUserID int) ([]string, error) {
-	// Get current user permissions
-	userPermissions, err := p.permissionRepo.GetUserPermissions(ctx, companyUserID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Get predictions
 	predictions, err := p.PredictUserPermissions(ctx, companyUserID)
 	if err != nil {
@@ -560,9 +553,4 @@ func (p *PermissionPredictor) OptimizeCacheStrategy(ctx context.Context) map[str
 }
 
 // min returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+// utility function is already defined in api_key_auth.go

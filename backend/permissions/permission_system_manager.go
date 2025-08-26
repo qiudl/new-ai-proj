@@ -1,4 +1,4 @@
-package utils
+package permissions
 
 import (
 	"ai-project-backend/middleware"

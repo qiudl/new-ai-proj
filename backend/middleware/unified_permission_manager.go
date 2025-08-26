@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -415,13 +416,11 @@ func (m *UnifiedPermissionManager) logPermissionCheck(ctx context.Context, reque
 		return
 	}
 
-	auditEntry := &models.AuditEntry{
-		UserID:      request.CompanyUserID,
+	auditLog := &models.AuditLog{
+		UserID:      &request.CompanyUserID,
 		Action:      "permission_check",
-		Resource:    request.PermissionCode,
-		ResourceID:  request.ResourceID,
-		Success:     response.HasPermission,
-		Details: map[string]interface{}{
+		EntityType:  request.PermissionCode,
+		EntityData:  map[string]interface{}{
 			"permission_code": request.PermissionCode,
 			"resource_type":   request.ResourceType,
 			"result_source":   response.Source,
@@ -431,8 +430,13 @@ func (m *UnifiedPermissionManager) logPermissionCheck(ctx context.Context, reque
 		},
 	}
 
+	// Convert ResourceID to string if present
+	if request.ResourceID != nil {
+		auditLog.EntityID = strconv.Itoa(*request.ResourceID)
+	}
+
 	// Log asynchronously to avoid blocking the request
-	if err := m.auditRepo.CreateAuditEntry(ctx, auditEntry); err != nil {
+	if err := m.auditRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		log.Printf("[UNIFIED_PERM] Failed to log permission check audit: %v", err)
 	}
 }
@@ -443,12 +447,11 @@ func (m *UnifiedPermissionManager) logBatchPermissionCheck(ctx context.Context, 
 		return
 	}
 
-	auditEntry := &models.AuditEntry{
-		UserID:   request.CompanyUserID,
-		Action:   "batch_permission_check",
-		Resource: "batch_permissions",
-		Success:  true,
-		Details: map[string]interface{}{
+	auditLog := &models.AuditLog{
+		UserID:     &request.CompanyUserID,
+		Action:     "batch_permission_check",
+		EntityType: "batch_permissions",
+		EntityData: map[string]interface{}{
 			"permissions_count": len(request.Permissions),
 			"cache_hits":        response.CacheHits,
 			"database_hits":     response.DatabaseHits,
@@ -464,7 +467,7 @@ func (m *UnifiedPermissionManager) logBatchPermissionCheck(ctx context.Context, 
 	}
 
 	// Log asynchronously
-	if err := m.auditRepo.CreateAuditEntry(ctx, auditEntry); err != nil {
+	if err := m.auditRepo.CreateAuditLog(ctx, auditLog); err != nil {
 		log.Printf("[UNIFIED_PERM] Failed to log batch permission check audit: %v", err)
 	}
 }

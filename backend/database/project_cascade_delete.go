@@ -3,14 +3,21 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 )
 
 // ProjectCascadeDelete implements cascade soft delete for projects
 func (r *PostgresProjectRepository) DeleteWithCascade(ctx context.Context, id int) error {
+	// Cast db to sql.DB for transaction support
+	db, ok := r.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("database connection is not a *sql.DB")
+	}
+	
 	// Start a transaction for consistency
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
@@ -79,8 +86,14 @@ func (r *PostgresProjectRepository) DeleteWithCascade(ctx context.Context, id in
 
 // RestoreWithCascade restores a project and all its related children
 func (r *PostgresProjectRepository) RestoreWithCascade(ctx context.Context, id int) error {
+	// Cast db to sql.DB for transaction support
+	db, ok := r.db.(*sql.DB)
+	if !ok {
+		return fmt.Errorf("database connection is not a *sql.DB")
+	}
+	
 	// Start a transaction for consistency
-	tx, err := r.db.BeginTx(ctx, nil)
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}

@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"ai-project-backend/middleware"
-	"ai-project-backend/models"
+	"context"
 	"net/http"
 	"strconv"
 	"time"
@@ -540,10 +540,4 @@ func (h *PermissionMonitoringHandler) GetPermissionHealth(c *gin.Context) {
 	}
 }
 
-// min helper function
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+// min helper function is defined in ai_task_generator_handler.go

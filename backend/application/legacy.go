@@ -92,16 +92,17 @@ func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 		// - company_admin, company_user = company users
 		if user.Role == "company_admin" || user.Role == "company_user" {
 			userType = "company"
-			// For company users, you would get their company_id from the user record
-			// For demo, we'll set a default company ID
-			companyID = 1
+			// Use actual company_id from user record when available
+			if user.CompanyID != nil {
+				companyID = *user.CompanyID
+			}
 		}
 		
 		c.Set("user_type", userType)
 		c.Set("current_user_type", userType)  // 为权限中间件使用
 		c.Set("company_id", companyID)
 		
-		// Map to company user (for demo, use same ID)
+		// Map to company user (for now, map to same user ID)
 		c.Set("company_user_id", userID)
 		
 		// Log user type information for debugging

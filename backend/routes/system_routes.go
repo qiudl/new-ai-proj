@@ -219,23 +219,28 @@ func registerCustomerManagementRoutes(authorized *gin.RouterGroup, app Applicati
 
 // registerPermissionManagementRoutes 注册权限管理路由
 func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// Permission management routes (system users with appropriate roles)
+	// Basic permission management routes (admin access)
 	permissions := authorized.Group("/permissions")
-	// Most permission operations require system user access
-	permissions.Use(middleware.SystemUserOnlyMiddleware())
 	{
-		// Role management (require admin permissions)
-		permissions.GET("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetRoles)
-		permissions.POST("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().CreateRole)
-		permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateRole)
-		permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().DeleteRole)
-
-		// Permission check endpoint (used by frontend guards)
-		// Note: System user access required by the group, admin override handled in handler
+		// Permission check endpoint (all authenticated users can check their own permissions)
 		permissions.POST("/check", app.GetPermissionHandler().CheckUserPermission)
 
-		// Basic user permission summary endpoints (optional - guarded by system user only)
-		permissions.GET("/users/:id", app.GetPermissionHandler().GetUserPermissions)
-		permissions.PUT("/users/:id", app.GetPermissionHandler().UpdateUserPermissions)
+		// User permission management endpoints (admin access required)
+		permissions.GET("/users/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().GetUserPermissions)
+		permissions.PUT("/users/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().UpdateUserPermissions)
+
+		// Role management (admin access required)
+		permissions.GET("/roles", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().GetRoles)
+		permissions.POST("/roles", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().CreateRole)
+		permissions.PUT("/roles/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().UpdateRole)
+		permissions.DELETE("/roles/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().DeleteRole)
+	}
+
+	// System-level permission management routes (system users only)
+	systemPermissions := authorized.Group("/system/permissions")
+	systemPermissions.Use(middleware.SystemUserOnlyMiddleware())
+	{
+		// Advanced permission management endpoints for system users
+		// These can be added later for more granular system-level control
 	}
 }

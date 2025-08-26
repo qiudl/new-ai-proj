@@ -3,6 +3,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -13,14 +14,11 @@ import (
 // BaseSoftDeleteRepository provides common soft delete functionality
 type BaseSoftDeleteRepository struct {
 	tableName string
-	execer    interface {
-		ExecContext(ctx context.Context, query string, args ...interface{}) (interface{}, error)
-		QueryRowContext(ctx context.Context, query string, args ...interface{}) interface{}
-	}
+	execer    DBExecutor
 }
 
 // NewBaseSoftDeleteRepository creates a new base repository
-func NewBaseSoftDeleteRepository(tableName string, execer interface{}) *BaseSoftDeleteRepository {
+func NewBaseSoftDeleteRepository(tableName string, execer DBExecutor) *BaseSoftDeleteRepository {
 	return &BaseSoftDeleteRepository{
 		tableName: tableName,
 		execer:    execer,
@@ -67,14 +65,14 @@ func (r *BaseSoftDeleteRepository) HardDelete(ctx context.Context, id int) error
 func (r *BaseSoftDeleteRepository) IsDeleted(ctx context.Context, id int) (bool, error) {
 	query := fmt.Sprintf(`SELECT deleted_at FROM %s WHERE id = $1`, r.tableName)
 
-	row := r.execer.QueryRowContext(ctx, query, id)
 	var deletedAt *time.Time
-	
-	// Note: This is simplified - actual implementation would depend on your DB driver
-	// err := row.Scan(&deletedAt)
-	// if err != nil {
-	// 	return false, fmt.Errorf("failed to check deletion status: %w", err)
-	// }
+	err := r.execer.QueryRowContext(ctx, query, id).Scan(&deletedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("entity not found")
+		}
+		return false, fmt.Errorf("failed to check deletion status: %w", err)
+	}
 
 	return deletedAt != nil, nil
 }
