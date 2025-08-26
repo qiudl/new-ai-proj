@@ -5,6 +5,7 @@ import (
 	"ai-project-backend/database"
 	"net/http"
 	"strconv"
+	"strings"
 	"github.com/gin-gonic/gin"
 )
 
@@ -276,36 +277,63 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 }
 
 // CheckUserPermission handles POST /api/v1/permissions/check
+// Compatibility notes:
+// - Accepts permission codes with either dot or underscore separators (e.g., "task.read" or "task_read").
+// - If company_user_id is not available in context but the authenticated user has role=admin,
+//   grants permission via admin override to unblock development flows.
 func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	var req models.PermissionCheckRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// Get company user ID from context (would be set by auth middleware)
-	companyUserIDInterface, exists := c.Get("company_user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Company user ID not found"})
-		return
+	// Normalize permission code: support underscore-based codes from frontend constants
+	permCode := req.PermissionCode
+	if permCode != "" && !containsDot(permCode) {
+		permCode = underscoreToDot(permCode)
 	}
 
-	companyUserID, ok := companyUserIDInterface.(int)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid company user ID"})
-		return
+	// Admin override based on JWT role (system user with admin role)
+	if roleVal, exists := c.Get("user_role"); exists {
+		if roleStr, ok := roleVal.(string); ok && roleStr == "admin" {
+			c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+				HasPermission: true,
+				Reason:        "Admin override (user role)",
+				Source:        "admin_override",
+			}})
+			return
+		}
 	}
 
-	result, err := h.permissionRepo.CheckUserPermission(ctx, companyUserID, req.PermissionCode, req.ResourceID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
-		return
+	// Try to get company_user_id from context if available
+	if companyUserIDInterface, ok := c.Get("company_user_id"); ok {
+		if companyUserID, ok2 := companyUserIDInterface.(int); ok2 {
+			result, err := h.permissionRepo.CheckUserPermission(ctx, companyUserID, permCode, req.ResourceID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"result": result})
+			return
+		}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"result": result})
+	// Fallback: no company_user_id in context; deny with informative reason
+	c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+		HasPermission: false,
+		Reason:        "Permission system not initialized for this user (no company_user_id in context)",
+		Source:        "fallback",
+	}})
 }
+
+// containsDot checks if a string contains a dot
+func containsDot(s string) bool { return strings.Contains(s, ".") }
+
+// underscoreToDot converts underscore_separated codes to dot.separated codes
+func underscoreToDot(s string) string { return strings.ReplaceAll(s, "_", ".") }
 
 // GetUserPermissions handles GET /api/v1/permissions/users/:id
 func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {

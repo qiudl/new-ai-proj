@@ -83,8 +83,8 @@ const PermissionRoute: React.FC<PermissionRouteProps> = ({
           return;
         }
 
-        // 等待权限数据加载完成
-        if (permissionLoading || !userPermissions) {
+        // 等待权限数据加载完成（仅等待加载，不强依赖 userPermissions 成功返回）
+        if (permissionLoading) {
           return;
         }
 

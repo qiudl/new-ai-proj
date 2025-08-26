@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/your-org/ai-proj/backend/interfaces"
+	"ai-project-backend/interfaces"
 )
 
 // SoftDeleteTestSuite provides standardized tests for soft delete functionality

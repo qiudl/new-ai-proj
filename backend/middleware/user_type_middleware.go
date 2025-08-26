@@ -110,6 +110,9 @@ func getRequestCompanyID(c *gin.Context) int {
 // SystemUserOnlyMiddleware 限制只有系统用户才能访问的中间件
 func SystemUserOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 最开始的调试日志
+		log.Printf("!!! [SYSTEM_MIDDLEWARE] FUNCTION START - Processing request: %s", c.Request.URL.Path)
+		
 		// 调试日志
 		log.Printf("[SYSTEM_MIDDLEWARE] Checking user type access")
 		log.Printf("[SYSTEM_MIDDLEWARE] Context keys: %v", gin.H(c.Keys))
@@ -136,15 +139,31 @@ func SystemUserOnlyMiddleware() gin.HandlerFunc {
 		}
 
 		log.Printf("[SYSTEM_MIDDLEWARE] Access granted for system user")
+		log.Printf("[SYSTEM_MIDDLEWARE] About to call c.Next()")
 		c.Next()
+		log.Printf("[SYSTEM_MIDDLEWARE] c.Next() returned")
 	}
 }
 
 // AdminOnlyMiddleware 限制只有管理员才能访问的中间件
 func AdminOnlyMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 非常明显的调试日志
+		log.Printf(">>>>>>>>>>> [ADMIN_MIDDLEWARE_ENTRY] CALLED! <<<<<<<<<<<")
+		log.Printf("[ADMIN_MIDDLEWARE] Checking admin access")
+		log.Printf("[ADMIN_MIDDLEWARE] Context keys: %v", gin.H(c.Keys))
+		
 		userRole, exists := c.Get("user_role")
+		log.Printf("[ADMIN_MIDDLEWARE] user_role: %v, exists: %v", userRole, exists)
+		
+		// 如果user_role不存在，尝试从current_user_role获取
+		if !exists {
+			userRole, exists = c.Get("current_user_role")
+			log.Printf("[ADMIN_MIDDLEWARE] fallback current_user_role: %v, exists: %v", userRole, exists)
+		}
+		
 		if !exists || userRole != "admin" {
+			log.Printf("[ADMIN_MIDDLEWARE] Access denied for role: %v", userRole)
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"Access denied",
@@ -155,6 +174,7 @@ func AdminOnlyMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("[ADMIN_MIDDLEWARE] Access granted for admin role")
 		c.Next()
 	}
 }
@@ -162,8 +182,21 @@ func AdminOnlyMiddleware() gin.HandlerFunc {
 // RoleBasedAccessMiddleware 基于角色的访问控制中间件
 func RoleBasedAccessMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 调试日志
+		log.Printf("[ROLE_MIDDLEWARE] Checking role access for roles: %v", allowedRoles)
+		log.Printf("[ROLE_MIDDLEWARE] Context keys: %v", gin.H(c.Keys))
+		
 		userRole, exists := c.Get("user_role")
+		log.Printf("[ROLE_MIDDLEWARE] user_role: %v, exists: %v", userRole, exists)
+		
+		// 如果user_role不存在，尝试从current_user_role获取
 		if !exists {
+			userRole, exists = c.Get("current_user_role")
+			log.Printf("[ROLE_MIDDLEWARE] fallback current_user_role: %v, exists: %v", userRole, exists)
+		}
+		
+		if !exists {
+			log.Printf("[ROLE_MIDDLEWARE] No user role found in context")
 			response := models.NewErrorResponse(
 				models.ErrCodeUnauthorized,
 				"User role not found",
@@ -175,13 +208,17 @@ func RoleBasedAccessMiddleware(allowedRoles ...string) gin.HandlerFunc {
 		}
 
 		roleStr := userRole.(string)
+		log.Printf("[ROLE_MIDDLEWARE] Checking if role '%s' is in allowed roles: %v", roleStr, allowedRoles)
+		
 		for _, allowedRole := range allowedRoles {
 			if roleStr == allowedRole {
+				log.Printf("[ROLE_MIDDLEWARE] Access granted for role: %s", roleStr)
 				c.Next()
 				return
 			}
 		}
 
+		log.Printf("[ROLE_MIDDLEWARE] Access denied for role: %s", roleStr)
 		response := models.NewErrorResponse(
 			models.ErrCodeAuthorization,
 			"Access denied",

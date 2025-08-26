@@ -52,20 +52,18 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
     })));
 
     try {
-      const result = await permissionService.checkUserPermission({
-        permissionCode: permission,
-        resourceID: resourceId
-      });
+      // Use normalized helper with dev fallback and code normalization
+      const allowed = await permissionService.hasPermission(permission, resourceId);
 
       // Update with result
       setPermissionChecks(prev => new Map(prev.set(checkKey, {
         permission,
         resourceId,
-        result: result.result,
+        result: { hasPermission: allowed, reason: allowed ? 'granted' : 'denied', grantedBy: [] },
         loading: false
       })));
 
-      return result.result.hasPermission;
+      return allowed;
     } catch (err) {
       // Update with error
       setPermissionChecks(prev => new Map(prev.set(checkKey, {

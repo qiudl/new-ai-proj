@@ -115,8 +115,17 @@ export const permissionService = {
 
   // Permission Checking
   async checkUserPermission(request: PermissionCheckRequest): Promise<{ result: PermissionResult }> {
-    const response = await api.post('/permissions/check', request);
-    return response.data;
+    const response: any = await api.post('/permissions/check', request);
+    // Axios may unwrap or return raw; normalize here
+    if (response && response.result && typeof response.result.hasPermission === 'boolean') {
+      return { result: response.result as PermissionResult };
+    }
+    if (response && typeof response === 'object' && 'success' in response && 'data' in response) {
+      // Wrapped { success, data }
+      return response as { result: PermissionResult };
+    }
+    // Fallback: assume response already is { result: PermissionResult }
+    return response as { result: PermissionResult };
   },
 
   // Audit Logs
@@ -154,8 +163,27 @@ export const permissionService = {
   // Utility functions for permission checking
   async hasPermission(permissionCode: string, resourceId?: number): Promise<boolean> {
     try {
+      // Dev fallback: if current JWT indicates admin, grant access
+      // This unblocks development when backend RBAC endpoints are not available
+      if (process.env.NODE_ENV === 'development') {
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload && payload.role === 'admin') {
+              return true;
+            }
+          } catch {}
+        }
+      }
+
+      // Normalize permission code (support both underscore and dot formats)
+      const normalizedCode = permissionCode.includes('.')
+        ? permissionCode
+        : permissionCode.replace(/_/g, '.');
+
       const result = await this.checkUserPermission({
-        permissionCode,
+        permissionCode: normalizedCode,
         resourceID: resourceId
       });
       return result.result.hasPermission;

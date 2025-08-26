@@ -1428,7 +1428,7 @@ const TasksPage: React.FC = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleViewTask(record);
+                            navigate(`/projects/${record.project_id}/tasks/${record.id}`);
                           }}
                           style={{ 
                             color: 'inherit',
@@ -1517,7 +1517,7 @@ const TasksPage: React.FC = () => {
                                 fontSize: '14px'
                               }}>
                                 <button
-                                  onClick={() => handleViewTask(subTask)}
+                                  onClick={() => navigate(`/projects/${subTask.project_id}/tasks/${subTask.id}`)}
                                   style={{
                                     color: '#595959',
                                     cursor: 'pointer',
@@ -1791,7 +1791,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                   type="text"
                   size="small"
                   icon={<EyeOutlined />}
-                  onClick={() => handleViewTask(record)}
+                  onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
                   title="查看详情"
                 />
               </Space>
@@ -1889,7 +1889,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleViewTask(record);
+                      navigate(`/projects/${record.project_id}/tasks/${record.id}`);
                     }}
                     style={{ 
                       color: 'inherit',
@@ -1982,7 +1982,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                           fontSize: '14px'
                         }}>
                           <button
-                            onClick={() => handleViewTask(subTask)}
+                            onClick={() => navigate(`/projects/${subTask.project_id}/tasks/${subTask.id}`)}
                             style={{
                               color: '#595959',
                               cursor: 'pointer',
@@ -2317,7 +2317,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               type="text"
               size="small"
               icon={<EyeOutlined />}
-              onClick={() => handleViewTask(record)}
+              onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
               title="查看详情"
             />
             

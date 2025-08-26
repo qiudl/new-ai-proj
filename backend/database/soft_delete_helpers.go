@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 	
-	"github.com/your-org/ai-proj/backend/interfaces"
+	"ai-project-backend/interfaces"
 )
 
 // BaseSoftDeleteRepository provides common soft delete functionality

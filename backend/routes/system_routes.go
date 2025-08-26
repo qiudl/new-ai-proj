@@ -230,17 +230,12 @@ func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app Applica
 		permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateRole)
 		permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().DeleteRole)
 
-		// User permission assignment (require user management permissions)
-		// TODO: Implement PermissionUserManagement constant and AssignUserRole method
-		// permissions.GET("/users/:userId", middleware.RequirePermission(models.PermissionUserManagement), app.GetPermissionHandler().GetUserPermissions)
-		// permissions.PUT("/users/:userId", middleware.RequirePermission(models.PermissionUserManagement), app.GetPermissionHandler().UpdateUserPermissions)
-		// permissions.POST("/users/:userId/roles", middleware.RequirePermission(models.PermissionUserManagement), app.GetPermissionHandler().AssignUserRole)
-		// permissions.DELETE("/users/:userId/roles/:roleId", middleware.RequirePermission(models.PermissionUserManagement), app.GetPermissionHandler().RemoveUserRole)
+		// Permission check endpoint (used by frontend guards)
+		// Note: System user access required by the group, admin override handled in handler
+		permissions.POST("/check", app.GetPermissionHandler().CheckUserPermission)
 
-		// Permission validation and checking (available to all system users)
-		// TODO: Implement these permission validation methods
-		// permissions.GET("/check", app.GetPermissionHandler().CheckPermissions)
-		// permissions.GET("/validate", app.GetPermissionHandler().ValidatePermissions)
-		// permissions.GET("/list", app.GetPermissionHandler().ListAllPermissions)
+		// Basic user permission summary endpoints (optional - guarded by system user only)
+		permissions.GET("/users/:id", app.GetPermissionHandler().GetUserPermissions)
+		permissions.PUT("/users/:id", app.GetPermissionHandler().UpdateUserPermissions)
 	}
 }

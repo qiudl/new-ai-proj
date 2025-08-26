@@ -350,6 +350,18 @@ func (r *PostgresPermissionRepository) checkUserPermissionWithInheritance(ctx co
 		return result, nil
 	}
 
+	// Admin override: treat admin/super_admin as having all permissions
+	if isAdmin, adminDesc := r.isAdminUser(ctx, exec, companyUserID); isAdmin {
+		result.HasPermission = true
+		result.Source = "admin_override"
+		if adminDesc == "" {
+			result.Reason = "Admin user has all permissions"
+		} else {
+			result.Reason = fmt.Sprintf("Admin override (%s)", adminDesc)
+		}
+		return result, nil
+	}
+
 	// Permission resolution hierarchy (highest to lowest priority):
 	// 1. Custom permissions (explicit overrides)
 	// 2. Project-specific permissions (resource-level)
@@ -491,6 +503,30 @@ func (r *PostgresPermissionRepository) checkRolePermissions(ctx context.Context,
 		Source:        fmt.Sprintf("role:%s", roleCode),
 		Reason:        fmt.Sprintf("Permission inherited from role '%s'", roleName),
 	}
+}
+
+// isAdminUser checks whether the given company user is an admin/super_admin or system admin
+func (r *PostgresPermissionRepository) isAdminUser(ctx context.Context, exec execer, companyUserID int) (bool, string) {
+	query := `
+		SELECT r.role_code, u.role
+		FROM company_users cu
+		LEFT JOIN company_roles r ON cu.role_id = r.id
+		LEFT JOIN users u ON cu.user_id = u.id
+		WHERE cu.id = $1`
+
+	var roleCode sql.NullString
+	var userRole sql.NullString
+	if err := exec.QueryRowContext(ctx, query, companyUserID).Scan(&roleCode, &userRole); err != nil {
+		return false, ""
+	}
+
+	if roleCode.Valid && (roleCode.String == "super_admin" || roleCode.String == "admin") {
+		return true, fmt.Sprintf("company_role:%s", roleCode.String)
+	}
+	if userRole.Valid && userRole.String == "admin" {
+		return true, "user_role:admin"
+	}
+	return false, ""
 }
 
 // CheckMultiplePermissions checks multiple permissions at once

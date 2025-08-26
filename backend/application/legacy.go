@@ -81,6 +81,7 @@ func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 		c.Set("user_id", userID)
 		c.Set("user_name", user.Username)
 		c.Set("user_role", user.Role)
+		c.Set("current_user_role", user.Role)  // 为权限中间件使用
 		
 		// Set user type information for middleware
 		userType := "system" // Default to system user for backward compatibility
@@ -97,6 +98,7 @@ func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 		}
 		
 		c.Set("user_type", userType)
+		c.Set("current_user_type", userType)  // 为权限中间件使用
 		c.Set("company_id", companyID)
 		
 		// Map to company user (for demo, use same ID)

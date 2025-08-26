@@ -389,6 +389,14 @@ func (s *PermissionService) CheckPermission(ctx context.Context, permCtx *UserPe
 	permissionCode := s.buildPermissionCode(permCtx.ResourceType, permCtx.Action)
 	result.Context["permission_code"] = permissionCode
 
+	// Admin override: if user is system admin (users.role = 'admin'), grant all
+	if s.isSystemAdmin(ctx, permCtx.UserID) {
+		result.HasPermission = true
+		result.Source = "admin_override"
+		result.Reason = "System admin has all permissions"
+		return result, nil
+	}
+
 	// Check permissions in order of precedence:
 	// 1. Custom/Override permissions (highest priority)
 	// 2. Project-specific permissions
@@ -567,6 +575,23 @@ func (s *PermissionService) GetUserEffectivePermissions(ctx context.Context, use
 	}
 
 	return effectivePermissions, nil
+}
+
+// isSystemAdmin checks if a user is a system-level admin in users table
+func (s *PermissionService) isSystemAdmin(ctx context.Context, userID int) bool {
+	if userID == 0 || s.db == nil {
+		return false
+	}
+	var role, status string
+	query := `SELECT role, status FROM users WHERE id = $1 LIMIT 1`
+	err := s.db.QueryRowContext(ctx, query, userID).Scan(&role, &status)
+	if err != nil {
+		return false
+	}
+	if status != "active" {
+		return false
+	}
+	return role == "admin"
 }
 
 // ============================================================================
