@@ -84,10 +84,11 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetCustomerHandler() *handlers.CustomerHandler
 	GetCompanyHandler() *handlers.CompanyHandler
 	GetPermissionHandler() *handlers.PermissionHandler
+	GetRoleManagementHandler() *handlers.RoleManagementHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetCompanyUserHandler() *handlers.CompanyUserHandler
-	GetUserStatsHandler() *handlers.UserStatsHandler.UserStatsHandler
+	GetUserStatsHandler() *handlers.UserStatsHandler
 
 	// 文档管理处理器
 	GetDocumentHandler() *handlers.DocumentHandler

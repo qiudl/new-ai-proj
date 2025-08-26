@@ -7,16 +7,12 @@
 BEGIN;
 
 -- =============================================================================
--- 1. 权限表 (permissions) 升级
+-- 1. 权限表 (permissions) 升级/创建（兼容全新数据库与旧版表结构）
 -- =============================================================================
--- 检查是否需要升级现有的permissions表
 DO $$
 BEGIN
-    -- 检查是否需要添加新字段
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'permissions' AND column_name = 'permission_code') THEN
-        -- 如果没有permission_code字段，需要重构表
-        ALTER TABLE permissions RENAME TO permissions_old;
-        
+    -- 如果permissions表不存在，则直接按新结构创建
+    IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'permissions') THEN
         CREATE TABLE permissions (
             id SERIAL PRIMARY KEY,
             permission_code VARCHAR(100) NOT NULL UNIQUE,
@@ -29,35 +25,58 @@ BEGIN
             sort_order INTEGER DEFAULT 0,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-            
-            -- 索引
-            INDEX idx_permissions_code (permission_code),
-            INDEX idx_permissions_module (module),
-            INDEX idx_permissions_parent (parent_id),
-            INDEX idx_permissions_active (is_active)
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
-        
-        -- 迁移旧数据
-        INSERT INTO permissions (permission_code, permission_name, permission_description, module, resource, action)
-        SELECT 
-            COALESCE(name, 'legacy_' || id::text) as permission_code,
-            COALESCE(name, 'Legacy Permission') as permission_name,
-            description,
-            COALESCE(category, 'system') as module,
-            CASE 
-                WHEN name LIKE '%.%' THEN split_part(name, '.', 2)
-                ELSE 'general'
-            END as resource,
-            CASE 
-                WHEN name LIKE '%.%' THEN split_part(name, '.', 3)
-                ELSE 'access'
-            END as action
-        FROM permissions_old;
-        
-        DROP TABLE permissions_old;
+    ELSE
+        -- 如果表已存在但缺少permission_code列，视为旧版结构，执行重构与数据迁移
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'permissions' AND column_name = 'permission_code'
+        ) THEN
+            ALTER TABLE permissions RENAME TO permissions_old;
+            
+            CREATE TABLE permissions (
+                id SERIAL PRIMARY KEY,
+                permission_code VARCHAR(100) NOT NULL UNIQUE,
+                permission_name VARCHAR(100) NOT NULL,
+                permission_description TEXT,
+                module VARCHAR(50) NOT NULL,
+                resource VARCHAR(50) NOT NULL,
+                action VARCHAR(50) NOT NULL,
+                parent_id INTEGER REFERENCES permissions(id) ON DELETE SET NULL,
+                sort_order INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- 迁移旧数据
+            INSERT INTO permissions (permission_code, permission_name, permission_description, module, resource, action)
+            SELECT 
+                COALESCE(name, 'legacy_' || id::text) as permission_code,
+                COALESCE(name, 'Legacy Permission') as permission_name,
+                description,
+                COALESCE(category, 'system') as module,
+                CASE 
+                    WHEN name LIKE '%.%' THEN split_part(name, '.', 2)
+                    ELSE 'general'
+                END as resource,
+                CASE 
+                    WHEN name LIKE '%.%' THEN split_part(name, '.', 3)
+                    ELSE 'access'
+                END as action
+            FROM permissions_old;
+            
+            DROP TABLE permissions_old;
+        END IF;
     END IF;
 END $$;
+
+-- 为permissions表创建索引
+CREATE INDEX IF NOT EXISTS idx_permissions_code ON permissions(permission_code);
+CREATE INDEX IF NOT EXISTS idx_permissions_module ON permissions(module);
+CREATE INDEX IF NOT EXISTS idx_permissions_parent ON permissions(parent_id);
+CREATE INDEX IF NOT EXISTS idx_permissions_active ON permissions(is_active);
 
 -- =============================================================================
 -- 2. 公司角色表 (company_roles)
@@ -259,3 +278,5 @@ BEGIN
         ', table_name, table_name, table_name, table_name);
     END LOOP;
 END $$;
+
+COMMIT;

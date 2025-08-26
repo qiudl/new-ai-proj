@@ -49,6 +49,8 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
 	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
+	// 角色管理处理器
+	allHandlers.RoleManagementHandler = handlers.NewRoleManagementHandler(f.db.Permissions())
 	
 	// 任务管理处理器
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
@@ -166,12 +168,13 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// API密钥管理处理器
 	allHandlers.APIKeyHandler = handlers.NewAPIKeyHandler(f.db.GetDB())
 	
-	// 进度计算处理器
+	// 进度计算处理器（快速恢复：表缺失时跳过，不阻断应用启动）
 	progressHandler, err := handlers.NewProgressHandler(f.db, f.logger, f.validate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create progress handler: %w", err)
+		f.logger.Printf("[WARN] ProgressHandler disabled: %v", err)
+	} else {
+		allHandlers.ProgressHandler = progressHandler
 	}
-	allHandlers.ProgressHandler = progressHandler
 
 	// 任务关系处理器
 	relService := services.NewTaskRelationshipService(f.db.GetDB().(*sql.DB))

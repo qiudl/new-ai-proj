@@ -2,9 +2,12 @@ package middleware
 
 import (
 	"ai-project-backend/models"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -162,8 +165,16 @@ func AdminOnlyMiddleware() gin.HandlerFunc {
 			log.Printf("[ADMIN_MIDDLEWARE] fallback current_user_role: %v, exists: %v", userRole, exists)
 		}
 		
-		if !exists || userRole != "admin" {
-			log.Printf("[ADMIN_MIDDLEWARE] Access denied for role: %v", userRole)
+		// 开发环境直通（便于联调）
+		if env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV"))); env == "development" || env == "dev" {
+			log.Printf("[ADMIN_MIDDLEWARE] Dev environment detected (APP_ENV=%s), allowing access", env)
+			c.Next()
+			return
+		}
+		// 统一转为字符串并小写对比，兼容开发环境token
+		roleStr := strings.ToLower(fmt.Sprint(userRole))
+		if !exists || (roleStr != "admin" && roleStr != "super_admin") {
+			log.Printf("[ADMIN_MIDDLEWARE] Access denied for role: %v", roleStr)
 			response := models.NewErrorResponse(
 				models.ErrCodeAuthorization,
 				"Access denied",
@@ -207,11 +218,17 @@ func RoleBasedAccessMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		roleStr := userRole.(string)
+		// 开发环境直通（便于联调）
+		if env := strings.ToLower(strings.TrimSpace(os.Getenv("APP_ENV"))); env == "development" || env == "dev" {
+			log.Printf("[ROLE_MIDDLEWARE] Dev environment detected (APP_ENV=%s), allowing access", env)
+			c.Next()
+			return
+		}
+		roleStr := strings.ToLower(fmt.Sprint(userRole))
 		log.Printf("[ROLE_MIDDLEWARE] Checking if role '%s' is in allowed roles: %v", roleStr, allowedRoles)
 		
 		for _, allowedRole := range allowedRoles {
-			if roleStr == allowedRole {
+			if roleStr == strings.ToLower(allowedRole) {
 				log.Printf("[ROLE_MIDDLEWARE] Access granted for role: %s", roleStr)
 				c.Next()
 				return

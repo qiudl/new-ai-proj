@@ -7,7 +7,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,109 @@ type UnifiedPermissionManager struct {
 	rateLimiter        *security.RateLimiter
 	enableAuditLogging bool
 	enableRateLimit    bool
+}
+
+// ---------- Superadmin helpers (env-driven) ----------
+// isFeatureEnabled reads a boolean-like env var
+func isFeatureEnabled(key string) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch v {
+	case "1", "true", "yes", "on", "y":
+		return true
+	default:
+		return false
+	}
+}
+
+func parseCSVEnv(key string) []string {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// isSuperAdminFromRequestContext determines superadmin by username/user_id from request context
+// Supports env vars:
+// - FEATURE_SUPERADMIN_ENABLE
+// - SUPER_ADMIN_USERNAMES (csv usernames)
+// - SUPER_ADMIN_IDS (csv ints)
+// - SUPER_ADMINS (mixed: ids/emails/usernames)
+func isSuperAdminFromRequestContext(reqCtx map[string]interface{}) (bool, string) {
+	if !isFeatureEnabled("FEATURE_SUPERADMIN_ENABLE") {
+		return false, ""
+	}
+
+	// Build sets
+	usernameSet := map[string]struct{}{}
+	idSet := map[int]struct{}{}
+
+	for _, u := range parseCSVEnv("SUPER_ADMIN_USERNAMES") {
+		usernameSet[u] = struct{}{}
+	}
+	for _, tok := range parseCSVEnv("SUPER_ADMINS") {
+		if id, err := strconv.Atoi(tok); err == nil {
+			idSet[id] = struct{}{}
+			continue
+		}
+		// treat token without '@' as username as well
+		if !strings.Contains(tok, "@") {
+			usernameSet[tok] = struct{}{}
+		}
+	}
+	for _, idStr := range parseCSVEnv("SUPER_ADMIN_IDS") {
+		if id, err := strconv.Atoi(idStr); err == nil {
+			idSet[id] = struct{}{}
+		}
+	}
+
+	// Extract from request context
+	var uname string
+	if v, ok := reqCtx["username"]; ok {
+		uname = strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v)))
+	}
+	var uid int
+	if v, ok := reqCtx["user_id"]; ok {
+		switch t := v.(type) {
+		case int:
+			uid = t
+		case int64:
+			uid = int(t)
+		case float64:
+			uid = int(t)
+		case string:
+			if parsed, err := strconv.Atoi(t); err == nil {
+				uid = parsed
+			}
+		}
+	}
+
+	// Default convenience: if no env lists provided, and username is exactly 'admin', treat as superadmin
+	// only when feature is enabled.
+	envProvided := len(usernameSet) > 0 || len(idSet) > 0
+	if !envProvided && uname == "admin" {
+		return true, "username:admin (default)"
+	}
+
+	if uname != "" {
+		if _, ok := usernameSet[uname]; ok {
+			return true, "username_match"
+		}
+	}
+	if uid != 0 {
+		if _, ok := idSet[uid]; ok {
+			return true, "user_id_match"
+		}
+	}
+	return false, ""
 }
 
 // UnifiedPermissionConfig configures the unified permission manager
@@ -115,7 +220,7 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 		CacheHit:  false,
 	}
 
-	// Rate limiting check
+	// Rate limiting check (must NOT be bypassed)
 	if m.enableRateLimit && m.rateLimiter != nil {
 		rateLimitResult := m.rateLimiter.CheckRateLimitByUser(
 			request.CompanyUserID, 
@@ -127,6 +232,21 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 			response.Reason = "Rate limit exceeded"
 			response.Source = "rate_limiter"
 			response.ResponseTime = time.Since(startTime)
+			return response, nil
+		}
+	}
+
+	// Superadmin override (after rate limiting, before cache/DB)
+	if request.EnableOverrides {
+		if ok, why := isSuperAdminFromRequestContext(request.RequestContext); ok {
+			response.HasPermission = true
+			response.Reason = fmt.Sprintf("Admin override (%s)", why)
+			response.Source = "admin_override"
+			response.ResponseTime = time.Since(startTime)
+			if response.Metadata == nil {
+				response.Metadata = map[string]interface{}{}
+			}
+			response.Metadata["admin_override"] = true
 			return response, nil
 		}
 	}
@@ -318,6 +438,18 @@ func (m *UnifiedPermissionManager) CreatePermissionMiddleware(permissionCode str
 		request := &PermissionCheckRequest{
 			PermissionCode:  permissionCode,
 			EnableOverrides: true,
+			RequestContext:  map[string]interface{}{},
+		}
+
+		// Populate request context with user info for superadmin detection
+		if v, ok := c.Get("username"); ok {
+			request.RequestContext["username"] = v
+		}
+		if v, ok := c.Get("user_id"); ok {
+			request.RequestContext["user_id"] = v
+		}
+		if v, ok := c.Get("user_role"); ok {
+			request.RequestContext["user_role"] = v
 		}
 
 		// Get company user ID from context

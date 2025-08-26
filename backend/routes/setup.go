@@ -86,11 +86,16 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	RegisterSystemRoutes(authorized, app)
 	RegisterSearchRoutes(authorized, app)
 	RegisterEnhancedPermissionRoutes(authorized, app)
+	// Restore role management routes
+	RegisterRoleManagementRoutes(authorized, app)
 	println("[DEBUG] About to register user stats routes...")
 	RegisterUserStatsRoutes(authorized, app)
 	println("[DEBUG] User stats routes registration completed")
 	
 	// 注册权限监控路由
+	// Minimal permission check endpoints for verification
+	RegisterPermissionCheckRoutes(authorized, app)
+	// Advanced monitoring disabled for now
 	RegisterPermissionMonitoringRoutes(authorized, app)
 	
 	// Debug: Check if ProgressHandler is available

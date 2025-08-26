@@ -3,7 +3,9 @@ package middleware
 import (
 	"ai-project-backend/database"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,10 +22,79 @@ func NewPermissionMiddleware(permissionRepo database.PermissionRepository) *Perm
 	}
 }
 
+// ----- superadmin helpers (env-driven, minimal) -----
+func featureEnabled(key string) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	switch v {
+	case "1", "true", "yes", "on", "y":
+		return true
+	default:
+		return false
+	}
+}
+
+func parseCSV(key string) []string {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" { return nil }
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.ToLower(strings.TrimSpace(p))
+		if p != "" { out = append(out, p) }
+	}
+	return out
+}
+
+func isSuperAdminCtx(c *gin.Context) bool {
+	if !featureEnabled("FEATURE_SUPERADMIN_ENABLE") {
+		return false
+	}
+	username := ""
+	if v, ok := c.Get("username"); ok { username = strings.ToLower(strings.TrimSpace(v.(string))) }
+	var uid int
+	if v, ok := c.Get("user_id"); ok {
+		switch t := v.(type) {
+		case int:
+			uid = t
+		case int64:
+			uid = int(t)
+		case float64:
+			uid = int(t)
+		case string:
+			if parsed, err := strconv.Atoi(t); err == nil { uid = parsed }
+		}
+	}
+	usernames := map[string]struct{}{}
+	ids := map[int]struct{}{}
+	for _, u := range parseCSV("SUPER_ADMIN_USERNAMES") { usernames[u] = struct{}{} }
+	for _, tok := range parseCSV("SUPER_ADMINS") {
+		if id, err := strconv.Atoi(tok); err == nil { ids[id] = struct{}{}; continue }
+		if !strings.Contains(tok, "@") { usernames[tok] = struct{}{} }
+	}
+	for _, idStr := range parseCSV("SUPER_ADMIN_IDS") {
+		if id, err := strconv.Atoi(idStr); err == nil { ids[id] = struct{}{} }
+	}
+	if len(usernames) == 0 && len(ids) == 0 && username == "admin" { return true }
+	if username != "" { if _, ok := usernames[username]; ok { return true } }
+	if uid != 0 { if _, ok := ids[uid]; ok { return true } }
+	return false
+}
+
 // RequirePermission creates middleware that requires specific permission
 func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
+
+		// Superadmin override (no rate-limit here; classic middleware path)
+		if isSuperAdminCtx(c) {
+			c.Set("permission_result", map[string]interface{}{
+				"has_permission": true,
+				"source": "admin_override",
+				"reason": "Superadmin bypass",
+			})
+			c.Next()
+			return
+		}
 
 		// Get company user ID from context (should be set by authentication middleware)
 		companyUserIDInterface, exists := c.Get("company_user_id")
@@ -83,6 +154,14 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 func (m *PermissionMiddleware) RequireAnyPermission(permissionCodes ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
+
+		// Superadmin override
+		if isSuperAdminCtx(c) {
+			c.Set("permission_results", map[string]interface{}{"admin_override": true})
+			c.Set("granted_permissions", permissionCodes)
+			c.Next()
+			return
+		}
 
 		// Get company user ID from context
 		companyUserIDInterface, exists := c.Get("company_user_id")
@@ -152,6 +231,13 @@ func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) 
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
+		// Superadmin override
+		if isSuperAdminCtx(c) {
+			c.Set("permission_results", map[string]interface{}{"admin_override": true})
+			c.Next()
+			return
+		}
+
 		// Get company user ID from context
 		companyUserIDInterface, exists := c.Get("company_user_id")
 		if !exists {
@@ -217,6 +303,12 @@ func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) 
 func (m *PermissionMiddleware) RequireRole(roleCode string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
+
+		// Superadmin override
+		if isSuperAdminCtx(c) {
+			c.Next()
+			return
+		}
 
 		// Get company user ID from context
 		companyUserIDInterface, exists := c.Get("company_user_id")

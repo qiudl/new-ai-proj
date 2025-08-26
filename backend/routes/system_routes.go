@@ -226,14 +226,14 @@ func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app Applica
 		permissions.POST("/check", app.GetPermissionHandler().CheckUserPermission)
 
 		// User permission management endpoints (admin access required)
-		permissions.GET("/users/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().GetUserPermissions)
-		permissions.PUT("/users/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().UpdateUserPermissions)
+		permissions.GET("/users/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetUserPermissions)
+		permissions.PUT("/users/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateUserPermissions)
 
 		// Role management (admin access required)
-		permissions.GET("/roles", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().GetRoles)
-		permissions.POST("/roles", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().CreateRole)
-		permissions.PUT("/roles/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().UpdateRole)
-		permissions.DELETE("/roles/:id", middleware.RoleBasedAccessMiddleware("admin"), app.GetPermissionHandler().DeleteRole)
+		permissions.GET("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetRoles)
+		permissions.POST("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().CreateRole)
+		permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateRole)
+		permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().DeleteRole)
 	}
 
 	// System-level permission management routes (system users only)

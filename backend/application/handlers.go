@@ -200,11 +200,15 @@ func (app *Application) GetPermissionHandler() *handlers.PermissionHandler {
 	return app.handlers.PermissionHandler
 }
 
+func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandler {
+	return app.handlers.RoleManagementHandler
+}
+
 func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
 	return app.handlers.UserManagementHandler
 }
 
-func (app *Application) GetUserStatsHandler() *handlers.UserStatsHandler {.UserStatsHandler {
+func (app *Application) GetUserStatsHandler() *handlers.UserStatsHandler {
 	return app.handlers.UserStatsHandler
 }
 

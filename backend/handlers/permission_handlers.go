@@ -335,6 +335,34 @@ func containsDot(s string) bool { return strings.Contains(s, ".") }
 // underscoreToDot converts underscore_separated codes to dot.separated codes
 func underscoreToDot(s string) string { return strings.ReplaceAll(s, "_", ".") }
 
+// BatchCheckPermissions handles POST /api/v1/permissions/check/batch
+// Request body: {"company_user_id": 123, "permissions": ["project.read", "task.update"], "resource_id": 1}
+func (h *PermissionHandler) BatchCheckPermissions(c *gin.Context) {
+	ctx := c.Request.Context()
+	type batchReq struct {
+		CompanyUserID int      `json:"company_user_id"`
+		Permissions   []string `json:"permissions"`
+		ResourceID    *int     `json:"resource_id,omitempty"`
+	}
+	var req batchReq
+	if err := c.ShouldBindJSON(&req); err != nil || req.CompanyUserID == 0 || len(req.Permissions) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+	// Normalize permission codes
+	perms := make([]string, 0, len(req.Permissions))
+	for _, p := range req.Permissions {
+		if p != "" && !containsDot(p) { p = underscoreToDot(p) }
+		perms = append(perms, p)
+	}
+	results, err := h.permissionRepo.CheckMultiplePermissions(ctx, req.CompanyUserID, perms, req.ResourceID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permissions"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"results": results})
+}
+
 // GetUserPermissions handles GET /api/v1/permissions/users/:id
 func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 	ctx := c.Request.Context()

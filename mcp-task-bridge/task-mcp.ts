@@ -1547,19 +1547,24 @@ export class TaskMCPServer {
         };
       }
 
-      // 调用统一计时API - 使用正确的端点和参数
+      // 调用统一计时API - 使用正确的端点和参数（补充 context 与 metadata，便于后端推断）
       const response = await axios.post(`${this.apiBase}/user/timer/start`, {
         task_id: taskId,
         title: description || `Claude Code 开始计时：${task.title}`,
         category: 'development',
-        estimated_minutes: 30 // 默认估算30分钟
+        estimated_minutes: 30, // 默认估算30分钟
+        context: 'mcp_tool',
+        metadata: { project_id: task.project_id }
       }, {
         headers: this.getHeaders(),
         proxy: false
       });
       
-      const timerData = response.data.data;
-      
+      // 统一计时后端直接返回扁平结构：{ success, timer_id, message, started_at, data }
+      const payload = response?.data || {};
+      const timerId = payload.timer_id;
+      const startedAt = payload.started_at;
+
       // 如果任务还未开始，自动将其状态更新为进行中
       if (task.status !== 'in_progress') {
         await this.startTask(taskId);
@@ -1567,19 +1572,19 @@ export class TaskMCPServer {
       
       return {
         success: true,
-        data: timerData,
+        data: payload,
         task_id: taskId,
         task_title: task.title,
-        timer_id: timerData.id,
-        started_at: timerData.started_at,
-        description: timerData.description,
+        timer_id: timerId,
+        started_at: startedAt,
+        description: description || `Claude Code 开始计时：${task.title}`,
         message: `⏱️ 任务 "${task.title}" 开始计时`
       };
     } catch (error: any) {
       console.error(`[ERROR] 开始计时失败:`, error.response?.data || error.message);
       return {
         success: false,
-        error: `开始计时失败: ${error.response?.data?.error || error.message}`
+        error: `开始计时失败: ${error.response?.data?.error || error.response?.data?.details || error.message}`
       };
     }
   }
@@ -1595,7 +1600,12 @@ export class TaskMCPServer {
         proxy: false
       });
       
-      const timerData = response.data.data;
+      // 后端返回扁平结构 + data 中包含统计详情
+      const payload = response?.data || {};
+      const meta = payload.data || {};
+      const timerId = payload.timer_id;
+      const durationSec = (meta.duration_seconds ?? meta.actual_work_duration ?? 0) as number;
+      const stoppedAt = meta.stopped_at || meta.end_time;
       
       if (taskId) {
         // 如果指定了taskId，尝试获取任务信息
@@ -1603,43 +1613,43 @@ export class TaskMCPServer {
           const task = await this.findTaskById(taskId);
           return {
             success: true,
-            data: timerData,
+            data: payload,
             task_id: taskId,
             task_title: task.title,
-            timer_id: timerData.id,
-            duration_seconds: timerData.duration_seconds,
-            duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
-            stopped_at: timerData.stopped_at,
-            message: `⏹️ 任务 "${task.title}" 停止计时，耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+            timer_id: timerId,
+            duration_seconds: durationSec,
+            duration_formatted: this.formatDuration(durationSec || 0),
+            stopped_at: stoppedAt,
+            message: `⏹️ 任务 "${task.title}" 停止计时，耗时: ${this.formatDuration(durationSec || 0)}`
           };
         } catch (taskError) {
           return {
             success: true,
-            data: timerData,
+            data: payload,
             task_id: taskId,
             task_title: '未知任务',
-            timer_id: timerData.id,
-            duration_seconds: timerData.duration_seconds,
-            duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
-            stopped_at: timerData.stopped_at,
-            message: `⏹️ 计时已停止，耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+            timer_id: timerId,
+            duration_seconds: durationSec,
+            duration_formatted: this.formatDuration(durationSec || 0),
+            stopped_at: stoppedAt,
+            message: `⏹️ 计时已停止，耗时: ${this.formatDuration(durationSec || 0)}`
           };
         }
       } else {
         return {
           success: true,
-          data: timerData,
+          data: payload,
           stopped_count: 1,
-          duration_seconds: timerData.duration_seconds,
-          duration_formatted: this.formatDuration(timerData.duration_seconds || 0),
-          message: `⏹️ 已停止计时，总耗时: ${this.formatDuration(timerData.duration_seconds || 0)}`
+          duration_seconds: durationSec,
+          duration_formatted: this.formatDuration(durationSec || 0),
+          message: `⏹️ 已停止计时，总耗时: ${this.formatDuration(durationSec || 0)}`
         };
       }
     } catch (error: any) {
       console.error(`[ERROR] 停止计时失败:`, error.response?.data || error.message);
       return {
         success: false,
-        error: `停止计时失败: ${error.response?.data?.error || error.message}`
+        error: `停止计时失败: ${error.response?.data?.error || error.response?.data?.details || error.message}`
       };
     }
   }
@@ -1655,9 +1665,9 @@ export class TaskMCPServer {
         proxy: false
       });
       
-      const timerData = response.data.data;
-      
-      if (!timerData || !timerData.task_id) {
+      // 后端当没有活动计时时会直接返回 null
+      const payload = response?.data ?? null;
+      if (payload === null) {
         return {
           success: true,
           data: { active_timers: [] },
@@ -1667,48 +1677,38 @@ export class TaskMCPServer {
         };
       }
 
-      // 获取任务信息
+      // 解析 TimerStatus 扁平结构
+      const timerStatus: any = payload;
+      const timerInfo = {
+        timer_id: timerStatus.id,
+        task_id: timerStatus.target_id,
+        task_title: timerStatus.target_title,
+        started_at: timerStatus.start_time,
+        current_duration_seconds: typeof timerStatus.elapsed_seconds === 'number' ? timerStatus.elapsed_seconds : this.calculateCurrentDuration(timerStatus.start_time),
+        current_duration_formatted: typeof timerStatus.elapsed_seconds === 'number' ? this.formatDuration(timerStatus.elapsed_seconds) : this.formatDuration(this.calculateCurrentDuration(timerStatus.start_time)),
+        description: timerStatus.description,
+        status: timerStatus.status,
+        is_running: timerStatus.is_running,
+        is_paused: timerStatus.is_paused,
+        category: timerStatus.category,
+        project_id: timerStatus.project_id
+      } as any;
+
+      // 若能获取到任务详情，补全真实标题
       try {
-        const task = await this.findTaskById(timerData.task_id);
-        const currentDuration = this.calculateCurrentDuration(timerData.started_at);
-        
-        const timerInfo = {
-          timer_id: timerData.id,
-          task_id: timerData.task_id,
-          task_title: task.title,
-          started_at: timerData.started_at,
-          current_duration_seconds: currentDuration,
-          current_duration_formatted: this.formatDuration(currentDuration),
-          description: timerData.description
-        } as any;
-        
-        return {
-          success: true,
-          data: { active_timers: [timerInfo] },
-          active_timers: [timerInfo],
-          total: 1,
-          message: `⏱️ 当前正在计时任务: "${task.title}" - ${this.formatDuration(currentDuration)}`
-        };
-      } catch (taskError) {
-        const timerInfo = {
-          timer_id: timerData.id,
-          task_id: timerData.task_id,
-          task_title: '未知任务',
-          started_at: timerData.started_at,
-          current_duration_seconds: 0,
-          current_duration_formatted: '00:00:00',
-          description: timerData.description,
-          error: '无法获取任务信息'
-        } as any;
-        
-        return {
-          success: true,
-          data: { active_timers: [timerInfo] },
-          active_timers: [timerInfo],
-          total: 1,
-          message: `⏱️ 当前有 1 个活动计时（任务信息获取失败）`
-        };
-      }
+        if (timerInfo.task_id) {
+          const t = await this.findTaskById(timerInfo.task_id);
+          timerInfo.task_title = t.title;
+        }
+      } catch {}
+
+      return {
+        success: true,
+        data: { active_timers: [timerInfo] },
+        active_timers: [timerInfo],
+        total: 1,
+        message: timerInfo.task_title ? `⏱️ 当前正在计时任务: "${timerInfo.task_title}" - ${timerInfo.current_duration_formatted}` : '⏱️ 当前有 1 个活动计时'
+      };
     } catch (error: any) {
       console.error(`[ERROR] 获取当前计时状态失败:`, error.response?.data || error.message);
       return {
