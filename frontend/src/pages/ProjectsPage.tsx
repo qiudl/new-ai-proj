@@ -18,6 +18,8 @@ import { useNavigate } from 'react-router-dom';
 import { projectService } from '../services/projectService';
 import { Project } from '../types/project';
 import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
+import PermissionWrapper from '../components/PermissionWrapper';
+import { PROJECT_PERMISSIONS } from '../constants/permissions';
 
 const { Title } = Typography;
 
@@ -447,25 +449,29 @@ const ProjectsPage: React.FC = () => {
                     style={{ color: '#1890ff' }}
                   />
                 </Tooltip>
-                <Tooltip title="编辑">
-                  <Button 
-                    type="text"
-                    size="small"
-                    icon={<EditOutlined />}
-                    onClick={() => handleEditProject(record)}
-                    style={{ color: '#52c41a' }}
-                  />
-                </Tooltip>
-                <Tooltip title="删除">
-                  <Button 
-                    type="text"
-                    size="small"
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleDeleteProject(record)}
-                    style={{ color: '#ff4d4f' }}
-                    danger
-                  />
-                </Tooltip>
+                <PermissionWrapper permission={PROJECT_PERMISSIONS.UPDATE}>
+                  <Tooltip title="编辑">
+                    <Button 
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => handleEditProject(record)}
+                      style={{ color: '#52c41a' }}
+                    />
+                  </Tooltip>
+                </PermissionWrapper>
+                <PermissionWrapper permission={PROJECT_PERMISSIONS.DELETE}>
+                  <Tooltip title="删除">
+                    <Button 
+                      type="text"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleDeleteProject(record)}
+                      style={{ color: '#ff4d4f' }}
+                      danger
+                    />
+                  </Tooltip>
+                </PermissionWrapper>
               </Space>
             ),
           };
@@ -491,23 +497,27 @@ const ProjectsPage: React.FC = () => {
                   style={{ color: '#1890ff' }}
                 />
               </Tooltip>,
-              <Tooltip title="编辑" key="edit">
-                <Button 
-                  type="text" 
-                  icon={<EditOutlined />}
-                  onClick={() => handleEditProject(project)}
-                  style={{ color: '#52c41a' }}
-                />
-              </Tooltip>,
-              <Tooltip title="删除" key="delete">
-                <Button 
-                  type="text" 
-                  icon={<DeleteOutlined />} 
-                  onClick={() => handleDeleteProject(project)}
-                  style={{ color: '#ff4d4f' }}
+              <PermissionWrapper permission={PROJECT_PERMISSIONS.UPDATE} key="edit">
+                <Tooltip title="编辑">
+                  <Button 
+                    type="text" 
+                    icon={<EditOutlined />}
+                    onClick={() => handleEditProject(project)}
+                    style={{ color: '#52c41a' }}
+                  />
+                </Tooltip>
+              </PermissionWrapper>,
+              <PermissionWrapper permission={PROJECT_PERMISSIONS.DELETE} key="delete">
+                <Tooltip title="删除">
+                  <Button 
+                    type="text" 
+                    icon={<DeleteOutlined />} 
+                    onClick={() => handleDeleteProject(project)}
+                    style={{ color: '#ff4d4f' }}
                   danger
                 />
-              </Tooltip>,
+              </Tooltip>
+              </PermissionWrapper>,
             ]}
           >
             {/* 项目编号 */}
@@ -604,9 +614,14 @@ const ProjectsPage: React.FC = () => {
             <Title level={2} style={{ margin: 0 }}>项目列表</Title>
             <p style={{ color: '#8c8c8c', margin: '4px 0 0 0' }}>管理您的所有项目</p>
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateProject}>
-            创建项目
-          </Button>
+          <PermissionWrapper 
+            permission={PROJECT_PERMISSIONS.CREATE}
+            fallback={<Tooltip title="您没有创建项目的权限"><Button type="primary" disabled icon={<PlusOutlined />}>创建项目</Button></Tooltip>}
+          >
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateProject}>
+              创建项目
+            </Button>
+          </PermissionWrapper>
         </div>
         
         {/* 视图切换控件和列设置 */}

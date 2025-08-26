@@ -77,7 +77,8 @@ interface CustomFieldConfig {
   key: string;
   title: string;
   dataType: 'string' | 'number' | 'boolean' | 'array' | 'date';
-  render?: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => React.ReactNode;
+  // Value-first render signature (accepts any value type), record retained for context
+  render?: (value: any, record: Task) => React.ReactNode;
   width?: number;
   sortable?: boolean;
 }
@@ -100,7 +101,8 @@ interface AdvancedFilter {
   id: string;
   field: string;
   operator: string;
-  value: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+  // Store actual filter value rather than DOM events
+  value: unknown;
   logicalOperator?: 'AND' | 'OR';
 }
 
@@ -109,7 +111,7 @@ interface FilterFieldOption {
   value: string;
   label: string;
   dataType: 'string' | 'number' | 'date' | 'select' | 'multiSelect';
-  options?: { value: React.FormEvent | React.ChangeEvent<HTMLInputElement>; label: string }[];
+  options?: { value: unknown; label: string }[];
 }
 
 // 默认自定义字段配置
@@ -819,13 +821,13 @@ const AllFieldsTaskListPage: React.FC = () => {
             const fieldKey = config.key.replace('custom_', '');
             const fieldConfig = customFields.find(f => f.key === fieldKey);
             
-            return {
+return {
               ...baseColumn,
-              render: (value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, record: Task) => {
+              render: (value: any, record: Task) => {
                 if (fieldConfig?.render) {
                   return fieldConfig.render(value, record);
                 }
-                return value || <Text type="secondary">-</Text>;
+                return (value as React.ReactNode) ?? <Text type="secondary">-</Text>;
               },
             };
           }
@@ -1008,7 +1010,7 @@ const AllFieldsTaskListPage: React.FC = () => {
     return (task as unknown)[field];
   };
 
-  const matchesFilterCondition = (fieldValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>, operator: string, filterValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+const matchesFilterCondition = (fieldValue: unknown, operator: string, filterValue: unknown) => {
     if (fieldValue == null || filterValue == null) return false;
 
     switch (operator) {
@@ -1033,13 +1035,13 @@ const AllFieldsTaskListPage: React.FC = () => {
       case 'lessOrEqual':
         return Number(fieldValue) <= Number(filterValue);
       case 'before':
-        return dayjs(fieldValue).isBefore(dayjs(filterValue));
+        return dayjs(fieldValue as any).isBefore(dayjs(filterValue as any));
       case 'after':
-        return dayjs(fieldValue).isAfter(dayjs(filterValue));
+        return dayjs(fieldValue as any).isAfter(dayjs(filterValue as any));
       case 'in':
-        return Array.isArray(filterValue) ? filterValue.includes(fieldValue) : fieldValue === filterValue;
+        return Array.isArray(filterValue) ? filterValue.includes(fieldValue as any) : fieldValue === filterValue;
       case 'notIn':
-        return Array.isArray(filterValue) ? !filterValue.includes(fieldValue) : fieldValue !== filterValue;
+        return Array.isArray(filterValue) ? !filterValue.includes(fieldValue as any) : fieldValue !== filterValue;
       default:
         return true;
     }
@@ -1150,23 +1152,24 @@ const AllFieldsTaskListPage: React.FC = () => {
     setConnectionStatus('disconnected');
   }, []);
 
-  const handleWebSocketMessage = useCallback((message: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+const handleWebSocketMessage = useCallback((message: { type: string; data?: any }) => {
     setLastUpdateTime(dayjs().format('HH:mm:ss'));
     
     switch (message.type) {
       case 'task_created':
-        handleTaskCreated(message.data);
+        if (message.data) handleTaskCreated(message.data);
         break;
       case 'task_updated':
-        handleTaskUpdated(message.data);
+        if (message.data) handleTaskUpdated(message.data);
         break;
       case 'task_deleted':
-        handleTaskDeleted(message.data);
+        handleTaskDeleted(message.data as number);
         break;
       case 'bulk_update':
-        handleBulkUpdate(message.data);
+        if (message.data) handleBulkUpdate(message.data);
         break;
       default:
+        // ignore unknown message types
         }
   }, []);
 
@@ -1968,7 +1971,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                           disabled={!filter.operator}
                         >
                           {selectedField.options.map(option => (
-                            <Option key={option.value} value={option.value}>
+                            <Option key={String(option.value)} value={option.value as any}>
                               {option.label}
                             </Option>
                           ))}
@@ -1976,7 +1979,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                       ) : selectedField?.dataType === 'date' ? (
                         <DatePicker
                           placeholder="选择日期"
-                          value={filter.value ? dayjs(filter.value) : null}
+                          value={filter.value ? dayjs(filter.value as any) : null}
                           onChange={(date) => updateAdvancedFilter(filter.id, { value: date?.format('YYYY-MM-DD') })}
                           style={{ width: '100%' }}
                           disabled={!filter.operator}
@@ -1985,14 +1988,14 @@ const AllFieldsTaskListPage: React.FC = () => {
                         <Input
                           type="number"
                           placeholder="输入数值"
-                          value={filter.value}
+                          value={filter.value as any}
                           onChange={(e) => updateAdvancedFilter(filter.id, { value: e.target.value })}
                           disabled={!filter.operator}
                         />
                       ) : (
                         <Input
                           placeholder="输入值"
-                          value={filter.value}
+                          value={filter.value as any}
                           onChange={(e) => updateAdvancedFilter(filter.id, { value: e.target.value })}
                           disabled={!filter.operator}
                         />
@@ -2022,7 +2025,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                     )}
                     <Tag color="green">{field?.label || '?'}</Tag>
                     <Tag>{operator?.label || '?'}</Tag>
-                    <Tag color="purple">{filter.value || '?'}</Tag>
+                    <Tag color="purple">{String(filter.value ?? '?')}</Tag>
                   </span>
                 );
               })}

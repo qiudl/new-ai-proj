@@ -70,6 +70,7 @@ type User struct {
 	TimingAccumulatedSeconds int         `json:"timing_accumulated_seconds" db:"timing_accumulated_seconds"`   // Seconds accumulated before pause
 	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
+	DeletedAt           *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // UserCreateRequest represents a user creation request

@@ -148,30 +148,18 @@ func registerSystemManagementRoutes(authorized *gin.RouterGroup, app Application
 
 // registerUserManagementRoutes 注册用户管理路由
 func registerUserManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// User management routes
-	// Test direct route registration
-	authorized.GET("/users/profile", func(c *gin.Context) {
-		
-		userID := c.GetInt("user_id")
-		c.JSON(200, gin.H{
-			"success": true,
-			"data": gin.H{
-				"id": userID,
-				"username": "admin",
-				"email": "admin@joylodging.com", 
-				"user_type": "system",
-				"role": "admin", 
-				"status": "active",
-				"profile": gin.H{},
-				"is_primary_contact": false,
-				"timing_status": "stopped",
-				"timing_accumulated_seconds": 0,
-			},
-		})
-	})
+	// User profile management routes
+	userProfileHandler := app.GetUserProfileHandler()
 	
 	users := authorized.Group("/users")
 	{
+		// 个人资料管理
+		users.GET("/profile", userProfileHandler.GetUserProfile)
+		users.PUT("/profile", userProfileHandler.UpdateUserProfile)
+		users.POST("/profile/change-password", userProfileHandler.ChangePassword)
+		users.POST("/profile/upload-avatar", userProfileHandler.UploadAvatar)
+		users.GET("/profile/statistics", userProfileHandler.GetUserStatistics)
+		
 		// Google日历集成管理  
 		users.GET("/google-connection", app.GetGoogleAuthHandler().GetGoogleConnectionStatus)
 		users.DELETE("/google-connection", app.GetGoogleAuthHandler().DisconnectGoogle)

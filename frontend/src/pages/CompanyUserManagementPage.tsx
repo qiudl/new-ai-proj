@@ -20,6 +20,7 @@ import {
   DatePicker,
   Switch,
   Divider,
+  Breadcrumb,
 } from 'antd';
 import {
   UserOutlined,
@@ -472,9 +473,19 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
 
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>
-        <TeamOutlined /> 企业用户管理
-      </Title>
+      {/* 面包屑导航 */}
+      <Breadcrumb style={{ marginBottom: '16px' }}>
+        <Breadcrumb.Item>系统管理</Breadcrumb.Item>
+        <Breadcrumb.Item>用户管理</Breadcrumb.Item>
+        <Breadcrumb.Item>企业用户管理</Breadcrumb.Item>
+      </Breadcrumb>
+      
+      <div style={{ marginBottom: '16px' }}>
+        <Title level={2}>
+          <BankOutlined /> 企业用户管理
+        </Title>
+        <Text type="secondary">管理企业客户的用户账户、权限和访问控制</Text>
+      </div>
 
       {/* Statistics Cards */}
       {stats && (
@@ -528,9 +539,9 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
       <Card>
         {/* Toolbar */}
         <div style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle">
-            <Col>
-              <Space>
+          <Row justify="space-between" align="middle" gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Space wrap>
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
@@ -541,7 +552,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
                 {selectedRowKeys.length > 0 && (
                   <Dropdown menu={batchMenu} placement="bottomLeft">
                     <Button>
-                      批量操作 ({selectedRowKeys.length}) <DownOutlined />
+                      批量操作 ({selectedRowKeys.length}个用户) <DownOutlined />
                     </Button>
                   </Dropdown>
                 )}
@@ -554,44 +565,66 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
                 >
                   刷新
                 </Button>
+                <Button
+                  icon={<ExportOutlined />}
+                  onClick={() => message.info('导出功能开发中...')}
+                >
+                  导出数据
+                </Button>
               </Space>
             </Col>
-            <Col>
-              <Space>
-                <Select
-                  placeholder="选择企业"
-                  style={{ width: 200 }}
-                  allowClear
-                  value={filters.company_id}
-                  onChange={(value) => handleFilterChange('company_id', value)}
-                  showSearch
-                  filterOption={(input, option) =>
-                    (option?.children as unknown)?.toString()?.toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {companies.map(company => (
-                    <Option key={company.id} value={company.id}>
-                      {company.companyName}
-                    </Option>
-                  ))}
-                </Select>
-                <Select
-                  placeholder="用户状态"
-                  style={{ width: 120 }}
-                  allowClear
-                  value={filters.status}
-                  onChange={(value) => handleFilterChange('status', value)}
-                >
-                  <Option value="active">正常</Option>
-                  <Option value="inactive">停用</Option>
-                </Select>
-                <Search
-                  placeholder="搜索用户名、姓名、邮箱"
-                  style={{ width: 250 }}
-                  onSearch={handleSearch}
-                  enterButton
-                />
-              </Space>
+            <Col xs={24} lg={12}>
+              <Row gutter={[8, 8]} justify="end">
+                <Col xs={24} sm={8}>
+                  <Select
+                    placeholder="选择企业"
+                    style={{ width: '100%' }}
+                    allowClear
+                    value={filters.company_id}
+                    onChange={(value) => handleFilterChange('company_id', value)}
+                    showSearch
+                    filterOption={(input, option) =>
+                      (option?.children as unknown)?.toString()?.toLowerCase().includes(input.toLowerCase())
+                    }
+                  >
+                    {companies.map(company => (
+                      <Option key={company.id} value={company.id}>
+                        {company.companyName}
+                      </Option>
+                    ))}
+                  </Select>
+                </Col>
+                <Col xs={24} sm={6}>
+                  <Select
+                    placeholder="用户状态"
+                    style={{ width: '100%' }}
+                    allowClear
+                    value={filters.status}
+                    onChange={(value) => handleFilterChange('status', value)}
+                  >
+                    <Option value="active">正常</Option>
+                    <Option value="inactive">停用</Option>
+                  </Select>
+                </Col>
+                <Col xs={24} sm={10}>
+                  <Search
+                    placeholder="搜索用户名、姓名、邮箱、电话..."
+                    style={{ width: '100%' }}
+                    onSearch={handleSearch}
+                    enterButton
+                  />
+                </Col>
+              </Row>
+            </Col>
+          </Row>
+          <Row style={{ marginTop: 8 }}>
+            <Col span={24}>
+              <Text type="secondary">
+                共 {pagination.total} 个企业用户，当前显示第 {pagination.current} 页
+                {filters.company_id && (
+                  <span>，筛选企业: {companies.find(c => c.id === filters.company_id)?.companyName}</span>
+                )}
+              </Text>
             </Col>
           </Row>
         </div>

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 // PostgresUserRepository implements UserRepository using PostgreSQL
@@ -53,8 +54,8 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, 
 		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
-		       created_at, updated_at
-		FROM users WHERE id = $1`
+		       created_at, updated_at, deleted_at
+		FROM users WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
@@ -66,7 +67,7 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CurrentTimingTaskID, &user.CurrentUserTimerTaskID, &user.TimingStartTime, &user.TimingStatus,
-		&user.CreatedAt, &user.UpdatedAt,
+		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -85,8 +86,8 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at,
 		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
-		       created_at, updated_at
-		FROM users WHERE username = $1`
+		       created_at, updated_at, deleted_at
+		FROM users WHERE username = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, username)
@@ -98,7 +99,7 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CurrentTimingTaskID, &user.CurrentUserTimerTaskID, &user.TimingStartTime, &user.TimingStatus,
-		&user.CreatedAt, &user.UpdatedAt,
+		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -115,8 +116,8 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, created_at, updated_at
-		FROM users WHERE email = $1`
+		       role, status, profile, last_login_at, created_at, updated_at, deleted_at
+		FROM users WHERE email = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, email)
@@ -127,7 +128,7 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
+		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 	)
 
 	if err == sql.ErrNoRows {
@@ -165,9 +166,9 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 	return user, nil
 }
 
-// Delete deletes a user
+// Delete soft deletes a user (sets deleted_at timestamp)
 func (r *PostgresUserRepository) Delete(ctx context.Context, id int) error {
-	query := `DELETE FROM users WHERE id = $1`
+	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
@@ -181,16 +182,79 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found")
+		return fmt.Errorf("user not found or already deleted")
 	}
 
 	return nil
 }
 
+// Restore restores a soft deleted user
+func (r *PostgresUserRepository) Restore(ctx context.Context, id int) error {
+	query := `UPDATE users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found in recycle bin")
+	}
+
+	return nil
+}
+
+// HardDelete permanently deletes a user (only for admin/system cleanup)
+func (r *PostgresUserRepository) HardDelete(ctx context.Context, id int) error {
+	query := `DELETE FROM users WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to permanently delete user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found in recycle bin")
+	}
+
+	return nil
+}
+
+// IsDeleted checks if a user is soft deleted
+func (r *PostgresUserRepository) IsDeleted(ctx context.Context, id int) (bool, error) {
+	query := `SELECT deleted_at FROM users WHERE id = $1`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, id)
+
+	var deletedAt *time.Time
+	err := row.Scan(&deletedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("user not found")
+		}
+		return false, fmt.Errorf("failed to check deletion status: %w", err)
+	}
+
+	return deletedAt != nil, nil
+}
+
 // List gets users with pagination
 func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([]*models.User, int, error) {
-	// Get total count
-	countQuery := `SELECT COUNT(*) FROM users`
+	// Get total count (only non-deleted users)
+	countQuery := `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery)
 
@@ -199,11 +263,12 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 		return nil, 0, fmt.Errorf("failed to get user count: %w", err)
 	}
 
-	// Get users with pagination
+	// Get users with pagination (only non-deleted users)
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, created_at, updated_at
+		       role, status, profile, last_login_at, created_at, updated_at, deleted_at
 		FROM users 
+		WHERE deleted_at IS NULL
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2`
 
@@ -221,7 +286,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 			&user.UserType, &user.CompanyID, &user.CompanyUserID,
 			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-			&user.CreatedAt, &user.UpdatedAt,
+			&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
@@ -293,7 +358,7 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 // ListCompanyUsersWithPagination lists company users with pagination and filtering
 func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error) {
 	// Build WHERE clause based on filters
-	whereConditions := []string{"u.user_type = 'company'"}
+	whereConditions := []string{"u.user_type = 'company'", "u.deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
 
@@ -389,9 +454,9 @@ func (r *PostgresUserRepository) GetPrimaryContactByCompanyID(ctx context.Contex
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, contact_person_name, contact_phone,
 		       department_title, is_primary_contact, account_expires_at, last_project_access,
-		       notes, current_timing_task_id, timing_start_time, created_at, updated_at
+		       notes, current_timing_task_id, timing_start_time, created_at, updated_at, deleted_at
 		FROM users 
-		WHERE company_id = $1 AND user_type = 'company' AND is_primary_contact = true
+		WHERE company_id = $1 AND user_type = 'company' AND is_primary_contact = true AND deleted_at IS NULL
 		LIMIT 1`
 
 	exec := r.getExecer()
@@ -405,7 +470,7 @@ func (r *PostgresUserRepository) GetPrimaryContactByCompanyID(ctx context.Contex
 		&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
 		&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
 		&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
-		&user.CreatedAt, &user.UpdatedAt,
+		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 	)
 
 	if err != nil {
@@ -432,7 +497,7 @@ func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (
 			COUNT(CASE WHEN account_expires_at IS NOT NULL AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '30 days' AND account_expires_at > CURRENT_TIMESTAMP THEN 1 END) as expiring_accounts,
 			COUNT(CASE WHEN created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days' THEN 1 END) as recent_registrations
 		FROM users 
-		WHERE user_type = 'company'`
+		WHERE user_type = 'company' AND deleted_at IS NULL`
 
 	row := exec.QueryRowContext(ctx, statusQuery)
 
@@ -447,7 +512,7 @@ func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (
 		SELECT c.company_name, COUNT(u.id) as user_count
 		FROM users u
 		LEFT JOIN companies c ON u.company_id = c.id
-		WHERE u.user_type = 'company'
+		WHERE u.user_type = 'company' AND u.deleted_at IS NULL
 		GROUP BY c.id, c.company_name
 		ORDER BY user_count DESC`
 
@@ -490,12 +555,13 @@ func (r *PostgresUserRepository) GetExpiringAccounts(ctx context.Context, days i
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, contact_person_name, contact_phone,
 		       department_title, is_primary_contact, account_expires_at, last_project_access,
-		       notes, current_timing_task_id, timing_start_time, created_at, updated_at
+		       notes, current_timing_task_id, timing_start_time, created_at, updated_at, deleted_at
 		FROM users 
 		WHERE user_type = 'company' 
 		  AND account_expires_at IS NOT NULL 
 		  AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '%d days'
 		  AND account_expires_at > CURRENT_TIMESTAMP
+		  AND deleted_at IS NULL
 		ORDER BY account_expires_at ASC`
 
 	exec := r.getExecer()
@@ -516,7 +582,7 @@ func (r *PostgresUserRepository) GetExpiringAccounts(ctx context.Context, days i
 			&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
 			&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
 			&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
-			&user.CreatedAt, &user.UpdatedAt,
+			&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan expiring user: %w", err)
@@ -539,10 +605,11 @@ func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID 
 		       role, status, profile, last_login_at, is_primary_contact, notes,
 		       current_timing_task_id, current_user_timer_task_id, timing_start_time, 
 		       timing_status, timing_paused_time, timing_accumulated_seconds,
-		       created_at, updated_at
+		       created_at, updated_at, deleted_at
 		FROM users 
 		WHERE timing_status = 'running' 
-		AND current_timing_task_id = $1`
+		AND current_timing_task_id = $1
+		AND deleted_at IS NULL`
 
 	rows, err := r.getExecer().QueryContext(ctx, query, taskID)
 	if err != nil {
@@ -575,6 +642,7 @@ func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID 
 			&user.TimingAccumulatedSeconds,
 			&user.CreatedAt,
 			&user.UpdatedAt,
+			&user.DeletedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan user timing task: %w", err)

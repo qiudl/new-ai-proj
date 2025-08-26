@@ -353,8 +353,8 @@ const EnhancedSearchInterface: React.FC<EnhancedSearchInterfaceProps> = ({
   };
 
   // 使用保存的搜索
-  const handleUseSavedSearch = (savedSearch: SavedSearch) => {
-    const savedFilter = { ...savedSearch.filters, page: 1 };
+const handleUseSavedSearch = (savedSearch: SavedSearch) => {
+    const savedFilter: SearchFilter = { ...(savedSearch.filters as SearchFilter), page: 1 };
     setFilter(savedFilter);
     performSearch(savedFilter);
     setSavedSearchesVisible(false);
@@ -787,9 +787,9 @@ const EnhancedSearchInterface: React.FC<EnhancedSearchInterfaceProps> = ({
               rowKey="id"
               pagination={false}
               size="small"
-              rowSelection={compactMode ? undefined : {
+rowSelection={compactMode ? undefined : {
                 selectedRowKeys: selectedResults,
-                onChange: setSelectedResults,
+                onChange: (keys) => setSelectedResults(keys as number[]),
               }}
             />
             

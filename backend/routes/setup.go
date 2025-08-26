@@ -51,8 +51,12 @@ func SetupMiddleware(router *gin.Engine, cfg *config.Config, app ApplicationInte
 func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册基础健康检查路由（无需认证）
 	registerBasicRoutes(router, app)
+	
 	// Prometheus metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// 静态文件服务 - 头像上传文件
+	router.Static("/api/v1/uploads", "./uploads")
 
 	// 静态API文档挂载（/docs）
 	mountDocs(router)

@@ -230,7 +230,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/document-manager') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
+    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/company-user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
       return ['/system-management'];
     }
     return [];
@@ -346,7 +346,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {
           key: '/user-management',
           icon: <TeamOutlined />,
-          label: '用户管理',
+          label: '系统用户',
+        },
+        {
+          key: '/company-user-management',
+          icon: <CustomerServiceOutlined />,
+          label: '企业用户',
         },
         {
           key: '/permissions',

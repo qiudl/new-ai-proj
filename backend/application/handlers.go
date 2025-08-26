@@ -212,8 +212,9 @@ func (app *Application) GetUserProfileHandlerInstance() *handlers.UserProfileHan
 	return app.handlers.UserProfileHandler
 }
 
-// User profile handlers
-func (app *Application) GetUserProfileHandler() gin.HandlerFunc { return app.handlers.UserProfileHandler.GetUserProfile }
+func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
+	return app.handlers.UserProfileHandler
+}
 func (app *Application) UpdateUserProfileHandler() gin.HandlerFunc { return app.handlers.UserProfileHandler.UpdateUserProfile }
 func (app *Application) ChangePasswordHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {

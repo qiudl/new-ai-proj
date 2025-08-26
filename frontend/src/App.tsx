@@ -4,6 +4,7 @@ import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
+import PermissionRoute from './components/PermissionRoute';
 import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import { QueryProvider } from './providers/QueryProvider';
@@ -11,6 +12,19 @@ import FloatingTimer from './components/FloatingTimer';
 // import UnifiedDebugPanel from './components/UnifiedDebugPanel'; // 隐藏调试功能
 import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
+import {
+  COMPANY_PERMISSIONS,
+  USER_PERMISSIONS,
+  PERMISSION_PERMISSIONS,
+  SYSTEM_PERMISSIONS,
+  PROJECT_PERMISSIONS,
+  TASK_PERMISSIONS,
+  DASHBOARD_PERMISSIONS,
+  TIME_PERMISSIONS,
+  API_KEY_PERMISSIONS,
+  AUDIT_PERMISSIONS,
+  NAVIGATION_PERMISSIONS
+} from './constants/permissions';
 import './App.css';
 import './styles/task-hierarchy.css';
 import './styles/TaskDocuments.css';
@@ -63,6 +77,7 @@ const HierarchicalGanttTestPage = React.lazy(() => import('./pages/HierarchicalG
 const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGanttTestPage'));
 const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
 const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
+const PermissionDemoPage = React.lazy(() => import('./pages/PermissionDemoPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -118,58 +133,72 @@ const AppContent: React.FC = () => {
             
             <Route path="/dashboard" element={
               <PrivateRoute>
-                <Layout>
-                  <DashboardPage />
-                </Layout>
+                <PermissionRoute permission={DASHBOARD_PERMISSIONS.READ}>
+                  <Layout>
+                    <DashboardPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/personal-timer" element={
               <PrivateRoute>
-                <Layout>
-                  <PersonalTimerPage />
-                </Layout>
+                <PermissionRoute permission={TIME_PERMISSIONS.READ}>
+                  <Layout>
+                    <PersonalTimerPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/timer-analytics" element={
               <PrivateRoute>
-                <Layout>
-                  <TimerAnalyticsPage />
-                </Layout>
+                <PermissionRoute permission={TIME_PERMISSIONS.ANALYTICS_READ}>
+                  <Layout>
+                    <TimerAnalyticsPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             
             <Route path="/projects" element={
               <PrivateRoute>
-                <Layout>
-                  <ProjectsPage />
-                </Layout>
+                <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
+                  <Layout>
+                    <ProjectsPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             <Route path="/projects/:projectId" element={
               <PrivateRoute>
-                <Layout>
-                  <ProjectDetailPage />
-                </Layout>
+                <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
+                  <Layout>
+                    <ProjectDetailPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             <Route path="/projects/:projectId/edit" element={
               <PrivateRoute>
-                <Layout>
-                  <ProjectEditPage />
-                </Layout>
+                <PermissionRoute permission={PROJECT_PERMISSIONS.UPDATE}>
+                  <Layout>
+                    <ProjectEditPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             <Route path="/projects/create" element={
               <PrivateRoute>
-                <Layout>
-                  <ProjectEditPage />
-                </Layout>
+                <PermissionRoute permission={PROJECT_PERMISSIONS.CREATE}>
+                  <Layout>
+                    <ProjectEditPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
@@ -222,18 +251,22 @@ const AppContent: React.FC = () => {
             {/* 全部任务（跨项目） */}
 <Route path="/tasks" element={
               <PrivateRoute>
-                <Layout>
-                  <TasksPage />
-                </Layout>
+                <PermissionRoute permission={TASK_PERMISSIONS.READ}>
+                  <Layout>
+                    <TasksPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             {/* 全局洞察 */}
             <Route path="/insights" element={
               <PrivateRoute>
-                <Layout>
-                  <InsightsPage />
-                </Layout>
+                <PermissionRoute permission={DASHBOARD_PERMISSIONS.INSIGHTS_READ}>
+                  <Layout>
+                    <InsightsPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
@@ -349,9 +382,11 @@ const AppContent: React.FC = () => {
             
             <Route path="/time-weekly-report" element={
               <PrivateRoute>
-                <Layout>
-                  <TimeWeeklyReportPage />
-                </Layout>
+                <PermissionRoute permission={TIME_PERMISSIONS.REPORT_READ}>
+                  <Layout>
+                    <TimeWeeklyReportPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
@@ -365,58 +400,72 @@ const AppContent: React.FC = () => {
             
             <Route path="/audit-logs" element={
               <PrivateRoute>
-                <Layout>
-                  <AuditLogPage />
-                </Layout>
+                <PermissionRoute permission={AUDIT_PERMISSIONS.READ}>
+                  <Layout>
+                    <AuditLogPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/navigation-management" element={
               <PrivateRoute>
-                <Layout>
-                  <NavigationManagementPage />
-                </Layout>
+                <PermissionRoute permission={NAVIGATION_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <NavigationManagementPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/user-profile" element={
               <PrivateRoute>
-                <Layout>
-                  <UserProfilePage />
-                </Layout>
+                <PermissionRoute permission={USER_PERMISSIONS.PROFILE_READ}>
+                  <Layout>
+                    <UserProfilePage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             {/* Enterprise customer management routes */}
             <Route path="/companies" element={
               <PrivateRoute>
-                <Layout>
-                  <CompanyListPage />
-                </Layout>
+                <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
+                  <Layout>
+                    <CompanyListPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/companies/:id" element={
               <PrivateRoute>
-                <Layout>
-                  <CompanyDetailPage />
-                </Layout>
+                <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
+                  <Layout>
+                    <CompanyDetailPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/companies/create" element={
               <PrivateRoute>
-                <Layout>
-                  <CompanyCreatePage />
-                </Layout>
+                <PermissionRoute permission={COMPANY_PERMISSIONS.CREATE}>
+                  <Layout>
+                    <CompanyCreatePage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/companies/:id/edit" element={
               <PrivateRoute>
-                <Layout>
-                  <CompanyEditPage />
-                </Layout>
+                <PermissionRoute permission={COMPANY_PERMISSIONS.UPDATE}>
+                  <Layout>
+                    <CompanyEditPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
@@ -449,16 +498,29 @@ const AppContent: React.FC = () => {
             {/* Permission management routes */}
             <Route path="/permissions" element={
               <PrivateRoute>
-                <Layout>
-                  <PermissionManagementPage />
-                </Layout>
+                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <PermissionManagementPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             <Route path="/enhanced-permissions" element={
               <PrivateRoute>
+                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <EnhancedPermissionManagementPage />
+                  </Layout>
+                </PermissionRoute>
+              </PrivateRoute>
+            } />
+
+            {/* Permission demo page */}
+            <Route path="/permission-demo" element={
+              <PrivateRoute>
                 <Layout>
-                  <EnhancedPermissionManagementPage />
+                  <PermissionDemoPage />
                 </Layout>
               </PrivateRoute>
             } />
@@ -466,50 +528,62 @@ const AppContent: React.FC = () => {
             {/* User management routes */}
             <Route path="/user-management" element={
               <PrivateRoute>
-                <Layout>
-                  <UserManagementPage />
-                </Layout>
+                <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <UserManagementPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             <Route path="/company-user-management" element={
               <PrivateRoute>
-                <Layout>
-                  <CompanyUserManagementPage />
-                </Layout>
+                <PermissionRoute permission={COMPANY_PERMISSIONS.USER_ADMIN}>
+                  <Layout>
+                    <CompanyUserManagementPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             {/* AI configuration routes */}
             <Route path="/ai-config" element={
               <PrivateRoute>
-                <Layout>
-                  <AIConfigPage />
-                </Layout>
+                <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <AIConfigPage />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 
             {/* API Key management routes */}
             <Route path="/api-keys" element={
               <PrivateRoute>
-                <Layout>
-                  <APIKeyManagement />
-                </Layout>
+                <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
+                  <Layout>
+                    <APIKeyManagement />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/api-keys/:id" element={
               <PrivateRoute>
-                <Layout>
-                  <APIKeyDetail />
-                </Layout>
+                <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
+                  <Layout>
+                    <APIKeyDetail />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
             
             <Route path="/api-keys/:id/edit" element={
               <PrivateRoute>
-                <Layout>
-                  <APIKeyEdit />
-                </Layout>
+                <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
+                  <Layout>
+                    <APIKeyEdit />
+                  </Layout>
+                </PermissionRoute>
               </PrivateRoute>
             } />
 

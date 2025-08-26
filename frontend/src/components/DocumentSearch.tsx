@@ -37,7 +37,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from '../utils/dayjs';
 // 简单的debounce实现，避免lodash依赖
-const debounce = <T extends (...args: unknown[]) => any>(
+const debounce = <T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {

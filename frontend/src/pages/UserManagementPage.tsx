@@ -18,7 +18,8 @@ import {
   Badge,
   Dropdown,
   Typography,
-  Radio
+  Radio,
+  Breadcrumb
 } from 'antd';
 import {
   UserOutlined,
@@ -54,6 +55,8 @@ import {
 } from '../types/user';
 import { UserManagementService } from '../services/userManagementService';
 import CompanyService from '../services/companyService';
+import PermissionWrapper from '../components/PermissionWrapper';
+import { USER_PERMISSIONS } from '../constants/permissions';
 // import { useAsyncData } from '../hooks/useAsyncData';
 import { formatTimeAgo } from '../utils/formatters';
 
@@ -531,64 +534,70 @@ const UserManagementPage: React.FC = () => {
       width: 180,
       render: (_, user) => (
         <Space size="small">
-          <Tooltip title="编辑">
-            <Button 
-              type="text" 
-              size="small" 
-              icon={<EditOutlined />}
-              onClick={() => openEditModal(user)}
-            />
-          </Tooltip>
-          <Tooltip title="重置密码">
-            <Button 
-              type="text" 
-              size="small" 
-              icon={<KeyOutlined />}
-              onClick={() => openPasswordModal(user)}
-            />
-          </Tooltip>
-          <Dropdown
-            menu={{
-              items: [
-                {
-                  key: 'activate',
-                  label: '激活',
-                  icon: <CheckCircleOutlined />,
-                  disabled: user.status === 'active',
-                  onClick: () => handleUpdateStatus(user, 'active'),
+          <PermissionWrapper permission={USER_PERMISSIONS.UPDATE}>
+            <Tooltip title="编辑">
+              <Button 
+                type="text" 
+                size="small" 
+                icon={<EditOutlined />}
+                onClick={() => openEditModal(user)}
+              />
+            </Tooltip>
+          </PermissionWrapper>
+          <PermissionWrapper permission={USER_PERMISSIONS.UPDATE}>
+            <Tooltip title="重置密码">
+              <Button 
+                type="text" 
+                size="small" 
+                icon={<KeyOutlined />}
+                onClick={() => openPasswordModal(user)}
+              />
+            </Tooltip>
+          </PermissionWrapper>
+          <PermissionWrapper permission={USER_PERMISSIONS.UPDATE}>
+            <Dropdown
+              menu={{
+                items: [
+                  {
+                    key: 'activate',
+                    label: '激活',
+                    icon: <CheckCircleOutlined />,
+                    disabled: user.status === 'active',
+                    onClick: () => handleUpdateStatus(user, 'active'),
+                  },
+                  {
+                    key: 'suspend',
+                    label: '停用',
+                    icon: <StopOutlined />,
+                    disabled: user.status === 'suspended',
+                    onClick: () => handleUpdateStatus(user, 'suspended'),
+                  },
+                  { type: 'divider' },
+                  {
+                    key: 'delete',
+                    label: '删除',
+                    icon: <DeleteOutlined />,
+                    danger: true,
+                  },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'delete') {
+                    Modal.confirm({
+                      title: '确认删除',
+                      content: `确定要删除用户 ${user.username} 吗？此操作不可恢复。`,
+                      okText: '删除',
+                      okType: 'danger',
+                      cancelText: '取消',
+                      onOk: () => handleDeleteUser(user),
+                    });
+                  }
                 },
-                {
-                  key: 'suspend',
-                  label: '停用',
-                  icon: <StopOutlined />,
-                  disabled: user.status === 'suspended',
-                  onClick: () => handleUpdateStatus(user, 'suspended'),
-                },
-                { type: 'divider' },
-                {
-                  key: 'delete',
-                  label: '删除',
-                  icon: <DeleteOutlined />,
-                  danger: true,
-                },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'delete') {
-                  Modal.confirm({
-                    title: '确认删除',
-                    content: `确定要删除用户 ${user.username} 吗？此操作不可恢复。`,
-                    okText: '删除',
-                    okType: 'danger',
-                    cancelText: '取消',
-                    onOk: () => handleDeleteUser(user),
-                  });
-                }
-              },
-            }}
-            trigger={['click']}
-          >
-            <Button type="text" size="small" icon={<DownOutlined />} />
-          </Dropdown>
+              }}
+              trigger={['click']}
+            >
+              <Button type="text" size="small" icon={<DownOutlined />} />
+            </Dropdown>
+          </PermissionWrapper>
         </Space>
       ),
     },
@@ -607,6 +616,34 @@ const UserManagementPage: React.FC = () => {
       label: '批量停用',
       icon: <StopOutlined />,
       onClick: () => handleBatchOperation('suspend'),
+    },
+    { type: 'divider' as const },
+    {
+      key: 'reset-passwords',
+      label: '批量重置密码',
+      icon: <KeyOutlined />,
+      onClick: () => {
+        Modal.confirm({
+          title: '确认批量重置密码',
+          content: `确定要重置选中的 ${selectedRowKeys.length} 个用户的密码吗？系统将生成随机密码并通过邮件发送。`,
+          okText: '重置密码',
+          okType: 'primary',
+          cancelText: '取消',
+          onOk: () => {
+            message.info('批量重置密码功能开发中...');
+            // TODO: 实现批量重置密码功能
+          },
+        });
+      },
+    },
+    {
+      key: 'export-selected',
+      label: '导出选中用户',
+      icon: <ExportOutlined />,
+      onClick: () => {
+        message.info('正在导出选中用户...');
+        // TODO: 实现导出选中用户功能
+      },
     },
     { type: 'divider' as const },
     {
@@ -629,14 +666,21 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div className="page-container">
+      {/* 面包屑导航 */}
+      <Breadcrumb style={{ marginBottom: '16px' }}>
+        <Breadcrumb.Item>系统管理</Breadcrumb.Item>
+        <Breadcrumb.Item>用户管理</Breadcrumb.Item>
+        <Breadcrumb.Item>系统用户</Breadcrumb.Item>
+      </Breadcrumb>
+
       <div className="page-header">
         <Title level={2}>
           <Space>
             <TeamOutlined />
-            用户管理
+            系统用户
           </Space>
         </Title>
-        <Text type="secondary">管理系统用户和权限</Text>
+        <Text type="secondary">管理系统管理员、项目经理和开发人员账户</Text>
       </div>
 
       {/* 统计卡片 */}
@@ -686,15 +730,15 @@ const UserManagementPage: React.FC = () => {
       {/* 操作工具栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={[16, 16]} align="middle">
-          <Col xs={24} sm={6}>
+          <Col xs={24} sm={8}>
             <Search
-              placeholder="搜索用户名、邮箱..."
+              placeholder="搜索用户名、邮箱、姓名..."
               allowClear
               onSearch={handleSearch}
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={24} sm={3}>
+          <Col xs={24} sm={4}>
             <Select
               placeholder="用户类型"
               allowClear
@@ -711,7 +755,7 @@ const UserManagementPage: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={24} sm={3}>
+          <Col xs={24} sm={4}>
             <Select
               placeholder="角色筛选"
               allowClear
@@ -723,7 +767,7 @@ const UserManagementPage: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={24} sm={3}>
+          <Col xs={24} sm={4}>
             <Select
               placeholder="状态筛选"
               allowClear
@@ -735,15 +779,75 @@ const UserManagementPage: React.FC = () => {
               ))}
             </Select>
           </Col>
-          <Col xs={24} sm={12}>
+          <Col xs={24} sm={4}>
             <Space>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
+              <Dropdown 
+                menu={{
+                  items: [
+                    {
+                      key: 'create-admin',
+                      label: '新建系统管理员',
+                      icon: <UserOutlined />,
+                      onClick: () => {
+                        setSelectedUserType('system');
+                        createForm.setFieldsValue({ user_type: 'system', role: 'admin' });
+                        setCreateModalVisible(true);
+                      }
+                    },
+                    {
+                      key: 'create-pm',
+                      label: '新建项目经理',
+                      icon: <UserOutlined />,
+                      onClick: () => {
+                        setSelectedUserType('system');
+                        createForm.setFieldsValue({ user_type: 'system', role: 'project_manager' });
+                        setCreateModalVisible(true);
+                      }
+                    },
+                    {
+                      key: 'create-dev',
+                      label: '新建开发工程师',
+                      icon: <UserOutlined />,
+                      onClick: () => {
+                        setSelectedUserType('system');
+                        createForm.setFieldsValue({ user_type: 'system', role: 'developer' });
+                        setCreateModalVisible(true);
+                      }
+                    },
+                    { type: 'divider' },
+                    {
+                      key: 'create-company-admin',
+                      label: '新建企业管理员',
+                      icon: <BankOutlined />,
+                      onClick: () => {
+                        setSelectedUserType('company');
+                        createForm.setFieldsValue({ user_type: 'company', role: 'company_admin' });
+                        setCreateModalVisible(true);
+                      }
+                    },
+                    {
+                      key: 'create-company-user',
+                      label: '新建企业用户',
+                      icon: <BankOutlined />,
+                      onClick: () => {
+                        setSelectedUserType('company');
+                        createForm.setFieldsValue({ user_type: 'company', role: 'company_user' });
+                        setCreateModalVisible(true);
+                      }
+                    }
+                  ]
+                }}
+                trigger={['click']}
               >
-                新建用户
-              </Button>
+                <PermissionWrapper 
+                  permission={USER_PERMISSIONS.CREATE}
+                  fallback={<Button type="primary" disabled icon={<PlusOutlined />}>新建用户 <DownOutlined /></Button>}
+                >
+                  <Button type="primary" icon={<PlusOutlined />}>
+                    新建用户 <DownOutlined />
+                  </Button>
+                </PermissionWrapper>
+              </Dropdown>
               <Button 
                 icon={<ReloadOutlined />}
                 onClick={() => {
@@ -754,19 +858,30 @@ const UserManagementPage: React.FC = () => {
               >
                 刷新
               </Button>
+            </Space>
+          </Col>
+        </Row>
+        <Row style={{ marginTop: 16 }}>
+          <Col span={24}>
+            <Space>
               <Button 
                 icon={<ExportOutlined />}
                 onClick={handleExportUsers}
               >
-                导出
+                导出用户数据
               </Button>
               {selectedRowKeys.length > 0 && (
-                <Dropdown menu={{ items: batchMenuItems }} trigger={['click']}>
-                  <Button>
-                    批量操作 ({selectedRowKeys.length}) <DownOutlined />
-                  </Button>
-                </Dropdown>
+                <PermissionWrapper permission={USER_PERMISSIONS.UPDATE}>
+                  <Dropdown menu={{ items: batchMenuItems }} trigger={['click']}>
+                    <Button>
+                      批量操作 ({selectedRowKeys.length}个用户) <DownOutlined />
+                    </Button>
+                  </Dropdown>
+                </PermissionWrapper>
               )}
+              <Text type="secondary">
+                共 {total} 个用户，当前显示第 {searchParams.page} 页
+              </Text>
             </Space>
           </Col>
         </Row>

@@ -172,6 +172,43 @@ class AuthService {
   }
 
   /**
+   * 获取当前用户ID
+   * 通过解析JWT token获取用户ID
+   */
+  getCurrentUserId(): number | null {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_id || payload.userId || payload.sub || null;
+    } catch (error) {
+      console.error('解析token中的用户ID失败:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 获取当前用户信息
+   * 从token中解析基本用户信息
+   */
+  getCurrentUser(): { id: number; username?: string } | null {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return {
+        id: payload.user_id || payload.userId || payload.sub,
+        username: payload.username || payload.name
+      };
+    } catch (error) {
+      console.error('解析token中的用户信息失败:', error);
+      return null;
+    }
+  }
+
+  /**
    * 刷新认证token（如果后端支持）
    */
   async refreshToken(): Promise<ApiResponse<{ token: string }>> {

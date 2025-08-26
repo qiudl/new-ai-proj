@@ -25,6 +25,9 @@ type UserRepository interface {
 	GetFirstAdminUser(ctx context.Context) (*models.User, error)
 	Update(ctx context.Context, user *models.User) (*models.User, error)
 	Delete(ctx context.Context, id int) error
+	Restore(ctx context.Context, id int) error
+	HardDelete(ctx context.Context, id int) error
+	IsDeleted(ctx context.Context, id int) (bool, error)
 	List(ctx context.Context, limit, offset int) ([]*models.User, int, error)
 	
 	// User profile management
