@@ -63,7 +63,7 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
           }
         }
         
-        const isValid = token && isTokenValid(token);
+        const isValid = !!token && isTokenValid(token);
         console.log('🔍 最终认证结果:', isValid ? '通过' : '失败');
         setAuthenticated(isValid);
         
@@ -79,15 +79,9 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }, []);
 
   if (loading) {
+    // 使用全屏模式以满足 antd Spin 对 tip 的要求，避免控制台警告
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <Spin size="large" tip="正在验证身份..." />
-      </div>
+      <Spin size="large" tip="正在验证身份..." fullscreen />
     );
   }
 

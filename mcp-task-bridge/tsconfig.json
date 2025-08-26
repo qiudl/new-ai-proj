@@ -12,11 +12,14 @@
     "strict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": [
     "index.ts",
-    "task-mcp.ts"
+    "task-mcp.ts",
+    "permission-manager.ts"
   ],
   "exclude": [
     "dist",

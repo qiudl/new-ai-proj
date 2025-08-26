@@ -67,6 +67,10 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	userManagementRepo := database.NewUserManagementRepository(f.db.GetDB())
 	allHandlers.UserManagementHandler = handlers.NewUserManagementHandler(userManagementRepo)
 	
+	// 用户统计处理器
+	userStatsRepo := database.NewUserStatsRepository(f.db)
+	allHandlers.UserStatsHandler = handlers.NewUserStatsHandler(userStatsRepo)
+	
 	// 公司用户处理器
 	serviceManager := services.NewServiceManager(f.db)
 	allHandlers.CompanyUserHandler = handlers.NewCompanyUserHandler(

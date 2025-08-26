@@ -35,6 +35,7 @@ import {
 } from '@ant-design/icons';
 import { workNotesService, WorkNote, CreateWorkNoteRequest, UpdateWorkNoteRequest } from '../services/workNotesService';
 import WorkNoteConversionModal from './conversion/WorkNoteConversionModal';
+import BatchWorkNoteConversionModal from './conversion/BatchWorkNoteConversionModal';
 
 const { Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -571,6 +572,24 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           setCurrentWorkNote(null);
         }}
         onConversionSuccess={handleConversionSuccess}
+      />
+
+      {/* 批量转换为任务文档对话框 */}
+      <BatchWorkNoteConversionModal
+        visible={batchConversionModalVisible}
+        workNotes={selectedWorkNotes}
+        onClose={() => {
+          setBatchConversionModalVisible(false);
+          setSelectedRowKeys([]);
+          setSelectedWorkNotes([]);
+        }}
+        onConversionSuccess={(results) => {
+          message.success(`成功转换 ${results.length} 个工作笔记为任务文档`);
+          loadWorkNotes(); // 重新加载列表
+          setBatchConversionModalVisible(false);
+          setSelectedRowKeys([]);
+          setSelectedWorkNotes([]);
+        }}
       />
     </div>
   );

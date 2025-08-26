@@ -3,6 +3,7 @@ import { message } from 'antd';
 import TimerService from '../services/timerService';
 import { personalTimerService, PersonalTimerCurrent } from '../services/personalTimerService';
 import { TimerCurrentResponse } from '../types/timer';
+import { AppError, ErrorType } from '../utils/errorTypes';
 
 interface TimerState {
   isRunning: boolean;
@@ -153,10 +154,45 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [startLocalTimer, stopLocalTimer]);
 
+  // 本地恢复函数（离线或失败时）
+  const restoreFromLocalStorage = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('globalTimerState');
+      if (saved) {
+        const parsedState = JSON.parse(saved);
+        const lastSync = new Date(parsedState.lastSync);
+        const timeSinceSync = (Date.now() - lastSync.getTime()) / 1000;
+        
+        // 如果同步时间不超过5分钟，恢复状态
+        if (timeSinceSync < 300 && parsedState.isRunning) {
+          setTimerState({
+            ...parsedState,
+            startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined
+          });
+          
+          if (parsedState.startTime) {
+            startLocalTimer(new Date(parsedState.startTime));
+          }
+          
+          message.warning('网络连接异常，已恢复本地计时状态');
+        }
+      }
+    } catch (restoreError) {
+      console.warn('Failed to restore timer state:', restoreError);
+    }
+  }, [startLocalTimer]);
+
   // 从服务器加载当前定时器状态
   const refreshTimer = useCallback(async () => {
     if (!isMountedRef.current) return;
     
+    // 离线检测：若浏览器检测为离线，则直接进入本地恢复逻辑，避免无效请求与控制台噪音
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      setConnectionStatus('disconnected');
+      restoreFromLocalStorage();
+      return;
+    }
+
     try {
       setConnectionStatus('checking');
       // 🔧 使用personalTimerService获取Timer 2.0状态
@@ -170,9 +206,9 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         const emptyResponse: TimerCurrentResponse = {
           is_running: false,
           is_paused: false,
-          task_id: null,
-          task_title: null,
-          start_time: null,
+          task_id: undefined,
+          task_title: undefined,
+          start_time: undefined,
           elapsed_seconds: 0,
           formatted_time: '00:00:00'
         };
@@ -199,36 +235,18 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     } catch (error) {
       if (!isMountedRef.current) return;
       
-      console.error('Failed to refresh timer:', error);
+      // 网络类错误降级为警告，减少控制台噪音
+      if (error instanceof AppError && error.type === ErrorType.NETWORK) {
+        console.warn('网络异常，刷新计时器失败，将尝试使用本地状态:', error.message);
+      } else {
+        console.error('Failed to refresh timer:', error);
+      }
       setConnectionStatus('disconnected');
       
       // 尝试从localStorage恢复
-      try {
-        const saved = localStorage.getItem('globalTimerState');
-        if (saved) {
-          const parsedState = JSON.parse(saved);
-          const lastSync = new Date(parsedState.lastSync);
-          const timeSinceSync = (Date.now() - lastSync.getTime()) / 1000;
-          
-          // 如果同步时间不超过5分钟，恢复状态
-          if (timeSinceSync < 300 && parsedState.isRunning) {
-            setTimerState({
-              ...parsedState,
-              startTime: parsedState.startTime ? new Date(parsedState.startTime) : undefined
-            });
-            
-            if (parsedState.startTime) {
-              startLocalTimer(new Date(parsedState.startTime));
-            }
-            
-            message.warning('网络连接异常，已恢复本地计时状态');
-          }
-        }
-      } catch (restoreError) {
-        console.warn('Failed to restore timer state:', restoreError);
-      }
+      restoreFromLocalStorage();
     }
-  }, [updateTimerFromResponse, startLocalTimer]);
+  }, [updateTimerFromResponse, startLocalTimer, restoreFromLocalStorage]);
 
   // 🎯 新增：调试信息获取 (兼容SimplifiedTimer)
   const getDebugInfo = useCallback(() => {

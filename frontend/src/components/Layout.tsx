@@ -38,6 +38,11 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+// 类型守卫：检测是否包含 type 字段
+const hasTypeField = (e: unknown): e is { type?: string } => {
+  return typeof e === 'object' && e !== null && 'type' in (e as any);
+};
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,13 +157,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         console.error('Failed to fetch user profile:', error);
         
         // Check if it's an authentication error
-        if (error && typeof error === 'object' && 'type' in error) {
-          if ((error as unknown).type === 'AUTHENTICATION') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('currentUser');
-            navigate('/login');
-            return;
-          }
+        if (hasTypeField(error) && error.type === 'AUTHENTICATION') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
+          navigate('/login');
+          return;
         }
         
         // For other errors, don't redirect but show a fallback

@@ -1,4 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
+import { MCPPermissionManager, requiresPermission } from './permission-manager.js';
 
 // 类型定义
 interface Task {
@@ -81,6 +82,7 @@ interface TimerData {
 export class TaskMCPServer {
   private apiBase: string;
   private authToken?: string;
+  private permissionManager: MCPPermissionManager;
 
   constructor(apiBase: string = 'http://localhost:8080/api/v1') {
     this.apiBase = apiBase;
@@ -89,6 +91,19 @@ export class TaskMCPServer {
     if (token && token.trim().length > 0) {
       this.authToken = token.trim();
     }
+
+    // 初始化权限管理器
+    this.permissionManager = new MCPPermissionManager(
+      apiBase, 
+      this.authToken,
+      {
+        enablePermissionCheck: process.env.MCP_ENABLE_PERMISSIONS !== 'false', // 默认启用
+        cachePermissions: process.env.MCP_CACHE_PERMISSIONS !== 'false',       // 默认启用缓存
+        cacheTTL: parseInt(process.env.MCP_PERMISSION_CACHE_TTL || '300'),     // 默认5分钟
+        strictMode: process.env.MCP_STRICT_PERMISSIONS === 'true',             // 默认非严格模式
+        debugMode: process.env.MCP_DEBUG_PERMISSIONS === 'true'                // 默认关闭调试
+      }
+    );
   }
 
   private getHeaders(): Record<string, string> {
@@ -99,58 +114,75 @@ export class TaskMCPServer {
     return headers;
   }
 
-  // 辅助方法：通过ID查找任务
+  // 辅助方法：通过ID查找任务（避免分页丢失，优先使用全局过滤端点）
   async findTaskById(id: number): Promise<Task> {
     try {
-      // 首先尝试从项目1获取任务列表 (大部分任务都在项目1中)
-      const response1 = await axios.get(`${this.apiBase}/projects/1/tasks`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      
-      const tasks1 = response1.data.data?.data || [];
-      const task1 = tasks1.find((t: Task) => t.id === id);
-      
-      if (task1) {
-        return task1;
+      // 1) 优先使用全局任务列表端点带精确过滤，避免分页导致的遗漏
+      //    支持查询参数 task_id，且可显式限制 page_size=1 以提升效率
+      try {
+        const resp = await axios.get(`${this.apiBase}/tasks`, {
+          headers: this.getHeaders(),
+          params: { task_id: id, page: 1, page_size: 1 },
+          proxy: false
+        });
+        const payload = resp.data?.data || resp.data || {};
+        const list: Task[] = (payload.data as Task[]) || [];
+        if (Array.isArray(list) && list.length > 0) {
+          return list[0];
+        }
+      } catch (e: any) {
+        // 记录但不直接失败，进入回退逻辑
+        console.error(`[WARNING] 通过 /tasks?task_id= 查询任务失败，尝试回退查找: ${e?.message || e}`);
       }
-      
-      // 如果在项目1中没有找到，尝试在其他项目中查找
-      const projectsResponse = await axios.get(`${this.apiBase}/projects`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      
-      const projects = projectsResponse.data.data?.data || [];
-      
-      for (const project of projects) {
-        if (project.id === 1) continue; // 已经检查过项目1
-        
+
+      // 2) 回退方案：遍历项目，但带 task_id 过滤并使用较大 page_size，避免遗漏
+      //    先尝试项目 1（常见默认项目），再遍历其它项目
+      const tryFetchFromProject = async (projectId: number): Promise<Task | null> => {
         try {
-          const tasksResponse = await axios.get(`${this.apiBase}/projects/${project.id}/tasks`, {
+          const r = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
             headers: this.getHeaders(),
+            params: { task_id: id, page: 1, page_size: 1000 },
             proxy: false
           });
-          
-          const tasks = tasksResponse.data.data?.data || [];
-          const task = tasks.find((t: Task) => t.id === id);
-          
-          if (task) {
-            return task;
+          const p = r.data?.data || r.data || {};
+          const arr: Task[] = (p.data as Task[]) || [];
+          if (Array.isArray(arr) && arr.length > 0) {
+            return arr[0];
           }
-        } catch (projectError: any) {
-          // 忽略单个项目的错误，继续查找其他项目
-          console.error(`[WARNING] 无法获取项目 ${project.id} 的任务列表: ${projectError.message}`);
+          return null;
+        } catch (err: any) {
+          console.error(`[WARNING] 获取项目 ${projectId} 的任务失败: ${err?.message || err}`);
+          return null;
         }
+      };
+
+      const fromProject1 = await tryFetchFromProject(1);
+      if (fromProject1) return fromProject1;
+
+      // 获取项目列表并遍历（排除项目1）
+      try {
+        const projectsResponse = await axios.get(`${this.apiBase}/projects`, {
+          headers: this.getHeaders(),
+          proxy: false
+        });
+        const projects = projectsResponse.data?.data?.data || projectsResponse.data?.data || [];
+        for (const project of projects) {
+          if (!project || typeof project.id !== 'number' || project.id === 1) continue;
+          const found = await tryFetchFromProject(project.id);
+          if (found) return found;
+        }
+      } catch (pe: any) {
+        console.error(`[WARNING] 获取项目列表失败: ${pe?.message || pe}`);
       }
-      
+
       throw new Error(`任务 ID ${id} 不存在`);
     } catch (error: any) {
-      throw new Error(`查找任务失败: ${error.message}`);
+      throw new Error(`查找任务失败: ${error?.response?.data?.error || error?.message || String(error)}`);
     }
   }
 
   // 创建任务
+  @requiresPermission('create_task')
   async createTask(title: string, projectId: number = 1, options: CreateTaskOptions = {}): Promise<ApiResponse<Task>> {
     try {
       console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}${options.parent_id ? `, 父任务ID: ${options.parent_id}` : ''}`);
@@ -224,6 +256,7 @@ export class TaskMCPServer {
   }
 
   // 开始任务
+  @requiresPermission('start_task')
   async startTask(id: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 开始任务: ID ${id}`);
@@ -258,6 +291,7 @@ export class TaskMCPServer {
   }
 
   // 完成任务
+  @requiresPermission('complete_task')
   async completeTask(id: number): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 完成任务: ID ${id}`);
@@ -632,6 +666,7 @@ export class TaskMCPServer {
   }
 
   // 删除任务
+  @requiresPermission('delete_task')
   async deleteTask(id: number, force: boolean = false): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 删除任务: ID ${id}, 强制删除: ${force}`);
@@ -699,6 +734,7 @@ export class TaskMCPServer {
   }
 
   // 更新任务信息
+  @requiresPermission('update_task')
   async updateTask(id: number, updates: UpdateTaskData): Promise<ApiResponse<Task>> {
     try {
       console.error(`[DEBUG] 更新任务: ID ${id}, 更新字段: ${Object.keys(updates).join(', ')}`);
@@ -892,6 +928,7 @@ export class TaskMCPServer {
   }
 
   // 始终创建并关联任务文档（不走更新路径）
+  @requiresPermission('create-and-attach')
   async createAndAttachTaskDocument(taskId: number, content: string, projectId: number = 1, title?: string): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 创建并关联任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
@@ -963,6 +1000,7 @@ export class TaskMCPServer {
   }
 
   // 获取任务文档内容（使用统一文档API）
+  @requiresPermission('get_task_document')
   async getTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
       console.error(`[DEBUG] 获取任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
@@ -1270,6 +1308,7 @@ export class TaskMCPServer {
   }
 
   // 2. 查看项目列表
+  @requiresPermission('list_projects')
   async listProjects(): Promise<ApiResponse<{ projects: Project[] }>> {
     try {
       console.error(`[DEBUG] 获取项目列表`);
@@ -1303,6 +1342,7 @@ export class TaskMCPServer {
   }
 
   // 3. 创建新项目
+  @requiresPermission('create_project')
   async createProject(name: string, description?: string): Promise<ApiResponse<Project>> {
     try {
       console.error(`[DEBUG] 创建新项目: ${name}`);
@@ -1836,6 +1876,7 @@ export class TaskMCPServer {
   // 📝 工作笔记管理功能
 
   // 创建工作笔记
+  @requiresPermission('create_work_note')
   async createWorkNote(title: string, content: string, options: {
     type?: string,
     tags?: string[],
@@ -1878,6 +1919,7 @@ export class TaskMCPServer {
   }
 
   // 列出工作笔记
+  @requiresPermission('list_work_notes')
   async listWorkNotes(options: {
     page?: number,
     limit?: number,
@@ -1946,6 +1988,7 @@ export class TaskMCPServer {
   }
 
   // 获取工作笔记详情
+  @requiresPermission('get_work_note')
   async getWorkNote(id: number) {
     try {
       const response = await axios.get(`${this.apiBase}/work-notes/${id}`, {

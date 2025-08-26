@@ -17,6 +17,7 @@ type AllHandlers struct {
 	PermissionHandler         *handlers.PermissionHandler
 	UserManagementHandler     *handlers.UserManagementHandler
 	CompanyUserHandler        *handlers.CompanyUserHandler
+	UserStatsHandler          *handlers.UserStatsHandler.UserStatsHandler
 
 	// 文档管理处理器
 	DocumentHandler             *handlers.DocumentHandler

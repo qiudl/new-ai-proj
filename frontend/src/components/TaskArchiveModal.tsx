@@ -49,7 +49,10 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
       form.resetFields();
       onSuccess();
     } catch (error: Error | unknown) {
-      message.error(error.message || '归档失败');
+      const errMsg = (error && typeof error === 'object' && 'message' in (error as any))
+        ? ((error as any).message as string)
+        : '归档失败';
+      message.error(errMsg);
     } finally {
       setLoading(false);
     }

@@ -375,16 +375,6 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     setConvertingNote(null);
   };
 
-  const handleCopyNote = async (note: WorkNote) => {
-    try {
-      await workNotesService.copyWorkNote(note.id);
-      message.success('复制成功');
-      loadWorkNotes();
-    } catch (error) {
-      message.error('复制失败');
-    }
-  };
-
   // 渲染状态标签
   const renderStatusTag = (status: string) => {
     const statusConfig = {

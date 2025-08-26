@@ -59,7 +59,10 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
       // Debug log
     } catch (error: Error | unknown) {
       console.error('Error loading root tasks:', error);
-      message.error(error.message || '获取任务列表失败');
+      const errMsg = (error && typeof error === 'object' && 'message' in (error as any))
+        ? ((error as any).message as string)
+        : '获取任务列表失败';
+      message.error(errMsg);
       // Set empty array on error
       setTasks([]);
     }
@@ -115,7 +118,10 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
       setExpandedKeys(prev => new Set(prev).add(parentTask.id));
     } catch (error: Error | unknown) {
       console.error('Error loading task children:', error);
-      message.error(error.message || '获取子任务失败');
+      const errMsg = (error && typeof error === 'object' && 'message' in (error as any))
+        ? ((error as any).message as string)
+        : '获取子任务失败';
+      message.error(errMsg);
     } finally {
       setLoadingChildren(prev => {
         const newSet = new Set(prev);

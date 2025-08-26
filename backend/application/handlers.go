@@ -204,6 +204,10 @@ func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandl
 	return app.handlers.UserManagementHandler
 }
 
+func (app *Application) GetUserStatsHandler() *handlers.UserStatsHandler {.UserStatsHandler {
+	return app.handlers.UserStatsHandler
+}
+
 func (app *Application) GetUserProfileHandlerInstance() *handlers.UserProfileHandler {
 	return app.handlers.UserProfileHandler
 }
