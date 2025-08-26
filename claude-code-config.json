@@ -1,11 +1,12 @@
 {
   "mcpServers": {
-    "task-manager": {
-      "command": "npx",
-      "args": ["tsx", "./mcp-task-bridge/index.ts"],
+    "ai-proj": {
+      "command": "node",
+      "args": ["./mcp-task-bridge/dist/index.js"],
       "env": {
         "NODE_ENV": "development"
-      }
+      },
+      "cwd": "/Users/johnqiu/coding/www/projects/new-ai-proj"
     }
   }
 }

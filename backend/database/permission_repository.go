@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -13,6 +15,10 @@ import (
 // PostgresPermissionRepository implements PermissionRepository for PostgreSQL
 type PostgresPermissionRepository struct {
 	db interface{}
+	// super admin feature via env
+	superAdminEnabled bool
+	superAdminIDs     map[int]struct{}
+	superAdminEmails  map[string]struct{}
 }
 
 // getExecer returns the appropriate execer (DB or Tx)
@@ -25,7 +31,9 @@ func (r *PostgresPermissionRepository) getExecer() execer {
 
 // NewPermissionRepository creates a new permission repository
 func NewPermissionRepository(db interface{}) PermissionRepository {
-	return &PostgresPermissionRepository{db: db}
+	repo := &PostgresPermissionRepository{db: db}
+	repo.initSuperadminFromEnv()
+	return repo
 }
 
 // GetRoles retrieves all company roles
@@ -508,7 +516,7 @@ func (r *PostgresPermissionRepository) checkRolePermissions(ctx context.Context,
 // isAdminUser checks whether the given company user is an admin/super_admin or system admin
 func (r *PostgresPermissionRepository) isAdminUser(ctx context.Context, exec execer, companyUserID int) (bool, string) {
 	query := `
-		SELECT r.role_code, u.role
+		SELECT r.role_code, u.role, u.id, u.email
 		FROM company_users cu
 		LEFT JOIN company_roles r ON cu.role_id = r.id
 		LEFT JOIN users u ON cu.user_id = u.id
@@ -516,8 +524,25 @@ func (r *PostgresPermissionRepository) isAdminUser(ctx context.Context, exec exe
 
 	var roleCode sql.NullString
 	var userRole sql.NullString
-	if err := exec.QueryRowContext(ctx, query, companyUserID).Scan(&roleCode, &userRole); err != nil {
+	var userID sql.NullInt32
+	var userEmail sql.NullString
+	if err := exec.QueryRowContext(ctx, query, companyUserID).Scan(&roleCode, &userRole, &userID, &userEmail); err != nil {
 		return false, ""
+	}
+
+	// Env-based superadmin override
+	if r.superAdminEnabled {
+		if userID.Valid {
+			if _, ok := r.superAdminIDs[int(userID.Int32)]; ok {
+				return true, "env_superadmin:user_id"
+			}
+		}
+		if userEmail.Valid {
+			email := strings.ToLower(strings.TrimSpace(userEmail.String))
+			if _, ok := r.superAdminEmails[email]; ok && email != "" {
+				return true, "env_superadmin:email"
+			}
+		}
 	}
 
 	if roleCode.Valid && (roleCode.String == "super_admin" || roleCode.String == "admin") {
@@ -1139,4 +1164,66 @@ func (r *PostgresPermissionRepository) AnalyzePermissionConflicts(ctx context.Co
 // Helper function to marshal custom fields - this should be shared utility
 func marshalCustomFields(data interface{}) ([]byte, error) {
 	return json.Marshal(data)
+}
+
+// initSuperadminFromEnv initializes superadmin feature from environment variables
+// Supported env vars:
+// - FEATURE_SUPERADMIN_ENABLE: "true"/"false" (default: false)
+// - SUPER_ADMIN_IDS: comma-separated numeric user IDs
+// - SUPER_ADMIN_EMAILS: comma-separated emails
+// - SUPER_ADMINS: comma-separated list of emails and/or numeric IDs
+func (r *PostgresPermissionRepository) initSuperadminFromEnv() {
+	enabledVal := strings.ToLower(strings.TrimSpace(os.Getenv("FEATURE_SUPERADMIN_ENABLE")))
+	switch enabledVal {
+	case "1", "true", "yes", "y", "on":
+		r.superAdminEnabled = true
+	default:
+		r.superAdminEnabled = false
+	}
+
+	r.superAdminIDs = make(map[int]struct{})
+	r.superAdminEmails = make(map[string]struct{})
+
+	// Helper to parse CSV list
+	parseCSV := func(val string) []string {
+		if val == "" {
+			return nil
+		}
+		parts := strings.Split(val, ",")
+		out := make([]string, 0, len(parts))
+		for _, p := range parts {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
+	}
+
+	// SUPER_ADMIN_IDS
+	for _, idStr := range parseCSV(os.Getenv("SUPER_ADMIN_IDS")) {
+		if id, err := strconv.Atoi(idStr); err == nil {
+			r.superAdminIDs[id] = struct{}{}
+		}
+	}
+
+	// SUPER_ADMIN_EMAILS
+	for _, email := range parseCSV(os.Getenv("SUPER_ADMIN_EMAILS")) {
+		email = strings.ToLower(strings.TrimSpace(email))
+		if email != "" {
+			r.superAdminEmails[email] = struct{}{}
+		}
+	}
+
+	// SUPER_ADMINS (mixed list)
+	for _, token := range parseCSV(os.Getenv("SUPER_ADMINS")) {
+		if id, err := strconv.Atoi(token); err == nil {
+			r.superAdminIDs[id] = struct{}{}
+			continue
+		}
+		email := strings.ToLower(strings.TrimSpace(token))
+		if email != "" {
+			r.superAdminEmails[email] = struct{}{}
+		}
+	}
 }

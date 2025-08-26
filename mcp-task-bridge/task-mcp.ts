@@ -268,7 +268,8 @@ export class TaskMCPServer {
         project_id: task.project_id,
         status: 'in_progress',
         description: task.description,
-        parent_id: task.parent_id
+        parent_id: task.parent_id,
+        custom_fields: task.custom_fields
       }, {
         headers: this.getHeaders(),
         proxy: false
@@ -303,7 +304,8 @@ export class TaskMCPServer {
         project_id: task.project_id,
         status: 'completed',
         description: task.description,
-        parent_id: task.parent_id
+        parent_id: task.parent_id,
+        custom_fields: task.custom_fields
       }, {
         headers: this.getHeaders(),
         proxy: false
@@ -337,7 +339,8 @@ export class TaskMCPServer {
         project_id: task.project_id,
         status: task.status,
         description: task.description,
-        parent_id: task.parent_id
+        parent_id: task.parent_id,
+        custom_fields: task.custom_fields
       }, {
         headers: this.getHeaders(),
         proxy: false
@@ -371,7 +374,8 @@ export class TaskMCPServer {
         project_id: task.project_id,
         status: task.status,
         description: newDescription,
-        parent_id: task.parent_id
+        parent_id: task.parent_id,
+        custom_fields: task.custom_fields
       }, {
         headers: this.getHeaders(),
         proxy: false
@@ -397,12 +401,15 @@ export class TaskMCPServer {
   async listTasks(projectId?: number): Promise<ApiResponse<{ tasks: Task[]; total: number }>> {
     try {
       console.error(`[DEBUG] 获取任务列表, 项目ID: ${projectId}`);
-      const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks`, {
+      const url = (typeof projectId === 'number' && !isNaN(projectId))
+        ? `${this.apiBase}/projects/${projectId}/tasks`
+        : `${this.apiBase}/tasks`;
+      const response = await axios.get(url, {
         headers: this.getHeaders(),
         proxy: false
       });
       
-      const tasks = response.data.data?.data || [];
+      const tasks = response.data?.data?.data || response.data?.data || [];
       
       return {
         success: true,
@@ -1278,11 +1285,11 @@ export class TaskMCPServer {
         };
       }
       
-      // 更新状态为暂停 (使用pending状态表示暂停)
+      // 更新状态为暂停 (使用 on_hold 表示暂停)
       const updateResponse = await axios.put(`${this.apiBase}/projects/${task.project_id}/tasks/${id}`, {
         title: task.title,
         project_id: task.project_id,
-        status: 'pending',
+        status: 'on_hold',
         description: task.description,
         parent_id: task.parent_id,
         custom_fields: task.custom_fields
@@ -1295,7 +1302,7 @@ export class TaskMCPServer {
         success: true,
         id,
         title: task.title,
-        status: 'pending',
+        status: 'on_hold',
         message: `⏸️ 任务 "${task.title}" 已暂停`
       };
     } catch (error: any) {
