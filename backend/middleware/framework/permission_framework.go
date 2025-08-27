@@ -2,7 +2,6 @@ package framework
 
 import (
 	"ai-project-backend/database"
-	"ai-project-backend/middleware"
 	"ai-project-backend/security"
 	"context"
 	"fmt"

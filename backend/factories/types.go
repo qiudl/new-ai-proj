@@ -15,6 +15,7 @@ type AllHandlers struct {
 	CompanyHandler            *handlers.CompanyHandler
 	ProjectHandler            *handlers.ProjectHandler
 	PermissionHandler         *handlers.PermissionHandler
+	PermissionSystemHandler   *handlers.PermissionSystemHandler
 	RoleManagementHandler     *handlers.RoleManagementHandler
 	UserManagementHandler     *handlers.UserManagementHandler
 	CompanyUserHandler        *handlers.CompanyUserHandler

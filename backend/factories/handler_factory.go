@@ -49,6 +49,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
 	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
+	allHandlers.PermissionSystemHandler = handlers.NewPermissionSystemHandler(f.db.GetDB(), f.logger, f.validate)
 	// 角色管理处理器
 	allHandlers.RoleManagementHandler = handlers.NewRoleManagementHandler(f.db.Permissions())
 	

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"fmt"
 
 	"ai-project-backend/models"
 )
@@ -104,13 +105,39 @@ func (a *DocumentRepositoryAdapter) GetListWithRelations(ctx context.Context, pr
 
 // GetAllDocumentsWithRelations 获取所有带关联的文档
 func (a *DocumentRepositoryAdapter) GetAllDocumentsWithRelations(ctx context.Context, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error) {
-	_, total, err := a.newRepo.List(ctx, filter)
+	// 设置默认分页参数
+	if filter.Limit <= 0 {
+		filter.Limit = 10 // 默认每页10条
+	}
+	if filter.Page <= 0 {
+		filter.Page = 1 // 默认第1页
+	}
+
+	documents, total, err := a.newRepo.List(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
 	
-	// 同样的问题，暂时返回空切片
-	return []*models.DocumentListResponse{}, total, nil
+	// 调试日志
+	fmt.Printf("[DEBUG] GetAllDocumentsWithRelations: filter=%+v, documents_count=%d, total=%d\n", filter, len(documents), total)
+	
+	// 转换为 DocumentListResponse 格式
+	// 注意：基于接口定义，这应该返回单个文档项的切片，而不是包含整个列表的响应
+	// 但由于现有接口定义有问题，我们先按现有的来实现
+	response := &models.DocumentListResponse{
+		Documents: make([]models.Document, len(documents)),
+		Total:     total,
+		Page:      filter.Page,
+		PageSize:  filter.Limit,
+	}
+	
+	// 复制文档数据
+	for i, doc := range documents {
+		response.Documents[i] = *doc
+	}
+	
+	// 返回包含单个响应项的切片
+	return []*models.DocumentListResponse{response}, total, nil
 }
 
 // Search 搜索文档

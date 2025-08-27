@@ -110,7 +110,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
         data = await workNotesService.listWorkNotes();
       }
       
-      let filteredNotes = data.documents;
+      let filteredNotes = data?.documents || [];
       
       // 应用筛选条件
       if (statusFilter !== 'all') {
@@ -143,12 +143,13 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       setWorkNotes(filteredNotes);
       
       // 更新统计信息
+      const allDocuments = data?.documents || [];
       setStats({
-        total: data.documents.length,
-        published: data.documents.filter(n => n.status === 'published').length,
-        drafts: data.documents.filter(n => n.status === 'draft').length,
-        templates: data.documents.filter(n => n.is_template).length,
-        favorites: data.documents.filter(n => n.is_template).length,
+        total: allDocuments.length,
+        published: allDocuments.filter(n => n.status === 'published').length,
+        drafts: allDocuments.filter(n => n.status === 'draft').length,
+        templates: allDocuments.filter(n => n.is_template).length,
+        favorites: allDocuments.filter(n => n.is_template).length,
       });
       
     } catch (error) {

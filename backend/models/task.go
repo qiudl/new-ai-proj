@@ -144,6 +144,9 @@ type Task struct {
 	EstimatedHours    *float64     `json:"estimated_hours" db:"estimated_hours"`
 	Priority          string       `json:"priority" db:"priority" validate:"oneof=low medium high"`
 	Tags              Tags         `json:"tags" db:"tags"`
+	// ltree hierarchy fields
+	Path              *string      `json:"path,omitempty" db:"path"`
+	Depth             int          `json:"depth" db:"depth"`
 	CreatedAt         time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time    `json:"updated_at" db:"updated_at"`
 	DeletedAt         *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`

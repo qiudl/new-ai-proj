@@ -146,7 +146,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to create work note');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error creating work note:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to create work note');
@@ -165,7 +165,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to get work note');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error getting work note:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get work note');
@@ -185,7 +185,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to update work note');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error updating work note:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to update work note');
@@ -226,7 +226,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to list work notes');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error listing work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to list work notes');
@@ -250,7 +250,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to search work notes');
       }
       
-      return response.data.documents;
+      return response.data.data.documents;
     } catch (error: any) {
       console.error('Error searching work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to search work notes');
@@ -270,7 +270,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to copy work note');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error copying work note:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to copy work note');
@@ -290,7 +290,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to toggle template');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error toggling template:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to toggle template');
@@ -317,7 +317,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to get folder work notes');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error getting folder work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder work notes');
@@ -341,7 +341,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to convert work note to task document');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error converting work note to task document:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to convert work note');
@@ -361,7 +361,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to get conversion preview');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error getting conversion preview:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get conversion preview');
@@ -381,7 +381,7 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to batch convert work notes');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: any) {
       console.error('Error batch converting work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to batch convert work notes');

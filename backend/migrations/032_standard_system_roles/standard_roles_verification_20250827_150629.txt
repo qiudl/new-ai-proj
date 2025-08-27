@@ -1,0 +1,23 @@
+标准系统角色验证报告
+生成时间: Wed Aug 27 15:06:29 CST 2025
+数据库: ai_project_db
+
+=== 角色创建状态 ===
+superadmin: 创建成功
+system_admin: 创建成功
+system_operator: 创建成功
+system_auditor: 创建成功
+system_support: 创建成功
+system_guest: 创建成功
+
+=== 详细权限信息 ===
+    role_code    | role_name  |               role_description               | permission_count 
+-----------------+------------+----------------------------------------------+------------------
+ superadmin      | 超级管理员 | 拥有系统所有权限的最高级别管理员，无权限限制 |               32
+ system_admin    | 系统管理员 | 系统管理员，负责系统配置和用户管理           |               12
+ system_auditor  | 系统审计员 | 系统审计员，负责安全审计和合规检查           |                3
+ system_guest    | 系统访客   | 系统访客，只有基础的查看权限                 |                1
+ system_operator | 系统操作员 | 系统操作员，负责日常操作和监控               |                6
+ system_support  | 系统支持员 | 系统支持员，负责技术支持和故障排除           |                3
+(6 rows)
+

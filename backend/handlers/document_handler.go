@@ -217,6 +217,9 @@ func (h *DocumentHandler) DevCreateWorkNote(c *gin.Context) {
 
 // GetDocuments 获取文档列表
 func (h *DocumentHandler) GetDocuments(c *gin.Context) {
+	fmt.Printf("[WORK_NOTES_DEBUG] GetDocuments called with query params: %s\n", c.Request.URL.RawQuery)
+	fmt.Printf("[WORK_NOTES_DEBUG] Method: %s, Path: %s\n", c.Request.Method, c.Request.URL.Path)
+	
 	filter := &models.DocumentFilter{}
 
 	// 解析查询参数
@@ -245,16 +248,22 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		}
 	}
 
+	// 设置分页默认值
+	page := 1
 	if pageStr := c.Query("page"); pageStr != "" {
-		if page, err := strconv.Atoi(pageStr); err == nil {
-			filter.Page = page
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
 		}
 	}
+	filter.Page = page
+
+	limit := 10
 	if limitStr := c.Query("limit"); limitStr != "" {
-		if limit, err := strconv.Atoi(limitStr); err == nil {
-			filter.Limit = limit
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
 		}
 	}
+	filter.Limit = limit
 
 	documentsWithRelations, total, err := h.docRepo.GetAllDocumentsWithRelations(c.Request.Context(), filter)
 	if err != nil {
@@ -266,11 +275,27 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		return
 	}
 
+	// 调试日志
+	fmt.Printf("[WORK_NOTES_DEBUG] DocumentHandler.GetDocuments: documentsWithRelations_len=%d, total=%d\n", len(documentsWithRelations), total)
+	if len(documentsWithRelations) > 0 {
+		fmt.Printf("[WORK_NOTES_DEBUG] DocumentHandler.GetDocuments: first_item=%+v\n", documentsWithRelations[0])
+	}
+
+	// 提取实际的文档数组 - documentsWithRelations是[]*DocumentListResponse，需要提取其中的Documents
+	var documents []models.Document
+	if len(documentsWithRelations) > 0 && documentsWithRelations[0] != nil {
+		documents = documentsWithRelations[0].Documents
+		fmt.Printf("[WORK_NOTES_DEBUG] DocumentHandler.GetDocuments: extracted_documents_len=%d\n", len(documents))
+		if len(documents) > 0 {
+			fmt.Printf("[WORK_NOTES_DEBUG] DocumentHandler.GetDocuments: first_document=%+v\n", documents[0])
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Documents retrieved successfully",
 		"data": gin.H{
-			"documents": documentsWithRelations,
+			"documents": documents,
 			"total":     total,
 			"page":      filter.Page,
 			"page_size": filter.Limit,
@@ -280,8 +305,47 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 
 // ListWorkNotes 获取工作笔记列表（与前端预期一致的分页结构）
 func (h *DocumentHandler) ListWorkNotes(c *gin.Context) {
+	fmt.Printf("[DEBUG] ListWorkNotes called\n")
 	// 复用 GetDocuments 的逻辑，确保返回 data: {documents,total,page,page_size}
 	h.GetDocuments(c)
+}
+
+// DebugListWorkNotes 调试工作笔记列表问题
+func (h *DocumentHandler) DebugListWorkNotes(c *gin.Context) {
+	filter := &models.DocumentFilter{
+		Page:  1,
+		Limit: 5,
+	}
+	
+	// 直接调用仓库方法进行调试
+	documentsWithRelations, total, err := h.docRepo.GetAllDocumentsWithRelations(c.Request.Context(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": err.Error(),
+		})
+		return
+	}
+
+	// 提取文档数据
+	var documents []models.Document
+	if len(documentsWithRelations) > 0 && documentsWithRelations[0] != nil {
+		documents = documentsWithRelations[0].Documents
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"debug": gin.H{
+			"filter":                     filter,
+			"documentsWithRelations_len": len(documentsWithRelations),
+			"total":                      total,
+			"extracted_documents_len":    len(documents),
+		},
+		"data": gin.H{
+			"documents": documents,
+			"total":     total,
+		},
+	})
 }
 
 // GetDocument 获取单个文档

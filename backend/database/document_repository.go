@@ -280,6 +280,9 @@ func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFi
 		offset = (filter.Page - 1) * limit
 	}
 
+	// 添加调试日志
+	fmt.Printf("[DEBUG] document_repository.List: limit=%d, offset=%d, total=%d, whereClause=%s\n", limit, offset, total, whereClause)
+
 	query := fmt.Sprintf(`
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
@@ -327,6 +330,8 @@ func (r *documentRepository) List(ctx context.Context, filter *models.DocumentFi
 
 		documents = append(documents, doc)
 	}
+
+	fmt.Printf("[DEBUG] document_repository.List: found %d documents\n", len(documents))
 
 	return documents, total, nil
 }

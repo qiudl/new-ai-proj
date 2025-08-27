@@ -84,6 +84,7 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetCustomerHandler() *handlers.CustomerHandler
 	GetCompanyHandler() *handlers.CompanyHandler
 	GetPermissionHandler() *handlers.PermissionHandler
+	GetPermissionSystemHandler() *handlers.PermissionSystemHandler
 	GetRoleManagementHandler() *handlers.RoleManagementHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler

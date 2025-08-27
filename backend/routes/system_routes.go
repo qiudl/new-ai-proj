@@ -35,6 +35,11 @@ func RegisterSystemRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 	log.Printf("[DEBUG] About to call registerPermissionManagementRoutes")
 	registerPermissionManagementRoutes(authorized, app)
 	log.Printf("[DEBUG] registerPermissionManagementRoutes completed")
+	
+	// Permission system management routes
+	log.Printf("[DEBUG] About to call registerPermissionSystemManagementRoutes")
+	registerPermissionSystemManagementRoutes(authorized, app)
+	log.Printf("[DEBUG] registerPermissionSystemManagementRoutes completed")
 }
 
 // registerStatisticsRoutes 注册统计相关路由
@@ -288,4 +293,30 @@ func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app Applica
 		// Advanced permission management endpoints for system users
 		// These can be added later for more granular system-level control
 	}
+}
+	// System-level permission management routes (system users only)
+	systemPermissions := authorized.Group("/system/permissions")
+	systemPermissions.Use(middleware.SystemUserOnlyMiddleware())
+	{
+		// Advanced permission management endpoints for system users
+		// These can be added later for more granular system-level control
+	}
+}
+
+// registerPermissionSystemManagementRoutes 注册权限系统管理路由
+func registerPermissionSystemManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] 开始注册权限系统管理路由")
+	
+	// 检查PermissionSystemHandler是否为nil
+	permSystemHandler := app.GetPermissionSystemHandler()
+	if permSystemHandler == nil {
+		log.Printf("[WARNING] PermissionSystemHandler为nil，跳过权限系统路由注册")
+		return
+	}
+	log.Printf("[DEBUG] PermissionSystemHandler已获取，开始注册路由")
+	
+	// 注册权限系统路由
+	RegisterPermissionSystemRoutes(authorized, app)
+	
+	log.Printf("[DEBUG] 权限系统管理路由注册完成")
 }

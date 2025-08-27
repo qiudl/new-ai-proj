@@ -135,6 +135,13 @@ func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationIn
 func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	workNotes := authorized.Group("/work-notes")
 	{
+		// 开发环境辅助端点（非生产环境注册，避免因环境名不一致导致开发期不可用）
+		config := app.GetConfig()
+		if !config.IsProduction() {
+			workNotes.POST("/dev-create", app.GetDocumentHandler().DevCreateWorkNote)
+			workNotes.GET("/debug-work-notes", app.GetDocumentHandler().DebugListWorkNotes)
+		}
+		
 		// 使用标准 DocumentHandler 以保证与前端期望的数据结构一致（包含分页字段）
 		workNotes.GET("", app.GetDocumentHandler().ListWorkNotes)
 		workNotes.POST("", app.GetDocumentHandler().CreateDocument)
@@ -142,11 +149,6 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/:id", app.GetDocumentHandler().GetDocument)
 		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
 		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
-
-		// 开发环境辅助端点（非生产环境注册，避免因环境名不一致导致开发期不可用）
-		config := app.GetConfig()
-		if !config.IsProduction() {
-			workNotes.POST("/dev-create", app.GetDocumentHandler().DevCreateWorkNote)
 		}
 
 		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）

@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
+	"ai-project-backend/models"
 	"github.com/jmoiron/sqlx"
-	"github.com/new-ai-proj/backend/models"
 )
 
 // WorkNoteFolderService 工作笔记文件夹服务

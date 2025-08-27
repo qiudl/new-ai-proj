@@ -251,6 +251,10 @@ func (app *Application) GetPermissionHandler() *handlers.PermissionHandler {
 	return app.handlers.PermissionHandler
 }
 
+func (app *Application) GetPermissionSystemHandler() *handlers.PermissionSystemHandler {
+	return app.handlers.PermissionSystemHandler
+}
+
 func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandler {
 	return app.handlers.RoleManagementHandler
 }
