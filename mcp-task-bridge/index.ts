@@ -98,6 +98,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: 'pause_task',
+        description: '暂停任务',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'number',
+              description: '任务ID'
+            }
+          },
+          required: ['id']
+        }
+      },
+      {
         name: 'list_tasks',
         description: '查看任务列表',
         inputSchema: {
@@ -844,6 +858,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 // 处理工具调用
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  console.error(`[MCP] 收到工具调用请求:`, JSON.stringify(request.params, null, 2));
   let { name, arguments: args } = request.params as any;
 
   // Robust arguments handling: allow stringified JSON
@@ -955,9 +970,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         // 本地回退：若后端无文档或失败，尝试读取 .mcp-documents/task-<id>.md
         if (!result?.success || (result && (result as any).not_found)) {
-          try {
-            const fs = await import('fs');
-            const docPath = join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
+        try {
+          const fs = await import('fs');
+          const candidates = [
+            join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`),
+            join(process.cwd(), 'mcp-documents', `task-${args.taskId}.md`)
+          ];
+          for (const docPath of candidates) {
             if ((fs as any).existsSync(docPath)) {
               const content = (fs as any).readFileSync(docPath, 'utf8');
               result = {
@@ -965,12 +984,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 task_id: args.taskId,
                 project_id: args.projectId,
                 content,
-                message: '文档内容已从本地 .mcp-documents 读取'
+                message: `文档内容已从本地 ${docPath.includes('/.mcp-documents/') ? '.mcp-documents' : 'mcp-documents'} 读取`
               };
+              break;
             }
-          } catch (fallbackErr: any) {
-            // 忽略本地回退错误，保持原始结果
           }
+        } catch (fallbackErr: any) {
+          // 忽略本地回退错误，保持原始结果
+        }
         }
         break;
       
@@ -983,8 +1004,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         // 本地回退检查
         try {
           const fs = await import('fs');
-          const docPath2 = join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`);
-          const hasLocal = (fs as any).existsSync(docPath2);
+          const candidatePaths = [
+            join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`),
+            join(process.cwd(), 'mcp-documents', `task-${args.taskId}.md`)
+          ];
+          const existingPath = candidatePaths.find(p => (fs as any).existsSync(p));
+          const hasLocal = !!existingPath;
           if (hasLocal && (!result?.success || (result && (result as any).has_document === false))) {
             result = {
               success: true,
@@ -992,7 +1017,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               project_id: args.projectId,
               has_document: true,
               document_count: 1,
-              message: `任务 ${args.taskId} 有本地文档（.mcp-documents）`
+              message: `任务 ${args.taskId} 有本地文档（${existingPath && existingPath.includes('/.mcp-documents/') ? '.mcp-documents' : 'mcp-documents'}）`
             };
           } else if (!result?.success && !hasLocal) {
             // 若两边都无，则返回统一格式
@@ -1107,6 +1132,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       case 'dev_quick_login':
+        console.error(`[MCP] 收到 dev_quick_login 调用，用户名: ${args.username}`);
         result = await taskServer.devQuickLogin(args.username as string);
         break;
       
@@ -1148,7 +1174,10 @@ async function main() {
   await server.connect(transport);
   console.error('[MCP] Task MCP Server 已启动');
   console.error('[MCP] 连接到:', apiBaseUrl);
-  console.error('[MCP] 文档存储路径:', join(process.cwd(), '.mcp-documents'));
+  console.error('[MCP] 文档本地回退目录优先级:', [
+    join(process.cwd(), '.mcp-documents'),
+    join(process.cwd(), 'mcp-documents')
+  ]);
 
   // Keep the server alive until stdio is closed by the host
   await new Promise(() => {});

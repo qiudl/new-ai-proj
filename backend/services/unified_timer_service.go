@@ -29,6 +29,7 @@ type UnifiedTimerService interface {
 	GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error)
 	GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error)
 	GetTimerHistory(ctx context.Context, userID int, filter *HistoryFilter) (*TimerHistory, error)
+	GetUserTimerHistory(ctx context.Context, userID int, limit, offset int) ([]interface{}, error)
 	
 	// 智能功能
 	GetSmartSuggestions(ctx context.Context, userID int, context string) ([]*TimerSuggestion, error)
@@ -1403,6 +1404,67 @@ func (s *unifiedTimerServiceImpl) GetTimerHistory(ctx context.Context, userID in
 		PageSize: filter.PageSize,
 		HasMore:  offset+len(records) < total,
 	}, nil
+}
+
+// GetUserTimerHistory 获取用户计时历史（简化版本，用于前端历史显示）
+func (s *unifiedTimerServiceImpl) GetUserTimerHistory(ctx context.Context, userID int, limit, offset int) ([]interface{}, error) {
+	query := `
+		SELECT id, target_type, target_id, target_title, start_time, end_time,
+			   duration_seconds, actual_work_seconds, status, category, description,
+			   project_id, created_at
+		FROM unified_timer_logs 
+		WHERE user_id = $1
+		ORDER BY start_time DESC 
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := s.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []interface{}
+	for rows.Next() {
+		var session = make(map[string]interface{})
+		var projectID sql.NullInt64
+		var endTime sql.NullTime
+		var id, targetID, durationSeconds, actualWorkSeconds int
+		var targetType, targetTitle, status, category, description string
+		var startTime, createdAt time.Time
+
+		err := rows.Scan(
+			&id, &targetType, &targetID, &targetTitle,
+			&startTime, &endTime, &durationSeconds, &actualWorkSeconds,
+			&status, &category, &description,
+			&projectID, &createdAt,
+		)
+		if err != nil {
+			continue
+		}
+
+		session["id"] = id
+		session["target_type"] = targetType
+		session["target_id"] = targetID
+		session["target_title"] = targetTitle
+		session["start_time"] = startTime
+		if endTime.Valid {
+			session["end_time"] = endTime.Time
+		}
+		session["duration_seconds"] = durationSeconds
+		session["actual_work_seconds"] = actualWorkSeconds
+		session["status"] = status
+		session["category"] = category
+		session["description"] = description
+		if projectID.Valid {
+			session["project_id"] = int(projectID.Int64)
+		}
+		session["created_at"] = createdAt
+
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
 }
 
 // GetSmartSuggestions 获取智能建议

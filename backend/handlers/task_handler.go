@@ -1238,3 +1238,256 @@ func getFloat64Value(ptr *float64, defaultValue float64) float64 {
 
 // MoveTask handles moving a task to a different project or parent
 // @Summary Move task to different project or parent
+
+// 独立任务处理方法（跨项目）
+
+// CreateGlobalTask handles POST /api/v1/tasks
+func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
+	var req struct {
+		ProjectID      int          `json:"project_id" binding:"required"`
+		Title          string       `json:"title" binding:"required,min=1,max=255"`
+		Description    string       `json:"description"`
+		Status         string       `json:"status"`
+		Priority       string       `json:"priority"`
+		AssigneeID     *int         `json:"assignee_id"`
+		ParentID       *int         `json:"parent_id"`
+		DueDate        *time.Time   `json:"due_date"`
+		EstimatedHours *float64     `json:"estimated_hours"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
+		return
+	}
+
+	task := &models.Task{
+		ProjectID:     req.ProjectID,
+		Title:         req.Title,
+		Description:   req.Description,
+		Status:        getStringValue(&req.Status, "todo"),
+		Priority:      getStringValue(&req.Priority, "medium"),
+		AssigneeID:    req.AssigneeID,
+		ParentID:      req.ParentID,
+		DueDate:       req.DueDate,
+		EstimatedHours: req.EstimatedHours,
+	}
+
+	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("CREATE_FAILED", "Failed to create task", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusCreated, models.NewSuccessResponse(createdTask, "任务创建成功"))
+}
+
+// GetTaskById handles GET /api/v1/tasks/:id
+func (h *TaskHandler) GetTaskById(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(task, "获取任务成功"))
+}
+
+// UpdateTaskById handles PUT /api/v1/tasks/:id
+func (h *TaskHandler) UpdateTaskById(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	var req models.TaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
+		return
+	}
+
+	// 首先获取现有任务
+	existingTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// 更新字段
+	existingTask.Title = req.Title
+	existingTask.Description = req.Description
+	existingTask.Status = req.Status
+	existingTask.Priority = req.Priority
+	existingTask.AssigneeID = req.AssigneeID
+	existingTask.ParentID = req.ParentID
+	existingTask.DueDate = req.DueDate
+	existingTask.EstimatedHours = req.EstimatedHours
+
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("UPDATE_FAILED", "Failed to update task", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务更新成功"))
+}
+
+// DeleteTaskById handles DELETE /api/v1/tasks/:id
+func (h *TaskHandler) DeleteTaskById(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	err = h.db.Tasks().Delete(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DELETE_FAILED", "Failed to delete task", err.Error()))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "任务删除成功"))
+}
+
+// UpdateTaskStatus handles PATCH /api/v1/tasks/:id/status
+func (h *TaskHandler) UpdateTaskStatus(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	var req struct {
+		Status string `json:"status" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
+		return
+	}
+
+	// 首先获取现有任务
+	existingTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// 更新状态
+	existingTask.Status = req.Status
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("UPDATE_FAILED", "Failed to update task status", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务状态更新成功"))
+}
+
+// MoveTaskById handles POST /api/v1/tasks/:id/move
+func (h *TaskHandler) MoveTaskById(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	var req struct {
+		ProjectID *int `json:"project_id"`
+		ParentID  *int `json:"parent_id"`
+		Position  *int `json:"position"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
+		return
+	}
+
+	// 首先获取现有任务
+	existingTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// 更新字段
+	if req.ProjectID != nil {
+		existingTask.ProjectID = *req.ProjectID
+	}
+	if req.ParentID != nil {
+		existingTask.ParentID = req.ParentID
+	}
+	if req.Position != nil {
+		existingTask.SortOrder = *req.Position
+	}
+
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("MOVE_FAILED", "Failed to move task", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务移动成功"))
+}
+
+// ReorderTaskById handles POST /api/v1/tasks/:id/reorder
+func (h *TaskHandler) ReorderTaskById(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	var req struct {
+		Position int `json:"position" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
+		return
+	}
+
+	// 首先获取现有任务
+	existingTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// 更新位置
+	existingTask.SortOrder = req.Position
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("REORDER_FAILED", "Failed to reorder task", err.Error()))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务重排序成功"))
+}

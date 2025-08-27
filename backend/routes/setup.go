@@ -57,22 +57,36 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
 	
+	// 注册基础权限路由
+	RegisterPermissionRoutes(authorized, app)
+	
 	// 注册角色权限管理路由 - 这是我们要测试的核心功能
 	RegisterRoleManagementRoutes(authorized, app)
 	
-	// 注册基础权限路由
+	// 注册增强权限路由
 	RegisterEnhancedPermissionRoutes(authorized, app)
+	
+	// 注册公司管理路由
+	RegisterCompanyRoutes(authorized, app)
 	
 	// 注册项目和任务管理路由
 	fmt.Println("DEBUG: About to call RegisterProjectRoutes")
 	RegisterProjectRoutes(authorized, app)
 	fmt.Println("DEBUG: RegisterProjectRoutes completed")
 	
+	// 注册独立的任务路由
+	fmt.Println("DEBUG: About to call RegisterTaskRoutes")
+	RegisterTaskRoutes(authorized, app)
+	fmt.Println("DEBUG: RegisterTaskRoutes completed")
+	
 	// 注册简化的系统路由（主要是权限相关）
 	RegisterSystemRoutes(authorized, app)
 	
 	// 注册计时器路由
 	RegisterTimerRoutes(authorized, app)
+	
+	// 注册用户路由
+	RegisterUserRoutes(authorized, app)
 	
 	// 注册工作笔记路由 - Temporarily disabled
 	// RegisterWorkNotesRoutes(authorized, app)

@@ -63,6 +63,10 @@ func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 		// Get user ID from claims
 		userID := int(claims.UserID)
 		
+		// DEBUG: Print JWT claims information
+		app.logger.Printf("[DEBUG mapUserToCompanyUser] JWT claims: userID=%d, username=%s, role=%s", 
+			claims.UserID, claims.Username, claims.Role)
+		
 		// Get user information from database to determine user type
 		user, err := app.db.Users().GetByID(c.Request.Context(), userID)
 		if err != nil {
@@ -76,6 +80,10 @@ func (app *Application) mapUserToCompanyUser() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		// DEBUG: Print database user information
+		app.logger.Printf("[DEBUG mapUserToCompanyUser] Database user: id=%d, username=%s, role=%s", 
+			user.ID, user.Username, user.Role)
 
 		// Set basic user context for compatibility
 		c.Set("user_id", userID)

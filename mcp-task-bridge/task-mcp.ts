@@ -220,7 +220,12 @@ export class TaskMCPServer {
         proxy: false
       });
       
-      const task = response.data.data;
+      // 兼容不同后端响应包装格式
+      const payload: any = response?.data?.data ?? response?.data ?? {};
+      const task: any = (payload && (payload.data ?? payload.task ?? payload)) || {};
+      if (task == null || typeof task.id === 'undefined') {
+        throw new Error('创建任务响应格式不符，未找到任务ID');
+      }
       return {
         success: true,
         data: task,
@@ -228,7 +233,7 @@ export class TaskMCPServer {
         title: task.title,
         status: task.status,
         priority: task.custom_fields?.priority || 'low',
-        message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title}" [状态: ${task.status}, 优先级: ${task.custom_fields?.priority || 'low'}]`
+        message: `✅ 任务已创建 (ID: ${task.id}) - "${task.title || title}" [状态: ${task.status ?? 'todo'}, 优先级: ${task.custom_fields?.priority || 'low'}]`
       };
     } catch (error: any) {
       console.error(`[ERROR] 创建任务失败:`, error.response?.data || error.message);
@@ -406,10 +411,22 @@ export class TaskMCPServer {
         : `${this.apiBase}/tasks`;
       const response = await axios.get(url, {
         headers: this.getHeaders(),
-        proxy: false
+        proxy: false,
+        params: { page: 1, page_size: 1000 }
       });
       
-      const tasks = response.data?.data?.data || response.data?.data || [];
+      const raw = response?.data ?? {};
+      const candidates = [
+        raw?.data?.data,
+        raw?.data?.items,
+        raw?.data?.list,
+        raw?.items,
+        raw?.list,
+        raw?.tasks,
+        Array.isArray(raw) ? raw : undefined,
+        raw?.data
+      ];
+      const tasks: any[] = (candidates.find((c: any) => Array.isArray(c)) as any[]) || [];
       
       return {
         success: true,
@@ -1724,17 +1741,30 @@ export class TaskMCPServer {
       const uname = (username || process.env.DEV_LOGIN_USERNAME || 'admin').trim();
       console.error(`[DEBUG] 开发环境快速登录: username=${uname}`);
       const url = `${this.apiBase}/auth/dev-quick-login`;
+      console.error(`[DEBUG] 请求URL: ${url}`);
       // 不强制携带 Authorization，避免使用过期/无效 token 干扰
       const resp = await axios.post(url, { username: uname }, {
         headers: { 'Content-Type': 'application/json' },
         proxy: false
       });
       const payload = resp.data?.data || resp.data || {};
-      const token = payload.token;
+      const token = payload.access_token || payload.token;
       if (!token || typeof token !== 'string') {
         return { success: false, error: '未从响应中获取到 token。请确认后端处于开发模式(APP_ENV=development)且端点可用。' };
       }
       this.authToken = token;
+      // 同步更新权限管理器的认证信息，确保后续权限检查使用最新token
+      const userId = typeof payload.user_id === 'number' 
+        ? payload.user_id 
+        : (payload.user && typeof payload.user.id === 'number' 
+          ? payload.user.id 
+          : (typeof payload.id === 'number' ? payload.id : undefined));
+      try {
+        this.permissionManager.setAuth(token, userId);
+        console.error('[DEBUG] 权限管理器 token 已更新', userId ? `，用户ID: ${userId}` : '');
+      } catch (e) {
+        console.error('[WARN] 更新权限管理器认证信息失败:', (e as any)?.message || e);
+      }
       return {
         success: true,
         token,

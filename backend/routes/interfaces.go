@@ -58,8 +58,22 @@ type ApplicationInterface interface {
 	ReorderTaskHandler() gin.HandlerFunc
 	BulkReorderTasksHandler() gin.HandlerFunc
 
+	// 独立任务处理器（跨项目）
+	GetAllTasksHandler() gin.HandlerFunc
+	CreateGlobalTaskHandler() gin.HandlerFunc
+	GetTaskByIdHandler() gin.HandlerFunc
+	UpdateTaskByIdHandler() gin.HandlerFunc
+	DeleteTaskByIdHandler() gin.HandlerFunc
+	UpdateTaskStatusHandler() gin.HandlerFunc
+	MoveTaskByIdHandler() gin.HandlerFunc
+	ReorderTaskByIdHandler() gin.HandlerFunc
+
 	// 各模块处理器
 	GetArchiveHandler() *handlers.ArchiveHandler
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
 	GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler
+	GetUserProfileHandler() *handlers.UserProfileHandler
+	
+	// 公司管理处理器
+	GetCompanyHandler() *handlers.CompanyHandler
 }

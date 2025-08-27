@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"ai-project-backend/models"
 	"fmt"
 	"github.com/gin-gonic/gin"
 )
@@ -24,31 +23,9 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		auth.GET("/dev/accounts", authHandler.GetDevAccounts)
 	}
 	
-	// 创建需要认证的路由组（简化版认证中间件）
+	// 创建需要认证的路由组（简化版本，暂时不使用中间件）
 	authorized := api.Group("/")
-	authorized.Use(func(c *gin.Context) {
-		// 简化的JWT认证检查
-		token := c.GetHeader("Authorization")
-		if token == "" {
-			c.JSON(401, models.ErrorResponse{
-				Success: false,
-				Error:   &models.APIError{Message: "No authorization token provided"},
-			})
-			c.Abort()
-			return
-		}
-		
-		// 这里应该验证JWT token，但为了快速测试，我们暂时允许任何带token的请求通过
-		// 在实际应用中应该使用 middleware.JWTAuthMiddleware
-		
-		// 设置基本用户信息（用于测试）
-		c.Set("user_id", 1) // 默认用户ID
-		c.Set("username", "admin") // 默认用户名
-		c.Set("user_type", "system") // 默认用户类型
-		c.Set("authenticated", true)
-		
-		c.Next()
-	})
+	// authorized.Use(app.GetMapUserToCompanyUserMiddleware())  // 暂时注释掉
 
 	// 打印调试信息
 	fmt.Printf("✅ 认证路由已注册，返回授权路由组\n")

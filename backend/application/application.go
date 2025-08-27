@@ -27,6 +27,8 @@ type Application struct {
 	// handlers       *factories.AllHandlers // Temporarily disabled
 	authHandler     *handlers.AuthHandler     // Auth handler instance
 	documentHandler *handlers.DocumentHandler // Document handler instance
+	userProfileHandler *handlers.UserProfileHandler // User profile handler instance
+	companyHandler  *handlers.CompanyHandler  // Company handler instance
 	mirrorWritable bool
 }
 
@@ -78,6 +80,12 @@ func NewApplication() (*Application, error) {
 	// Initialize Auth Handler
 	authHandler := handlers.NewAuthHandler(db, cfg.JWT.Secret, jwtTokenService)
 
+	// Initialize User Profile Handler
+	userProfileHandler := handlers.NewUserProfileHandler(db, logger, validate)
+
+	// Initialize Company Handler
+	companyHandler := handlers.NewCompanyHandler(db, logger, validate)
+
 	// Initialize handlers using factory - Temporarily disabled
 	// handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
 	// allHandlers, err := handlerFactory.CreateAllHandlers()
@@ -92,6 +100,8 @@ func NewApplication() (*Application, error) {
 		validator:   validate,
 		jwtManager:  jwtManager,
 		authHandler: authHandler,
+		userProfileHandler: userProfileHandler,
+		companyHandler: companyHandler,
 		// handlers:   allHandlers, // Temporarily disabled
 	}
 
@@ -189,6 +199,16 @@ func (app *Application) GetJWTManager() *utils.JWTManager {
 // GetAuthHandler returns the auth handler
 func (app *Application) GetAuthHandler() *handlers.AuthHandler {
 	return app.authHandler
+}
+
+// GetUserProfileHandler returns the user profile handler
+func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
+	return app.userProfileHandler
+}
+
+// GetCompanyHandler returns the company handler
+func (app *Application) GetCompanyHandler() *handlers.CompanyHandler {
+	return app.companyHandler
 }
 
 // checkMirrorWritable verifies if the optional mirror base path is writable

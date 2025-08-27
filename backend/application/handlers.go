@@ -259,3 +259,44 @@ func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
 func (app *Application) GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler {
 	return handlers.NewUnifiedTimerHandler(app.db)
 }
+
+// 独立任务处理器实现（跨项目）
+func (app *Application) GetAllTasksHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.GetAllTasks
+}
+
+func (app *Application) CreateGlobalTaskHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.CreateGlobalTask
+}
+
+func (app *Application) GetTaskByIdHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.GetTaskById
+}
+
+func (app *Application) UpdateTaskByIdHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.UpdateTaskById
+}
+
+func (app *Application) DeleteTaskByIdHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.DeleteTaskById
+}
+
+func (app *Application) UpdateTaskStatusHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.UpdateTaskStatus
+}
+
+func (app *Application) MoveTaskByIdHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.MoveTaskById
+}
+
+func (app *Application) ReorderTaskByIdHandler() gin.HandlerFunc {
+	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
+	return taskHandler.ReorderTaskById
+}

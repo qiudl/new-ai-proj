@@ -25,11 +25,6 @@ func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app Applica
 	}
 	log.Printf("[DEBUG] PermissionHandler OK: %p", permHandler)
 	
-	// 基础权限管理路由
-	permissions := authorized.Group("/permissions")
-	{
-		// 权限检查端点（所有认证用户可以检查自己的权限）
-		permissions.POST("/check", permHandler.CheckUserPermission)
-		log.Printf("[DEBUG] Registered POST /permissions/check")
-	}
+	// 注意：权限检查路由已在 permission_routes.go 中注册，避免重复注册
+	log.Printf("[DEBUG] Permission check routes already registered in permission_routes.go")
 }

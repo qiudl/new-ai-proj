@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -447,6 +448,150 @@ func (h *UnifiedTimerHandler) HealthCheck(c *gin.Context) {
 			"get_current",
 			"pause_timer",
 			"resume_timer",
+			"history",
 		},
 	})
+}
+
+// GetUserTimerHistory handles GET /api/v1/user/timer/history
+func (h *UnifiedTimerHandler) GetUserTimerHistory(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	ctx := c.Request.Context()
+
+	// Parse pagination parameters
+	limit := 20
+	offset := 0
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		var parsedLimit int
+		if _, err := fmt.Sscanf(limitStr, "%d", &parsedLimit); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		var parsedOffset int
+		if _, err := fmt.Sscanf(offsetStr, "%d", &parsedOffset); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	// Get timer sessions through the service
+	sessions, err := h.timerService.GetUserTimerHistory(ctx, uid, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to get timer history",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"sessions": sessions,
+		"limit":    limit,
+		"offset":   offset,
+	})
+}
+
+// GetRecentTasks handles GET /api/v1/timer/recent-tasks with pagination  
+// Compatible with the existing UniversalTimerWidget frontend expectations
+func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	uid := userID.(int)
+	baseCtx := c.Request.Context()
+
+	// Parse pagination parameters
+	limit := 8 // Default page size
+	offset := 0
+	
+	if limitStr := c.Query("limit"); limitStr != "" {
+		var parsedLimit int
+		if _, err := fmt.Sscanf(limitStr, "%d", &parsedLimit); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+	
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		var parsedOffset int
+		if _, err := fmt.Sscanf(offsetStr, "%d", &parsedOffset); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+	
+	// Add a short timeout to avoid hanging requests (server-side protection)
+	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
+	defer cancel()
+
+	// Get recent tasks with pagination from the database
+	sqlDB := h.db.GetDB().(*sql.DB)
+	
+	query := `
+		SELECT DISTINCT t.id, t.title, p.name as project_name
+		FROM tasks t
+		LEFT JOIN projects p ON t.project_id = p.id
+		LEFT JOIN task_time_logs ttl ON t.id = ttl.task_id
+		WHERE t.assignee_id = $1 
+		  AND t.status != 'completed' 
+		  AND t.status != 'archived'
+		ORDER BY COALESCE(ttl.start_time, t.updated_at) DESC
+		LIMIT $2 OFFSET $3
+	`
+	
+	rows, err := sqlDB.QueryContext(ctx, query, uid, limit, offset)
+	if err != nil {
+		// Graceful fallback: return empty list instead of 504/500 if context deadline exceeded
+		if ctx.Err() == context.DeadlineExceeded {
+			c.JSON(http.StatusOK, gin.H{"tasks": []interface{}{}, "limit": limit, "offset": offset, "count": 0, "note": "timeout"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent tasks", "details": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var tasks []map[string]interface{}
+	for rows.Next() {
+		var taskID int
+		var title string
+		var projectName sql.NullString
+		
+		if err := rows.Scan(&taskID, &title, &projectName); err != nil {
+			continue // Skip invalid rows
+		}
+		
+		task := map[string]interface{}{
+			"id":    taskID,
+			"title": title,
+		}
+		
+		if projectName.Valid {
+			task["project_name"] = projectName.String
+		}
+		
+		tasks = append(tasks, task)
+	}
+
+	if tasks == nil {
+		tasks = []map[string]interface{}{}
+	}
+
+	response := gin.H{
+		"tasks":  tasks,
+		"limit":  limit,
+		"offset": offset,
+		"count":  len(tasks),
+	}
+
+	c.JSON(http.StatusOK, response)
 }
