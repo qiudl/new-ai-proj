@@ -603,6 +603,7 @@ const RoleManagementPage: React.FC = () => {
                   height={600}
                   onPermissionChange={(roleId, permissionId, granted) => {
                     console.log(`Role ${roleId} permission ${permissionId} ${granted ? 'granted' : 'revoked'}`);
+                    message.info(`权限${granted ? '已授予' : '已撤销'}`);
                   }}
                 />
               )

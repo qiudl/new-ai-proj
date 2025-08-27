@@ -82,6 +82,11 @@ handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
 		logger.Printf("Warning: DOCS mirror is enabled but not writable at path: %s", cfg.App.MirrorBasePath)
 	}
 
+	// Initialize permission framework
+	if err := app.initializePermissionFramework(); err != nil {
+		logger.Printf("Warning: Permission framework initialization failed: %v", err)
+	}
+
 	return app, nil
 }
 
@@ -124,12 +129,27 @@ func (app *Application) Run() error {
 	return http.ListenAndServe(":"+port, router)
 }
 
-// Close closes database connections
+// Close closes database connections and permission framework
 func (app *Application) Close() error {
-	if app.db != nil {
-		return app.db.Close()
+	var err error
+	
+	// Close permission framework
+	if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
+		app.logger.Printf("Error closing permission framework: %v", frameworkErr)
+		err = frameworkErr
 	}
-	return nil
+	
+	// Close database
+	if app.db != nil {
+		if dbErr := app.db.Close(); dbErr != nil {
+			app.logger.Printf("Error closing database: %v", dbErr)
+			if err == nil {
+				err = dbErr
+			}
+		}
+	}
+	
+	return err
 }
 
 // GetConfig returns the application config

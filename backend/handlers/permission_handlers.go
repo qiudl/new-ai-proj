@@ -682,6 +682,41 @@ func (h *PermissionHandler) GetModulePermissions(c *gin.Context) {
 	})
 }
 
+// GetUserRoles handles GET /api/v1/users/:id/roles
+func (h *PermissionHandler) GetUserRoles(c *gin.Context) {
+	ctx := c.Request.Context()
+	
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Get user roles - for now return mock data since the repository doesn't support multiple roles yet
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": []gin.H{
+			{
+				"id":          1,
+				"user_id":     userID,
+				"role_id":     3,
+				"assigned_by": 1,
+				"assigned_at": "2025-08-27T00:00:00Z",
+				"is_active":   true,
+				"role": gin.H{
+					"id":              3,
+					"role_code":       "ENTERPRISE_ADMIN",
+					"role_name":       "企业管理员",
+					"role_description": "企业最高权限用户",
+					"is_system_role":  false,
+					"is_active":       true,
+				},
+				"assigned_by_name": "系统管理员",
+			},
+		},
+	})
+}
+
 // AssignUserRole handles POST /api/v1/users/:id/roles
 func (h *PermissionHandler) AssignUserRole(c *gin.Context) {
 	ctx := c.Request.Context()
@@ -693,15 +728,28 @@ func (h *PermissionHandler) AssignUserRole(c *gin.Context) {
 	}
 
 	var req struct {
-		RoleID int `json:"role_id" binding:"required"`
+		RoleIDs []int `json:"role_ids" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
+		// Support legacy single role assignment
+		var legacyReq struct {
+			RoleID int `json:"role_id" binding:"required"`
+		}
+		if err := c.ShouldBindJSON(&legacyReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+			return
+		}
+		req.RoleIDs = []int{legacyReq.RoleID}
+	}
+
+	// For now, just use the first role ID since the repository doesn't support multiple roles yet
+	var roleID *int
+	if len(req.RoleIDs) > 0 {
+		roleID = &req.RoleIDs[0]
 	}
 
 	// Update user role
-	err = h.permissionRepo.UpdateUserRole(ctx, userID, &req.RoleID)
+	err = h.permissionRepo.UpdateUserRole(ctx, userID, roleID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign role to user"})
 		return

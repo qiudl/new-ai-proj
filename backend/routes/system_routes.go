@@ -170,6 +170,7 @@ func registerUserManagementRoutes(authorized *gin.RouterGroup, app ApplicationIn
 		users.DELETE("/google-connection", app.GetGoogleAuthHandler().DisconnectGoogle)
 		
 		// User role management (admin access required)
+		users.GET("/:id/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetUserRoles)
 		users.POST("/:id/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().AssignUserRole)
 		users.DELETE("/:id/roles/:roleId", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().RemoveUserRole)
 	}
