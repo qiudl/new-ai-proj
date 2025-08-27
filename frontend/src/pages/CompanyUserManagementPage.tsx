@@ -21,6 +21,7 @@ import {
   Switch,
   Divider,
   Breadcrumb,
+  Tabs,
 } from 'antd';
 import {
   UserOutlined,
@@ -57,6 +58,7 @@ import {
 import { Company } from '../types/company';
 import CompanyUserService from '../services/companyUserService';
 import companyService from '../services/companyService';
+import CompanyRoleManagement from '../components/CompanyRoleManagement';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -72,6 +74,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   const [stats, setStats] = useState<CompanyUserStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('users');
   
   // Table state
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
@@ -602,49 +605,63 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
         </Row>
       )}
 
-      {/* Main Table Card */}
+      {/* Main Content with Tabs */}
       <Card>
-        {/* Toolbar */}
-        <div style={{ marginBottom: 16 }}>
-          <Row justify="space-between" align="middle" gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-              <Space wrap>
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setCreateModalVisible(true)}
-                >
-                  新建企业用户
-                </Button>
-                {selectedRowKeys.length > 0 && (
-                  <Dropdown menu={batchMenu} placement="bottomLeft">
-                    <Button>
-                      批量操作 ({selectedRowKeys.length}个用户) <DownOutlined />
-                    </Button>
-                  </Dropdown>
-                )}
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    loadUsers();
-                    loadStats();
-                  }}
-                >
-                  刷新
-                </Button>
-                <Button
-                  icon={<ExportOutlined />}
-                  onClick={() => message.info('导出功能开发中...')}
-                >
-                  导出数据
-                </Button>
-              </Space>
-            </Col>
-            <Col xs={24} lg={12}>
-              <Row gutter={[8, 8]} justify="end">
-                <Col xs={24} sm={8}>
-                  <Select
-                    placeholder="选择企业"
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={setActiveTab}
+          items={[
+            {
+              key: 'users',
+              label: (
+                <span>
+                  <UserOutlined />
+                  用户管理
+                </span>
+              ),
+              children: (
+                <>
+                  {/* Toolbar */}
+                  <div style={{ marginBottom: 16 }}>
+                    <Row justify="space-between" align="middle" gutter={[16, 16]}>
+                      <Col xs={24} lg={12}>
+                        <Space wrap>
+                          <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={() => setCreateModalVisible(true)}
+                          >
+                            新建企业用户
+                          </Button>
+                          {selectedRowKeys.length > 0 && (
+                            <Dropdown menu={batchMenu} placement="bottomLeft">
+                              <Button>
+                                批量操作 ({selectedRowKeys.length}个用户) <DownOutlined />
+                              </Button>
+                            </Dropdown>
+                          )}
+                          <Button
+                            icon={<ReloadOutlined />}
+                            onClick={() => {
+                              loadUsers();
+                              loadStats();
+                            }}
+                          >
+                            刷新
+                          </Button>
+                          <Button
+                            icon={<ExportOutlined />}
+                            onClick={() => message.info('导出功能开发中...')}
+                          >
+                            导出数据
+                          </Button>
+                        </Space>
+                      </Col>
+                      <Col xs={24} lg={12}>
+                        <Row gutter={[8, 8]} justify="end">
+                          <Col xs={24} sm={8}>
+                            <Select
+                              placeholder="选择企业"
                     style={{ width: '100%' }}
                     allowClear
                     value={filters.company_id}
@@ -716,6 +733,28 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
           }}
           onChange={handleTableChange}
           scroll={{ x: 1000 }}
+        />
+                </>
+              )
+            },
+            {
+              key: 'roles',
+              label: (
+                <span>
+                  <TeamOutlined />
+                  角色管理
+                </span>
+              ),
+              children: (
+                <CompanyRoleManagement
+                  onRoleUpdate={() => {
+                    loadUsers();
+                    loadStats();
+                  }}
+                />
+              )
+            }
+          ]}
         />
       </Card>
 

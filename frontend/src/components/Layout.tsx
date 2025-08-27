@@ -230,7 +230,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/document-manager') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/permissions') || path.includes('/user-management') || path.includes('/company-user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
+    if (path.includes('/permissions') || path.includes('/role-management') || path.includes('/user-management') || path.includes('/company-user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
       return ['/system-management'];
     }
     return [];
@@ -357,6 +357,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/permissions',
           icon: <SafetyOutlined />,
           label: '权限管理',
+        },
+        {
+          key: '/role-management',
+          icon: <TeamOutlined />,
+          label: '角色管理',
         },
         {
           key: '/ai-config',

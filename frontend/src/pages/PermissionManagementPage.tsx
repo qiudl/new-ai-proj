@@ -330,7 +330,7 @@ const PermissionManagementPage: React.FC = () => {
           <Tag color={isGranted ? 'green' : 'red'}>
             {isGranted ? '是' : '否'}
           </Tag>
-        ) : null
+        ) : <span style={{ color: '#ccc' }}>-</span>
       ),
     },
   ];

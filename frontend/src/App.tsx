@@ -55,6 +55,7 @@ const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
 const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
+const RoleManagementPage = React.lazy(() => import('./pages/RoleManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const CompanyUserManagementPage = React.lazy(() => import('./pages/CompanyUserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
@@ -512,6 +513,27 @@ const AppContent: React.FC = () => {
                 <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
                   <Layout>
                     <EnhancedPermissionManagementPage />
+                  </Layout>
+                </PermissionRoute>
+              </PrivateRoute>
+            } />
+
+            {/* Role management routes */}
+            <Route path="/role-management" element={
+              <PrivateRoute>
+                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <RoleManagementPage />
+                  </Layout>
+                </PermissionRoute>
+              </PrivateRoute>
+            } />
+
+            <Route path="/role-management/:id" element={
+              <PrivateRoute>
+                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                  <Layout>
+                    <RoleManagementPage />
                   </Layout>
                 </PermissionRoute>
               </PrivateRoute>
