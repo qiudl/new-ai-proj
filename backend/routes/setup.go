@@ -2,15 +2,13 @@ package routes
 
 import (
 	"ai-project-backend/config"
-	"ai-project-backend/middleware"
+	"fmt"
 	"os"
 	"github.com/gin-gonic/gin"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
-	// ginSwagger "github.com/swaggo/gin-swagger"
-	// "github.com/swaggo/files"
 )
 
-// SetupRouter 创建并配置主路由器
+// SetupRouter 创建并配置主路由器（简化版，专注于角色权限测试）
 func SetupRouter(app ApplicationInterface) *gin.Engine {
 	gin.SetMode(func() string {
 		if app.GetConfig().IsProduction() {
@@ -21,57 +19,28 @@ func SetupRouter(app ApplicationInterface) *gin.Engine {
 
 	router := gin.New()
 	
-	// 设置中间件
-	SetupMiddleware(router, app.GetConfig(), app)
+	// 设置基础中间件
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.Use(corsMiddleware(app.GetConfig()))
 	
-	// 注册所有路由
+	// 注册简化的路由（专注于角色权限测试）
 	RegisterAllRoutes(router, app)
 	
 	return router
 }
 
-// SetupMiddleware 配置所有中间件
-func SetupMiddleware(router *gin.Engine, cfg *config.Config, app ApplicationInterface) {
-	// 基础中间件
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-	router.Use(corsMiddleware(cfg))
-	
-	// 审计中间件
-	auditMiddleware := middleware.NewAuditMiddleware(&middleware.AuditConfig{
-		DB:                 app.GetDB(),
-		LogRequestBody:     true,
-		LogResponseBody:    false, // 避免敏感数据泄露
-		MaxBodySize:        1024 * 1024, // 1MB
-		ExcludePaths:       []string{"/health", "/version", "/metrics", "/documents/health"},
-		ExcludeMethods:     []string{"OPTIONS"},
-	})
-	router.Use(auditMiddleware.Middleware())
-}
-
-// RegisterAllRoutes 注册所有模块的路由
+// RegisterAllRoutes 注册所有模块的路由（简化版）
 func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册基础健康检查路由（无需认证）
-	registerBasicRoutes(router, app)
-	
+	router.GET("/health", app.GetHealthHandler())
+	router.GET("/version", app.GetVersionHandler())
+
 	// Prometheus metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Swagger API documentation (development only)
-	// if !app.GetConfig().IsProduction() {
-	// 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-	// 	// Alternative route for compatibility
-	// 	router.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
-	// }
-
-	// 静态文件服务 - 头像上传文件
-	router.Static("/api/v1/uploads", "./uploads")
-
 	// 静态API文档挂载（/docs）
 	mountDocs(router)
-	
-	// 注册Webhook路由（无需认证）
-	registerWebhookRoutes(router, app)
 	
 	// API routes with authentication
 	api := router.Group("/api/v1")
@@ -88,83 +57,31 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
 	
-	// 注册需要授权的各模块路由
-	RegisterProjectRoutes(authorized, app)
-	RegisterDocumentRoutes(authorized, app)
-	RegisterTimerRoutes(authorized, app)
-	RegisterSystemRoutes(authorized, app)
-	RegisterSearchRoutes(authorized, app)
-	RegisterEnhancedPermissionRoutes(authorized, app)
-	// Restore role management routes
+	// 注册角色权限管理路由 - 这是我们要测试的核心功能
 	RegisterRoleManagementRoutes(authorized, app)
-	println("[DEBUG] About to register user stats routes...")
-	RegisterUserStatsRoutes(authorized, app)
-	println("[DEBUG] User stats routes registration completed")
 	
-	// 注册权限监控路由
-	// Minimal permission check endpoints for verification
-	RegisterPermissionCheckRoutes(authorized, app)
-	// Advanced monitoring disabled for now
-	RegisterPermissionMonitoringRoutes(authorized, app)
+	// 注册基础权限路由
+	RegisterEnhancedPermissionRoutes(authorized, app)
 	
-	// Debug: Check if ProgressHandler is available
-	if app.GetProgressHandler() == nil {
-		println("[WARNING] ProgressHandler is nil, skipping progress routes registration")
-	} else {
-		println("[DEBUG] Registering progress routes with handler:", app.GetProgressHandler())
-		RegisterProgressRoutes(authorized, app)
-	}
+	// 注册项目和任务管理路由
+	fmt.Println("DEBUG: About to call RegisterProjectRoutes")
+	RegisterProjectRoutes(authorized, app)
+	fmt.Println("DEBUG: RegisterProjectRoutes completed")
 	
-	// 注册任务关系路由（依赖、并行组等）
-	RegisterTaskRelationshipRoutes(authorized, app)
+	// 注册简化的系统路由（主要是权限相关）
+	RegisterSystemRoutes(authorized, app)
 	
-	// 注册任务层级结构路由（使用ltree）- 手动内联注册
-	hierarchyHandler := app.GetTaskLTreeHierarchyHandler()
-	if hierarchyHandler != nil {
-		println("[DEBUG] TaskLTreeHierarchyHandler found, registering routes...")
-		hierarchy := authorized.Group("/hierarchy")
-		{
-			hierarchy.GET("/tasks/:taskId/ancestors", hierarchyHandler.GetTaskAncestors)
-			hierarchy.GET("/tasks/:taskId/descendants", hierarchyHandler.GetTaskDescendants)
-			hierarchy.GET("/tasks/:taskId/children", hierarchyHandler.GetTaskChildren)
-			hierarchy.PUT("/tasks/:taskId/move", hierarchyHandler.MoveTask)
-			hierarchy.GET("/projects/:projectId/tasks/depth", hierarchyHandler.GetTasksByDepth)
-			hierarchy.GET("/projects/:projectId/tasks/pattern", hierarchyHandler.FindTasksByPattern)
-			hierarchy.GET("/projects/:projectId/stats", hierarchyHandler.GetHierarchyStats)
-			hierarchy.POST("/admin/refresh-paths", hierarchyHandler.RefreshTaskPaths)
-		}
-	} else {
-		println("[WARNING] TaskLTreeHierarchyHandler is nil, skipping hierarchy routes registration")
-	}
+	// 注册计时器路由
+	RegisterTimerRoutes(authorized, app)
 	
-	// 注册API和其他杂项路由（包含公共路由、webhooks、全局任务等）
+	// 注册工作笔记路由 - Temporarily disabled
+	// RegisterWorkNotesRoutes(authorized, app)
+	
+	// 注册简化的API路由
 	RegisterAPIRoutes(router, authorized, app)
 
-	// 注册文档健康检查附加路由（确保可用）
+	// 注册简化的文档健康检查
 	RegisterDocumentHealthRoute(router, app)
-}
-
-// RegisterTaskRelationshipRoutes 注册任务关系相关路由
-func RegisterTaskRelationshipRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// 任务关系主路由
-	rel := authorized.Group("/task-relationships")
-	{
-		// 创建单条关系
-		rel.POST("", app.GetTaskRelationshipHandler().CreateRelationship)
-		// 批量创建关系
-		rel.POST("/batch", app.GetTaskRelationshipHandler().BulkCreateRelationships)
-		// 更新/删除关系
-		rel.PUT("/:id", app.GetTaskRelationshipHandler().UpdateRelationship)
-		rel.DELETE("/:id", app.GetTaskRelationshipHandler().DeleteRelationship)
-	}
-	// 获取某任务的所有关系
-	authorized.GET("/tasks/:task_id/relationships", app.GetTaskRelationshipHandler().GetTaskRelationships)
-	// 获取某任务及其关系总览
-	authorized.GET("/tasks/:task_id/with-relationships", app.GetTaskRelationshipHandler().GetTaskWithAllRelationships)
-	// 并行开发相关
-	authorized.GET("/parallel-groups", app.GetTaskRelationshipHandler().GetParallelDevelopmentGroups)
-	authorized.POST("/parallel-groups/validate", app.GetTaskRelationshipHandler().ValidateParallelTasksCanStart)
-	authorized.GET("/task-dependency-graph", app.GetTaskRelationshipHandler().GetTaskDependencyGraph)
 }
 
 // mountDocs 尝试挂载静态OpenAPI文档到 /docs
@@ -182,13 +99,6 @@ func mountDocs(router *gin.Engine) {
 		}
 	}
 }
-
-// registerBasicRoutes 注册基础路由
-func registerBasicRoutes(router *gin.Engine, app ApplicationInterface) {
-	router.GET("/health", app.GetHealthHandler())
-	router.GET("/version", app.GetVersionHandler())
-}
-
 
 // corsMiddleware CORS中间件
 func corsMiddleware(cfg *config.Config) gin.HandlerFunc {

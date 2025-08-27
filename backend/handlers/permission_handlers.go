@@ -684,8 +684,6 @@ func (h *PermissionHandler) GetModulePermissions(c *gin.Context) {
 
 // GetUserRoles handles GET /api/v1/users/:id/roles
 func (h *PermissionHandler) GetUserRoles(c *gin.Context) {
-	ctx := c.Request.Context()
-	
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})

@@ -40,7 +40,7 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.optimized
       target: development
     container_name: ai_backend
     depends_on:

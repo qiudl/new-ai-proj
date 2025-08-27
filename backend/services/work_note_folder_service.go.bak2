@@ -1,0 +1,540 @@
+// Work Note Folder Service - ltree advanced operations
+// High-performance folder tree operations using PostgreSQL ltree
+
+package services
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"ai-project-backend/models"
+	"github.com/jmoiron/sqlx"
+)
+
+// WorkNoteFolderService 工作笔记文件夹服务
+type WorkNoteFolderService struct {
+	db *sqlx.DB
+}
+
+// NewWorkNoteFolderService 创建工作笔记文件夹服务实例
+func NewWorkNoteFolderService(db *sqlx.DB) *WorkNoteFolderService {
+	return &WorkNoteFolderService{
+		db: db,
+	}
+}
+
+// GetFolderAncestors 获取文件夹的所有祖先
+func (s *WorkNoteFolderService) GetFolderAncestors(ctx context.Context, folderID int) ([]models.FolderAncestor, error) {
+	query := `
+		SELECT id, name, path, depth, nlevel(path) as level
+		FROM get_folder_ancestors($1)
+	`
+	
+	var ancestors []models.FolderAncestor
+	err := s.db.SelectContext(ctx, &ancestors, query, folderID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder ancestors: %w", err)
+	}
+	
+	return ancestors, nil
+}
+
+// GetFolderDescendants 获取文件夹的所有后代
+func (s *WorkNoteFolderService) GetFolderDescendants(ctx context.Context, folderID int, maxDepth *int, includeStats bool) ([]models.WorkNoteFolderWithStats, error) {
+	query := `
+		SELECT 
+			id, name, path, depth, parent_folder_id,
+			note_count, total_size as total_size_bytes
+		FROM get_folder_descendants($1, $2, $3)
+	`
+	
+	var descendants []struct {
+		ID               int            `db:"id"`
+		Name             string         `db:"name"`
+		Path             models.LTree   `db:"path"`
+		Depth            int            `db:"depth"`
+		ParentFolderID   *int           `db:"parent_folder_id"`
+		NoteCount        int            `db:"note_count"`
+		TotalSizeBytes   int64          `db:"total_size_bytes"`
+	}
+	
+	err := s.db.SelectContext(ctx, &descendants, query, folderID, maxDepth, includeStats)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder descendants: %w", err)
+	}
+	
+	// 转换为完整的文件夹模型
+	result := make([]models.WorkNoteFolderWithStats, len(descendants))
+	for i, desc := range descendants {
+		// 需要从数据库获取完整信息或使用默认值
+		result[i] = models.WorkNoteFolderWithStats{
+			WorkNoteFolder: models.WorkNoteFolder{
+				ID:               desc.ID,
+				Name:             desc.Name,
+				Path:             desc.Path,
+				Depth:            desc.Depth,
+				ParentFolderID:   desc.ParentFolderID,
+				NoteCountCached:  desc.NoteCount,
+				// 其他字段需要单独查询或设为默认值
+			},
+		}
+	}
+	
+	return result, nil
+}
+
+// SearchFoldersInTree 在文件夹树中搜索
+func (s *WorkNoteFolderService) SearchFoldersInTree(ctx context.Context, query string, rootFolderID *int, maxResults int) ([]models.FolderSearchResult, error) {
+	sqlQuery := `
+		SELECT 
+			id, name, path, depth, note_count,
+			match_type, match_score
+		FROM search_folders_in_tree($1, $2, $3)
+	`
+	
+	var searchResults []struct {
+		ID         int             `db:"id"`
+		Name       string          `db:"name"`
+		Path       models.LTree    `db:"path"`
+		Depth      int             `db:"depth"`
+		NoteCount  int             `db:"note_count"`
+		MatchType  string          `db:"match_type"`
+		MatchScore float64         `db:"match_score"`
+	}
+	
+	err := s.db.SelectContext(ctx, &searchResults, sqlQuery, query, rootFolderID, maxResults)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search folders: %w", err)
+	}
+	
+	// 转换结果
+	result := make([]models.FolderSearchResult, len(searchResults))
+	for i, sr := range searchResults {
+		result[i] = models.FolderSearchResult{
+			WorkNoteFolderWithStats: models.WorkNoteFolderWithStats{
+				WorkNoteFolder: models.WorkNoteFolder{
+					ID:              sr.ID,
+					Name:            sr.Name,
+					Path:            sr.Path,
+					Depth:           sr.Depth,
+					NoteCountCached: sr.NoteCount,
+				},
+			},
+			MatchType:  sr.MatchType,
+			MatchScore: sr.MatchScore,
+		}
+	}
+	
+	return result, nil
+}
+
+// BatchMoveFolders 批量移动文件夹
+func (s *WorkNoteFolderService) BatchMoveFolders(ctx context.Context, folderIDs []int, targetParentID *int, updateSortOrder bool) (*models.FolderOperationResult, error) {
+	// 将Go的[]int转换为PostgreSQL的数组格式
+	folderIDsStr := fmt.Sprintf("{%s}", strings.Join(strings.Fields(fmt.Sprint(folderIDs))[1:len(strings.Fields(fmt.Sprint(folderIDs)))-1], ","))
+	folderIDsStr = strings.ReplaceAll(folderIDsStr, " ", ",")
+	folderIDsStr = fmt.Sprintf("{%s}", strings.Trim(fmt.Sprint(folderIDs), "[]"))
+	folderIDsStr = strings.ReplaceAll(folderIDsStr, " ", ",")
+	
+	query := `
+		SELECT moved_id, success, error_message
+		FROM batch_move_folders($1::integer[], $2, $3)
+	`
+	
+	var results []struct {
+		MovedID      int     `db:"moved_id"`
+		Success      bool    `db:"success"`
+		ErrorMessage *string `db:"error_message"`
+	}
+	
+	err := s.db.SelectContext(ctx, &results, query, folderIDsStr, targetParentID, updateSortOrder)
+	if err != nil {
+		return &models.FolderOperationResult{
+			Success:      false,
+			ErrorMessage: &[]string{fmt.Sprintf("Database error: %v", err)}[0],
+		}, nil
+	}
+	
+	// 处理结果
+	var successfulIDs []int
+	var warnings []string
+	var hasErrors bool
+	
+	for _, result := range results {
+		if result.Success {
+			successfulIDs = append(successfulIDs, result.MovedID)
+		} else {
+			hasErrors = true
+			if result.ErrorMessage != nil {
+				warnings = append(warnings, fmt.Sprintf("Folder %d: %s", result.MovedID, *result.ErrorMessage))
+			}
+		}
+	}
+	
+	return &models.FolderOperationResult{
+		Success:         len(successfulIDs) > 0 && !hasErrors,
+		AffectedIDs:     successfulIDs,
+		WarningMessages: warnings,
+	}, nil
+}
+
+// CalculateFolderUsage 计算文件夹使用统计
+func (s *WorkNoteFolderService) CalculateFolderUsage(ctx context.Context, folderID int) (*models.FolderStatistics, error) {
+	query := `
+		SELECT 
+			folder_id, direct_notes_count, direct_notes_size,
+			total_notes_count, total_notes_size, total_folders_count,
+			last_activity
+		FROM calculate_folder_usage($1)
+	`
+	
+	var usage struct {
+		FolderID            int        `db:"folder_id"`
+		DirectNotesCount    int        `db:"direct_notes_count"`
+		DirectNotesSize     int64      `db:"direct_notes_size"`
+		TotalNotesCount     int        `db:"total_notes_count"`
+		TotalNotesSize      int64      `db:"total_notes_size"`
+		TotalFoldersCount   int        `db:"total_folders_count"`
+		LastActivity        *sql.NullTime `db:"last_activity"`
+	}
+	
+	err := s.db.GetContext(ctx, &usage, query, folderID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("folder %d not found", folderID)
+		}
+		return nil, fmt.Errorf("failed to calculate folder usage: %w", err)
+	}
+	
+	result := &models.FolderStatistics{
+		FolderID:              usage.FolderID,
+		DirectNotesCount:      usage.DirectNotesCount,
+		TotalNotesCount:       usage.TotalNotesCount,
+		TotalDescendantsCount: usage.TotalFoldersCount,
+		TotalSize:             usage.TotalNotesSize,
+	}
+	
+	if usage.LastActivity.Valid {
+		result.LastActivityAt = &usage.LastActivity.Time
+	}
+	
+	if result.TotalNotesCount > 0 {
+		result.AverageNoteSize = float64(result.TotalSize) / float64(result.TotalNotesCount)
+	}
+	
+	return result, nil
+}
+
+// BatchUpdateFolderSortOrder 批量更新文件夹排序
+func (s *WorkNoteFolderService) BatchUpdateFolderSortOrder(ctx context.Context, folderOrders []models.FolderOrder) (int, error) {
+	// 转换为JSONB格式
+	ordersJSON, err := json.Marshal(folderOrders)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal folder orders: %w", err)
+	}
+	
+	query := `SELECT batch_update_folder_sort_order($1::jsonb)`
+	
+	var updatedCount int
+	err = s.db.GetContext(ctx, &updatedCount, query, string(ordersJSON))
+	if err != nil {
+		return 0, fmt.Errorf("failed to batch update sort order: %w", err)
+	}
+	
+	return updatedCount, nil
+}
+
+// BatchUpdateFolderVisibility 批量更新文件夹可见性
+func (s *WorkNoteFolderService) BatchUpdateFolderVisibility(ctx context.Context, folderIDs []int, visibility models.Visibility, applyToDescendants bool) (*models.FolderOperationResult, error) {
+	folderIDsArray := fmt.Sprintf("{%s}", strings.Trim(strings.Replace(fmt.Sprint(folderIDs), " ", ",", -1), "[]"))
+	
+	query := `
+		SELECT folder_id, success, message
+		FROM batch_update_folder_visibility($1::integer[], $2, $3)
+	`
+	
+	var results []struct {
+		FolderID int    `db:"folder_id"`
+		Success  bool   `db:"success"`
+		Message  string `db:"message"`
+	}
+	
+	err := s.db.SelectContext(ctx, &results, query, folderIDsArray, string(visibility), applyToDescendants)
+	if err != nil {
+		return &models.FolderOperationResult{
+			Success:      false,
+			ErrorMessage: &[]string{fmt.Sprintf("Database error: %v", err)}[0],
+		}, nil
+	}
+	
+	var successfulIDs []int
+	var warnings []string
+	
+	for _, result := range results {
+		if result.Success {
+			successfulIDs = append(successfulIDs, result.FolderID)
+		} else {
+			warnings = append(warnings, fmt.Sprintf("Folder %d: %s", result.FolderID, result.Message))
+		}
+	}
+	
+	return &models.FolderOperationResult{
+		Success:         len(successfulIDs) > 0,
+		AffectedIDs:     successfulIDs,
+		WarningMessages: warnings,
+	}, nil
+}
+
+// SmartRefreshFolderCaches 智能刷新文件夹缓存
+func (s *WorkNoteFolderService) SmartRefreshFolderCaches(ctx context.Context, maxAgeMinutes int) (int, error) {
+	query := `SELECT smart_refresh_folder_caches($1)`
+	
+	var updatedCount int
+	err := s.db.GetContext(ctx, &updatedCount, query, maxAgeMinutes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to refresh folder caches: %w", err)
+	}
+	
+	return updatedCount, nil
+}
+
+// GetFolderTreeStats 获取文件夹树统计
+func (s *WorkNoteFolderService) GetFolderTreeStats(ctx context.Context) (*FolderTreeStats, error) {
+	query := `
+		SELECT 
+			total_folders, root_folders, max_depth,
+			avg_children_per_folder, total_notes, folders_with_notes,
+			largest_folder_id, largest_folder_notes
+		FROM get_folder_tree_stats()
+	`
+	
+	var stats FolderTreeStats
+	err := s.db.GetContext(ctx, &stats, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder tree stats: %w", err)
+	}
+	
+	return &stats, nil
+}
+
+// DetectPerformanceIssues 检测性能问题
+func (s *WorkNoteFolderService) DetectPerformanceIssues(ctx context.Context) ([]FolderPerformanceIssue, error) {
+	query := `
+		SELECT issue_type, folder_id, folder_name, issue_details, suggested_action
+		FROM detect_folder_performance_issues()
+	`
+	
+	var issues []FolderPerformanceIssue
+	err := s.db.SelectContext(ctx, &issues, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to detect performance issues: %w", err)
+	}
+	
+	return issues, nil
+}
+
+// ExecuteDailyMaintenance 执行日常维护
+func (s *WorkNoteFolderService) ExecuteDailyMaintenance(ctx context.Context) (string, error) {
+	query := `SELECT daily_folder_maintenance()`
+	
+	var result string
+	err := s.db.GetContext(ctx, &result, query)
+	if err != nil {
+		return "", fmt.Errorf("failed to execute daily maintenance: %w", err)
+	}
+	
+	return result, nil
+}
+
+// GetFolderTree 获取完整的文件夹树（带缓存优化）
+func (s *WorkNoteFolderService) GetFolderTree(ctx context.Context, rootFolderID *int, maxDepth int, userID int) ([]models.WorkNoteFolderTree, error) {
+	// 首先获取所有可访问的文件夹
+	baseQuery := `
+		SELECT 
+			df.id, df.name, df.description, df.parent_folder_id,
+			df.path, df.depth, df.owner_id, df.visibility,
+			df.color, df.icon, df.sort_order, df.folder_type,
+			df.is_system_folder, df.note_count_cached,
+			df.last_activity_at, df.created_by, df.created_at, df.updated_at,
+			-- 计算子文件夹数量
+			(SELECT COUNT(*) FROM document_folders child 
+			 WHERE child.parent_folder_id = df.id AND child.deleted_at IS NULL) as children_count,
+			-- 权限检查（简化版本）
+			CASE WHEN df.owner_id = $1 THEN TRUE 
+				 WHEN df.visibility != 'private' THEN TRUE 
+				 ELSE FALSE END as can_read,
+			CASE WHEN df.owner_id = $1 THEN TRUE ELSE FALSE END as can_edit,
+			CASE WHEN df.owner_id = $1 THEN TRUE ELSE FALSE END as can_delete
+		FROM document_folders df
+		WHERE df.deleted_at IS NULL
+	`
+	
+	var conditions []string
+	var args []interface{} = []interface{}{userID}
+	argIndex := 2
+	
+	// 添加根文件夹过滤
+	if rootFolderID != nil {
+		// 获取根文件夹路径
+		var rootPath string
+		err := s.db.GetContext(ctx, &rootPath, 
+			"SELECT path::text FROM document_folders WHERE id = $1 AND deleted_at IS NULL", 
+			*rootFolderID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get root folder path: %w", err)
+		}
+		
+		conditions = append(conditions, fmt.Sprintf("df.path ~ $%d::lquery", argIndex))
+		args = append(args, rootPath+".*")
+		argIndex++
+	}
+	
+	// 添加深度限制
+	if maxDepth > 0 {
+		if rootFolderID != nil {
+			// 需要先获取根文件夹深度
+			var rootDepth int
+			err := s.db.GetContext(ctx, &rootDepth, 
+				"SELECT depth FROM document_folders WHERE id = $1 AND deleted_at IS NULL", 
+				*rootFolderID)
+			if err == nil {
+				conditions = append(conditions, fmt.Sprintf("df.depth <= $%d", argIndex))
+				args = append(args, rootDepth+maxDepth)
+				argIndex++
+			}
+		} else {
+			conditions = append(conditions, fmt.Sprintf("df.depth <= $%d", argIndex))
+			args = append(args, maxDepth)
+			argIndex++
+		}
+	}
+	
+	if len(conditions) > 0 {
+		baseQuery += " AND " + strings.Join(conditions, " AND ")
+	}
+	
+	baseQuery += " ORDER BY df.depth, df.sort_order, df.name"
+	
+	var folders []struct {
+		models.WorkNoteFolder
+		ChildrenCount int  `db:"children_count"`
+		CanRead       bool `db:"can_read"`
+		CanEdit       bool `db:"can_edit"`
+		CanDelete     bool `db:"can_delete"`
+	}
+	
+	err := s.db.SelectContext(ctx, &folders, baseQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder tree: %w", err)
+	}
+	
+	// 转换为带统计信息的模型
+	foldersWithStats := make([]models.WorkNoteFolderWithStats, len(folders))
+	for i, folder := range folders {
+		foldersWithStats[i] = models.WorkNoteFolderWithStats{
+			WorkNoteFolder: folder.WorkNoteFolder,
+			ChildrenCount:  folder.ChildrenCount,
+			CanEdit:        folder.CanEdit,
+			CanDelete:      folder.CanDelete,
+			CanManage:      folder.CanEdit, // 简化权限模型
+		}
+	}
+	
+	// 构建树结构
+	tree := models.BuildFolderTree(foldersWithStats)
+	
+	// 排序树
+	models.SortFolderTree(tree)
+	
+	return tree, nil
+}
+
+// 辅助类型定义
+
+type FolderTreeStats struct {
+	TotalFolders          int     `db:"total_folders"`
+	RootFolders           int     `db:"root_folders"`
+	MaxDepth              int     `db:"max_depth"`
+	AvgChildrenPerFolder  float64 `db:"avg_children_per_folder"`
+	TotalNotes            int     `db:"total_notes"`
+	FoldersWithNotes      int     `db:"folders_with_notes"`
+	LargestFolderID       int     `db:"largest_folder_id"`
+	LargestFolderNotes    int     `db:"largest_folder_notes"`
+}
+
+type FolderPerformanceIssue struct {
+	IssueType       string `db:"issue_type"`
+	FolderID        int    `db:"folder_id"`
+	FolderName      string `db:"folder_name"`
+	IssueDetails    string `db:"issue_details"`
+	SuggestedAction string `db:"suggested_action"`
+}
+
+// CreateFolder 创建工作笔记文件夹
+func (s *WorkNoteFolderService) CreateFolder(ctx context.Context, req models.CreateWorkNoteFolderRequest, userID int) (*models.WorkNoteFolderWithStats, error) {
+	// TODO: 实现文件夹创建逻辑
+	return nil, fmt.Errorf("CreateFolder not implemented yet")
+}
+
+// GetFolder 获取单个工作笔记文件夹
+func (s *WorkNoteFolderService) GetFolder(ctx context.Context, folderID, userID int) (*models.WorkNoteFolderWithStats, error) {
+	// TODO: 实现文件夹获取逻辑
+	return nil, fmt.Errorf("GetFolder not implemented yet")
+}
+
+// UpdateFolder 更新工作笔记文件夹
+func (s *WorkNoteFolderService) UpdateFolder(ctx context.Context, folderID int, req models.UpdateWorkNoteFolderRequest, userID int) (*models.WorkNoteFolderWithStats, error) {
+	// TODO: 实现文件夹更新逻辑
+	return nil, fmt.Errorf("UpdateFolder not implemented yet")
+}
+
+// DeleteFolder 删除工作笔记文件夹
+func (s *WorkNoteFolderService) DeleteFolder(ctx context.Context, folderID, userID int, force bool) error {
+	// TODO: 实现文件夹删除逻辑
+	return fmt.Errorf("DeleteFolder not implemented yet")
+}
+
+// ListFolders 获取工作笔记文件夹列表
+func (s *WorkNoteFolderService) ListFolders(ctx context.Context, filter models.WorkNoteFolderFilter, userID int) (*models.WorkNoteFolderListResponse, error) {
+	// TODO: 实现文件夹列表逻辑
+	return nil, fmt.Errorf("ListFolders not implemented yet")
+}
+
+// GetFolderTree 获取文件夹树
+func (s *WorkNoteFolderService) GetFolderTree(ctx context.Context, rootID *int, maxDepth *int, includeStats bool, userID int) (*models.WorkNoteFolderTreeResponse, error) {
+	// TODO: 实现文件夹树逻辑
+	return nil, fmt.Errorf("GetFolderTree not implemented yet")
+}
+
+// MoveFolder 移动文件夹
+func (s *WorkNoteFolderService) MoveFolder(ctx context.Context, folderID int, targetParentID *int, position *int, userID int) (*models.WorkNoteFolderWithStats, error) {
+	// TODO: 实现文件夹移动逻辑
+	return nil, fmt.Errorf("MoveFolder not implemented yet")
+}
+
+// BatchMoveFolders 批量移动文件夹
+func (s *WorkNoteFolderService) BatchMoveFolders(ctx context.Context, req models.BatchMoveFoldersRequest, userID int) (*models.FolderOperationResult, error) {
+	// TODO: 实现批量移动逻辑
+	return nil, fmt.Errorf("BatchMoveFolders not implemented yet")
+}
+
+// BatchSortFolders 批量排序文件夹
+func (s *WorkNoteFolderService) BatchSortFolders(ctx context.Context, req models.BatchSortFoldersRequest, userID int) (*models.FolderOperationResult, error) {
+	// TODO: 实现批量排序逻辑
+	return nil, fmt.Errorf("BatchSortFolders not implemented yet")
+}
+
+// BatchMoveNotesToFolder 批量移动笔记到文件夹
+func (s *WorkNoteFolderService) BatchMoveNotesToFolder(ctx context.Context, req models.BatchMoveNotesToFolderRequest, userID int) (*models.FolderOperationResult, error) {
+	// TODO: 实现批量移动笔记逻辑
+	return nil, fmt.Errorf("BatchMoveNotesToFolder not implemented yet")
+}
+
+// GetFolderStatistics 获取文件夹统计信息
+func (s *WorkNoteFolderService) GetFolderStatistics(ctx context.Context, folderID, userID int) (*models.FolderStatistics, error) {
+	// TODO: 实现文件夹统计逻辑
+	return nil, fmt.Errorf("GetFolderStatistics not implemented yet")
+}

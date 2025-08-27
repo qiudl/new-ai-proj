@@ -3,7 +3,8 @@ package application
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
-	"ai-project-backend/factories"
+	"ai-project-backend/handlers"
+	"ai-project-backend/services"
 	"ai-project-backend/utils"
 	"fmt"
 	"log"
@@ -23,7 +24,9 @@ type Application struct {
 	logger         *log.Logger
 	validator      *validator.Validate
 	jwtManager     *utils.JWTManager
-	handlers       *factories.AllHandlers
+	// handlers       *factories.AllHandlers // Temporarily disabled
+	authHandler     *handlers.AuthHandler     // Auth handler instance
+	documentHandler *handlers.DocumentHandler // Document handler instance
 	mirrorWritable bool
 }
 
@@ -60,20 +63,36 @@ func NewApplication() (*Application, error) {
 	// Initialize logger
 	logger := log.New(log.Writer(), "[API] ", log.LstdFlags)
 
-	// Initialize handlers using factory
-handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
-	allHandlers, err := handlerFactory.CreateAllHandlers()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create handlers: %v", err)
+	// Initialize JWT token service
+	jwtServiceConfig := &services.JWTServiceConfig{
+		SecretKey:          cfg.JWT.Secret,
+		RefreshSecretKey:   cfg.JWT.Secret + "_refresh", // Use a different key for refresh tokens
+		AccessTokenExpiry:  cfg.JWT.Expiration,
+		RefreshTokenExpiry: cfg.JWT.Expiration * 24, // Refresh token lasts longer
+		MaxRefreshCount:    5,
+		CleanupInterval:    time.Hour,
+		EnableBlacklist:    true,
 	}
+	jwtTokenService := services.NewJWTTokenService(jwtServiceConfig, logger)
+
+	// Initialize Auth Handler
+	authHandler := handlers.NewAuthHandler(db, cfg.JWT.Secret, jwtTokenService)
+
+	// Initialize handlers using factory - Temporarily disabled
+	// handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
+	// allHandlers, err := handlerFactory.CreateAllHandlers()
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create handlers: %v", err)
+	// }
 
 	app := &Application{
-		config:     cfg,
-		db:         db,
-		logger:     logger,
-		validator:  validate,
-		jwtManager: jwtManager,
-		handlers:   allHandlers,
+		config:      cfg,
+		db:          db,
+		logger:      logger,
+		validator:   validate,
+		jwtManager:  jwtManager,
+		authHandler: authHandler,
+		// handlers:   allHandlers, // Temporarily disabled
 	}
 
 	// Perform startup permission/volume checks
@@ -82,10 +101,10 @@ handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
 		logger.Printf("Warning: DOCS mirror is enabled but not writable at path: %s", cfg.App.MirrorBasePath)
 	}
 
-	// Initialize permission framework
-	if err := app.initializePermissionFramework(); err != nil {
-		logger.Printf("Warning: Permission framework initialization failed: %v", err)
-	}
+	// Initialize permission framework - Temporarily disabled
+	// if err := app.initializePermissionFramework(); err != nil {
+	// 	logger.Printf("Warning: Permission framework initialization failed: %v", err)
+	// }
 
 	return app, nil
 }
@@ -134,10 +153,10 @@ func (app *Application) Close() error {
 	var err error
 	
 	// Close permission framework
-	if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
-		app.logger.Printf("Error closing permission framework: %v", frameworkErr)
-		err = frameworkErr
-	}
+	// if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
+	// 	app.logger.Printf("Error closing permission framework: %v", frameworkErr)
+	// 	err = frameworkErr
+	// }
 	
 	// Close database
 	if app.db != nil {
@@ -165,6 +184,11 @@ func (app *Application) GetDB() database.DB {
 // GetJWTManager returns the JWT manager
 func (app *Application) GetJWTManager() *utils.JWTManager {
 	return app.jwtManager
+}
+
+// GetAuthHandler returns the auth handler
+func (app *Application) GetAuthHandler() *handlers.AuthHandler {
+	return app.authHandler
 }
 
 // checkMirrorWritable verifies if the optional mirror base path is writable

@@ -263,6 +263,31 @@ type BatchUpdateTasksRequest struct {
 	UpdatedBy *int    `json:"updated_by,omitempty"`
 }
 
+// MoveTaskRequest represents a request to move a task to a different project or parent
+type MoveTaskRequest struct {
+	TargetProjectID *int `json:"target_project_id,omitempty" validate:"omitempty,min=1"`
+	TargetParentID  *int `json:"target_parent_id,omitempty" validate:"omitempty,min=1"`
+	NewPosition     *int `json:"new_position,omitempty" validate:"omitempty,min=0"`
+}
+
+// ReorderTaskRequest represents a request to reorder a task within its current parent
+type ReorderTaskRequest struct {
+	NewPosition int    `json:"new_position" validate:"required,min=0"`
+	Direction   string `json:"direction,omitempty" validate:"omitempty,oneof=up down first last"`
+}
+
+// BulkReorderTasksRequest represents a request to reorder multiple tasks at once
+type BulkReorderTasksRequest struct {
+	TaskOrders []TaskOrderItem `json:"task_orders" validate:"required,dive"`
+	ParentID   *int            `json:"parent_id,omitempty"`
+}
+
+// TaskOrderItem represents a single task's new position in bulk reordering
+type TaskOrderItem struct {
+	TaskID      int `json:"task_id" validate:"required"`
+	NewPosition int `json:"new_position" validate:"required,min=0"`
+}
+
 // BatchUpdateTasksResponse represents the response for batch update operation
 type BatchUpdateTasksResponse struct {
 	UpdatedCount int              `json:"updated_count"`

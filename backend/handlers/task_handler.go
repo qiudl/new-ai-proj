@@ -1236,4 +1236,5 @@ func getFloat64Value(ptr *float64, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// Force rebuild Sun Aug 17 22:30:44 CST 2025
+// MoveTask handles moving a task to a different project or parent
+// @Summary Move task to different project or parent

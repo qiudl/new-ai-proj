@@ -1,0 +1,717 @@
+// Work Note Service
+// 工作笔记服务，提供工作笔记的业务逻辑和数据访问
+// 与DocumentService协作处理工作笔记特有的功能
+
+package services
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	"ai-project-backend/models"
+	"github.com/jmoiron/sqlx"
+)
+
+// WorkNoteService 工作笔记服务
+type WorkNoteService struct {
+	db              *sqlx.DB
+	documentService *DocumentService
+}
+
+// NewWorkNoteService 创建工作笔记服务实例
+func NewWorkNoteService(db *sqlx.DB, documentService *DocumentService) *WorkNoteService {
+	return &WorkNoteService{
+		db:              db,
+		documentService: documentService,
+	}
+}
+
+// CreateWorkNote 创建工作笔记
+func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateWorkNoteRequest, userID int) (*models.WorkNote, error) {
+	// 构建Document创建请求
+	docReq := models.CreateDocumentRequest{
+		Title:       req.Title,
+		Content:     req.Content,
+		Description: req.Description,
+		FolderID:    req.WorkNoteFolderID,
+		Type:        models.DocumentTypeMarkdown,
+		Status:      models.DocumentStatusDraft,
+		Visibility:  req.Visibility,
+		Tags:        req.Tags,
+		Metadata: models.DocumentMetadata{
+			"work_note_type":   req.WorkNoteType,
+			"priority":         req.Priority,
+			"is_pinned":        req.IsPinned,
+			"is_bookmarked":    req.IsBookmarked,
+			"related_tasks":    req.RelatedTasks,
+			"related_notes":    req.RelatedNotes,
+			"custom_fields":    req.CustomFields,
+			"view_count":       0,
+		},
+	}
+	
+	// 使用DocumentService创建文档
+	doc, err := s.documentService.CreateDocument(ctx, docReq, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create work note document: %w", err)
+	}
+	
+	// 转换为WorkNote模型
+	workNote := &models.WorkNote{}
+	if err := workNote.FromDocument(*doc); err != nil {
+		return nil, fmt.Errorf("failed to convert document to work note: %w", err)
+	}
+	
+	// 计算阅读时间
+	workNote.CalculateReadTime()
+	
+	// 更新metadata
+	workNote.UpdateMetadata()
+	
+	// 更新文档以保存计算的字段
+	if workNote.ReadTime != nil || workNote.WordCount != nil {
+		updateReq := models.UpdateDocumentRequest{
+			Metadata: &workNote.Document.Metadata,
+		}
+		
+		_, err = s.documentService.UpdateDocument(ctx, doc.ID, updateReq, userID)
+		if err != nil {
+			// 不影响主要创建流程，只记录错误
+			fmt.Printf("Warning: failed to update work note metadata: %v\n", err)
+		}
+	}
+	
+	return workNote, nil
+}
+
+// GetWorkNote 获取单个工作笔记
+func (s *WorkNoteService) GetWorkNote(ctx context.Context, noteID, userID int) (*models.WorkNote, error) {
+	// 使用DocumentService获取文档
+	doc, err := s.documentService.GetDocument(ctx, noteID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work note document: %w", err)
+	}
+	
+	// 检查是否为工作笔记
+	if !models.IsWorkNote(*doc) {
+		return nil, fmt.Errorf("document %d is not a work note", noteID)
+	}
+	
+	// 转换为WorkNote模型
+	workNote := &models.WorkNote{}
+	if err := workNote.FromDocument(*doc); err != nil {
+		return nil, fmt.Errorf("failed to convert document to work note: %w", err)
+	}
+	
+	// 记录阅读行为
+	go s.recordView(ctx, noteID, userID)
+	
+	return workNote, nil
+}
+
+// UpdateWorkNote 更新工作笔记
+func (s *WorkNoteService) UpdateWorkNote(ctx context.Context, noteID int, req models.UpdateWorkNoteRequest, userID int) (*models.WorkNote, error) {
+	// 先获取现有文档以确保是工作笔记
+	existingDoc, err := s.documentService.GetDocument(ctx, noteID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get existing work note: %w", err)
+	}
+	
+	if !models.IsWorkNote(*existingDoc) {
+		return nil, fmt.Errorf("document %d is not a work note", noteID)
+	}
+	
+	// 构建Document更新请求
+	docUpdateReq := models.UpdateDocumentRequest{
+		Title:       req.Title,
+		Content:     req.Content,
+		Description: req.Description,
+		FolderID:    req.WorkNoteFolderID,
+		Tags:        req.Tags,
+		Visibility:  req.Visibility,
+	}
+	
+	// 合并metadata更新
+	metadata := existingDoc.Metadata
+	if metadata == nil {
+		metadata = make(models.DocumentMetadata)
+	}
+	
+	if req.WorkNoteType != nil {
+		metadata["work_note_type"] = *req.WorkNoteType
+	}
+	if req.Priority != nil {
+		metadata["priority"] = *req.Priority
+	}
+	if req.IsPinned != nil {
+		metadata["is_pinned"] = *req.IsPinned
+	}
+	if req.IsBookmarked != nil {
+		metadata["is_bookmarked"] = *req.IsBookmarked
+	}
+	if req.RelatedTasks != nil {
+		metadata["related_tasks"] = req.RelatedTasks
+	}
+	if req.RelatedNotes != nil {
+		metadata["related_notes"] = req.RelatedNotes
+	}
+	if req.CustomFields != nil {
+		metadata["custom_fields"] = req.CustomFields
+	}
+	
+	docUpdateReq.Metadata = &metadata
+	
+	// 使用DocumentService更新文档
+	updatedDoc, err := s.documentService.UpdateDocument(ctx, noteID, docUpdateReq, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update work note document: %w", err)
+	}
+	
+	// 转换为WorkNote模型
+	workNote := &models.WorkNote{}
+	if err := workNote.FromDocument(*updatedDoc); err != nil {
+		return nil, fmt.Errorf("failed to convert updated document to work note: %w", err)
+	}
+	
+	// 重新计算阅读时间（如果内容有变化）
+	if req.Content != nil {
+		workNote.CalculateReadTime()
+		workNote.UpdateMetadata()
+		
+		// 再次更新metadata以保存计算的字段
+		finalUpdateReq := models.UpdateDocumentRequest{
+			Metadata: &workNote.Document.Metadata,
+		}
+		
+		_, err = s.documentService.UpdateDocument(ctx, noteID, finalUpdateReq, userID)
+		if err != nil {
+			fmt.Printf("Warning: failed to update calculated metadata: %v\n", err)
+		}
+	}
+	
+	return workNote, nil
+}
+
+// DeleteWorkNote 删除工作笔记
+func (s *WorkNoteService) DeleteWorkNote(ctx context.Context, noteID, userID int) error {
+	// 先确认是工作笔记
+	doc, err := s.documentService.GetDocument(ctx, noteID, userID)
+	if err != nil {
+		return fmt.Errorf("failed to get work note for deletion: %w", err)
+	}
+	
+	if !models.IsWorkNote(*doc) {
+		return fmt.Errorf("document %d is not a work note", noteID)
+	}
+	
+	// 使用DocumentService删除
+	return s.documentService.DeleteDocument(ctx, noteID, userID)
+}
+
+// ListWorkNotes 获取工作笔记列表
+func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkNoteFilter, userID int) (*models.WorkNoteListResponse, error) {
+	// 构建Document过滤器
+	docFilter := models.DocumentFilter{
+		OwnerID:    filter.OwnerID,
+		FolderID:   filter.WorkNoteFolderID,
+		Visibility: filter.Visibility,
+		Status:     filter.Status,
+		Tags:       filter.Tags,
+		Search:     filter.Search,
+		SortBy:     filter.SortBy,
+		Order:      filter.Order,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+	}
+	
+	// 添加工作笔记特有的过滤条件
+	metadataFilters := make(map[string]interface{})
+	if filter.WorkNoteType != nil {
+		metadataFilters["work_note_type"] = *filter.WorkNoteType
+	}
+	if filter.Priority != nil {
+		metadataFilters["priority"] = *filter.Priority
+	}
+	if filter.IsPinned != nil {
+		metadataFilters["is_pinned"] = *filter.IsPinned
+	}
+	if filter.IsBookmarked != nil {
+		metadataFilters["is_bookmarked"] = *filter.IsBookmarked
+	}
+	
+	if len(metadataFilters) > 0 {
+		docFilter.MetadataFilters = metadataFilters
+	}
+	
+	// 确保只查询工作笔记类型的文档
+	if docFilter.MetadataFilters == nil {
+		docFilter.MetadataFilters = make(map[string]interface{})
+	}
+	docFilter.MetadataFilters["work_note_type"] = map[string]interface{}{
+		"$exists": true,
+	}
+	
+	// 使用DocumentService获取文档列表
+	docList, err := s.documentService.ListDocuments(ctx, docFilter, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list work note documents: %w", err)
+	}
+	
+	// 转换为WorkNote列表
+	workNotes := make([]models.WorkNote, len(docList.Documents))
+	for i, doc := range docList.Documents {
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			return nil, fmt.Errorf("failed to convert document to work note: %w", err)
+		}
+		workNotes[i] = workNote
+	}
+	
+	return &models.WorkNoteListResponse{
+		Notes: workNotes,
+		Total: docList.Total,
+		Page:  docList.Page,
+		Limit: docList.Limit,
+	}, nil
+}
+
+// SearchWorkNotes 搜索工作笔记
+func (s *WorkNoteService) SearchWorkNotes(ctx context.Context, query string, filter models.WorkNoteFilter, userID int) ([]models.WorkNoteSearchResult, error) {
+	// 使用DocumentService的搜索功能
+	searchFilter := models.DocumentFilter{
+		OwnerID:    filter.OwnerID,
+		FolderID:   filter.WorkNoteFolderID,
+		Visibility: filter.Visibility,
+		Status:     filter.Status,
+		Tags:       filter.Tags,
+		Search:     query,
+		SortBy:     filter.SortBy,
+		Order:      filter.Order,
+		Page:       filter.Page,
+		Limit:      filter.Limit,
+	}
+	
+	// 确保只搜索工作笔记
+	if searchFilter.MetadataFilters == nil {
+		searchFilter.MetadataFilters = make(map[string]interface{})
+	}
+	searchFilter.MetadataFilters["work_note_type"] = map[string]interface{}{
+		"$exists": true,
+	}
+	
+	// 调用DocumentService搜索
+	docs, err := s.documentService.SearchDocuments(ctx, searchFilter, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search work notes: %w", err)
+	}
+	
+	// 转换为WorkNoteSearchResult
+	results := make([]models.WorkNoteSearchResult, len(docs))
+	for i, doc := range docs {
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			continue // 跳过转换失败的文档
+		}
+		
+		results[i] = models.WorkNoteSearchResult{
+			WorkNote:  workNote,
+			MatchType: s.determineMatchType(query, doc),
+			MatchScore: 1.0, // 简化评分，后续可以优化
+		}
+		
+		// 添加高亮信息
+		if strings.Contains(strings.ToLower(doc.Title), strings.ToLower(query)) {
+			highlighted := s.highlightText(doc.Title, query)
+			results[i].HighlightedTitle = &highlighted
+		}
+		
+		if doc.Content != nil && strings.Contains(strings.ToLower(*doc.Content), strings.ToLower(query)) {
+			excerpt := s.generateExcerpt(*doc.Content, query, 200)
+			results[i].HighlightedExcerpt = &excerpt
+		}
+	}
+	
+	return results, nil
+}
+
+// BatchUpdateWorkNotes 批量更新工作笔记
+func (s *WorkNoteService) BatchUpdateWorkNotes(ctx context.Context, operation models.BatchWorkNoteOperation, userID int) error {
+	switch operation.Operation {
+	case "move":
+		return s.batchMoveNotes(ctx, operation.NoteIDs, operation.Data, userID)
+	case "tag":
+		return s.batchTagNotes(ctx, operation.NoteIDs, operation.Data, userID)
+	case "priority":
+		return s.batchUpdatePriority(ctx, operation.NoteIDs, operation.Data, userID)
+	case "delete":
+		return s.batchDeleteNotes(ctx, operation.NoteIDs, userID)
+	case "archive":
+		return s.batchArchiveNotes(ctx, operation.NoteIDs, userID)
+	default:
+		return fmt.Errorf("unsupported batch operation: %s", operation.Operation)
+	}
+}
+
+// GetWorkNoteStats 获取工作笔记统计信息
+func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*models.WorkNoteStats, error) {
+	query := `
+		SELECT 
+			COUNT(*) as total_notes,
+			COUNT(CASE WHEN metadata->>'is_pinned' = 'true' THEN 1 END) as pinned_count,
+			COUNT(CASE WHEN metadata->>'is_bookmarked' = 'true' THEN 1 END) as bookmarked_count
+		FROM documents 
+		WHERE owner_id = $1 
+		AND deleted_at IS NULL 
+		AND metadata->>'work_note_type' IS NOT NULL
+	`
+	
+	var stats struct {
+		TotalNotes      int `db:"total_notes"`
+		PinnedCount     int `db:"pinned_count"`
+		BookmarkedCount int `db:"bookmarked_count"`
+	}
+	
+	err := s.db.GetContext(ctx, &stats, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work note stats: %w", err)
+	}
+	
+	// 获取按类型分组的统计
+	notesByType, err := s.getNotesByType(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notes by type: %w", err)
+	}
+	
+	// 获取按优先级分组的统计
+	notesByPriority, err := s.getNotesByPriority(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notes by priority: %w", err)
+	}
+	
+	// 获取按文件夹分组的统计
+	notesByFolder, err := s.getNotesByFolder(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notes by folder: %w", err)
+	}
+	
+	return &models.WorkNoteStats{
+		TotalNotes:      stats.TotalNotes,
+		PinnedCount:     stats.PinnedCount,
+		BookmarkedCount: stats.BookmarkedCount,
+		NotesByType:     notesByType,
+		NotesByPriority: notesByPriority,
+		NotesByFolder:   notesByFolder,
+	}, nil
+}
+
+// 辅助方法
+
+// recordView 记录笔记查看
+func (s *WorkNoteService) recordView(ctx context.Context, noteID, userID int) {
+	updateQuery := `
+		UPDATE documents 
+		SET metadata = jsonb_set(
+			jsonb_set(metadata, '{view_count}', 
+				COALESCE((metadata->>'view_count')::int, 0) + 1),
+			'{last_read_at}', to_jsonb(NOW())
+		)
+		WHERE id = $1 AND owner_id = $2
+	`
+	
+	_, err := s.db.ExecContext(ctx, updateQuery, noteID, userID)
+	if err != nil {
+		fmt.Printf("Warning: failed to record view for note %d: %v\n", noteID, err)
+	}
+}
+
+// determineMatchType 确定匹配类型
+func (s *WorkNoteService) determineMatchType(query string, doc models.Document) string {
+	lowerQuery := strings.ToLower(query)
+	
+	if strings.Contains(strings.ToLower(doc.Title), lowerQuery) {
+		return "title"
+	}
+	
+	if doc.Content != nil && strings.Contains(strings.ToLower(*doc.Content), lowerQuery) {
+		return "content"
+	}
+	
+	if doc.Description != nil && strings.Contains(strings.ToLower(*doc.Description), lowerQuery) {
+		return "description"
+	}
+	
+	for _, tag := range doc.Tags {
+		if strings.Contains(strings.ToLower(tag), lowerQuery) {
+			return "tags"
+		}
+	}
+	
+	return "metadata"
+}
+
+// highlightText 高亮文本中的关键词
+func (s *WorkNoteService) highlightText(text, query string) string {
+	// 简单的高亮实现，实际项目中可以使用更复杂的高亮算法
+	return strings.ReplaceAll(text, query, fmt.Sprintf("<mark>%s</mark>", query))
+}
+
+// generateExcerpt 生成包含关键词的摘要
+func (s *WorkNoteService) generateExcerpt(content, query string, maxLength int) string {
+	lowerContent := strings.ToLower(content)
+	lowerQuery := strings.ToLower(query)
+	
+	index := strings.Index(lowerContent, lowerQuery)
+	if index == -1 {
+		// 如果没找到关键词，返回开头部分
+		if len(content) <= maxLength {
+			return content
+		}
+		return content[:maxLength] + "..."
+	}
+	
+	// 尝试以关键词为中心生成摘要
+	start := index - maxLength/3
+	if start < 0 {
+		start = 0
+	}
+	
+	end := start + maxLength
+	if end > len(content) {
+		end = len(content)
+	}
+	
+	excerpt := content[start:end]
+	if start > 0 {
+		excerpt = "..." + excerpt
+	}
+	if end < len(content) {
+		excerpt = excerpt + "..."
+	}
+	
+	return s.highlightText(excerpt, query)
+}
+}
+
+// GetRelatedNotes 获取相关笔记
+func (s *WorkNoteService) GetRelatedNotes(ctx context.Context, noteID, userID int) ([]models.WorkNote, error) {
+	// 首先获取当前笔记的相关笔记ID列表
+	query := `
+		SELECT metadata->'related_notes' as related_note_ids
+		FROM documents 
+		WHERE id = $1 
+		AND owner_id = $2 
+		AND metadata->>'work_note_type' IS NOT NULL
+	`
+	
+	var relatedNotesJSON sql.NullString
+	err := s.db.GetContext(ctx, &relatedNotesJSON, query, noteID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get related note IDs: %w", err)
+	}
+	
+	if !relatedNotesJSON.Valid || relatedNotesJSON.String == "null" {
+		return []models.WorkNote{}, nil
+	}
+	
+	var relatedNoteIDs []int
+	if err := json.Unmarshal([]byte(relatedNotesJSON.String), &relatedNoteIDs); err != nil {
+		return nil, fmt.Errorf("failed to parse related note IDs: %w", err)
+	}
+	
+	if len(relatedNoteIDs) == 0 {
+		return []models.WorkNote{}, nil
+	}
+	
+	// 获取相关笔记的详细信息
+	notesQuery := `
+		SELECT id, title, content, description, folder_id, type, status, 
+			   file_url, file_size, mime_type, tags, metadata, 
+			   owner_id, visibility, version, parent_document_id, is_template,
+			   created_by, created_at, updated_at, deleted_at,
+			   archived, archived_at, archived_by
+		FROM documents 
+		WHERE id = ANY($1) 
+		AND owner_id = $2 
+		AND deleted_at IS NULL
+		AND metadata->>'work_note_type' IS NOT NULL
+		ORDER BY updated_at DESC
+	`
+	
+	rows, err := s.db.QueryContext(ctx, notesQuery, relatedNoteIDs, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query related notes: %w", err)
+	}
+	defer rows.Close()
+	
+	var relatedNotes []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		err := rows.Scan(
+			&doc.ID, &doc.Title, &doc.Content, &doc.Description, &doc.FolderID,
+			&doc.Type, &doc.Status, &doc.FileURL, &doc.FileSize, &doc.MimeType,
+			&doc.Tags, &doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version,
+			&doc.ParentDocID, &doc.IsTemplate, &doc.CreatedBy, &doc.CreatedAt,
+			&doc.UpdatedAt, &doc.DeletedAt, &doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan related note: %w", err)
+		}
+		
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			continue // 跳过转换失败的笔记
+		}
+		
+		relatedNotes = append(relatedNotes, workNote)
+	}
+	
+	return relatedNotes, nil
+}
+
+// GetRecentNotes 获取最近的工作笔记
+func (s *WorkNoteService) GetRecentNotes(ctx context.Context, userID, limit int) ([]models.WorkNote, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	
+	query := `
+		SELECT id, title, content, description, folder_id, type, status, 
+			   file_url, file_size, mime_type, tags, metadata, 
+			   owner_id, visibility, version, parent_document_id, is_template,
+			   created_by, created_at, updated_at, deleted_at,
+			   archived, archived_at, archived_by
+		FROM documents 
+		WHERE owner_id = $1 
+		AND deleted_at IS NULL 
+		AND metadata->>'work_note_type' IS NOT NULL
+		ORDER BY updated_at DESC
+		LIMIT $2
+	`
+	
+	rows, err := s.db.QueryContext(ctx, query, userID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query recent notes: %w", err)
+	}
+	defer rows.Close()
+	
+	var recentNotes []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		err := rows.Scan(
+			&doc.ID, &doc.Title, &doc.Content, &doc.Description, &doc.FolderID,
+			&doc.Type, &doc.Status, &doc.FileURL, &doc.FileSize, &doc.MimeType,
+			&doc.Tags, &doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version,
+			&doc.ParentDocID, &doc.IsTemplate, &doc.CreatedBy, &doc.CreatedAt,
+			&doc.UpdatedAt, &doc.DeletedAt, &doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan recent note: %w", err)
+		}
+		
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			continue // 跳过转换失败的笔记
+		}
+		
+		recentNotes = append(recentNotes, workNote)
+	}
+	
+	return recentNotes, nil
+}
+
+// GetPinnedNotes 获取置顶的工作笔记
+func (s *WorkNoteService) GetPinnedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
+	query := `
+		SELECT id, title, content, description, folder_id, type, status, 
+			   file_url, file_size, mime_type, tags, metadata, 
+			   owner_id, visibility, version, parent_document_id, is_template,
+			   created_by, created_at, updated_at, deleted_at,
+			   archived, archived_at, archived_by
+		FROM documents 
+		WHERE owner_id = $1 
+		AND deleted_at IS NULL 
+		AND metadata->>'work_note_type' IS NOT NULL
+		AND metadata->>'is_pinned' = 'true'
+		ORDER BY updated_at DESC
+	`
+	
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query pinned notes: %w", err)
+	}
+	defer rows.Close()
+	
+	var pinnedNotes []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		err := rows.Scan(
+			&doc.ID, &doc.Title, &doc.Content, &doc.Description, &doc.FolderID,
+			&doc.Type, &doc.Status, &doc.FileURL, &doc.FileSize, &doc.MimeType,
+			&doc.Tags, &doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version,
+			&doc.ParentDocID, &doc.IsTemplate, &doc.CreatedBy, &doc.CreatedAt,
+			&doc.UpdatedAt, &doc.DeletedAt, &doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan pinned note: %w", err)
+		}
+		
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			continue // 跳过转换失败的笔记
+		}
+		
+		pinnedNotes = append(pinnedNotes, workNote)
+	}
+	
+	return pinnedNotes, nil
+}
+
+// GetBookmarkedNotes 获取收藏的工作笔记
+func (s *WorkNoteService) GetBookmarkedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
+	query := `
+		SELECT id, title, content, description, folder_id, type, status, 
+			   file_url, file_size, mime_type, tags, metadata, 
+			   owner_id, visibility, version, parent_document_id, is_template,
+			   created_by, created_at, updated_at, deleted_at,
+			   archived, archived_at, archived_by
+		FROM documents 
+		WHERE owner_id = $1 
+		AND deleted_at IS NULL 
+		AND metadata->>'work_note_type' IS NOT NULL
+		AND metadata->>'is_bookmarked' = 'true'
+		ORDER BY updated_at DESC
+	`
+	
+	rows, err := s.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query bookmarked notes: %w", err)
+	}
+	defer rows.Close()
+	
+	var bookmarkedNotes []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		err := rows.Scan(
+			&doc.ID, &doc.Title, &doc.Content, &doc.Description, &doc.FolderID,
+			&doc.Type, &doc.Status, &doc.FileURL, &doc.FileSize, &doc.MimeType,
+			&doc.Tags, &doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version,
+			&doc.ParentDocID, &doc.IsTemplate, &doc.CreatedBy, &doc.CreatedAt,
+			&doc.UpdatedAt, &doc.DeletedAt, &doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan bookmarked note: %w", err)
+		}
+		
+		workNote := models.WorkNote{}
+		if err := workNote.FromDocument(doc); err != nil {
+			continue // 跳过转换失败的笔记
+		}
+		
+		bookmarkedNotes = append(bookmarkedNotes, workNote)
+	}
+	
+	return bookmarkedNotes, nil
+}

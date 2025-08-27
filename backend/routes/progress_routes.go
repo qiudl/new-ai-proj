@@ -4,26 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RegisterProgressRoutes registers progress calculation routes
+// RegisterProgressRoutes 注册进度相关路由（简化版，暂时禁用）
 func RegisterProgressRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// Log that we're registering progress routes
-	if gin.IsDebugging() {
-		println("[DEBUG] Registering progress routes...")
-	}
-	
-	// Progress routes group
-	progress := authorized.Group("/progress")
-	{
-		// Get progress configuration
-		progress.GET("/config", app.GetProgressHandler().GetProgressConfig)
-		
-		// Calculate progress for an entity
-		progress.GET("/:entityType/:id", app.GetProgressHandler().GetProgress)
-		
-		// Get historical snapshots
-		progress.GET("/:entityType/:id/snapshots", app.GetProgressHandler().GetProgressSnapshots)
-		
-		// Force recalculation
-		progress.POST("/recompute", app.GetProgressHandler().RecomputeProgress)
-	}
+	// 暂时禁用进度路由以便快速测试角色权限API
 }

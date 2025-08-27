@@ -50,11 +50,11 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
               
               if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.data.token) {
-                  localStorage.setItem('token', data.data.token);
+                if (data.success && data.data.access_token) {
+                  localStorage.setItem('token', data.data.access_token);
                   localStorage.setItem('currentUser', JSON.stringify(data.data.user));
                   console.log('✅ 自动登录成功:', data.data.user.username);
-                  token = data.data.token;
+                  token = data.data.access_token;
                 }
               }
             } catch (error) {

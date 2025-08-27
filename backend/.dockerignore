@@ -1,57 +1,26 @@
-# Docker ignore file for Go backend
+# Go 依赖清理和优化脚本
 
-# Build outputs
-build/
-dist/
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-main
-
-# Development files
-.air.toml
-tmp/
-*.log
-coverage.out
-coverage.html
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Git
 .git/
-.gitignore
-
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Documentation
-README.md
-docs/
+.github/
 *.md
-
-# Scripts (except build scripts)
-scripts/dev-*
-scripts/test-*
-
-# Testing
-testdata/
-*_test.go
-
-# Temporary files
-*.tmp
-*.temp
+*.log
+node_modules/
+frontend/
+mcp-task-bridge/
+docs/
+archive/
+backups/
+logs/
+tmp/
+.env*
+docker-compose*.yml
+Dockerfile*
+.air.toml
+.vscode/
+.warp/
+test_*
+*.sh
+infrastructure/
+scripts/
+tools/
+data/

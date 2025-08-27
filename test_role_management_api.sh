@@ -3,7 +3,7 @@
 # 角色权限API接口测试脚本
 # 用于测试角色管理API接口的功能
 
-BASE_URL="http://localhost:8081/api/v1"
+BASE_URL="http://localhost:8082/api/v1"
 echo "=== 角色权限API接口测试 ==="
 
 # 首先登录获取token (使用dev环境快速登录)

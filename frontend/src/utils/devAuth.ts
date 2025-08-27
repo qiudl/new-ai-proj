@@ -35,9 +35,9 @@ export const getDevAuthToken = async (): Promise<string | null> => {
     const data = await response.json();
     console.log('📦 API响应数据:', data);
     
-    if (data.success && data.data && data.data.token) {
+    if (data.success && data.data && data.data.access_token) {
       // 存储token和用户信息
-      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('token', data.data.access_token);
       localStorage.setItem('currentUser', JSON.stringify({
         id: data.data.user.id,
         username: data.data.user.username,
@@ -46,7 +46,7 @@ export const getDevAuthToken = async (): Promise<string | null> => {
       
       console.log('✅ 开发环境自动登录成功:', data.data.user.username);
       console.log('🔐 Token已存储到localStorage');
-      return data.data.token;
+      return data.data.access_token;
     } else {
       console.warn('❌ 开发环境自动登录响应格式错误:', data);
       return null;
