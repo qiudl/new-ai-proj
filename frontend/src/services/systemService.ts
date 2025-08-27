@@ -219,14 +219,14 @@ export class SystemService {
       `/system/audit/logs?${params.toString()}`
     );
     return {
-      data: response.data.data as AuditLog[],
+      data: response.data as AuditLog[],
       pagination: response.data.pagination
     };
   }
 
   static async getAuditLog(id: number): Promise<AuditLog> {
     const response = await api.get<ApiResponse<AuditLog>>(`/system/audit/logs/${id}`);
-    return response.data.data;
+    return response.data;
   }
 
   static async getAuditStats(filters: AuditLogFilter = {}): Promise<AuditStats> {
@@ -242,7 +242,7 @@ export class SystemService {
     const response = await api.get<ApiResponse<AuditStats>>(
       `/system/audit/stats?${params.toString()}`
     );
-    return response.data.data;
+    return response.data;
   }
 
   static async exportAuditLogs(

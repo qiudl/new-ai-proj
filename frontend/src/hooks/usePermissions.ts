@@ -124,7 +124,7 @@ export const usePermissions = (options: UsePermissionsOptions = {}) => {
 
   // Get effective permissions as a set for quick lookup
   const getEffectivePermissions = useCallback((): Set<string> => {
-    if (!userPermissions) return new Set();
+    if (!userPermissions || !userPermissions.effectivePermissions) return new Set();
     
     return new Set(
       userPermissions.effectivePermissions

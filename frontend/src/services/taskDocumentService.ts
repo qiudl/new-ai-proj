@@ -250,7 +250,7 @@ export const taskDocumentService = {
         throw new Error(createResponse.data?.message || 'Failed to create document');
       }
 
-      const documentData = createResponse.data.data;
+      const documentData = createResponse.data;
       
       // 然后将文档关联到任务
       await api.post(`/projects/${projectId}/tasks/${taskId}/documents/${documentData.id}/attach`, {
@@ -340,7 +340,7 @@ export const taskDocumentService = {
         throw new Error(createResponse.data?.message || 'Failed to create document via API');
       }
 
-      const documentData = createResponse.data.data;
+      const documentData = createResponse.data;
       
       // 然后将文档关联到任务
       await api.post(`/projects/${projectId}/tasks/${taskId}/documents/${documentData.id}/attach`, {
@@ -855,11 +855,11 @@ export const taskDocumentService = {
         config
       );
 
-      if (!response.data.success || !response.data.data) {
+      if (!response.data.success || !response.data) {
         throw new Error(response.data.message || 'Upload failed');
       }
 
-      return response.data.data;
+      return response.data;
     });
 
     try {
@@ -933,11 +933,11 @@ export const taskDocumentService = {
       { uploadId, fileName: file.name, fileSize: file.size }
     );
 
-    if (!completeResponse.data.success || !completeResponse.data.data) {
+    if (!completeResponse.data.success || !completeResponse.data) {
       throw new Error(completeResponse.data.message || 'Upload completion failed');
     }
 
-    return completeResponse.data.data;
+    return completeResponse.data;
   },
 
   /**
@@ -1223,7 +1223,7 @@ export const taskDocumentService = {
         throw new Error(response.data.message || 'Failed to get version history');
       }
 
-      const result = response.data.data as DocumentVersionHistoryResponse;
+      const result = response.data as DocumentVersionHistoryResponse;
       
       // 缓存结果（10分钟）
       if (useCache) {
@@ -1276,7 +1276,7 @@ export const taskDocumentService = {
         throw new Error(response.data.message || 'Failed to get document version');
       }
 
-      const result = response.data.data as DocumentVersionInfo;
+      const result = response.data as DocumentVersionInfo;
       
       // 缓存结果（15分钟）
       if (useCache) {
@@ -1330,7 +1330,7 @@ export const taskDocumentService = {
         throw new Error(response.data.message || 'Failed to compare versions');
       }
 
-      const result = response.data.data as DocumentVersionComparisonResult;
+      const result = response.data as DocumentVersionComparisonResult;
       
       // 缓存结果（5分钟）
       apiCache.set(cacheKey, result, 5 * 60 * 1000);
@@ -1382,7 +1382,7 @@ export const taskDocumentService = {
         });
       });
 
-      return response.data.data as DocumentVersionInfo;
+      return response.data as DocumentVersionInfo;
     } catch (error) {
       console.error('恢复文档版本失败:', error);
       throw this._enhanceError(error, '恢复文档版本');
@@ -1459,7 +1459,7 @@ export const taskDocumentService = {
         throw new Error(response.data.message || 'Failed to get version statistics');
       }
 
-      const result = response.data.data;
+      const result = response.data;
       
       // 缓存结果（30分钟）
       apiCache.set(cacheKey, result, 30 * 60 * 1000);

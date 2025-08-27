@@ -2,6 +2,7 @@ package application
 
 import (
 	"ai-project-backend/handlers"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -89,8 +90,58 @@ func (app *Application) FileDownloadHandler() gin.HandlerFunc {
 func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc { return app.handlers.ProjectHandler.GetDocumentProjects }
 func (app *Application) MapUserToCompanyUser() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// For development/admin users, skip company mapping and continue
-		// This is a simplified implementation for basic functionality
+		ctx := c.Request.Context()
+
+		// Get user ID from context (should be set by authentication middleware)
+		userIDInterface, exists := c.Get("user_id")
+		if !exists {
+			fmt.Printf("[MapUserToCompanyUser] user_id not found in context\n")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User ID not found"})
+			c.Abort()
+			return
+		}
+
+		userID, ok := userIDInterface.(int)
+		if !ok {
+			fmt.Printf("[MapUserToCompanyUser] invalid user_id type: %T\n", userIDInterface)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+			c.Abort()
+			return
+		}
+
+		fmt.Printf("[MapUserToCompanyUser] processing user_id: %d\n", userID)
+
+		// Get user information from database
+		user, err := app.db.Users().GetByID(ctx, userID)
+		if err != nil {
+			fmt.Printf("[MapUserToCompanyUser] failed to get user %d: %v\n", userID, err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+			c.Abort()
+			return
+		}
+
+		// Set company_user_id based on user's company_user_id field
+		// If user.CompanyUserID is nil, use user.ID as fallback for system users
+		var companyUserID int
+		if user.CompanyUserID != nil {
+			companyUserID = *user.CompanyUserID
+		} else {
+			companyUserID = userID // Fallback for system users
+		}
+
+		c.Set("company_user_id", companyUserID)
+		
+		// Also set company information if available
+		if user.CompanyID != nil {
+			c.Set("company_id", *user.CompanyID)
+		}
+
+		// Log mapping for debugging
+		if app.config.IsDevelopment() {
+			fmt.Printf("[MapUserToCompanyUser] userID=%d -> companyUserID=%d, userType=%s, role=%s\n", 
+				userID, companyUserID, user.UserType, user.Role)
+		}
+
 		c.Next()
 	}
 }

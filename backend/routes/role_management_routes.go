@@ -8,8 +8,8 @@ import (
 // RegisterRoleManagementRoutes registers role management routes under /api/v1/roles
 func RegisterRoleManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	roles := authorized.Group("/roles")
-	// Admin-only access
-	roles.Use(middleware.RoleBasedAccessMiddleware("admin"))
+	// Admin-only access (consistent with permissions admin endpoints)
+	roles.Use(middleware.AdminOnlyMiddleware())
 	{
 		// Basic CRUD
 		roles.GET("", app.GetRoleManagementHandler().GetRoles)

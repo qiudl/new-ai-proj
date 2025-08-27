@@ -67,7 +67,7 @@ export const archiveTasks = async (
     throw new Error(response.data.message || '批量归档失败');
   }
   
-  return response.data.data;
+  return response.data;
 };
 
 // 获取归档任务列表
@@ -90,7 +90,7 @@ export const getArchivedTasks = async (
     throw new Error(response.data.message || '获取归档任务失败');
   }
   
-  return response.data.data;
+  return response.data;
 };
 
 // 获取归档统计信息
@@ -103,5 +103,5 @@ export const getArchiveStatistics = async (
     throw new Error(response.data.message || '获取归档统计失败');
   }
   
-  return response.data.data;
+  return response.data;
 };

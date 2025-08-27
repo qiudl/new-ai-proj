@@ -157,8 +157,8 @@ class TimerService {
         try {
           const tasksResponse = await api.get(`/projects/${project.id}/tasks?status=todo,in_progress&limit=50`);
           
-          if (tasksResponse?.data?.data && Array.isArray(tasksResponse.data.data)) {
-            allTasks.push(...tasksResponse.data.data);
+          if (tasksResponse?.data?.data && Array.isArray(tasksResponse.data)) {
+            allTasks.push(...tasksResponse.data);
           }
         } catch (error) {
           console.warn(`Failed to get tasks from project ${project.id}:`, error);

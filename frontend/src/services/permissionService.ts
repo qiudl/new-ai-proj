@@ -61,47 +61,47 @@ export const permissionService = {
   async getRoles(companyId?: number) {
     const params = companyId ? { company_id: companyId } : {};
     const response = await api.get('/permissions/roles', { params });
-    return response.data;
+    return response;
   },
 
   async createRole(roleData: RoleRequest) {
     const response = await api.post('/permissions/roles', roleData);
-    return response.data;
+    return response;
   },
 
   async updateRole(roleId: number, roleData: Omit<RoleRequest, 'roleCode'>) {
     const response = await api.put(`/permissions/roles/${roleId}`, roleData);
-    return response.data;
+    return response;
   },
 
   async deleteRole(roleId: number) {
     const response = await api.delete(`/permissions/roles/${roleId}`);
-    return response.data;
+    return response;
   },
 
   async getRolePermissions(roleId: number) {
     const response = await api.get(`/permissions/roles/${roleId}/permissions`);
-    return response.data;
+    return response;
   },
 
   async setRolePermissions(roleId: number, permissionIds: number[]) {
     const response = await api.post(`/permissions/roles/${roleId}/permissions`, {
       permission_ids: permissionIds
     });
-    return response.data;
+    return response;
   },
 
   // Permission Management
   async getPermissions(module?: string) {
     const params = module ? { module } : {};
     const response = await api.get('/permissions', { params });
-    return response.data;
+    return response;
   },
 
   // User Permission Management
   async getUserPermissions(userId: number): Promise<{ permissions: UserPermissionSummary }> {
     const response = await api.get(`/permissions/users/${userId}`);
-    return response.data;
+    return response;
   },
 
   async updateUserPermissions(userId: number, permissionData: {
@@ -110,7 +110,7 @@ export const permissionService = {
     projectPermissions?: any[];
   }) {
     const response = await api.put(`/permissions/users/${userId}`, permissionData);
-    return response.data;
+    return response;
   },
 
   // Permission Checking
@@ -135,13 +135,13 @@ export const permissionService = {
       (params as unknown).user_id = userId;
     }
     const response = await api.get('/permissions/audit-logs', { params });
-    return response.data;
+    return response;
   },
 
   // Company User Permission Management (through company service)
   async getCompanyUserPermissions(companyId: number, userId: number): Promise<{ permissions: UserPermissionSummary }> {
     const response = await api.get(`/companies/${companyId}/users/${userId}/permissions`);
-    return response.data;
+    return response;
   },
 
   async updateCompanyUserPermissions(companyId: number, userId: number, permissionData: {
@@ -150,14 +150,14 @@ export const permissionService = {
     projectPermissions?: any[];
   }) {
     const response = await api.put(`/companies/${companyId}/users/${userId}/permissions`, permissionData);
-    return response.data;
+    return response;
   },
 
   async assignUserRole(companyId: number, userId: number, roleId: number) {
     const response = await api.post(`/companies/${companyId}/users/${userId}/role`, {
       role_id: roleId
     });
-    return response.data;
+    return response;
   },
 
   // Utility functions for permission checking

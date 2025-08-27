@@ -58,12 +58,12 @@ func (s *TaskDocumentService) GetTaskDocument(ctx context.Context, projectID, ta
 			u1.username as owner_name, u2.username as creator_name,
 			true as document_exists
 		FROM documents d
-		JOIN document_task_relations dtr ON d.id = dtr.document_id
-		JOIN tasks t ON dtr.task_id = t.id
+		JOIN task_documents td ON d.id = td.document_id
+		JOIN tasks t ON td.task_id = t.id
 		JOIN projects p ON t.project_id = p.id
 		LEFT JOIN users u1 ON d.owner_id = u1.id
 		LEFT JOIN users u2 ON d.created_by = u2.id
-		WHERE dtr.task_id = $1 AND dtr.relation_type = 'specification'
+		WHERE td.task_id = $1 AND td.relationship_type = 'specification'
 		  AND d.deleted_at IS NULL
 		ORDER BY d.updated_at DESC
 		LIMIT 1
@@ -152,8 +152,8 @@ func (s *TaskDocumentService) CreateOrUpdateTaskDocument(ctx context.Context, pr
 	err = s.db.QueryRowContext(ctx, `
 		SELECT d.id
 		FROM documents d
-		JOIN document_task_relations dtr ON d.id = dtr.document_id
-		WHERE dtr.task_id = $1 AND dtr.relation_type = 'specification'
+		JOIN task_documents td ON d.id = td.document_id
+		WHERE td.task_id = $1 AND td.relationship_type = 'specification'
 		  AND d.deleted_at IS NULL
 		ORDER BY d.updated_at DESC
 		LIMIT 1
@@ -239,7 +239,7 @@ func (s *TaskDocumentService) CreateOrUpdateTaskDocument(ctx context.Context, pr
 		
 		// 创建任务关联关系
 		_, err = s.db.ExecContext(ctx, `
-			INSERT INTO document_task_relations (document_id, task_id, relation_type, created_by)
+			INSERT INTO task_documents (document_id, task_id, relationship_type, created_by)
 			VALUES ($1, $2, 'specification', $3)
 		`, documentID, taskID, userID)
 		
@@ -263,8 +263,8 @@ func (s *TaskDocumentService) GetTaskDocumentList(ctx context.Context, userID in
 			CASE WHEN d.id IS NOT NULL THEN true ELSE false END as document_exists
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
-		LEFT JOIN document_task_relations dtr ON t.id = dtr.task_id AND dtr.relation_type = 'specification'
-		LEFT JOIN documents d ON dtr.document_id = d.id AND d.deleted_at IS NULL
+		LEFT JOIN task_documents dtr ON t.id = td.task_id AND td.relationship_type = 'specification'
+		LEFT JOIN documents d ON td.document_id = d.id AND d.deleted_at IS NULL
 		WHERE t.deleted_at IS NULL
 	`
 	
@@ -334,8 +334,8 @@ func (s *TaskDocumentService) GetTaskDocumentStats(ctx context.Context, userID i
 			COUNT(CASE WHEN d.updated_at > CURRENT_TIMESTAMP - INTERVAL '7 days' THEN 1 END) as recently_updated
 		FROM tasks t
 		JOIN projects p ON t.project_id = p.id
-		LEFT JOIN document_task_relations dtr ON t.id = dtr.task_id AND dtr.relation_type = 'specification'
-		LEFT JOIN documents d ON dtr.document_id = d.id AND d.deleted_at IS NULL
+		LEFT JOIN task_documents dtr ON t.id = td.task_id AND td.relationship_type = 'specification'
+		LEFT JOIN documents d ON td.document_id = d.id AND d.deleted_at IS NULL
 		WHERE t.deleted_at IS NULL
 	`
 	
@@ -393,8 +393,8 @@ func (s *TaskDocumentService) DeleteTaskDocument(ctx context.Context, projectID,
 		SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 		WHERE id IN (
 			SELECT d.id FROM documents d
-			JOIN document_task_relations dtr ON d.id = dtr.document_id
-			WHERE dtr.task_id = $1 AND dtr.relation_type = 'specification'
+			JOIN task_documents td ON d.id = td.document_id
+			WHERE td.task_id = $1 AND td.relationship_type = 'specification'
 		)
 	`, taskID)
 	
@@ -427,10 +427,10 @@ func (s *TaskDocumentService) CheckTaskDocumentExists(ctx context.Context, proje
 	err := s.db.QueryRowContext(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM documents d
-			JOIN document_task_relations dtr ON d.id = dtr.document_id
-			JOIN tasks t ON dtr.task_id = t.id
+			JOIN task_documents td ON d.id = td.document_id
+			JOIN tasks t ON td.task_id = t.id
 			WHERE t.id = $1 AND t.project_id = $2 
-			  AND dtr.relation_type = 'specification'
+			  AND td.relationship_type = 'specification'
 			  AND d.deleted_at IS NULL AND t.deleted_at IS NULL
 		)
 	`, taskID, projectID).Scan(&exists)

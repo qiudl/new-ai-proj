@@ -158,28 +158,28 @@ export interface DynamicPermissionResult {
 }
 
 class EnhancedPermissionService {
-  private baseUrl = '/api/v1/enhanced-permissions';
+  private baseUrl = '/enhanced-permissions';
 
   // Role template methods
   async getRoleTemplates(): Promise<RoleTemplate[]> {
     const response = await api.get(`${this.baseUrl}/role-templates`);
-    return response.data.data;
+    return response;
   }
 
   async getPermissionTemplates(): Promise<PermissionTemplate[]> {
     const response = await api.get(`${this.baseUrl}/permission-templates`);
-    return response.data.data;
+    return response;
   }
 
   async createRoleFromTemplate(request: CreateRoleFromTemplateRequest): Promise<any> {
     const response = await api.post(`${this.baseUrl}/roles/from-template`, request);
-    return response.data.data;
+    return response;
   }
 
   // Permission request methods
   async requestPermission(request: RequestPermissionRequest): Promise<PermissionRequest> {
     const response = await api.post(`${this.baseUrl}/request`, request);
-    return response.data.data;
+    return response;
   }
 
   async getPermissionRequests(params?: {
@@ -189,7 +189,7 @@ class EnhancedPermissionService {
     limit?: number;
   }): Promise<PermissionRequest[]> {
     const response = await api.get(`${this.baseUrl}/requests`, { params });
-    return response.data.data;
+    return response;
   }
 
   async approvePermissionRequest(requestId: number, data: ApproveRequestRequest): Promise<void> {
@@ -203,12 +203,12 @@ class EnhancedPermissionService {
   // Permission delegation methods
   async delegatePermissions(request: DelegatePermissionsRequest): Promise<PermissionDelegation> {
     const response = await api.post(`${this.baseUrl}/delegate`, request);
-    return response.data.data;
+    return response;
   }
 
   async getUserDelegations(userId: number): Promise<PermissionDelegation[]> {
     const response = await api.get(`${this.baseUrl}/users/${userId}/delegations`);
-    return response.data.data;
+    return response;
   }
 
   async revokeDelegation(delegationId: number, data: RevokeRequest): Promise<void> {
@@ -219,18 +219,18 @@ class EnhancedPermissionService {
   async analyzePermissionUsage(userId: number, timeRange?: string): Promise<PermissionUsageAnalysis> {
     const params = timeRange ? { time_range: timeRange } : {};
     const response = await api.get(`${this.baseUrl}/users/${userId}/usage-analysis`, { params });
-    return response.data.data;
+    return response;
   }
 
   async getRoleOptimizationSuggestions(userId: number): Promise<RoleOptimizationSuggestions> {
     const response = await api.get(`${this.baseUrl}/users/${userId}/optimization-suggestions`);
-    return response.data.data;
+    return response;
   }
 
   // Dynamic permission check
   async checkDynamicPermission(request: CheckDynamicPermissionRequest): Promise<DynamicPermissionResult> {
     const response = await api.post(`${this.baseUrl}/check-dynamic`, request);
-    return response.data.data;
+    return response;
   }
 
   // Utility methods for UI

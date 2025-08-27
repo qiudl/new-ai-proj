@@ -134,8 +134,8 @@ func (pdb *PostgresDB) APIKeys() APIKeyRepository {
 
 // Documents returns the document repository
 func (pdb *PostgresDB) Documents() DocumentRepository {
-	// TODO: 暂时返回nil，需要实现完整的DocumentRepository接口
-	return nil
+	// 使用适配器模式，桥接到新的实现
+	return NewDocumentRepositoryAdapter(pdb.NewDocuments())
 }
 
 // NewDocuments returns the new document repository implementation
@@ -328,9 +328,9 @@ func (ptx *PostgresTx) APIKeys() APIKeyRepository {
 
 // Documents returns the document repository for transaction
 func (ptx *PostgresTx) Documents() DocumentRepository {
-	// TODO: Fix DocumentRepository implementation
-	return nil // 临时注释，避免编译错误
-	// return &PostgresDocumentRepository{db: ptx.tx}
+	// 临时解决方案：使用事务连接创建适配器
+	// TODO: 实现真正的事务版本适配器
+	return NewDocumentRepositoryAdapter(NewDocumentRepositoryWithTx(ptx.tx))
 }
 
 // DocumentFolders returns the document folder repository for transaction

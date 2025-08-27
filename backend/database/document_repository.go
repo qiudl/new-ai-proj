@@ -33,12 +33,21 @@ type DocumentRepositoryNew interface {
 
 // documentRepository 文档仓库实现
 type documentRepository struct {
-	db *sql.DB
+	db interface {
+		QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+		QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
+		ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+	}
 }
 
 // NewDocumentRepository 创建新的文档仓库
 func NewDocumentRepository(db *sql.DB) DocumentRepositoryNew {
 	return &documentRepository{db: db}
+}
+
+// NewDocumentRepositoryWithTx 使用事务创建文档仓库
+func NewDocumentRepositoryWithTx(tx *sql.Tx) DocumentRepositoryNew {
+	return &documentRepository{db: tx}
 }
 
 // Create 创建文档

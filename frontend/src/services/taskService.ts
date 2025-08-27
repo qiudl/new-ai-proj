@@ -11,7 +11,7 @@ export async function fetchTaskDescendants(projectId: number, taskId: number, pa
     );
 
     const data = Array.isArray(response?.data?.data)
-      ? response.data.data
+      ? response.data
       : Array.isArray(response?.data)
         ? response.data
         : Array.isArray(response)
@@ -585,7 +585,7 @@ const mergedRaw = { ...(params || {}) } as any;
         : Array.isArray(response?.data)
           ? response.data
           : Array.isArray(response?.data?.data)
-            ? response.data.data
+            ? response.data
             : [];
 
       if (!Array.isArray(data)) {

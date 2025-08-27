@@ -502,7 +502,7 @@ func (h *DocumentHandler) HasTaskDocument(c *gin.Context) {
 	}
 	// 统一从仓库读取，避免直连 SQL 分叉
 	db := h.db.GetDB().(*sql.DB)
-	query := `SELECT COUNT(*) FROM document_task_relations WHERE task_id = $1`
+	query := `SELECT COUNT(*) FROM task_documents WHERE task_id = $1`
 	var count int
 	err = db.QueryRow(query, taskID).Scan(&count)
 	if err != nil {
@@ -529,8 +529,8 @@ func (h *DocumentHandler) ListTaskDocuments(c *gin.Context) {
 	query := `
 		SELECT d.id, d.title, d.content, d.type, d.status, d.visibility, d.created_at, d.updated_at 
 		FROM documents d 
-		INNER JOIN document_task_relations dtr ON d.id = dtr.document_id 
-		WHERE dtr.task_id = $1 AND d.deleted_at IS NULL
+		INNER JOIN task_documents td ON d.id = td.document_id 
+		WHERE td.task_id = $1 AND d.deleted_at IS NULL
 		ORDER BY d.updated_at DESC
 	`
 	rows, err := db.Query(query, taskID)
@@ -701,8 +701,8 @@ func (h *DocumentHandler) UpsertTaskDocument(c *gin.Context) {
 	query := `
 		SELECT d.id, d.title, d.content, d.type, d.status, d.visibility, d.created_at, d.updated_at 
 		FROM documents d 
-		INNER JOIN document_task_relations dtr ON d.id = dtr.document_id 
-		WHERE dtr.task_id = $1 AND d.deleted_at IS NULL
+		INNER JOIN task_documents td ON d.id = td.document_id 
+		WHERE td.task_id = $1 AND d.deleted_at IS NULL
 	`
 	rows, err := db.Query(query, taskID)
 	if err != nil {
@@ -794,8 +794,8 @@ func (h *DocumentHandler) GetTaskDocuments(c *gin.Context) {
 	query := `
 		SELECT d.id, d.title, d.content, d.type, d.status, d.visibility, d.created_at, d.updated_at 
 		FROM documents d 
-		INNER JOIN document_task_relations dtr ON d.id = dtr.document_id 
-		WHERE dtr.task_id = $1 AND d.deleted_at IS NULL
+		INNER JOIN task_documents td ON d.id = td.document_id 
+		WHERE td.task_id = $1 AND d.deleted_at IS NULL
 		ORDER BY d.updated_at DESC
 	`
 	rows, err := db.Query(query, taskID)
@@ -1662,7 +1662,7 @@ type ConversionOptions struct {
 	CopyRelations    bool                      `json:"copy_relations"`          // 是否复制关联关系
 	ConvertFormat    models.DocumentType       `json:"convert_format"`          // 转换格式
 	Visibility       models.Visibility         `json:"visibility"`              // 可见性
-	RelationType     string                   `json:"relation_type"`           // 关联类型，默认attachment
+	RelationType     string                   `json:"relationship_type"`           // 关联类型，默认attachment
 }
 
 // ConversionResult 转换结果
@@ -2009,7 +2009,7 @@ func (h *DocumentHandler) performConversion(workNote *models.Document, targetTas
 // createTaskDocumentRelation 创建任务文档关联
 func (h *DocumentHandler) createTaskDocumentRelation(documentID, taskID int, relationType string, userID int) error {
 	query := `
-		INSERT INTO document_task_relations (document_id, task_id, relation_type, created_by, created_at)
+		INSERT INTO task_documents (document_id, task_id, relationship_type, created_by, created_at)
 		VALUES ($1, $2, $3, $4, NOW())
 	`
 	db := h.db.GetDB().(*sql.DB)
@@ -2021,8 +2021,8 @@ func (h *DocumentHandler) createTaskDocumentRelation(documentID, taskID int, rel
 func (h *DocumentHandler) copyDocumentRelations(sourceDocID, targetDocID int, userID int) (int, error) {
 	// 复制项目关联
 	projectQuery := `
-		INSERT INTO document_project_relations (document_id, project_id, relation_type, description, created_by, created_at)
-		SELECT $1, project_id, relation_type, description, $2, NOW()
+		INSERT INTO document_project_relations (document_id, project_id, relationship_type, description, created_by, created_at)
+		SELECT $1, project_id, relationship_type, description, $2, NOW()
 		FROM document_project_relations
 		WHERE document_id = $3
 	`
@@ -2034,8 +2034,8 @@ func (h *DocumentHandler) copyDocumentRelations(sourceDocID, targetDocID int, us
 
 	// 复制客户关联
 	customerQuery := `
-		INSERT INTO document_customer_relations (document_id, customer_id, relation_type, description, created_by, created_at)
-		SELECT $1, customer_id, relation_type, description, $2, NOW()
+		INSERT INTO document_customer_relations (document_id, customer_id, relationship_type, description, created_by, created_at)
+		SELECT $1, customer_id, relationship_type, description, $2, NOW()
 		FROM document_customer_relations
 		WHERE document_id = $3
 	`
@@ -2095,7 +2095,7 @@ func (h *DocumentHandler) countExistingRelations(documentID int) int {
 		SELECT 
 			(SELECT COUNT(*) FROM document_project_relations WHERE document_id = $1) +
 			(SELECT COUNT(*) FROM document_customer_relations WHERE document_id = $1) +
-			(SELECT COUNT(*) FROM document_task_relations WHERE document_id = $1)
+			(SELECT COUNT(*) FROM task_documents WHERE document_id = $1)
 	`
 	var count int
 	db := h.db.GetDB().(*sql.DB)
@@ -2150,7 +2150,7 @@ type GlobalOptions struct {
 // createDocumentTaskRelation 创建文档与任务的关联关系
 func (h *DocumentHandler) createDocumentTaskRelation(documentID, taskID int, relationType string, userID int) error {
 	query := `
-		INSERT INTO document_task_relations (document_id, task_id, relation_type, created_by, created_at)
+		INSERT INTO task_documents (document_id, task_id, relationship_type, created_by, created_at)
 		VALUES ($1, $2, $3, $4, NOW())
 	`
 	db := h.db.GetDB().(*sql.DB)
@@ -2160,7 +2160,7 @@ func (h *DocumentHandler) createDocumentTaskRelation(documentID, taskID int, rel
 
 // deleteDocumentTaskRelation 删除文档与任务的关联关系
 func (h *DocumentHandler) deleteDocumentTaskRelation(documentID, taskID int) error {
-	query := `DELETE FROM document_task_relations WHERE document_id = $1 AND task_id = $2`
+	query := `DELETE FROM task_documents WHERE document_id = $1 AND task_id = $2`
 	db := h.db.GetDB().(*sql.DB)
 	_, err := db.Exec(query, documentID, taskID)
 	return err

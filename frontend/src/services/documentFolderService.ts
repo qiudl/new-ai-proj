@@ -122,7 +122,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to create folder');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error creating folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to create folder');
@@ -141,7 +141,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get folder');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder');
@@ -161,7 +161,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to update folder');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error updating folder:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to update folder');
@@ -217,7 +217,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to list folders');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error listing folders:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to list folders');
@@ -241,7 +241,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get folder tree');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder tree:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder tree');
@@ -260,7 +260,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get folder stats');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder stats:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder stats');
@@ -297,7 +297,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get folder children');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder children:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder children');
@@ -324,7 +324,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get folder documents');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder documents:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get folder documents');
@@ -379,7 +379,7 @@ class DocumentFolderService {
         throw new Error(response.data.message || 'Failed to get user folder stats');
       }
       
-      return response.data.data;
+      return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting user folder stats:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to get user folder stats');

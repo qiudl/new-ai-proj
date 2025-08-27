@@ -1891,6 +1891,7 @@ export class TaskMCPServer {
     status?: string
   } = {}) {
     try {
+      const projectId = 1; // 工作笔记默认放在项目1中
       const requestData = {
         title,
         content,
@@ -1898,8 +1899,12 @@ export class TaskMCPServer {
         tags: options.tags || [],
         visibility: options.visibility || 'private',
         status: options.status || 'draft',
-        project_id: 1, // 工作笔记默认放在项目1中
-        created_by: 'mcp_bridge'
+        project_id: projectId,
+        is_template: false,
+        metadata: {
+          source: 'mcp_bridge',
+          created_via: 'claude_code'
+        }
       };
 
       const response = await axios.post(`${this.apiBase}/work-notes`, requestData, {

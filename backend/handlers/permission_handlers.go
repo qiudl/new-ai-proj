@@ -296,15 +296,30 @@ func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 		permCode = underscoreToDot(permCode)
 	}
 
-	// Admin override based on JWT role (system user with admin role)
+	// Admin override based on JWT role (accept admin or super_admin; case-insensitive)
 	if roleVal, exists := c.Get("user_role"); exists {
-		if roleStr, ok := roleVal.(string); ok && roleStr == "admin" {
-			c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
-				HasPermission: true,
-				Reason:        "Admin override (user role)",
-				Source:        "admin_override",
-			}})
-			return
+		if roleStr, ok := roleVal.(string); ok {
+			role := strings.ToLower(roleStr)
+			if role == "admin" || role == "super_admin" {
+				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+					HasPermission: true,
+					Reason:        "Admin override (user role)",
+					Source:        "admin_override",
+				}})
+				return
+			}
+		}
+	} else if roleVal2, exists2 := c.Get("current_user_role"); exists2 {
+		if roleStr, ok := roleVal2.(string); ok {
+			role := strings.ToLower(roleStr)
+			if role == "admin" || role == "super_admin" {
+				c.JSON(http.StatusOK, gin.H{"result": models.PermissionResult{
+					HasPermission: true,
+					Reason:        "Admin override (current_user_role)",
+					Source:        "admin_override",
+				}})
+				return
+			}
 		}
 	}
 
@@ -473,7 +488,7 @@ func (h *PermissionHandler) GetPermissionAuditLogs(c *gin.Context) {
 
 // GetPermissionTrace returns detailed trace of how a permission is resolved
 func (h *PermissionHandler) GetPermissionTrace(c *gin.Context) {
-	companyUserID, err := strconv.Atoi(c.Param("userId"))
+	companyUserID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -505,7 +520,7 @@ func (h *PermissionHandler) GetPermissionTrace(c *gin.Context) {
 
 // SetPermissionOverride sets a custom permission override for a user
 func (h *PermissionHandler) SetPermissionOverride(c *gin.Context) {
-	companyUserID, err := strconv.Atoi(c.Param("userId"))
+	companyUserID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -537,7 +552,7 @@ func (h *PermissionHandler) SetPermissionOverride(c *gin.Context) {
 
 // RemovePermissionOverride removes a custom permission override
 func (h *PermissionHandler) RemovePermissionOverride(c *gin.Context) {
-	companyUserID, err := strconv.Atoi(c.Param("userId"))
+	companyUserID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -563,7 +578,7 @@ func (h *PermissionHandler) RemovePermissionOverride(c *gin.Context) {
 
 // GetPermissionOverrides gets all custom permission overrides for a user
 func (h *PermissionHandler) GetPermissionOverrides(c *gin.Context) {
-	companyUserID, err := strconv.Atoi(c.Param("userId"))
+	companyUserID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -583,7 +598,7 @@ func (h *PermissionHandler) GetPermissionOverrides(c *gin.Context) {
 
 // AnalyzePermissionConflicts analyzes permission conflicts for a user
 func (h *PermissionHandler) AnalyzePermissionConflicts(c *gin.Context) {
-	companyUserID, err := strconv.Atoi(c.Param("userId"))
+	companyUserID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -597,5 +612,126 @@ func (h *PermissionHandler) AnalyzePermissionConflicts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, models.GetPermissionAnalysisResponse{
 		Analysis: analysis,
+	})
+}
+
+// GetPermissionModules handles GET /api/v1/permissions/modules
+func (h *PermissionHandler) GetPermissionModules(c *gin.Context) {
+	ctx := c.Request.Context()
+	
+	// Get all permissions to extract modules
+	permissions, err := h.permissionRepo.GetPermissions(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get permissions"})
+		return
+	}
+
+	// Extract unique modules
+	moduleMap := make(map[string]int)
+	for _, perm := range permissions {
+		moduleMap[perm.Module]++
+	}
+
+	// Convert to response format
+	var modules []gin.H
+	for module, count := range moduleMap {
+		modules = append(modules, gin.H{
+			"name":             module,
+			"permission_count": count,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"modules":     modules,
+			"total_count": len(modules),
+		},
+	})
+}
+
+// GetModulePermissions handles GET /api/v1/permissions/modules/:module/permissions
+func (h *PermissionHandler) GetModulePermissions(c *gin.Context) {
+	ctx := c.Request.Context()
+	module := c.Param("module")
+	
+	if module == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Module name is required"})
+		return
+	}
+
+	permissions, err := h.permissionRepo.GetPermissionsByModule(ctx, module)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get module permissions"})
+		return
+	}
+
+	// Convert to response format
+	var permissionResponses []models.PermissionResponse
+	for _, perm := range permissions {
+		permissionResponses = append(permissionResponses, perm.ToResponse())
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"module":      module,
+			"permissions": permissionResponses,
+			"total_count": len(permissionResponses),
+		},
+	})
+}
+
+// AssignUserRole handles POST /api/v1/users/:id/roles
+func (h *PermissionHandler) AssignUserRole(c *gin.Context) {
+	ctx := c.Request.Context()
+	
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req struct {
+		RoleID int `json:"role_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Update user role
+	err = h.permissionRepo.UpdateUserRole(ctx, userID, &req.RoleID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to assign role to user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Role assigned to user successfully",
+	})
+}
+
+// RemoveUserRole handles DELETE /api/v1/users/:id/roles/:roleId  
+func (h *PermissionHandler) RemoveUserRole(c *gin.Context) {
+	ctx := c.Request.Context()
+	
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	// Remove role from user (set role to null)
+	err = h.permissionRepo.UpdateUserRole(ctx, userID, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove role from user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Role removed from user successfully",
 	})
 }

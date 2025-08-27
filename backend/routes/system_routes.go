@@ -2,11 +2,14 @@ package routes
 
 import (
 	"ai-project-backend/middleware"
+	"log"
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterSystemRoutes 注册系统管理相关路由
 func RegisterSystemRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] RegisterSystemRoutes started")
+	
 	// Statistics routes
 	registerStatisticsRoutes(authorized, app)
 	
@@ -29,7 +32,9 @@ func RegisterSystemRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 	registerCustomerManagementRoutes(authorized, app)
 	
 	// Permission management routes
+	log.Printf("[DEBUG] About to call registerPermissionManagementRoutes")
 	registerPermissionManagementRoutes(authorized, app)
+	log.Printf("[DEBUG] registerPermissionManagementRoutes completed")
 }
 
 // registerStatisticsRoutes 注册统计相关路由
@@ -163,6 +168,10 @@ func registerUserManagementRoutes(authorized *gin.RouterGroup, app ApplicationIn
 		// Google日历集成管理  
 		users.GET("/google-connection", app.GetGoogleAuthHandler().GetGoogleConnectionStatus)
 		users.DELETE("/google-connection", app.GetGoogleAuthHandler().DisconnectGoogle)
+		
+		// User role management (admin access required)
+		users.POST("/:id/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().AssignUserRole)
+		users.DELETE("/:id/roles/:roleId", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().RemoveUserRole)
 	}
 }
 
@@ -219,21 +228,56 @@ func registerCustomerManagementRoutes(authorized *gin.RouterGroup, app Applicati
 
 // registerPermissionManagementRoutes 注册权限管理路由
 func registerPermissionManagementRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	log.Printf("[DEBUG] 开始注册权限管理路由")
+	
+	// 检查PermissionHandler是否为nil
+	permHandler := app.GetPermissionHandler()
+	if permHandler == nil {
+		log.Printf("[ERROR] PermissionHandler is nil, cannot register permission routes!")
+		return
+	}
+	log.Printf("[DEBUG] PermissionHandler OK: %p", permHandler)
+	
 	// Basic permission management routes (admin access)
 	permissions := authorized.Group("/permissions")
 	{
 		// Permission check endpoint (all authenticated users can check their own permissions)
-		permissions.POST("/check", app.GetPermissionHandler().CheckUserPermission)
+		permissions.POST("/check", permHandler.CheckUserPermission)
+		log.Printf("[DEBUG] Registered POST /permissions/check")
+
+		// Permission list endpoint (admin access required) - 添加缺失的GET端点
+		permissions.GET("", middleware.AdminOnlyMiddleware(), permHandler.GetPermissions)
+		log.Printf("[DEBUG] Registered GET /permissions")
+
+		// Permission modules management (admin access required)
+		permissions.GET("/modules", middleware.AdminOnlyMiddleware(), permHandler.GetPermissionModules)
+		permissions.GET("/modules/:module/permissions", middleware.AdminOnlyMiddleware(), permHandler.GetModulePermissions)
 
 		// User permission management endpoints (admin access required)
-		permissions.GET("/users/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetUserPermissions)
-		permissions.PUT("/users/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateUserPermissions)
+		permissions.GET("/users/:id", middleware.AdminOnlyMiddleware(), permHandler.GetUserPermissions)
+		permissions.PUT("/users/:id", middleware.AdminOnlyMiddleware(), permHandler.UpdateUserPermissions)
+		log.Printf("[DEBUG] Registered GET/PUT /permissions/users/:id")
+
+		// User permission trace and overrides (admin access required)
+		permissions.GET("/users/:id/trace", middleware.AdminOnlyMiddleware(), permHandler.GetPermissionTrace)
+		permissions.POST("/users/:id/overrides", middleware.AdminOnlyMiddleware(), permHandler.SetPermissionOverride)
+		permissions.DELETE("/users/:id/overrides/:permissionCode", middleware.AdminOnlyMiddleware(), permHandler.RemovePermissionOverride)
+		permissions.GET("/users/:id/overrides", middleware.AdminOnlyMiddleware(), permHandler.GetPermissionOverrides)
+		permissions.GET("/users/:id/conflicts", middleware.AdminOnlyMiddleware(), permHandler.AnalyzePermissionConflicts)
+
+		// Permission audit logs (admin access required)
+		permissions.GET("/audit-logs", middleware.AdminOnlyMiddleware(), permHandler.GetPermissionAuditLogs)
 
 		// Role management (admin access required)
-		permissions.GET("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetRoles)
-		permissions.POST("/roles", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().CreateRole)
-		permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().UpdateRole)
-		permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().DeleteRole)
+		permissions.GET("/roles", middleware.AdminOnlyMiddleware(), permHandler.GetRoles)
+		permissions.POST("/roles", middleware.AdminOnlyMiddleware(), permHandler.CreateRole)
+		permissions.PUT("/roles/:id", middleware.AdminOnlyMiddleware(), permHandler.UpdateRole)
+		permissions.DELETE("/roles/:id", middleware.AdminOnlyMiddleware(), permHandler.DeleteRole)
+		log.Printf("[DEBUG] Registered role management routes")
+
+		// Role permissions management (admin access required)
+		permissions.GET("/roles/:id/permissions", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().GetRolePermissions)
+		permissions.POST("/roles/:id/permissions", middleware.AdminOnlyMiddleware(), app.GetPermissionHandler().SetRolePermissions)
 	}
 
 	// System-level permission management routes (system users only)
