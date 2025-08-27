@@ -23,7 +23,7 @@ export class UserManagementService {
       if (params.search) queryParams.append('search', params.search);
       
       const response = await api.get(`/admin/users?${queryParams.toString()}`);
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Error fetching user list:', error);
       throw new Error('Failed to fetch user list');
@@ -131,8 +131,13 @@ export class UserManagementService {
     recent_registrations: number;
   }> {
     try {
+      console.log('Calling getUserStats API...');
       const response = await api.get('/admin/users/stats');
-      return response.data;
+      console.log('Raw API response:', response);
+      
+      // API拦截器应该已经解包了标准的{success, data, message}格式
+      // 所以response应该直接是统计数据
+      return response as any;
     } catch (error) {
       console.error('Error fetching user stats:', error);
       throw new Error('Failed to fetch user statistics');

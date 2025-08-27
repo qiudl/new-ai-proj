@@ -101,13 +101,36 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
     setLoading(true);
     try {
       const response = await CompanyUserService.getCompanyUserList(params);
-      setUsers(response.data);
-      setPagination(prev => ({
-        ...prev,
-        current: response.page,
-        pageSize: response.page_size,
-        total: response.total,
-      }));
+      console.log('loadUsers response:', response); // 调试日志
+      
+      // API拦截器处理后，response 应该是 { data: [], total, page } 格式
+      console.log('loadUsers response:', response); // 调试日志
+      console.log('response type:', typeof response);
+      console.log('response is array:', Array.isArray(response));
+      console.log('response.data type:', typeof response.data);
+      console.log('response.data is array:', Array.isArray(response.data));
+      console.log('response.data:', response.data);
+      
+      // 处理两种可能的数据结构
+      if (Array.isArray(response)) {
+        // 如果response直接是数组，说明拦截器处理有问题，临时兼容
+        console.warn('Response is array, using fallback logic');
+        setUsers(response);
+        setPagination(prev => ({ ...prev, total: response.length }));
+      } else if (response && typeof response === 'object' && Array.isArray(response.data)) {
+        // 正常情况：response = {data: [], total, page}
+        console.log('Using normal structure: {data: [], total, page}');
+        setUsers(response.data);
+        setPagination(prev => ({
+          ...prev,
+          current: response.page || 1,
+          pageSize: response.page_size || 20,
+          total: response.total || 0,
+        }));
+      } else {
+        console.error('Unexpected response structure:', response);
+        setUsers([]);
+      }
     } catch (error) {
       message.error('获取企业用户列表失败');
       console.error('Load users error:', error);
@@ -161,7 +184,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [filters, loadUsers]);
 
   // Handle pagination change
-  const handleTableChange = useCallback((newPagination: unknown) => {
+  const handleTableChange = useCallback((newPagination: any) => {
     const newFilters = {
       ...filters,
       page: newPagination.current,
@@ -173,34 +196,78 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
 
   // Handle create user
   const handleCreateUser = useCallback(async (values: CompanyUserCreateRequest) => {
+    console.log('handleCreateUser called with values:', values);
+    
     try {
+      console.log('Calling CompanyUserService.createCompanyUser...');
       const response = await CompanyUserService.createCompanyUser(values);
-      message.success(`企业用户创建成功！初始密码：${response.password}`);
+      console.log('Create user response:', response);
       
-      // Show password modal
+      // 检查响应数据结构
+      if (!response || typeof response !== 'object') {
+        console.error('Invalid response structure:', response);
+        throw new Error('Invalid response from server');
+      }
+      
+      // 获取密码，支持多种可能的数据结构
+      // 修复后的API拦截器应该正确解包，密码应该在response.password中
+      const password = response?.password || response?.data?.password || response?.user?.password;
+      
+      if (!password) {
+        console.error('No password in response:', response);
+        throw new Error('Server did not return initial password');
+      }
+      
+      console.log('Password extracted successfully:', password);
+      
+      // 立即关闭模态框并刷新列表
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      
+      // 清除筛选条件，确保新用户能显示
+      const defaultFilters = { page: 1, page_size: 20 };
+      setFilters(defaultFilters);
+      loadUsers(defaultFilters);
+      loadStats();
+      
+      // 显示成功消息和密码
+      message.success(`企业用户创建成功！初始密码：${password}`, 10); // 10秒显示
+      
+      // 也可以用模态框显示密码，但不依赖用户操作来刷新列表
       Modal.info({
         title: '用户创建成功',
         content: (
           <div>
             <p>用户 <strong>{values.username}</strong> 创建成功！</p>
-            <p>初始密码：<strong style={{ color: '#f50' }}>{response.password}</strong></p>
+            <p>初始密码：<strong style={{ color: '#f50' }}>{password}</strong></p>
             <p style={{ color: '#666', fontSize: '12px' }}>
               请将此密码告知用户，并要求用户首次登录后修改密码。
             </p>
+            <p style={{ color: '#1890ff', fontSize: '12px' }}>
+              已自动清除筛选条件以显示新用户。
+            </p>
           </div>
         ),
-        onOk: () => {
-          setCreateModalVisible(false);
-          createForm.resetFields();
-          loadUsers();
-          loadStats();
-        },
       });
     } catch (error) {
-      message.error('创建企业用户失败');
-      console.error('Create user error:', error);
+      console.error('Create user error - detailed:', {
+        error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: typeof error,
+        isAppError: error?.constructor?.name
+      });
+      
+      // 无论是否出错，都刷新用户列表（以防用户实际创建成功了）
+      // 并清除筛选条件
+      const defaultFilters = { page: 1, page_size: 20 };
+      setFilters(defaultFilters);
+      loadUsers(defaultFilters);
+      loadStats();
+      
+      message.error(error instanceof Error ? error.message : '创建企业用户失败');
     }
-  }, [createForm, loadUsers, loadStats]);
+  }, [createForm, loadUsers, loadStats, setFilters]);
 
   // Handle update user
   const handleUpdateUser = useCallback(async (values: CompanyUserUpdateRequest) => {
@@ -305,7 +372,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [editForm]);
 
   // Table columns
-  const columns: unknown[] = useMemo(() => [
+  const columns: ColumnType<EnterpriseUserResponse>[] = useMemo(() => [
     {
       title: '用户信息',
       key: 'userInfo',
@@ -630,6 +697,10 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
         </div>
 
         {/* Table */}
+        <div style={{ marginBottom: 16 }}>
+          <div>调试信息：用户数量 {users.length}，加载状态 {loading ? '加载中' : '已完成'}</div>
+          <div>分页信息：第 {pagination.current} 页，每页 {pagination.pageSize} 条，总计 {pagination.total} 条</div>
+        </div>
         <Table
           rowSelection={rowSelection}
           columns={columns}

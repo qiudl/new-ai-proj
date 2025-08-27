@@ -68,6 +68,7 @@ const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
 const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
+const DropdownTestPage = React.lazy(() => import('./pages/DropdownTestPage'));
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
@@ -612,6 +613,13 @@ const AppContent: React.FC = () => {
             <Route path="/project-global-gantt-test" element={
               <PrivateRoute>
                 <ProjectGlobalGanttTestPage />
+              </PrivateRoute>
+            } />
+            
+            {/* Dropdown Error Test Page */}
+            <Route path="/dropdown-test" element={
+              <PrivateRoute>
+                <DropdownTestPage />
               </PrivateRoute>
             } />
           </Routes>

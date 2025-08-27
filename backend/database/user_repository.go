@@ -31,14 +31,18 @@ func (r *PostgresUserRepository) getExecer() execer {
 // Create creates a new user
 func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) (*models.User, error) {
 	query := `
-		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role, 
+		                  contact_person_name, contact_phone, department_title, is_primary_contact, 
+		                  account_expires_at, notes, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id, created_at, updated_at`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		user.Username, user.Email, user.PasswordHash, user.UserType, 
-		user.CompanyID, user.CompanyUserID, user.Role)
+		user.CompanyID, user.CompanyUserID, user.Role,
+		user.ContactPersonName, user.ContactPhone, user.DepartmentTitle, user.IsPrimaryContact,
+		user.AccountExpiresAt, user.Notes, user.Status)
 
 	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
@@ -387,7 +391,7 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
 		FROM users u 
-		LEFT JOIN companies c ON u.company_id = c.id 
+		LEFT JOIN customers c ON u.company_id = c.id 
 		%s`, whereClause)
 
 	exec := r.getExecer()
@@ -406,7 +410,7 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 		       c.company_name, u.last_login_at, u.account_expires_at, 
 		       u.last_project_access, u.notes, u.created_at, u.updated_at
 		FROM users u 
-		LEFT JOIN companies c ON u.company_id = c.id 
+		LEFT JOIN customers c ON u.company_id = c.id 
 		%s
 		ORDER BY u.created_at DESC
 		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
@@ -507,7 +511,7 @@ func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (
 	companyQuery := `
 		SELECT c.company_name, COUNT(u.id) as user_count
 		FROM users u
-		LEFT JOIN companies c ON u.company_id = c.id
+		LEFT JOIN customers c ON u.company_id = c.id
 		WHERE u.user_type = 'company' AND u.deleted_at IS NULL
 		GROUP BY c.id, c.company_name
 		ORDER BY user_count DESC`

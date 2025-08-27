@@ -47,6 +47,22 @@ api.interceptors.response.use(
   (response) => {
     // 统一解包后端标准响应 { success, message, data, timestamp }
     const body = response.data;
+    
+    // 特殊处理：某些API直接返回数据而不是包装格式
+    const url = response.config?.url || '';
+    const method = response.config?.method?.toLowerCase() || '';
+    const isUserListAPI = (url.includes('/admin/users') || url.includes('/admin/company-users')) && 
+                          !url.includes('/stats') && 
+                          !url.includes('/export') &&
+                          method === 'get'; // 只有GET请求才是列表API
+    
+    if (isUserListAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      // 企业用户列表API：后端返回 {success: true, data: {data: [], total, page}}
+      // 需要返回 {data: [], total, page} 格式给前端使用
+      console.log('API interceptor - User List API detected, body.data:', body.data);
+      return body.data;
+    }
+    
     if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
       return body.data;
     }

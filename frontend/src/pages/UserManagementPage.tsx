@@ -201,9 +201,12 @@ const UserManagementPage: React.FC = () => {
   // 获取用户统计数据
   const fetchStats = useCallback(async () => {
     try {
+      console.log('Starting fetchStats...');
       setStatsLoading(true);
       const data = await UserManagementService.getUserStats();
+      console.log('fetchStats received data:', data);
       setUserStats(data);
+      console.log('userStats updated to:', data);
     } catch (error) {
       console.error('Failed to fetch user stats:', error);
       message.error('获取用户统计失败');
@@ -226,6 +229,19 @@ const UserManagementPage: React.FC = () => {
     fetchUsers();
     fetchStats();
   }, [fetchUsers, fetchStats]);
+
+  // 测试函数 - 临时调试用
+  const testStatsAPI = async () => {
+    try {
+      console.log('=== Testing Stats API ===');
+      const result = await UserManagementService.getUserStats();
+      console.log('Test result:', result);
+      alert('API测试成功，查看控制台');
+    } catch (error) {
+      console.error('Test failed:', error);
+      alert('API测试失败：' + error.message);
+    }
+  };
 
   const users = usersData?.data || [];
   const total = usersData?.total || 0;
@@ -681,6 +697,13 @@ const UserManagementPage: React.FC = () => {
           </Space>
         </Title>
         <Text type="secondary">管理系统管理员、项目经理和开发人员账户</Text>
+        
+        {/* 调试信息 - 临时显示 */}
+        {process.env.NODE_ENV === 'development' && (
+          <div style={{ margin: '10px 0', padding: '10px', background: '#f0f0f0', fontSize: '12px' }}>
+            <strong>调试信息:</strong> userStats = {JSON.stringify(userStats, null, 2)}
+          </div>
+        )}
       </div>
 
       {/* 统计卡片 */}
@@ -721,6 +744,51 @@ const UserManagementPage: React.FC = () => {
               title="研发工程师"
               value={userStats?.by_role?.developer || 0}
               prefix={<UserOutlined style={{ color: '#52c41a' }} />}
+              loading={statsLoading}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 第二行统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="管理员"
+              value={userStats?.by_role?.admin || 0}
+              prefix={<BuildOutlined style={{ color: '#fa8c16' }} />}
+              loading={statsLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="企业用户"
+              value={(userStats?.by_role?.company_admin || 0) + (userStats?.by_role?.company_user || 0)}
+              prefix={<BankOutlined style={{ color: '#722ed1' }} />}
+              loading={statsLoading}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="近期注册"
+              value={userStats?.recent_registrations || 0}
+              prefix={<PlusOutlined style={{ color: '#13c2c2' }} />}
+              loading={statsLoading}
+              suffix="人"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card>
+            <Statistic
+              title="停用用户"
+              value={(userStats?.by_status?.inactive || 0) + (userStats?.by_status?.suspended || 0)}
+              prefix={<StopOutlined style={{ color: '#ff4d4f' }} />}
               loading={statsLoading}
             />
           </Card>
@@ -781,73 +849,23 @@ const UserManagementPage: React.FC = () => {
           </Col>
           <Col xs={24} sm={4}>
             <Space>
-              <Dropdown 
-                menu={{
-                  items: [
-                    {
-                      key: 'create-admin',
-                      label: '新建系统管理员',
-                      icon: <UserOutlined />,
-                      onClick: () => {
-                        setSelectedUserType('system');
-                        createForm.setFieldsValue({ user_type: 'system', role: 'admin' });
-                        setCreateModalVisible(true);
-                      }
-                    },
-                    {
-                      key: 'create-pm',
-                      label: '新建项目经理',
-                      icon: <UserOutlined />,
-                      onClick: () => {
-                        setSelectedUserType('system');
-                        createForm.setFieldsValue({ user_type: 'system', role: 'project_manager' });
-                        setCreateModalVisible(true);
-                      }
-                    },
-                    {
-                      key: 'create-dev',
-                      label: '新建开发工程师',
-                      icon: <UserOutlined />,
-                      onClick: () => {
-                        setSelectedUserType('system');
-                        createForm.setFieldsValue({ user_type: 'system', role: 'developer' });
-                        setCreateModalVisible(true);
-                      }
-                    },
-                    { type: 'divider' },
-                    {
-                      key: 'create-company-admin',
-                      label: '新建企业管理员',
-                      icon: <BankOutlined />,
-                      onClick: () => {
-                        setSelectedUserType('company');
-                        createForm.setFieldsValue({ user_type: 'company', role: 'company_admin' });
-                        setCreateModalVisible(true);
-                      }
-                    },
-                    {
-                      key: 'create-company-user',
-                      label: '新建企业用户',
-                      icon: <BankOutlined />,
-                      onClick: () => {
-                        setSelectedUserType('company');
-                        createForm.setFieldsValue({ user_type: 'company', role: 'company_user' });
-                        setCreateModalVisible(true);
-                      }
-                    }
-                  ]
-                }}
-                trigger={['click']}
-              >
-                <PermissionWrapper 
-                  permission={USER_PERMISSIONS.CREATE}
-                  fallback={<Button type="primary" disabled icon={<PlusOutlined />}>新建用户 <DownOutlined /></Button>}
+              <PermissionWrapper permission={USER_PERMISSIONS.CREATE}>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    setSelectedUserType('system');
+                    createForm.resetFields();
+                    createForm.setFieldsValue({ 
+                      user_type: 'system', 
+                      role: undefined 
+                    });
+                    setCreateModalVisible(true);
+                  }}
                 >
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    新建用户 <DownOutlined />
-                  </Button>
-                </PermissionWrapper>
-              </Dropdown>
+                  新增用户
+                </Button>
+              </PermissionWrapper>
               <Button 
                 icon={<ReloadOutlined />}
                 onClick={() => {
@@ -858,6 +876,15 @@ const UserManagementPage: React.FC = () => {
               >
                 刷新
               </Button>
+              {/* 临时测试按钮 */}
+              {process.env.NODE_ENV === 'development' && (
+                <Button 
+                  onClick={testStatsAPI}
+                  style={{ backgroundColor: '#f50', color: 'white' }}
+                >
+                  测试统计API
+                </Button>
+              )}
             </Space>
           </Col>
         </Row>
@@ -916,7 +943,12 @@ const UserManagementPage: React.FC = () => {
 
       {/* 创建用户模态框 */}
       <Modal
-        title="新建用户"
+        title={
+          <Space>
+            <PlusOutlined />
+            新建用户
+          </Space>
+        }
         open={createModalVisible}
         onCancel={() => {
           setCreateModalVisible(false);
@@ -925,7 +957,9 @@ const UserManagementPage: React.FC = () => {
           setAvailableRoles(getValidRolesForUserType('system'));
         }}
         onOk={() => createForm.submit()}
-        width={600}
+        width={700}
+        okText="创建用户"
+        cancelText="取消"
       >
         <Form
           form={createForm}
@@ -1109,7 +1143,12 @@ const UserManagementPage: React.FC = () => {
 
       {/* 编辑用户模态框 */}
       <Modal
-        title="编辑用户"
+        title={
+          <Space>
+            <EditOutlined />
+            编辑用户
+          </Space>
+        }
         open={editModalVisible}
         onCancel={() => {
           setEditModalVisible(false);
@@ -1117,7 +1156,9 @@ const UserManagementPage: React.FC = () => {
           editForm.resetFields();
         }}
         onOk={() => editForm.submit()}
-        width={600}
+        width={700}
+        okText="保存更改"
+        cancelText="取消"
       >
         <Form
           form={editForm}
@@ -1285,7 +1326,12 @@ const UserManagementPage: React.FC = () => {
 
       {/* 重置密码模态框 */}
       <Modal
-        title={`重置密码 - ${resetPasswordUser?.username}`}
+        title={
+          <Space>
+            <KeyOutlined />
+            {`重置密码 - ${resetPasswordUser?.username}`}
+          </Space>
+        }
         open={passwordModalVisible}
         onCancel={() => {
           setPasswordModalVisible(false);
@@ -1293,6 +1339,8 @@ const UserManagementPage: React.FC = () => {
           passwordForm.resetFields();
         }}
         onOk={() => passwordForm.submit()}
+        okText="重置密码"
+        cancelText="取消"
       >
         <Form
           form={passwordForm}

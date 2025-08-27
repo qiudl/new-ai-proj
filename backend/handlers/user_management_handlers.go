@@ -426,7 +426,8 @@ func (h *UserManagementHandler) GetUserStats(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, stats)
+	response := models.NewSuccessResponse(stats, "User statistics retrieved successfully")
+	c.JSON(http.StatusOK, response)
 }
 
 // ExportUsers exports user list to CSV format with optional filtering

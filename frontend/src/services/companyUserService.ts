@@ -23,11 +23,20 @@ export class CompanyUserService {
   static async createCompanyUser(
     data: CompanyUserCreateRequest
   ): Promise<CompanyUserCreateResponse> {
-    const response = await api.post<APIResponse<CompanyUserCreateResponse>>(
-      this.BASE_PATH,
-      data
-    );
-    return response.data;
+    console.log('Creating company user with data:', data);
+    
+    try {
+      const response = await api.post<APIResponse<CompanyUserCreateResponse>>(
+        this.BASE_PATH,
+        data
+      );
+      
+      console.log('API response received:', response);
+      return response.data;
+    } catch (error) {
+      console.error('API request failed:', error);
+      throw error;
+    }
   }
 
   /**
