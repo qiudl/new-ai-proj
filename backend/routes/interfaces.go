@@ -20,6 +20,7 @@ type ApplicationInterface interface {
 	GetVersionHandler() gin.HandlerFunc
 	GetLoginHandler() gin.HandlerFunc
 	GetLogoutHandler() gin.HandlerFunc
+	GetJWTTokenHandler() *handlers.JWTTokenHandler
 
 	// Development-only auth helpers
 	GetDevAccountsHandler() gin.HandlerFunc
@@ -97,6 +98,10 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler
 	GetSimpleDocumentHandler() *handlers.SimpleDocumentHandler
 	GetUnifiedDocumentHandler() *handlers.UnifiedDocumentHandler
+	
+	// 工作笔记处理器
+	GetWorkNoteHandler() *handlers.WorkNoteHandler
+	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler
 
 	// 计时器处理器
 	GetTimerHandler() *handlers.TimerHandler
@@ -120,6 +125,8 @@ GetTaskChildrenHandler() gin.HandlerFunc
 	GetAPIKeyHandler() *handlers.APIKeyHandler
 	GetProgressHandler() *handlers.ProgressHandler
 	GetTaskRelationshipHandler() *handlers.TaskRelationshipHandler
+	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
+	GetTaskLTreeHierarchyHandler() *handlers.TaskLTreeHierarchyHandler
 
 	// 回收站相关处理器方法
 	GetRecycledProjectsHandler() gin.HandlerFunc

@@ -21,6 +21,7 @@ func RegisterSearchRoutes(authorized *gin.RouterGroup, app ApplicationInterface)
 	
 	// 基本搜索API
 	search.GET("", searchHandler.Search)                    // GET /api/v1/search
+	search.GET("/prefix", searchHandler.SearchByPrefix)     // GET /api/v1/search/prefix (name/path prefix search)
 	search.GET("/autocomplete", searchHandler.AutoComplete) // GET /api/v1/search/autocomplete
 	search.GET("/stats", searchHandler.SearchStats)         // GET /api/v1/search/stats
 

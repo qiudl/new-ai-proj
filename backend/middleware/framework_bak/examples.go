@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/security"
 	"log"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -329,6 +330,3 @@ func ExampleAdvancedUsage() {
 	// 使用框架...
 	log.Printf("Advanced permission framework initialized successfully")
 }
-
-// strconv import is needed for the examples above
-import "strconv"

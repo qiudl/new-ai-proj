@@ -317,7 +317,7 @@ func getProjectIDFromPath(c *gin.Context) int {
 	if projectIDStr := c.Param("id"); projectIDStr != "" {
 		// 检查是否在项目相关的路径上
 		path := c.Request.URL.Path
-		if contains(path, "/projects/") {
+		if strings.Contains(path, "/projects/") {
 			if projectID, err := strconv.Atoi(projectIDStr); err == nil {
 				return projectID
 			}
@@ -349,12 +349,12 @@ func checkCompanyUserPermissions(c *gin.Context, companyID int) bool {
 	// 6. 不能访问其他企业的数据
 
 	// 禁止访问系统管理路径
-	if contains(path, "/admin/") || contains(path, "/system/") {
+	if strings.Contains(path, "/admin/") || strings.Contains(path, "/system/") {
 		return false
 	}
 
 	// 禁止访问权限管理
-	if contains(path, "/permissions/") {
+	if strings.Contains(path, "/permissions/") {
 		return false
 	}
 
@@ -365,14 +365,14 @@ func checkCompanyUserPermissions(c *gin.Context, companyID int) bool {
 		return true
 	case "POST":
 		// 企业用户可以创建任务和上传文档
-		if contains(path, "/tasks") || contains(path, "/documents") {
+		if strings.Contains(path, "/tasks") || strings.Contains(path, "/documents") {
 			return true
 		}
 		// 禁止其他POST操作
 		return false
 	case "PUT", "PATCH":
 		// 企业用户可以更新任务状态和自己的信息
-		if contains(path, "/tasks") || contains(path, "/profile") {
+		if strings.Contains(path, "/tasks") || strings.Contains(path, "/profile") {
 			return true
 		}
 		return false
@@ -384,21 +384,3 @@ func checkCompanyUserPermissions(c *gin.Context, companyID int) bool {
 	}
 }
 
-// contains 检查字符串是否包含子字符串
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && 
-		   (s == substr || (len(s) > len(substr) && 
-		   (s[:len(substr)] == substr || 
-		    s[len(s)-len(substr):] == substr || 
-		    containsMiddle(s, substr))))
-}
-
-// containsMiddle 检查字符串中间是否包含子字符串
-func containsMiddle(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

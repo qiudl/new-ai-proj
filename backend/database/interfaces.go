@@ -274,6 +274,7 @@ type DocumentRepository interface {
 	GetWithRelations(ctx context.Context, id int) (*models.DocumentResponse, error)
 	GetListWithRelations(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
 	GetAllDocumentsWithRelations(ctx context.Context, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
+	List(ctx context.Context, filter *models.DocumentFilter) ([]*models.Document, int, error)
 	Search(ctx context.Context, projectID int, searchTerm string, limit, offset int) ([]*models.Document, int, error)
 	GetGlobalDocumentCount(ctx context.Context) (int, error)
 }

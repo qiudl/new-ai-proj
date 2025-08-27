@@ -6,6 +6,7 @@ import "ai-project-backend/handlers"
 type AllHandlers struct {
 	// 认证处理器
 	AuthHandler               *handlers.AuthHandler
+	JWTTokenHandler           *handlers.JWTTokenHandler
 
 	// 分析埋点处理器
 	AnalyticsHandler         *handlers.AnalyticsHandler
@@ -27,6 +28,10 @@ type AllHandlers struct {
 	HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
 	SimpleDocumentHandler       *handlers.SimpleDocumentHandler
 	UnifiedDocumentHandler      *handlers.UnifiedDocumentHandler
+	
+	// 工作笔记处理器
+	WorkNoteHandler            *handlers.WorkNoteHandler
+	WorkNoteFolderHandler      *handlers.WorkNoteFolderHandler
 
 	// 计时器处理器
 	TimerHandler        *handlers.TimerHandler
@@ -36,6 +41,7 @@ type AllHandlers struct {
 	// 任务管理处理器
 	TaskHandler                *handlers.TaskHandler
 	TaskHierarchyHandler       *handlers.TaskHierarchyHandler
+	TaskLTreeHierarchyHandler  *handlers.TaskLTreeHierarchyHandler
 
 	// 用户管理处理器
 	UserProfileHandler         *handlers.UserProfileHandler

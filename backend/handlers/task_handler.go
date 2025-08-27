@@ -27,7 +27,27 @@ func NewTaskHandler(db database.DB, logger *log.Logger, validate interface{}) *T
 	return &TaskHandler{db: db}
 }
 
-// GetTasks handles GET /api/v1/projects/:projectId/tasks
+// GetTasks godoc
+// @Summary		Get tasks for a project
+// @Description	Retrieve tasks for a specific project with optional filtering and pagination
+// @Tags			Tasks
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			id				path		int		true	"Project ID"
+// @Param			page			query		int		false	"Page number"	default(1)
+// @Param			page_size		query		int		false	"Page size"		default(50)
+// @Param			search			query		string	false	"Search term"
+// @Param			status			query		string	false	"Task status"
+// @Param			assignee_id		query		string	false	"Assignee ID"
+// @Param			priority		query		string	false	"Task priority"
+// @Param			sort_by			query		string	false	"Sort field"	default(created_at)
+// @Param			sort_order		query		string	false	"Sort order"	default(desc)
+// @Success		200				{object}	models.PaginatedResponse	"Tasks retrieved successfully"
+// @Failure		400				{object}	models.ErrorResponse		"Bad request"
+// @Failure		401				{object}	models.ErrorResponse		"Unauthorized"
+// @Failure		500				{object}	models.ErrorResponse		"Internal server error"
+// @Router			/projects/{id}/tasks [get]
 func (h *TaskHandler) GetTasks(c *gin.Context) {
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,17 +17,25 @@ import (
 
 // CompanyHandler handles company-related HTTP requests
 type CompanyHandler struct {
-	db        database.DB
-	logger    *log.Logger
-	validator *validator.Validate
+	db                   database.DB
+	logger               *log.Logger
+	validator            *validator.Validate
+	enterpriseRoleService *services.EnterpriseRoleService
 }
 
 // NewCompanyHandler creates a new CompanyHandler instance
 func NewCompanyHandler(db database.DB, logger *log.Logger, validator *validator.Validate) *CompanyHandler {
+	// 创建权限仓库实例
+	permissionRepo := database.NewPermissionRepository(db)
+	
+	// 创建企业角色服务实例
+	enterpriseRoleService := services.NewEnterpriseRoleService(db, permissionRepo, logger)
+	
 	return &CompanyHandler{
-		db:        db,
-		logger:    logger,
-		validator: validator,
+		db:                   db,
+		logger:               logger,
+		validator:            validator,
+		enterpriseRoleService: enterpriseRoleService,
 	}
 }
 
@@ -174,6 +183,19 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create company", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
+	}
+
+	// 自动为新创建的企业创建默认角色
+	createdByUserID := 1 // TODO: Get from authenticated user context
+	if company.CreatedBy != nil {
+		createdByUserID = *company.CreatedBy
+	}
+	
+	if err := h.enterpriseRoleService.CreateDefaultEnterpriseRoles(c.Request.Context(), createdCompany.ID, createdByUserID); err != nil {
+		h.logger.Printf("Warning: Failed to create default roles for company %d: %v", createdCompany.ID, err)
+		// 不影响主流程，只记录警告日志
+	} else {
+		h.logger.Printf("Successfully created default roles for company %d", createdCompany.ID)
 	}
 
 	response := models.NewSuccessResponse(createdCompany.ToResponse(), "Company created successfully")
@@ -1076,4 +1098,143 @@ func (h *CompanyHandler) extractValidationErrors(err error) map[string]string {
 // intPtr returns a pointer to the given int value
 func intPtr(i int) *int {
 	return &i
+}
+// GetEnterpriseRoles handles GET /api/v1/companies/:id/roles
+func (h *CompanyHandler) GetEnterpriseRoles(c *gin.Context) {
+	companyIDStr := c.Param("id")
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid company ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 验证企业是否存在
+	_, err = h.db.Companies().GetByID(c.Request.Context(), companyID)
+	if err != nil {
+		if err.Error() == "company not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error getting company: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 获取企业角色
+	roles, err := h.enterpriseRoleService.GetEnterpriseRoles(c.Request.Context(), companyID)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise roles: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve enterprise roles", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(roles, "Enterprise roles retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateEnterpriseRoles handles POST /api/v1/companies/:id/roles
+func (h *CompanyHandler) CreateEnterpriseRoles(c *gin.Context) {
+	companyIDStr := c.Param("id")
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid company ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 验证企业是否存在
+	_, err = h.db.Companies().GetByID(c.Request.Context(), companyID)
+	if err != nil {
+		if err.Error() == "company not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error getting company: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	var req struct {
+		RoleTemplateNames []string `json:"role_template_names" binding:"required"`
+		RecreateDefaults  bool     `json:"recreate_defaults,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	createdByUserID := 1 // TODO: Get from authenticated user context
+
+	if req.RecreateDefaults {
+		// 重新创建默认角色
+		err = h.enterpriseRoleService.CreateDefaultEnterpriseRoles(c.Request.Context(), companyID, createdByUserID)
+		if err != nil {
+			h.logger.Printf("Error creating default enterprise roles: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create default enterprise roles", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+	}
+
+	// 创建可选角色
+	if len(req.RoleTemplateNames) > 0 {
+		err = h.enterpriseRoleService.CreateOptionalEnterpriseRoles(c.Request.Context(), companyID, req.RoleTemplateNames, createdByUserID)
+		if err != nil {
+			h.logger.Printf("Error creating optional enterprise roles: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create optional enterprise roles", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+	}
+
+	// 获取创建后的角色列表
+	roles, err := h.enterpriseRoleService.GetEnterpriseRoles(c.Request.Context(), companyID)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise roles after creation: %v", err)
+		// 不影响主流程，返回成功响应
+		response := models.NewSuccessResponse(nil, "Enterprise roles created successfully")
+		c.JSON(http.StatusCreated, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(roles, "Enterprise roles created successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+// GetAvailableRoleTemplates handles GET /api/v1/enterprise-role-templates
+func (h *CompanyHandler) GetAvailableRoleTemplates(c *gin.Context) {
+	templates := h.enterpriseRoleService.GetAvailableRoleTemplates()
+	
+	// 转换为响应格式
+	type roleTemplateResponse struct {
+		RoleCode        string   `json:"role_code"`
+		RoleName        string   `json:"role_name"`
+		RoleDescription string   `json:"role_description"`
+		IsDefault       bool     `json:"is_default"`
+		Priority        int      `json:"priority"`
+		PermissionCount int      `json:"permission_count"`
+	}
+	
+	var responseTemplates []roleTemplateResponse
+	for _, template := range templates {
+		responseTemplates = append(responseTemplates, roleTemplateResponse{
+			RoleCode:        template.RoleCode,
+			RoleName:        template.RoleName,
+			RoleDescription: template.RoleDescription,
+			IsDefault:       template.IsDefault,
+			Priority:        template.Priority,
+			PermissionCount: len(template.Permissions),
+		})
+	}
+
+	response := models.NewSuccessResponse(responseTemplates, "Available role templates retrieved successfully")
+	c.JSON(http.StatusOK, response)
 }

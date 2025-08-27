@@ -6,6 +6,8 @@ import (
 	"os"
 	"github.com/gin-gonic/gin"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
+	// ginSwagger "github.com/swaggo/gin-swagger"
+	// "github.com/swaggo/files"
 )
 
 // SetupRouter 创建并配置主路由器
@@ -54,6 +56,13 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	
 	// Prometheus metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Swagger API documentation (development only)
+	// if !app.GetConfig().IsProduction() {
+	// 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	// 	// Alternative route for compatibility
+	// 	router.GET("/api/v1/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
+	// }
 
 	// 静态文件服务 - 头像上传文件
 	router.Static("/api/v1/uploads", "./uploads")
@@ -108,6 +117,25 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	
 	// 注册任务关系路由（依赖、并行组等）
 	RegisterTaskRelationshipRoutes(authorized, app)
+	
+	// 注册任务层级结构路由（使用ltree）- 手动内联注册
+	hierarchyHandler := app.GetTaskLTreeHierarchyHandler()
+	if hierarchyHandler != nil {
+		println("[DEBUG] TaskLTreeHierarchyHandler found, registering routes...")
+		hierarchy := authorized.Group("/hierarchy")
+		{
+			hierarchy.GET("/tasks/:taskId/ancestors", hierarchyHandler.GetTaskAncestors)
+			hierarchy.GET("/tasks/:taskId/descendants", hierarchyHandler.GetTaskDescendants)
+			hierarchy.GET("/tasks/:taskId/children", hierarchyHandler.GetTaskChildren)
+			hierarchy.PUT("/tasks/:taskId/move", hierarchyHandler.MoveTask)
+			hierarchy.GET("/projects/:projectId/tasks/depth", hierarchyHandler.GetTasksByDepth)
+			hierarchy.GET("/projects/:projectId/tasks/pattern", hierarchyHandler.FindTasksByPattern)
+			hierarchy.GET("/projects/:projectId/stats", hierarchyHandler.GetHierarchyStats)
+			hierarchy.POST("/admin/refresh-paths", hierarchyHandler.RefreshTaskPaths)
+		}
+	} else {
+		println("[WARNING] TaskLTreeHierarchyHandler is nil, skipping hierarchy routes registration")
+	}
 	
 	// 注册API和其他杂项路由（包含公共路由、webhooks、全局任务等）
 	RegisterAPIRoutes(router, authorized, app)

@@ -291,6 +291,20 @@ func (h *DocumentHandler) GetDocuments(c *gin.Context) {
 		}
 	}
 
+	// 临时修复：如果没有获取到文档但total > 0，直接查询数据库
+	if len(documents) == 0 && total > 0 {
+		fmt.Printf("[WORK_NOTES_DEBUG] Fallback: using direct database query\n")
+		directDocs, directTotal, err := h.docRepo.List(c.Request.Context(), filter)
+		if err == nil && len(directDocs) > 0 {
+			fmt.Printf("[WORK_NOTES_DEBUG] Direct query returned %d documents\n", len(directDocs))
+			documents = make([]models.Document, len(directDocs))
+			for i, doc := range directDocs {
+				documents[i] = *doc
+			}
+			total = directTotal
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Documents retrieved successfully",

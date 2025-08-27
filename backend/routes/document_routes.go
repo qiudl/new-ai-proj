@@ -31,6 +31,12 @@ func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 
 // registerDocumentCRUDRoutes 注册文档CRUD路由
 func registerDocumentCRUDRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 开发环境调试端点
+	config := app.GetConfig()
+	if !config.IsProduction() {
+		authorized.GET("/debug-work-notes", app.GetDocumentHandler().DebugListWorkNotes)
+	}
+	
 	// Document CRUD routes (use new DocumentHandler for core operations)
 	authorized.GET("/documents", app.GetDocumentHandler().GetDocuments)
 	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
@@ -142,23 +148,63 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 			workNotes.GET("/debug-work-notes", app.GetDocumentHandler().DebugListWorkNotes)
 		}
 		
-		// 使用标准 DocumentHandler 以保证与前端期望的数据结构一致（包含分页字段）
-		workNotes.GET("", app.GetDocumentHandler().ListWorkNotes)
-		workNotes.POST("", app.GetDocumentHandler().CreateDocument)
-		workNotes.GET("/search", app.GetDocumentHandler().SearchWorkNotes)
-		workNotes.GET("/:id", app.GetDocumentHandler().GetDocument)
-		workNotes.PUT("/:id", app.GetDocumentHandler().UpdateDocument)
-		workNotes.DELETE("/:id", app.GetDocumentHandler().DeleteDocument)
-		}
-
-		// 兼容前端服务的工作笔记复制与模板切换端点（与 /documents 下行为一致）
+		// 使用专用的WorkNoteHandler处理工作笔记特有功能
+		workNotesHandler := app.GetWorkNoteHandler()
+		
+		// 基础CRUD操作
+		workNotes.GET("", workNotesHandler.ListWorkNotes)
+		workNotes.POST("", workNotesHandler.CreateWorkNote)
+		workNotes.GET("/search", workNotesHandler.SearchWorkNotes)
+		workNotes.GET("/:id", workNotesHandler.GetWorkNote)
+		workNotes.PUT("/:id", workNotesHandler.UpdateWorkNote)
+		workNotes.DELETE("/:id", workNotesHandler.DeleteWorkNote)
+		
+		// 工作笔记特有功能
+		workNotes.POST("/batch", workNotesHandler.BatchUpdateWorkNotes)
+		workNotes.GET("/stats", workNotesHandler.GetWorkNoteStats)
+		workNotes.GET("/recent", workNotesHandler.GetRecentNotes)
+		workNotes.GET("/pinned", workNotesHandler.GetPinnedNotes)
+		workNotes.GET("/bookmarked", workNotesHandler.GetBookmarkedNotes)
+		
+		// 单个笔记操作
+		workNotes.POST("/:id/pin", workNotesHandler.PinWorkNote)
+		workNotes.POST("/:id/bookmark", workNotesHandler.BookmarkWorkNote)
+		workNotes.GET("/:id/related", workNotesHandler.GetRelatedNotes)
+		
+		// 兼容性：保留一些通用文档操作
 		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
 		
-		// 工作笔记转任务文档功能
+		// 工作笔记转任务文档功能（保留旧的路由以保证兼容性）
 		workNotes.POST("/:id/convert-to-task-document", app.GetDocumentHandler().ConvertWorkNoteToTaskDocument)
 		workNotes.POST("/:id/convert-preview", app.GetDocumentHandler().ConvertWorkNotePreview)
 		workNotes.POST("/batch-convert-to-task-documents", app.GetDocumentHandler().BatchConvertWorkNotesToTaskDocuments)
+	}
+	
+	// 工作笔记文件夹路由
+	workNoteFolders := authorized.Group("/work-note-folders")
+	{
+		folderHandler := app.GetWorkNoteFolderHandler()
+		
+		// 基础CRUD操作
+		workNoteFolders.GET("", folderHandler.ListWorkNoteFolders)
+		workNoteFolders.POST("", folderHandler.CreateWorkNoteFolder)
+		workNoteFolders.GET("/:id", folderHandler.GetWorkNoteFolder)
+		workNoteFolders.PUT("/:id", folderHandler.UpdateWorkNoteFolder)
+		workNoteFolders.DELETE("/:id", folderHandler.DeleteWorkNoteFolder)
+		
+		// 文件夹树和层级操作
+		workNoteFolders.GET("/tree", folderHandler.GetWorkNoteFolderTree)
+		workNoteFolders.GET("/search", folderHandler.SearchWorkNoteFolders)
+		workNoteFolders.GET("/:id/ancestors", folderHandler.GetFolderAncestors)
+		workNoteFolders.GET("/:id/descendants", folderHandler.GetFolderDescendants)
+		workNoteFolders.GET("/:id/stats", folderHandler.GetFolderStats)
+		
+		// 批量操作
+		workNoteFolders.POST("/:id/move", folderHandler.MoveWorkNoteFolder)
+		workNoteFolders.POST("/batch/move", folderHandler.BatchMoveFolders)
+		workNoteFolders.POST("/batch/sort", folderHandler.BatchSortFolders)
+		workNoteFolders.POST("/batch/move-notes", folderHandler.BatchMoveNotesToFolder)
 	}
 }
 

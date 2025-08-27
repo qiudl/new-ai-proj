@@ -204,11 +204,18 @@ func registerCompanyManagementRoutes(authorized *gin.RouterGroup, app Applicatio
 		// companies.POST("/:id/users/:userId/role", app.GetCompanyHandler().AssignUserRole)
 		companies.GET("/:id/users/:userId/permissions", app.GetCompanyHandler().GetUserPermissions)
 		companies.PUT("/:id/users/:userId/permissions", app.GetCompanyHandler().UpdateUserPermissions)
+		
+		// Enterprise role management routes
+		companies.GET("/:id/roles", app.GetCompanyHandler().GetEnterpriseRoles)
+		companies.POST("/:id/roles", app.GetCompanyHandler().CreateEnterpriseRoles)
 
 		// Company contact routes
 		companies.GET("/:id/contacts", app.GetCompanyHandler().GetCompanyContacts)
 		companies.POST("/:id/contacts", app.GetCompanyHandler().CreateCompanyContact)
 	}
+	
+	// Enterprise role templates routes
+	authorized.GET("/enterprise-role-templates", app.GetCompanyHandler().GetAvailableRoleTemplates)
 }
 
 // registerCustomerManagementRoutes 注册客户管理路由 (已弃用)

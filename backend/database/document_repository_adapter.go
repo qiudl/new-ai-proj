@@ -151,6 +151,11 @@ func (a *DocumentRepositoryAdapter) Search(ctx context.Context, projectID int, s
 	return a.newRepo.Search(ctx, searchReq)
 }
 
+// List 直接列出文档（用于调试和修复）
+func (a *DocumentRepositoryAdapter) List(ctx context.Context, filter *models.DocumentFilter) ([]*models.Document, int, error) {
+	return a.newRepo.List(ctx, filter)
+}
+
 // GetGlobalDocumentCount 获取全局文档数量
 func (a *DocumentRepositoryAdapter) GetGlobalDocumentCount(ctx context.Context) (int, error) {
 	// 使用List方法获取所有文档并返回数量

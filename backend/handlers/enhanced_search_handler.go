@@ -157,6 +157,71 @@ func (h *EnhancedSearchHandler) Search(c *gin.Context) {
 	})
 }
 
+// SearchByPrefix godoc
+// @Summary Search by name or path prefix
+// @Description Search content by name or path prefix matching
+// @Tags Search
+// @Accept json
+// @Produce json
+// @Param prefix query string true "Name or path prefix to search"
+// @Param type query string false "Content type filter (document, task, project, user)"
+// @Param include_path query boolean false "Include path-based search (default: true)"
+// @Param include_name query boolean false "Include name-based search (default: true)"
+// @Param limit query integer false "Maximum results (default: 20, max: 100)"
+// @Param sort_by query string false "Sort field (name, path, date, relevance)"
+// @Param sort_order query string false "Sort order (asc, desc, default: asc)"
+// @Success 200 {object} services.PrefixSearchResponse
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/search/prefix [get]
+func (h *EnhancedSearchHandler) SearchByPrefix(c *gin.Context) {
+	prefix := c.Query("prefix")
+	if prefix == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "前缀搜索参数不能为空",
+		})
+		return
+	}
+
+	// Parse query parameters
+	filter := &services.PrefixSearchFilter{
+		Prefix:      prefix,
+		Type:        c.Query("type"),
+		IncludePath: c.Query("include_path") != "false", // default true
+		IncludeName: c.Query("include_name") != "false", // default true
+		SortBy:      c.DefaultQuery("sort_by", "name"),
+		SortOrder:   c.DefaultQuery("sort_order", "asc"),
+	}
+
+	// Parse limit
+	if limit, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil {
+		if limit > 100 {
+			limit = 100 // Cap at 100
+		}
+		filter.Limit = limit
+	} else {
+		filter.Limit = 20
+	}
+
+	// Perform prefix search
+	results, err := h.searchService.SearchByPrefix(c.Request.Context(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "前缀搜索失败",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "前缀搜索成功",
+		"data":    results,
+	})
+}
+
 // AutoComplete godoc
 // @Summary Get search suggestions
 // @Description Get autocomplete suggestions for search queries

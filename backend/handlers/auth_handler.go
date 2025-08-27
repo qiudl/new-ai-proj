@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"log"
 	"net/http"
 	"os"
@@ -15,13 +16,22 @@ import (
 
 // AuthHandler handles all authentication-related operations
 type AuthHandler struct {
-	db        database.DB
-	jwtSecret string
+	db           database.DB
+	jwtSecret    string
+	tokenService *services.JWTTokenService
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(db database.DB, jwtSecret string) *AuthHandler {
-	return &AuthHandler{db: db, jwtSecret: jwtSecret}
+func NewAuthHandler(db database.DB, jwtSecret string, tokenService *services.JWTTokenService) *AuthHandler {
+	if tokenService == nil {
+		log.Printf("[CRITICAL] AuthHandler created with nil tokenService!")
+	}
+	log.Printf("[DEBUG] AuthHandler created with tokenService: %p", tokenService)
+	return &AuthHandler{
+		db:           db,
+		jwtSecret:    jwtSecret,
+		tokenService: tokenService,
+	}
 }
 
 // LoginRequest represents the login request structure
@@ -30,15 +40,33 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-// LoginResponse represents the login response structure
-type LoginResponse struct {
-	Token     string        `json:"token"`
-	User      models.User   `json:"user"`
-	ExpiresAt time.Time     `json:"expires_at"`
+// JWTLoginResponse represents the JWT login response structure
+type JWTLoginResponse struct {
+	AccessToken  string        `json:"access_token"`
+	RefreshToken string        `json:"refresh_token"`
+	TokenType    string        `json:"token_type"`
+	ExpiresIn    int64         `json:"expires_in"`
+	User         models.User   `json:"user"`
 }
 
-// Login handles POST /api/v1/auth/login
+// Login godoc
+// @Summary		User login
+// @Description	Authenticate user with username and password
+// @Tags			Authentication
+// @Accept			json
+// @Produce		json
+// @Param			request	body		LoginRequest	true	"Login credentials"
+// @Success		200		{object}	LoginResponse	"Login successful"
+// @Failure		400		{object}	models.ErrorResponse	"Bad request"
+// @Failure		401		{object}	models.ErrorResponse	"Unauthorized"
+// @Failure		500		{object}	models.ErrorResponse	"Internal server error"
+// @Router			/auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
+	log.Println("=== LOGIN HANDLER CALLED ===")
+	log.Printf("[DEBUG] Login called, tokenService: %p", h.tokenService)
+	if h.tokenService == nil {
+		log.Printf("[CRITICAL] tokenService is nil in Login handler!")
+	}
 	
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -61,19 +89,29 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	token, expiresAt, err := h.generateJWTToken(user)
+	// Generate JWT token pair
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType)
 	if err != nil {
-		log.Printf("Error generating JWT token: %v", err)
+		log.Printf("Error generating JWT token pair: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
+	
+	// Debug: Print the actual TokenPair structure
+	log.Printf("[DEBUG] TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
-	response := LoginResponse{
-		Token:     token,
-		User:      *user,
-		ExpiresAt: expiresAt,
+	response := JWTLoginResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		TokenType:    tokenPair.TokenType,
+		ExpiresIn:    tokenPair.ExpiresIn,
+		User:         *user,
 	}
+	
+	// Debug: Print the JWTLoginResponse structure
+	log.Printf("[DEBUG] JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+		response.AccessToken, response.RefreshToken, response.TokenType, response.ExpiresIn)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "登录成功"))
 }
@@ -89,6 +127,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 // DevQuickLogin handles POST /api/v1/auth/dev-quick-login (development only)
 func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
+	log.Println("=== DEV QUICK LOGIN HANDLER CALLED ===")
 	// Only allow in development environment
 	env := os.Getenv("APP_ENV")
 	if env != "development" && env != "dev" {
@@ -137,19 +176,29 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		}
 	}
 
-	// Generate JWT token without password verification (development only)
-	token, expiresAt, err := h.generateJWTToken(user)
+	// Generate JWT token pair without password verification (development only)
+	tokenPair, err := h.tokenService.GenerateTokenPair(user.ID, user.Username, user.Role, user.UserType)
 	if err != nil {
-		log.Printf("Error generating JWT token for dev login: %v", err)
+		log.Printf("Error generating JWT token pair for dev login: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
+	
+	// Debug: Print the actual TokenPair structure
+	log.Printf("[DEBUG] DevLogin TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
-	response := LoginResponse{
-		Token:     token,
-		User:      *user,
-		ExpiresAt: expiresAt,
+	response := JWTLoginResponse{
+		AccessToken:  tokenPair.AccessToken,
+		RefreshToken: tokenPair.RefreshToken,
+		TokenType:    tokenPair.TokenType,
+		ExpiresIn:    tokenPair.ExpiresIn,
+		User:         *user,
 	}
+	
+	// Debug: Print the DevLogin JWTLoginResponse structure
+	log.Printf("[DEBUG] DevLogin JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+		response.AccessToken, response.RefreshToken, response.TokenType, response.ExpiresIn)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "开发环境快速登录成功"))
 }
@@ -180,28 +229,4 @@ func (h *AuthHandler) GetDevAccounts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(devAccounts, "获取开发账户列表成功"))
-}
-
-// generateJWTToken generates a JWT token for the given user
-func (h *AuthHandler) generateJWTToken(user *models.User) (string, time.Time, error) {
-	expiresAt := time.Now().Add(168 * time.Hour) // 7 days
-
-	claims := jwt.MapClaims{
-		"user_id":   user.ID,
-		"username":  user.Username,
-		"role":      user.Role,
-		"user_type": user.UserType,
-		"sub":       user.Username,
-		"exp":       expiresAt.Unix(),
-		"nbf":       time.Now().Unix(),
-		"iat":       time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(h.jwtSecret))
-	if err != nil {
-		return "", time.Time{}, err
-	}
-
-	return tokenString, expiresAt, nil
 }

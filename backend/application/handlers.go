@@ -218,6 +218,8 @@ func (app *Application) GetAPIKeyHandler() *handlers.APIKeyHandler {
 
 func (app *Application) GetProgressHandler() *handlers.ProgressHandler { return app.handlers.ProgressHandler }
 func (app *Application) GetTaskRelationshipHandler() *handlers.TaskRelationshipHandler { return app.handlers.TaskRelationshipHandler }
+func (app *Application) GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler { return app.handlers.TaskHierarchyHandler }
+func (app *Application) GetTaskLTreeHierarchyHandler() *handlers.TaskLTreeHierarchyHandler { return app.handlers.TaskLTreeHierarchyHandler }
 
 func (app *Application) GetStatisticsHandler() *handlers.StatisticsHandlers {
 	return app.handlers.StatisticsHandler
@@ -313,6 +315,14 @@ func (app *Application) GetUnifiedDocumentHandler() *handlers.UnifiedDocumentHan
 	return app.handlers.UnifiedDocumentHandler
 }
 
+func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
+	return app.handlers.WorkNoteHandler
+}
+
+func (app *Application) GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler {
+	return app.handlers.WorkNoteFolderHandler
+}
+
 func (app *Application) GetTimerHandler() *handlers.TimerHandler {
 	return app.handlers.TimerHandler
 }
@@ -366,4 +376,9 @@ func (app *Application) RestoreDocumentHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "restoreDocumentHandler not implemented"})
 	}
+}
+
+// JWT Token management handler getter
+func (app *Application) GetJWTTokenHandler() *handlers.JWTTokenHandler {
+	return app.handlers.JWTTokenHandler
 }

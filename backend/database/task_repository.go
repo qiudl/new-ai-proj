@@ -14,6 +14,11 @@ type PostgresTaskRepository struct {
 	db interface{}
 }
 
+// NewPostgresTaskRepository creates a new PostgresTaskRepository
+func NewPostgresTaskRepository(db interface{}) *PostgresTaskRepository {
+	return &PostgresTaskRepository{db: db}
+}
+
 // getExecer returns the appropriate execer (DB or Tx)
 func (r *PostgresTaskRepository) getExecer() execer {
 	if tx, ok := r.db.(*sql.Tx); ok {

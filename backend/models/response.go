@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+// ErrorResponse is an alias for APIResponse with error
+type ErrorResponse = APIResponse
+
 // APIResponse represents a standard API response
 type APIResponse struct {
 	Success   bool        `json:"success"`
@@ -56,8 +59,8 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required" validate:"required,min=6"`
 }
 
-// LoginResponse represents a login response
-type LoginResponse struct {
+// LegacyLoginResponse represents a legacy login response (deprecated)
+type LegacyLoginResponse struct {
 	Token     string `json:"token"`
 	SessionID string `json:"session_id,omitempty"`
 	User      User   `json:"user"`

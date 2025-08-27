@@ -15,7 +15,18 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 	{
 		auth.POST("/login", app.GetLoginHandler())
 		auth.POST("/logout", app.GetLogoutHandler())
-		auth.POST("/refresh", handlers.RefreshTokenHandler(app.GetJWTManager()))
+		auth.POST("/refresh", app.GetJWTTokenHandler().RefreshToken)
+		auth.POST("/revoke", app.GetJWTTokenHandler().RevokeToken)
+		auth.POST("/validate", app.GetJWTTokenHandler().ValidateToken)
+		
+		// 需要认证的JWT管理接口
+		authProtected := auth.Group("/")
+		authProtected.Use(middleware.AuthMiddleware(app.GetJWTManager()))
+		{
+			authProtected.GET("/token-info", app.GetJWTTokenHandler().GetTokenInfo)
+			authProtected.POST("/revoke-all", app.GetJWTTokenHandler().RevokeAllTokens)
+			authProtected.GET("/blacklist-stats", app.GetJWTTokenHandler().GetBlacklistStats)
+		}
 		
 		// Google认证路由
 		auth.GET("/google", app.GetGoogleAuthHandler().InitiateGoogleAuth)

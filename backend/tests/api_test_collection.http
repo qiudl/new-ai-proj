@@ -1,0 +1,63 @@
+GET {{baseUrl}}/projects?sort_by=name&sort_order=asc
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 20. 过滤测试
+GET {{baseUrl}}/projects/{{projectId}}/tasks?status=todo&priority=high
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### 21. 删除任务
+DELETE {{baseUrl}}/tasks/{{taskId}}
+Authorization: Bearer {{token}}
+
+### 22. 删除项目
+DELETE {{baseUrl}}/projects/{{projectId}}
+Authorization: Bearer {{token}}
+
+### 23. 注销/令牌撤销
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### 24. Google OAuth 认证流程 - 初始化
+GET {{baseUrl}}/auth/google
+
+### 25. 文档和静态资源测试
+GET http://localhost:8080/docs/
+Accept: text/html
+
+### 26. Swagger UI 访问测试
+GET http://localhost:8080/swagger/index.html
+Accept: text/html
+
+### 27. API Schema 获取
+GET http://localhost:8080/swagger/doc.json
+Accept: application/json
+
+### 28. 系统指标测试
+GET http://localhost:8080/metrics
+Accept: text/plain
+
+### 29. CORS 预检请求测试
+OPTIONS {{baseUrl}}/projects
+Origin: http://localhost:3000
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: Content-Type, Authorization
+
+### 30. 批量操作测试 (如果支持)
+POST {{baseUrl}}/tasks/batch
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "operations": [
+    {
+      "op": "update",
+      "id": 1,
+      "data": {
+        "status": "completed"
+      }
+    }
+  ]
+}

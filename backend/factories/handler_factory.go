@@ -6,11 +6,13 @@ import (
 	"ai-project-backend/handlers"
 	"ai-project-backend/interfaces"
 	"ai-project-backend/services"
+	"ai-project-backend/utils"
 	"database/sql"
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/jmoiron/sqlx"
@@ -38,8 +40,25 @@ func NewHandlerFactory(db database.DB, logger *log.Logger, validate *validator.V
 func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers := &AllHandlers{}
 	
-// 认证处理器
-	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.config.JWT.Secret)
+	// 创建JWT令牌服务配置
+	jwtServiceConfig := &services.JWTServiceConfig{
+		AccessTokenExpiry:  15 * time.Minute,
+		RefreshTokenExpiry: 7 * 24 * time.Hour,
+		SecretKey:         f.config.JWT.Secret,
+		RefreshSecretKey:  f.config.JWT.Secret + "-refresh",
+		MaxRefreshCount:   10,
+		CleanupInterval:   time.Hour,
+		EnableBlacklist:   true,
+	}
+	
+	// 创建JWT令牌服务
+	jwtTokenService := services.NewJWTTokenService(jwtServiceConfig, f.logger)
+	
+	// 认证处理器
+	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.config.JWT.Secret, jwtTokenService)
+	
+	// JWT令牌管理处理器
+	allHandlers.JWTTokenHandler = handlers.NewJWTTokenHandler(jwtTokenService)
 
 	// 分析埋点处理器
 	allHandlers.AnalyticsHandler = handlers.NewAnalyticsHandler(f.db)
@@ -56,6 +75,13 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 任务管理处理器
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
+	
+	// 创建ltree任务层级处理器
+	f.logger.Printf("[FACTORY] Creating TaskLTreeHierarchyHandler...")
+	taskRepo := database.NewPostgresTaskRepository(f.db)
+	ltreeRepo := database.NewTaskLTreeRepository(f.db)
+	allHandlers.TaskLTreeHierarchyHandler = handlers.NewTaskLTreeHierarchyHandler(taskRepo, ltreeRepo)
+	f.logger.Printf("[FACTORY] TaskLTreeHierarchyHandler created successfully")
 
 	// 用户管理处理器
 	allHandlers.UserProfileHandler = handlers.NewUserProfileHandler(f.db, f.logger, f.validate)
@@ -88,6 +114,16 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
 	allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db)
 	allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 保留兼容性
+	
+	// 工作笔记处理器
+	sqlxDB := sqlx.NewDb(f.db.GetDB().(*sql.DB), "postgres")
+	documentService := services.NewDocumentService(sqlxDB)
+	workNoteService := services.NewWorkNoteService(sqlxDB, documentService)
+	workNoteFolderService := services.NewWorkNoteFolderService(sqlxDB)
+	jwtManager := &utils.JWTManager{} // 简化版本，实际中应该从config传入
+	allHandlers.WorkNoteHandler = handlers.NewWorkNoteHandler(workNoteService, jwtManager)
+	allHandlers.WorkNoteFolderHandler = handlers.NewWorkNoteFolderHandler(workNoteFolderService, jwtManager)
+	
 	allHandlers.TimerHandler = handlers.NewTimerHandler(f.db)
 	
 	// 任务文档处理器
