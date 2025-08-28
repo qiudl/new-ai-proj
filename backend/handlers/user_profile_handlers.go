@@ -37,13 +37,23 @@ func NewUserProfileHandler(db database.DB, logger *log.Logger, validator *valida
 
 // GetUserProfile 获取用户资料
 func (h *UserProfileHandler) GetUserProfile(c *gin.Context) {
+	// Debug: 打印所有上下文键值
+	h.logger.Printf("[PROFILE] Processing GetUserProfile request")
+	h.logger.Printf("[PROFILE] Context keys available:")
+	for key, value := range c.Keys {
+		h.logger.Printf("[PROFILE] - %s: %v", key, value)
+	}
+	
 	// Extract user ID from context (set by mapUserToCompanyUser middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
+		h.logger.Printf("[PROFILE] user_id not found in context")
 		response := models.NewErrorResponse(models.ErrCodeUnauthorized, "User not authenticated", nil)
 		c.JSON(http.StatusUnauthorized, response)
 		return
 	}
+
+	h.logger.Printf("[PROFILE] user_id found: %v", userID)
 
 	// Get user from database
 	user, err := h.db.Users().GetByID(c.Request.Context(), userID.(int))

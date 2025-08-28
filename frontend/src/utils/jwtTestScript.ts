@@ -71,7 +71,7 @@ class JWTTestRunner {
 
     // 测试2: 检查方法存在性
     const methods = ['checkJWTStatus', 'logModuleJWTStatus', 'printJWTStatus', 'testJWTWithAPI'];
-    const missingMethods = methods.filter(method => typeof (jwtDebugger as unknown)[method] !== 'function');
+    const missingMethods = methods.filter(method => typeof (jwtDebugger as any)[method] !== 'function');
     
     this.addResult(
       '基础功能 - 方法完整性',
@@ -238,8 +238,8 @@ export const runJWTTests = () => jwtTestRunner.runAllTests();
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as unknown).runJWTTests = runJWTTests;
-  (window as unknown).jwtTestRunner = jwtTestRunner;
+  (window as any).runJWTTests = runJWTTests;
+  (window as any).jwtTestRunner = jwtTestRunner;
 }
 
 export default jwtTestRunner;

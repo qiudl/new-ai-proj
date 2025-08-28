@@ -1,10 +1,14 @@
 package application
 
 import (
+	"database/sql"
 	"ai-project-backend/handlers"
+	"ai-project-backend/services"
+	"ai-project-backend/database"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
 )
 
 // 简化的Handler方法实现，专注于角色权限API测试
@@ -141,27 +145,19 @@ func (app *Application) RemoveProjectUserHandler() gin.HandlerFunc {
 
 // Project handlers
 func (app *Application) GetProjectsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"projects": []gin.H{}})
-	}
+	return app.projectHandler.GetProjects
 }
 
 func (app *Application) CreateProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"success": true, "id": 1})
-	}
+	return app.projectHandler.CreateProject
 }
 
 func (app *Application) GetProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"project": gin.H{}})
-	}
+	return app.projectHandler.GetProject
 }
 
 func (app *Application) UpdateProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	}
+	return app.projectHandler.UpdateProject
 }
 
 func (app *Application) DeleteProjectHandler() gin.HandlerFunc {
@@ -178,49 +174,35 @@ func (app *Application) GetProjectStatsHandler() gin.HandlerFunc {
 
 // Task handlers
 func (app *Application) GetTasksHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"tasks": []gin.H{}})
-	}
+	return app.taskHandler.GetTasks
 }
 
 func (app *Application) GetTaskHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"task": gin.H{}})
-	}
+	return app.taskHandler.GetTask
 }
 
 func (app *Application) CreateTaskHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusCreated, gin.H{"success": true, "id": 1})
-	}
+	return app.taskHandler.CreateTask
 }
 
 func (app *Application) UpdateTaskHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	}
+	return app.taskHandler.UpdateTask
 }
 
 func (app *Application) DeleteTaskHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	}
+	return app.taskHandler.DeleteTask
 }
 
 func (app *Application) MoveTaskHandler() gin.HandlerFunc {
-	// Create properly initialized task handler
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.MoveTask
+	return app.taskHandler.MoveTask
 }
 
 func (app *Application) ReorderTaskHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.ReorderTask
+	return app.taskHandler.ReorderTask
 }
 
 func (app *Application) BulkReorderTasksHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.BulkReorderTasks
+	return app.taskHandler.BulkReorderTasks
 }
 
 // Core handlers for the services we care about
@@ -247,6 +229,36 @@ func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
 		app.documentHandler = handlers.NewDocumentHandler(app.db)
 	}
 	return app.documentHandler
+}
+
+// GetWorkNoteHandler returns the work note handler
+func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
+	// 创建WorkNoteService并返回handler
+	if workNoteService := createBasicWorkNoteService(app.db); workNoteService != nil {
+		return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager)
+	}
+	return nil
+}
+
+// createBasicWorkNoteService 创建基本的WorkNoteService（临时实现）
+func createBasicWorkNoteService(db database.DB) *services.WorkNoteService {
+	// 获取原始数据库连接并转换为sqlx.DB
+	rawDB := db.GetDB()
+	if sqlDB, ok := rawDB.(*sql.DB); ok {
+		// 将sql.DB包装为sqlx.DB（PostgreSQL驱动）
+		sqlxDB := sqlx.NewDb(sqlDB, "postgres")
+		return services.NewWorkNoteService(sqlxDB, nil)
+	}
+	// 如果已经是sqlx.DB，直接使用
+	if sqlxDB, ok := rawDB.(*sqlx.DB); ok {
+		return services.NewWorkNoteService(sqlxDB, nil)
+	}
+	return nil
+}
+
+// GetHybridDocumentFolderHandler returns the hybrid document folder handler
+func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
+	return handlers.NewHybridDocumentFolderHandler(app.db)
 }
 
 // Placeholder handler functions for other required interfaces

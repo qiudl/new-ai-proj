@@ -73,7 +73,15 @@ type ApplicationInterface interface {
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
 	GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler
+	GetUserManagementHandler() *handlers.UserManagementHandler
 	
 	// 公司管理处理器
 	GetCompanyHandler() *handlers.CompanyHandler
+	
+	// 工作笔记处理器
+	GetWorkNoteHandler() *handlers.WorkNoteHandler
+	
+	// 文档处理器
+	GetDocumentHandler() *handlers.DocumentHandler
+	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler
 }

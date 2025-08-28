@@ -79,7 +79,7 @@ class DocumentManagerPerformance {
   // 获取内存使用情况
   private getMemoryUsage(): number {
     if ('memory' in performance) {
-      return (performance as unknown).memory.usedJSHeapSize / 1024 / 1024; // MB
+      return (performance as any).memory.usedJSHeapSize / 1024 / 1024; // MB
     }
     return 0;
   }
@@ -149,7 +149,7 @@ class DocumentManagerPerformance {
   }
 
   // 生成性能建议
-  private generateRecommendations(summary: unknown): string[] {
+  private generateRecommendations(summary: { averageRenderTime: number; averageLoadTime: number; averageSearchTime: number; peakMemoryUsage: number; totalOperations: number; }): string[] {
     const recommendations: string[] = [];
 
     if (summary.averageRenderTime > 50) {

@@ -84,7 +84,7 @@ class MemoryManager {
   // Get memory information
   static getMemoryInfo(): MemoryInfo | null {
     if ('memory' in performance) {
-      return (performance as unknown).memory as MemoryInfo;
+      return (performance as any).memory as MemoryInfo;
     }
     return null;
   }
@@ -212,9 +212,9 @@ class MemoryManager {
 
   // Force garbage collection if available
   private static forceGarbageCollection(): void {
-    if ('gc' in window && typeof (window as unknown).gc === 'function') {
+    if ('gc' in window && typeof (window as any).gc === 'function') {
       try {
-        (window as unknown).gc();
+        (window as any).gc();
         } catch (error) {
         console.warn('Failed to force garbage collection:', error);
       }

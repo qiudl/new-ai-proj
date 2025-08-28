@@ -29,6 +29,8 @@ type Application struct {
 	documentHandler *handlers.DocumentHandler // Document handler instance
 	userProfileHandler *handlers.UserProfileHandler // User profile handler instance
 	companyHandler  *handlers.CompanyHandler  // Company handler instance
+	projectHandler  *handlers.ProjectHandler  // Project handler instance
+	taskHandler     *handlers.TaskHandler     // Task handler instance
 	mirrorWritable bool
 }
 
@@ -86,6 +88,12 @@ func NewApplication() (*Application, error) {
 	// Initialize Company Handler
 	companyHandler := handlers.NewCompanyHandler(db, logger, validate)
 
+	// Initialize Project Handler
+	projectHandler := handlers.NewProjectHandler(db, logger, validate)
+
+	// Initialize Task Handler
+	taskHandler := handlers.NewTaskHandler(db, logger, validate)
+
 	// Initialize handlers using factory - Temporarily disabled
 	// handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
 	// allHandlers, err := handlerFactory.CreateAllHandlers()
@@ -102,6 +110,8 @@ func NewApplication() (*Application, error) {
 		authHandler: authHandler,
 		userProfileHandler: userProfileHandler,
 		companyHandler: companyHandler,
+		projectHandler: projectHandler,
+		taskHandler: taskHandler,
 		// handlers:   allHandlers, // Temporarily disabled
 	}
 
@@ -204,6 +214,12 @@ func (app *Application) GetAuthHandler() *handlers.AuthHandler {
 // GetUserProfileHandler returns the user profile handler
 func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
 	return app.userProfileHandler
+}
+
+// GetUserManagementHandler returns the user management handler
+func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
+	// TODO: 需要正确的构造函数，暂时返回nil避免编译错误
+	return nil
 }
 
 // GetCompanyHandler returns the company handler

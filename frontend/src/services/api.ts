@@ -119,13 +119,8 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         console.warn('JWT Token已过期或无效，已清除本地token');
         
-        // 在登录页禁止弹窗提示，避免打扰
+        // 记录是否在登录页（用于后续跳转控制）
         const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
-        if (!isOnLoginPage && typeof window !== 'undefined' && typeof window.alert === 'function') {
-          setTimeout(() => {
-            alert('登录已过期，即将跳转到登录页面');
-          }, 100);
-        }
         
         // 使用React Router导航，避免强制页面跳转
         if (navigateFunction && typeof navigateFunction === 'function') {

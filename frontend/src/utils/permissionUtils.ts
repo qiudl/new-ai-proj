@@ -11,7 +11,7 @@ export class PermissionUtils {
    * @param pathname 路由路径
    * @returns 权限数组
    */
-  static getRoutePermissions(pathname: string): string[] {
+  static getRoutePermissions(pathname: string): readonly string[] {
     // 精确匹配
     if (ROUTE_PERMISSIONS[pathname as keyof typeof ROUTE_PERMISSIONS]) {
       return ROUTE_PERMISSIONS[pathname as keyof typeof ROUTE_PERMISSIONS];

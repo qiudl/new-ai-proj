@@ -87,11 +87,12 @@ class Logger {
 
   // Specialized logging methods for common scenarios
   apiError(message: string, error: Error | unknown, context?: LogContext): void {
+    const e = error as any;
     const apiContext = {
       ...context,
       type: 'api_error',
-      status: error?.status || error?.response?.status,
-      endpoint: error?.config?.url || context?.endpoint
+      status: e?.status || e?.response?.status,
+      endpoint: e?.config?.url || context?.endpoint
     };
     
     this.error(message, error, apiContext);

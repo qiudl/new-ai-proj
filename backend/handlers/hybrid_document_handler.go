@@ -705,3 +705,158 @@ func (h *HybridDocumentHandler) ToggleTemplate(c *gin.Context) {
 		},
 	})
 }
+// CreateAndAttachDocument 创建文档并关联到任务（原子操作）
+func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
+	// 获取路径参数
+	projectIDStr := c.Param("id")
+	taskIDStr := c.Param("taskId")
+	
+	projectID, err := strconv.Atoi(projectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid project ID",
+		})
+		return
+	}
+	
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid task ID",
+		})
+		return
+	}
+	
+	// 获取当前用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "User not authenticated",
+		})
+		return
+	}
+	
+	// 解析请求体
+	var req struct {
+		Title       string `json:"title" binding:"required"`
+		Content     string `json:"content" binding:"required"`
+		Description string `json:"description"`
+		Type        string `json:"type"`
+		Status      string `json:"status"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid request body: " + err.Error(),
+		})
+		return
+	}
+	
+	// 设置默认值
+	if req.Type == "" {
+		req.Type = "markdown"
+	}
+	if req.Status == "" {
+		req.Status = "draft"
+	}
+	
+	// 开始事务
+	sqlDB := h.db.GetDB().(*sql.DB)
+	tx, err := sqlDB.Begin()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to start transaction",
+		})
+		return
+	}
+	defer tx.Rollback()
+	
+	// 首先验证任务和项目是否存在
+	var taskExists bool
+	err = tx.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM tasks 
+			WHERE id = $1 AND project_id = $2 AND deleted_at IS NULL
+		)
+	`, taskID, projectID).Scan(&taskExists)
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to verify task existence",
+		})
+		return
+	}
+	
+	if !taskExists {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Task not found or does not belong to the specified project",
+		})
+		return
+	}
+	
+	// 创建文档
+	var documentID int
+	now := time.Now().UTC()
+	err = tx.QueryRow(`
+		INSERT INTO documents (
+			project_id, title, content, description, type, status, 
+			owner_id, created_by, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id
+	`, projectID, req.Title, req.Content, req.Description, req.Type, req.Status,
+		userID, userID, now, now).Scan(&documentID)
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to create document: " + err.Error(),
+		})
+		return
+	}
+	
+	// 创建任务文档关联
+	_, err = tx.Exec(`
+		INSERT INTO task_documents (task_id, document_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (task_id, document_id) DO NOTHING
+	`, taskID, documentID, now, now)
+	
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to attach document to task: " + err.Error(),
+		})
+		return
+	}
+	
+	// 提交事务
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to commit transaction",
+		})
+		return
+	}
+	
+	// 返回成功响应
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Document created and attached to task successfully",
+		"data": map[string]interface{}{
+			"document_id": documentID,
+			"task_id":     taskID,
+			"project_id":  projectID,
+			"title":       req.Title,
+			"type":        req.Type,
+			"status":      req.Status,
+			"created_at":  now,
+		},
+	})
+}

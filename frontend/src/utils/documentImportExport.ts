@@ -106,7 +106,7 @@ class DocumentImportExport {
 
   // 导出到CSV
   private async exportToCsv(
-    documents: unknown[],
+    documents: (Document | DocumentListItem)[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -141,7 +141,7 @@ class DocumentImportExport {
 
   // 导出到JSON
   private async exportToJson(
-    documents: unknown[],
+    documents: (Document | DocumentListItem)[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -156,7 +156,7 @@ class DocumentImportExport {
 
   // 导出到Excel
   private async exportToExcel(
-    documents: unknown[],
+    documents: (Document | DocumentListItem)[],
     options: ExportOptions
   ): Promise<boolean> {
     try {
@@ -183,7 +183,7 @@ class DocumentImportExport {
 
   // 导出到PDF
   private async exportToPdf(
-    documents: unknown[],
+    documents: (Document | DocumentListItem)[],
     options: ExportOptions
   ): Promise<boolean> {
     try {
@@ -250,7 +250,7 @@ class DocumentImportExport {
 
   // 导出到Markdown
   private async exportToMarkdown(
-    documents: unknown[],
+    documents: (Document | DocumentListItem)[],
     options: ExportOptions
   ): Promise<boolean> {
     const data = this.prepareExportData(documents, options);
@@ -316,9 +316,9 @@ class DocumentImportExport {
       // 根据选项过滤字段
       const fieldsToInclude = options.fields || options.includeFields;
       if (fieldsToInclude && fieldsToInclude.length > 0) {
-        const filtered: unknown = {};
+        const filtered: Record<string, any> = {};
         fieldsToInclude.forEach(field => {
-          if (exportDoc.hasOwnProperty(field)) {
+          if (Object.prototype.hasOwnProperty.call(exportDoc, field)) {
             filtered[field] = exportDoc[field];
           }
         });

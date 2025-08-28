@@ -860,6 +860,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   console.error(`[MCP] 收到工具调用请求:`, JSON.stringify(request.params, null, 2));
   let { name, arguments: args } = request.params as any;
+  console.error(`[MCP] 工具名称:`, name);
 
   // Robust arguments handling: allow stringified JSON
   if (typeof args === 'string') {
@@ -953,18 +954,43 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.moveTask(args.id as number, args.targetProjectId as number);
         break;
       
-      case 'create-and-attach':
+      case 'create-and-attach': {
+        // 参数规范化：兼容 camelCase 与 snake_case
+        const taskId = ((): number | undefined => {
+          const v = (args as any).taskId ?? (args as any).task_id ?? (args as any).id ?? (args as any).task ?? (args as any).target_id;
+          const n = typeof v === 'string' ? parseInt(v, 10) : v;
+          return typeof n === 'number' && !isNaN(n) ? n : undefined;
+        })();
+        const projectId = ((): number | undefined => {
+          const v = (args as any).projectId ?? (args as any).project_id ?? (args as any).project;
+          const n = typeof v === 'string' ? parseInt(v, 10) : v;
+          return typeof n === 'number' && !isNaN(n) ? n : undefined;
+        })();
+        const title = (args as any).title ?? (args as any).doc_title ?? (args as any).name;
+        const rawContent = (args as any).content;
+        const content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent ?? '');
+
+        if (!taskId) {
+          result = { success: false, error: '缺少必要参数：taskId/task_id' };
+          break;
+        }
+        if (!content || content.length === 0) {
+          result = { success: false, error: '缺少必要参数：content' };
+          break;
+        }
+
         result = await taskServer.createAndAttachTaskDocument(
-          args.taskId as number,
-          args.content as string,
-          args.projectId as number,
-          args.title as string
+          taskId as number,
+          content as string,
+          projectId as number,
+          title as string
         );
         break;
+      }
       
       case 'get_task_document':
         try {
-          result = await taskServer.getTaskDocument(args.taskId as number, args.projectId as number);
+          result = await taskServer.getTaskDocument((args as any).taskId ?? (args as any).task_id as number, (args as any).projectId ?? (args as any).project_id as number);
         } catch (e: any) {
           result = { success: false, error: e?.message || String(e) };
         }
@@ -973,16 +999,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         try {
           const fs = await import('fs');
           const candidates = [
-            join(process.cwd(), '.mcp-documents', `task-${args.taskId}.md`),
-            join(process.cwd(), 'mcp-documents', `task-${args.taskId}.md`)
+            join(process.cwd(), '.mcp-documents', `task-${(args as any).taskId ?? (args as any).task_id}.md`),
+            join(process.cwd(), 'mcp-documents', `task-${(args as any).taskId ?? (args as any).task_id}.md`)
           ];
           for (const docPath of candidates) {
             if ((fs as any).existsSync(docPath)) {
               const content = (fs as any).readFileSync(docPath, 'utf8');
               result = {
                 success: true,
-                task_id: args.taskId,
-                project_id: args.projectId,
+                task_id: (args as any).taskId ?? (args as any).task_id,
+                project_id: (args as any).projectId ?? (args as any).project_id,
                 content,
                 message: `文档内容已从本地 ${docPath.includes('/.mcp-documents/') ? '.mcp-documents' : 'mcp-documents'} 读取`
               };
@@ -1048,7 +1074,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       case 'create_project':
+        console.error(`[INDEX] 调用创建项目，参数:`, args);
         result = await taskServer.createProject(args.name as string, args.description as string);
+        console.error(`[INDEX] 创建项目结果:`, result);
         break;
       
       case 'get_task_children':
