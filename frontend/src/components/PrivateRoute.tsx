@@ -35,10 +35,18 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
         console.log('🔐 开始认证检查...');
         
         let token = localStorage.getItem('token');
+        console.log('📱 当前localStorage中的token:', token ? `${token.substring(0, 20)}...` : 'null');
         
         // 如果没有token或token无效，在开发环境下自动获取
         if (!token || !isTokenValid(token)) {
           console.log('🚀 Token无效，尝试开发环境自动登录...');
+          
+          // 检查是否是开发环境且端口为3001
+          console.log('🔍 环境检查:', {
+            port: window.location.port,
+            nodeEnv: process.env.NODE_ENV,
+            hostname: window.location.hostname
+          });
           
           if (window.location.port === '3001') {
             try {
@@ -50,11 +58,14 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
               
               if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.data.access_token) {
+                if (data.success && data.data && data.data.access_token) {
                   localStorage.setItem('token', data.data.access_token);
                   localStorage.setItem('currentUser', JSON.stringify(data.data.user));
                   console.log('✅ 自动登录成功:', data.data.user.username);
+                  console.log('💾 Token已保存到localStorage:', data.data.access_token.substring(0, 20) + '...');
                   token = data.data.access_token;
+                } else {
+                  console.warn('自动登录API响应数据结构异常:', data);
                 }
               } else {
                 console.warn('自动登录API响应失败:', response.status);
@@ -62,18 +73,21 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
             } catch (error) {
               console.error('自动登录失败:', error);
             }
+          } else {
+            console.log('💡 非开发环境或端口不匹配，跳过自动登录');
           }
         }
         
         const isValid = !!token && isTokenValid(token);
         console.log('🔍 最终认证结果:', isValid ? '通过' : '失败');
         
-        // 临时修复：如果有token就认为已认证，跳过复杂的验证
-        if (token) {
-          console.log('🔧 临时修复：跳过API验证，直接认证通过');
+        // 简化认证逻辑：如果有有效token就认为已认证
+        if (isValid) {
+          console.log('✅ 认证通过，允许访问');
           setAuthenticated(true);
         } else {
-          setAuthenticated(isValid);
+          console.log('❌ 认证失败，需要登录');
+          setAuthenticated(false);
         }
         
       } catch (error) {

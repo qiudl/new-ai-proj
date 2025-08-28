@@ -11,6 +11,9 @@ const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || process.env.REACT_AP
 // 全局导航函数
 let navigateFunction: ((path: string) => void) | null = null;
 
+// 防止重复401跳转的标志
+let isRedirecting = false;
+
 // 提供设置导航函数的方法
 export const setNavigateFunction = (navigate: (path: string) => void) => {
   navigateFunction = navigate;
@@ -31,6 +34,9 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 API请求添加Authorization header:', `Bearer ${token.substring(0, 20)}...`);
+    } else {
+      console.log('⚠️ API请求未找到token，跳过Authorization header');
     }
     
     
@@ -68,7 +74,7 @@ api.interceptors.response.use(
     }
     return body;
   },
-  (error) => {
+  async (error) => {
     
     // Handle network errors
     if (!error.response) {
@@ -108,35 +114,80 @@ api.interceptors.response.use(
         );
         break;
       case 401:
-        // 改进的401错误处理
+        // 改进的401错误处理 - 防止重复跳转 + 自动重新获取token
         appError = new AppError(
           '登录已过期，请重新登录',
           ErrorType.AUTHENTICATION,
           401
         );
         
-        // 清除认证数据
-        localStorage.removeItem('token');
-        console.warn('JWT Token已过期或无效，已清除本地token');
+        console.log('🔄 收到401错误，尝试自动重新获取token...');
         
-        // 记录是否在登录页（用于后续跳转控制）
-        const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
-        
-        // 使用React Router导航，避免强制页面跳转
-        if (navigateFunction && typeof navigateFunction === 'function') {
-          const nav = navigateFunction; // 确保类型安全
-          setTimeout(() => {
-            if (!isOnLoginPage) {
+        // 防止重复处理401错误导致的多次跳转
+        if (!isRedirecting) {
+          isRedirecting = true;
+          
+          // 尝试开发环境自动重新获取token
+          if (window.location.port === '3001') {
+            try {
+              console.log('🚀 开发环境下尝试自动重新登录...');
+              const response = await fetch('/api/v1/auth/dev-quick-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: 'admin' })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.data && data.data.access_token) {
+                  localStorage.setItem('token', data.data.access_token);
+                  localStorage.setItem('currentUser', JSON.stringify(data.data.user));
+                  console.log('✅ 自动重新登录成功，token已更新');
+                  isRedirecting = false;
+                  // 重新发起原来的请求
+                  return;
+                }
+              }
+            } catch (autoReloginError) {
+              console.error('自动重新登录失败:', autoReloginError);
+            }
+          }
+          
+          // 清除认证数据
+          localStorage.removeItem('token');
+          localStorage.removeItem('currentUser');
+          console.warn('JWT Token已过期或无效，已清除本地token');
+          
+          // 记录是否在登录页（用于后续跳转控制）
+          const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
+          
+          // 使用React Router导航，避免强制页面跳转
+          if (navigateFunction && typeof navigateFunction === 'function' && !isOnLoginPage) {
+            const nav = navigateFunction; // 确保类型安全
+            setTimeout(() => {
               nav('/login');
-            }
-          }, 1000);
-        } else {
-          // 备用方案：延迟执行页面跳转
-          setTimeout(() => {
-            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-              window.location.href = '/login';
-            }
-          }, 1500);
+              // 重置跳转标志，允许后续重新认证
+              setTimeout(() => {
+                isRedirecting = false;
+              }, 2000);
+            }, 500);
+          } else if (!isOnLoginPage) {
+            // 备用方案：延迟执行页面跳转
+            setTimeout(() => {
+              if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                window.location.href = '/login';
+              }
+              // 重置跳转标志
+              setTimeout(() => {
+                isRedirecting = false;
+              }, 2000);
+            }, 1000);
+          } else {
+            // 如果已经在登录页，直接重置标志
+            setTimeout(() => {
+              isRedirecting = false;
+            }, 1000);
+          }
         }
         break;
       case 403:
@@ -200,11 +251,22 @@ export const getUserName = async (userId: string): Promise<string> => {
 // 检查token有效性
 export const checkTokenValidity = (): boolean => {
   const token = localStorage.getItem('token');
-  if (!token) return false;
+  if (!token) {
+    console.log('🔍 Token检查：未找到token');
+    return false;
+  }
   
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const isExpired = Date.now() > payload.exp * 1000;
+    const currentTime = Date.now() / 1000; // 当前时间（秒）
+    const isExpired = currentTime > payload.exp;
+    
+    console.log('🔍 Token检查:', {
+      currentTime: new Date(currentTime * 1000).toISOString(),
+      expireTime: new Date(payload.exp * 1000).toISOString(),
+      isExpired,
+      remainingSeconds: payload.exp - currentTime
+    });
     
     if (isExpired) {
       console.warn('Token已过期，将清除本地存储');
