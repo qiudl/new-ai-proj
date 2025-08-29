@@ -118,11 +118,14 @@ const ProjectEditPageNew: React.FC = () => {
   }, [projectId, form, searchParams]);
 
   useEffect(() => {
-    if (selectedCompanies.length > 0) {
+    if (selectedCompanies && selectedCompanies.length > 0) {
       loadCompanyUsers();
     } else {
+      // 安全地重置用户相关状态，确保始终是数组类型
       setAvailableUsers([]);
       setSelectedUsers([]);
+      setCompanyUsers({});
+      setUserRoles({});
     }
   }, [selectedCompanies]);
 
@@ -251,7 +254,14 @@ const ProjectEditPageNew: React.FC = () => {
   };
 
   const loadCompanyUsers = async () => {
-    if (selectedCompanies.length === 0) return;
+    if (selectedCompanies.length === 0) {
+      // 确保清理时设置为空数组而不是undefined
+      setAvailableUsers([]);
+      setSelectedUsers([]);
+      setCompanyUsers({});
+      setUserRoles({});
+      return;
+    }
 
     try {
       setUserLoading(true);
@@ -270,7 +280,9 @@ const ProjectEditPageNew: React.FC = () => {
 
         results.forEach(({ companyId, users }) => {
           newCompanyUsers[companyId] = users;
-          const company = companies.find(c => c.id === companyId);
+          const company = Array.isArray(companies) 
+            ? companies.find(c => c.id === companyId)
+            : null;
           
           users.forEach(user => {
             newAvailableUsers.push({
@@ -294,7 +306,9 @@ const ProjectEditPageNew: React.FC = () => {
         
         // 使用模拟数据
         const mockUsers = selectedCompanies.map(companyId => {
-          const company = companies.find(c => c.id === companyId);
+          const company = Array.isArray(companies) 
+            ? companies.find(c => c.id === companyId)
+            : null;
           const users: CompanyUser[] = [
             {
               id: companyId * 100 + 1,
@@ -343,7 +357,9 @@ const ProjectEditPageNew: React.FC = () => {
         
         mockUsers.forEach(({ companyId, users }) => {
           newCompanyUsers[companyId] = users;
-          const company = companies.find(c => c.id === companyId);
+          const company = Array.isArray(companies) 
+            ? companies.find(c => c.id === companyId)
+            : null;
           
           users.forEach(user => {
             newAvailableUsers.push({
@@ -366,6 +382,11 @@ const ProjectEditPageNew: React.FC = () => {
       }
     } catch (error) {
       console.error('加载客户用户失败:', error);
+      // 确保错误时也设置为空数组，防止undefined状态
+      setAvailableUsers([]);
+      setCompanyUsers({});
+      setSelectedUsers([]);
+      setUserRoles({});
       message.error('加载客户用户失败');
     } finally {
       setUserLoading(false);
@@ -383,7 +404,9 @@ const ProjectEditPageNew: React.FC = () => {
     }));
 
     // 更新available users
-    const company = companies.find(c => c.id === selectedCompanyForUser);
+    const company = Array.isArray(companies) 
+      ? companies.find(c => c.id === selectedCompanyForUser)
+      : null;
     if (company) {
       const newProjectUser: ProjectCompanyUser = {
         key: `${newUser.id}_${selectedCompanyForUser}`,
@@ -438,14 +461,20 @@ const ProjectEditPageNew: React.FC = () => {
     return roleInfo || { value: 'customer', label: '客户代表', color: 'orange' };
   };
 
-  const handleSubmit = async (values: unknown) => {
+  const handleSubmit = async (values: any) => {
     try {
       setSubmitting(true);
       
-      const processedUserIds = selectedUsers.filter(key => key && typeof key === 'string').map(key => {
-        const [userId] = key.split('_');
-        return Number(userId);
-      }).filter(id => !isNaN(id));
+      // 安全地处理 selectedUsers 数组
+      const processedUserIds = Array.isArray(selectedUsers) 
+        ? selectedUsers
+            .filter(key => key && typeof key === 'string')
+            .map(key => {
+              const [userId] = key.split('_');
+              return Number(userId);
+            })
+            .filter(id => !isNaN(id) && id > 0)
+        : [];
 
       const projectData: ProjectRequest = {
         project_number: values.project_number?.trim() || undefined,
@@ -502,21 +531,31 @@ const ProjectEditPageNew: React.FC = () => {
 
   // Transfer组件的渲染函数
   const renderUserItem = (item: ProjectCompanyUser) => {
-    if (!item || !item.key) {
-      return { label: '无效用户', value: 'invalid' };
+    // 添加更严格的安全检查
+    if (!item || typeof item !== 'object') {
+      console.warn('Invalid user item:', item);
+      return { label: '无效用户', value: `invalid-${Math.random()}` };
+    }
+    
+    if (!item.key || typeof item.key !== 'string') {
+      console.warn('User item missing valid key:', item);
+      return { 
+        label: `${item.userName || '未知用户'} (无效Key)`, 
+        value: `invalid-${item.userId || Math.random()}` 
+      };
     }
     
     const roleInfo = getUserRoleDisplay(item.key);
-    const isSelected = selectedUsers.includes(item.key);
+    const isSelected = Array.isArray(selectedUsers) && selectedUsers.includes(item.key);
     
     return {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Avatar size="small" src={item.avatar} icon={<UserOutlined />} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 500 }}>{item.userName}</div>
+            <div style={{ fontWeight: 500 }}>{item.userName || '未知用户'}</div>
             <div style={{ fontSize: '12px', color: '#666' }}>
-              {item.position && `${item.position} - `}{item.companyName}
+              {item.position && `${item.position} - `}{item.companyName || '未知客户'}
             </div>
             {isSelected && (
               <div style={{ marginTop: '4px' }}>
@@ -830,7 +869,7 @@ const ProjectEditPageNew: React.FC = () => {
               <Form.Item
                 rules={[{ required: true, message: '请至少选择一个关联客户' }]}
               >
-                {companies.length === 0 ? (
+                {!companies || companies.length === 0 ? (
                   <Alert
                     message="暂无客户"
                     description={
@@ -903,7 +942,9 @@ const ProjectEditPageNew: React.FC = () => {
                   </Text>
                   <div style={{ marginTop: '8px' }}>
                     {selectedCompanies.map(companyId => {
-                      const company = companies.find(c => c.id === companyId);
+                      const company = Array.isArray(companies) 
+                        ? companies.find(c => c.id === companyId)
+                        : null;
                       return (
                         <Tag key={companyId} color="blue" style={{ marginBottom: '4px' }}>
                           {company?.companyName || `客户${companyId}`}
@@ -932,7 +973,7 @@ const ProjectEditPageNew: React.FC = () => {
                         <Text strong>选择项目成员</Text>
                         <br />
                         <Text type="secondary" style={{ fontSize: '12px' }}>
-                          从所选客户的用户中选择项目成员（共{availableUsers.length}个可选用户）
+                          从所选客户的用户中选择项目成员（共{availableUsers?.length || 0}个可选用户）
                         </Text>
                       </Col>
                       <Col>
@@ -958,7 +999,9 @@ const ProjectEditPageNew: React.FC = () => {
                                       }}
                                     >
                                       {selectedCompanies.map(companyId => {
-                                        const company = companies.find(c => c.id === companyId);
+                                        const company = Array.isArray(companies) 
+                                          ? companies.find(c => c.id === companyId)
+                                          : null;
                                         return (
                                           <Option key={companyId} value={companyId}>
                                             {company?.companyName}
@@ -980,7 +1023,7 @@ const ProjectEditPageNew: React.FC = () => {
                     </Row>
                   </div>
 
-                  {availableUsers.length === 0 ? (
+                  {!availableUsers || availableUsers.length === 0 ? (
                     <Alert
                       message="所选企业暂无用户"
                       description={
@@ -1016,16 +1059,44 @@ const ProjectEditPageNew: React.FC = () => {
                     <div style={{ position: 'relative' }}>
                       <Spin spinning={userLoading} tip="加载用户中...">
                         <Transfer
-                          dataSource={availableUsers.map((user, index) => {
-                            const renderResult = renderUserItem(user);
-                            return {
-                              ...renderResult,
-                              key: user.key || `user-${index}`, // 确保key存在且唯一
-                            };
-                          })}
-                          targetKeys={selectedUsers}
-                          onChange={(targetKeys) => setSelectedUsers(targetKeys as string[])}
-                          render={item => item.label}
+                          dataSource={(() => {
+                            // 安全地处理 availableUsers，确保它是数组且每个元素有效
+                            if (!Array.isArray(availableUsers)) {
+                              console.warn('availableUsers is not an array:', availableUsers);
+                              return [];
+                            }
+                            
+                            return availableUsers
+                              .filter(user => user && typeof user === 'object' && user.key)
+                              .map((user, index) => {
+                                try {
+                                  const renderResult = renderUserItem(user);
+                                  if (!renderResult || !renderResult.value) {
+                                    console.warn('Invalid render result for user:', user);
+                                    return null;
+                                  }
+                                  return {
+                                    ...renderResult,
+                                    key: user.key || `user-${index}`,
+                                  };
+                                } catch (error) {
+                                  console.error('Error rendering user item:', error, user);
+                                  return {
+                                    key: `error-${index}`,
+                                    value: `error-${index}`,
+                                    label: `渲染错误: ${user?.userName || '未知用户'}`
+                                  };
+                                }
+                              })
+                              .filter(item => item !== null);
+                          })()}
+                          targetKeys={Array.isArray(selectedUsers) ? selectedUsers : []}
+                          onChange={(targetKeys) => {
+                            if (Array.isArray(targetKeys)) {
+                              setSelectedUsers(targetKeys.filter(key => typeof key === 'string'));
+                            }
+                          }}
+                          render={item => item?.label || '未知项目'}
                           titles={['可选用户', '项目成员']}
                           showSearch
                           listStyle={{ width: '100%', height: '300px' }}
@@ -1046,7 +1117,7 @@ const ProjectEditPageNew: React.FC = () => {
                     </div>
                   )}
 
-                  {selectedUsers.length > 0 && (
+                  {Array.isArray(selectedUsers) && selectedUsers.length > 0 && (
                     <div style={{ marginTop: '12px' }}>
                       <Text type="secondary" style={{ fontSize: '12px' }}>
                         已选择 {selectedUsers.length} 位项目成员
@@ -1084,7 +1155,9 @@ const ProjectEditPageNew: React.FC = () => {
         <AddCompanyUserModal
           visible={showAddUserModal}
           companyId={selectedCompanyForUser}
-          companyName={companies.find(c => c.id === selectedCompanyForUser)?.companyName || ''}
+          companyName={(Array.isArray(companies) 
+            ? companies.find(c => c.id === selectedCompanyForUser)?.companyName 
+            : null) || ''}
           onCancel={() => {
             setShowAddUserModal(false);
             setSelectedCompanyForUser(null);
@@ -1108,7 +1181,10 @@ const ProjectEditPageNew: React.FC = () => {
           <div>
             <div style={{ marginBottom: '16px' }}>
               {(() => {
-                const user = availableUsers.find(u => u.key === currentUserForRole);
+                // 安全检查：确保 availableUsers 是数组
+                const user = Array.isArray(availableUsers) 
+                  ? availableUsers.find(u => u.key === currentUserForRole)
+                  : null;
                 return user ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Avatar src={user.avatar} icon={<UserOutlined />} />
@@ -1119,7 +1195,17 @@ const ProjectEditPageNew: React.FC = () => {
                       </Text>
                     </div>
                   </div>
-                ) : null;
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Avatar icon={<UserOutlined />} />
+                    <div>
+                      <div style={{ fontWeight: 500 }}>未知用户</div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>
+                        用户信息加载中...
+                      </Text>
+                    </div>
+                  </div>
+                );
               })()}
             </div>
             

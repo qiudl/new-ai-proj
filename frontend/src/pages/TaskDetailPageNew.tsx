@@ -75,6 +75,7 @@ import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
 import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
+import { TaskProgressDisplay } from '../components/TaskProgressDisplay';
 // 导入新的优化组件
 import { useTaskDetailState } from '../hooks/useTaskDetailState';
 import { useMemoryManager } from '../hooks/useMemoryManager';
@@ -176,12 +177,37 @@ const TaskDetailPageNew: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // 尝试获取刷新配置
-  let refreshConfig = null;
+  // 使用内存管理器钩子
+  const memoryManager = useMemoryManager();
+  
+  // 修复：安全获取刷新配置，避免条件性调用Hooks
+  const [refreshConfigError, setRefreshConfigError] = useState<boolean>(false);
+  
+  // 使用默认配置替代条件性调用
+  const defaultRefreshConfig = {
+    completionStatsInterval: 30,
+    enableVisibilityDetection: true,
+    maxRetries: 3,
+    retryInterval: 5000
+  };
+  
+  // 始终调用 Hook，避免条件性调用
+  let refreshConfig = defaultRefreshConfig;
+  let refreshCtx = null;
+  
   try {
-    refreshConfig = useRefreshConfig?.()?.config;
-  } catch {
-    // 如果不在Provider内，使用默认配置
+    refreshCtx = useRefreshConfig();
+  } catch (error) {
+    // 静默处理错误，使用默认配置
+    if (!refreshConfigError) {
+      console.warn('RefreshConfig not available, using defaults');
+      setRefreshConfigError(true);
+    }
+  }
+  
+  // 安全地获取配置
+  if (refreshCtx?.config) {
+    refreshConfig = refreshCtx.config;
   }
 
   // 使用状态钩子
@@ -200,7 +226,8 @@ const TaskDetailPageNew: React.FC = () => {
     updateUIState,
     updateHistoryState,
     updateProjectState,
-    calculateCompletionStats
+    calculateCompletionStats,
+    resetAllState
   } = useTaskDetailState();
 
   // 解构任务状态
@@ -252,12 +279,12 @@ const TaskDetailPageNew: React.FC = () => {
       return children; // 返回数据供缓存使用
     },
     {
-      interval: refreshConfig?.completionStatsInterval ? refreshConfig.completionStatsInterval * 1000 : 30000,
+      interval: refreshConfig.completionStatsInterval * 1000,
       dependencies: [projectId, task?.id],
-      enableVisibilityDetection: refreshConfig?.enableVisibilityDetection ?? true,
+      enableVisibilityDetection: refreshConfig.enableVisibilityDetection,
       enabled: !!projectId && !!task,
-      maxRetries: refreshConfig?.maxRetries ?? 3,
-      retryInterval: refreshConfig?.retryInterval ?? 5000,
+      maxRetries: refreshConfig.maxRetries,
+      retryInterval: refreshConfig.retryInterval,
       enableCache: true,
       cacheKey: `completion_stats_${projectId}_${taskState.task?.id}`,
       context: {
@@ -801,6 +828,11 @@ const TaskDetailPageNew: React.FC = () => {
     }
   };
 
+  // 处理关系任务导航 - 移到组件顶部
+  const handleNavigateToTask = useCallback((taskId: number, projectId: number) => {
+    navigate(`/projects/${projectId}/tasks/${taskId}`);
+  }, [navigate]);
+
   if (taskState.loading) {
     return (
       <div style={{ 
@@ -830,11 +862,6 @@ const TaskDetailPageNew: React.FC = () => {
   const statusConfig = getStatusConfig(task.status);
   const priorityConfig = getPriorityConfig(task.custom_fields?.priority as string || 'medium');
   const timeRemaining = getTimeRemaining();
-
-  // 处理关系任务导航
-  const handleNavigateToTask = useCallback((taskId: number, projectId: number) => {
-    navigate(`/projects/${projectId}/tasks/${taskId}`);
-  }, [navigate]);
 
   // 渲染面包屑的辅助数据
   const breadcrumbItems = [
@@ -922,7 +949,7 @@ const TaskDetailPageNew: React.FC = () => {
             )
           },
           // 如果有父任务，显示父任务链接
-          ...(task.parent_id && parentTask ? [{
+          ...(task.parent_id && relationState.parent ? [{
             title: (
               <span 
                 onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.parent_id}`)}
@@ -933,7 +960,7 @@ const TaskDetailPageNew: React.FC = () => {
                   lineHeight: '22px'
                 }}
               >
-                {parentTask.title}
+                {relationState.parent.title}
               </span>
             )
           }] : []),
@@ -1294,8 +1321,6 @@ const TaskDetailPageNew: React.FC = () => {
                     <div style={{ minHeight: '400px' }}>
                       <TaskProgressDisplay 
                         taskId={taskState.task.id} 
-                        taskType="task"
-                        displayMode="full"
                         showBreakdown={true}
                         autoRefresh={true}
                         refreshInterval={30000}
@@ -1309,7 +1334,7 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <BarChartOutlined />
                       <span>甘特图</span>
-                      {relationState.subtasks.length > 0 && (
+                      {relationState.subtasks && relationState.subtasks.length > 0 && (
                         <Badge count={relationState.subtasks.length} size="small" style={{ backgroundColor: '#722ed1' }} />
                       )}
                     </Space>
@@ -1394,14 +1419,14 @@ const TaskDetailPageNew: React.FC = () => {
             getStatusConfig={getStatusConfig}
           />
 
-          {/* 任务详情分页 - 时间线和历史记录 */}
+          // 任务详情分页 - 时间线和历史记录
           <Card 
             title="任务详情"
             style={{ marginBottom: '16px' }}
           >
             <Tabs 
-              activeKey={uiState.activeTab}
-              onChange={(key) => updateUIState({ activeTab: key })}
+              activeKey={uiState.detailTab || 'timeline'}
+              onChange={(key) => updateUIState({ detailTab: key })}
               items={[
                 {
                   key: 'timeline',
@@ -1409,12 +1434,12 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <ClockCircleOutlined />
                       时间线
-                      {historyState.timelineEvents.length > 0 && (
+                      {historyState.timelineEvents && historyState.timelineEvents.length > 0 && (
                         <Badge count={historyState.timelineEvents.length} size="small" />
                       )}
                     </Space>
                   ),
-                  children: historyState.timelineEvents.length > 0 ? (
+                  children: historyState.timelineEvents && historyState.timelineEvents.length > 0 ? (
                     <TaskTimeline 
                       events={historyState.timelineEvents}
                       onRefresh={() => loadAllTaskData()}
@@ -1432,15 +1457,15 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <HistoryOutlined />
                       更新历史
-                      {historyState.taskUpdates.length > 0 && (
+                      {historyState.taskUpdates && historyState.taskUpdates.length > 0 && (
                         <Badge count={historyState.taskUpdates.length} size="small" />
                       )}
                     </Space>
                   ),
-                  children: historyState.taskUpdates.length > 0 ? (
+                  children: historyState.taskUpdates && historyState.taskUpdates.length > 0 ? (
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                       <Timeline>
-                        {historyState.taskUpdates.map((update, index) => {
+                        {historyState.taskUpdates.map((update: any, index: number) => {
                           // 获取更新类型的详细信息和处理更新详情的逻辑保持不变
                           const getUpdateTypeInfo = (type: string) => {
                             const types = {
@@ -1462,13 +1487,13 @@ const TaskDetailPageNew: React.FC = () => {
                           const updateInfo = getUpdateTypeInfo(update.update_type);
                           
                           // 解析变更详情
-                          const getChangeDetails = (update: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+                          const getChangeDetails = (updateItem: any) => {
                             try {
-                              if (update.old_value && update.new_value) {
-                                const oldVal = typeof update.old_value === 'string' ? update.old_value : JSON.stringify(update.old_value);
-                                const newVal = typeof update.new_value === 'string' ? update.new_value : JSON.stringify(update.new_value);
+                              if (updateItem.old_value && updateItem.new_value) {
+                                const oldVal = typeof updateItem.old_value === 'string' ? updateItem.old_value : JSON.stringify(updateItem.old_value);
+                                const newVal = typeof updateItem.new_value === 'string' ? updateItem.new_value : JSON.stringify(updateItem.new_value);
                                 
-                                if (update.update_type === 'status') {
+                                if (updateItem.update_type === 'status') {
                                   const statusMap = {
                                     'todo': '待开始',
                                     'in_progress': '进行中', 
@@ -1478,12 +1503,12 @@ const TaskDetailPageNew: React.FC = () => {
                                   return `${statusMap[oldVal as keyof typeof statusMap] || oldVal} → ${statusMap[newVal as keyof typeof statusMap] || newVal}`;
                                 }
                                 
-                                if (update.update_type === 'priority') {
+                                if (updateItem.update_type === 'priority') {
                                   const priorityMap = { 'low': '低', 'medium': '中', 'high': '高' };
                                   return `${priorityMap[oldVal as keyof typeof priorityMap] || oldVal} → ${priorityMap[newVal as keyof typeof priorityMap] || newVal}`;
                                 }
                                 
-                                if (update.update_type === 'due_date') {
+                                if (updateItem.update_type === 'due_date') {
                                   const oldDate = oldVal ? dayjs(oldVal).format('YYYY-MM-DD') : '未设置';
                                   const newDate = newVal ? dayjs(newVal).format('YYYY-MM-DD') : '未设置';
                                   return `${oldDate} → ${newDate}`;

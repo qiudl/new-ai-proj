@@ -89,9 +89,6 @@ const ProjectsPage: React.FC = () => {
       
       const response = await projectService.getProjects();
       
-      // Debug: 打印响应结构
-      console.log('API响应结构:', response);
-      console.log('项目数据长度:', response?.data?.length || 0);
       
       // axios interceptor已经解包，response结构是 { data: [...], pagination: {...} }
       // 所以 response.data 就是项目数组

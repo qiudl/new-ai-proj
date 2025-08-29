@@ -43,6 +43,7 @@ interface CompletionState {
 // UI状态
 interface UIState {
   activeTab: string;
+  detailTab?: string;
   expandedSubtasks: boolean;
   expandedSiblings: boolean;
   taskModalVisible: boolean;
@@ -99,6 +100,7 @@ export const useTaskDetailState = () => {
 
   const [uiState, setUIState] = useState<UIState>({
     activeTab: 'info',
+    detailTab: 'timeline',
     expandedSubtasks: false,
     expandedSiblings: false,
     taskModalVisible: false,
@@ -242,7 +244,7 @@ export const useTaskDetailState = () => {
     setDocumentState({ exists: null, count: 0, loading: false });
     setRelationState({ subtasks: [], siblings: [], parent: null, related: [], loading: false, error: null });
     setCompletionState({ totalSubtasks: 0, completedSubtasks: 0, inProgressSubtasks: 0, todoSubtasks: 0, completionRate: 0, loading: false });
-    setUIState({ activeTab: 'info', expandedSubtasks: false, expandedSiblings: false, taskModalVisible: false, taskModalMode: 'edit', archiveModalVisible: false, bulkSubTaskModalVisible: false, modalLoading: false });
+    setUIState({ activeTab: 'info', detailTab: 'timeline', expandedSubtasks: false, expandedSiblings: false, taskModalVisible: false, taskModalMode: 'edit', archiveModalVisible: false, bulkSubTaskModalVisible: false, modalLoading: false });
     setHistoryState({ taskUpdates: [], timelineEvents: [], loading: false });
     setProjectState({ projectInfo: null, loading: false });
   }, []);

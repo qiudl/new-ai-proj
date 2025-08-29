@@ -159,20 +159,61 @@ const CompanyListPage: React.FC = () => {
     setLoading(true);
     try {
       const paginationParams: PaginationParams = {
-        page: pagination.current,
-        pageSize: pagination.pageSize,
+        page: pagination?.current || 1,
+        pageSize: pagination?.pageSize || 20,
       };
 
       const response = await companyService.getCompanies(paginationParams, filters);
-      setCompanies(response.data);
-      setPagination(prev => ({
-        ...prev,
-        total: response.pagination.total,
-        current: response.pagination.page,
-      }));
+      
+      // 安全地处理响应数据 - 使用更严格的类型检查
+      if (!response) {
+        // 空响应处理
+        console.warn('API返回空响应');
+        setCompanies([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+          current: 1,
+        }));
+      } else if (Array.isArray(response)) {
+        // 如果直接返回数组
+        setCompanies(response);
+        setPagination(prev => ({
+          ...prev,
+          total: response.length,
+          current: prev.current,
+        }));
+      } else if (response && typeof response === 'object' && response.data && Array.isArray(response.data)) {
+        // 如果是包装的响应 - 确保类型安全
+        const companies = response.data || [];
+        const paginationData = response.pagination || {};
+        
+        setCompanies(companies);
+        setPagination(prev => ({
+          ...prev,
+          total: paginationData.total || companies.length || 0,
+          current: paginationData.page || prev.current,
+          pageSize: paginationData.pageSize || prev.pageSize,
+        }));
+      } else {
+        // 兜底处理 - 确保安全
+        console.warn('未知响应格式，响应数据:', response);
+        setCompanies([]);
+        setPagination(prev => ({
+          ...prev,
+          total: 0,
+          current: 1,
+        }));
+      }
     } catch (error) {
       console.error('Failed to load companies:', error);
-      message.error('加载企业列表失败');
+      message.error('加载企业列表失败: ' + (error?.message || '未知错误'));
+      setCompanies([]);
+      setPagination(prev => ({
+        ...prev,
+        total: 0,
+        current: 1,
+      }));
     } finally {
       setLoading(false);
     }
@@ -203,9 +244,9 @@ const CompanyListPage: React.FC = () => {
   // Handle pagination change
   const handleTableChange = useCallback((page: number, pageSize?: number) => {
     setPagination(prev => ({
-      ...prev,
+      ...(prev || { current: 1, pageSize: 20, total: 0, showSizeChanger: true, showQuickJumper: true, showTotal: (total: number) => `共 ${total} 条记录` }),
       current: page,
-      pageSize: pageSize || prev.pageSize,
+      pageSize: pageSize || prev?.pageSize || 20,
     }));
   }, []);
 
@@ -256,7 +297,7 @@ const CompanyListPage: React.FC = () => {
   }, [handleFilterChange]);
 
   // 处理视图模式变更
-  const handleViewModeChange = useCallback((e: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const handleViewModeChange = useCallback((e: any) => {
     setViewMode(e.target.value);
   }, []);
 
@@ -265,8 +306,8 @@ const CompanyListPage: React.FC = () => {
     if (!sortConfig) return companies;
     
     return [...companies].sort((a, b) => {
-      let aValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
-      let bValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+      let aValue: any;
+      let bValue: any;
       
       // 根据不同字段处理排序值
       switch (sortConfig.field) {
@@ -290,17 +331,17 @@ const CompanyListPage: React.FC = () => {
           break;
         case 'annualContractValue':
         case 'totalContractValue':
-          aValue = (a as unknown)[sortConfig.field] || 0;
-          bValue = (b as unknown)[sortConfig.field] || 0;
+          aValue = (a as any)[sortConfig.field] || 0;
+          bValue = (b as any)[sortConfig.field] || 0;
           break;
         case 'createdAt':
         case 'updatedAt':
-          aValue = new Date((a as unknown)[sortConfig.field]).getTime();
-          bValue = new Date((b as unknown)[sortConfig.field]).getTime();
+          aValue = new Date((a as any)[sortConfig.field]).getTime();
+          bValue = new Date((b as any)[sortConfig.field]).getTime();
           break;
         default:
-          aValue = (a as unknown)[sortConfig.field];
-          bValue = (b as unknown)[sortConfig.field];
+          aValue = (a as any)[sortConfig.field];
+          bValue = (b as any)[sortConfig.field];
       }
       
       let comparison = 0;
@@ -820,12 +861,12 @@ onClick={() => !company.deleted && handleDelete(company.id, company.companyName)
         
         <div style={{ textAlign: 'right' }}>
           <Pagination
-            current={pagination.current}
-            pageSize={pagination.pageSize}
-            total={pagination.total}
-            showSizeChanger={pagination.showSizeChanger}
-            showQuickJumper={pagination.showQuickJumper}
-            showTotal={pagination.showTotal}
+            current={pagination?.current || 1}
+            pageSize={pagination?.pageSize || 20}
+            total={pagination?.total || 0}
+            showSizeChanger={pagination?.showSizeChanger || true}
+            showQuickJumper={pagination?.showQuickJumper || true}
+            showTotal={pagination?.showTotal || ((total: number) => `共 ${total} 条记录`)}
             onChange={handleTableChange}
             onShowSizeChange={handleTableChange}
           />

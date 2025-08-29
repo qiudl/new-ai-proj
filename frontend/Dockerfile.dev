@@ -4,7 +4,7 @@
 # ======================================
 # Stage 1: Base Dependencies
 # ======================================
-FROM node:18.12.1-alpine AS base
+FROM node:18.20.4-alpine AS base
 
 # Install essential packages
 RUN apk --no-cache add \
@@ -19,11 +19,12 @@ RUN addgroup -g 1001 -S nodegroup && \
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files for caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --only=production && \
+# Install production dependencies with cache optimization
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production && \
     npm cache clean --force
 
 # ======================================
@@ -31,8 +32,9 @@ RUN npm install --only=production && \
 # ======================================
 FROM base AS development
 
-# Install development dependencies with CSS validation
-RUN npm ci --include=optional && \
+# Install all dependencies including dev dependencies with cache optimization
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && \
     npm cache clean --force && \
     # Verify CSS files are present and create symlinks if needed
     ls -la node_modules/react-grid-layout/css/ && \
@@ -83,8 +85,9 @@ CMD ["npm", "start"]
 # ======================================
 FROM base AS builder
 
-# Install dependencies with explicit CSS handling
-RUN npm ci --include=optional && \
+# Install dependencies with cache optimization and explicit CSS handling  
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && \
     npm cache clean --force && \
     # Ensure CSS files from react-grid-layout are accessible
     ls -la node_modules/react-grid-layout/css/ && \

@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient, UseMutationResult, useMutation } from '@tanstack/react-query';
 import api, { checkTokenValidity } from '../services/api';
-import { TaskService } from '../services/taskService';
 
 // Types matching backend response (new progress API)
 export interface ProgressResult {
@@ -42,11 +41,11 @@ function mapLegacyToProgressResult(entityId: number, legacy: LegacyTaskProgress)
     method_used: legacy.completed ? 'completed' : 'legacy-weighted',
     updated_at: new Date().toISOString(),
     breakdown: (legacy.breakdown || []).map((b) => ({
-      id: typeof b.id === 'string' ? parseInt(b.id, 10) || 0 : b.id,
-      title: b.title,
+      id: typeof b.id === 'string' ? parseInt(b.id, 10) || 0 : (b.id ?? 0),
+      title: b.title || '',
       progress: (b.progress || 0) * 100,
-      weight: b.weight,
-      status: b.status,
+      weight: b.weight || 0,
+      status: b.status || 'unknown',
       method: undefined,
     })),
     inputs: {
@@ -110,8 +109,10 @@ export function useProgress(
   // Only enable when authenticated to avoid noisy network errors before login
   const isAuthed = (() => {
     try {
-      return typeof window !== 'undefined' ? checkTokenValidity() : true;
-    } catch {
+      if (typeof window === 'undefined') return true; // SSR fallback
+      return checkTokenValidity();
+    } catch (error) {
+      console.warn('Token validity check failed:', error);
       return false;
     }
   })();
@@ -128,9 +129,12 @@ export function useProgress(
       // Prefer legacy progress endpoint for now; it's cached to avoid 404 spam and returns zero fallback
       if (entityType === 'task') {
         try {
-          const legacy = await TaskService.getTaskProgress(entityId);
-          return mapLegacyToProgressResult(entityId, legacy as unknown as LegacyTaskProgress);
-        } catch {
+          const response = await api.get(`/tasks/${entityId}/progress`);
+          const legacy = response as LegacyTaskProgress;
+          return mapLegacyToProgressResult(entityId, legacy);
+        } catch (error) {
+          // Log the error for debugging but continue with fallback
+          console.warn(`Failed to fetch task progress for ${entityId}:`, error);
           // Zero fallback without surfacing errors
           return mapLegacyToProgressResult(entityId, {
             percent_raw: 0,
@@ -211,8 +215,23 @@ export function useRecomputeProgress() {
         // Fallback: if recompute endpoint not available, just fetch latest legacy progress
         const status = err?.status ?? err?.response?.status;
         if (request.entityType === 'task' && (status === 404 || status === 501)) {
-          const legacy = await api.get(`/tasks/${request.id}/progress`);
-          return mapLegacyToProgressResult(request.id, legacy as unknown as LegacyTaskProgress);
+          try {
+            const legacyResponse = await api.get(`/tasks/${request.id}/progress`);
+            const legacy = legacyResponse as LegacyTaskProgress;
+            return mapLegacyToProgressResult(request.id, legacy);
+          } catch (legacyErr) {
+            console.warn(`Failed to fetch legacy progress for task ${request.id}:`, legacyErr);
+            // Return zero progress as final fallback
+            return mapLegacyToProgressResult(request.id, {
+              percent_raw: 0,
+              percent_display: 0,
+              estimate_minutes: null,
+              actual_minutes: 0,
+              overrun_percent: 0,
+              completed: false,
+              breakdown: []
+            });
+          }
         }
         throw err;
       }
@@ -236,27 +255,37 @@ export function useRecomputeProgress() {
 /**
  * Helper function to format progress for display
  */
-export function formatProgress(progress: number): string {
-  return `${Math.round(progress)}%`;
+export function formatProgress(progress: number | null | undefined): string {
+  if (progress == null || isNaN(progress)) return '0%';
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+  return `${Math.round(clampedProgress)}%`;
 }
 
 /**
  * Helper function to get progress color based on value and status
  */
-export function getProgressColor(progress: number, status?: string): string {
-  if (status === 'completed' || progress >= 100) return '#52c41a'; // green
+export function getProgressColor(progress: number | null | undefined, status?: string): string {
+  if (progress == null || isNaN(progress)) return '#8c8c8c'; // gray for invalid values
+  
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+  
+  if (status === 'completed' || clampedProgress >= 100) return '#52c41a'; // green
   if (status === 'blocked') return '#faad14'; // orange
-  if (progress >= 75) return '#1890ff'; // blue
-  if (progress >= 50) return '#13c2c2'; // cyan
-  if (progress >= 25) return '#722ed1'; // purple
+  if (clampedProgress >= 75) return '#1890ff'; // blue
+  if (clampedProgress >= 50) return '#13c2c2'; // cyan
+  if (clampedProgress >= 25) return '#722ed1'; // purple
   return '#8c8c8c'; // gray
 }
 
 /**
  * Helper function to get status from progress
  */
-export function getProgressStatus(progress: number): 'todo' | 'in_progress' | 'completed' {
-  if (progress === 0) return 'todo';
-  if (progress >= 100) return 'completed';
+export function getProgressStatus(progress: number | null | undefined): 'todo' | 'in_progress' | 'completed' {
+  if (progress == null || isNaN(progress)) return 'todo';
+  
+  const clampedProgress = Math.max(0, Math.min(100, progress));
+  
+  if (clampedProgress === 0) return 'todo';
+  if (clampedProgress >= 100) return 'completed';
   return 'in_progress';
 }

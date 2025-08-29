@@ -6,21 +6,16 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Build outputs
-build
 dist
-.next
-out
+build
+lib
+*.tsbuildinfo
 
-# Development and testing
+# Development
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.nyc_output
-coverage
-.cache
-.parcel-cache
-.eslintcache
 
 # IDE and editors
 .vscode
@@ -45,6 +40,15 @@ README.md
 CHANGELOG.md
 *.md
 
+# Testing and coverage
+coverage
+.nyc_output
+jest-report
+
 # Logs and temp files
 *.log
-.hot-update.*
+.cache
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
