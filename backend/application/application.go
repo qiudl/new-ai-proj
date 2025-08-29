@@ -3,6 +3,7 @@ package application
 import (
 	"ai-project-backend/config"
 	"ai-project-backend/database"
+	"ai-project-backend/factories"
 	"ai-project-backend/handlers"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
@@ -24,13 +25,16 @@ type Application struct {
 	logger         *log.Logger
 	validator      *validator.Validate
 	jwtManager     *utils.JWTManager
-	// handlers       *factories.AllHandlers // Temporarily disabled
+	handlers       *factories.AllHandlers // Re-enabled
+	// Legacy individual handlers for compatibility
 	authHandler     *handlers.AuthHandler     // Auth handler instance
-	documentHandler *handlers.DocumentHandler // Document handler instance
+	documentHandler *handlers.DocumentHandler // Document handler instance (legacy)
+	routerDocumentHandler *handlers.RouterDocumentHandler // Router-based document handler
 	userProfileHandler *handlers.UserProfileHandler // User profile handler instance
 	companyHandler  *handlers.CompanyHandler  // Company handler instance
 	projectHandler  *handlers.ProjectHandler  // Project handler instance
 	taskHandler     *handlers.TaskHandler     // Task handler instance
+	taskHierarchyHandler *handlers.TaskHierarchyHandler // Task hierarchy handler instance
 	mirrorWritable bool
 }
 
@@ -94,12 +98,24 @@ func NewApplication() (*Application, error) {
 	// Initialize Task Handler
 	taskHandler := handlers.NewTaskHandler(db, logger, validate)
 
-	// Initialize handlers using factory - Temporarily disabled
-	// handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
-	// allHandlers, err := handlerFactory.CreateAllHandlers()
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to create handlers: %v", err)
-	// }
+	// Initialize Task Hierarchy Handler
+	taskHierarchyHandler := handlers.NewTaskHierarchyHandler(db, logger, validate)
+
+	// Initialize Document Handler
+	documentHandler := handlers.NewDocumentHandler(db)
+	
+	// Initialize Router Document Handler with DocumentRouter
+	services.InitDocumentRouterFactory(db)
+	documentRouterFactory := services.GetDocumentRouterFactory()
+	documentRouter := documentRouterFactory.GetDefaultDocumentRouter()
+	routerDocumentHandler := handlers.NewRouterDocumentHandler(documentRouter)
+
+	// Initialize handlers using factory
+	handlerFactory := factories.NewHandlerFactory(db, logger, validate, cfg)
+	allHandlers, err := handlerFactory.CreateAllHandlers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create handlers: %v", err)
+	}
 
 	app := &Application{
 		config:      cfg,
@@ -107,12 +123,16 @@ func NewApplication() (*Application, error) {
 		logger:      logger,
 		validator:   validate,
 		jwtManager:  jwtManager,
+		handlers:    allHandlers, // Re-enabled
+		// Legacy individual handlers for compatibility
 		authHandler: authHandler,
+		documentHandler: documentHandler,
+		routerDocumentHandler: routerDocumentHandler,
 		userProfileHandler: userProfileHandler,
 		companyHandler: companyHandler,
 		projectHandler: projectHandler,
 		taskHandler: taskHandler,
-		// handlers:   allHandlers, // Temporarily disabled
+		taskHierarchyHandler: taskHierarchyHandler,
 	}
 
 	// Perform startup permission/volume checks
@@ -218,13 +238,97 @@ func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
 
 // GetUserManagementHandler returns the user management handler
 func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
-	// TODO: 需要正确的构造函数，暂时返回nil避免编译错误
-	return nil
+	// Initialize UserManagementRepository and UserManagementHandler
+	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB))
+	return handlers.NewUserManagementHandler(userRepo)
 }
 
 // GetCompanyHandler returns the company handler
 func (app *Application) GetCompanyHandler() *handlers.CompanyHandler {
 	return app.companyHandler
+}
+
+// GetDocumentHandler returns the document handler
+func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
+	return app.documentHandler
+}
+
+// GetWorkNoteHandler returns the work note handler
+func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
+	// Use the adapter to connect complete WorkNoteService with database.DB interface
+	workNoteService := services.NewWorkNoteServiceAdapter(app.db)
+	
+	return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager)
+}
+
+// GetHybridDocumentFolderHandler returns the hybrid document folder handler
+func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
+	// TODO: Initialize HybridDocumentFolderHandler properly
+	return handlers.NewHybridDocumentFolderHandler(app.db)
+}
+
+// GetHybridDocumentHandler returns the hybrid document handler (for legacy compatibility)
+func (app *Application) GetHybridDocumentHandler() *handlers.HybridDocumentHandler {
+	// Return the same instance as DocumentHandler since DocumentHandler is an alias
+	return app.documentHandler
+}
+
+// GetSimpleDocumentHandler returns a simple document handler (for backward compatibility)
+func (app *Application) GetSimpleDocumentHandler() *handlers.HybridDocumentHandler {
+	// Use the same DocumentHandler for simplicity
+	return app.documentHandler
+}
+
+// GetWorkNoteFolderHandler returns the work note folder handler
+func (app *Application) GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler {
+	return handlers.NewWorkNoteFolderHandler(app.db)
+}
+
+// GetCollaborationHandler returns the collaboration handler
+func (app *Application) GetCollaborationHandler() *handlers.DocumentCollaborationHandler {
+	// TODO: Initialize collaboration service properly
+	return handlers.NewDocumentCollaborationHandler(nil)
+}
+
+// GetTaskDocumentFileHandler returns the task document file handler
+func (app *Application) GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler {
+	// TODO: Initialize task document file service properly
+	return handlers.NewTaskDocumentFileHandler(nil)
+}
+
+// GetDocumentProjectsHandler returns the document projects handler
+func (app *Application) GetDocumentProjectsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"success": true,
+			"data":    []string{"Project1", "Project2"}, // TODO: Implement actual logic
+		})
+	}
+}
+
+// GetDocumentCustomersHandler returns the document customers handler
+func (app *Application) GetDocumentCustomersHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"success": true,
+			"data":    []string{"Customer1", "Customer2"}, // TODO: Implement actual logic
+		})
+	}
+}
+
+// GetDocumentCategoriesHandler returns the document categories handler
+func (app *Application) GetDocumentCategoriesHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"success": true,
+			"data":    []string{"Documentation", "Reports", "Templates"}, // TODO: Implement actual logic
+		})
+	}
+}
+
+// GetTaskHierarchyHandler returns the task hierarchy handler
+func (app *Application) GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler {
+	return app.taskHierarchyHandler
 }
 
 // checkMirrorWritable verifies if the optional mirror base path is writable
@@ -246,4 +350,50 @@ func (app *Application) checkMirrorWritable() bool {
 	}
 	_ = os.Remove(tmpFile)
 	return true
+}
+
+// GetPermissionHandler returns the permission handler
+func (app *Application) GetPermissionHandler() *handlers.PermissionHandler {
+	if app.handlers != nil && app.handlers.PermissionHandler != nil {
+		return app.handlers.PermissionHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetEnhancedPermissionHandler returns the enhanced permission handler
+func (app *Application) GetEnhancedPermissionHandler() *handlers.EnhancedPermissionHandler {
+	// EnhancedPermissionHandler may not be created by factory yet
+	return nil
+}
+
+// GetRoleManagementHandler returns the role management handler
+func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandler {
+	if app.handlers != nil && app.handlers.RoleManagementHandler != nil {
+		return app.handlers.RoleManagementHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetUnifiedTimerHandler returns the unified timer handler
+func (app *Application) GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler {
+	if app.handlers != nil && app.handlers.UnifiedTimerHandler != nil {
+		return app.handlers.UnifiedTimerHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetArchiveHandler returns the archive handler
+func (app *Application) GetArchiveHandler() *handlers.ArchiveHandler {
+	if app.handlers != nil && app.handlers.ArchiveHandler != nil {
+		return app.handlers.ArchiveHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetCalendarSyncHandler returns the calendar sync handler  
+func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
+	if app.handlers != nil && app.handlers.CalendarSyncHandler != nil {
+		return app.handlers.CalendarSyncHandler
+	}
+	return nil // 需要通过工厂创建
 }

@@ -5,10 +5,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
@@ -17,15 +19,25 @@ import (
 
 // WorkNoteHandler 工作笔记处理器
 type WorkNoteHandler struct {
-	workNoteService *services.WorkNoteService
+	workNoteService services.WorkNoteServiceInterface
 	jwtManager      *utils.JWTManager
 }
 
 // NewWorkNoteHandler 创建工作笔记处理器
-func NewWorkNoteHandler(workNoteService *services.WorkNoteService, jwtManager *utils.JWTManager) *WorkNoteHandler {
+func NewWorkNoteHandler(workNoteService services.WorkNoteServiceInterface, jwtManager *utils.JWTManager) *WorkNoteHandler {
 	return &WorkNoteHandler{
 		workNoteService: workNoteService,
 		jwtManager:      jwtManager,
+	}
+}
+
+// NewWorkNoteHandlerFromDB 从数据库创建工作笔记处理器（简化版）
+func NewWorkNoteHandlerFromDB(db database.DB) *WorkNoteHandler {
+	// TODO: 创建适当的服务实例
+	// 暂时返回nil服务的处理器
+	return &WorkNoteHandler{
+		workNoteService: nil,
+		jwtManager:      nil,
 	}
 }
 
@@ -515,4 +527,113 @@ func (h *WorkNoteHandler) GetRelatedNotes(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{ "success": true, "data": related })
+}
+
+// =====================
+// 任务关联功能
+// =====================
+
+// CreateAndAttachWorkNoteToTask 创建工作笔记并关联到任务
+// @Summary 创建工作笔记并关联到任务
+// @Description 创建新的工作笔记并自动关联到指定的任务
+// @Tags work-notes,tasks
+// @Accept json
+// @Produce json
+// @Param taskId path int true "任务ID"
+// @Param request body models.CreateWorkNoteRequest true "创建工作笔记请求"
+// @Success 201 {object} models.WorkNote
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/tasks/{taskId}/work-notes/create-and-attach [post]
+func (h *WorkNoteHandler) CreateAndAttachWorkNoteToTask(c *gin.Context) {
+	// 1. 解析任务ID
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", "Task ID must be a valid integer"))
+		return
+	}
+
+	// 2. 解析请求体
+	var req models.CreateWorkNoteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
+		return
+	}
+	
+	// 3. 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+	
+	// 4. 调用服务方法创建并关联工作笔记
+	workNote, err := h.workNoteService.CreateAndAttachToTask(c.Request.Context(), req, taskID, userID.(int))
+	if err != nil {
+		if strings.Contains(err.Error(), "task not found") {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Task not found", err.Error()))
+			return
+		}
+		if strings.Contains(err.Error(), "access denied") {
+			c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "Access denied", err.Error()))
+			return
+		}
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to create and attach work note", err.Error()))
+		return
+	}
+	
+	// 5. 返回成功响应
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Work note created and attached to task #%d successfully", taskID),
+		"data":    workNote,
+		"task_id": taskID,
+	})
+}
+
+// GetWorkNotesByTask 获取任务关联的工作笔记
+// @Summary 获取任务关联的工作笔记
+// @Description 获取与指定任务关联的所有工作笔记
+// @Tags work-notes,tasks
+// @Accept json
+// @Produce json
+// @Param taskId path int true "任务ID"
+// @Success 200 {array} models.WorkNote
+// @Failure 400 {object} models.ErrorResponse
+// @Failure 401 {object} models.ErrorResponse
+// @Failure 404 {object} models.ErrorResponse
+// @Failure 500 {object} models.ErrorResponse
+// @Router /api/v1/tasks/{taskId}/work-notes [get]
+func (h *WorkNoteHandler) GetWorkNotesByTask(c *gin.Context) {
+	// 1. 解析任务ID
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", "Task ID must be a valid integer"))
+		return
+	}
+
+	// 2. 获取用户ID
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
+		return
+	}
+	
+	// 3. 调用服务方法获取任务关联的工作笔记
+	workNotes, err := h.workNoteService.GetWorkNotesByTask(c.Request.Context(), taskID, userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work notes by task", err.Error()))
+		return
+	}
+	
+	// 4. 返回响应
+	c.JSON(http.StatusOK, gin.H{
+		"success":  true,
+		"message":  fmt.Sprintf("Found %d work note(s) for task #%d", len(workNotes), taskID),
+		"data":     workNotes,
+		"task_id":  taskID,
+		"count":    len(workNotes),
+	})
 }

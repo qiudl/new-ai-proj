@@ -8,10 +8,12 @@ import PermissionRoute from './components/PermissionRoute';
 import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import { QueryProvider } from './providers/QueryProvider';
+import { RefreshConfigProvider } from './contexts/RefreshConfigContext';
 import FloatingTimer from './components/FloatingTimer';
 // import UnifiedDebugPanel from './components/UnifiedDebugPanel'; // 隐藏调试功能
 import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
+import { getCurrentPerformanceConfig, memoryMonitor } from './config/performance';
 import {
   COMPANY_PERMISSIONS,
   USER_PERMISSIONS,
@@ -80,6 +82,7 @@ const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGan
 const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
 const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 const PermissionDemoPage = React.lazy(() => import('./pages/PermissionDemoPage'));
+const RefreshTestPage = React.lazy(() => import('./pages/RefreshTestPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -114,6 +117,10 @@ const AppContent: React.FC = () => {
     if (process.env.NODE_ENV === 'development' && !isLoginRoute) {
       import('./utils/timerDiagnostics.js').catch(error => {
         console.warn('Failed to load timer diagnostics:', error);
+      });
+      // 加载认证修复工具
+      import('./utils/authFix').catch(error => {
+        console.warn('Failed to load auth fix tool:', error);
       });
     }
   }, [isLoginRoute]);
@@ -644,6 +651,15 @@ const AppContent: React.FC = () => {
                 <DropdownTestPage />
               </PrivateRoute>
             } />
+            
+            {/* Refresh Component Test Page */}
+            <Route path="/refresh-test" element={
+              <PrivateRoute>
+                <Layout>
+                  <RefreshTestPage />
+                </Layout>
+              </PrivateRoute>
+            } />
           </Routes>
           </Suspense>
           
@@ -666,12 +682,25 @@ const AppContent: React.FC = () => {
 };
 
 function App() {
-  // 安装性能监控拦截器
+  // 根据环境配置决定是否安装性能监控拦截器
   useEffect(() => {
-    installPerformanceInterceptors();
+    const config = getCurrentPerformanceConfig();
+    
+    if (config.enablePerformanceMonitoring) {
+      installPerformanceInterceptors();
+      console.log('性能监控已启用');
+    } else {
+      console.log('性能监控已禁用（优化内存使用）');
+    }
+    
+    // 启动内存监控
+    if (config.memoryCheckInterval > 0) {
+      memoryMonitor.start();
+    }
     
     return () => {
       uninstallPerformanceInterceptors();
+      memoryMonitor.cleanup();
     };
   }, []);
 
@@ -679,19 +708,21 @@ function App() {
   // 解决：将 Router 提到外层，TimerProvider 放到 AppContent 中按需包裹
   return (
     <QueryProvider>
-      <ConfigProvider locale={zhCN}>
-        <ErrorBoundary>
-          <Router 
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            {/* 在 AppContent 内部按路由条件挂载 TimerProvider */}
-            <AppContent />
-          </Router>
-        </ErrorBoundary>
-      </ConfigProvider>
+      <RefreshConfigProvider>
+        <ConfigProvider locale={zhCN}>
+          <ErrorBoundary>
+            <Router 
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
+              {/* 在 AppContent 内部按路由条件挂载 TimerProvider */}
+              <AppContent />
+            </Router>
+          </ErrorBoundary>
+        </ConfigProvider>
+      </RefreshConfigProvider>
     </QueryProvider>
   );
 }

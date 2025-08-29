@@ -1,10 +1,14 @@
 import React from 'react';
 import { fetchTaskDescendants } from '../services/taskService';
-import { Tag, Tooltip, Avatar, Dropdown } from 'antd';
-import { PauseCircleOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined, CalendarOutlined, UserOutlined, BranchesOutlined, EllipsisOutlined, FileTextOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { Tag, Tooltip, Avatar, Dropdown, Button, Spin } from 'antd';
+import { PauseCircleOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined, CalendarOutlined, UserOutlined, BranchesOutlined, EllipsisOutlined, FileTextOutlined, EditOutlined, PlusOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import '../styles/TaskDescendantsTree.css';
+import { useAutoRefreshOptimized } from '../hooks/useAutoRefreshOptimized';
+import LoadingIndicator from './LoadingIndicator';
+import AnimatedContainer, { UpdateAnimation } from './AnimatedContainer';
+import { useRefreshConfig } from '../contexts/RefreshConfigContext';
 
 type Node = {
   id: number;
@@ -37,6 +41,14 @@ const getStatusConfig = (status: string) => {
 
 export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTaskId, limit = 200 }) => {
   const navigate = useNavigate();
+  
+  // 尝试获取刷新配置
+  let refreshConfig = null;
+  try {
+    refreshConfig = useRefreshConfig?.()?.config;
+  } catch {
+    // 如果不在Provider内，使用默认配置
+  }
   const [childrenByParent, setChildrenByParent] = React.useState<Map<number, Node[]>>(new Map());
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
   const [loadingById, setLoadingById] = React.useState<Record<number, boolean>>({});
@@ -50,6 +62,54 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
   const sortNodes = React.useCallback((arr: Node[]) => {
     return [...arr].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
   }, []);
+
+  // 加载子任务的函数（用于自动刷新）
+  const loadRootChildren = React.useCallback(async () => {
+    const json = await fetchTaskDescendants(projectId, rootTaskId, { depth: 1, limit });
+    const data = (json?.data?.data ?? []) as Node[];
+    const children = data.filter(n => n.parent_id === rootTaskId);
+    
+    setChildrenByParent(prev => {
+      const next = new Map(prev);
+      next.set(rootTaskId, sortNodes(children));
+      return next;
+    });
+    
+    return children;
+  }, [projectId, rootTaskId, limit, sortNodes]);
+
+  // 自动刷新子任务树 - 使用优化版Hook
+  const { 
+    isRefreshing: isTreeRefreshing,
+    refreshType: treeRefreshType,
+    refreshStartTime: treeRefreshStartTime,
+    lastRefreshTime: treeLastUpdate,
+    nextRefreshTime: treeNextUpdate,
+    stats: treeStats,
+    memoryStats: treeMemoryStats,
+    refresh: refreshTree,
+    error: treeRefreshError,
+    forceRetry: forceRetryTree,
+    cleanup: cleanupTree
+  } = useAutoRefreshOptimized(
+    loadRootChildren,
+    {
+      interval: refreshConfig?.taskTreeInterval ? refreshConfig.taskTreeInterval * 1000 : 30000,
+      dependencies: [projectId, rootTaskId, limit],
+      enableVisibilityDetection: refreshConfig?.enableVisibilityDetection ?? true,
+      enabled: true,
+      maxRetries: refreshConfig?.maxRetries ?? 3,
+      retryInterval: refreshConfig?.retryInterval ?? 5000,
+      enableCache: true,
+      cacheKey: `task_tree_${projectId}_${rootTaskId}_${limit}`,
+      context: {
+        component: 'TaskDetailDescendantsTree',
+        section: 'taskTree',
+        rootTaskId,
+        projectId
+      }
+    }
+  );
 
   const loadChildren = React.useCallback(async (parentId: number) => {
     if (childrenByParent.has(parentId)) return;
@@ -70,6 +130,17 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
       setNodeLoading(parentId, false);
     }
   }, [childrenByParent, projectId, limit, sortNodes]);
+
+  // 组件卸载清理
+  React.useEffect(() => {
+    return () => {
+      try {
+        cleanupTree?.();
+      } catch (error) {
+        console.warn('Failed to cleanup task tree:', error);
+      }
+    };
+  }, [cleanupTree]);
 
   // initial load root children
   React.useEffect(() => {
@@ -123,8 +194,21 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
           const isLoading = !!loadingById[child.id];
           const err = errorById[child.id];
           return (
-            <div key={child.id} className="tdt-node" style={{ paddingLeft: depth * 16 }}>
-              <div className="tdt-row">
+            <AnimatedContainer
+              key={child.id}
+              type="slide"
+              direction="up"
+              duration="fast"
+              visible={true}
+              delay={0}
+            >
+              <UpdateAnimation
+                updateTrigger={`${child.status}-${child.title}-${child.progress_percent || 0}`}
+                type="highlight"
+                duration="fast"
+              >
+                <div className="tdt-node" style={{ paddingLeft: depth * 16 }}>
+                  <div className="tdt-row">
                 {child.has_children ? (
                   <button
                     className="tdt-toggle"
@@ -246,12 +330,22 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
             {err && <div className="tdt-error">{err}</div>}
             {isExpanded && (
               isLoading ? (
-                <div className="tdt-loading">加载中…</div>
+                <div className="tdt-loading">
+                  <LoadingIndicator
+                    loading={true}
+                    type="auto"
+                    size="small"
+                    style="dots"
+                    tip="加载子任务..."
+                  />
+                </div>
               ) : (
                 renderChildren(child.id, depth + 1)
               )
             )}
-          </div>
+                </div>
+              </UpdateAnimation>
+            </AnimatedContainer>
           );
         })}
       </div>
@@ -264,8 +358,86 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
   if (!rootChildren.length) return <div className="tdt-empty">暂无子任务</div>;
 
   return (
-    <div className="task-descendants-tree">
-      {renderChildren(rootTaskId, 0)}
-    </div>
+    <AnimatedContainer type="fade" visible={true}>
+      <div className="task-descendants-tree">
+        {/* 添加刷新控制栏 */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          marginBottom: '12px',
+          padding: '8px 12px',
+          background: '#fafafa',
+          borderRadius: '6px',
+          border: '1px solid #f0f0f0'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#666' }}>子任务树</span>
+            <LoadingIndicator
+              loading={isTreeRefreshing}
+              type={treeRefreshType || 'auto'}
+              size="small"
+              style="dots"
+              showDuration={true}
+              startTime={treeRefreshStartTime}
+              lastUpdateTime={treeLastUpdate}
+              nextUpdateTime={treeNextUpdate}
+            />
+            {treeRefreshError && (
+              <Tooltip title={`自动刷新失败: ${treeRefreshError.message}`}>
+                <WarningOutlined style={{ color: '#faad14', fontSize: '12px' }} />
+              </Tooltip>
+            )}
+            {treeStats && treeStats.totalRefreshes > 0 && (
+              <Tooltip title={
+                <div>
+                  <div>刷新统计:</div>
+                  <div>总数: {treeStats.totalRefreshes}</div>
+                  <div>成功: {treeStats.successfulRefreshes}</div>
+                  <div>缓存命中: {treeStats.cacheHits}</div>
+                  <div>响应时间: {treeStats.averageResponseTime}ms</div>
+                  {treeMemoryStats && (
+                    <div style={{ marginTop: '4px', borderTop: '1px solid #f0f0f0', paddingTop: '4px' }}>
+                      <div>内存: {treeMemoryStats.percentage.toFixed(1)}%</div>
+                    </div>
+                  )}
+                </div>
+              }>
+                <span style={{ 
+                  fontSize: '10px', 
+                  color: treeMemoryStats && treeMemoryStats.percentage > 80 ? '#fa8c16' : '#8c8c8c',
+                  cursor: 'help'
+                }}>
+                  {treeStats.cacheHits > 0 && '⚡'}
+                  {treeStats.successfulRefreshes}/{treeStats.totalRefreshes}
+                </span>
+              </Tooltip>
+            )}
+          </div>
+          <Button
+            type="text"
+            size="small"
+            icon={<ReloadOutlined />}
+            onClick={() => refreshTree()}
+            disabled={isTreeRefreshing}
+            style={{ 
+              fontSize: '12px',
+              height: '24px',
+              padding: '0 8px',
+              color: '#8c8c8c'
+            }}
+          >
+            刷新
+          </Button>
+        </div>
+        <UpdateAnimation
+          updateTrigger={childrenByParent.get(rootTaskId)?.length || 0}
+          type="highlight"
+          duration="normal"
+        >
+          {renderChildren(rootTaskId, 0)}
+        </UpdateAnimation>
+      </div>
+    </AnimatedContainer>
   );
 };

@@ -1,4 +1,5 @@
 import api from './api';
+import TokenManager from '../utils/tokenManager';
 
 // Google认证相关接口定义
 export interface GoogleConnectionStatus {
@@ -87,8 +88,8 @@ class AuthService {
       const response = await api.post('/auth/login', credentials);
       
       if (response.success && response.data?.token) {
-        // 保存token到localStorage
-        localStorage.setItem('token', response.data.token);
+        // 使用TokenManager保存token
+        TokenManager.setToken(response.data.token);
       }
       
       return response;
@@ -114,7 +115,7 @@ class AuthService {
       console.warn('后端登出失败，但继续清除本地认证信息:', error);
     } finally {
       // 清除本地认证信息
-      localStorage.removeItem('token');
+      TokenManager.clearAuthData();
     }
 
     return {
@@ -143,69 +144,30 @@ class AuthService {
    * 获取当前存储的token
    */
   getToken(): string | null {
-    return localStorage.getItem('token');
+    return TokenManager.getToken();
   }
 
   /**
    * 检查是否已登录
    */
   isAuthenticated(): boolean {
-    const token = this.getToken();
-    if (!token) return false;
-
-    try {
-      // 检查token是否过期
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const isExpired = Date.now() > payload.exp * 1000;
-      
-      if (isExpired) {
-        localStorage.removeItem('token');
-        return false;
-      }
-      
-      return true;
-    } catch (error) {
-      // token格式无效
-      localStorage.removeItem('token');
-      return false;
-    }
+    return TokenManager.isTokenValid();
   }
 
   /**
    * 获取当前用户ID
-   * 通过解析JWT token获取用户ID
+   * 通过TokenManager获取用户ID
    */
   getCurrentUserId(): number | null {
-    const token = this.getToken();
-    if (!token) return null;
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.user_id || payload.userId || payload.sub || null;
-    } catch (error) {
-      console.error('解析token中的用户ID失败:', error);
-      return null;
-    }
+    return TokenManager.getCurrentUserId();
   }
 
   /**
    * 获取当前用户信息
-   * 从token中解析基本用户信息
+   * 从TokenManager获取用户信息
    */
   getCurrentUser(): { id: number; username?: string } | null {
-    const token = this.getToken();
-    if (!token) return null;
-
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return {
-        id: payload.user_id || payload.userId || payload.sub,
-        username: payload.username || payload.name
-      };
-    } catch (error) {
-      console.error('解析token中的用户信息失败:', error);
-      return null;
-    }
+    return TokenManager.getCurrentUser();
   }
 
   /**
@@ -216,7 +178,7 @@ class AuthService {
       const response = await api.post('/auth/refresh');
       
       if (response.success && response.data?.token) {
-        localStorage.setItem('token', response.data.token);
+        TokenManager.setToken(response.data.token);
       }
       
       return response;

@@ -29,6 +29,9 @@ func RegisterProjectRoutes(authorized *gin.RouterGroup, app ApplicationInterface
 
 		// 注册简化的任务相关路由
 		registerSimpleTaskRoutes(projects, app)
+		
+		// 注册任务层级路由
+		registerTaskHierarchyRoutes(projects, app)
 	}
 }
 
@@ -45,4 +48,16 @@ func registerSimpleTaskRoutes(projects *gin.RouterGroup, app ApplicationInterfac
 	projects.POST("/:id/tasks/:taskId/move", app.MoveTaskHandler())
 	projects.POST("/:id/tasks/:taskId/reorder", app.ReorderTaskHandler())
 	projects.POST("/:id/tasks/bulk-reorder", app.BulkReorderTasksHandler())
+}
+
+// registerTaskHierarchyRoutes 注册任务层级路由
+func registerTaskHierarchyRoutes(projects *gin.RouterGroup, app ApplicationInterface) {
+	// 获取任务层级处理器
+	hierarchyHandler := app.GetTaskHierarchyHandler()
+	
+	// 任务层级相关路由
+	projects.GET("/:id/tasks/root", hierarchyHandler.GetRootTasks)
+	projects.GET("/:id/tasks/tree", hierarchyHandler.GetTaskTree)
+	projects.GET("/:id/tasks/:taskId/descendants", hierarchyHandler.GetTaskDescendants)
+	projects.GET("/:id/tasks/:taskId/children", hierarchyHandler.GetTaskChildren)
 }

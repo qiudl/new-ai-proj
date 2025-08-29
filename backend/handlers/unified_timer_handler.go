@@ -533,22 +533,8 @@ func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
 	defer cancel()
 
-	// Get recent tasks with pagination from the database
-	sqlDB := h.db.GetDB().(*sql.DB)
-	
-	query := `
-		SELECT DISTINCT t.id, t.title, p.name as project_name
-		FROM tasks t
-		LEFT JOIN projects p ON t.project_id = p.id
-		LEFT JOIN task_time_logs ttl ON t.id = ttl.task_id
-		WHERE t.assignee_id = $1 
-		  AND t.status != 'completed' 
-		  AND t.status != 'archived'
-		ORDER BY COALESCE(ttl.start_time, t.updated_at) DESC
-		LIMIT $2 OFFSET $3
-	`
-	
-	rows, err := sqlDB.QueryContext(ctx, query, uid, limit, offset)
+	// Use existing repository method instead of raw SQL to avoid type assertion issues
+	recentTasks, err := h.db.Timer().GetRecentTasksByUserWithPagination(ctx, uid, limit, offset)
 	if err != nil {
 		// Graceful fallback: return empty list instead of 504/500 if context deadline exceeded
 		if ctx.Err() == context.DeadlineExceeded {
@@ -558,28 +544,20 @@ func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get recent tasks", "details": err.Error()})
 		return
 	}
-	defer rows.Close()
 
+	// Convert to frontend-expected format
 	var tasks []map[string]interface{}
-	for rows.Next() {
-		var taskID int
-		var title string
-		var projectName sql.NullString
-		
-		if err := rows.Scan(&taskID, &title, &projectName); err != nil {
-			continue // Skip invalid rows
+	for _, task := range recentTasks {
+		taskMap := map[string]interface{}{
+			"id":           task.TaskID,
+			"title":        task.TaskTitle,
+			"project_name": task.ProjectName,
+			"status":       task.Status,
+			"total_seconds": task.TotalSeconds,
+			"last_timed_at": task.LastTimedAt,
+			"is_deleted":   task.IsDeleted,
 		}
-		
-		task := map[string]interface{}{
-			"id":    taskID,
-			"title": title,
-		}
-		
-		if projectName.Valid {
-			task["project_name"] = projectName.String
-		}
-		
-		tasks = append(tasks, task)
+		tasks = append(tasks, taskMap)
 	}
 
 	if tasks == nil {

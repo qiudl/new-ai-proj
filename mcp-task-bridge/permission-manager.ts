@@ -438,6 +438,12 @@ export const MCP_COMMAND_PERMISSIONS: Record<string, {
     requiresResourceId: true,
     description: '删除任务文档'
   },
+
+  // 工作笔记管理
+  'create-and-attach-work-note': {
+    permission: 'work_note.create',
+    description: '创建并关联工作笔记到任务'
+  },
   'create_batch_documents': {
     permission: 'document.create',
     description: '批量创建文档'

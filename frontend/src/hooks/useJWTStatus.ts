@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { jwtDebugger } from '../utils/jwtDebugger';
+import TokenManager from '../utils/tokenManager';
+
+// jwtDebugger module not available - implementing inline JWT validation
 
 interface JWTStatus {
   hasToken: boolean;
@@ -26,18 +28,37 @@ export const useJWTStatus = (options: UseJWTStatusOptions = {}) => {
   const [jwtStatus, setJwtStatus] = useState<JWTStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 检查JWT状态
+  // 检查JWT状态 - 使用TokenManager统一处理
   const checkStatus = useCallback(() => {
-    const status = jwtDebugger.checkJWTStatus();
+    const token = TokenManager.getToken();
     
-    // 记录模块调用
-    jwtDebugger.logModuleJWTStatus(moduleName);
+    if (!token) {
+      setJwtStatus({
+        hasToken: false,
+        isValid: false,
+        isExpired: true,
+        errors: ['No token found']
+      });
+      setLoading(false);
+      return;
+    }
+
+    const isExpired = TokenManager.isTokenExpired(token);
+    const payload = TokenManager.getTokenPayload();
+    const remainingTime = TokenManager.getTokenRemainingTime();
     
-    setJwtStatus(status);
+    setJwtStatus({
+      hasToken: true,
+      isValid: !isExpired,
+      isExpired,
+      payload,
+      expiresIn: remainingTime,
+      errors: isExpired ? ['Token expired'] : []
+    });
+    
     setLoading(false);
-    
     return status;
-  }, [moduleName]);
+  }, []);
 
   // 刷新JWT状态
   const refresh = useCallback(() => {
@@ -45,9 +66,30 @@ export const useJWTStatus = (options: UseJWTStatusOptions = {}) => {
     return checkStatus();
   }, [checkStatus]);
 
-  // 测试JWT
+  // 测试JWT - 使用TokenManager
   const testJWT = useCallback(async (endpoint?: string) => {
-    return await jwtDebugger.testJWTWithAPI(endpoint);
+    const token = TokenManager.getToken();
+    if (!token) {
+      return { success: false, error: 'No token available' };
+    }
+    
+    try {
+      const response = await fetch(endpoint || '/api/v1/auth/verify', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      return { 
+        success: response.ok, 
+        status: response.status,
+        data: response.ok ? await response.json() : null,
+        error: response.ok ? null : `HTTP ${response.status}`
+      };
+    } catch (error) {
+      return { success: false, error: `Network error: ${error}` };
+    }
   }, []);
 
   // 初始化和定时检查

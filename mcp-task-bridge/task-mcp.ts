@@ -954,57 +954,126 @@ export class TaskMCPServer {
   // 始终创建并关联任务文档（不走更新路径）
   @requiresPermission('create-and-attach')
   async createAndAttachTaskDocument(taskId: number, content: string, projectId: number = 1, title?: string): Promise<ApiResponse> {
-    try {
-      console.error(`[DEBUG] 创建并关联任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
-
-      // 验证任务存在并确定项目ID
-      const task = await this.findTaskById(taskId);
-      const actualProjectId = task.project_id || projectId;
-
-      // 构造请求体 - 与后端 CreateAndAttachDocumentRequest 结构匹配
-      const requestData = {
-        title: title || (task.title ? `${task.title} - 文档` : `Task ${taskId} 文档`),
-        content: content,
-        type: 'markdown',                    // models.DocumentType
-        status: 'draft',                     // models.DocumentStatus  
-        description: `任务 #${taskId} 的关联文档`,
-        tags: ['mcp-generated'],             // 添加标记表明通过MCP生成
-        visibility: 'team',                  // models.Visibility
-        is_template: false,                  // 不是模板
-        relationship_type: 'attachment',     // 关联类型
-        metadata: {
-          source: 'claude-code-mcp',
-          created_by: 'mcp-bridge',
-          task_id: taskId.toString()
-        }
-      };
-
-      // 调用后端的原子创建并关联接口
-      const response = await axios.post(
-        `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`,
-        requestData,
-        {
-          headers: this.getHeaders(),
-          proxy: false
-        }
-      );
-
-      const data = response.data?.data || response.data || {};
+    // 内部方法：实际执行创建操作
+    const executeCreateAndAttach = async (): Promise<ApiResponse> => {
+      let task: any;
+      let actualProjectId: number;
+      let requestData: any;
       
-      return {
-        success: true,
-        task_id: taskId,
-        project_id: actualProjectId,
-        document_id: data.document_id || data.id,
-        title: requestData.title,
-        content_length: content.length,
-        created: true,
-        message: `✅ 任务文档已创建并关联到数据库 (任务#${taskId}, 文档ID: ${data.document_id || data.id})`
-      };
-    } catch (error: any) {
-      console.error(`[ERROR] 创建并关联任务文档失败:`, error.response?.data || error.message);
+      try {
+        console.error(`[DEBUG] 创建并关联任务文档: 任务ID ${taskId}, 项目ID: ${projectId}`);
+
+        // 验证任务存在并确定项目ID
+        task = await this.findTaskById(taskId);
+        actualProjectId = task.project_id || projectId;
+
+        // 构造请求体 - 与后端 CreateAndAttachDocumentRequest 结构匹配
+        requestData = {
+          title: title || (task.title ? `${task.title} - 文档` : `Task ${taskId} 文档`),
+          content: content,
+          type: 'markdown',                    // models.DocumentType
+          status: 'draft',                     // models.DocumentStatus  
+          description: `任务 #${taskId} 的关联文档`,
+          tags: ['mcp-generated'],             // 添加标记表明通过MCP生成
+          visibility: 'team',                  // models.Visibility
+          is_template: false,                  // 不是模板
+          relationship_type: 'attachment',     // 关联类型
+          metadata: {
+            source: 'claude-code-mcp',
+            created_by: 'mcp-bridge',
+            task_id: taskId.toString()
+          }
+        };
+
+        // 调用后端的原子创建并关联接口
+        const response = await axios.post(
+          `${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/create-and-attach`,
+          requestData,
+          {
+            headers: this.getHeaders(),
+            proxy: false
+          }
+        );
+
+        const data = response.data?.data || response.data || {};
+        
+        return {
+          success: true,
+          task_id: taskId,
+          project_id: actualProjectId,
+          document_id: data.document_id || data.id,
+          title: requestData.title,
+          content_length: content.length,
+          created: true,
+          message: `✅ 任务文档已创建并关联到数据库 (任务#${taskId}, 文档ID: ${data.document_id || data.id})`
+        };
+      } catch (error: any) {
+        // 如果是401认证错误且为开发环境，尝试自动登录后重试
+        if (error?.response?.status === 401 && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev')) {
+          throw new Error('AUTH_RETRY_NEEDED');
+        }
+        
+        console.error(`[ERROR] 创建并关联任务文档失败:`, error.response?.data || error.message);
+
+        // 若后端不支持 create-and-attach 路由，尝试回退：先创建文档，再尝试关联
+        if (error?.response?.status === 404) {
+          try {
+            // 1) 先创建文档（全局 /documents）
+            const createResp = await axios.post(`${this.apiBase}/documents`, {
+              title: requestData.title,
+              content: requestData.content,
+              type: requestData.type,
+              status: requestData.status,
+              description: requestData.description,
+              tags: requestData.tags,
+              visibility: requestData.visibility,
+              is_template: requestData.is_template,
+              metadata: requestData.metadata
+          }, {
+            headers: this.getHeaders(),
+            proxy: false
+          });
+          const created = createResp?.data?.data || createResp?.data || {};
+          const docId = created.id || created.document_id;
+
+          // 2) 尝试关联到任务（若后端支持 /attach 路由）
+          let attached = false;
+          try {
+            await axios.post(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/${docId}/attach`, {
+              relationship_type: requestData.relationship_type || 'attachment'
+            }, {
+              headers: this.getHeaders(),
+              proxy: false
+            });
+            attached = true;
+          } catch (attachErr: any) {
+            // 如果连 attach 也不支持，则以“未关联”的状态返回
+            console.error(`[WARN] 文档已创建但无法关联到任务:`, attachErr?.response?.data || attachErr?.message);
+          }
+
+          return {
+            success: true,
+            task_id: taskId,
+            project_id: actualProjectId,
+            document_id: docId,
+            title: requestData.title,
+            content_length: content.length,
+            created: true,
+            attached,
+            fallback_used: true,
+            message: attached
+              ? `✅ 文档已创建并通过回退方式关联 (任务#${taskId}, 文档ID: ${docId})`
+              : `⚠️ 文档已创建 (ID: ${docId})，但后端缺少任务关联端点，暂未关联到任务`
+          };
+        } catch (fallbackErr: any) {
+          return {
+            success: false,
+            error: `回退创建/关联失败: ${fallbackErr?.response?.data?.error || fallbackErr?.message}`
+          };
+        }
+      }
       
-      // 提供更好的错误信息
+      // 常规错误信息
       let errorMessage = '创建并关联任务文档失败';
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -1021,6 +1090,174 @@ export class TaskMCPServer {
         error: `${errorMessage}: ${error.response?.data?.error || error.message}`
       };
     }
+    };
+    
+    // 主要逻辑：尝试执行，如果认证失败则自动登录重试
+    try {
+      return await executeCreateAndAttach();
+    } catch (error: any) {
+      if (error.message === 'AUTH_RETRY_NEEDED') {
+        console.error('[DEBUG] 检测到认证失败，尝试自动登录...');
+        const loginResult = await this.devQuickLogin();
+        if (loginResult.success) {
+          console.error('[DEBUG] 自动登录成功，重试创建文档...');
+          return await executeCreateAndAttach();
+        } else {
+          return {
+            success: false,
+            error: `认证失败，自动登录也失败: ${loginResult.error}`
+          };
+        }
+      }
+      throw error;
+    }
+  }
+
+  // 创建工作笔记并关联到任务
+  @requiresPermission('create-and-attach-work-note')
+  async createAndAttachWorkNote(taskId: number, content: string, title?: string): Promise<ApiResponse> {
+    // 内部方法：实际执行创建工作笔记操作
+    const executeCreateAndAttachWorkNote = async (): Promise<ApiResponse> => {
+      let task: any;
+      let requestData: any;
+      
+      try {
+        console.error(`[DEBUG] 创建工作笔记并关联到任务: 任务ID ${taskId}`);
+
+        // 验证任务存在
+        task = await this.findTaskById(taskId);
+
+        // 构造请求体 - 与后端 CreateWorkNoteRequest 结构匹配
+        requestData = {
+          title: title || (task.title ? `${task.title} - 工作笔记` : `任务 #${taskId} 工作笔记`),
+          content: content,
+          work_note_type: 'general',          // WorkNoteType
+          priority: 'medium',                 // WorkNotePriority  
+          description: `任务 #${taskId} 的工作笔记`,
+          tags: ['mcp-generated', 'task-attached'], // 添加标记
+          visibility: 'private',              // Visibility
+          is_pinned: false,
+          is_bookmarked: false,
+          work_note_folder_id: null,          // 可选的文件夹ID
+          related_notes: [],
+          custom_fields: {
+            source: 'claude-code-mcp',
+            created_by: 'mcp-bridge',
+            task_id: taskId.toString()
+          }
+        };
+
+        // 调用后端的工作笔记create-and-attach接口
+        const response = await axios.post(
+          `${this.apiBase}/tasks/${taskId}/work-notes/create-and-attach`,
+          requestData,
+          {
+            headers: this.getHeaders(),
+            proxy: false
+          }
+        );
+
+        const data = response.data?.data || response.data || {};
+        
+        return {
+          success: true,
+          task_id: taskId,
+          work_note_id: data.id || data.work_note_id,
+          title: requestData.title,
+          content_length: content.length,
+          created: true,
+          message: `✅ 工作笔记已创建并关联到任务 (任务#${taskId}, 笔记ID: ${data.id || data.work_note_id})`
+        };
+      } catch (error: any) {
+        // 如果是401认证错误且为开发环境，尝试自动登录后重试
+        if (error?.response?.status === 401 && (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'dev')) {
+          throw new Error('AUTH_RETRY_NEEDED');
+        }
+        
+        console.error(`[ERROR] 创建工作笔记并关联到任务失败:`, error.response?.data || error.message);
+
+        // 若后端不支持工作笔记create-and-attach路由，尝试回退：先创建工作笔记
+        if (error?.response?.status === 404) {
+          try {
+            // 回退：使用标准工作笔记创建接口
+            const createResp = await axios.post(`${this.apiBase}/work-notes`, {
+              title: requestData.title,
+              content: requestData.content,
+              work_note_type: requestData.work_note_type,
+              priority: requestData.priority,
+              description: requestData.description,
+              tags: requestData.tags,
+              visibility: requestData.visibility,
+              is_pinned: requestData.is_pinned,
+              is_bookmarked: requestData.is_bookmarked,
+              work_note_folder_id: requestData.work_note_folder_id,
+              related_tasks: [taskId], // 在related_tasks中记录关联
+              related_notes: requestData.related_notes,
+              custom_fields: requestData.custom_fields
+            }, {
+              headers: this.getHeaders(),
+              proxy: false
+            });
+            
+            const created = createResp?.data?.data || createResp?.data || {};
+            const noteId = created.id || created.work_note_id;
+
+            return {
+              success: true,
+              task_id: taskId,
+              work_note_id: noteId,
+              title: requestData.title,
+              content_length: content.length,
+              created: true,
+              fallback_used: true,
+              message: `✅ 工作笔记已创建并通过回退方式关联 (任务#${taskId}, 笔记ID: ${noteId})`
+            };
+          } catch (fallbackErr: any) {
+            return {
+              success: false,
+              error: `回退创建工作笔记失败: ${fallbackErr?.response?.data?.error || fallbackErr?.message}`
+            };
+          }
+        }
+      
+        // 常规错误信息
+        let errorMessage = '创建并关联工作笔记失败';
+        if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.status === 401) {
+          errorMessage = '认证失败，请检查API令牌';
+        } else if (error.response?.status === 404) {
+          errorMessage = '任务不存在';
+        } else if (error.response?.status === 400) {
+          errorMessage = '请求参数无效';
+        }
+
+        return {
+          success: false,
+          error: `${errorMessage}: ${error.response?.data?.error || error.message}`
+        };
+      }
+    };
+    
+    // 主要逻辑：尝试执行，如果认证失败则自动登录重试
+    try {
+      return await executeCreateAndAttachWorkNote();
+    } catch (error: any) {
+      if (error.message === 'AUTH_RETRY_NEEDED') {
+        console.error('[DEBUG] 检测到认证失败，尝试自动登录...');
+        const loginResult = await this.devQuickLogin();
+        if (loginResult.success) {
+          console.error('[DEBUG] 自动登录成功，重试创建工作笔记...');
+          return await executeCreateAndAttachWorkNote();
+        } else {
+          return {
+            success: false,
+            error: `认证失败，自动登录也失败: ${loginResult.error}`
+          };
+        }
+      }
+      throw error;
+    }
   }
 
   // 获取任务文档内容（使用统一文档API）
@@ -1033,12 +1270,29 @@ export class TaskMCPServer {
       const task = await this.findTaskById(taskId);
       const actualProjectId = task.project_id || projectId;
       
-      // 列出任务文档并选择最新一个
-      const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      const docs = listResp.data?.data?.documents || [];
+      // 列出任务文档并选择最新一个（兼容两种路由）
+      let docs: any[] = [];
+      try {
+        const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
+          headers: this.getHeaders(),
+          proxy: false
+        });
+        docs = listResp.data?.data?.documents || [];
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          // 回退到无 /list 的别名路由
+          const altResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
+            headers: this.getHeaders(),
+            proxy: false
+          });
+          const raw = altResp?.data ?? {};
+          // 兼容包装与直出
+          const payload = raw?.data || raw;
+          docs = payload?.documents || (Array.isArray(payload) ? payload : []);
+        } else {
+          throw e;
+        }
+      }
       if (!docs.length) {
         return {
           success: false,
@@ -1101,11 +1355,34 @@ export class TaskMCPServer {
       const task = await this.findTaskById(taskId);
       const actualProjectId = task.project_id || projectId;
       
-      const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/has`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      const hasDoc = !!(response.data && response.data.data && response.data.data.has_document);
+      let hasDoc = false;
+      try {
+        const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/has`, {
+          headers: this.getHeaders(),
+          proxy: false
+        });
+        hasDoc = !!(response.data && response.data.data && response.data.data.has_document);
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          // 回退：直接列出文档并判断是否有条目
+          try {
+            const altResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
+              headers: this.getHeaders(),
+              proxy: false
+            });
+            const raw = altResp?.data ?? {};
+            const payload = raw?.data || raw;
+            const docs = payload?.documents || (Array.isArray(payload) ? payload : []);
+            hasDoc = Array.isArray(docs) && docs.length > 0;
+          } catch (e2: any) {
+            // 无法确定，保持 false 并携带提示
+            console.error('[WARN] hasTaskDocument: 后端无 /has 与 /documents 列表路由');
+            hasDoc = false;
+          }
+        } else {
+          throw e;
+        }
+      }
       
       return {
         success: true,
@@ -1132,12 +1409,27 @@ export class TaskMCPServer {
       const task = await this.findTaskById(taskId);
       const actualProjectId = task.project_id || projectId;
       
-      // 列出文档，选择最新一个进行解除关联
-      const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
-        headers: this.getHeaders(),
-        proxy: false
-      });
-      const docs = listResp.data?.data?.documents || [];
+      // 列出文档，选择最新一个进行解除关联（兼容两种路由）
+      let docs: any[] = [];
+      try {
+        const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
+          headers: this.getHeaders(),
+          proxy: false
+        });
+        docs = listResp.data?.data?.documents || [];
+      } catch (e: any) {
+        if (e?.response?.status === 404) {
+          const altResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
+            headers: this.getHeaders(),
+            proxy: false
+          });
+          const raw = altResp?.data ?? {};
+          const payload = raw?.data || raw;
+          docs = payload?.documents || (Array.isArray(payload) ? payload : []);
+        } else {
+          throw e;
+        }
+      }
       if (!docs.length) {
         return {
           success: false,

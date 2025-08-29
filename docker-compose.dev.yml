@@ -158,6 +158,10 @@ services:
       TASK_API_BASE: http://backend:8080/api/v1
       TASK_API_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJpYXQiOjE3NTYxNzc2MTgsIm5iZiI6MTc1NjE3NzYxOCwiZXhwIjoxNzg3NzEzNjE4fQ.Ldz6Q9wUTmHMKpSCkjOqNpE2q5XNZdVZaPuCArLu7Fg
       DEV_LOGIN_USERNAME: admin
+      # MCP权限系统配置（开发环境）
+      MCP_ENABLE_PERMISSIONS: false
+      MCP_STRICT_PERMISSIONS: false
+      MCP_DEBUG_PERMISSIONS: true
     ports:
        - "3100:3001"
     volumes:

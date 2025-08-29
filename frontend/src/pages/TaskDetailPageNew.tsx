@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { 
   Card, 
   Row, 
@@ -24,6 +24,10 @@ import {
   Tabs,
   Pagination
 } from 'antd';
+
+// 懒加载非关键组件
+const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
+const TaskAnalysisPanel = lazy(() => import('../components/TaskAnalysisPanel'));
 import { 
   EditOutlined, 
   DeleteOutlined, 
@@ -49,7 +53,8 @@ import {
   InboxOutlined,
   BarChartOutlined,
   DownOutlined,
-  UpOutlined
+  UpOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
@@ -67,15 +72,24 @@ import TaskSummaryEditor from '../components/TaskSummaryEditor';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
-import TaskGanttChart from '../components/TaskGanttChart';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
 import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
-import { TaskProgressDisplay } from '../components/TaskProgressDisplay';
+// 导入新的优化组件
+import { useTaskDetailState } from '../hooks/useTaskDetailState';
+import { useMemoryManager } from '../hooks/useMemoryManager';
+import { TaskBasicInfo, TaskDetailInfo } from '../components/TaskDetailBasicInfo';
+import TaskRelationsPanel from '../components/TaskDetailRelations';
+import AnimatedContainer, { UpdateAnimation } from '../components/AnimatedContainer';
+import { RefreshConfigProvider, useRefreshConfig } from '../contexts/RefreshConfigContext';
+import { RefreshConfigButton } from '../components/RefreshConfigModal';
+import TaskCompletionRefresh from '../components/TaskCompletionRefresh';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
 import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgressBar';
+import { useAutoRefreshOptimized } from '../hooks/useAutoRefreshOptimized';
+import PerformanceMonitor from '../components/PerformanceMonitor';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -162,88 +176,148 @@ const TaskDetailPageNew: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // 核心状态
-  const [task, setTask] = useState<Task | null>(null);
-  const [documentExists, setDocumentExists] = useState<boolean | null>(null);
-  const [documentCount, setDocumentCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  
+  // 尝试获取刷新配置
+  let refreshConfig = null;
+  try {
+    refreshConfig = useRefreshConfig?.()?.config;
+  } catch {
+    // 如果不在Provider内，使用默认配置
+  }
+
+  // 使用状态钩子
+  const {
+    taskState,
+    documentState,
+    relationState,
+    completionState,
+    uiState,
+    historyState,
+    projectState,
+    updateTaskState,
+    updateDocumentState,
+    updateRelationState,
+    updateCompletionState,
+    updateUIState,
+    updateHistoryState,
+    updateProjectState,
+    calculateCompletionStats
+  } = useTaskDetailState();
+
+  // 解构任务状态
+  const { task, loading } = taskState;
+
   // 从URL参数读取活动Tab
   const getActiveTabFromURL = () => {
     const searchParams = new URLSearchParams(location.search);
     return searchParams.get('tab') || 'info';
   };
-  const [activeTab, setActiveTab] = useState(getActiveTabFromURL());
-  // 统一的任务模态框状态管理
-  const [taskModalVisible, setTaskModalVisible] = useState(false);
-  const [taskModalMode, setTaskModalMode] = useState<'edit' | 'createSubtask' | 'createSibling'>('edit');
-  const [modalLoading, setModalLoading] = useState(false);
-  const [archiveModalVisible, setArchiveModalVisible] = useState(false);
-  const [timelineActiveTab, setTimelineActiveTab] = useState('timeline'); // 'timeline', 'history'
-  
-  // 批量子任务创建状态
-  const [bulkSubTaskModalVisible, setBulkSubTaskModalVisible] = useState(false);
-  
-  // 附加数据状态
-  const [projectInfo, setProjectInfo] = useState<any>(null);
-  const [parentTask, setParentTask] = useState<Task | null>(null);
-  const [siblingTasks, setSiblingTasks] = useState<Task[]>([]);
-  
-  // 关联任务状态
-  const [relatedTasks, setRelatedTasks] = useState<Task[]>([]);
-  const [relatedTasksLoading, setRelatedTasksLoading] = useState(false);
+
+  // 初始化UI状态
+  useEffect(() => {
+    updateUIState({ activeTab: getActiveTabFromURL() });
+  }, [location.search, updateUIState]);
+
+  // 自动刷新任务完成情况 - 使用优化版Hook并添加内存管理
+  const { 
+    isRefreshing: isCompletionStatsRefreshing,
+    refreshType: completionStatsRefreshType,
+    refreshStartTime: completionStatsStartTime,
+    lastRefreshTime: completionStatsLastUpdate,
+    nextRefreshTime: completionStatsNextUpdate,
+    stats: completionStatsStats,
+    memoryStats: completionStatsMemoryStats,
+    refresh: refreshCompletionStats,
+    error: completionStatsError,
+    forceRetry: forceRetryCompletionStats,
+    getErrorHistory: getCompletionStatsErrorHistory,
+    cleanup: cleanupCompletionStats
+  } = useAutoRefreshOptimized(
+    async () => {
+      if (!projectId || !task) return;
+      
+      const parsedProjectId = parseInt(projectId);
+      if (isNaN(parsedProjectId)) return;
+      
+      // 重新加载子任务数据
+      const subtasksData = await TaskService.getTaskChildren(parsedProjectId, task.id);
+      const children = Array.isArray(subtasksData) 
+        ? subtasksData 
+        : Array.isArray(subtasksData?.data) 
+        ? subtasksData.data 
+        : [];
+      
+      updateRelationState({ subtasks: children });
+      calculateCompletionStats(children);
+      
+      return children; // 返回数据供缓存使用
+    },
+    {
+      interval: refreshConfig?.completionStatsInterval ? refreshConfig.completionStatsInterval * 1000 : 30000,
+      dependencies: [projectId, task?.id],
+      enableVisibilityDetection: refreshConfig?.enableVisibilityDetection ?? true,
+      enabled: !!projectId && !!task,
+      maxRetries: refreshConfig?.maxRetries ?? 3,
+      retryInterval: refreshConfig?.retryInterval ?? 5000,
+      enableCache: true,
+      cacheKey: `completion_stats_${projectId}_${taskState.task?.id}`,
+      context: {
+        component: 'TaskDetailPageNew',
+        section: 'completionStats',
+        taskId: taskState.task?.id,
+        projectId
+      }
+    }
+  );
+
+  // 注册自动刷新清理函数到内存管理器
+  useEffect(() => {
+    if (cleanupCompletionStats) {
+      memoryManager.addCleanupFunction(cleanupCompletionStats);
+    }
+  }, [cleanupCompletionStats, memoryManager]);
+
+  const pageSize = 8;
   const [relatedTasksPage, setRelatedTasksPage] = useState(1);
   const [relatedTasksTotal, setRelatedTasksTotal] = useState(0);
-  const pageSize = 8;
-  
-  // 完成情况相关状态
-  const [subtasks, setSubtasks] = useState<Task[]>([]);
-  
-  const [completionStats, setCompletionStats] = useState<TaskCompletionStats>({
-    totalSubtasks: 0,
-    completedSubtasks: 0,
-    inProgressSubtasks: 0,
-    todoSubtasks: 0,
-    completionRate: 0
-  });
-  
-  // 任务列表展开状态
-  const [expandedSubtasks, setExpandedSubtasks] = useState(false);
-  const [expandedSiblings, setExpandedSiblings] = useState(false);
-  
-  // 其他数据
-  const [taskUpdates, setTaskUpdates] = useState<TaskUpdate[]>([]);
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   
   // 检查特定任务的文档是否存在
   const checkDocumentExistsForTask = useCallback(async (taskData: Task) => {
     if (!taskData || !projectId) return;
 
     try {
+      updateDocumentState({ loading: true });
       // 轻量化：仅检查当前任务的文档数量，避免在初始加载时递归遍历所有子任务导致卡顿
       const parsedProjectId = parseInt(projectId);
       const rootDocsResp = await documentService.getTaskDocuments(parsedProjectId, taskData.id);
       const rootCount = (rootDocsResp?.total ?? rootDocsResp?.documents?.length ?? 0) as number;
-      setDocumentExists(rootCount > 0);
-      setDocumentCount(rootCount);
+      updateDocumentState({ 
+        exists: rootCount > 0, 
+        count: rootCount,
+        loading: false
+      });
     } catch (error: any) {
       if (error?.response?.status === 404) {
-        setDocumentExists(false);
-        setDocumentCount(0);
+        updateDocumentState({ 
+          exists: false, 
+          count: 0,
+          loading: false
+        });
       } else {
         console.error('检查文档状态失败:', error);
-        setDocumentExists(false);
-        setDocumentCount(0);
+        updateDocumentState({ 
+          exists: false, 
+          count: 0,
+          loading: false
+        });
       }
     }
-  }, [projectId]);
+  }, [projectId, updateDocumentState]);
 
   // 检查文档是否存在
   const checkDocumentExists = useCallback(async () => {
-    if (!task || !projectId) return;
-    await checkDocumentExistsForTask(task);
-  }, [task, projectId, checkDocumentExistsForTask]);
+    if (!taskState.task || !projectId) return;
+    await checkDocumentExistsForTask(taskState.task);
+  }, [taskState.task, projectId, checkDocumentExistsForTask]);
 
   // 加载任务基本信息
   const loadTask = useCallback(async () => {
@@ -260,9 +334,9 @@ const TaskDetailPageNew: React.FC = () => {
     }
     
     try {
-      setLoading(true);
+      updateTaskState({ loading: true, error: null });
       const taskData = await TaskService.getTask(parsedProjectId, parsedTaskId);
-      setTask(taskData);
+      updateTaskState({ task: taskData, loading: false });
       // 并行加载其他数据，直接传递taskData
       loadAllTaskDataWithTask(taskData);
     } catch (error: any) {
@@ -273,21 +347,20 @@ const TaskDetailPageNew: React.FC = () => {
       if (status === 404) {
         // Don't show error message for 404, just set task to null
         // The component will render the "task not found" UI
-        setTask(null);
+        updateTaskState({ task: null, loading: false });
       } else {
         // For other errors, show the error message
         message.error('获取任务详情失败');
+        updateTaskState({ error: '获取任务详情失败', loading: false });
       }
-    } finally {
-      setLoading(false);
     }
-  }, [projectId, taskId, navigate]);
+  }, [projectId, taskId, navigate, updateTaskState]);
 
   // 并行加载所有任务数据（使用当前task状态）
   const loadAllTaskData = useCallback(async () => {
-    if (!projectId || !taskId || !task) return;
-    await loadAllTaskDataWithTask(task);
-  }, [projectId, taskId, task]);
+    if (!projectId || !taskId || !taskState.task) return;
+    await loadAllTaskDataWithTask(taskState.task);
+  }, [projectId, taskId, taskState.task]);
 
   // 并行加载所有任务数据（使用传入的task参数）
   const loadAllTaskDataWithTask = useCallback(async (taskData: Task) => {
@@ -329,7 +402,7 @@ const TaskDetailPageNew: React.FC = () => {
     };
     
     try {
-      setDataLoading(true);
+      updateRelationState({ loading: true });
       
       // 并行加载基础数据
       const [subtasksData, updatesData, timelineData] = await Promise.allSettled([
@@ -340,24 +413,26 @@ const TaskDetailPageNew: React.FC = () => {
       
       // 单独获取项目信息
       try {
+        updateProjectState({ loading: true });
         const projectInfo = await projectService.getProject(parsedProjectId);
-        setProjectInfo(projectInfo);
+        updateProjectState({ projectInfo, loading: false });
       } catch (error) {
         console.error('Error loading project info:', error);
+        updateProjectState({ loading: false });
       }
       
       // 单独获取父任务信息和兄弟任务
       if (taskData.parent_id) {
         try {
           const parentTaskInfo = await TaskService.getTask(parsedProjectId, taskData.parent_id);
-          setParentTask(parentTaskInfo);
+          updateRelationState(prev => ({ ...prev, parent: parentTaskInfo }));
           
           // 获取兄弟任务（相同父任务的其他子任务）
           const siblings = await TaskService.getTaskChildren(parsedProjectId, taskData.parent_id);
           const filteredSiblings = Array.isArray(siblings) 
             ? siblings.filter((sibling: Task) => sibling.id !== taskData.id)
             : [];
-          setSiblingTasks(filteredSiblings);
+          updateRelationState(prev => ({ ...prev, siblings: filteredSiblings }));
         } catch (error) {
           console.error('Error loading parent task:', error);
         }
@@ -367,7 +442,7 @@ const TaskDetailPageNew: React.FC = () => {
           const rootTasksResponse = await TaskService.getRootTasks(parsedProjectId);
           const rootTasks = toArray(rootTasksResponse);
           const filteredRootSiblings = rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id);
-          setSiblingTasks(filteredRootSiblings);
+          updateRelationState(prev => ({ ...prev, siblings: filteredRootSiblings }));
         } catch (error) {
           console.error('Error loading root tasks:', error);
         }
@@ -376,60 +451,47 @@ const TaskDetailPageNew: React.FC = () => {
       // 处理子任务数据
       if (subtasksData.status === 'fulfilled') {
         const children = toArray((subtasksData as PromiseFulfilledResult<any>).value);
-        setSubtasks(children);
+        updateRelationState(prev => ({ ...prev, subtasks: children }));
         calculateCompletionStats(children);
       } else {
         // 处理API调用失败的情况
         console.error('Failed to load subtasks:', (subtasksData as PromiseRejectedResult).reason);
-        setSubtasks([]);
+        updateRelationState(prev => ({ ...prev, subtasks: [] }));
         calculateCompletionStats([]);
       }
       
       // 处理更新历史数据
       if (updatesData.status === 'fulfilled') {
         const updates = toArray((updatesData as PromiseFulfilledResult<any>).value);
-        setTaskUpdates(updates);
+        updateHistoryState({ taskUpdates: updates });
       }
       
       // 处理时间线数据
       if (timelineData.status === 'fulfilled') {
         const timeline = toArray((timelineData as PromiseFulfilledResult<any>).value);
-        setTimelineEvents(timeline);
+        updateHistoryState(prev => ({ ...prev, timelineEvents: timeline }));
       }
+      
+      updateRelationState(prev => ({ ...prev, loading: false }));
       
     } catch (error) {
       console.error('Error loading task data:', error);
-    } finally {
-      setDataLoading(false);
+      updateRelationState({ loading: false, error: 'Failed to load task data' });
     }
-  }, [projectId, taskId]);
+  }, [projectId, taskId, updateRelationState, updateProjectState, updateHistoryState, calculateCompletionStats]);
 
-  // 计算完成统计
-  const calculateCompletionStats = (children: Task[]) => {
-    const stats = {
-      totalSubtasks: children.length,
-      completedSubtasks: children.filter(t => t.status === 'completed').length,
-      inProgressSubtasks: children.filter(t => t.status === 'in_progress').length,
-      todoSubtasks: children.filter(t => t.status === 'todo').length,
-      completionRate: 0
-    };
-    
-    if (stats.totalSubtasks > 0) {
-      stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
-    }
-    
-    setCompletionStats(stats);
-  };
+  // 计算完成统计 - 现在从钩子中获取
+  // calculateCompletionStats 函数已在useTaskDetailState中定义
 
   // 加载关联任务
   const loadRelatedTasks = useCallback(async (page: number = 1) => {
-    if (!task || !projectId) return;
+    if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) return;
     
     try {
-      setRelatedTasksLoading(true);
+      updateRelationState(prev => ({ ...prev, loading: true }));
       
       // 获取同项目下的其他任务
       const tasksResponse = await TaskService.getTasks(parsedProjectId, {
@@ -440,39 +502,38 @@ const TaskDetailPageNew: React.FC = () => {
       if (tasksResponse && tasksResponse.data) {
         const allTasks = Array.isArray(tasksResponse.data) ? tasksResponse.data : [];
         // 排除当前任务
-        const tasks = allTasks.filter(t => t.id !== task.id);
+        const tasks = allTasks.filter(t => t.id !== taskState.task!.id);
         
         // 根据关联性排序任务
         const sortedTasks = tasks.sort((a: Task, b: Task) => {
           // 1. 相同状态的任务优先
-          if (a.status === task.status && b.status !== task.status) return -1;
-          if (b.status === task.status && a.status !== task.status) return 1;
+          if (a.status === taskState.task!.status && b.status !== taskState.task!.status) return -1;
+          if (b.status === taskState.task!.status && a.status !== taskState.task!.status) return 1;
           
           // 2. 相同优先级的任务其次
           const aPriority = a.custom_fields?.priority || 'medium';
           const bPriority = b.custom_fields?.priority || 'medium';
-          const taskPriority = task.custom_fields?.priority || 'medium';
+          const taskPriority = taskState.task!.custom_fields?.priority || 'medium';
           if (aPriority === taskPriority && bPriority !== taskPriority) return -1;
           if (bPriority === taskPriority && aPriority !== taskPriority) return 1;
           
           // 3. 相同负责人的任务
-          if (a.assignee_id === task.assignee_id && b.assignee_id !== task.assignee_id) return -1;
-          if (b.assignee_id === task.assignee_id && a.assignee_id !== task.assignee_id) return 1;
+          if (a.assignee_id === taskState.task!.assignee_id && b.assignee_id !== taskState.task!.assignee_id) return -1;
+          if (b.assignee_id === taskState.task!.assignee_id && a.assignee_id !== taskState.task!.assignee_id) return 1;
           
           // 4. 最后按更新时间排序
           return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
         });
         
-        setRelatedTasks(sortedTasks);
+        updateRelationState(prev => ({ ...prev, related: sortedTasks, loading: false }));
         setRelatedTasksTotal(tasksResponse.pagination?.total || tasks.length);
       }
     } catch (error) {
       console.error('Failed to load related tasks:', error);
       message.error('加载关联任务失败');
-    } finally {
-      setRelatedTasksLoading(false);
+      updateRelationState(prev => ({ ...prev, loading: false }));
     }
-  }, [task, projectId, pageSize]);
+  }, [taskState.task, projectId, pageSize, updateRelationState]);
 
   // 处理关联任务分页
   const handleRelatedTasksPageChange = useCallback((page: number) => {
@@ -480,6 +541,17 @@ const TaskDetailPageNew: React.FC = () => {
     loadRelatedTasks(page);
   }, [loadRelatedTasks]);
 
+
+  // 组件卸载时清理资源
+  useEffect(() => {
+    return () => {
+      // 使用内存管理器清理所有资源
+      memoryManager.cleanupAll();
+      // 重置状态
+      resetAllState();
+      console.log('🧹 TaskDetailPageNew: All resources cleaned up');
+    };
+  }, [memoryManager, resetAllState]);
 
   useEffect(() => {
     if (projectId && taskId) {
@@ -489,15 +561,18 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 监听URL变化，更新activeTab
   useEffect(() => {
-    setActiveTab(getActiveTabFromURL());
-  }, [location.search]);
+    const newActiveTab = getActiveTabFromURL();
+    if (newActiveTab !== uiState.activeTab) {
+      updateUIState({ activeTab: newActiveTab });
+    }
+  }, [location.search, uiState.activeTab, updateUIState]);
 
   // 当切换到文档Tab时再检查文档存在与数量，避免初始加载时的重网络与遍历
   useEffect(() => {
-    if (activeTab === 'document') {
+    if (uiState.activeTab === 'document' && !documentState.loading && documentState.exists === null) {
       checkDocumentExists();
     }
-  }, [activeTab, checkDocumentExists]);
+  }, [uiState.activeTab, documentState.loading, documentState.exists, checkDocumentExists]);
 
   // 状态颜色映射
   const getStatusConfig = (status: string) => {
@@ -560,12 +635,11 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   const handleEditTask = () => {
-    setTaskModalMode('edit');
-    setTaskModalVisible(true);
+    updateUIState({ taskModalMode: 'edit', taskModalVisible: true });
   };
 
   const handleUpdateTask = async (taskData: unknown) => {
-    if (!task || !projectId) return;
+    if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) {
@@ -574,20 +648,19 @@ const TaskDetailPageNew: React.FC = () => {
     }
     
     try {
-      setModalLoading(true);
-      await TaskService.updateTask(parsedProjectId, task.id, taskData);
+      updateUIState({ modalLoading: true });
+      await TaskService.updateTask(parsedProjectId, taskState.task.id, taskData);
       message.success('任务更新成功');
-      setTaskModalVisible(false);
+      updateUIState({ taskModalVisible: false, modalLoading: false });
       loadTask();
     } catch (error) {
       message.error('任务更新失败');
-    } finally {
-      setModalLoading(false);
+      updateUIState({ modalLoading: false });
     }
   };
 
   const handleDeleteTask = () => {
-    if (!task || !projectId) return;
+    if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) {
@@ -597,13 +670,13 @@ const TaskDetailPageNew: React.FC = () => {
     
     Modal.confirm({
       title: '确认删除',
-      content: `确定要删除任务"${task.title}"吗？此操作不可恢复。`,
+      content: `确定要删除任务"${taskState.task.title}"吗？此操作不可恢复。`,
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
       onOk: async () => {
         try {
-          await TaskService.deleteTask(parsedProjectId, task.id);
+          await TaskService.deleteTask(parsedProjectId, taskState.task!.id);
           message.success('任务删除成功');
           // 跳转到该任务所属的项目详情页
           navigate(`/projects/${parsedProjectId}`);
@@ -615,34 +688,32 @@ const TaskDetailPageNew: React.FC = () => {
   };
 
   const handleCreateSubtask = () => {
-    setTaskModalMode('createSubtask');
-    setTaskModalVisible(true);
+    updateUIState({ taskModalMode: 'createSubtask', taskModalVisible: true });
   };
 
   const handleCreateSibling = () => {
-    setTaskModalMode('createSibling');
-    setTaskModalVisible(true);
+    updateUIState({ taskModalMode: 'createSibling', taskModalVisible: true });
   };
 
   // 批量导入子任务处理函数
   const handleBulkImportSubtasks = () => {
-    if (!task || !projectId) {
+    if (!taskState.task || !projectId) {
       message.error('任务信息不完整，无法进行批量导入');
       return;
     }
     
     // 跳转到批量导入页面，带上父任务参数
-    navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task.id}`);
+    navigate(`/projects/${projectId}/bulk-import?parentTaskId=${taskState.task.id}`);
   };
 
   // 归档任务处理函数
   const handleArchiveTask = () => {
-    setArchiveModalVisible(true);
+    updateUIState({ archiveModalVisible: true });
   };
 
   // 归档成功处理
   const handleArchiveSuccess = () => {
-    setArchiveModalVisible(false);
+    updateUIState({ archiveModalVisible: false });
     message.success('任务已归档');
     // 返回到任务列表
     navigate(`/projects/${projectId}/tasks`);
@@ -650,12 +721,12 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 手工批量创建子任务处理函数
   const handleBulkCreateSubTasks = () => {
-    setBulkSubTaskModalVisible(true);
+    updateUIState({ bulkSubTaskModalVisible: true });
   };
 
   // 批量创建子任务成功处理
   const handleBulkSubTaskSuccess = () => {
-    setBulkSubTaskModalVisible(false);
+    updateUIState({ bulkSubTaskModalVisible: false });
     message.success('批量创建子任务成功');
     // 重新加载任务数据
     loadTask();
@@ -663,17 +734,17 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 统一的任务模态框提交处理
   const handleTaskModalSubmit = async (taskData: unknown) => {
-    if (taskModalMode === 'edit') {
+    if (uiState.taskModalMode === 'edit') {
       await handleUpdateTask(taskData);
-    } else if (taskModalMode === 'createSubtask') {
+    } else if (uiState.taskModalMode === 'createSubtask') {
       await handleCreateSubtaskSubmit(taskData);
-    } else if (taskModalMode === 'createSibling') {
+    } else if (uiState.taskModalMode === 'createSibling') {
       await handleCreateSiblingSubmit(taskData);
     }
   };
 
   const handleCreateSubtaskSubmit = async (taskData: unknown) => {
-    if (!task || !projectId) return;
+    if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) {
@@ -682,28 +753,27 @@ const TaskDetailPageNew: React.FC = () => {
     }
     
     try {
-      setModalLoading(true);
+      updateUIState({ modalLoading: true });
       // 添加parent_id到任务数据
       const subtaskData = {
         ...taskData,
-        parent_id: task.id
+        parent_id: taskState.task.id
       };
       
       await TaskService.createTask(parsedProjectId, subtaskData);
       message.success('子任务创建成功');
-      setTaskModalVisible(false);
+      updateUIState({ taskModalVisible: false, modalLoading: false });
       
       // 重新加载所有数据
       loadTask();
     } catch (error) {
       message.error('子任务创建失败');
-    } finally {
-      setModalLoading(false);
+      updateUIState({ modalLoading: false });
     }
   };
 
   const handleCreateSiblingSubmit = async (taskData: unknown) => {
-    if (!task || !projectId) return;
+    if (!taskState.task || !projectId) return;
     
     const parsedProjectId = parseInt(projectId);
     if (isNaN(parsedProjectId)) {
@@ -712,27 +782,26 @@ const TaskDetailPageNew: React.FC = () => {
     }
     
     try {
-      setModalLoading(true);
+      updateUIState({ modalLoading: true });
       // 使用当前任务的parent_id作为兄弟任务的parent_id
       const siblingData = {
         ...taskData,
-        parent_id: task.parent_id || null // 如果当前任务是根任务，兄弟任务也是根任务
+        parent_id: taskState.task.parent_id || null // 如果当前任务是根任务，兄弟任务也是根任务
       };
       
       await TaskService.createTask(parsedProjectId, siblingData);
       message.success('兄弟任务创建成功');
-      setTaskModalVisible(false);
+      updateUIState({ taskModalVisible: false, modalLoading: false });
       
       // 重新加载所有数据
       loadTask();
     } catch (error) {
       message.error('兄弟任务创建失败');
-    } finally {
-      setModalLoading(false);
+      updateUIState({ modalLoading: false });
     }
   };
 
-  if (loading) {
+  if (taskState.loading) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -745,7 +814,7 @@ const TaskDetailPageNew: React.FC = () => {
     );
   }
 
-  if (!task) {
+  if (!taskState.task) {
     return (
       <div style={{ padding: '24px', textAlign: 'center' }}>
         <Alert
@@ -762,53 +831,63 @@ const TaskDetailPageNew: React.FC = () => {
   const priorityConfig = getPriorityConfig(task.custom_fields?.priority as string || 'medium');
   const timeRemaining = getTimeRemaining();
 
-  // 子任务表格列定义
-  const subtaskColumns = [
+  // 处理关系任务导航
+  const handleNavigateToTask = useCallback((taskId: number, projectId: number) => {
+    navigate(`/projects/${projectId}/tasks/${taskId}`);
+  }, [navigate]);
+
+  // 渲染面包屑的辅助数据
+  const breadcrumbItems = [
+    // 返回按钮和项目任务根节点
     {
-      title: '任务ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 80,
-      sorter: (a: Task, b: Task) => a.id - b.id,
-      render: (id: number) => (
-        <Text code style={{ fontSize: '12px' }}>#{id}</Text>
-      ),
+      title: (
+        <span 
+          onClick={() => navigate(`/projects/${projectId}`)}
+          style={{ 
+            color: '#1890ff',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '0',
+            fontSize: '14px',
+            lineHeight: '22px'
+          }}
+        >
+          <ArrowLeftOutlined style={{ fontSize: '12px' }} />
+          项目任务
+        </span>
+      )
     },
+    // 如果有父任务，显示父任务链接
+    ...(taskState.task.parent_id && relationState.parent ? [{
+      title: (
+        <span 
+          onClick={() => navigate(`/projects/${taskState.task.project_id}/tasks/${taskState.task.parent_id}`)}
+          style={{ 
+            color: '#1890ff',
+            cursor: 'pointer',
+            fontSize: '14px',
+            lineHeight: '22px'
+          }}
+        >
+          {relationState.parent.title}
+        </span>
+      )
+    }] : []),
+    // 当前任务名称
     {
-      title: '任务名称',
-      dataIndex: 'title',
-      key: 'title',
-      sorter: (a: Task, b: Task) => a.title.localeCompare(b.title, 'zh-CN'),
-      render: (text: string, record: Task) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {getStatusConfig(record.status).icon}
-          <span>{text}</span>
-        </div>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      sorter: (a: Task, b: Task) => {
-        const statusOrder = { 'todo': 0, 'in_progress': 1, 'completed': 2, 'cancelled': 3 };
-        return (statusOrder[a.status as keyof typeof statusOrder] || 0) - 
-               (statusOrder[b.status as keyof typeof statusOrder] || 0);
-      },
-      render: (status: string) => {
-        const config = getStatusConfig(status);
-        return <Tag color={config.color}>{config.text}</Tag>;
-      },
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 120,
-      sorter: (a: Task, b: Task) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => dayjs(date).format('MM-DD HH:mm'),
-    },
+      title: (
+        <span style={{ 
+          fontSize: '14px', 
+          lineHeight: '22px',
+          color: '#8c8c8c',
+          fontWeight: 500
+        }}>
+          {taskState.task.title}
+        </span>
+      )
+    }
   ];
 
   return (
@@ -928,121 +1007,177 @@ const TaskDetailPageNew: React.FC = () => {
                   )}
                 </div>
 
-                {/* 任务进度条 - 使用新的进度显示组件 */}
-                <TaskProgressDisplay 
+                {/* 任务进度条 */}
+                <TaskProgressInline 
                   taskId={task.id} 
-                  taskType="task"
-                  displayMode="compact"
-                  showBreakdown={false}
-                  autoRefresh={false}
+                  status={task.status as 'todo'|'in_progress'|'blocked'|'completed'}
                   style={{ marginBottom: '16px' }} 
                 />
-
-                {/* 任务摘要（AI提炼） */}
-                <div style={{ marginBottom: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                    <FileTextOutlined style={{ color: '#666' }} />
-                    <Text strong>任务摘要</Text>
-                  </div>
-                  <div style={{ 
-                    background: 'rgba(255,255,255,0.8)', 
-                    padding: '12px', 
-                    borderRadius: '6px',
-                    margin: 0 
-                  }}>
-                    <TaskSummaryEditor
-                      summary={task.custom_fields?.task_summary || ''}
-                      description={task.description || ''}
-                      onUpdate={async (summary) => {
-                        const updateData = {
-                          custom_fields: {
-                            ...task.custom_fields,
-                            task_summary: summary
-                          }
-                        };
-                        await handleUpdateTask(updateData);
-                      }}
-                      loading={modalLoading}
-                    />
-                  </div>
-                </div>
-
-                {/* 标签 */}
-                {task.custom_fields?.tags && Array.isArray(task.custom_fields.tags) && task.custom_fields.tags.length > 0 && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <Text type="secondary" style={{ marginRight: '8px' }}>标签:</Text>
-                    <Space wrap>
-                      {task.custom_fields.tags.map((tag: string, index: number) => (
-                        <Tag key={index} color="blue">{tag}</Tag>
-                      ))}
-                    </Space>
-                  </div>
-                )}
               </div>
-
-              <Space>
-                <Tooltip title="编辑任务">
-                  <Button type="primary" icon={<EditOutlined />} onClick={handleEditTask} />
-                </Tooltip>
-                <Tooltip title="删除任务">
-                  <Button danger icon={<DeleteOutlined />} onClick={handleDeleteTask} />
-                </Tooltip>
-              </Space>
             </div>
           </Card>
 
-          {/* 完成情况统计 - 如果有子任务 */}
-          {completionStats.totalSubtasks > 0 && (
-            <Card title="任务完成情况" style={{ marginBottom: '24px' }}>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12}>
-                  <div style={{ textAlign: 'center' }}>
-                    <Progress
-                      type="circle"
-                      percent={completionStats.completionRate}
-                      size={120}
-                      format={() => `${completionStats.completedSubtasks}/${completionStats.totalSubtasks}`}
-                      strokeColor={{
-                        '0%': '#108ee9',
-                        '100%': '#87d068',
-                      }}
-                    />
-                    <div style={{ marginTop: '12px' }}>
-                      <Text strong style={{ fontSize: '16px' }}>
-                        {completionStats.completionRate}% 完成
-                      </Text>
-                    </div>
-                  </div>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Statistic
-                      title="已完成子任务"
-                      value={completionStats.completedSubtasks}
-                      suffix={`/ ${completionStats.totalSubtasks}`}
-                      valueStyle={{ color: '#52c41a' }}
-                      prefix={<CheckCircleOutlined />}
-                    />
-                    <div style={{ display: 'flex', gap: '16px' }}>
-                      <div>
-                        <Badge color="#1890ff" text={`进行中 ${completionStats.inProgressSubtasks}`} />
-                      </div>
-                      <div>
-                        <Badge color="#d9d9d9" text={`待开始 ${completionStats.todoSubtasks}`} />
-                      </div>
-                    </div>
-                  </Space>
-                </Col>
-              </Row>
+          {/* 任务摘要（AI提炼）*/}
+          {task.custom_fields?.task_summary && (
+            <Card style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                <FileTextOutlined style={{ color: '#666' }} />
+                <Text strong>任务摘要</Text>
+              </div>
+              <div style={{ 
+                background: 'rgba(255,255,255,0.8)', 
+                padding: '12px', 
+                borderRadius: '6px',
+                margin: 0 
+              }}>
+                <TaskSummaryEditor
+                  summary={task.custom_fields?.task_summary || ''}
+                  description={task.description || ''}
+                  onUpdate={async (summary) => {
+                    const updateData = {
+                      custom_fields: {
+                        ...task.custom_fields,
+                        task_summary: summary
+                      }
+                    };
+                    await handleUpdateTask(updateData);
+                  }}
+                  loading={uiState.modalLoading}
+                />
+              </div>
             </Card>
           )}
 
-{/* 子任务树（懒加载） */}
+          {/* 完成情况统计 - 如果有子任务 */}
+          {completionState.totalSubtasks > 0 && (
+            <AnimatedContainer type="fade" visible={true}>
+              <Card 
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>任务完成情况</span>
+                    <TaskCompletionRefresh 
+                      onRefreshCompletionStats={() => refreshCompletionStats()}
+                      size="small"
+                      showProgress={true}
+                      disabled={isCompletionStatsRefreshing}
+                    />
+                    <RefreshConfigButton />
+                    {completionStatsStats && completionStatsStats.totalRefreshes > 0 && (
+                      <Tooltip title={
+                        <div>
+                          <div>总刷新: {completionStatsStats.totalRefreshes}</div>
+                          <div>成功: {completionStatsStats.successfulRefreshes}</div>
+                          <div>失败: {completionStatsStats.failedRefreshes}</div>
+                          <div>缓存命中: {completionStatsStats.cacheHits}</div>
+                          <div>平均响应时间: {completionStatsStats.averageResponseTime}ms</div>
+                          {completionStatsMemoryStats && (
+                            <div style={{ marginTop: '4px', borderTop: '1px solid #f0f0f0', paddingTop: '4px' }}>
+                              <div>内存使用: {completionStatsMemoryStats.percentage.toFixed(1)}%</div>
+                              <div>已用: {(completionStatsMemoryStats.used / 1024 / 1024).toFixed(1)}MB</div>
+                            </div>
+                          )}
+                        </div>
+                      }>
+                        <span style={{ 
+                          fontSize: '10px', 
+                          color: completionStatsMemoryStats && completionStatsMemoryStats.percentage > 80 ? '#fa8c16' : '#8c8c8c',
+                          cursor: 'help'
+                        }}>
+                          {completionStatsStats.successfulRefreshes}/{completionStatsStats.totalRefreshes}
+                          {completionStatsStats.cacheHits > 0 && (
+                            <span style={{ marginLeft: '4px' }}>⚡{completionStatsStats.cacheHits}</span>
+                          )}
+                        </span>
+                      </Tooltip>
+                    )}
+                  </div>
+                }
+                style={{ marginBottom: '24px' }}
+                extra={
+                  completionStatsError && (
+                    <Tooltip title={`刷新失败: ${completionStatsError.message}`}>
+                      <WarningOutlined style={{ color: '#faad14' }} />
+                    </Tooltip>
+                  )
+                }
+              >
+                <UpdateAnimation 
+                  updateTrigger={completionState.completionRate}
+                  type="highlight"
+                  duration="normal"
+                >
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12}>
+                      <div style={{ textAlign: 'center' }}>
+                        <Progress
+                          type="circle"
+                          percent={completionState.completionRate}
+                          size={120}
+                          format={() => `${completionState.completedSubtasks}/${completionState.totalSubtasks}`}
+                          strokeColor={{
+                            '0%': '#108ee9',
+                            '100%': '#87d068',
+                          }}
+                        />
+                        <div style={{ marginTop: '12px' }}>
+                          <Text strong style={{ fontSize: '16px' }}>
+                            {completionState.completionRate}% 完成
+                          </Text>
+                        </div>
+                      </div>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Space direction="vertical" style={{ width: '100%' }}>
+                        <UpdateAnimation 
+                          updateTrigger={completionState.completedSubtasks}
+                          type="pulse"
+                          duration="fast"
+                        >
+                          <Statistic
+                            title="已完成子任务"
+                            value={completionState.completedSubtasks}
+                            suffix={`/ ${completionState.totalSubtasks}`}
+                            valueStyle={{ color: '#52c41a' }}
+                            prefix={<CheckCircleOutlined />}
+                          />
+                        </UpdateAnimation>
+                        <div style={{ display: 'flex', gap: '16px' }}>
+                          <div>
+                            <UpdateAnimation 
+                              updateTrigger={completionState.inProgressSubtasks}
+                              type="highlight"
+                              duration="fast"
+                              highlightColor="#e6f7ff"
+                            >
+                              <Badge color="#1890ff" text={`进行中 ${completionState.inProgressSubtasks}`} />
+                            </UpdateAnimation>
+                          </div>
+                          <div>
+                            <UpdateAnimation 
+                              updateTrigger={completionState.todoSubtasks}
+                              type="highlight"
+                              duration="fast"
+                              highlightColor="#f5f5f5"
+                            >
+                              <Badge color="#d9d9d9" text={`待开始 ${completionState.todoSubtasks}`} />
+                            </UpdateAnimation>
+                          </div>
+                        </div>
+                      </Space>
+                    </Col>
+                  </Row>
+                </UpdateAnimation>
+              </Card>
+            </AnimatedContainer>
+          )}
+
+          {/* 子任务树（懒加载） */}
           <Card 
             title={
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <BranchesOutlined />
                 <span>子任务树</span>
+                <span style={{ fontSize: '12px', color: '#8c8c8c' }}>(自动刷新)</span>
               </div>
             }
             style={{ marginBottom: '24px' }}
@@ -1068,16 +1203,20 @@ const TaskDetailPageNew: React.FC = () => {
             }
           >
             <div style={{ padding: '4px 0' }}>
-              <TaskDetailDescendantsTree projectId={parseInt(projectId || '0')} rootTaskId={task.id} limit={200} />
+              <TaskDetailDescendantsTree 
+                projectId={parseInt(projectId || '0')} 
+                rootTaskId={taskState.task.id} 
+                limit={200} 
+              />
             </div>
           </Card>
 
           {/* 任务详情Tabs */}
           <Card style={{ marginBottom: '24px' }}>
             <Tabs
-              activeKey={activeTab}
+              activeKey={uiState.activeTab}
               onChange={(key) => {
-                setActiveTab(key);
+                updateUIState({ activeTab: key });
                 // 更新URL但不刷新页面
                 const searchParams = new URLSearchParams(location.search);
                 if (key === 'info') {
@@ -1102,9 +1241,9 @@ const TaskDetailPageNew: React.FC = () => {
                   ),
                   children: (
                     <TaskInfoEditor
-                      task={task}
+                      task={taskState.task}
                       onUpdate={handleUpdateTask}
-                      loading={modalLoading}
+                      loading={uiState.modalLoading}
                     />
                   )
                 },
@@ -1114,13 +1253,13 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <EditOutlined />
                       <span>任务文档</span>
-                      <Badge count={documentCount} size="small" />
+                      <Badge count={documentState.count} size="small" />
                     </Space>
                   ),
                   children: (
                     <div style={{ minHeight: '500px' }}>
                       <UnifiedTaskDocumentArea
-                        taskId={task.id}
+                        taskId={taskState.task.id}
                         projectId={parseInt(projectId || '0')}
                         height="500px"
                         defaultViewMode="edit"
@@ -1131,8 +1270,10 @@ const TaskDetailPageNew: React.FC = () => {
                         includeSubtaskDocuments={true}
                         onDocumentChange={(docs) => {
                           // 更新文档存在状态与数量（包含所有下级任务）
-                          setDocumentExists(docs.length > 0);
-                          setDocumentCount(docs.length);
+                          updateDocumentState({ 
+                            exists: docs.length > 0, 
+                            count: docs.length 
+                          });
                         }}
                         onViewModeChange={(mode) => {
                           // no-op
@@ -1152,7 +1293,7 @@ const TaskDetailPageNew: React.FC = () => {
                   children: (
                     <div style={{ minHeight: '400px' }}>
                       <TaskProgressDisplay 
-                        taskId={task.id} 
+                        taskId={taskState.task.id} 
                         taskType="task"
                         displayMode="full"
                         showBreakdown={true}
@@ -1168,18 +1309,20 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <BarChartOutlined />
                       <span>甘特图</span>
-                      {subtasks.length > 0 && (
-                        <Badge count={subtasks.length} size="small" style={{ backgroundColor: '#722ed1' }} />
+                      {relationState.subtasks.length > 0 && (
+                        <Badge count={relationState.subtasks.length} size="small" style={{ backgroundColor: '#722ed1' }} />
                       )}
                     </Space>
                   ),
                   children: (
                     <div style={{ minHeight: '500px' }}>
-                      <TaskGanttChart
-                        parentTask={task}
-                        projectId={parseInt(projectId || '0')}
-                        style={{ border: 'none', boxShadow: 'none' }}
-                      />
+                      <Suspense fallback={<Spin size="large" />}>
+                        <TaskGanttChart
+                          parentTask={taskState.task}
+                          projectId={parseInt(projectId || '0')}
+                          style={{ border: 'none', boxShadow: 'none' }}
+                        />
+                      </Suspense>
                     </div>
                   )
                 }
@@ -1191,11 +1334,19 @@ const TaskDetailPageNew: React.FC = () => {
 
         {/* 右侧信息卡片 */}
         <Col xs={24} sm={24} md={24} lg={8} xl={8} className="info-sidebar">
+          {/* 性能监控 */}
+          <PerformanceMonitor 
+            size="small"
+            showDetails={false}
+            showAlerts={true}
+            style={{ marginBottom: '16px' }}
+          />
+          
           {/* 任务计时器 */}
           <MVPTaskDetailTimer
-            taskId={task.id}
-            taskTitle={task.title}
-            taskStatus={task.status}
+            taskId={taskState.task.id}
+            taskTitle={taskState.task.title}
+            taskStatus={taskState.task.status}
             projectId={projectId ? parseInt(projectId) : undefined}
             style={{ marginBottom: '16px' }}
           />
@@ -1209,7 +1360,7 @@ const TaskDetailPageNew: React.FC = () => {
                 </Text>
                 <TaskDocumentWidget
                   projectId={parseInt(projectId || '0')}
-                  taskId={task.id}
+                  taskId={taskState.task.id}
                   compact={true}
                   showTitle={false}
                 />
@@ -1218,364 +1369,30 @@ const TaskDetailPageNew: React.FC = () => {
           </div>
           
           {/* 基本信息 */}
-          <Card title="基本信息" style={{ marginBottom: '16px' }}>
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="任务ID">#{task.id}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Space size="small">
-                  <div style={{ fontSize: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    {statusConfig.icon}
-                  </div>
-                  <Tag color={statusConfig.color} style={{ marginInlineStart: 0 }}>{statusConfig.text}</Tag>
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="所属项目">
-                {projectInfo ? (
-                  <Button 
-                    type="link" 
-                    style={{ padding: 0, height: 'auto', fontSize: '14px' }}
-                    onClick={() => navigate(`/projects/${task.project_id}`)}
-                  >
-                    {projectInfo.name} (#{task.project_id})
-                  </Button>
-                ) : task.project_name ? (
-                  <Button 
-                    type="link" 
-                    style={{ padding: 0, height: 'auto', fontSize: '14px' }}
-                    onClick={() => navigate(`/projects/${task.project_id}`)}
-                  >
-                    {task.project_name} (#{task.project_id})
-                  </Button>
-                ) : (
-                  `项目 #${task.project_id}`
-                )}
-              </Descriptions.Item>
-              {task.parent_id && (
-                <Descriptions.Item label="父任务">
-                  {parentTask ? (
-                    <Button 
-                      type="link" 
-                      style={{ padding: 0, height: 'auto', fontSize: '14px' }}
-                      onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.parent_id}`)}
-                    >
-                      {parentTask.title} (#{task.parent_id})
-                    </Button>
-                  ) : (
-                    `任务 #${task.parent_id}`
-                  )}
-                </Descriptions.Item>
-              )}
-              <Descriptions.Item label="创建时间">
-                {dayjs(task.created_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>{dayjs(task.updated_at).format('YYYY-MM-DD HH:mm')}</span>
-                  {(task.updated_by_username || task.updated_by) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: '#8c8c8c' }}>by</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Avatar 
-                          size={16} 
-                          icon={<UserOutlined />}
-                          style={{ backgroundColor: '#1890ff', fontSize: '8px' }}
-                        />
-                        <span style={{ fontSize: '12px', color: '#595959' }}>
-                          {task.updated_by_username || `用户${task.updated_by}`}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </Descriptions.Item>
-              {task.due_date && (
-                <Descriptions.Item label="截止时间">
-                  {dayjs(task.due_date).format('YYYY-MM-DD')}
-                </Descriptions.Item>
-              )}
-              {task.custom_fields?.estimated_hours && (
-                <Descriptions.Item label="预估工时">
-                  {task.custom_fields.estimated_hours} 小时
-                </Descriptions.Item>
-              )}
-            </Descriptions>
-          </Card>
+          <TaskDetailInfo
+            task={taskState.task}
+            projectInfo={projectState.projectInfo}
+            parentTask={relationState.parent}
+          />
 
-          {/* 快速操作 */}
-          <Card title="快速操作" style={{ marginBottom: '16px' }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Button 
-                block 
-                icon={<BranchesOutlined />}
-                onClick={handleCreateSubtask}
-              >
-                创建子任务
-              </Button>
-              <Button 
-                block 
-                icon={<BranchesOutlined />}
-                onClick={handleCreateSibling}
-                style={{ color: '#fa8c16', borderColor: '#fa8c16' }}
-              >
-                创建兄弟任务
-              </Button>
-              <Button 
-                block 
-                icon={<BranchesOutlined />}
-                onClick={handleBulkCreateSubTasks}
-                type="primary"
-                ghost
-              >
-                手工批量创建子任务
-              </Button>
-              <Button 
-                block 
-                icon={<ImportOutlined />}
-                onClick={handleBulkImportSubtasks}
-              >
-                批量导入任务
-              </Button>
-              <Button 
-                block 
-                icon={<InboxOutlined />}
-                onClick={handleArchiveTask}
-                style={{ marginTop: '8px' }}
-              >
-                归档任务
-              </Button>
-            </Space>
-          </Card>
-
-          {/* 相关任务 */}
-          <Card 
-            title={
-              <Space>
-                <BranchesOutlined />
-                <span>相关任务</span>
-                <Badge 
-                  count={
-                    (parentTask ? 1 : 0) + 
-                    subtasks.length + 
-                    siblingTasks.length
-                  } 
-                  showZero={false}
-                  size="small"
-                />
-              </Space>
-            }
-            style={{ marginBottom: '16px' }}
-          >
-            <Space direction="vertical" style={{ width: '100%', gap: '16px' }}>
-              {/* 父任务 */}
-              {parentTask && (
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#f6ffed', 
-                  borderRadius: '6px',
-                  border: '1px solid #b7eb8f'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Badge status="processing" />
-                    <Text strong style={{ fontSize: '13px', color: '#389e0d' }}>父任务</Text>
-                  </div>
-                  <Button 
-                    type="link" 
-                    style={{ 
-                      padding: 0, 
-                      height: 'auto', 
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      textAlign: 'left',
-                      width: '100%',
-                      justifyContent: 'flex-start'
-                    }}
-                    onClick={() => navigate(`/projects/${task.project_id}/tasks/${parentTask.id}`)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {getStatusConfig(parentTask.status).icon}
-                      <span>{parentTask.title}</span>
-                    </div>
-                  </Button>
-                </div>
-              )}
-
-              {/* 子任务 */}
-              {subtasks.length > 0 && (
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#e6f7ff', 
-                  borderRadius: '6px',
-                  border: '1px solid #91d5ff'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Badge status="processing" />
-                    <Text strong style={{ fontSize: '13px', color: '#1890ff' }}>
-                      子任务 ({subtasks.length})
-                    </Text>
-                    {subtasks.length > 3 && (
-                      <Button 
-                        type="link" 
-                        size="small" 
-                        style={{ fontSize: '12px', padding: 0 }}
-                        onClick={() => {
-                          // 滚动到主内容区的子任务表格
-                          const subtaskTable = document.querySelector('.ant-table-wrapper');
-                          if (subtaskTable) {
-                            subtaskTable.scrollIntoView({ behavior: 'smooth' });
-                          }
-                        }}
-                      >
-                        查看全部
-                      </Button>
-                    )}
-                  </div>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {(expandedSubtasks ? subtasks : subtasks.slice(0, 3)).map((subtask) => (
-                      <Button 
-                        key={subtask.id}
-                        type="link" 
-                        style={{ 
-                          padding: '4px 8px', 
-                          height: 'auto', 
-                          fontSize: '13px',
-                          textAlign: 'left',
-                          width: '100%',
-                          justifyContent: 'flex-start',
-                          background: 'rgba(255,255,255,0.6)',
-                          borderRadius: '4px'
-                        }}
-                        onClick={() => navigate(`/projects/${subtask.project_id}/tasks/${subtask.id}`)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {getStatusConfig(subtask.status).icon}
-                          <span style={{ flex: 1, minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {subtask.title}
-                          </span>
-                        </div>
-                      </Button>
-                    ))}
-                    {subtasks.length > 3 && (
-                      <Button 
-                        type="link" 
-                        size="small"
-                        onClick={() => setExpandedSubtasks(!expandedSubtasks)}
-                        style={{ 
-                          padding: '0 8px', 
-                          fontSize: '12px', 
-                          height: 'auto',
-                          color: '#8c8c8c',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        {expandedSubtasks ? (
-                          <>
-                            收起
-                            <UpOutlined style={{ fontSize: '10px' }} />
-                          </>
-                        ) : (
-                          <>
-                            还有 {subtasks.length - 3} 个子任务...
-                            <DownOutlined style={{ fontSize: '10px' }} />
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </Space>
-                </div>
-              )}
-
-              {/* 兄弟任务 */}
-              {siblingTasks.length > 0 && (
-                <div style={{ 
-                  padding: '12px', 
-                  background: '#fff7e6', 
-                  borderRadius: '6px',
-                  border: '1px solid #ffd591'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    <Badge status="default" />
-                    <Text strong style={{ fontSize: '13px', color: '#d46b08' }}>
-                      同级任务 ({siblingTasks.length})
-                    </Text>
-                  </div>
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    {(expandedSiblings ? siblingTasks : siblingTasks.slice(0, 3)).map((sibling) => (
-                      <Button 
-                        key={sibling.id}
-                        type="link" 
-                        style={{ 
-                          padding: '4px 8px', 
-                          height: 'auto', 
-                          fontSize: '13px',
-                          textAlign: 'left',
-                          width: '100%',
-                          justifyContent: 'flex-start',
-                          background: 'rgba(255,255,255,0.6)',
-                          borderRadius: '4px'
-                        }}
-                        onClick={() => navigate(`/projects/${sibling.project_id}/tasks/${sibling.id}`)}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {getStatusConfig(sibling.status).icon}
-                          <span style={{ flex: 1, minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {sibling.title}
-                          </span>
-                        </div>
-                      </Button>
-                    ))}
-                    {siblingTasks.length > 3 && (
-                      <Button 
-                        type="link" 
-                        size="small"
-                        onClick={() => setExpandedSiblings(!expandedSiblings)}
-                        style={{ 
-                          padding: '0 8px', 
-                          fontSize: '12px', 
-                          height: 'auto',
-                          color: '#8c8c8c',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        {expandedSiblings ? (
-                          <>
-                            收起
-                            <UpOutlined style={{ fontSize: '10px' }} />
-                          </>
-                        ) : (
-                          <>
-                            还有 {siblingTasks.length - 3} 个同级任务...
-                            <DownOutlined style={{ fontSize: '10px' }} />
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </Space>
-                </div>
-              )}
-
-              {/* 无相关任务时的提示 */}
-              {!parentTask && subtasks.length === 0 && siblingTasks.length === 0 && (
-                <div style={{ 
-                  textAlign: 'center', 
-                  padding: '32px 20px', 
-                  color: '#8c8c8c',
-                  background: '#fafafa',
-                  borderRadius: '6px',
-                  border: '1px dashed #d9d9d9'
-                }}>
-                  <BranchesOutlined style={{ fontSize: '32px', marginBottom: '12px', color: '#d9d9d9' }} />
-                  <div style={{ fontSize: '14px', marginBottom: '8px' }}>暂无相关任务</div>
-                  <div style={{ fontSize: '12px', color: '#bfbfbf' }}>
-                    您可以创建子任务来分解当前任务
-                  </div>
-                </div>
-              )}
-            </Space>
-          </Card>
+          {/* 关系任务组件 */}
+          <TaskRelationsPanel
+            task={taskState.task}
+            parentTask={relationState.parent}
+            subtasks={relationState.subtasks}
+            siblingTasks={relationState.siblings}
+            expandedSubtasks={uiState.expandedSubtasks}
+            expandedSiblings={uiState.expandedSiblings}
+            onCreateSubtask={handleCreateSubtask}
+            onCreateSibling={handleCreateSibling}
+            onBulkCreateSubTasks={handleBulkCreateSubTasks}
+            onBulkImportSubtasks={handleBulkImportSubtasks}
+            onArchiveTask={handleArchiveTask}
+            onNavigateToTask={handleNavigateToTask}
+            onToggleSubtasks={() => updateUIState({ expandedSubtasks: !uiState.expandedSubtasks })}
+            onToggleSiblings={() => updateUIState({ expandedSiblings: !uiState.expandedSiblings })}
+            getStatusConfig={getStatusConfig}
+          />
 
           {/* 任务详情分页 - 时间线和历史记录 */}
           <Card 
@@ -1583,8 +1400,8 @@ const TaskDetailPageNew: React.FC = () => {
             style={{ marginBottom: '16px' }}
           >
             <Tabs 
-              activeKey={activeTab}
-              onChange={setActiveTab}
+              activeKey={uiState.activeTab}
+              onChange={(key) => updateUIState({ activeTab: key })}
               items={[
                 {
                   key: 'timeline',
@@ -1592,14 +1409,14 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <ClockCircleOutlined />
                       时间线
-                      {timelineEvents.length > 0 && (
-                        <Badge count={timelineEvents.length} size="small" />
+                      {historyState.timelineEvents.length > 0 && (
+                        <Badge count={historyState.timelineEvents.length} size="small" />
                       )}
                     </Space>
                   ),
-                  children: timelineEvents.length > 0 ? (
+                  children: historyState.timelineEvents.length > 0 ? (
                     <TaskTimeline 
-                      events={timelineEvents}
+                      events={historyState.timelineEvents}
                       onRefresh={() => loadAllTaskData()}
                     />
                   ) : (
@@ -1615,16 +1432,16 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <HistoryOutlined />
                       更新历史
-                      {taskUpdates.length > 0 && (
-                        <Badge count={taskUpdates.length} size="small" />
+                      {historyState.taskUpdates.length > 0 && (
+                        <Badge count={historyState.taskUpdates.length} size="small" />
                       )}
                     </Space>
                   ),
-                  children: taskUpdates.length > 0 ? (
+                  children: historyState.taskUpdates.length > 0 ? (
                     <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                       <Timeline>
-                        {taskUpdates.map((update, index) => {
-                          // 获取更新类型的详细信息
+                        {historyState.taskUpdates.map((update, index) => {
+                          // 获取更新类型的详细信息和处理更新详情的逻辑保持不变
                           const getUpdateTypeInfo = (type: string) => {
                             const types = {
                               'status': { icon: '🔄', text: '状态变更', color: 'blue' },
@@ -1807,60 +1624,62 @@ const TaskDetailPageNew: React.FC = () => {
         </Col>
       </Row>
 
-
       {/* 统一的任务模态框 */}
-      {taskModalVisible && projectId && !isNaN(parseInt(projectId)) && (
+      {uiState.taskModalVisible && projectId && !isNaN(parseInt(projectId)) && (
         <TaskModal
-          visible={taskModalVisible}
-          task={taskModalMode === 'edit' ? task : undefined}
-          parentTask={taskModalMode === 'createSubtask' ? task : undefined}
-          siblingTask={taskModalMode === 'createSibling' ? task : undefined}
-          mode={taskModalMode}
+          visible={uiState.taskModalVisible}
+          task={uiState.taskModalMode === 'edit' ? taskState.task : undefined}
+          parentTask={uiState.taskModalMode === 'createSubtask' ? taskState.task : undefined}
+          siblingTask={uiState.taskModalMode === 'createSibling' ? taskState.task : undefined}
+          mode={uiState.taskModalMode}
           projectId={parseInt(projectId)}
           onOk={handleTaskModalSubmit}
-          onCancel={() => setTaskModalVisible(false)}
-          loading={modalLoading}
-          allowParentSelection={true} // 始终允许父任务选择
+          onCancel={() => updateUIState({ taskModalVisible: false })}
+          loading={uiState.modalLoading}
+          allowParentSelection={true}
           onEditDetails={() => {
-            setTaskModalVisible(false);
-            if (taskModalMode === 'edit') {
-              // 编辑模式：跳转到当前任务的编辑页面
+            updateUIState({ taskModalVisible: false });
+            if (uiState.taskModalMode === 'edit') {
               navigate(`/projects/${projectId}/tasks/${taskId}/edit`);
-            } else if (taskModalMode === 'createSubtask') {
-              // 创建子任务模式：跳转到批量导入页面，可以创建多个子任务
-              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.id}`);
-            } else if (taskModalMode === 'createSibling') {
-              // 创建兄弟任务模式：跳转到批量导入页面
-              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${task?.parent_id || ''}`);
+            } else if (uiState.taskModalMode === 'createSubtask') {
+              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${taskState.task?.id}`);
+            } else if (uiState.taskModalMode === 'createSibling') {
+              navigate(`/projects/${projectId}/bulk-import?parentTaskId=${taskState.task?.parent_id || ''}`);
             }
           }}
         />
       )}
       
       {/* Archive Modal */}
-      {task && projectId && (
+      {taskState.task && projectId && (
         <TaskArchiveModal
-          visible={archiveModalVisible}
-          onCancel={() => setArchiveModalVisible(false)}
+          visible={uiState.archiveModalVisible}
+          onCancel={() => updateUIState({ archiveModalVisible: false })}
           onSuccess={handleArchiveSuccess}
           projectId={parseInt(projectId)}
-          tasks={[task]}
+          tasks={[taskState.task]}
           mode="single"
         />
       )}
 
       {/* Bulk SubTask Creator Modal */}
-      {task && projectId && (
+      {taskState.task && projectId && (
         <BulkSubTaskCreator
-          visible={bulkSubTaskModalVisible}
-          onCancel={() => setBulkSubTaskModalVisible(false)}
+          visible={uiState.bulkSubTaskModalVisible}
+          onCancel={() => updateUIState({ bulkSubTaskModalVisible: false })}
           onSuccess={handleBulkSubTaskSuccess}
-          parentTask={task}
+          parentTask={taskState.task}
           projectId={parseInt(projectId)}
         />
       )}
-      </div>
+    </div>
   );
 };
 
-export default TaskDetailPageNew;
+export default function WrappedTaskDetailPageNew() {
+  return (
+    <RefreshConfigProvider>
+      <TaskDetailPageNew />
+    </RefreshConfigProvider>
+  );
+}

@@ -823,10 +823,10 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 	
 	// 创建任务文档关联
 	_, err = tx.Exec(`
-		INSERT INTO task_documents (task_id, document_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO task_documents (task_id, document_id, relationship_type, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (task_id, document_id) DO NOTHING
-	`, taskID, documentID, now, now)
+	`, taskID, documentID, "attachment", userID, now, now)
 	
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

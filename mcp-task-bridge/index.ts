@@ -295,6 +295,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: 'create-and-attach-work-note',
+        description: '创建工作笔记并关联到指定任务（专用于知识管理内容）',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            content: { 
+              type: 'string', 
+              description: '工作笔记内容（Markdown格式）' 
+            },
+            title: {
+              type: 'string',
+              description: '工作笔记标题（可选，默认根据任务标题生成）'
+            }
+          },
+          required: ['taskId', 'content']
+        }
+      },
+      {
         name: 'delete_task_document',
         description: '删除任务文档',
         inputSchema: {
@@ -1060,6 +1082,28 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // 忽略本地回退错误
         }
         break;
+      
+      case 'create-and-attach-work-note': {
+        const taskId = args.taskId as number;
+        const content = args.content as string;
+        const title = args.title as string;
+
+        if (!taskId) {
+          result = { success: false, error: '缺少必要参数：taskId' };
+          break;
+        }
+        if (!content || content.length === 0) {
+          result = { success: false, error: '缺少必要参数：content' };
+          break;
+        }
+
+        result = await taskServer.createAndAttachWorkNote(
+          taskId,
+          content,
+          title
+        );
+        break;
+      }
       
       case 'delete_task_document':
         result = await taskServer.deleteTaskDocument(args.taskId as number, args.projectId as number);

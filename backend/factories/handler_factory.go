@@ -57,8 +57,8 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 认证处理器
 	allHandlers.AuthHandler = handlers.NewAuthHandler(f.db, f.config.JWT.Secret, jwtTokenService)
 	
-	// JWT令牌管理处理器
-	allHandlers.JWTTokenHandler = handlers.NewJWTTokenHandler(jwtTokenService)
+	// JWT令牌管理处理器 - 暂时注释掉，handler缺失
+	// allHandlers.JWTTokenHandler = handlers.NewJWTTokenHandler(jwtTokenService)
 
 	// 分析埋点处理器
 	allHandlers.AnalyticsHandler = handlers.NewAnalyticsHandler(f.db)
@@ -68,7 +68,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
 	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
 	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
-	allHandlers.PermissionSystemHandler = handlers.NewPermissionSystemHandler(f.db.GetDB(), f.logger, f.validate)
+	// allHandlers.PermissionSystemHandler = handlers.NewPermissionSystemHandler(f.db.GetDB(), f.logger, f.validate) // 暂时注释掉，handler缺失
 	// 角色管理处理器
 	allHandlers.RoleManagementHandler = handlers.NewRoleManagementHandler(f.db.Permissions())
 	
@@ -76,12 +76,12 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 	
-	// 创建ltree任务层级处理器
-	f.logger.Printf("[FACTORY] Creating TaskLTreeHierarchyHandler...")
-	taskRepo := database.NewPostgresTaskRepository(f.db)
-	ltreeRepo := database.NewTaskLTreeRepository(f.db)
-	allHandlers.TaskLTreeHierarchyHandler = handlers.NewTaskLTreeHierarchyHandler(taskRepo, ltreeRepo)
-	f.logger.Printf("[FACTORY] TaskLTreeHierarchyHandler created successfully")
+	// 创建ltree任务层级处理器 - 暂时注释掉，handler缺失
+	// f.logger.Printf("[FACTORY] Creating TaskLTreeHierarchyHandler...")
+	// taskRepo := database.NewPostgresTaskRepository(f.db)
+	// ltreeRepo := database.NewTaskLTreeRepository(f.db)
+	// allHandlers.TaskLTreeHierarchyHandler = handlers.NewTaskLTreeHierarchyHandler(taskRepo, ltreeRepo)
+	// f.logger.Printf("[FACTORY] TaskLTreeHierarchyHandler created successfully")
 
 	// 用户管理处理器
 	allHandlers.UserProfileHandler = handlers.NewUserProfileHandler(f.db, f.logger, f.validate)
@@ -113,16 +113,15 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db)
 	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
 	allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db)
-	allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 保留兼容性
+	// allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 暂时注释掉，handler缺失
 	
 	// 工作笔记处理器
-	sqlxDB := sqlx.NewDb(f.db.GetDB().(*sql.DB), "postgres")
-	documentService := services.NewDocumentService(sqlxDB)
-	workNoteService := services.NewWorkNoteService(sqlxDB, documentService)
-	workNoteFolderService := services.NewWorkNoteFolderService(sqlxDB)
+	sqlDB := f.db.GetDB().(*sql.DB)
+	workNoteService := services.NewWorkNoteService(sqlDB, nil) // DocumentService参数未使用，传nil
+	// workNoteFolderService := services.NewWorkNoteFolderService(sqlDB) // 暂时注释，服务不存在
 	jwtManager := &utils.JWTManager{} // 简化版本，实际中应该从config传入
 	allHandlers.WorkNoteHandler = handlers.NewWorkNoteHandler(workNoteService, jwtManager)
-	allHandlers.WorkNoteFolderHandler = handlers.NewWorkNoteFolderHandler(workNoteFolderService, jwtManager)
+	// allHandlers.WorkNoteFolderHandler = handlers.NewWorkNoteFolderHandler(workNoteFolderService, jwtManager) // 暂时注释
 	
 	allHandlers.TimerHandler = handlers.NewTimerHandler(f.db)
 	
@@ -191,6 +190,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.AuditHandler = handlers.NewAuditHandler(f.db, f.logger, f.validate)
 	
 	// AI配置处理器（可通过环境变量禁用以便本地开发）
+	// 注意：AI配置和日历同步仓库目前仍需要sqlx，工作笔记服务已迁移到标准sql
 	sqlxDB := sqlx.NewDb(f.db.GetDB().(*sql.DB), "postgres")
 	if err := f.createAIHandlers(allHandlers, sqlxDB); err != nil {
 		return nil, err

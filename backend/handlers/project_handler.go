@@ -253,20 +253,48 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 
 // DeleteProject handles DELETE /api/v1/projects/:id
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+	log.Printf("🔴 NEW DELETE PROJECT CODE IS RUNNING!")
 	
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		log.Printf("Invalid project ID: %s", c.Param("id"))
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
 		return
 	}
 
+	userID := c.GetInt("user_id")
+	log.Printf("User %d attempting to delete project %d", userID, projectID)
+
+	// Verify project exists and user has permission to delete it
+	project, err := h.db.Projects().GetByID(c.Request.Context(), projectID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Printf("Project %d not found", projectID)
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "项目不存在", nil))
+		} else {
+			log.Printf("Error getting project %d: %v", projectID, err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目失败", nil))
+		}
+		return
+	}
+
+	// Check if user has permission to delete this project
+	if project.OwnerID != userID {
+		log.Printf("User %d has no permission to delete project %d (owner: %d)", userID, projectID, project.OwnerID)
+		c.JSON(http.StatusForbidden, models.NewErrorResponse(models.ErrCodeAuthorization, "无权限删除此项目", nil))
+		return
+	}
+
+	log.Printf("Starting to delete project %d by user %d", projectID, userID)
+
 	err = h.db.Projects().Delete(c.Request.Context(), projectID)
 	if err != nil {
-		log.Printf("Error deleting project: %v", err)
+		log.Printf("Error deleting project %d: %v", projectID, err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "删除项目失败", nil))
 		return
 	}
 
+	log.Printf("Successfully deleted project %d", projectID)
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "项目删除成功"))
 }
 

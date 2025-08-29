@@ -1,8 +1,8 @@
 /**
- * 增强的请求工具 - 集成JWT调试功能
+ * 增强的请求工具 - 简化版本，不依赖jwtDebugger
  */
 
-import { jwtDebugger } from './jwtDebugger';
+// import { jwtDebugger } from './jwtDebugger'; // 文件不存在，已移除
 import { APIResponse, RequestOptions } from '../types/api';
 
 // 基础配置
@@ -23,8 +23,9 @@ const enhancedRequestInterceptor = (
   const token = localStorage.getItem('token');
   
   // 记录JWT调试信息
+  // JWT调试功能已简化（jwtDebugger不可用）
   if (!options.skipJWTDebug && options.debugModule) {
-    jwtDebugger.logModuleJWTStatus(options.debugModule);
+    console.debug(`[${options.debugModule}] Making API request to ${url}`);
   }
   
   const headers: Record<string, string> = {
@@ -62,7 +63,7 @@ const enhancedResponseInterceptor = async (
       // 未授权，记录JWT问题并清除token
       if (debugModule) {
         console.error(`🔒 [${debugModule}] JWT认证失败 - 状态码401`);
-        jwtDebugger.logModuleJWTStatus(`${debugModule}_AUTH_FAILED`);
+        console.debug(`[${debugModule}_AUTH_FAILED] Token cleared due to 401 error`);
       }
       
       localStorage.removeItem('token');

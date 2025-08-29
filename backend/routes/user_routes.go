@@ -7,8 +7,9 @@ import (
 
 // RegisterUserRoutes 注册用户相关路由
 func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// 获取用户资料处理器
+	// 获取用户资料处理器和用户管理处理器
 	userProfileHandler := app.GetUserProfileHandler()
+	userManagementHandler := app.GetUserManagementHandler()
 	
 	// 用户资料路由 - 已经通过authorized组应用了JWT中间件，不需要重复应用
 	users := authorized.Group("/users")
@@ -34,21 +35,7 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 			})
 		})
 		
-		// 临时添加用户列表路由 - admin 用户测试
-		users.GET("", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"success": true,
-				"data": gin.H{
-					"users": []gin.H{
-						{"id": 1, "username": "admin", "role": "admin", "status": "active"},
-						{"id": 2, "username": "guoym", "role": "admin", "status": "active"},
-					},
-					"total": 2,
-					"page": 1,
-					"page_size": 20,
-				},
-				"message": "User list retrieved successfully",
-			})
-		})
+		// 使用真实的用户管理处理器获取用户列表
+		users.GET("", userManagementHandler.GetUserList)
 	}
 }

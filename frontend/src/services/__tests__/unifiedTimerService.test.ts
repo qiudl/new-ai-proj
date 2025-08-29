@@ -1,12 +1,12 @@
 // unifiedTimerService.test.ts - 统一计时器服务测试
 // 任务#243: 前端通用组件开发 - 服务层测试
 import { unifiedTimerService } from '../unifiedTimerService';
-import { apiClient } from '../apiClient';
+import api from '../api';
 import type { StartTimerRequest, TimerStatus } from '../../types/timer';
 
-// Mock apiClient
-jest.mock('../apiClient');
-const mockApiClient = apiClient as jest.Mocked<typeof apiClient>;
+// Mock api
+jest.mock('../api');
+const mockApi = api as jest.Mocked<typeof api>;
 
 describe('UnifiedTimerService', () => {
   beforeEach(() => {
@@ -33,14 +33,14 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockResolvedValue(mockResponse);
+      mockApi.post.mockResolvedValue(mockResponse);
 
       const result = await unifiedTimerService.startTimer(mockStartRequest);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResponse.data);
       expect(result.message).toBe('计时器启动成功');
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/user/timer/start', {
+      expect(mockApi.post).toHaveBeenCalledWith('/api/v1/user/timer/start', {
         task_type: 'project_task',
         task_id: 123,
         title: '测试任务',
@@ -69,7 +69,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockRejectedValue(mockError);
+      mockApi.post.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.startTimer(mockStartRequest);
 
@@ -80,7 +80,7 @@ describe('UnifiedTimerService', () => {
 
     it('应该处理网络错误', async () => {
       const mockError = new Error('网络连接失败');
-      mockApiClient.post.mockRejectedValue(mockError);
+      mockApi.post.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.startTimer(mockStartRequest);
 
@@ -99,14 +99,14 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockResolvedValue(mockResponse);
+      mockApi.post.mockResolvedValue(mockResponse);
 
       const result = await unifiedTimerService.pauseTimer();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResponse.data);
       expect(result.message).toBe('计时器已暂停');
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/user/timer/pause');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/v1/user/timer/pause');
     });
 
     it('应该处理暂停失败的情况', async () => {
@@ -119,7 +119,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockRejectedValue(mockError);
+      mockApi.post.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.pauseTimer();
 
@@ -138,14 +138,14 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockResolvedValue(mockResponse);
+      mockApi.post.mockResolvedValue(mockResponse);
 
       const result = await unifiedTimerService.resumeTimer();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResponse.data);
       expect(result.message).toBe('计时器已恢复');
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/user/timer/resume');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/v1/user/timer/resume');
     });
   });
 
@@ -159,14 +159,14 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockResolvedValue(mockResponse);
+      mockApi.post.mockResolvedValue(mockResponse);
 
       const result = await unifiedTimerService.stopTimer();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockResponse.data);
       expect(result.message).toBe('计时器已停止');
-      expect(mockApiClient.post).toHaveBeenCalledWith('/api/v1/user/timer/stop');
+      expect(mockApi.post).toHaveBeenCalledWith('/api/v1/user/timer/stop');
     });
   });
 
@@ -191,14 +191,14 @@ describe('UnifiedTimerService', () => {
         source_type: 'manual'
       };
 
-      mockApiClient.get.mockResolvedValue({ data: mockTimerStatus });
+      mockApi.get.mockResolvedValue({ data: mockTimerStatus });
 
       const result = await unifiedTimerService.getCurrentTimer();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockTimerStatus);
       expect(result.message).toBe('获取当前计时器状态成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/user/timer/current');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/user/timer/current');
     });
 
     it('应该处理没有活动计时器的情况', async () => {
@@ -211,7 +211,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockRejectedValue(mockError);
+      mockApi.get.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.getCurrentTimer();
 
@@ -230,7 +230,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockRejectedValue(mockError);
+      mockApi.get.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.getCurrentTimer();
 
@@ -247,19 +247,19 @@ describe('UnifiedTimerService', () => {
         version: '2.0.0'
       };
 
-      mockApiClient.get.mockResolvedValue({ data: mockHealthData });
+      mockApi.get.mockResolvedValue({ data: mockHealthData });
 
       const result = await unifiedTimerService.getHealthStatus();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockHealthData);
       expect(result.message).toBe('健康检查成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/user/timer/health');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/user/timer/health');
     });
 
     it('应该处理服务不可用的情况', async () => {
       const mockError = new Error('连接超时');
-      mockApiClient.get.mockRejectedValue(mockError);
+      mockApi.get.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.getHealthStatus();
 
@@ -316,18 +316,18 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockResolvedValue(mockTemplatesResponse);
+      mockApi.get.mockResolvedValue(mockTemplatesResponse);
 
       const result = await unifiedTimerService.getTemplates();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockTemplatesResponse.data.templates);
       expect(result.message).toBe('获取模板成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/timer/templates');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/timer/templates');
     });
 
     it('应该在API不存在时返回默认模板', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('API不存在'));
+      mockApi.get.mockRejectedValue(new Error('API不存在'));
 
       const result = await unifiedTimerService.getTemplates();
 
@@ -364,20 +364,20 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockResolvedValue(mockRecentTasks);
+      mockApi.get.mockResolvedValue(mockRecentTasks);
 
       const result = await unifiedTimerService.getRecentTasks(5);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockRecentTasks.data.tasks);
       expect(result.message).toBe('获取最近任务成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/timer/recent-tasks', {
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/timer/recent-tasks', {
         params: { limit: 5 }
       });
     });
 
     it('应该在API失败时返回模拟数据', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('API错误'));
+      mockApi.get.mockRejectedValue(new Error('API错误'));
 
       const result = await unifiedTimerService.getRecentTasks(3);
 
@@ -398,11 +398,11 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockResolvedValue(mockRecentTasks);
+      mockApi.get.mockResolvedValue(mockRecentTasks);
 
       await unifiedTimerService.getRecentTasks();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/timer/recent-tasks', {
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/timer/recent-tasks', {
         params: { limit: 10 }
       });
     });
@@ -416,18 +416,18 @@ describe('UnifiedTimerService', () => {
         pomodoro_work_minutes: 25
       };
 
-      mockApiClient.get.mockResolvedValue({ data: mockPreferences });
+      mockApi.get.mockResolvedValue({ data: mockPreferences });
 
       const result = await unifiedTimerService.getUserPreferences();
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockPreferences);
       expect(result.message).toBe('获取用户偏好成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/user/timer/preferences');
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/user/timer/preferences');
     });
 
     it('应该在API失败时返回默认偏好设置', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('API错误'));
+      mockApi.get.mockRejectedValue(new Error('API错误'));
 
       const result = await unifiedTimerService.getUserPreferences();
 
@@ -450,14 +450,14 @@ describe('UnifiedTimerService', () => {
       };
 
       const mockResponse = { data: mockPreferences };
-      mockApiClient.put.mockResolvedValue(mockResponse);
+      mockApi.put.mockResolvedValue(mockResponse);
 
       const result = await unifiedTimerService.updateUserPreferences(mockPreferences);
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockPreferences);
       expect(result.message).toBe('更新用户偏好成功');
-      expect(mockApiClient.put).toHaveBeenCalledWith('/api/v1/user/timer/preferences', mockPreferences);
+      expect(mockApi.put).toHaveBeenCalledWith('/api/v1/user/timer/preferences', mockPreferences);
     });
 
     it('应该处理更新失败的情况', async () => {
@@ -470,7 +470,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.put.mockRejectedValue(mockError);
+      mockApi.put.mockRejectedValue(mockError);
 
       const result = await unifiedTimerService.updateUserPreferences({});
 
@@ -489,30 +489,30 @@ describe('UnifiedTimerService', () => {
         weekly_trend: []
       };
 
-      mockApiClient.get.mockResolvedValue({ data: mockStats });
+      mockApi.get.mockResolvedValue({ data: mockStats });
 
       const result = await unifiedTimerService.getTimerStats('7d');
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual(mockStats);
       expect(result.message).toBe('获取统计数据成功');
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/user/timer/stats', {
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/user/timer/stats', {
         params: { range: '7d' }
       });
     });
 
     it('应该使用默认时间范围', async () => {
-      mockApiClient.get.mockResolvedValue({ data: {} });
+      mockApi.get.mockResolvedValue({ data: {} });
 
       await unifiedTimerService.getTimerStats();
 
-      expect(mockApiClient.get).toHaveBeenCalledWith('/api/v1/user/timer/stats', {
+      expect(mockApi.get).toHaveBeenCalledWith('/api/v1/user/timer/stats', {
         params: { range: '7d' }
       });
     });
 
     it('应该在API失败时返回模拟统计数据', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('API错误'));
+      mockApi.get.mockRejectedValue(new Error('API错误'));
 
       const result = await unifiedTimerService.getTimerStats();
 
@@ -534,7 +534,7 @@ describe('UnifiedTimerService', () => {
         message: '请求超时'
       };
 
-      mockApiClient.post.mockRejectedValue(timeoutError);
+      mockApi.post.mockRejectedValue(timeoutError);
 
       const result = await unifiedTimerService.startTimer({
         title: '测试任务'
@@ -554,7 +554,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.get.mockRejectedValue(serverError);
+      mockApi.get.mockRejectedValue(serverError);
 
       const result = await unifiedTimerService.getCurrentTimer();
 
@@ -569,7 +569,7 @@ describe('UnifiedTimerService', () => {
         }
       };
 
-      mockApiClient.post.mockRejectedValue(emptyError);
+      mockApi.post.mockRejectedValue(emptyError);
 
       const result = await unifiedTimerService.pauseTimer();
 

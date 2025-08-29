@@ -125,10 +125,38 @@ export interface BatchConvertRequest {
 }
 
 class WorkNotesService {
-  private getAuthHeaders() {
-    const token = localStorage.getItem('token') || 'dummy-token-for-testing';
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    let token = localStorage.getItem('token');
+    
+    // 如果没有token，在开发环境下尝试自动获取
+    if (!token && process.env.NODE_ENV === 'development') {
+      try {
+        const response = await fetch('/api/v1/auth/dev-quick-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: 'admin' })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.access_token) {
+            token = data.data.access_token;
+            localStorage.setItem('token', token);
+            localStorage.setItem('currentUser', JSON.stringify({
+              id: data.data.user.id,
+              username: data.data.user.username,
+              role: data.data.user.role
+            }));
+            console.log('✅ 工作笔记服务自动获取开发环境token成功');
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ 工作笔记服务自动获取token失败:', error);
+      }
+    }
+    
     return {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${token || 'dummy-token-for-testing'}`,
       'Content-Type': 'application/json',
     };
   }
@@ -136,10 +164,11 @@ class WorkNotesService {
   // 创建工作笔记
   async createWorkNote(request: CreateWorkNoteRequest): Promise<WorkNote> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<WorkNote>>(
         `${API_BASE_URL}/work-notes`,
         request,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -156,9 +185,10 @@ class WorkNotesService {
   // 获取工作笔记详情
   async getWorkNote(id: number): Promise<WorkNote> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<WorkNote>>(
         `${API_BASE_URL}/work-notes/${id}`,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -175,10 +205,11 @@ class WorkNotesService {
   // 更新工作笔记
   async updateWorkNote(id: number, request: UpdateWorkNoteRequest): Promise<WorkNote> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.put<APIResponse<WorkNote>>(
         `${API_BASE_URL}/work-notes/${id}`,
         request,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -195,9 +226,10 @@ class WorkNotesService {
   // 删除工作笔记
   async deleteWorkNote(id: number): Promise<void> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.delete<APIResponse<void>>(
         `${API_BASE_URL}/work-notes/${id}`,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -217,9 +249,10 @@ class WorkNotesService {
         params.append('folder_id', folderId.toString());
       }
 
+      const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<WorkNotesListResponse>>(
         `${API_BASE_URL}/work-notes?${params}`,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -241,9 +274,10 @@ class WorkNotesService {
         params.append('query', query);
       }
 
+      const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<{ documents: WorkNote[] }>>(
         `${API_BASE_URL}/work-notes/search?${params}`,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -260,10 +294,11 @@ class WorkNotesService {
   // 复制工作笔记
   async copyWorkNote(id: number): Promise<WorkNote> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<WorkNote>>(
         `${API_BASE_URL}/work-notes/${id}/copy`,
         {},
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -280,10 +315,11 @@ class WorkNotesService {
   // 切换模板状态
   async toggleTemplate(id: number): Promise<WorkNote> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<WorkNote>>(
         `${API_BASE_URL}/work-notes/${id}/toggle-template`,
         {},
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -304,13 +340,14 @@ class WorkNotesService {
     has_more: boolean;
   }> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.get<APIResponse<{
         documents: WorkNote[];
         total_count: number;
         has_more: boolean;
       }>>(
         `${API_BASE_URL}/document-folders/${folderId}/documents?limit=${limit}&offset=${offset}`,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -331,10 +368,11 @@ class WorkNotesService {
   // 单个工作笔记转任务文档
   async convertToTaskDocument(workNoteId: number, request: ConvertToTaskDocumentRequest): Promise<ConversionResult> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<ConversionResult>>(
         `${API_BASE_URL}/work-notes/${workNoteId}/convert-to-task-document`,
         request,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -351,10 +389,11 @@ class WorkNotesService {
   // 转换预览
   async getConversionPreview(workNoteId: number, request: ConvertPreviewRequest): Promise<any> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<any>>(
         `${API_BASE_URL}/work-notes/${workNoteId}/convert-preview`,
         request,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {
@@ -371,10 +410,11 @@ class WorkNotesService {
   // 批量转换
   async batchConvertToTaskDocuments(request: BatchConvertRequest): Promise<any> {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await axios.post<APIResponse<any>>(
         `${API_BASE_URL}/work-notes/batch-convert-to-task-documents`,
         request,
-        { headers: this.getAuthHeaders() }
+        { headers }
       );
       
       if (!response.data.success) {

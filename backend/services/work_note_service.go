@@ -9,18 +9,17 @@ import (
 	"time"
 
 	"ai-project-backend/models"
-	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
 )
 
 // WorkNoteService 工作笔记服务（基于 documents 表实现）
 type WorkNoteService struct {
-	db *sqlx.DB
+	db *sql.DB
 }
 
 // NewWorkNoteService 创建工作笔记服务实例
 // 注意：第二个参数目前未使用，仅为保持与工厂构造函数兼容
-func NewWorkNoteService(db *sqlx.DB, _ *DocumentService) *WorkNoteService {
+func NewWorkNoteService(db *sql.DB, _ *DocumentService) *WorkNoteService {
 	return &WorkNoteService{db: db}
 }
 
@@ -72,7 +71,7 @@ func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateW
 	var description *string = req.Description
 	tags := pq.StringArray(req.Tags)
 
-	err := s.db.QueryRowxContext(ctx, query,
+	err := s.db.QueryRowContext(ctx, query,
 		projectID, req.WorkNoteFolderID, req.Title, content,
 		models.DocumentTypeMarkdown, models.DocumentStatusDraft,
 		description, tags, metadata, userID, req.Visibility,
@@ -268,7 +267,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 	// 计数
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM documents d WHERE %s", whereClause)
 	var total int
-	if err := s.db.QueryRowxContext(ctx, countSQL, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to count work notes: %w", err)
 	}
 
@@ -300,7 +299,7 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 		LIMIT $%d OFFSET $%d`, whereClause, orderBy, arg, arg+1)
 
 	args = append(args, limit, offset)
-	rows, err := s.db.QueryxContext(ctx, selectSQL, args...)
+	rows, err := s.db.QueryContext(ctx, selectSQL, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list work notes: %w", err)
 	}
@@ -363,7 +362,7 @@ func (s *WorkNoteService) SearchWorkNotes(ctx context.Context, query string, tag
 		ORDER BY d.updated_at DESC
 		LIMIT %d`, strings.Join(where, " AND "), limit)
 
-	rows, err := s.db.QueryxContext(ctx, sqlStr, args...)
+	rows, err := s.db.QueryContext(ctx, sqlStr, args...)
 	if err != nil { return nil, fmt.Errorf("failed to search work notes: %w", err) }
 	defer rows.Close()
 
@@ -409,7 +408,7 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 		NotesByFolder:   map[int]int{},
 	}
 	// 总数/置顶/收藏
-	row := s.db.QueryRowxContext(ctx, `
+	row := s.db.QueryRowContext(ctx, `
 		SELECT 
 			COUNT(*) AS total_notes,
 			COUNT(CASE WHEN (metadata->>'is_pinned')::boolean = true THEN 1 END) AS pinned_count,
@@ -420,7 +419,7 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 		return nil, fmt.Errorf("failed to get base stats: %w", err)
 	}
 	// 按类型
-	rows, err := s.db.QueryxContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT metadata->>'work_note_type' AS t, COUNT(*)
 		FROM documents
 		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
@@ -436,7 +435,7 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 		}
 	}
 	// 按优先级
-	rows2, err := s.db.QueryxContext(ctx, `
+	rows2, err := s.db.QueryContext(ctx, `
 		SELECT metadata->>'priority' AS p, COUNT(*)
 		FROM documents
 		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
@@ -452,7 +451,7 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 		}
 	}
 	// 按文件夹
-	rows3, err := s.db.QueryxContext(ctx, `
+	rows3, err := s.db.QueryContext(ctx, `
 		SELECT COALESCE(folder_id, 0) AS f, COUNT(*)
 		FROM documents
 		WHERE owner_id = $1 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL
@@ -472,7 +471,7 @@ func (s *WorkNoteService) GetWorkNoteStats(ctx context.Context, userID int) (*mo
 
 func (s *WorkNoteService) GetRecentNotes(ctx context.Context, userID, limit int) ([]models.WorkNote, error) {
 	if limit <= 0 { limit = 10 }
-	rows, err := s.db.QueryxContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
@@ -505,7 +504,7 @@ func (s *WorkNoteService) GetRecentNotes(ctx context.Context, userID, limit int)
 }
 
 func (s *WorkNoteService) GetPinnedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
-	rows, err := s.db.QueryxContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
@@ -538,7 +537,7 @@ func (s *WorkNoteService) GetPinnedNotes(ctx context.Context, userID int) ([]mod
 }
 
 func (s *WorkNoteService) GetBookmarkedNotes(ctx context.Context, userID int) ([]models.WorkNote, error) {
-	rows, err := s.db.QueryxContext(ctx, `
+	rows, err := s.db.QueryContext(ctx, `
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
@@ -572,7 +571,7 @@ func (s *WorkNoteService) GetBookmarkedNotes(ctx context.Context, userID int) ([
 
 func (s *WorkNoteService) GetRelatedNotes(ctx context.Context, noteID, userID int) ([]models.WorkNote, error) {
 	var relJSON sql.NullString
-	err := s.db.QueryRowxContext(ctx, `
+	err := s.db.QueryRowContext(ctx, `
 		SELECT metadata->>'related_notes'
 		FROM documents
 		WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL AND metadata->>'work_note_type' IS NOT NULL`, noteID, userID).Scan(&relJSON)
@@ -594,7 +593,7 @@ func (s *WorkNoteService) GetRelatedNotes(ctx context.Context, noteID, userID in
 		FROM documents d
 		WHERE d.id = ANY($1) AND d.owner_id = $2 AND d.deleted_at IS NULL AND d.metadata->>'work_note_type' IS NOT NULL
 		ORDER BY d.updated_at DESC`
-	rows, err := s.db.QueryxContext(ctx, q, pq.Array(ids), userID)
+	rows, err := s.db.QueryContext(ctx, q, pq.Array(ids), userID)
 	if err != nil { return nil, fmt.Errorf("failed to query related notes: %w", err) }
 	defer rows.Close()
 
@@ -655,7 +654,7 @@ func (s *WorkNoteService) BatchUpdateWorkNotes(ctx context.Context, operation mo
 		for _, id := range operation.NoteIDs {
 			// 读取现有
 			var cur pq.StringArray
-			if err := s.db.QueryRowxContext(ctx, `SELECT tags FROM documents WHERE id = $1 AND owner_id = $2`, id, userID).Scan(&cur); err != nil { continue }
+			if err := s.db.QueryRowContext(ctx, `SELECT tags FROM documents WHERE id = $1 AND owner_id = $2`, id, userID).Scan(&cur); err != nil { continue }
 			set := map[string]bool{}
 			if action != "set" { for _, t := range []string(cur) { set[t] = true } } else { for k := range set { delete(set, k) } }
 			for _, t := range newTags { set[t] = true }
@@ -683,11 +682,201 @@ func (s *WorkNoteService) BatchUpdateWorkNotes(ctx context.Context, operation mo
 }
 
 // =====================
+// 任务关联功能
+// =====================
+
+// CreateAndAttachToTask 创建工作笔记并关联到指定任务
+func (s *WorkNoteService) CreateAndAttachToTask(ctx context.Context, req models.CreateWorkNoteRequest, taskID int, userID int) (*models.WorkNote, error) {
+	// 1. 验证任务是否存在且用户有权限访问
+	var taskProjectID *int
+	var taskTitle string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT t.project_id, t.title 
+		FROM tasks t 
+		WHERE t.id = $1 AND t.deleted_at IS NULL`, taskID).Scan(&taskProjectID, &taskTitle)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("task not found or access denied")
+		}
+		return nil, fmt.Errorf("failed to validate task: %w", err)
+	}
+
+	// 2. 设置默认值并增强metadata
+	if req.Priority == "" {
+		req.Priority = models.WorkNotePriorityMedium
+	}
+	if req.WorkNoteType == "" {
+		req.WorkNoteType = models.WorkNoteTypeGeneral
+	}
+
+	// 3. 构建增强的metadata，包含任务关联信息
+	metadata := models.DocumentMetadata{
+		"work_note_type": req.WorkNoteType,
+		"priority":       req.Priority,
+		"is_pinned":      req.IsPinned,
+		"is_bookmarked":  req.IsBookmarked,
+		"related_tasks":  []int{taskID}, // 关联的任务ID列表
+		"related_notes":  req.RelatedNotes,
+		"attached_task_id": taskID,     // 主关联任务ID
+		"source":         "create-and-attach", // 标记创建来源
+	}
+	if req.CustomFields != nil {
+		metadata["custom_fields"] = req.CustomFields
+	}
+
+	// 4. 如果没有指定标题，使用任务标题生成默认标题
+	title := req.Title
+	if title == "" {
+		title = fmt.Sprintf("%s - 工作笔记", taskTitle)
+	}
+
+	// 5. 如果没有指定内容，提供默认模板
+	content := req.Content
+	if content == nil || *content == "" {
+		defaultContent := fmt.Sprintf("# %s\n\n## 任务关联\n- 任务ID: #%d\n- 任务标题: %s\n\n## 笔记内容\n\n", title, taskID, taskTitle)
+		content = &defaultContent
+	}
+
+	// 6. 插入文档到数据库
+	var (
+		id        int
+		createdAt sql.NullTime
+		updatedAt sql.NullTime
+	)
+	query := `
+		INSERT INTO documents (
+			project_id, folder_id, title, content, type, status,
+			description, tags, metadata, owner_id, visibility,
+			version, is_template, created_by
+		) VALUES (
+			$1, $2, $3, $4, $5, $6,
+			$7, $8, $9, $10, $11,
+			$12, $13, $14
+		) RETURNING id, created_at, updated_at`
+
+	// 使用任务的项目ID（如果任务有项目）或使用传入的项目ID
+	var projectID *int = taskProjectID
+	var description *string
+	if req.Description != nil {
+		desc := fmt.Sprintf("关联任务 #%d 的工作笔记: %s", taskID, *req.Description)
+		description = &desc
+	} else {
+		desc := fmt.Sprintf("关联任务 #%d 的工作笔记", taskID)
+		description = &desc
+	}
+	
+	// 添加任务关联标签
+	tags := append(req.Tags, "task-attached", fmt.Sprintf("task-%d", taskID))
+
+	err = s.db.QueryRowContext(ctx, query,
+		projectID, req.WorkNoteFolderID, title, content,
+		models.DocumentTypeMarkdown, models.DocumentStatusDraft,
+		description, pq.StringArray(tags), metadata, userID, req.Visibility,
+		1, false, userID,
+	).Scan(&id, &createdAt, &updatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create and attach work note: %w", err)
+	}
+
+	// 7. 构建WorkNote对象
+	wn := &models.WorkNote{
+		Document: models.Document{
+			ID:          id,
+			ProjectID:   projectID,
+			FolderID:    req.WorkNoteFolderID,
+			Title:       title,
+			Content:     content,
+			Type:        models.DocumentTypeMarkdown,
+			Status:      models.DocumentStatusDraft,
+			Description: description,
+			Tags:        tags,
+			Metadata:    metadata,
+			OwnerID:     userID,
+			Visibility:  req.Visibility,
+			Version:     1,
+			IsTemplate:  false,
+			CreatedBy:   userID,
+			CreatedAt:   timeOrZeroTime(createdAt),
+			UpdatedAt:   timeOrZeroTime(updatedAt),
+		},
+		WorkNoteType:     req.WorkNoteType,
+		Priority:         req.Priority,
+		IsPinned:         req.IsPinned,
+		IsBookmarked:     req.IsBookmarked,
+		RelatedTasks:     []int{taskID},
+		RelatedNotes:     req.RelatedNotes,
+		WorkNoteFolderID: req.WorkNoteFolderID,
+	}
+
+	// 8. 计算阅读时间与字数并更新metadata（非阻塞失败）
+	wn.CalculateReadTime()
+	wn.UpdateMetadata()
+	if wn.ReadTime != nil || wn.WordCount != nil {
+		updMeta := wn.Document.Metadata
+		if err := s.updateDocumentMetadata(ctx, id, updMeta); err != nil {
+			fmt.Printf("[WARN] failed to update work note calculated metadata: %v\n", err)
+		}
+	}
+
+	return wn, nil
+}
+
+// GetWorkNotesByTask 获取关联到指定任务的所有工作笔记
+func (s *WorkNoteService) GetWorkNotesByTask(ctx context.Context, taskID int, userID int) ([]models.WorkNote, error) {
+	query := `
+		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
+		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
+		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,
+		       d.created_by, d.created_at, d.updated_at, d.deleted_at,
+		       d.archived, d.archived_at, d.archived_by, d.unarchived_at, d.unarchived_by
+		FROM documents d
+		WHERE d.deleted_at IS NULL 
+		  AND d.owner_id = $1 
+		  AND d.metadata->>'work_note_type' IS NOT NULL
+		  AND (
+		    (d.metadata->>'attached_task_id')::int = $2
+		    OR d.metadata->'related_tasks' @> $3::jsonb
+		  )
+		ORDER BY d.updated_at DESC`
+
+	rows, err := s.db.QueryContext(ctx, query, userID, taskID, fmt.Sprintf("[%d]", taskID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get work notes by task: %w", err)
+	}
+	defer rows.Close()
+
+	var notes []models.WorkNote
+	for rows.Next() {
+		var doc models.Document
+		var tags pq.StringArray
+		if err := rows.Scan(
+			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
+			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tags,
+			&doc.Metadata, &doc.OwnerID, &doc.Visibility, &doc.Version, &doc.IsTemplate,
+			&doc.CreatedBy, &doc.CreatedAt, &doc.UpdatedAt, &doc.DeletedAt,
+			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
+		); err != nil {
+			continue
+		}
+		doc.Tags = []string(tags)
+		if !models.IsWorkNote(doc) {
+			continue
+		}
+		var wn models.WorkNote
+		if err := wn.FromDocument(doc); err != nil {
+			continue
+		}
+		notes = append(notes, wn)
+	}
+	return notes, nil
+}
+
+// =====================
 // 内部辅助
 // =====================
 
 func (s *WorkNoteService) getDocumentByID(ctx context.Context, id int) (*models.Document, error) {
-	row := s.db.QueryRowxContext(ctx, `
+	row := s.db.QueryRowContext(ctx, `
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
 		       d.file_url, d.file_size, d.mime_type, d.description, d.tags,
 		       d.metadata, d.owner_id, d.visibility, d.version, d.is_template,

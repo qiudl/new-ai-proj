@@ -15,6 +15,7 @@ import ProjectSelector from '../components/ProjectSelector';
 import TimerStartButton from '../components/TimerStartButton';
 import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
 import ResizableTitle from '../components/ResizableTitle';
+import TaskCompletionRefresh from '../components/TaskCompletionRefresh';
 import { useTimer } from '../contexts/TimerContext';
 import { Project, ProjectUser } from '../types/project';
 import { projectService } from '../services/projectService';
@@ -2694,6 +2695,18 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
       {/* 任务内容区域 */}
       {effectiveProjectId ? (
         <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>任务列表</span>
+              <Space>
+                <TaskCompletionRefresh 
+                  onRefreshCompletionStats={() => loadTasks(pagination.current, pagination.pageSize)}
+                  size="small"
+                  showProgress={true}
+                />
+              </Space>
+            </div>
+          }
           style={{
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             borderRadius: '12px',
@@ -2783,6 +2796,18 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
       ) : (
         // 全局任务视图
         <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>全局任务列表</span>
+              <Space>
+                <TaskCompletionRefresh 
+                  onRefreshCompletionStats={() => loadTasks(pagination.current, pagination.pageSize)}
+                  size="small"
+                  showProgress={true}
+                />
+              </Space>
+            </div>
+          }
           style={{
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             borderRadius: '12px',

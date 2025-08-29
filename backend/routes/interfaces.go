@@ -83,5 +83,25 @@ type ApplicationInterface interface {
 	
 	// 文档处理器
 	GetDocumentHandler() *handlers.DocumentHandler
+	GetRouterDocumentHandler() *handlers.RouterDocumentHandler // New router-based document handler
+	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
+	GetSimpleDocumentHandler() *handlers.HybridDocumentHandler
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler
+	
+	// 工作笔记文件夹处理器
+	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler
+	
+	// 协作处理器
+	GetCollaborationHandler() *handlers.DocumentCollaborationHandler
+	
+	// 任务文档文件处理器
+	GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler
+	
+	// 文档元数据处理器
+	GetDocumentProjectsHandler() gin.HandlerFunc
+	GetDocumentCustomersHandler() gin.HandlerFunc
+	GetDocumentCategoriesHandler() gin.HandlerFunc
+	
+	// 任务层级处理器
+	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 }

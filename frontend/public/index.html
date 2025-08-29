@@ -18,18 +18,6 @@
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     
-    <!-- 开发环境调试工具 -->
-    <script>
-      // 只在开发环境加载调试工具，且在登录页不加载
-      if ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        && window.location.pathname !== '/login') {
-        const script = document.createElement('script');
-        script.src = '/debug-timer.js';
-        script.onload = function() {
-          // Debug timer tool loaded silently
-        };
-        document.head.appendChild(script);
-      }
-    </script>
+
   </body>
 </html>

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 // PostgresProjectRepository implements ProjectRepository using PostgreSQL
@@ -349,11 +350,19 @@ func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.
 
 // Delete soft deletes a project (sets deleted_at timestamp)
 func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
+	log.Printf("Executing delete for project ID: %d", id)
+	
 	query := `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
+	if exec == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	log.Printf("Executing SQL query: %s with id=%d", query, id)
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
+		log.Printf("Database error during project delete: %v", err)
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
 
@@ -362,8 +371,10 @@ func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
 		return fmt.Errorf("failed to get affected rows: %w", err)
 	}
 
+	log.Printf("Project delete affected %d rows", rowsAffected)
+
 	if rowsAffected == 0 {
-		return fmt.Errorf("project not found")
+		return fmt.Errorf("project not found or already deleted")
 	}
 
 	return nil

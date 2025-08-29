@@ -1,19 +1,16 @@
 package application
 
 import (
-	"database/sql"
 	"ai-project-backend/handlers"
-	"ai-project-backend/services"
-	"ai-project-backend/database"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 )
 
-// 简化的Handler方法实现，专注于角色权限API测试
+// 恢复Handler方法实现，使用工厂模式
+// 只包含gin.HandlerFunc类型的方法，避免与application.go中的getter方法冲突
 
-// GetHealthHandler returns a health check handler
+// Health and version handlers
 func (app *Application) GetHealthHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -24,7 +21,6 @@ func (app *Application) GetHealthHandler() gin.HandlerFunc {
 	}
 }
 
-// GetVersionHandler returns a version handler
 func (app *Application) GetVersionHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -35,280 +31,529 @@ func (app *Application) GetVersionHandler() gin.HandlerFunc {
 	}
 }
 
-// GetLoginHandler returns a simple login handler
+// Authentication handlers
 func (app *Application) GetLoginHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// 简化的登录逻辑 - 只用于测试
-		var loginReq struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
-		
-		if err := c.ShouldBindJSON(&loginReq); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
-		
-		// 简单验证 - 实际应用中应该有真正的用户验证
-		if loginReq.Username == "admin" && loginReq.Password == "admin" {
-			// 生成简单的JWT token (实际应用中应该使用真正的JWT)
-			token := "test-jwt-token-for-role-permissions-testing"
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"token":   token,
-				"user": gin.H{
-					"id":       1,
-					"username": "admin",
-					"type":     "admin",
-				},
-			})
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   "Invalid credentials",
-			})
-		}
+	if app.handlers != nil && app.handlers.AuthHandler != nil {
+		return app.handlers.AuthHandler.Login
 	}
+	// Fallback to individual handler
+	return app.authHandler.Login
 }
 
-// GetLogoutHandler returns a logout handler
 func (app *Application) GetLogoutHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Logged out successfully",
-		})
+	if app.handlers != nil && app.handlers.AuthHandler != nil {
+		return app.handlers.AuthHandler.Logout
 	}
+	return app.authHandler.Logout
 }
 
-// DevQuickLoginHandler returns a dev quick login handler
 func (app *Application) DevQuickLoginHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req struct {
-			Username string `json:"username"`
-		}
-		
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
-		
-		// 开发环境快速登录
-		username := req.Username
-		if username == "" {
-			username = "admin"
-		}
-		
-		token := "dev-jwt-token-" + username
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"token":   token,
-			"user": gin.H{
-				"id":       1,
-				"username": username,
-				"type":     "admin",
-			},
-		})
+	if app.handlers != nil && app.handlers.AuthHandler != nil {
+		return app.handlers.AuthHandler.DevQuickLogin
 	}
+	return app.authHandler.DevQuickLogin
 }
 
-// GetDevAccountsHandler returns dev accounts handler
 func (app *Application) GetDevAccountsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.AuthHandler != nil {
+		return app.handlers.AuthHandler.GetDevAccounts
+	}
+	return app.authHandler.GetDevAccounts
+}
+
+// Project handlers
+func (app *Application) GetProjectsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.GetProjects
+	}
+	return app.projectHandler.GetProjects
+}
+
+func (app *Application) CreateProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.CreateProject
+	}
+	return app.projectHandler.CreateProject
+}
+
+func (app *Application) GetProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.GetProject
+	}
+	return app.projectHandler.GetProject
+}
+
+func (app *Application) UpdateProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.UpdateProject
+	}
+	return app.projectHandler.UpdateProject
+}
+
+func (app *Application) DeleteProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.DeleteProject
+	}
+	return app.projectHandler.DeleteProject
+}
+
+func (app *Application) GetProjectStatsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.GetProjectStats
+	}
+	// Fallback implementation
 	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"accounts": []gin.H{
-				{"id": 1, "username": "admin", "type": "admin"},
-				{"id": 2, "username": "user", "type": "user"},
-			},
-		})
+		c.JSON(http.StatusOK, gin.H{"stats": gin.H{}})
 	}
 }
 
-// Project user handlers
 func (app *Application) GetProjectUsersHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.GetProjectUsers
+	}
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"users": []gin.H{}})
 	}
 }
 
 func (app *Application) AddProjectUserHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.AddProjectUser
+	}
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "User added to project"})
 	}
 }
 
 func (app *Application) RemoveProjectUserHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ProjectHandler != nil {
+		return app.handlers.ProjectHandler.RemoveProjectUser
+	}
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "User removed from project"})
 	}
 }
 
-// Project handlers
-func (app *Application) GetProjectsHandler() gin.HandlerFunc {
-	return app.projectHandler.GetProjects
-}
-
-func (app *Application) CreateProjectHandler() gin.HandlerFunc {
-	return app.projectHandler.CreateProject
-}
-
-func (app *Application) GetProjectHandler() gin.HandlerFunc {
-	return app.projectHandler.GetProject
-}
-
-func (app *Application) UpdateProjectHandler() gin.HandlerFunc {
-	return app.projectHandler.UpdateProject
-}
-
-func (app *Application) DeleteProjectHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"success": true})
-	}
-}
-
-func (app *Application) GetProjectStatsHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"stats": gin.H{}})
-	}
-}
-
 // Task handlers
 func (app *Application) GetTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTasks
+	}
 	return app.taskHandler.GetTasks
 }
 
+func (app *Application) GetAllTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetAllTasks
+	}
+	return app.taskHandler.GetAllTasks
+}
+
 func (app *Application) GetTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTask
+	}
 	return app.taskHandler.GetTask
 }
 
 func (app *Application) CreateTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.CreateTask
+	}
 	return app.taskHandler.CreateTask
 }
 
 func (app *Application) UpdateTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.UpdateTask
+	}
 	return app.taskHandler.UpdateTask
 }
 
 func (app *Application) DeleteTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.DeleteTask
+	}
 	return app.taskHandler.DeleteTask
 }
 
 func (app *Application) MoveTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.MoveTask
+	}
 	return app.taskHandler.MoveTask
 }
 
 func (app *Application) ReorderTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.ReorderTask
+	}
 	return app.taskHandler.ReorderTask
 }
 
 func (app *Application) BulkReorderTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.BulkReorderTasks
+	}
 	return app.taskHandler.BulkReorderTasks
 }
 
-// Core handlers for the services we care about
-
-// GetRoleManagementHandler returns the role management handler
-func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandler {
-	return handlers.NewRoleManagementHandler(app.db.Permissions())
-}
-
-// GetPermissionHandler returns the permission handler
-func (app *Application) GetPermissionHandler() *handlers.PermissionHandler {
-	return handlers.NewPermissionHandler(app.db.Permissions())
-}
-
-// GetEnhancedPermissionHandler returns the enhanced permission handler
-func (app *Application) GetEnhancedPermissionHandler() *handlers.EnhancedPermissionHandler {
-	// 暂时返回nil，因为EnhancedPermissionService可能不可用
-	return nil
-}
-
-// GetDocumentHandler returns the document handler
-func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
-	if app.documentHandler == nil {
-		app.documentHandler = handlers.NewDocumentHandler(app.db)
+func (app *Application) GetTaskProgressHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTaskProgress
 	}
-	return app.documentHandler
+	return app.taskHandler.GetTaskProgress
 }
 
-// GetWorkNoteHandler returns the work note handler
-func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
-	// 创建WorkNoteService并返回handler
-	if workNoteService := createBasicWorkNoteService(app.db); workNoteService != nil {
-		return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager)
+// Task hierarchy handlers
+func (app *Application) GetTaskTreeHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHierarchyHandler != nil {
+		return app.handlers.TaskHierarchyHandler.GetTaskTree
 	}
-	return nil
+	return app.taskHierarchyHandler.GetTaskTree
 }
 
-// createBasicWorkNoteService 创建基本的WorkNoteService（临时实现）
-func createBasicWorkNoteService(db database.DB) *services.WorkNoteService {
-	// 获取原始数据库连接并转换为sqlx.DB
-	rawDB := db.GetDB()
-	if sqlDB, ok := rawDB.(*sql.DB); ok {
-		// 将sql.DB包装为sqlx.DB（PostgreSQL驱动）
-		sqlxDB := sqlx.NewDb(sqlDB, "postgres")
-		return services.NewWorkNoteService(sqlxDB, nil)
+func (app *Application) GetRootTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHierarchyHandler != nil {
+		return app.handlers.TaskHierarchyHandler.GetRootTasks
 	}
-	// 如果已经是sqlx.DB，直接使用
-	if sqlxDB, ok := rawDB.(*sqlx.DB); ok {
-		return services.NewWorkNoteService(sqlxDB, nil)
+	return app.taskHierarchyHandler.GetRootTasks
+}
+
+func (app *Application) GetTaskChildrenHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHierarchyHandler != nil {
+		return app.handlers.TaskHierarchyHandler.GetTaskChildren
 	}
-	return nil
+	return app.taskHierarchyHandler.GetTaskChildren
 }
 
-// GetHybridDocumentFolderHandler returns the hybrid document folder handler
-func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
-	return handlers.NewHybridDocumentFolderHandler(app.db)
+func (app *Application) SearchParentTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHierarchyHandler != nil {
+		return app.handlers.TaskHierarchyHandler.SearchParentTasks
+	}
+	return app.taskHierarchyHandler.SearchParentTasks
 }
 
-// Placeholder handler functions for other required interfaces
-func (app *Application) GetAITaskGeneratorHandler() *handlers.AITaskGeneratorHandler { return nil }
-func (app *Application) GetTaskAnalysisHandler() *handlers.TaskAnalysisHandler { return nil }
-func (app *Application) GetArchiveHandler() *handlers.ArchiveHandler { return nil }
-func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler { return nil }
-
-// GetUnifiedTimerHandler returns the unified timer handler
-func (app *Application) GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler {
-	return handlers.NewUnifiedTimerHandler(app.db)
+func (app *Application) GetTaskDescendantsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHierarchyHandler != nil {
+		return app.handlers.TaskHierarchyHandler.GetTaskDescendants
+	}
+	return app.taskHierarchyHandler.GetTaskDescendants
 }
 
-// 独立任务处理器实现（跨项目）
-func (app *Application) GetAllTasksHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.GetAllTasks
+// Bulk operation handlers
+func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.BulkDeleteTasks()
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BulkDeleteTasksHandler not implemented"})
+	}
 }
 
+func (app *Application) BulkImportTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.BulkImportTasks
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BulkImportTasksHandler not implemented"})
+	}
+}
+
+func (app *Application) ImportTasksFromCSVHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.ImportTasksFromCSV
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ImportTasksFromCSVHandler not implemented"})
+	}
+}
+
+func (app *Application) BatchValidateTasksPreviewHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.BatchValidateTasksPreview()
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BatchValidateTasksPreviewHandler not implemented"})
+	}
+}
+
+func (app *Application) BulkUpdateTaskStatusHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.BulkUpdateTaskStatus
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BulkUpdateTaskStatusHandler not implemented"})
+	}
+}
+
+func (app *Application) BatchUpdateTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler.BulkUpdateTasks
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BatchUpdateTasksHandler not implemented"})
+	}
+}
+
+// Validation handlers
+func (app *Application) ValidateParentHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ValidationHandler != nil {
+		return app.handlers.ValidationHandler.ValidateParent
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ValidateParentHandler not implemented"})
+	}
+}
+
+func (app *Application) ValidateTaskHierarchyHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ValidationHandler != nil {
+		return app.handlers.ValidationHandler.ValidateTaskHierarchy
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ValidateTaskHierarchyHandler not implemented"})
+	}
+}
+
+func (app *Application) ValidateTaskDependenciesHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ValidationHandler != nil {
+		return app.handlers.ValidationHandler.ValidateTaskDependencies
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ValidateTaskDependenciesHandler not implemented"})
+	}
+}
+
+func (app *Application) ValidateProjectAccessHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.ValidationHandler != nil {
+		return app.handlers.ValidationHandler.ValidateProjectAccess
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ValidateProjectAccessHandler not implemented"})
+	}
+}
+
+// Today tasks handlers
+func (app *Application) GetTodayTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TodayTasksHandler != nil {
+		return app.handlers.TodayTasksHandler.GetTodayTasks
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetTodayTasksHandler not implemented"})
+	}
+}
+
+func (app *Application) GetTodayTasksStatsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TodayTasksHandler != nil {
+		return app.handlers.TodayTasksHandler.GetTodayTasksStats
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetTodayTasksStatsHandler not implemented"})
+	}
+}
+
+func (app *Application) MarkTodayTaskCompletedHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TodayTasksHandler != nil {
+		return app.handlers.TodayTasksHandler.MarkTodayTaskCompleted
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "MarkTodayTaskCompletedHandler not implemented"})
+	}
+}
+
+func (app *Application) PostponeTodayTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TodayTasksHandler != nil {
+		return app.handlers.TodayTasksHandler.PostponeTodayTask
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "PostponeTodayTaskHandler not implemented"})
+	}
+}
+
+func (app *Application) BulkOperationTodayTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TodayTasksHandler != nil {
+		return app.handlers.TodayTasksHandler.BulkOperationTodayTasks
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "BulkOperationTodayTasksHandler not implemented"})
+	}
+}
+
+// Audit handlers
+func (app *Application) GetAuditLogsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.AuditEnhancedHandler != nil {
+		return app.handlers.AuditEnhancedHandler.GetAuditLogs
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetAuditLogsHandler not implemented"})
+	}
+}
+
+func (app *Application) GetAuditLogHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.AuditEnhancedHandler != nil {
+		return app.handlers.AuditEnhancedHandler.GetAuditLog
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetAuditLogHandler not implemented"})
+	}
+}
+
+func (app *Application) GetAuditStatsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.AuditEnhancedHandler != nil {
+		return app.handlers.AuditEnhancedHandler.GetAuditStats
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetAuditStatsHandler not implemented"})
+	}
+}
+
+func (app *Application) ExportAuditLogsHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "ExportAuditLogsHandler not implemented"})
+	}
+}
+
+// Task update handlers
+func (app *Application) GetTaskUpdatesHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskUpdateHandler != nil {
+		return app.handlers.TaskUpdateHandler.GetTaskUpdates
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetTaskUpdatesHandler not implemented"})
+	}
+}
+
+func (app *Application) UpdateTaskUpdateHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskUpdateHandler != nil {
+		return app.handlers.TaskUpdateHandler.UpdateTaskUpdate
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "UpdateTaskUpdateHandler not implemented"})
+	}
+}
+
+func (app *Application) DeleteTaskUpdateHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskUpdateHandler != nil {
+		return app.handlers.TaskUpdateHandler.DeleteTaskUpdate
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "DeleteTaskUpdateHandler not implemented"})
+	}
+}
+
+func (app *Application) GetTaskTimelineHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskUpdateHandler != nil {
+		return app.handlers.TaskUpdateHandler.GetTaskTimeline
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetTaskTimelineHandler not implemented"})
+	}
+}
+
+// Recycle bin handlers
+func (app *Application) GetRecycledTasksHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.GetRecycledTasks
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledTasksHandler not implemented"})
+	}
+}
+
+func (app *Application) RestoreTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.RestoreTask
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "RestoreTaskHandler not implemented"})
+	}
+}
+
+func (app *Application) HardDeleteTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.HardDeleteTask
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "HardDeleteTaskHandler not implemented"})
+	}
+}
+
+func (app *Application) EmptyRecycleBinHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.EmptyRecycleBin
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "EmptyRecycleBinHandler not implemented"})
+	}
+}
+
+// Additional methods
+func (app *Application) FileDownloadHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "FileDownloadHandler not implemented"})
+	}
+}
+
+// User mapping middleware
+func (app *Application) MapUserToCompanyUser() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 简化版本的用户映射中间件
+		c.Next()
+	}
+}
+
+// Missing methods required by ApplicationInterface
+
+// 独立任务处理器（跨项目）
 func (app *Application) CreateGlobalTaskHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.CreateGlobalTask
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.CreateTask
+	}
+	return app.taskHandler.CreateTask
 }
 
 func (app *Application) GetTaskByIdHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.GetTaskById
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTask
+	}
+	return app.taskHandler.GetTask
 }
 
 func (app *Application) UpdateTaskByIdHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.UpdateTaskById
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.UpdateTask
+	}
+	return app.taskHandler.UpdateTask
 }
 
 func (app *Application) DeleteTaskByIdHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.DeleteTaskById
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.DeleteTask
+	}
+	return app.taskHandler.DeleteTask
 }
 
 func (app *Application) UpdateTaskStatusHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.UpdateTaskStatus
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.UpdateTaskStatus
+	}
+	return app.taskHandler.UpdateTaskStatus
 }
 
 func (app *Application) MoveTaskByIdHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.MoveTaskById
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.MoveTask
+	}
+	return app.taskHandler.MoveTask
 }
 
 func (app *Application) ReorderTaskByIdHandler() gin.HandlerFunc {
-	taskHandler := handlers.NewTaskHandler(app.db, app.logger, app.validator)
-	return taskHandler.ReorderTaskById
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.ReorderTask
+	}
+	return app.taskHandler.ReorderTask
+}
+
+func (app *Application) GetRouterDocumentHandler() *handlers.RouterDocumentHandler {
+	return app.routerDocumentHandler
 }

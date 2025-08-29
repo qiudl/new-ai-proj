@@ -88,10 +88,7 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册用户路由
 	RegisterUserRoutes(authorized, app)
 	
-	// 直接注册工作笔记路由，绕过有编译问题的document_routes.go
-	registerWorkNotesRoutesStandalone(authorized, app)
-	
-	// 注册文档管理路由
+	// 注册文档管理路由（包含工作笔记路由）
 	RegisterDocumentRoutes(authorized, app)
 	
 	// 注册简化的API路由

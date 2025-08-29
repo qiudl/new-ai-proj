@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"ai-project-backend/middleware"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 // RegisterAuthRoutes 注册认证相关路由（简化版）

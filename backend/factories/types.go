@@ -2,11 +2,11 @@ package factories
 
 import "ai-project-backend/handlers"
 
-// AllHandlers 包含所有处理器的结构
+// AllHandlers 包含所有处理器的结构（简化版，移除缺失的handler）
 type AllHandlers struct {
 	// 认证处理器
 	AuthHandler               *handlers.AuthHandler
-	JWTTokenHandler           *handlers.JWTTokenHandler
+	// JWTTokenHandler           *handlers.JWTTokenHandler // 暂时注释掉，handler缺失
 
 	// 分析埋点处理器
 	AnalyticsHandler         *handlers.AnalyticsHandler
@@ -16,7 +16,7 @@ type AllHandlers struct {
 	CompanyHandler            *handlers.CompanyHandler
 	ProjectHandler            *handlers.ProjectHandler
 	PermissionHandler         *handlers.PermissionHandler
-	PermissionSystemHandler   *handlers.PermissionSystemHandler
+	// PermissionSystemHandler   *handlers.PermissionSystemHandler // 暂时注释掉，handler缺失
 	RoleManagementHandler     *handlers.RoleManagementHandler
 	UserManagementHandler     *handlers.UserManagementHandler
 	CompanyUserHandler        *handlers.CompanyUserHandler
@@ -26,7 +26,7 @@ type AllHandlers struct {
 	DocumentHandler             *handlers.DocumentHandler
 	HybridDocumentHandler       *handlers.HybridDocumentHandler
 	HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
-	SimpleDocumentHandler       *handlers.SimpleDocumentHandler
+	// SimpleDocumentHandler       *handlers.SimpleDocumentHandler // 暂时注释掉，handler缺失
 	UnifiedDocumentHandler      *handlers.UnifiedDocumentHandler
 	
 	// 工作笔记处理器
@@ -41,7 +41,7 @@ type AllHandlers struct {
 	// 任务管理处理器
 	TaskHandler                *handlers.TaskHandler
 	TaskHierarchyHandler       *handlers.TaskHierarchyHandler
-	TaskLTreeHierarchyHandler  *handlers.TaskLTreeHierarchyHandler
+	// TaskLTreeHierarchyHandler  *handlers.TaskLTreeHierarchyHandler // 暂时注释掉，handler缺失
 
 	// 用户管理处理器
 	UserProfileHandler         *handlers.UserProfileHandler
