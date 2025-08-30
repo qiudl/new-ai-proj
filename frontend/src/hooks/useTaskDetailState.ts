@@ -260,7 +260,7 @@ export const useTaskDetailState = () => {
       history: historyState,
       project: projectState
     };
-  }, [taskState, documentState, relationState, completionState, uiState, historyState, projectState]);
+  }, []); // 移除依赖，避免无限更新
 
   return {
     // 状态

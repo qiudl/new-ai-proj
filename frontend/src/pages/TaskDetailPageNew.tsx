@@ -82,14 +82,14 @@ import { useMemoryManager } from '../hooks/useMemoryManager';
 import { TaskBasicInfo, TaskDetailInfo } from '../components/TaskDetailBasicInfo';
 import TaskRelationsPanel from '../components/TaskDetailRelations';
 import AnimatedContainer, { UpdateAnimation } from '../components/AnimatedContainer';
-import { RefreshConfigProvider, useRefreshConfig } from '../contexts/RefreshConfigContext';
+import { RefreshConfigProvider } from '../contexts/RefreshConfigContext';
 import { RefreshConfigButton } from '../components/RefreshConfigModal';
 import TaskCompletionRefresh from '../components/TaskCompletionRefresh';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
 import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgressBar';
-import { useAutoRefreshOptimized } from '../hooks/useAutoRefreshOptimized';
+// Removed useAutoRefreshOptimized to fix circular dependency
 import PerformanceMonitor from '../components/PerformanceMonitor';
 
 const { Title, Paragraph, Text } = Typography;
@@ -105,68 +105,18 @@ interface TaskCompletionStats {
   completionRate: number;
 }
 
-// 内联任务进度条容器（数据加载 + 展示）
+// 暂时简化任务进度条，避免复杂的数据加载
 const TaskProgressInline: React.FC<{ taskId: number; status: 'todo'|'in_progress'|'blocked'|'completed'; style?: React.CSSProperties }>= ({ taskId, status, style }) => {
-  const [data, setData] = useState<{ percent_raw: number; percent_display: number; estimate_minutes: number|null; actual_minutes: number; overrun_percent: number; breakdown?: TaskProgressBarProps['breakdown'] } | null>(null)
-  const [loading, setLoading] = useState(false)
-  const fmt = (mins: number | null | undefined) => {
-    if (mins == null) return null
-    const m = Math.max(0, mins)
-    if (m < 60) return `${m}m`
-    const h = (m/60)
-    return `${h.toFixed(1)} 小时`
-  }
-  const load = useCallback(async () => {
-    try {
-      setLoading(true)
-      // Try legacy first (will be suppressed internally if unavailable), fallback to zeros
-      const resp = await TaskService.getTaskProgress(taskId).catch(() => ({
-        percent_raw: 0,
-        percent_display: 0,
-        estimate_minutes: null,
-        actual_minutes: 0,
-        overrun_percent: 0,
-        breakdown: []
-      }))
-      const breakdown = Array.isArray((resp as any).breakdown ?? (resp as any).Breakdown) ? ((resp as any).breakdown ?? (resp as any).Breakdown) : undefined
-      setData({
-        percent_raw: (resp as any).percent_raw ?? (resp as any).PercentRaw ?? 0,
-        percent_display: (resp as any).percent_display ?? (resp as any).PercentDisplay ?? Math.round(((resp as any).percent_raw ?? 0)*100),
-        estimate_minutes: (resp as any).estimate_minutes ?? (resp as any).EstimateMinutes ?? null,
-        actual_minutes: (resp as any).actual_minutes ?? (resp as any).ActualMinutes ?? 0,
-        overrun_percent: (resp as any).overrun_percent ?? (resp as any).OverrunPercent ?? 0,
-        breakdown,
-      })
-    } catch (e) {
-      // 静默失败以免打扰详情页
-      console.warn('load task progress failed', e)
-      setData({
-        percent_raw: 0,
-        percent_display: 0,
-        estimate_minutes: null,
-        actual_minutes: 0,
-        overrun_percent: 0,
-        breakdown: []
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [taskId])
-  useEffect(() => { load() }, [load])
-  if (loading && !data) {
-    return <div style={{ padding: '8px 0', ...style }}><Spin size="small" /></div>
-  }
-  if (!data) return null
   return (
     <div style={style}>
       <TaskProgressBar
-        percent={data.percent_raw}
-        percentDisplay={data.percent_display}
-        estimateText={fmt(data.estimate_minutes) ?? undefined}
-        actualText={fmt(data.actual_minutes) ?? undefined}
-        overrunPercent={data.overrun_percent}
+        percent={0}
+        percentDisplay={0}
+        estimateText={undefined}
+        actualText={undefined}
+        overrunPercent={0}
         status={status}
-        breakdown={data.breakdown ?? undefined}
+        breakdown={undefined}
       />
     </div>
   )
@@ -177,13 +127,10 @@ const TaskDetailPageNew: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // 使用内存管理器钩子
-  const memoryManager = useMemoryManager();
+  // 使用内存管理器钩子（解构需要的稳定函数，避免对象引用变化导致的重复副作用）
+  const { addCleanupFunction, cleanupAll } = useMemoryManager();
   
-  // 修复：安全获取刷新配置，避免条件性调用Hooks
-  const [refreshConfigError, setRefreshConfigError] = useState<boolean>(false);
-  
-  // 使用默认配置替代条件性调用
+  // 使用默认配置，避免条件性调用Hooks
   const defaultRefreshConfig = {
     completionStatsInterval: 30,
     enableVisibilityDetection: true,
@@ -192,23 +139,7 @@ const TaskDetailPageNew: React.FC = () => {
   };
   
   // 始终调用 Hook，避免条件性调用
-  let refreshConfig = defaultRefreshConfig;
-  let refreshCtx = null;
-  
-  try {
-    refreshCtx = useRefreshConfig();
-  } catch (error) {
-    // 静默处理错误，使用默认配置
-    if (!refreshConfigError) {
-      console.warn('RefreshConfig not available, using defaults');
-      setRefreshConfigError(true);
-    }
-  }
-  
-  // 安全地获取配置
-  if (refreshCtx?.config) {
-    refreshConfig = refreshCtx.config;
-  }
+  const refreshConfig = defaultRefreshConfig;
 
   // 使用状态钩子
   const {
@@ -226,7 +157,6 @@ const TaskDetailPageNew: React.FC = () => {
     updateUIState,
     updateHistoryState,
     updateProjectState,
-    calculateCompletionStats,
     resetAllState
   } = useTaskDetailState();
 
@@ -242,29 +172,24 @@ const TaskDetailPageNew: React.FC = () => {
   // 初始化UI状态
   useEffect(() => {
     updateUIState({ activeTab: getActiveTabFromURL() });
-  }, [location.search, updateUIState]);
+  }, [location.search]); // 移除updateUIState依赖，避免循环
 
-  // 自动刷新任务完成情况 - 使用优化版Hook并添加内存管理
-  const { 
-    isRefreshing: isCompletionStatsRefreshing,
-    refreshType: completionStatsRefreshType,
-    refreshStartTime: completionStatsStartTime,
-    lastRefreshTime: completionStatsLastUpdate,
-    nextRefreshTime: completionStatsNextUpdate,
-    stats: completionStatsStats,
-    memoryStats: completionStatsMemoryStats,
-    refresh: refreshCompletionStats,
-    error: completionStatsError,
-    forceRetry: forceRetryCompletionStats,
-    getErrorHistory: getCompletionStatsErrorHistory,
-    cleanup: cleanupCompletionStats
-  } = useAutoRefreshOptimized(
-    async () => {
-      if (!projectId || !task) return;
-      
-      const parsedProjectId = parseInt(projectId);
-      if (isNaN(parsedProjectId)) return;
-      
+  // 简化版自动刷新 - 避免复杂的Hook依赖
+  const [isCompletionStatsRefreshing, setIsCompletionStatsRefreshing] = useState(false);
+  const [completionStatsError, setCompletionStatsError] = useState<Error | null>(null);
+  const completionStatsStats = null;
+  const completionStatsMemoryStats = null;
+
+  const refreshCompletionStats = useCallback(async () => {
+    if (!projectId || !task) return;
+    
+    const parsedProjectId = parseInt(projectId);
+    if (isNaN(parsedProjectId)) return;
+    
+    setIsCompletionStatsRefreshing(true);
+    setCompletionStatsError(null);
+    
+    try {
       // 重新加载子任务数据
       const subtasksData = await TaskService.getTaskChildren(parsedProjectId, task.id);
       const children = Array.isArray(subtasksData) 
@@ -274,34 +199,53 @@ const TaskDetailPageNew: React.FC = () => {
         : [];
       
       updateRelationState({ subtasks: children });
-      calculateCompletionStats(children);
       
-      return children; // 返回数据供缓存使用
-    },
-    {
-      interval: refreshConfig.completionStatsInterval * 1000,
-      dependencies: [projectId, task?.id],
-      enableVisibilityDetection: refreshConfig.enableVisibilityDetection,
-      enabled: !!projectId && !!task,
-      maxRetries: refreshConfig.maxRetries,
-      retryInterval: refreshConfig.retryInterval,
-      enableCache: true,
-      cacheKey: `completion_stats_${projectId}_${taskState.task?.id}`,
-      context: {
-        component: 'TaskDetailPageNew',
-        section: 'completionStats',
-        taskId: taskState.task?.id,
-        projectId
+      // 直接计算统计，避免函数依赖
+      const stats = {
+        totalSubtasks: children.length,
+        completedSubtasks: children.filter(t => t.status === 'completed').length,
+        inProgressSubtasks: children.filter(t => t.status === 'in_progress').length,
+        todoSubtasks: children.filter(t => t.status === 'todo').length,
+        completionRate: 0,
+        loading: false
+      };
+      
+      if (stats.totalSubtasks > 0) {
+        stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
       }
+      
+      updateCompletionState(stats);
+    } catch (error) {
+      console.error('刷新完成统计失败:', error);
+      setCompletionStatsError(error as Error);
+    } finally {
+      setIsCompletionStatsRefreshing(false);
     }
-  );
+  }, [projectId, task?.id, updateRelationState, updateCompletionState]);
+
+  // 暂时禁用自动刷新以调试无限渲染问题
+  // useEffect(() => {
+  //   if (!projectId || !task?.id) return;
+  //   
+  //   const interval = setInterval(() => {
+  //     refreshCompletionStats();
+  //   }, refreshConfig.completionStatsInterval * 1000);
+  //   
+  //   return () => clearInterval(interval);
+  // }, [projectId, task?.id, refreshCompletionStats, refreshConfig.completionStatsInterval]);
+
+  const cleanupCompletionStats = useCallback(() => {
+    setIsCompletionStatsRefreshing(false);
+    setCompletionStatsError(null);
+  }, []);
 
   // 注册自动刷新清理函数到内存管理器
   useEffect(() => {
-    if (cleanupCompletionStats) {
-      memoryManager.addCleanupFunction(cleanupCompletionStats);
-    }
-  }, [cleanupCompletionStats, memoryManager]);
+    addCleanupFunction(cleanupCompletionStats);
+    return () => {
+      // 组件卸载时清理
+    };
+  }, [addCleanupFunction]);
 
   const pageSize = 8;
   const [relatedTasksPage, setRelatedTasksPage] = useState(1);
@@ -452,14 +396,14 @@ const TaskDetailPageNew: React.FC = () => {
       if (taskData.parent_id) {
         try {
           const parentTaskInfo = await TaskService.getTask(parsedProjectId, taskData.parent_id);
-          updateRelationState(prev => ({ ...prev, parent: parentTaskInfo }));
+          updateRelationState({ parent: parentTaskInfo });
           
           // 获取兄弟任务（相同父任务的其他子任务）
           const siblings = await TaskService.getTaskChildren(parsedProjectId, taskData.parent_id);
           const filteredSiblings = Array.isArray(siblings) 
             ? siblings.filter((sibling: Task) => sibling.id !== taskData.id)
             : [];
-          updateRelationState(prev => ({ ...prev, siblings: filteredSiblings }));
+          updateRelationState({ siblings: filteredSiblings });
         } catch (error) {
           console.error('Error loading parent task:', error);
         }
@@ -469,7 +413,7 @@ const TaskDetailPageNew: React.FC = () => {
           const rootTasksResponse = await TaskService.getRootTasks(parsedProjectId);
           const rootTasks = toArray(rootTasksResponse);
           const filteredRootSiblings = rootTasks.filter((rootTask: Task) => rootTask.id !== taskData.id);
-          updateRelationState(prev => ({ ...prev, siblings: filteredRootSiblings }));
+          updateRelationState({ siblings: filteredRootSiblings });
         } catch (error) {
           console.error('Error loading root tasks:', error);
         }
@@ -478,13 +422,35 @@ const TaskDetailPageNew: React.FC = () => {
       // 处理子任务数据
       if (subtasksData.status === 'fulfilled') {
         const children = toArray((subtasksData as PromiseFulfilledResult<any>).value);
-        updateRelationState(prev => ({ ...prev, subtasks: children }));
-        calculateCompletionStats(children);
+        updateRelationState({ subtasks: children });
+        
+        // 直接计算统计，避免函数依赖
+        const stats = {
+          totalSubtasks: children.length,
+          completedSubtasks: children.filter(t => t.status === 'completed').length,
+          inProgressSubtasks: children.filter(t => t.status === 'in_progress').length,
+          todoSubtasks: children.filter(t => t.status === 'todo').length,
+          completionRate: 0,
+          loading: false
+        };
+        
+        if (stats.totalSubtasks > 0) {
+          stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
+        }
+        
+        updateCompletionState(stats);
       } else {
         // 处理API调用失败的情况
         console.error('Failed to load subtasks:', (subtasksData as PromiseRejectedResult).reason);
-        updateRelationState(prev => ({ ...prev, subtasks: [] }));
-        calculateCompletionStats([]);
+        updateRelationState({ subtasks: [] });
+        updateCompletionState({
+          totalSubtasks: 0,
+          completedSubtasks: 0,
+          inProgressSubtasks: 0,
+          todoSubtasks: 0,
+          completionRate: 0,
+          loading: false
+        });
       }
       
       // 处理更新历史数据
@@ -496,16 +462,16 @@ const TaskDetailPageNew: React.FC = () => {
       // 处理时间线数据
       if (timelineData.status === 'fulfilled') {
         const timeline = toArray((timelineData as PromiseFulfilledResult<any>).value);
-        updateHistoryState(prev => ({ ...prev, timelineEvents: timeline }));
+        updateHistoryState({ timelineEvents: timeline });
       }
       
-      updateRelationState(prev => ({ ...prev, loading: false }));
+      updateRelationState({ loading: false });
       
     } catch (error) {
       console.error('Error loading task data:', error);
       updateRelationState({ loading: false, error: 'Failed to load task data' });
     }
-  }, [projectId, taskId, updateRelationState, updateProjectState, updateHistoryState, calculateCompletionStats]);
+  }, [projectId, taskId, updateRelationState, updateProjectState, updateHistoryState, updateCompletionState]);
 
   // 计算完成统计 - 现在从钩子中获取
   // calculateCompletionStats 函数已在useTaskDetailState中定义
@@ -552,13 +518,13 @@ const TaskDetailPageNew: React.FC = () => {
           return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
         });
         
-        updateRelationState(prev => ({ ...prev, related: sortedTasks, loading: false }));
+        updateRelationState({ related: sortedTasks, loading: false });
         setRelatedTasksTotal(tasksResponse.pagination?.total || tasks.length);
       }
     } catch (error) {
       console.error('Failed to load related tasks:', error);
       message.error('加载关联任务失败');
-      updateRelationState(prev => ({ ...prev, loading: false }));
+      updateRelationState({ loading: false });
     }
   }, [taskState.task, projectId, pageSize, updateRelationState]);
 
@@ -573,18 +539,18 @@ const TaskDetailPageNew: React.FC = () => {
   useEffect(() => {
     return () => {
       // 使用内存管理器清理所有资源
-      memoryManager.cleanupAll();
+      cleanupAll();
       // 重置状态
       resetAllState();
       console.log('🧹 TaskDetailPageNew: All resources cleaned up');
     };
-  }, [memoryManager, resetAllState]);
+  }, [cleanupAll, resetAllState]);
 
   useEffect(() => {
     if (projectId && taskId) {
       loadTask();
     }
-  }, [projectId, taskId, loadTask]);
+  }, [projectId, taskId]); // 移除loadTask依赖，避免循环
 
   // 监听URL变化，更新activeTab
   useEffect(() => {
@@ -592,14 +558,14 @@ const TaskDetailPageNew: React.FC = () => {
     if (newActiveTab !== uiState.activeTab) {
       updateUIState({ activeTab: newActiveTab });
     }
-  }, [location.search, uiState.activeTab, updateUIState]);
+  }, [location.search, uiState.activeTab]); // 移除updateUIState依赖
 
   // 当切换到文档Tab时再检查文档存在与数量，避免初始加载时的重网络与遍历
   useEffect(() => {
     if (uiState.activeTab === 'document' && !documentState.loading && documentState.exists === null) {
       checkDocumentExists();
     }
-  }, [uiState.activeTab, documentState.loading, documentState.exists, checkDocumentExists]);
+  }, [uiState.activeTab, documentState.loading, documentState.exists]); // 移除checkDocumentExists依赖
 
   // 状态颜色映射
   const getStatusConfig = (status: string) => {

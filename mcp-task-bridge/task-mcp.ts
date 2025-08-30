@@ -2680,4 +2680,71 @@ export class TaskMCPServer {
       };
     }
   }
+
+  // 📈 获取任务时间线事件
+  async getTaskTimeline(taskId: number, projectId: number = 1, limit: number = 20, offset: number = 0) {
+    try {
+      // 参数验证和处理
+      if (!taskId || taskId <= 0) {
+        return {
+          success: false,
+          error: '无效的任务ID'
+        };
+      }
+      
+      if (limit <= 0) limit = 20;
+      if (limit > 100) limit = 100;
+      if (offset < 0) offset = 0;
+
+      // 构建API请求参数
+      const params = new URLSearchParams();
+      params.append('limit', limit.toString());
+      params.append('offset', offset.toString());
+
+      // 调用后端API获取时间线
+      const response = await axios.get(`${this.apiBase}/projects/${projectId}/tasks/${taskId}/timeline?${params.toString()}`, {
+        headers: this.getHeaders(),
+        proxy: false
+      });
+
+      // 处理响应数据
+      if (response.data && response.data.success) {
+        const data = response.data.data;
+        return {
+          success: true,
+          task_id: data.task_id,
+          task_title: data.task_title,
+          events: data.events,
+          pagination: data.pagination,
+          total_events: data.pagination?.total || 0,
+          message: `📅 成功获取任务 "${data.task_title}" 的时间线 (${data.events?.length || 0} 个事件)`
+        };
+      } else {
+        return {
+          success: false,
+          error: '获取时间线数据失败：响应格式异常'
+        };
+      }
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || error?.response?.data?.error || error?.message || '未知错误';
+      
+      // 提供更友好的错误信息
+      if (error?.response?.status === 404) {
+        return {
+          success: false,
+          error: `任务不存在或无权访问 (任务ID: ${taskId})`
+        };
+      } else if (error?.response?.status === 401) {
+        return {
+          success: false,
+          error: '认证失败，请检查API令牌'
+        };
+      } else {
+        return {
+          success: false,
+          error: `获取任务时间线失败: ${errorMessage}`
+        };
+      }
+    }
+  }
 }

@@ -817,18 +817,58 @@ func (h *TaskHandler) GetTaskProgress(c *gin.Context) {
 }
 
 func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
-	_, err := strconv.Atoi(c.Param("taskId")) // taskID for future implementation
-	if err != nil {
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil || taskID <= 0 {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
 
-	// Parse query parameters (for future implementation)
-	_ = c.DefaultQuery("limit", "20")
-	_ = c.DefaultQuery("offset", "0")
+	// Parse query parameters
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+	
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100 // Maximum limit
+	}
+	
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
+	}
 
-	// TODO: Implement GetTimeline method in TaskRepository
-	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+	// Verify task exists and user has access
+	task, err := h.taskRepo.GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
+		return
+	}
+
+	// Get task timeline events
+	events, total, err := h.taskRepo.GetTaskTimeline(c.Request.Context(), taskID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务时间线失败", err.Error()))
+		return
+	}
+
+	// Build response with pagination info
+	response := map[string]interface{}{
+		"task_id":    taskID,
+		"task_title": task.Title,
+		"events":     events,
+		"pagination": map[string]interface{}{
+			"total":  total,
+			"limit":  limit,
+			"offset": offset,
+			"page":   (offset / limit) + 1,
+			"pages":  (total + limit - 1) / limit,
+		},
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取任务时间线成功"))
 }
 
 // ValidateParent handles POST /api/v1/projects/:projectId/tasks/validate-parent

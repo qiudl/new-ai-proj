@@ -862,6 +862,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       
       {
+        name: 'get_task_timeline',
+        description: '获取任务时间线事件',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: { 
+              type: 'number', 
+              description: '任务ID' 
+            },
+            projectId: { 
+              type: 'number', 
+              description: '项目ID（可选，默认为1）' 
+            },
+            limit: { 
+              type: 'number', 
+              description: '返回记录数限制（默认20，最大100）' 
+            },
+            offset: { 
+              type: 'number', 
+              description: '偏移量（默认0）' 
+            }
+          },
+          required: ['taskId']
+        }
+      },
+      
+      {
         name: 'dev_quick_login',
         description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
         inputSchema: {
@@ -1203,6 +1230,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.getDailyWorkReport(args.projectId as number);
         break;
       
+      case 'get_task_timeline':
+        console.error(`[MCP] 收到 get_task_timeline 调用，任务ID: ${args.taskId}`);
+        result = await taskServer.getTaskTimeline(args.taskId as number, args.projectId as number, args.limit as number, args.offset as number);
+        break;
+
       case 'dev_quick_login':
         console.error(`[MCP] 收到 dev_quick_login 调用，用户名: ${args.username}`);
         result = await taskServer.devQuickLogin(args.username as string);
