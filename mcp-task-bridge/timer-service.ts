@@ -1,0 +1,476 @@
+import { BaseClient } from './base-client.js';
+import { requiresPermission } from './permission-manager.js';
+import { TimerData, ApiResponse } from './types.js';
+
+export class TimerService extends BaseClient {
+
+  // 开始计时
+  @requiresPermission('start_timer')
+  async startTimer(taskId: number, description?: string): Promise<ApiResponse<TimerData>> {
+    try {
+      const payload: any = { taskId: taskId };
+      if (description) {
+        payload.description = description;
+      }
+
+      const response = await this.makeRequest<{
+        success: boolean;
+        timer_id: number;
+        timer_type: string;
+        message: string;
+        started_at: string;
+        data: any;
+      }>('POST', '/mcp/start-timer', payload);
+
+      if (response.success && response.data) {
+        const timerData: TimerData = {
+          id: response.data.timer_id,
+          task_id: taskId,
+          started_at: response.data.started_at,
+          description: description
+        };
+
+        return {
+          success: true,
+          data: timerData,
+          task_id: taskId,
+          task_title: response.data.data?.task_title,
+          timer_id: response.data.timer_id,
+          started_at: response.data.started_at,
+          description: description || response.data.data?.description,
+          message: `⏱️ 任务 "${response.data.data?.task_title || taskId}" 开始计时`
+        };
+      } else {
+        return response as ApiResponse<TimerData>;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `开始计时失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 停止计时
+  @requiresPermission('stop_timer')
+  async stopTimer(taskId?: number): Promise<ApiResponse<TimerData>> {
+    try {
+      const payload: any = {};
+      if (taskId) {
+        payload.taskId = taskId;
+      }
+
+      const response = await this.makeRequest<{
+        success: boolean;
+        timer_id: number;
+        task_id: number;
+        task_title: string;
+        stopped_at: string;
+        duration_seconds: number;
+        duration_formatted: string;
+        message: string;
+      }>('POST', '/mcp/stop-timer', payload);
+
+      if (response.success && response.data) {
+        const timerData: TimerData = {
+          id: response.data.timer_id,
+          task_id: response.data.task_id,
+          started_at: '', // 这里可能需要从其他地方获取
+          stopped_at: response.data.stopped_at,
+          duration_seconds: response.data.duration_seconds
+        };
+
+        return {
+          success: true,
+          data: timerData,
+          task_id: response.data.task_id,
+          task_title: response.data.task_title,
+          timer_id: response.data.timer_id,
+          stopped_at: response.data.stopped_at,
+          duration_seconds: response.data.duration_seconds,
+          duration_formatted: response.data.duration_formatted,
+          message: `⏹️ 任务 "${response.data.task_title}" 停止计时 (用时: ${response.data.duration_formatted})`
+        };
+      } else {
+        return response as ApiResponse<TimerData>;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `停止计时失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 获取当前计时状态
+  async getCurrentTimer(): Promise<ApiResponse<{ active_timers: TimerData[] }>> {
+    try {
+      const response = await this.makeRequest<{
+        active_timers: Array<{
+          timer_id: number;
+          task_id: number;
+          task_title: string;
+          started_at: string;
+          duration_seconds: number;
+          duration_formatted: string;
+          description?: string;
+        }>;
+        message: string;
+      }>('GET', '/mcp/get-current-timer');
+
+      if (response.success && response.data) {
+        const activeTimers: TimerData[] = response.data.active_timers.map(timer => ({
+          id: timer.timer_id,
+          task_id: timer.task_id,
+          started_at: timer.started_at,
+          duration_seconds: timer.duration_seconds,
+          description: timer.description
+        }));
+
+        return {
+          success: true,
+          data: { active_timers: activeTimers },
+          active_count: activeTimers.length,
+          timers: response.data.active_timers, // 保留原始数据格式
+          message: activeTimers.length > 0 
+            ? `⏰ 当前有 ${activeTimers.length} 个活跃计时器`
+            : '📝 当前无活跃计时器'
+        };
+      } else {
+        return response as ApiResponse<{ active_timers: TimerData[] }>;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取当前计时状态失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 获取任务计时历史
+  async getTaskTimerHistory(taskId: number, limit: number = 10, offset: number = 0): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('GET', `/tasks/${taskId}/timers`, undefined, {
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+
+      if (response.success && response.data) {
+        const timers = response.data.timers || [];
+        const total = response.data.total || timers.length;
+
+        return {
+          success: true,
+          task_id: taskId,
+          timers: timers,
+          total: total,
+          limit: limit,
+          offset: offset,
+          message: `📊 获取到任务 ${taskId} 的 ${timers.length} 条计时记录`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取任务计时历史失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 获取计时器统计信息
+  async getTimerStats(taskId?: number, dateFrom?: string, dateTo?: string): Promise<ApiResponse> {
+    try {
+      const params: any = {};
+      if (taskId) params.task_id = taskId;
+      if (dateFrom) params.date_from = dateFrom;
+      if (dateTo) params.date_to = dateTo;
+
+      const response = await this.makeRequest('GET', '/timers/stats', undefined, params);
+
+      if (response.success && response.data) {
+        return {
+          success: true,
+          stats: response.data,
+          task_id: taskId,
+          date_range: { from: dateFrom, to: dateTo },
+          message: `📈 计时器统计信息获取成功${taskId ? ` (任务 ${taskId})` : ''}`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取计时器统计失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 暂停计时器
+  @requiresPermission('pause_timer')
+  async pauseTimer(timerId: number): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PUT', `/timers/${timerId}/pause`);
+
+      if (response.success) {
+        return {
+          success: true,
+          timer_id: timerId,
+          status: 'paused',
+          message: `⏸️ 计时器 ${timerId} 已暂停`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `暂停计时器失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 恢复计时器
+  @requiresPermission('resume_timer')
+  async resumeTimer(timerId: number): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PUT', `/timers/${timerId}/resume`);
+
+      if (response.success) {
+        return {
+          success: true,
+          timer_id: timerId,
+          status: 'active',
+          message: `▶️ 计时器 ${timerId} 已恢复`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `恢复计时器失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 删除计时记录
+  @requiresPermission('delete_timer')
+  async deleteTimer(timerId: number): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('DELETE', `/timers/${timerId}`);
+
+      if (response.success) {
+        return {
+          success: true,
+          timer_id: timerId,
+          message: `🗑️ 计时记录 ${timerId} 已删除`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `删除计时记录失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 更新计时器描述
+  @requiresPermission('update_timer')
+  async updateTimerDescription(timerId: number, description: string): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('PUT', `/timers/${timerId}`, {
+        description: description
+      });
+
+      if (response.success) {
+        return {
+          success: true,
+          timer_id: timerId,
+          description: description,
+          message: `📝 计时器 ${timerId} 描述已更新`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `更新计时器描述失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 获取今日工作报告（包含计时统计）
+  async getDailyWorkReport(projectId: number = 1): Promise<ApiResponse> {
+    try {
+      const response = await this.makeRequest('GET', '/mcp/get-daily-work-report', undefined, {
+        projectId: projectId
+      });
+
+      if (response.success && response.data) {
+        return {
+          success: true,
+          project_id: projectId,
+          report: response.data,
+          date: new Date().toISOString().split('T')[0],
+          message: `📊 今日工作报告生成成功 (项目 ${projectId})`
+        };
+      } else {
+        return response;
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `获取今日工作报告失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 批量停止计时器
+  @requiresPermission('stop_timer')
+  async batchStopTimers(taskIds?: number[]): Promise<ApiResponse> {
+    try {
+      // 先获取当前活跃计时器
+      const currentTimersResponse = await this.getCurrentTimer();
+      if (!currentTimersResponse.success || !currentTimersResponse.data) {
+        return { success: false, error: '获取当前计时器失败' };
+      }
+
+      const activeTimers = currentTimersResponse.data.active_timers;
+      if (activeTimers.length === 0) {
+        return {
+          success: true,
+          stopped_count: 0,
+          message: '📝 当前无活跃计时器需要停止'
+        };
+      }
+
+      // 过滤需要停止的计时器
+      let timersToStop = activeTimers;
+      if (taskIds && taskIds.length > 0) {
+        timersToStop = activeTimers.filter(timer => taskIds.includes(timer.task_id));
+      }
+
+      if (timersToStop.length === 0) {
+        return {
+          success: true,
+          stopped_count: 0,
+          message: '📝 没有符合条件的计时器需要停止'
+        };
+      }
+
+      // 批量停止计时器
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const timer of timersToStop) {
+        try {
+          const result = await this.stopTimer(timer.task_id);
+          results.push({ task_id: timer.task_id, success: result.success, result });
+          if (result.success) successCount++;
+          else errorCount++;
+        } catch (error) {
+          results.push({ task_id: timer.task_id, success: false, error: error.message });
+          errorCount++;
+        }
+      }
+
+      return {
+        success: errorCount === 0,
+        total_processed: timersToStop.length,
+        success_count: successCount,
+        error_count: errorCount,
+        results: results,
+        message: `⏹️ 批量停止计时器完成: 成功 ${successCount} 个，失败 ${errorCount} 个`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `批量停止计时器失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 格式化时长
+  public formatDuration(seconds: number): string {
+    if (!seconds || seconds < 0) return '0秒';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = seconds % 60;
+    
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}小时`);
+    if (minutes > 0) parts.push(`${minutes}分钟`);
+    if (remainingSeconds > 0 || parts.length === 0) parts.push(`${remainingSeconds}秒`);
+    
+    return parts.join('');
+  }
+
+  // 计算工作效率
+  async calculateWorkEfficiency(taskId: number, dateFrom?: string, dateTo?: string): Promise<ApiResponse> {
+    try {
+      // 获取任务计时历史
+      const historyResponse = await this.getTaskTimerHistory(taskId, 100, 0);
+      if (!historyResponse.success) {
+        return historyResponse;
+      }
+
+      const timers = historyResponse.timers || [];
+      
+      // 过滤日期范围
+      let filteredTimers = timers;
+      if (dateFrom || dateTo) {
+        filteredTimers = timers.filter(timer => {
+          const timerDate = new Date(timer.started_at).toISOString().split('T')[0];
+          if (dateFrom && timerDate < dateFrom) return false;
+          if (dateTo && timerDate > dateTo) return false;
+          return true;
+        });
+      }
+
+      // 计算统计数据
+      const totalDuration = filteredTimers.reduce((sum, timer) => sum + (timer.duration_seconds || 0), 0);
+      const sessionCount = filteredTimers.length;
+      const averageSessionDuration = sessionCount > 0 ? totalDuration / sessionCount : 0;
+      
+      // 按日期分组
+      const dailyStats = {};
+      filteredTimers.forEach(timer => {
+        const date = new Date(timer.started_at).toISOString().split('T')[0];
+        if (!dailyStats[date]) {
+          dailyStats[date] = { duration: 0, sessions: 0 };
+        }
+        dailyStats[date].duration += timer.duration_seconds || 0;
+        dailyStats[date].sessions += 1;
+      });
+
+      return {
+        success: true,
+        task_id: taskId,
+        date_range: { from: dateFrom, to: dateTo },
+        efficiency_stats: {
+          total_duration: totalDuration,
+          total_duration_formatted: this.formatDuration(totalDuration),
+          session_count: sessionCount,
+          average_session_duration: averageSessionDuration,
+          average_session_duration_formatted: this.formatDuration(Math.round(averageSessionDuration)),
+          daily_stats: dailyStats,
+          working_days: Object.keys(dailyStats).length
+        },
+        message: `📈 任务 ${taskId} 的工作效率分析完成`
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `计算工作效率失败: ${error.message || error}`
+      };
+    }
+  }
+}

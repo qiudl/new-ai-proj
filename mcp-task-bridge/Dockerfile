@@ -1,6 +1,6 @@
 # MCP Task Bridge - Development Dockerfile
 # Use Node 20.17.0+ for better compatibility and security
-FROM node:20.17.0-alpine AS base
+FROM node:20-alpine AS base
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodegroup && adduser -u 1001 -S nodeuser -G nodegroup
