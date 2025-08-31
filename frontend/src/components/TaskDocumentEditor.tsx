@@ -296,11 +296,11 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
             if (img.tagName === 'SVG') {
               // SVG已经渲染完成
               checkAllLoaded();
-            } else if (img.complete) {
+            } else if ((img as HTMLImageElement).complete) {
               checkAllLoaded();
             } else {
-              img.onload = checkAllLoaded;
-              img.onerror = checkAllLoaded;
+              (img as HTMLImageElement).onload = checkAllLoaded;
+              (img as HTMLImageElement).onerror = checkAllLoaded;
             }
           });
 

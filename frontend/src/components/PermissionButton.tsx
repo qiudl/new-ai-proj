@@ -3,7 +3,7 @@ import { Button, Tooltip, ButtonProps } from 'antd';
 import { useAdvancedPermissions } from '../hooks/useAdvancedPermissions';
 import { AnyPermission } from '../constants/permissions';
 
-interface PermissionButtonProps extends Omit<ButtonProps, 'disabled'> {
+interface PermissionButtonProps extends ButtonProps {
   permission?: AnyPermission;
   permissions?: AnyPermission[];
   requireAll?: boolean; // 如果有多个权限，是否需要全部满足

@@ -141,7 +141,7 @@ export const setupAxiosInterceptors = (axiosInstance: React.FormEvent | React.Ch
 
   // 响应拦截器
   axiosInstance.interceptors.response.use(
-    (response: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+    (response: any) => {
       const config = response.config;
       const trackingId = config._performanceTrackingId;
       
@@ -159,7 +159,7 @@ export const setupAxiosInterceptors = (axiosInstance: React.FormEvent | React.Ch
       
       return response;
     },
-    (error: Error | unknown) => {
+    (error: any) => {
       const config = error.config;
       const trackingId = config?._performanceTrackingId;
       

@@ -37,7 +37,7 @@ interface PerformanceMonitorProps {
   /** 样式 */
   style?: React.CSSProperties;
   /** 大小 */
-  size?: 'small' | 'default' | 'large';
+  size?: 'small' | 'default';
 }
 
 /**

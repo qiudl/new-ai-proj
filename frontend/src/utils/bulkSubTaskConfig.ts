@@ -1,5 +1,5 @@
 import { TaskStatus } from '../types/task';
-import { ColumnType } from 'antd/es/table';
+import { ColumnsType } from 'antd/es/table';
 
 /**
  * 批量子任务创建表格的列配置
@@ -14,7 +14,7 @@ export interface BulkSubTaskColumn {
   type: 'text' | 'textarea' | 'select' | 'number' | 'date' | 'preview';
   placeholder?: string;
   tooltip?: string;
-  options?: Array<{ label: string; value: React.FormEvent | React.ChangeEvent<HTMLInputElement>; color?: string }>;
+  options?: Array<{ label: string; value: any; color?: string }>;
   validation?: {
     min?: number;
     max?: number;
