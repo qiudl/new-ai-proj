@@ -69,7 +69,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   showHistory = true,
   allowFullscreen = true,
   embedded = false,
-  _defaultTaskType = 'project_task',
+  defaultTaskType = 'project_task',
   defaultCategory = '工作',
   presetTaskId,
   onTimerStart,
@@ -150,10 +150,10 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   const getSuggestions = async (): Promise<TimerSuggestion[]> => {
     // 返回模拟的建议数据
     return [
-      { title: '🚀 继续昨天的工作', category: '工作', estimated_minutes: 25, tags: ['开发'] },
-      { title: '📖 学习新技术', category: '学习', estimated_minutes: 30, tags: ['学习'] },
-      { title: '💼 开会准备', category: '会议', estimated_minutes: 15, tags: ['准备'] },
-      { title: '🔧 代码重构', category: '开发', estimated_minutes: 45, tags: ['重构'] }
+      { id: 1, title: '🚀 继续昨天的工作', category: '工作', estimated_minutes: 25, tags: ['开发'], confidence: 0.8, reasoning: '基于历史记录' },
+      { id: 2, title: '📖 学习新技术', category: '学习', estimated_minutes: 30, tags: ['学习'], confidence: 0.7, reasoning: '建议学习' },
+      { id: 3, title: '💼 开会准备', category: '会议', estimated_minutes: 15, tags: ['准备'], confidence: 0.9, reasoning: '日程提醒' },
+      { id: 4, title: '🔧 代码重构', category: '开发', estimated_minutes: 45, tags: ['重构'], confidence: 0.6, reasoning: '代码质量' }
     ];
   };
 

@@ -512,13 +512,17 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
           tags: selectedDocument.tags,
           is_template: selectedDocument.is_template,
           created_at: selectedDocument.created_at,
-          updated_at: selectedDocument.updated_at
+          updated_at: selectedDocument.updated_at,
+          type: 'markdown' as const,
+          owner_id: 1,
+          version: 1,
+          created_by: 1
         } : null}
         onClose={() => {
           setEditorVisible(false);
           setSelectedDocument(null);
         }}
-        onSave={async (noteData) => {
+        onSave={async (noteData: any) => {
           try {
             if (selectedDocument) {
               // Update existing document
@@ -571,7 +575,11 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
           tags: selectedDocument.tags,
           is_template: selectedDocument.is_template,
           created_at: selectedDocument.created_at,
-          updated_at: selectedDocument.updated_at
+          updated_at: selectedDocument.updated_at,
+          type: 'markdown' as const,
+          owner_id: 1,
+          version: 1,
+          created_by: 1
         } : null}
         onClose={() => {
           setViewerVisible(false);

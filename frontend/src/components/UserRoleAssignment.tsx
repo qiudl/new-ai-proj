@@ -258,7 +258,7 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
             )}
             <span style={{ fontWeight: 'bold' }}>{item.title}</span>
           </Space>
-          <Tag color={item.role.is_system_role ? 'green' : 'blue'} size="small">
+          <Tag color={item.role.is_system_role ? 'green' : 'blue'}>
             {item.role.is_system_role ? '系统' : '企业'}
           </Tag>
         </div>
@@ -441,10 +441,10 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
               targetKeys={targetKeys}
               selectedKeys={selectedKeys}
               onChange={(nextTargetKeys) => {
-                setTargetKeys(nextTargetKeys);
+                setTargetKeys(nextTargetKeys as string[]);
               }}
               onSelectChange={(sourceSelectedKeys, targetSelectedKeys) => {
-                setSelectedKeys([...sourceSelectedKeys, ...targetSelectedKeys]);
+                setSelectedKeys([...sourceSelectedKeys as string[], ...targetSelectedKeys as string[]]);
               }}
               render={renderTransferItem}
               listStyle={{
