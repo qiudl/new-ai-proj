@@ -16,6 +16,15 @@ import { Task } from '../types/task';
 
 const { Title, Text } = Typography;
 
+// 树选择事件的类型定义
+interface TreeSelectInfo {
+  node: {
+    type: string;
+    id: number;
+    parentId?: number;
+  };
+}
+
 interface TreeNodeData {
   key: string;
   title: React.ReactNode;
@@ -248,7 +257,7 @@ const MyTasksTree: React.FC = () => {
   }, [startTimer]);
 
   // 处理树节点选择
-  const handleSelect = useCallback((selectedKeys: React.Key[], info: unknown) => {
+  const handleSelect = useCallback((selectedKeys: React.Key[], info: TreeSelectInfo) => {
     if (selectedKeys.length === 0) return;
     
     const node = info.node;

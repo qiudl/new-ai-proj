@@ -1,4 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+
+// 类型定义
+interface SessionInfo {
+  date: string;
+  start_time: string;
+  end_time: string;
+  duration: string;
+}
 import { 
   List, 
   Typography, 
@@ -325,7 +333,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                     <List
                       size="small"
                       dataSource={taskTimeHistory.sessions}
-                      renderItem={(session: unknown) => (
+                      renderItem={(session: SessionInfo) => (
                         <List.Item>
                           <List.Item.Meta
                             title={session.date}

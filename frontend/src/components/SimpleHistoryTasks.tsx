@@ -12,6 +12,14 @@ dayjs.locale('zh-cn');
 
 const { Text, Title } = Typography;
 
+// 类型定义
+interface TaskHistoryItem {
+  task_title: string;
+  project_name: string;
+  total_seconds: number;
+  last_timed_at: string;
+}
+
 interface SimpleHistoryTasksProps {
   maxHeight?: string;
 }
@@ -116,7 +124,7 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
           {tasks.length > 0 ? (
             <List
               dataSource={tasks}
-              renderItem={(task: unknown) => (
+              renderItem={(task: TaskHistoryItem) => (
                 <List.Item style={{ padding: '12px 16px' }}>
                   <div style={{ width: '100%' }}>
                     <div style={{ marginBottom: '8px' }}>
