@@ -69,7 +69,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
     const [startDate, endDate] = dateRange;
     
     // 创建日期映射，用于快速查找API返回的数据
-    const apiDailyStats = weeklyReport.daily_stats || [];
+    const apiDailyStats = (weeklyReport as any).daily_stats || [];
     const dailyDataMap = new Map();
     
     apiDailyStats.forEach((dayData: any) => {

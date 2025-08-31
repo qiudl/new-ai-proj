@@ -511,7 +511,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   }, []);
 
   const getTaskDisplayTitle = useCallback((task: TaskWithChildren): string => {
-    const project = (task as unknown).project as Project;
+    const project = (task as any).project as Project;
     const level = task.level || 0;
     const prefix = '  '.repeat(level);
     const projectPrefix = project && showProjectNames ? `[${project.name}] ` : '';

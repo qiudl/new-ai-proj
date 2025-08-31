@@ -113,11 +113,24 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   const isRunning = timerState.isRunning;
   const isPaused = timerState.isPaused;
   const elapsedSeconds = timerState.elapsedSeconds || 0;
-  const currentTimer = (isRunning || isPaused) && timerState.taskTitle ? {
-    status: isRunning ? (isPaused ? 'paused' : 'running') : 'stopped',
+  const currentTimer: TimerStatus | null = (isRunning || isPaused) && timerState.taskTitle ? {
+    id: timerState.taskId || 0,
+    user_id: 1,
+    target_type: 'project_task' as const,
     target_title: timerState.taskTitle,
-    category: selectedCategory, // 现在可以安全使用
-    id: timerState.taskId
+    start_time: new Date().toISOString(),
+    status: isRunning ? (isPaused ? 'paused' : 'running') : 'stopped',
+    pause_count: 0,
+    pause_total_seconds: 0,
+    pause_events: [],
+    category: selectedCategory,
+    tags: [],
+    interruption_count: 0,
+    inference_reasoning: [],
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    created_by: 1,
+    source_type: 'widget'
   } : null;
 
   // Refs
@@ -150,10 +163,10 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
   const getSuggestions = async (): Promise<TimerSuggestion[]> => {
     // 返回模拟的建议数据
     return [
-      { id: 1, title: '🚀 继续昨天的工作', category: '工作', estimated_minutes: 25, tags: ['开发'], confidence: 0.8, reasoning: '基于历史记录' },
-      { id: 2, title: '📖 学习新技术', category: '学习', estimated_minutes: 30, tags: ['学习'], confidence: 0.7, reasoning: '建议学习' },
-      { id: 3, title: '💼 开会准备', category: '会议', estimated_minutes: 15, tags: ['准备'], confidence: 0.9, reasoning: '日程提醒' },
-      { id: 4, title: '🔧 代码重构', category: '开发', estimated_minutes: 45, tags: ['重构'], confidence: 0.6, reasoning: '代码质量' }
+      { id: 1, title: '🚀 继续昨天的工作', category: '工作', estimated_minutes: 25, tags: ['开发'], confidence: 0.8, reasoning: ['基于历史记录'] },
+      { id: 2, title: '📖 学习新技术', category: '学习', estimated_minutes: 30, tags: ['学习'], confidence: 0.7, reasoning: ['建议学习'] },
+      { id: 3, title: '💼 开会准备', category: '会议', estimated_minutes: 15, tags: ['准备'], confidence: 0.9, reasoning: ['日程提醒'] },
+      { id: 4, title: '🔧 代码重构', category: '开发', estimated_minutes: 45, tags: ['重构'], confidence: 0.6, reasoning: ['代码质量'] }
     ];
   };
 

@@ -25,6 +25,7 @@ import {
   Divider,
   Radio
 } from 'antd';
+import { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
   EditOutlined,
@@ -524,7 +525,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
   const filteredData = getFilteredAndSortedData(workNotes);
 
   // 表格列定义
-  const columns = [
+  const columns: ColumnsType<WorkNote> = [
     {
       title: (
         <Space>
@@ -538,7 +539,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       key: 'id',
       width: 80,
       sorter: true,
-      sortDirections: ['ascend', 'descend'],
+      sortDirections: ['ascend' as const, 'descend' as const],
       render: (id: number) => (
         <Text style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#1890ff' }}>
           #{id}
@@ -556,7 +557,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       key: 'title',
       ellipsis: { showTitle: true },
       sorter: true,
-      sortDirections: ['ascend', 'descend'],
+      sortDirections: ['ascend' as const, 'descend' as const],
       render: (text: string, record: WorkNote) => (
         <Space>
           <Button
@@ -670,7 +671,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       key: 'updated_at',
       width: 160,
       sorter: true,
-      sortDirections: ['ascend', 'descend'],
+      sortDirections: ['ascend' as const, 'descend' as const],
       render: (date: string) => (
         <Text style={{ fontSize: '12px', color: '#666' }}>
           {new Date(date).toLocaleString('zh-CN', {

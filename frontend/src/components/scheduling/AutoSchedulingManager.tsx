@@ -757,7 +757,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                   min={0}
                   max={50}
                   formatter={value => `${value}%`}
-                  parser={(value) => Math.min(50, Math.max(0, Number(value!.replace('%', ''))))}
+                  parser={(value) => Math.min(50, Math.max(0, Number(value!.replace('%', '')))) as 0 | 50}
                   style={{ width: '100%' }}
                 />
               </Form.Item>

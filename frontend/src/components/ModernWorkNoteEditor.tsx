@@ -39,7 +39,7 @@ interface ModernWorkNoteEditorProps {
   visible: boolean;
   note?: WorkNote | null;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (noteData: any) => void;
 }
 
 const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
