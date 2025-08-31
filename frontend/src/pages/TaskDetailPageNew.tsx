@@ -91,6 +91,7 @@ import '../styles/TaskDetail.css';
 import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgressBar';
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import PerformanceMonitor from '../components/PerformanceMonitor';
+import type { DocumentItem } from '../components/UnifiedTaskDocumentArea';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -572,6 +573,14 @@ const TaskDetailPageNew: React.FC = () => {
       checkDocumentExists();
     }
   }, [uiState.activeTab, documentState.loading, documentState.exists]); // 移除checkDocumentExists依赖
+
+  // 使用稳定回调避免子组件因回调变动触发重复加载导致的渲染循环
+  const handleDocsChange = useCallback((docs: DocumentItem[]) => {
+    updateDocumentState({
+      exists: docs.length > 0,
+      count: docs.length,
+    });
+  }, [updateDocumentState]);
 
   // 状态颜色映射
   const getStatusConfig = (status: string) => {
@@ -1271,16 +1280,8 @@ const TaskDetailPageNew: React.FC = () => {
                         compactMode={false}
                         headerVisible={false}
                         includeSubtaskDocuments={true}
-                        onDocumentChange={(docs) => {
-                          // 更新文档存在状态与数量（包含所有下级任务）
-                          updateDocumentState({ 
-                            exists: docs.length > 0, 
-                            count: docs.length 
-                          });
-                        }}
-                        onViewModeChange={(mode) => {
-                          // no-op
-                        }}
+                        onDocumentChange={handleDocsChange}
+                        onViewModeChange={undefined}
                       />
                     </div>
                   )

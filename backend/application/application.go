@@ -9,6 +9,7 @@ import (
 	"ai-project-backend/utils"
 	// ws "ai-project-backend/websocket"
 	// "context" // Temporarily unused
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,8 +19,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"github.com/go-redis/redis/v8"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"github.com/go-redis/redis/v8"
 )
 
 // Application holds the application dependencies
@@ -311,11 +313,33 @@ func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
 
 // GetHybridDocumentFolderHandler returns the document folder handler
 func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
+	// Debug: Log the actual type of the database
+	dbInstance := app.db.GetDB()
+	app.logger.Printf("DEBUG: DB type is %T", dbInstance)
+	
 	// Try to obtain a *gorm.DB from the underlying DB for folder features
-	if gdb, ok := app.db.GetDB().(*gorm.DB); ok && gdb != nil {
+	if gdb, ok := dbInstance.(*gorm.DB); ok && gdb != nil {
+		app.logger.Printf("DEBUG: Found *gorm.DB, creating handler")
 		return handlers.NewHybridDocumentFolderHandler(gdb)
 	}
-	app.logger.Printf("DocumentFolderHandler unavailable: underlying DB is not *gorm.DB; skipping folder APIs")
+	
+	// If we have a *sql.DB, create a GORM instance from it
+	if sqlDB, ok := dbInstance.(*sql.DB); ok && sqlDB != nil {
+		app.logger.Printf("DEBUG: Found *sql.DB, creating GORM instance")
+		gormDB, err := gorm.Open(postgres.New(postgres.Config{
+			Conn: sqlDB,
+		}), &gorm.Config{})
+		
+		if err != nil {
+			app.logger.Printf("Failed to create GORM instance from sql.DB: %v", err)
+			return nil
+		}
+		
+		app.logger.Printf("DEBUG: Successfully created GORM instance from *sql.DB")
+		return handlers.NewHybridDocumentFolderHandler(gormDB)
+	}
+	
+	app.logger.Printf("DocumentFolderHandler unavailable: underlying DB is not *gorm.DB or *sql.DB (got %T); skipping folder APIs", dbInstance)
 	return nil
 }
 

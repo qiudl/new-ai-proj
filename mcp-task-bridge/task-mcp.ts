@@ -259,7 +259,7 @@ export class TaskMCPServer {
 
   async devQuickLogin(username?: string): Promise<ApiResponse<{ token?: string }>> {
     try {
-      const response = await this.taskService.makeRequest<{ token: string; username: string }>('POST', '/dev/quick-login', {
+      const response = await this.taskService.makeRequest<{ token: string; username: string }>('POST', '/auth/dev/quick-login', {
         username: username || 'admin'
       });
 
