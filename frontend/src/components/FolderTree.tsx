@@ -21,10 +21,10 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import type { DataNode, TreeProps } from 'antd/es/tree';
-import { documentFolderService, type DocumentFolder, type CreateDocumentFolderRequest, type UpdateDocumentFolderRequest } from '../services/documentFolderService';
+import { workNoteFolderService, type WorkNoteFolder, type CreateWorkNoteFolderRequest, type UpdateWorkNoteFolderRequest } from '../services/workNoteFolderService';
 
 // Local interface for folders with extended properties
-interface FolderWithExtras extends DocumentFolder {
+interface FolderWithExtras extends WorkNoteFolder {
   path: string;
   document_count: number;
   children?: FolderWithExtras[];
@@ -67,7 +67,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   // 模态框状态
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [currentFolder, setCurrentFolder] = useState<DocumentFolder | null>(null);
+  const [currentFolder, setCurrentFolder] = useState<WorkNoteFolder | null>(null);
   const [parentFolderId, setParentFolderId] = useState<number | undefined>();
   
   const [form] = Form.useForm();
@@ -79,8 +79,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     setLoading(true);
     try {
       // 调用真实API获取文件夹树
-      const data = await documentFolderService.getFolderTree();
-      const folders = (data && (data as any).tree) ? (data as any).tree as DocumentFolder[] : [];
+      const data = await workNoteFolderService.getFolderTree();
+      const folders = (data && (data as any).tree) ? (data as any).tree as WorkNoteFolder[] : [];
       // 转换为 FolderWithExtras 类型，添加缺失的属性
       const foldersWithExtras: FolderWithExtras[] = folders.map(folder => ({
         ...folder,
@@ -101,7 +101,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   }, [projectId]);
 
   // 构建树形数据
-  const buildTreeData = (folderList: DocumentFolder[]) => {
+  const buildTreeData = (folderList: WorkNoteFolder[]) => {
     const treeNodes: TreeNodeData[] = [];
     
     const buildNode = (folder: any): TreeNodeData => ({
@@ -245,7 +245,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   };
 
   // 编辑文件夹
-  const handleEditFolder = (folder: DocumentFolder) => {
+  const handleEditFolder = (folder: WorkNoteFolder) => {
     setCurrentFolder(folder);
     setEditModalVisible(true);
     form.setFieldsValue({ name: folder.name });
@@ -267,7 +267,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       onOk: async () => {
         try {
           // 调用真实API删除文件夹
-          await documentFolderService.deleteFolder(folder.id);
+          await workNoteFolderService.deleteFolder(folder.id);
           message.success('文件夹已删除');
           loadFolders();
           onFolderChange?.();
@@ -283,13 +283,13 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const handleConfirmCreate = async () => {
     try {
       const values = await form.validateFields();
-      const request: CreateDocumentFolderRequest = {
+      const request: CreateWorkNoteFolderRequest = {
         name: values.name,
         parent_folder_id: parentFolderId,
         visibility: 'private' // 默认私有
       };
 
-      await documentFolderService.createFolder(request);
+      await workNoteFolderService.createFolder(request);
       message.success('文件夹创建成功');
       setCreateModalVisible(false);
       loadFolders();
@@ -306,11 +306,11 @@ const FolderTree: React.FC<FolderTreeProps> = ({
 
     try {
       const values = await form.validateFields();
-      const request: UpdateDocumentFolderRequest = {
+      const request: UpdateWorkNoteFolderRequest = {
         name: values.name
       };
 
-      await documentFolderService.updateFolder(currentFolder.id, request);
+      await workNoteFolderService.updateFolder(currentFolder.id, request);
       message.success('文件夹重命名成功');
       setEditModalVisible(false);
       setCurrentFolder(null);
@@ -344,7 +344,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
               // 放在节点上：成为其子级
               newParentId = dropNode.id === 0 ? undefined : dropNode.id;
             }
-            await documentFolderService.moveFolder(dragNode.id, { parent_folder_id: newParentId, sort_order: 0 });
+            await workNoteFolderService.moveFolder(dragNode.id, { parent_folder_id: newParentId, sort_order: 0 });
             // 可选：后续根据新父级的 children 顺序，调用 batchUpdateFolders 调整 sort_order
             await loadFolders();
             onFolderChange?.();
