@@ -6,8 +6,8 @@ import {
   DEFAULT_REFRESH_CONFIG 
 } from '../types/refreshConfig';
 
-// 重新导出 REFRESH_INTERVALS 以便其他组件使用
-export { REFRESH_INTERVALS };
+// 重新导出 REFRESH_INTERVALS 和 RefreshConfig 以便其他组件使用
+export { REFRESH_INTERVALS, RefreshConfig };
 
 // 刷新配置上下文
 interface RefreshConfigContextType {

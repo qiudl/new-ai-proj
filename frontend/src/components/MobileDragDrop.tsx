@@ -48,7 +48,7 @@ interface MobileDragDropProps {
   onDocumentMove?: (documentIds: number[], targetFolderId: number) => void;
   onFolderMove?: (folderId: number, targetFolderId: number) => void;
   onDocumentSelect?: (document: Document) => void;
-  onFolderSelect?: (folder: DocumentFolder) => void;
+  onFolderSelect?: (folder: DocumentFolder | null) => void;
   onUpload?: () => void;
   onSearch?: () => void;
   loading?: boolean;
@@ -533,7 +533,7 @@ const MobileDragDrop: React.FC<MobileDragDropProps> = ({
                 <Button
                   type="text"
                   icon={<ArrowLeftOutlined />}
-                  onClick={() => onFolderSelect?.(null as unknown)}
+                  onClick={() => onFolderSelect?.(null)}
                 />
               )}
               <Title level={5} style={{ margin: 0 }}>

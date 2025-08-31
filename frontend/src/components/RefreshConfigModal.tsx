@@ -270,7 +270,7 @@ export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
                     max={60} 
                     step={1}
                     formatter={value => `${value}秒`}
-                    parser={value => Number(value?.replace('秒', '') || 0) * 1000}
+                    parser={value => Math.min(60, Math.max(1, Number(value?.replace('秒', '') || 1))) as any}
                     style={{ width: '100%' }}
                   />
                 </Form.Item>
@@ -290,7 +290,7 @@ export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
                     max={30} 
                     step={1}
                     formatter={value => `${value}秒`}
-                    parser={value => Number(value?.replace('秒', '') || 0) * 1000}
+                    parser={value => Math.min(30, Math.max(1, Number(value?.replace('秒', '') || 1))) as any}
                     style={{ width: '100%' }}
                   />
                 </Form.Item>

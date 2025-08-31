@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, Tag, Typography, Input, Space, Badge, Empty, Spin, message, Button, Tooltip } from 'antd';
 import { CheckCircleOutlined, PlayCircleOutlined, PauseCircleOutlined, StopOutlined, UserOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
-import { Task } from '../types/task';
+import { Task, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
 import dayjs from 'dayjs';
 import '../styles/SwimlaneBoard.css';
@@ -153,14 +153,14 @@ const SwimlaneBoard: React.FC<SwimlaneBoardProps> = ({ projectId, tasks = [], lo
         const newStatus = String(laneKey);
         if (task.status === newStatus) return; // 无变更
         optimisticUpdate(taskId, { status: newStatus as any });
-        await TaskService.updateTask(projectId, taskId, { status: newStatus as unknown });
+        await TaskService.updateTask(projectId, taskId, { status: newStatus as TaskStatus });
         message.success('状态已更新');
       } else {
         // assignee 分组
         const newAssigneeId = laneKey === 'unassigned' ? null : Number(laneKey);
         if ((task.assignee_id || null) === (newAssigneeId || null)) return;
         optimisticUpdate(taskId, { assignee_id: newAssigneeId as any });
-        await TaskService.updateTask(projectId, taskId, { assignee_id: newAssigneeId as unknown });
+        await TaskService.updateTask(projectId, taskId, { assignee_id: newAssigneeId });
         message.success('负责人已更新');
       }
       onUpdated?.(taskId);

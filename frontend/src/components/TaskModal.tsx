@@ -16,7 +16,7 @@ import {
   Typography,
 } from 'antd';
 import { EditOutlined, FolderOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { Task, TaskRequest } from '../types/task';
+import { Task, TaskRequest, TaskStatus } from '../types/task';
 import { TaskService } from '../services/taskService';
 import { TaskParentSelectorModal } from './TaskParentSelectorModal';
 import TaskMarkdownEditor from './TaskMarkdownEditor';
@@ -124,7 +124,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
             title: task.parent_title,
             task_level: 0, // Will be updated by parent selector if needed
             project_id: projectId,
-            status: 'unknown', // Placeholder status
+            status: 'draft' as TaskStatus, // Placeholder status
             created_at: '',
             updated_at: '',
             description: '',
@@ -230,7 +230,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
           // 但允许创建，因为parent_id可能为null（根任务）
         }
         // 其他创建模式，如果指定了parent_id但没有parentTask，也要验证
-        else if (mode !== 'createSibling' && (!parentTask || !parentTask.project_id)) {
+        else if ((mode as string) !== 'createSibling' && (!parentTask || !parentTask.project_id)) {
           console.error('❌ [TaskModal] general create validation failed - parentTask:', parentTask);
           throw new Error('父任务信息无效，无法创建任务');
         }
@@ -250,13 +250,13 @@ const TaskModal: React.FC<TaskModalProps> = ({
           tags: values.tags ? values.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : [],
           estimated_hours: values.estimated_hours || undefined,
         },
-        // 新的时间管理字段
-        estimated_minutes: timeInput.estimatedMinutes || undefined,
-        time_unit_preference: timeInput.timeUnitPreference || 'auto',
-        work_hours_per_day: timeInput.workHoursPerDay || 8,
-        time_tracking_mode: timeInput.timeTrackingMode || 'manual',
-        start_datetime: timeInput.startDatetime || undefined,
-        due_datetime: timeInput.dueDatetime || undefined,
+        // 时间管理字段转换 - 这些字段在TaskRequest中不支持，需要在其他地方处理
+        // estimated_minutes: timeInput.estimatedMinutes || undefined,
+        // time_unit_preference: timeInput.timeUnitPreference || 'auto',
+        // work_hours_per_day: timeInput.workHoursPerDay || 8,
+        // time_tracking_mode: timeInput.timeTrackingMode || 'manual',
+        // start_datetime: timeInput.startDatetime || undefined,
+        // due_datetime: timeInput.dueDatetime || undefined,
       };
 
       await onOk(taskRequest);

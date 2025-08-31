@@ -79,7 +79,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
       .filter(item => item.is_visible && item.is_enabled)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(item => {
-        const menuItem: unknown = {
+        const menuItem: any = {
           key: item.key,
           label: item.label,
           icon: item.icon ? getIconElement(item.icon) : null,

@@ -143,6 +143,7 @@ services:
     volumes:
       # 代码挂载（支持热重载）- 排除node_modules  
       - ./mcp-task-bridge:/app:cached
+      - /app/node_modules
     command: ["npm", "run", "dev"]
     restart: unless-stopped
     networks:
