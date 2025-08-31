@@ -134,18 +134,15 @@ export class DocumentService extends BaseClient {
   // 检查任务是否有文档
   async hasTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
-      const response = await this.makeRequest('GET', `/mcp/has-task-document`, undefined, {
-        taskId: taskId,
-        projectId: projectId
-      });
+      const response = await this.makeRequest('GET', `/projects/${projectId}/tasks/${taskId}/documents/has`);
 
       if (response.success) {
         return {
           success: true,
           task_id: taskId,
           project_id: projectId,
-          has_document: response.data?.has_document || false,
-          message: response.data?.has_document 
+          has_document: response.data?.has_document || response.data || false,
+          message: (response.data?.has_document || response.data) 
             ? `✅ 任务 ${taskId} 已有关联文档` 
             : `📄 任务 ${taskId} 暂无关联文档`
         };

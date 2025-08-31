@@ -27,7 +27,7 @@ const AllFieldsTableGuide: React.FC<AllFieldsTableGuideProps> = ({ visible, onCl
             <div>✅ 高级筛选器和搜索功能</div>
             <div>✅ 个人视图配置保存和管理</div>
             <div>✅ Excel/CSV双格式导出</div>
-            <div>✅ WebSocket实时更新</div>
+            <div>✅ 自动刷新数据</div>
             <div>✅ 批量操作支持</div>
             <div>✅ 响应式设计</div>
           </Space>
@@ -185,24 +185,22 @@ const AllFieldsTableGuide: React.FC<AllFieldsTableGuideProps> = ({ visible, onCl
       title: '实时更新',
       content: (
         <div>
-          <Title level={4}>WebSocket实时更新</Title>
+          <Title level={4}>自动刷新数据</Title>
           <Paragraph>
-            实时更新功能让多用户协作更加顺畅：
+            自动刷新功能确保数据始终保持最新：
           </Paragraph>
           <Space direction="vertical" style={{ width: '100%' }}>
-            <div>🔄 <Text strong>实时同步：</Text> 其他用户的修改实时显示</div>
-            <div>🔔 <Text strong>智能通知：</Text> 可配置的变更通知提醒</div>
-            <div>⚡ <Text strong>自动重连：</Text> 网络断开时自动重新连接</div>
-            <div>⚙️ <Text strong>性能控制：</Text> 可调节自动刷新间隔</div>
-            <div>🛡️ <Text strong>冲突处理：</Text> 智能去重避免数据冲突</div>
+            <div>🔄 <Text strong>定时刷新：</Text> 可配置的自动刷新间隔</div>
+            <div>🔔 <Text strong>手动刷新：</Text> 随时手动更新数据</div>
+            <div>⚙️ <Text strong>性能控制：</Text> 可调节刷新频率</div>
+            <div>🛡️ <Text strong>缓存优化：</Text> 智能缓存减少不必要请求</div>
           </Space>
           <Paragraph style={{ marginTop: '16px' }}>
-            <Text strong>连接状态：</Text> 
+            <Text strong>刷新模式：</Text> 
             <Space>
-              <span>🟢 已连接</span>
-              <span>🟡 连接中</span>
-              <span>⚪ 离线模式</span>
-              <span>🔴 连接错误</span>
+              <span>🔄 自动刷新</span>
+              <span>✋ 手动刷新</span>
+              <span>⏸️ 暂停刷新</span>
             </Space>
           </Paragraph>
         </div>

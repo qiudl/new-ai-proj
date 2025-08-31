@@ -20,7 +20,7 @@ export class TimerService extends BaseClient {
         message: string;
         started_at: string;
         data: any;
-      }>('POST', '/mcp/start-timer', payload);
+      }>('POST', '/user/timer/start', payload);
 
       if (response.success && response.data) {
         const timerData: TimerData = {
@@ -69,7 +69,7 @@ export class TimerService extends BaseClient {
         duration_seconds: number;
         duration_formatted: string;
         message: string;
-      }>('POST', '/mcp/stop-timer', payload);
+      }>('POST', '/user/timer/stop', payload);
 
       if (response.success && response.data) {
         const timerData: TimerData = {
@@ -92,6 +92,14 @@ export class TimerService extends BaseClient {
           message: `⏹️ 任务 "${response.data.task_title}" 停止计时 (用时: ${response.data.duration_formatted})`
         };
       } else {
+        // Handle API error responses gracefully
+        if (response && !response.success) {
+          // Return the API error response as-is without additional wrapping
+          return {
+            success: false,
+            error: response.error || '停止计时失败'
+          } as ApiResponse<TimerData>;
+        }
         return response as ApiResponse<TimerData>;
       }
     } catch (error: any) {
@@ -116,7 +124,7 @@ export class TimerService extends BaseClient {
           description?: string;
         }>;
         message: string;
-      }>('GET', '/mcp/get-current-timer');
+      }>('GET', '/user/timer/current');
 
       if (response.success && response.data) {
         const activeTimers: TimerData[] = response.data.active_timers.map(timer => ({

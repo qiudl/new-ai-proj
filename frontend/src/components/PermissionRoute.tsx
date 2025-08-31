@@ -2,6 +2,7 @@ import React, { useState, useEffect, ReactNode } from 'react';
 import { Result, Spin } from 'antd';
 import { usePermissions } from '../hooks/usePermissions';
 import { userService } from '../services/userService';
+import TokenManager from '../utils/tokenManager';
 
 interface PermissionRouteProps {
   children: ReactNode;
@@ -40,8 +41,14 @@ const PermissionRoute: React.FC<PermissionRouteProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
-  // 获取当前用户ID
+  // 获取当前用户ID（优先从JWT解析，避免重复请求profile）
   useEffect(() => {
+    const idFromToken = TokenManager.getCurrentUserId();
+    if (idFromToken) {
+      setCurrentUserId(idFromToken);
+      return;
+    }
+
     const getCurrentUser = async () => {
       try {
         const response = await userService.getProfile();

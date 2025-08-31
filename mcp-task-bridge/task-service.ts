@@ -2,6 +2,32 @@ import { BaseClient } from './base-client.js';
 import { requiresPermission } from './permission-manager.js';
 import { Task, CreateTaskOptions, SubTaskData, UpdateTaskData, ApiResponse } from './types.js';
 
+// 列出任务的查询参数
+export interface ListTasksParams {
+  projectId?: number;
+  page?: number;
+  limit?: number;
+  status?: string[];
+  priority?: string[];
+  search?: string;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+}
+
+// 分页响应格式
+export interface PaginatedTaskResponse {
+  tasks: Task[];
+  total: number;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 export class TaskService extends BaseClient {
   
   // 通过ID查找任务
@@ -294,39 +320,93 @@ export class TaskService extends BaseClient {
   }
 
   // 列出任务
-  async listTasks(projectId?: number): Promise<ApiResponse<{ tasks: Task[]; total: number }>> {
+  async listTasks(params?: ListTasksParams): Promise<ApiResponse<PaginatedTaskResponse>> {
     try {
-      let url = '/tasks';
-      let params: any = { page: 1, page_size: 1000 };
+      // 设置默认参数
+      const page = params?.page || 1;
+      const limit = Math.min(params?.limit || 20, 100); // 限制最大100
+      const sort_by = params?.sort_by || 'updated_at';
+      const sort_order = params?.sort_order || 'desc';
       
-      if (projectId) {
-        url = `/projects/${projectId}/tasks`;
+      let url = '/tasks';
+      let queryParams: any = {
+        page: page,
+        page_size: limit,
+        sort_by: sort_by,
+        sort_order: sort_order
+      };
+
+      // 项目ID过滤
+      if (params?.projectId) {
+        url = `/projects/${params.projectId}/tasks`;
       }
 
-      const response = await this.makeRequest<{ data: Task[]; total?: number; pagination?: any }>(
+      // 状态过滤
+      if (params?.status && params.status.length > 0) {
+        queryParams.status = params.status.join(',');
+      }
+
+      // 优先级过滤
+      if (params?.priority && params.priority.length > 0) {
+        queryParams.priority = params.priority.join(',');
+      }
+
+      // 搜索关键词
+      if (params?.search) {
+        queryParams.search = params.search;
+      }
+
+      const response = await this.makeRequest<{ 
+        data: Task[]; 
+        total?: number; 
+        pagination?: any;
+        count?: number;
+      }>(
         'GET', 
         url, 
         undefined, 
-        params
+        queryParams
       );
 
       if (response.success && response.data) {
         const tasks = response.data.data || [];
-        const total = response.data.total || response.data.pagination?.total || tasks.length;
+        const total = response.data.total || response.data.count || response.data.pagination?.total || tasks.length;
+        
+        // 计算分页信息
+        const totalPages = Math.ceil(total / limit);
+        const pagination = {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        };
+
+        const result: PaginatedTaskResponse = {
+          tasks,
+          total,
+          pagination
+        };
         
         return {
           success: true,
-          data: { tasks, total },
+          data: result,
           total: total,
-          message: `📋 获取到 ${tasks.length} 个任务${projectId ? `（项目ID: ${projectId}）` : ''}`
+          message: `📋 获取到 ${tasks.length}/${total} 个任务 (第${page}/${totalPages}页)${params?.projectId ? ` - 项目${params.projectId}` : ''}${params?.status ? ` - 状态: ${params.status.join(',')}` : ''}${params?.search ? ` - 搜索: "${params.search}"` : ''}`
         };
       } else {
-        return response as ApiResponse<{ tasks: Task[]; total: number }>;
+        return {
+          success: false,
+          error: response.error || '获取任务列表失败',
+          data: { tasks: [], total: 0, pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } }
+        } as ApiResponse<PaginatedTaskResponse>;
       }
     } catch (error: any) {
       return {
         success: false,
-        error: `获取任务列表失败: ${error.message || error}`
+        error: `获取任务列表失败: ${error.message || error}`,
+        data: { tasks: [], total: 0, pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrev: false } }
       };
     }
   }

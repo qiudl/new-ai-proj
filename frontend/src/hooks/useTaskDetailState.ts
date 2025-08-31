@@ -189,11 +189,15 @@ export const useTaskDetailState = () => {
   }, []);
 
   const updateUIState = useCallback((updates: Partial<UIState>) => {
+    console.log('updateUIState called with:', updates);
     setUIState(prev => {
+      console.log('Previous state:', prev);
       const hasChanges = Object.keys(updates).some(key => 
         prev[key as keyof UIState] !== updates[key as keyof UIState]
       );
-      return hasChanges ? { ...prev, ...updates } : prev;
+      const newState = hasChanges ? { ...prev, ...updates } : prev;
+      console.log('New state:', newState, 'hasChanges:', hasChanges);
+      return newState;
     });
   }, []);
 

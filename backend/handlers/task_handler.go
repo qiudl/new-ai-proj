@@ -841,14 +841,14 @@ func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
 	}
 
 	// Verify task exists and user has access
-	task, err := h.taskRepo.GetByID(c.Request.Context(), taskID)
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
 		return
 	}
 
 	// Get task timeline events
-	events, total, err := h.taskRepo.GetTaskTimeline(c.Request.Context(), taskID, limit, offset)
+	events, total, err := h.db.Tasks().GetTaskTimeline(c.Request.Context(), taskID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务时间线失败", err.Error()))
 		return
@@ -949,8 +949,8 @@ func (h *TaskHandler) stopUnifiedTimersForTask(ctx context.Context, taskID int) 
 
 	// Instantiate unified timer service to leverage existing stop logic
 	inference := services.NewTypeInferenceEngine(sqlDB)
-	notif := services.NewNotificationService()
-	svc := services.NewUnifiedTimerService(sqlDB, inference, notif)
+	// notif := services.NewNotificationService() // Temporarily disabled
+	svc := services.NewUnifiedTimerService(sqlDB, inference)
 
 	for _, t := range timers {
 		if _, err := svc.StopTimerByID(ctx, t.userID, t.id, "Auto-stopped due to task completion"); err != nil {

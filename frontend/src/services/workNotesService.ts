@@ -29,6 +29,8 @@ export interface WorkNote {
   owner_name?: string;
   folder_name?: string;
   relations?: any[];
+  related_tasks?: number[];
+  related_notes?: number[];
 }
 
 export interface CreateWorkNoteRequest {
@@ -242,15 +244,21 @@ class WorkNotesService {
   }
 
   // 列出工作笔记
-  async listWorkNotes(folderId?: number): Promise<WorkNotesListResponse> {
+  async listWorkNotes(folderId?: number, page?: number, limit?: number): Promise<WorkNotesListResponse> {
     try {
       const params = new URLSearchParams();
       if (folderId !== undefined) {
         params.append('folder_id', folderId.toString());
       }
+      if (page !== undefined) {
+        params.append('page', page.toString());
+      }
+      if (limit !== undefined) {
+        params.append('limit', limit.toString());
+      }
 
       const headers = await this.getAuthHeaders();
-      const response = await axios.get<APIResponse<WorkNotesListResponse>>(
+      const response = await axios.get<APIResponse<{notes: WorkNote[], pagination: any}>>(
         `${API_BASE_URL}/work-notes?${params}`,
         { headers }
       );
@@ -259,7 +267,14 @@ class WorkNotesService {
         throw new Error(response.data.message || 'Failed to list work notes');
       }
       
-      return response.data.data;
+      // 适配后端返回格式 {notes: [], pagination: {}} 到前端期望格式 {documents: [], total: number}
+      const backendData = response.data.data;
+      return {
+        documents: backendData.notes || [],
+        total: backendData.pagination?.total || backendData.notes?.length || 0,
+        page: backendData.pagination?.page || 1,
+        page_size: backendData.pagination?.page_size || 20
+      };
     } catch (error: any) {
       console.error('Error listing work notes:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to list work notes');

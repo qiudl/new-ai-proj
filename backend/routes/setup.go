@@ -2,8 +2,8 @@ package routes
 
 import (
 	"ai-project-backend/config"
+	"database/sql"
 	"fmt"
-	"os"
 	"github.com/gin-gonic/gin"
 	promhttp "github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -39,8 +39,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// Prometheus metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// 静态API文档挂载（/docs）
-	mountDocs(router)
+	// 注册WebSocket路由（在静态文件之前） - 已注释
+	// RegisterWebSocketRoutes(router, app)
+
 	
 	// API routes with authentication
 	api := router.Group("/api/v1")
@@ -91,6 +92,14 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册文档管理路由（包含工作笔记路由）
 	RegisterDocumentRoutes(authorized, app)
 	
+	// 注册修复的任务文档路由（优先级更高，会覆盖之前的路由）
+	// 获取数据库连接用于修复
+	if dbProvider, ok := app.(interface{ GetDB() interface{} }); ok {
+		if sqlDB, ok := dbProvider.GetDB().(*sql.DB); ok {
+			RegisterTaskDocumentFixRoutes(authorized, sqlDB)
+		}
+	}
+	
 	// 注册简化的API路由
 	RegisterAPIRoutes(router, authorized, app)
 
@@ -98,21 +107,6 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	RegisterDocumentHealthRoute(router, app)
 }
 
-// mountDocs 尝试挂载静态OpenAPI文档到 /docs
-func mountDocs(router *gin.Engine) {
-	candidates := []string{
-		"../docs/api",      // when running from backend/
-		"../../docs/api",   // when running from backend subdir
-		"./docs/api",       // when running from project root
-	}
-	for _, dir := range candidates {
-		if st, err := os.Stat(dir); err == nil && st.IsDir() {
-			// 静态挂载 /docs，包含 openapi.yaml 在内的所有静态资源
-			router.Static("/docs", dir)
-			return
-		}
-	}
-}
 
 // corsMiddleware CORS中间件
 func corsMiddleware(cfg *config.Config) gin.HandlerFunc {

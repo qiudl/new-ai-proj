@@ -836,9 +836,9 @@ const mergedRaw = { ...(params || {}) } as any;
       // 检查多种可能的成功标识
       const isSuccess = 
         (response as any)?.success === true ||
-        responseData?.success === true ||
-        (responseData?.updated_count !== undefined) ||
-        (responseData?.UpdatedCount !== undefined);
+        (responseData as any)?.success === true ||
+        ((responseData as any)?.updated_count !== undefined) ||
+        ((responseData as any)?.UpdatedCount !== undefined);
       
       if (!isSuccess) {
         throw new Error(responseData?.message || (response as any)?.error?.message || 'Failed to batch update tasks');
@@ -846,9 +846,9 @@ const mergedRaw = { ...(params || {}) } as any;
       
       // 标准化返回格式，处理大小写不一致问题
       const result = {
-        updated_count: responseData?.updated_count || responseData?.UpdatedCount || 0,
-        failed_tasks: responseData?.failed_tasks || responseData?.FailedTasks || [],
-        message: responseData?.message || 'Batch update completed successfully'
+        updated_count: (responseData as any)?.updated_count || (responseData as any)?.UpdatedCount || 0,
+        failed_tasks: (responseData as any)?.failed_tasks || (responseData as any)?.FailedTasks || [],
+        message: (responseData as any)?.message || 'Batch update completed successfully'
       };
       
       

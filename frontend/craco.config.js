@@ -74,12 +74,30 @@ module.exports = {
       disableDotRule: true,
       index: '/index.html'
     },
-    watchOptions: {
-      poll: true,
-      ignored: /node_modules/
+    watchFiles: {
+      paths: ['src/**/*'],
+      options: {
+        usePolling: true,
+        ignored: /node_modules/
+      }
     },
     client: {
-      webSocketURL: 'ws://localhost/ws'
+      webSocketURL: 'ws://localhost:3000/ws'
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+        logLevel: 'debug'
+      },
+      '/ws': {
+        target: 'ws://localhost:8081',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+        logLevel: 'debug'
+      }
     }
   }
 };

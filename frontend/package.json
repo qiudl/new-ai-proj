@@ -63,11 +63,11 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "start:craco": "craco start",
-    "build:craco": "craco build",
+    "start": "craco start",
+    "build": "craco build", 
+    "test": "craco test",
+    "start:legacy": "react-scripts start",
+    "build:legacy": "react-scripts build",
     "eject": "react-scripts eject",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
     "lint:fix": "eslint src --ext .js,.jsx,.ts,.tsx --fix",

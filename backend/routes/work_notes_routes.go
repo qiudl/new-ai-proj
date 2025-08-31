@@ -22,6 +22,11 @@ func RegisterWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		
 		// 工作笔记统计
 		workNotes.GET("/stats", workNotesHandler.GetWorkNoteStats)
+		
+		// 工作笔记转换功能
+		workNotes.POST("/:id/convert-preview", workNotesHandler.GetConversionPreview)
+		workNotes.POST("/:id/convert-to-task-document", workNotesHandler.ConvertToTaskDocument)
+		workNotes.POST("/batch-convert-to-task-documents", workNotesHandler.BatchConvertToTaskDocuments)
 	}
 	
 	println("[DEBUG] Work notes routes registered successfully (full implementation)")

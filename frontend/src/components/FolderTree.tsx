@@ -21,7 +21,7 @@ import {
   FileTextOutlined
 } from '@ant-design/icons';
 import type { DataNode, TreeProps } from 'antd/es/tree';
-import { DocumentFolder, CreateFolderRequest, UpdateFolderRequest } from '../types/legacy';
+import { documentFolderService, type DocumentFolder, type CreateDocumentFolderRequest, type UpdateDocumentFolderRequest } from '../services/documentFolderService';
 
 // Local interface for folders with extended properties
 interface FolderWithExtras extends DocumentFolder {
@@ -78,67 +78,16 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     
     setLoading(true);
     try {
-      // 模拟API调用，实际项目中需要实现后端接口
-      const mockFolders: FolderWithExtras[] = [
-        {
-          id: 1,
-          name: '项目文档',
-          project_id: projectId,
-          path: '/项目文档',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          document_count: 5,
-          children: [
-            {
-              id: 2,
-              name: '需求分析',
-              parent_id: 1,
-              project_id: projectId,
-              path: '/项目文档/需求分析',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              document_count: 3
-            },
-            {
-              id: 3,
-              name: '技术方案',
-              parent_id: 1,
-              project_id: projectId,
-              path: '/项目文档/技术方案',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              document_count: 2
-            }
-          ]
-        },
-        {
-          id: 4,
-          name: '设计文档',
-          project_id: projectId,
-          path: '/设计文档',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          document_count: 8,
-          children: [
-            {
-              id: 5,
-              name: 'UI设计',
-              parent_id: 4,
-              project_id: projectId,
-              path: '/设计文档/UI设计',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              document_count: 4
-            }
-          ]
-        }
-      ];
-      
-      setFolders(mockFolders);
-      buildTreeData(mockFolders);
-    } catch (error) {
+      // 调用真实API获取文件夹树
+      const data = await documentFolderService.getFolderTree();
+      const folders = (data && (data as any).tree) ? (data as any).tree as DocumentFolder[] : [];
+      setFolders(folders);
+      buildTreeData(folders as any);
+    } catch (error: any) {
       console.error('Failed to load folders:', error);
-      message.error('加载文件夹失败');
+      message.error(error?.message || '加载文件夹失败');
+      setFolders([]);
+      setTreeData([]);
     } finally {
       setLoading(false);
     }
@@ -148,12 +97,12 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const buildTreeData = (folderList: DocumentFolder[]) => {
     const treeNodes: TreeNodeData[] = [];
     
-    const buildNode = (folder: FolderWithExtras): TreeNodeData => ({
+    const buildNode = (folder: any): TreeNodeData => ({
       key: folder.id,
       id: folder.id,
-      parentId: folder.parent_id,
-      path: folder.path,
-      documentCount: folder.document_count,
+      parentId: folder.parent_folder_id ?? folder.parent_id,
+      path: folder.path || `/${folder.name}`,
+      documentCount: folder.documents_count ?? folder.document_count ?? 0,
       title: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
@@ -204,9 +153,9 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       isLeaf: !folder.children || folder.children.length === 0
     });
 
-    folderList.forEach(folder => {
-      if (!folder.parent_id) {
-        treeNodes.push(buildNode(folder as FolderWithExtras));
+    folderList.forEach((folder: any) => {
+      if (!folder.parent_folder_id && !folder.parent_id) {
+        treeNodes.push(buildNode(folder));
       }
     });
 
@@ -215,7 +164,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       key: 'root',
       id: 0,
       path: '/',
-      documentCount: folderList.reduce((sum, f) => sum + ((f as unknown).document_count || 0), 0),
+      documentCount: (folderList as any[]).reduce((sum, f: any) => sum + (f.documents_count ?? f.document_count ?? 0), 0),
       title: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
@@ -296,7 +245,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   };
 
   // 删除文件夹
-  const handleDeleteFolder = (folder: FolderWithExtras) => {
+  const handleDeleteFolder = (folder: any) => {
     if (folder.document_count > 0) {
       message.warning('文件夹内有文档，无法删除');
       return;
@@ -310,7 +259,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 模拟删除API调用
+          // 调用真实API删除文件夹
+          await documentFolderService.deleteFolder(folder.id);
           message.success('文件夹已删除');
           loadFolders();
           onFolderChange?.();
@@ -326,15 +276,14 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const handleConfirmCreate = async () => {
     try {
       const values = await form.validateFields();
-      const request: CreateFolderRequest = {
+      const request: CreateDocumentFolderRequest = {
         name: values.name,
-        parent_id: parentFolderId,
-        project_id: projectId!
+        parent_folder_id: parentFolderId,
+        visibility: 'private' // 默认私有
       };
 
-      // 模拟创建API调用
+      await documentFolderService.createFolder(request);
       message.success('文件夹创建成功');
-      
       setCreateModalVisible(false);
       loadFolders();
       onFolderChange?.();
@@ -350,13 +299,12 @@ const FolderTree: React.FC<FolderTreeProps> = ({
 
     try {
       const values = await form.validateFields();
-      const request: UpdateFolderRequest = {
+      const request: UpdateDocumentFolderRequest = {
         name: values.name
       };
 
-      // 模拟更新API调用
+      await documentFolderService.updateFolder(currentFolder.id, request);
       message.success('文件夹重命名成功');
-      
       setEditModalVisible(false);
       setCurrentFolder(null);
       loadFolders();
@@ -376,6 +324,29 @@ const FolderTree: React.FC<FolderTreeProps> = ({
         expandedKeys={expandedKeys}
         onSelect={handleSelect}
         onExpand={handleExpand}
+        draggable={{ icon: false }}
+        onDrop={async (info) => {
+          try {
+            const dragNode = info.dragNode as unknown as TreeNodeData;
+            const dropNode = info.node as unknown as TreeNodeData;
+            let newParentId: number | undefined;
+            if (info.dropToGap) {
+              // 放在节点间隙：归到目标节点的父级
+              newParentId = dropNode.id === 0 ? undefined : (dropNode.parentId as number | undefined);
+            } else {
+              // 放在节点上：成为其子级
+              newParentId = dropNode.id === 0 ? undefined : dropNode.id;
+            }
+            await documentFolderService.moveFolder(dragNode.id, { parent_folder_id: newParentId, sort_order: 0 });
+            // 可选：后续根据新父级的 children 顺序，调用 batchUpdateFolders 调整 sort_order
+            await loadFolders();
+            onFolderChange?.();
+            message.success('文件夹已移动');
+          } catch (e: any) {
+            console.error(e);
+            message.error(e?.message || '移动失败');
+          }
+        }}
         showIcon
         height={height}
         style={{

@@ -280,6 +280,8 @@ type DocumentRepository interface {
 }
 
 // DocumentFolderRepository defines the interface for document folder database operations
+// Temporarily disabled due to model conflicts
+/*
 type DocumentFolderRepository interface {
 	// Basic CRUD operations
 	Create(ctx context.Context, folder *models.CreateDocumentFolderRequest, userID int) (*models.DocumentFolder, error)
@@ -310,6 +312,7 @@ type DocumentFolderRepository interface {
 	GetFolderStats(ctx context.Context, userID int) (map[string]interface{}, error)
 	GetRecentlyUpdatedFolders(ctx context.Context, userID int, limit int) ([]*models.DocumentFolder, error)
 }
+*/
 
 // DocumentRelationRepository defines the interface for document relation database operations
 type DocumentRelationRepository interface {
@@ -464,7 +467,7 @@ type DB interface {
 	Audit() AuditRepository
 	APIKeys() APIKeyRepository // API key management
 	Documents() DocumentRepository
-	DocumentFolders() DocumentFolderRepository
+	// DocumentFolders() DocumentFolderRepository // Temporarily disabled
 	DocumentRelations() DocumentRelationRepository
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository
@@ -497,7 +500,7 @@ type Tx interface {
 	Audit() AuditRepository
 	APIKeys() APIKeyRepository
 	Documents() DocumentRepository
-	DocumentFolders() DocumentFolderRepository
+	// DocumentFolders() DocumentFolderRepository // Temporarily disabled
 	DocumentRelations() DocumentRelationRepository
 	DocumentPermissions() DocumentPermissionRepository
 	DocumentVersions() DocumentVersionRepository

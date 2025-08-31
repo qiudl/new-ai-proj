@@ -103,14 +103,10 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 			})			
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{
-				// 获取任务的所有文档 - 占位符
-				taskDocuments.GET("", func(c *gin.Context) {
-					c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Get task documents coming soon"})
-				})
-				// 检查是否存在文档 - 占位符
-				taskDocuments.GET("/has", func(c *gin.Context) {
-					c.JSON(200, gin.H{"success": true, "data": false})
-				})
+				// 获取任务的所有文档
+				taskDocuments.GET("", app.GetDocumentHandler().GetTaskDocuments)
+				// 检查是否存在文档
+				taskDocuments.GET("/has", app.GetDocumentHandler().HasTaskDocument)
 				taskDocuments.GET("/list", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 				})
@@ -250,18 +246,33 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 	}
 }
 // registerDocumentFolderRoutes 注册文档文件夹管理路由
+// registerDocumentFolderRoutes 注册文档文件夹路由
 func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	// 添加调试日志
+	println("DEBUG: registerDocumentFolderRoutes called")
+
+	// Try to get folder handler; it may be unavailable if DB is not *gorm.DB
+	h := app.GetHybridDocumentFolderHandler()
+	if h == nil {
+		println("WARN: HybridDocumentFolderHandler unavailable; skipping /document-folders routes")
+		// Provide a minimal stub to make it explicit in dev builds
+		authorized.GET("/document-folders", func(c *gin.Context) {
+			c.JSON(503, gin.H{"success": false, "message": "Document folder API disabled in this build"})
+		})
+		return
+	}
+	
 	documentFolders := authorized.Group("/document-folders")
 	{
 		// 使用现有的HybridDocumentFolderHandler方法
-		documentFolders.POST("", app.GetHybridDocumentFolderHandler().CreateFolder)
-		documentFolders.GET("", app.GetHybridDocumentFolderHandler().ListFolders)
-		documentFolders.GET("/tree", app.GetHybridDocumentFolderHandler().GetFolderTree)
-		documentFolders.GET("/:id", app.GetHybridDocumentFolderHandler().GetFolder)
-		documentFolders.PUT("/:id", app.GetHybridDocumentFolderHandler().UpdateFolder)
-		documentFolders.DELETE("/:id", app.GetHybridDocumentFolderHandler().DeleteFolder)
-		documentFolders.POST("/:id/move", app.GetHybridDocumentFolderHandler().MoveFolder)
-		documentFolders.POST("/batch-update", app.GetHybridDocumentFolderHandler().BatchUpdateFolders)
+		documentFolders.POST("", h.CreateFolder)
+		documentFolders.GET("", h.ListFolders)
+		documentFolders.GET("/tree", h.GetFolderTree)
+		documentFolders.GET("/:id", h.GetFolder)
+		documentFolders.PUT("/:id", h.UpdateFolder)
+		documentFolders.DELETE("/:id", h.DeleteFolder)
+		documentFolders.POST("/:id/move", h.MoveFolder)
+		documentFolders.POST("/batch-update", h.BatchUpdateFolders)
 		
 		// 文件夹内文档管理 - 使用基础的DocumentHandler
 		documentFolders.GET("/:id/documents", func(c *gin.Context) {

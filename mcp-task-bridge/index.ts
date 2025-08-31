@@ -120,6 +120,51 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             projectId: { 
               type: 'number', 
               description: '项目ID（可选，不指定则显示所有任务）' 
+            },
+            page: {
+              type: 'number',
+              description: '页码，从1开始，默认1',
+              default: 1,
+              minimum: 1
+            },
+            limit: {
+              type: 'number', 
+              description: '每页数量，默认20，最大100',
+              default: 20,
+              minimum: 1,
+              maximum: 100
+            },
+            status: {
+              type: 'array',
+              description: '过滤任务状态',
+              items: {
+                type: 'string',
+                enum: ['draft', 'planning', 'todo', 'in_progress', 'testing', 'completed', 'cancelled', 'on_hold', 'suspended', 'blocked', 'archived']
+              }
+            },
+            priority: {
+              type: 'array',
+              description: '过滤优先级',
+              items: {
+                type: 'string',
+                enum: ['low', 'medium', 'high']
+              }
+            },
+            search: {
+              type: 'string',
+              description: '搜索关键词（任务标题或描述）'
+            },
+            sort_by: {
+              type: 'string',
+              description: '排序字段',
+              enum: ['created_at', 'updated_at', 'due_date', 'priority', 'title'],
+              default: 'updated_at'
+            },
+            sort_order: {
+              type: 'string',
+              description: '排序方向',
+              enum: ['asc', 'desc'],
+              default: 'desc'
             }
           }
         }
@@ -946,7 +991,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       
       case 'list_tasks':
-        result = await taskServer.listTasks(args.projectId as number);
+        result = await taskServer.listTasks({
+          projectId: args.projectId as number,
+          page: args.page as number || 1,
+          limit: args.limit as number || 20,
+          status: args.status as string[],
+          priority: args.priority as string[],
+          search: args.search as string,
+          sort_by: args.sort_by as string || 'updated_at',
+          sort_order: (args.sort_order as 'asc' | 'desc') || 'desc'
+        });
         break;
       
       case 'create_subtask':

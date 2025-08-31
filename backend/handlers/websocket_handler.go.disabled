@@ -1,0 +1,182 @@
+package handlers
+
+import (
+	"ai-project-backend/database"
+	"ai-project-backend/middleware"
+	"ai-project-backend/services"
+	ws "ai-project-backend/websocket"
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	// "github.com/gorilla/websocket"
+)
+
+// WebSocketHandler handles WebSocket connections
+type WebSocketHandler struct {
+	hub             *ws.Hub
+	db              database.DB
+	progressService *services.ProgressService
+	progressPusher  *services.ProgressPusher
+	logger          *log.Logger
+	// upgrader        websocket.Upgrader
+}
+
+// NewWebSocketHandler creates a new WebSocket handler
+func NewWebSocketHandler(
+	hub *ws.Hub,
+	db database.DB,
+	progressService *services.ProgressService,
+	progressPusher *services.ProgressPusher,
+	logger *log.Logger,
+) *WebSocketHandler {
+	return &WebSocketHandler{
+		hub:             hub,
+		db:              db,
+		progressService: progressService,
+		progressPusher:  progressPusher,
+		logger:          logger,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				origin := r.Header.Get("Origin")
+				
+				// 开发环境允许所有来源
+				if os.Getenv("APP_ENV") == "development" || os.Getenv("APP_ENV") == "dev" {
+					return true
+				}
+				
+				// 生产环境严格检查来源
+				allowedOrigins := []string{
+					"https://yourdomain.com",
+					"https://www.yourdomain.com",
+					"http://localhost:3000", // 本地开发
+					"http://127.0.0.1:3000", // 本地开发
+				}
+				
+				for _, allowed := range allowedOrigins {
+					if origin == allowed {
+						return true
+					}
+				}
+				
+				// 记录被拒绝的来源
+				log.Printf("WebSocket connection rejected from origin: %s", origin)
+				return false
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+	}
+}
+
+// HandleWebSocket handles WebSocket upgrade and connection
+func (h *WebSocketHandler) HandleWebSocket(c *gin.Context) {
+	// Temporary placeholder - WebSocket functionality disabled due to dependency issues
+	c.JSON(http.StatusServiceUnavailable, gin.H{
+		"success": false,
+		"message": "WebSocket service temporarily unavailable",
+	})
+}
+
+// handleAuthentication handles authentication message from client
+func (h *WebSocketHandler) handleAuthentication(client *ws.Client, message []byte) bool {
+	var authMsg struct {
+		Action string `json:"action"`
+		Token  string `json:"token"`
+	}
+	
+	if err := json.Unmarshal(message, &authMsg); err != nil {
+		h.logger.Printf("Failed to parse auth message: %v", err)
+		h.sendAuthResponse(client, false, "Invalid authentication message")
+		return false
+	}
+	
+	if authMsg.Action != "auth" {
+		h.sendAuthResponse(client, false, "First message must be authentication")
+		return false
+	}
+	
+	// Validate token
+	if authMsg.Token == "" {
+		h.sendAuthResponse(client, false, "Token is required")
+		return false
+	}
+	
+	// Verify token and get user ID
+	claims, err := middleware.ValidateToken(authMsg.Token)
+	if err != nil {
+		h.logger.Printf("Token validation failed: %v", err)
+		h.sendAuthResponse(client, false, "Invalid or expired token")
+		return false
+	}
+	
+	// Extract user ID from claims
+	userID := 1 // Default user ID
+	if claims.UserID != "" {
+		if parsedUserID, parseErr := strconv.Atoi(claims.UserID); parseErr == nil {
+			userID = parsedUserID
+		}
+	}
+	
+	// Update client with authenticated user ID
+	client.SetUserID(userID)
+	client.SetAuthenticated(true)
+	
+	h.logger.Printf("WebSocket client authenticated: userID=%d", userID)
+	h.sendAuthResponse(client, true, "Authentication successful")
+	
+	// Send initial connection success message
+	h.sendConnectionSuccess(client)
+	
+	return true
+}
+
+// sendAuthResponse sends authentication response to client
+func (h *WebSocketHandler) sendAuthResponse(client *ws.Client, success bool, message string) {
+	response := map[string]interface{}{
+		"type":    "auth_success",
+		"message": message,
+	}
+	
+	if !success {
+		response["type"] = "auth_failed"
+	}
+	
+	data, _ := json.Marshal(response)
+	client.Send(data)
+}
+
+// sendConnectionSuccess sends connection success message
+func (h *WebSocketHandler) sendConnectionSuccess(client *ws.Client) {
+	response := map[string]interface{}{
+		"type":    "connected",
+		"message": "WebSocket connected successfully",
+		"time":    time.Now().UTC().Format(time.RFC3339),
+	}
+	
+	data, _ := json.Marshal(response)
+	client.Send(data)
+}
+
+// Simple version without external dependencies - for compilation
+func NewWebSocketHandler(hub *ws.Hub, logger *log.Logger) *WebSocketHandler {
+	return &WebSocketHandler{
+		hub:    hub,
+		logger: logger,
+		upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				// Development mode allows all origins
+				if os.Getenv("APP_ENV") == "development" || os.Getenv("APP_ENV") == "dev" {
+					return true
+				}
+				return false
+			},
+			ReadBufferSize:  1024,
+			WriteBufferSize: 1024,
+		},
+	}
+}

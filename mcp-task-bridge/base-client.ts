@@ -21,7 +21,7 @@ export abstract class BaseClient {
       this.authToken,
       {
         enablePermissionCheck: process.env.MCP_ENABLE_PERMISSIONS !== 'false', // 默认启用
-        enableLogging: process.env.MCP_DEBUG === 'true', // 默认关闭
+        // enableLogging: process.env.MCP_DEBUG === 'true', // 默认关闭
         cacheTimeout: parseInt(process.env.MCP_CACHE_TIMEOUT || '300') // 默认5分钟
       }
     );
@@ -39,7 +39,7 @@ export abstract class BaseClient {
     return headers;
   }
 
-  protected async makeRequest<T = any>(
+  public async makeRequest<T = any>(
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
     url: string,
     data?: any,
@@ -52,7 +52,7 @@ export abstract class BaseClient {
         headers: this.getHeaders(),
         data,
         params,
-        proxy: false
+        // proxy: false
       };
 
       const response: AxiosResponse = await axios(config);

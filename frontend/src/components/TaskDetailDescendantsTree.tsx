@@ -42,19 +42,25 @@ const getStatusConfig = (status: string) => {
 export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTaskId, limit = 200 }) => {
   const navigate = useNavigate();
   
-  // 尝试获取刷新配置
-  let refreshConfig = null;
-  try {
-    refreshConfig = useRefreshConfig?.()?.config;
-  } catch {
-    // 如果不在Provider内，使用默认配置
-  }
+  // 获取刷新配置（位于 RefreshConfigProvider 内，因此可直接读取）
+  const { config: refreshConfig } = useRefreshConfig();
   const [childrenByParent, setChildrenByParent] = React.useState<Map<number, Node[]>>(new Map());
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
   const [loadingById, setLoadingById] = React.useState<Record<number, boolean>>({});
   const [errorById, setErrorById] = React.useState<Record<number, string | undefined>>({});
   const [initialLoading, setInitialLoading] = React.useState<boolean>(false);
   const [initialError, setInitialError] = React.useState<string | null>(null);
+  
+  // 使用 useRef 来存储是否已经初始化，避免重复初始化
+  const isInitializedRef = React.useRef(false);
+
+  // Memoize context to avoid recreating a new object each render, which would retrigger auto-refresh effects
+  const autoRefreshContext = React.useMemo(() => ({
+    component: 'TaskDetailDescendantsTree',
+    section: 'taskTree',
+    rootTaskId,
+    projectId
+  }), [rootTaskId, projectId]);
 
   const setNodeLoading = (id: number, val: boolean) => setLoadingById(prev => ({ ...prev, [id]: val }));
   const setNodeError = (id: number, msg?: string) => setErrorById(prev => ({ ...prev, [id]: msg }));
@@ -102,12 +108,7 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
       retryInterval: refreshConfig?.retryInterval ?? 5000,
       enableCache: true,
       cacheKey: `task_tree_${projectId}_${rootTaskId}_${limit}`,
-      context: {
-        component: 'TaskDetailDescendantsTree',
-        section: 'taskTree',
-        rootTaskId,
-        projectId
-      }
+      context: autoRefreshContext
     }
   );
 
@@ -142,13 +143,21 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     };
   }, [cleanupTree]);
 
-  // initial load root children
+  // initial load root children - 使用 ref 确保只初始化一次
   React.useEffect(() => {
+    // 如果已经初始化过，且 projectId、rootTaskId、limit 没有真正变化，则跳过
+    if (isInitializedRef.current) {
+      return;
+    }
+    
     let mounted = true;
+    isInitializedRef.current = true;
+    
     setChildrenByParent(new Map());
     setExpanded(new Set());
     setInitialLoading(true);
     setInitialError(null);
+    
     (async () => {
       try {
         const json = await fetchTaskDescendants(projectId, rootTaskId, { depth: 1, limit });
@@ -164,8 +173,16 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
         setInitialLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    
+    return () => { 
+      mounted = false;
+    };
   }, [projectId, rootTaskId, limit, sortNodes]);
+  
+  // 当关键参数变化时，重置初始化标志
+  React.useEffect(() => {
+    isInitializedRef.current = false;
+  }, [projectId, rootTaskId]);
 
   const toggleExpand = async (node: Node) => {
     const isExpanded = expanded.has(node.id);

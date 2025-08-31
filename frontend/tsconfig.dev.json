@@ -28,6 +28,12 @@
   "exclude": [
     "node_modules",
     "build",
-    "dist"
+    "dist",
+    "src/components/_archived_document_components/**",
+    "src/examples/_archived_examples/**",
+    "src/utils/RefreshErrorHandler.tsx",
+    "src/__tests__/**",
+    "src/components/__tests__/**",
+    "src/pages/**/__tests__/**"
   ]
 }

@@ -5,7 +5,7 @@ import { useRefreshConfig } from '../contexts/RefreshConfigContext';
 // 定时器管理器 - 防止定时器泄漏
 class TimerManager {
   private timers = new Set<NodeJS.Timeout>();
-  private intervalTimers = new Set<NodeJS.Timer>();
+  private intervalTimers = new Set<NodeJS.Timeout>();
   
   createTimer(callback: () => void, delay: number): NodeJS.Timeout {
     const timer = setTimeout(() => {
@@ -18,7 +18,7 @@ class TimerManager {
     return timer;
   }
   
-  createInterval(callback: () => void, delay: number): NodeJS.Timer {
+  createInterval(callback: () => void, delay: number): NodeJS.Timeout {
     const timer = setInterval(callback, delay);
     this.intervalTimers.add(timer);
     updateActiveTimersCount(this.getActiveCount());
@@ -33,7 +33,7 @@ class TimerManager {
     }
   }
   
-  clearInterval(timer: NodeJS.Timer): void {
+  clearInterval(timer: NodeJS.Timeout): void {
     if (this.intervalTimers.has(timer)) {
       clearInterval(timer);
       this.intervalTimers.delete(timer);
@@ -62,6 +62,7 @@ class RequestCache {
     abortController?: AbortController;
   }>();
   private readonly CACHE_TTL = 5000; // 5秒缓存
+  private cleanupTimer: NodeJS.Timeout | null = null;
   
   async getOrFetch<T>(key: string, fetcher: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const now = Date.now();
@@ -87,8 +88,13 @@ class RequestCache {
       abortController 
     });
     
-    // 设置清理定时器
-    setTimeout(() => this.cleanExpired(), this.CACHE_TTL);
+    // 设置清理定时器（只在没有现有定时器时创建）
+    if (!this.cleanupTimer) {
+      this.cleanupTimer = setTimeout(() => {
+        this.cleanExpired();
+        this.cleanupTimer = null;
+      }, this.CACHE_TTL);
+    }
     
     try {
       const result = await promise;
@@ -119,6 +125,10 @@ class RequestCache {
       }
     }
     this.cache.clear();
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
   }
   
   getStats(): { cacheSize: number; hitRate: number } {
@@ -331,15 +341,14 @@ export const useAutoRefreshOptimized = <T = any>(
   fetchFunction: () => Promise<T>,
   options: AutoRefreshOptimizedOptions = {}
 ): AutoRefreshOptimizedState => {
-  // 尝试获取全局配置
-  let globalConfig = null;
+  // 尝试获取全局配置（保持Hook调用不变，避免违反Hook规则）
+  let refreshContext: ReturnType<typeof useRefreshConfig> | null = null;
   try {
-    if (options.useGlobalConfig !== false) {
-      globalConfig = useRefreshConfig?.()?.config;
-    }
+    refreshContext = useRefreshConfig();
   } catch {
     // 如果不在Provider内部，忽略错误
   }
+  const globalConfig = options.useGlobalConfig === false ? null : (refreshContext?.config ?? null);
 
   const {
     interval = globalConfig?.defaultInterval ? globalConfig.defaultInterval * 1000 : 30000,
@@ -381,6 +390,7 @@ export const useAutoRefreshOptimized = <T = any>(
   const isMountedRef = useRef(true);
   const fetchFunctionRef = useRef(fetchFunction);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const scheduleNextRefreshRef = useRef<() => void>(() => {});  // 添加对 scheduleNextRefresh 的引用
   
   // 页面可见性和内存监控
   const { isVisible, wasEverHidden } = usePageVisibilityOptimized();
@@ -546,6 +556,9 @@ export const useAutoRefreshOptimized = <T = any>(
     context, globalConfig, interval, generateCacheKey, enableCache, memoryStats, safeSetState
   ]);
 
+  // 将全局配置用于调试开关等无需依赖变更的场景
+  // 注意：globalConfig 为对象或 null，这里仅读取其值，不加入依赖避免不必要的重跑
+
   // 安排下一次刷新
   const scheduleNextRefresh = useCallback(() => {
     timerManagerRef.current.clearAll();
@@ -563,13 +576,18 @@ export const useAutoRefreshOptimized = <T = any>(
       if (isMountedRef.current && enabled) {
         executeRefresh('auto').finally(() => {
           if (isMountedRef.current) {
-            scheduleNextRefresh();
+            scheduleNextRefreshRef.current(); // 使用ref调用，避免循环依赖
           }
         });
       }
     }, interval);
 
   }, [enabled, enableVisibilityDetection, isVisible, interval, executeRefresh, safeSetState]);
+  
+  // 更新 scheduleNextRefresh 引用
+  useEffect(() => {
+    scheduleNextRefreshRef.current = scheduleNextRefresh;
+  }, [scheduleNextRefresh]);
 
   // 手动刷新
   const refresh = useCallback(async (): Promise<void> => {
@@ -630,25 +648,29 @@ export const useAutoRefreshOptimized = <T = any>(
     return () => {
       timerManagerRef.current.clearAll();
     };
-  }, [enabled, immediate, scheduleNextRefresh, executeRefresh, ...dependencies]);
+  }, [enabled, immediate, executeRefresh, scheduleNextRefresh, ...dependencies]); // 保留必要的函数依赖
 
   // 页面可见性变化处理
   useEffect(() => {
-    if (!enableVisibilityDetection) return;
+    if (!enableVisibilityDetection || !enabled) return;
 
-    if (isVisible && enabled && wasEverHidden) {
+    if (isVisible && wasEverHidden) {
       // 页面重新可见且之前被隐藏过，立即刷新一次
       executeRefresh('manual').then(() => {
         scheduleNextRefresh();
       });
-    } else if (isVisible && enabled) {
+    } else if (isVisible) {
       // 页面可见，正常调度
       scheduleNextRefresh();
     } else {
       // 页面不可见，清除定时器
       timerManagerRef.current.clearAll();
     }
-  }, [isVisible, enabled, wasEverHidden, enableVisibilityDetection, scheduleNextRefresh, executeRefresh]);
+
+    return () => {
+      timerManagerRef.current.clearAll();
+    };
+  }, [enableVisibilityDetection, enabled, isVisible, wasEverHidden, executeRefresh, scheduleNextRefresh]); // 包含必要的函数依赖
 
   // 组件卸载清理
   useEffect(() => {

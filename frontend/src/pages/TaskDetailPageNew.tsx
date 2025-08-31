@@ -75,7 +75,7 @@ import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
 import UnifiedTaskDocumentArea from '../components/UnifiedTaskDocumentArea';
-import { TaskProgressDisplay } from '../components/TaskProgressDisplay';
+// import { TaskProgressDisplay } from '../components/TaskProgressDisplay'; // 已删除WebSocket相关组件
 // 导入新的优化组件
 import { useTaskDetailState } from '../hooks/useTaskDetailState';
 import { useMemoryManager } from '../hooks/useMemoryManager';
@@ -89,7 +89,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import '../styles/TaskDetail.css';
 import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgressBar';
-// Removed useAutoRefreshOptimized to fix circular dependency
+import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import PerformanceMonitor from '../components/PerformanceMonitor';
 
 const { Title, Paragraph, Text } = Typography;
@@ -171,8 +171,10 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 初始化UI状态
   useEffect(() => {
-    updateUIState({ activeTab: getActiveTabFromURL() });
-  }, [location.search]); // 移除updateUIState依赖，避免循环
+    const activeTab = getActiveTabFromURL();
+    console.log('Initializing activeTab to:', activeTab);
+    updateUIState({ activeTab });
+  }, [location.search, updateUIState]); // 恢复updateUIState依赖
 
   // 简化版自动刷新 - 避免复杂的Hook依赖
   const [isCompletionStatsRefreshing, setIsCompletionStatsRefreshing] = useState(false);
@@ -552,13 +554,17 @@ const TaskDetailPageNew: React.FC = () => {
     }
   }, [projectId, taskId]); // 移除loadTask依赖，避免循环
 
-  // 监听URL变化，更新activeTab
-  useEffect(() => {
-    const newActiveTab = getActiveTabFromURL();
-    if (newActiveTab !== uiState.activeTab) {
-      updateUIState({ activeTab: newActiveTab });
-    }
-  }, [location.search, uiState.activeTab]); // 移除updateUIState依赖
+  // 暂时禁用URL监听以测试tab切换
+  // useEffect(() => {
+  //   console.log('URL changed, location.search:', location.search);
+  //   const newActiveTab = getActiveTabFromURL();
+  //   console.log('newActiveTab from URL:', newActiveTab);
+  //   console.log('current uiState.activeTab:', uiState.activeTab);
+  //   if (newActiveTab !== uiState.activeTab) {
+  //     console.log('Updating activeTab from URL listener:', newActiveTab);
+  //     updateUIState({ activeTab: newActiveTab });
+  //   }
+  // }, [location.search, uiState.activeTab, updateUIState]);
 
   // 当切换到文档Tab时再检查文档存在与数量，避免初始加载时的重网络与遍历
   useEffect(() => {
@@ -1209,6 +1215,9 @@ const TaskDetailPageNew: React.FC = () => {
             <Tabs
               activeKey={uiState.activeTab}
               onChange={(key) => {
+                console.log('Tabs onChange fired with key:', key);
+                console.log('Tab changing to:', key);
+                console.log('Current activeTab:', uiState.activeTab);
                 updateUIState({ activeTab: key });
                 // 更新URL但不刷新页面
                 const searchParams = new URLSearchParams(location.search);
@@ -1220,6 +1229,7 @@ const TaskDetailPageNew: React.FC = () => {
                 const newSearch = searchParams.toString();
                 const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
                 window.history.replaceState(null, '', newUrl);
+                console.log('Updated URL to:', newUrl);
               }}
               type="card"
               size="large"
@@ -1285,11 +1295,11 @@ const TaskDetailPageNew: React.FC = () => {
                   ),
                   children: (
                     <div style={{ minHeight: '400px' }}>
-                      <TaskProgressDisplay 
-                        taskId={taskState.task.id} 
-                        showBreakdown={true}
-                        autoRefresh={true}
-                        refreshInterval={30000}
+                      <Alert
+                        message="进度功能暂时不可用"
+                        description="WebSocket相关组件已被移除"
+                        type="info"
+                        showIcon
                       />
                     </div>
                   )

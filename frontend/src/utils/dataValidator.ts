@@ -150,7 +150,7 @@ function cleanCustomFieldsObject(obj: unknown): CustomFields {
 /**
  * 清理tags数组
  */
-function cleanTagsArray(value: React.FormEvent | React.ChangeEvent<HTMLInputElement>): string[] {
+function cleanTagsArray(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .filter(tag => typeof tag === 'string' && tag.trim() !== '')
@@ -176,7 +176,7 @@ export function validateTaskRequest(taskData: unknown): ValidationResult {
     };
   }
 
-  const cleaned = { ...taskData };
+  const cleaned: any = { ...(taskData as any) };
 
   // 标题校验（可选）：如果提供则必须为非空字符串
   if (cleaned.title !== undefined) {
@@ -215,7 +215,7 @@ export function validateTaskRequest(taskData: unknown): ValidationResult {
 
   // 验证parent_id
   if (cleaned.parent_id !== undefined && cleaned.parent_id !== null) {
-    const parentId = parseInt(cleaned.parent_id);
+    const parentId = parseInt(String(cleaned.parent_id));
     if (isNaN(parentId) || parentId <= 0) {
       return {
         isValid: false,

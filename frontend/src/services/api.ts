@@ -152,7 +152,7 @@ api.interceptors.response.use(
               const isOnLoginPage = typeof window !== 'undefined' && window.location.pathname === '/login';
               if (navigateFunction && !isOnLoginPage) {
                 setTimeout(() => {
-                  navigateFunction('/login');
+                  navigateFunction?.('/login');
                   setTimeout(() => { isRedirecting = false; }, 2000);
                 }, 500);
               } else if (!isOnLoginPage) {
@@ -188,7 +188,7 @@ api.interceptors.response.use(
       case 404:
         appError = new AppError(
           '请求的资源不存在',
-          ErrorType.NOT_FOUND,
+          ErrorType.UNKNOWN,
           404
         );
         // Don't log 404 errors to console to avoid noise
@@ -199,7 +199,7 @@ api.interceptors.response.use(
       case 503:
         appError = new AppError(
           '服务器错误，请稍后重试',
-          ErrorType.SERVER,
+          ErrorType.SYSTEM,
           status
         );
         break;

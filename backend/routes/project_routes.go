@@ -45,7 +45,7 @@ func registerSimpleTaskRoutes(projects *gin.RouterGroup, app ApplicationInterfac
 	projects.DELETE("/:id/tasks/:taskId", app.DeleteTaskHandler())
 	
 	// Task timeline route
-	projects.GET("/:id/tasks/:taskId/timeline", app.GetTaskHandler().GetTaskTimeline)
+	projects.GET("/:id/tasks/:taskId/timeline", app.GetTaskTimelineHandler())
 	
 	// Task movement and positioning routes  
 	projects.POST("/:id/tasks/:taskId/move", app.MoveTaskHandler())

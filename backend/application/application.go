@@ -7,6 +7,8 @@ import (
 	"ai-project-backend/handlers"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
+	// ws "ai-project-backend/websocket"
+	// "context" // Temporarily unused
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +18,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-redis/redis/v8"
+	"gorm.io/gorm"
 )
 
 // Application holds the application dependencies
@@ -26,6 +30,11 @@ type Application struct {
 	validator      *validator.Validate
 	jwtManager     *utils.JWTManager
 	handlers       *factories.AllHandlers // Re-enabled
+	// WebSocket components (temporarily disabled)
+	// wsHub          *ws.Hub
+	// wsHandler      *handlers.WebSocketHandler
+	// progressPusher *services.ProgressPusher
+	redisClient    *redis.Client
 	// Legacy individual handlers for compatibility
 	authHandler     *handlers.AuthHandler     // Auth handler instance
 	documentHandler *handlers.DocumentHandler // Document handler instance (legacy)
@@ -117,6 +126,32 @@ func NewApplication() (*Application, error) {
 		return nil, fmt.Errorf("failed to create handlers: %v", err)
 	}
 
+	// Initialize Redis client (optional, for distributed systems)
+	var redisClient *redis.Client
+	if os.Getenv("REDIS_URL") != "" {
+		opt, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+		if err == nil {
+			redisClient = redis.NewClient(opt)
+		} else {
+			logger.Printf("Warning: Failed to parse Redis URL: %v", err)
+		}
+	}
+
+	// Initialize WebSocket Hub (temporarily disabled)
+	// wsHub := ws.NewHub(logger)
+	// go wsHub.Run() // Start the hub in a goroutine
+
+	// Initialize WebSocket Handler (temporarily disabled)
+	// wsHandler := handlers.NewWebSocketHandler(wsHub, logger)
+
+	// Initialize Progress Pusher (temporarily disabled)
+	// progressPusher := services.NewProgressPusher(wsHub, redisClient, db, logger)
+
+	// Start Redis subscriber if Redis is available
+	// if redisClient != nil {
+	// 	go progressPusher.StartRedisSubscriber(context.Background())
+	// }
+
 	app := &Application{
 		config:      cfg,
 		db:          db,
@@ -124,6 +159,11 @@ func NewApplication() (*Application, error) {
 		validator:   validate,
 		jwtManager:  jwtManager,
 		handlers:    allHandlers, // Re-enabled
+		// WebSocket components (temporarily disabled)
+		// wsHub:          wsHub,
+		// wsHandler:      wsHandler,  
+		// progressPusher: progressPusher,
+		redisClient:    redisClient,
 		// Legacy individual handlers for compatibility
 		authHandler: authHandler,
 		documentHandler: documentHandler,
@@ -141,10 +181,16 @@ func NewApplication() (*Application, error) {
 		logger.Printf("Warning: DOCS mirror is enabled but not writable at path: %s", cfg.App.MirrorBasePath)
 	}
 
-	// Initialize permission framework - Temporarily disabled
-	// if err := app.initializePermissionFramework(); err != nil {
-	// 	logger.Printf("Warning: Permission framework initialization failed: %v", err)
-	// }
+	// Initialize permission framework - temporarily disabled
+	/*
+	if err := app.initializePermissionFramework(); err != nil {
+		logger.Printf("Warning: Permission framework initialization failed: %v", err)
+		// In production, we should fail here
+		if cfg.IsProduction() {
+			return nil, fmt.Errorf("permission framework is required in production: %v", err)
+		}
+	}
+	*/
 
 	return app, nil
 }
@@ -192,11 +238,13 @@ func (app *Application) Run() error {
 func (app *Application) Close() error {
 	var err error
 	
-	// Close permission framework
-	// if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
-	// 	app.logger.Printf("Error closing permission framework: %v", frameworkErr)
-	// 	err = frameworkErr
-	// }
+	// Close permission framework - temporarily disabled
+	/*
+	if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
+		app.logger.Printf("Error closing permission framework: %v", frameworkErr)
+		err = frameworkErr
+	}
+	*/
 	
 	// Close database
 	if app.db != nil {
@@ -258,13 +306,17 @@ func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
 	// Use the adapter to connect complete WorkNoteService with database.DB interface
 	workNoteService := services.NewWorkNoteServiceAdapter(app.db)
 	
-	return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager)
+	return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager, app.db)
 }
 
-// GetHybridDocumentFolderHandler returns the hybrid document folder handler
+// GetHybridDocumentFolderHandler returns the document folder handler
 func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler {
-	// TODO: Initialize HybridDocumentFolderHandler properly
-	return handlers.NewHybridDocumentFolderHandler(app.db)
+	// Try to obtain a *gorm.DB from the underlying DB for folder features
+	if gdb, ok := app.db.GetDB().(*gorm.DB); ok && gdb != nil {
+		return handlers.NewHybridDocumentFolderHandler(gdb)
+	}
+	app.logger.Printf("DocumentFolderHandler unavailable: underlying DB is not *gorm.DB; skipping folder APIs")
+	return nil
 }
 
 // GetHybridDocumentHandler returns the hybrid document handler (for legacy compatibility)
@@ -397,3 +449,20 @@ func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
 	}
 	return nil // 需要通过工厂创建
 }
+
+// GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED
+// func (app *Application) GetWebSocketHandler() gin.HandlerFunc {
+// 	// Temporarily disabled WebSocket functionality
+// 	return func(c *gin.Context) {
+// 		c.JSON(503, gin.H{"error": "WebSocket service temporarily unavailable"})
+// 	}
+// }
+
+// GetProgressPusher returns the progress pusher service
+// Temporarily disabled due to missing service
+/*
+func (app *Application) GetProgressPusher() *services.ProgressPusher {
+	// return app.progressPusher
+	return nil // Temporarily disabled
+}
+*/

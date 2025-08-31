@@ -112,7 +112,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 文档管理处理器 (新版本，基于数据库)
 	allHandlers.DocumentHandler = handlers.NewDocumentHandler(f.db)
 	allHandlers.HybridDocumentHandler = handlers.NewHybridDocumentHandler(f.db)
-	allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db)
+	// allHandlers.HybridDocumentFolderHandler = handlers.NewHybridDocumentFolderHandler(f.db) // Temporarily disabled
 	// allHandlers.SimpleDocumentHandler = handlers.NewSimpleDocumentHandler() // 暂时注释掉，handler缺失
 	
 	// 工作笔记处理器
@@ -120,7 +120,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	workNoteService := services.NewWorkNoteService(sqlDB, nil) // DocumentService参数未使用，传nil
 	// workNoteFolderService := services.NewWorkNoteFolderService(sqlDB) // 暂时注释，服务不存在
 	jwtManager := &utils.JWTManager{} // 简化版本，实际中应该从config传入
-	allHandlers.WorkNoteHandler = handlers.NewWorkNoteHandler(workNoteService, jwtManager)
+	allHandlers.WorkNoteHandler = handlers.NewWorkNoteHandler(workNoteService, jwtManager, f.db)
 	// allHandlers.WorkNoteFolderHandler = handlers.NewWorkNoteFolderHandler(workNoteFolderService, jwtManager) // 暂时注释
 	
 	allHandlers.TimerHandler = handlers.NewTimerHandler(f.db)

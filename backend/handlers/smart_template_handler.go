@@ -40,7 +40,7 @@ func (h *SmartTemplateHandler) GetRecommendedTemplates(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -83,7 +83,7 @@ func (h *SmartTemplateHandler) GenerateFromTemplate(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -109,7 +109,7 @@ func (h *SmartTemplateHandler) GenerateFromTemplate(c *gin.Context) {
 // GetTemplates 获取模板列表
 // GET /api/v1/templates
 func (h *SmartTemplateHandler) GetTemplates(c *gin.Context) {
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -147,7 +147,7 @@ func (h *SmartTemplateHandler) GetTemplateByID(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -169,7 +169,7 @@ func (h *SmartTemplateHandler) GetTemplateByID(c *gin.Context) {
 // CreateTemplate 创建新模板
 // POST /api/v1/templates
 func (h *SmartTemplateHandler) CreateTemplate(c *gin.Context) {
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -182,7 +182,7 @@ func (h *SmartTemplateHandler) CreateTemplate(c *gin.Context) {
 	}
 
 	// 设置创建者
-	template.CreatedBy = userID
+	template.CreatedBy = int(userID)
 	template.IsActive = true
 
 	createdTemplate, err := h.templateService.CreateTemplate(c.Request.Context(), template)
@@ -201,7 +201,7 @@ func (h *SmartTemplateHandler) CreateTemplate(c *gin.Context) {
 // GetTemplateStats 获取模板统计信息
 // GET /api/v1/templates/stats
 func (h *SmartTemplateHandler) GetTemplateStats(c *gin.Context) {
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -261,22 +261,4 @@ func (h *SmartTemplateHandler) GetTemplateStats(c *gin.Context) {
 // 辅助函数
 // ====================
 
-// getUserIDFromContext 从上下文获取用户ID
-func getUserIDFromContext(c *gin.Context) int {
-	// 这里应该从JWT token或session中获取用户ID
-	// 简化实现，实际应用中需要根据认证机制修改
-	if userID, exists := c.Get("user_id"); exists {
-		if id, ok := userID.(int); ok {
-			return id
-		}
-	}
-	
-	// 临时处理：从查询参数获取（仅用于开发阶段）
-	if userIDStr := c.Query("user_id"); userIDStr != "" {
-		if userID, err := strconv.Atoi(userIDStr); err == nil {
-			return userID
-		}
-	}
-	
-	return 0
-}
+// 使用通用的helper函数 GetUserIDFromContextAsInt

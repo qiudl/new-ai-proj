@@ -25,7 +25,7 @@ type AllHandlers struct {
 	// 文档管理处理器
 	DocumentHandler             *handlers.DocumentHandler
 	HybridDocumentHandler       *handlers.HybridDocumentHandler
-	HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler
+	// HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler // Temporarily disabled
 	// SimpleDocumentHandler       *handlers.SimpleDocumentHandler // 暂时注释掉，handler缺失
 	UnifiedDocumentHandler      *handlers.UnifiedDocumentHandler
 	

@@ -41,13 +41,13 @@ func (h *DocumentCollaborationHandler) AddComment(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	comment, err := h.collaborationService.AddComment(c.Request.Context(), documentID, userID, request)
+	comment, err := h.collaborationService.AddComment(c.Request.Context(), documentID, int(userID), request)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -69,7 +69,7 @@ func (h *DocumentCollaborationHandler) GetComments(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -90,7 +90,7 @@ func (h *DocumentCollaborationHandler) GetComments(c *gin.Context) {
 		}
 	}
 
-	comments, err := h.collaborationService.GetComments(c.Request.Context(), documentID, userID, page, limit)
+	comments, err := h.collaborationService.GetComments(c.Request.Context(), documentID, int(userID), page, limit)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -118,13 +118,13 @@ func (h *DocumentCollaborationHandler) UpdateComment(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	comment, err := h.collaborationService.UpdateComment(c.Request.Context(), commentID, userID, request)
+	comment, err := h.collaborationService.UpdateComment(c.Request.Context(), commentID, int(userID), request)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -150,13 +150,13 @@ func (h *DocumentCollaborationHandler) DeleteComment(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	err = h.collaborationService.DeleteComment(c.Request.Context(), commentID, userID)
+	err = h.collaborationService.DeleteComment(c.Request.Context(), commentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -182,13 +182,13 @@ func (h *DocumentCollaborationHandler) ResolveComment(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	comment, err := h.collaborationService.ResolveComment(c.Request.Context(), commentID, userID)
+	comment, err := h.collaborationService.ResolveComment(c.Request.Context(), commentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -224,13 +224,13 @@ func (h *DocumentCollaborationHandler) AddCollaborator(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	collaborator, err := h.collaborationService.AddCollaborator(c.Request.Context(), documentID, userID, request)
+	collaborator, err := h.collaborationService.AddCollaborator(c.Request.Context(), documentID, int(userID), request)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -252,13 +252,13 @@ func (h *DocumentCollaborationHandler) GetCollaborators(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	collaborators, err := h.collaborationService.GetCollaborators(c.Request.Context(), documentID, userID)
+	collaborators, err := h.collaborationService.GetCollaborators(c.Request.Context(), documentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -295,13 +295,13 @@ func (h *DocumentCollaborationHandler) UpdateCollaborator(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	collaborator, err := h.collaborationService.UpdateCollaborator(c.Request.Context(), documentID, collaboratorUserID, userID, request)
+	collaborator, err := h.collaborationService.UpdateCollaborator(c.Request.Context(), documentID, collaboratorUserID, int(userID), request)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -333,13 +333,13 @@ func (h *DocumentCollaborationHandler) RemoveCollaborator(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	err = h.collaborationService.RemoveCollaborator(c.Request.Context(), documentID, collaboratorUserID, userID)
+	err = h.collaborationService.RemoveCollaborator(c.Request.Context(), documentID, collaboratorUserID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -369,7 +369,7 @@ func (h *DocumentCollaborationHandler) GetChangeHistory(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
@@ -390,7 +390,7 @@ func (h *DocumentCollaborationHandler) GetChangeHistory(c *gin.Context) {
 		}
 	}
 
-	history, err := h.collaborationService.GetChangeHistory(c.Request.Context(), documentID, userID, page, limit)
+	history, err := h.collaborationService.GetChangeHistory(c.Request.Context(), documentID, int(userID), page, limit)
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -416,13 +416,13 @@ func (h *DocumentCollaborationHandler) StartCollaborationSession(c *gin.Context)
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	session, err := h.collaborationService.StartCollaborationSession(c.Request.Context(), documentID, userID)
+	session, err := h.collaborationService.StartCollaborationSession(c.Request.Context(), documentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -444,13 +444,13 @@ func (h *DocumentCollaborationHandler) GetActiveCollaborators(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	activeUsers, err := h.collaborationService.GetActiveCollaborators(c.Request.Context(), documentID, userID)
+	activeUsers, err := h.collaborationService.GetActiveCollaborators(c.Request.Context(), documentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -480,13 +480,13 @@ func (h *DocumentCollaborationHandler) GetCollaborationStats(c *gin.Context) {
 		return
 	}
 
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	stats, err := h.collaborationService.GetCollaborationStats(c.Request.Context(), documentID, userID)
+	stats, err := h.collaborationService.GetCollaborationStats(c.Request.Context(), documentID, int(userID))
 	if err != nil {
 		if err.Error() == "permission denied" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Permission denied"})
@@ -502,13 +502,13 @@ func (h *DocumentCollaborationHandler) GetCollaborationStats(c *gin.Context) {
 // GetUserCollaborationDashboard 获取用户协作仪表板
 // GET /api/v1/collaboration/dashboard
 func (h *DocumentCollaborationHandler) GetUserCollaborationDashboard(c *gin.Context) {
-	userID := getUserIDFromContext(c)
+	userID := GetUserIDFromContextAsUint(c)
 	if userID == 0 {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
-	dashboard, err := h.collaborationService.GetUserCollaborationDashboard(c.Request.Context(), userID)
+	dashboard, err := h.collaborationService.GetUserCollaborationDashboard(c.Request.Context(), int(userID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

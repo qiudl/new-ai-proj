@@ -141,15 +141,15 @@ type TimerSuggestion struct {
 type unifiedTimerServiceImpl struct {
 	db              *sql.DB
 	inferenceEngine TypeInferenceEngine
-	notificationSvc NotificationService
+	// notificationSvc NotificationService // Temporarily disabled
 }
 
 // NewUnifiedTimerService 创建统一计时器服务实例
-func NewUnifiedTimerService(db *sql.DB, inferenceEngine TypeInferenceEngine, notificationSvc NotificationService) UnifiedTimerService {
+func NewUnifiedTimerService(db *sql.DB, inferenceEngine TypeInferenceEngine /* notificationSvc NotificationService */) UnifiedTimerService {
 	return &unifiedTimerServiceImpl{
 		db:              db,
 		inferenceEngine: inferenceEngine,
-		notificationSvc: notificationSvc,
+		// notificationSvc: notificationSvc,
 	}
 }
 
@@ -1246,6 +1246,8 @@ func extractProjectIDFromMetadata(meta map[string]interface{}) (int, bool) {
 
 // 通知方法
 func (s *unifiedTimerServiceImpl) notifyTimerStarted(userID, timerID int, timerType, title string) {
+	// Temporarily disabled notification service
+	/*
 	if s.notificationSvc != nil {
 		s.notificationSvc.SendTimerNotification(userID, "timer_started", map[string]interface{}{
 			"timer_id":   timerID,
@@ -1254,9 +1256,12 @@ func (s *unifiedTimerServiceImpl) notifyTimerStarted(userID, timerID int, timerT
 			"message":    fmt.Sprintf("%s计时已开始: %s", s.getTimerTypeDisplayName(timerType), title),
 		})
 	}
+	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerPaused(userID, timerID int, title string) {
+	// Temporarily disabled notification service
+	/*
 	if s.notificationSvc != nil {
 		s.notificationSvc.SendTimerNotification(userID, "timer_paused", map[string]interface{}{
 			"timer_id": timerID,
@@ -1264,9 +1269,12 @@ func (s *unifiedTimerServiceImpl) notifyTimerPaused(userID, timerID int, title s
 			"message":  fmt.Sprintf("计时器已暂停: %s", title),
 		})
 	}
+	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerResumed(userID, timerID int, title string) {
+	// Temporarily disabled notification service
+	/*
 	if s.notificationSvc != nil {
 		s.notificationSvc.SendTimerNotification(userID, "timer_resumed", map[string]interface{}{
 			"timer_id": timerID,
@@ -1274,9 +1282,12 @@ func (s *unifiedTimerServiceImpl) notifyTimerResumed(userID, timerID int, title 
 			"message":  fmt.Sprintf("计时器已恢复: %s", title),
 		})
 	}
+	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerStopped(userID, timerID int, title string, duration int) {
+	// Temporarily disabled notification service  
+	/*
 	if s.notificationSvc != nil {
 		s.notificationSvc.SendTimerNotification(userID, "timer_stopped", map[string]interface{}{
 			"timer_id": timerID,
@@ -1285,6 +1296,7 @@ func (s *unifiedTimerServiceImpl) notifyTimerStopped(userID, timerID int, title 
 			"message":  fmt.Sprintf("计时完成: %s，用时 %s", title, s.formatDuration(duration)),
 		})
 	}
+	*/
 }
 
 // GetTimerHistory 获取计时历史

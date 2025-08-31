@@ -339,7 +339,7 @@ const DocumentSystemShowcase: React.FC = () => {
         <Timeline.Item>
           <Text strong>实时协作稳定性提升</Text>
           <br />
-          <Text type="secondary">6小时前 - 修复WebSocket连接问题</Text>
+          <Text type="secondary">6小时前 - 修复数据刷新问题</Text>
         </Timeline.Item>
       </Timeline>
     </Card>
@@ -486,7 +486,7 @@ const DocumentSystemShowcase: React.FC = () => {
                       <List size="small">
                         <List.Item>前端：React 18 + TypeScript + Ant Design</List.Item>
                         <List.Item>状态管理：自定义Hooks + Context</List.Item>
-                        <List.Item>实时通信：WebSocket + Socket.io</List.Item>
+                        <List.Item>数据通信：RESTful API + 自动刷新</List.Item>
                         <List.Item>搜索引擎：Fuse.js + AI语义搜索</List.Item>
                         <List.Item>编辑器：CKEditor + Quill + Google Docs API</List.Item>
                       </List>

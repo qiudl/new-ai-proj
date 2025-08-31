@@ -16,9 +16,13 @@ export class ProjectService extends BaseClient {
           data: { projects },
           total: response.data.total || projects.length,
           message: `📁 获取到 ${projects.length} 个项目`
-        };
+        } as ApiResponse<{ projects: Project[] }>;
       } else {
-        return response as ApiResponse<{ projects: Project[] }>;
+        return {
+          success: false,
+          error: response.error || '获取项目列表失败',
+          data: { projects: [] }
+        };
       }
     } catch (error: any) {
       return {

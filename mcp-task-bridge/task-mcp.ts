@@ -1,4 +1,4 @@
-import { TaskService } from './task-service.js';
+import { TaskService, ListTasksParams, PaginatedTaskResponse } from './task-service.js';
 import { DocumentService } from './document-service.js';
 import { WorkNoteService } from './work-note-service.js';
 import { TimerService } from './timer-service.js';
@@ -70,8 +70,8 @@ export class TaskMCPServer {
     return this.taskService.updateTaskDescription(id, newDescription);
   }
 
-  async listTasks(projectId?: number): Promise<ApiResponse<{ tasks: Task[]; total: number }>> {
-    return this.taskService.listTasks(projectId);
+  async listTasks(params?: ListTasksParams): Promise<ApiResponse<PaginatedTaskResponse>> {
+    return this.taskService.listTasks(params);
   }
 
   async createSubTask(parentId: number, taskData: SubTaskData | string): Promise<ApiResponse> {

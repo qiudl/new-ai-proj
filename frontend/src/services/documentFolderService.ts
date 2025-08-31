@@ -352,16 +352,24 @@ class DocumentFolderService {
   // 批量更新文件夹排序
   async batchUpdateFolders(request: BatchUpdateFoldersRequest): Promise<void> {
     try {
+      // 后端期望 { updates: [{ id, fields: {...} }]}，这里兼容将现有 folders 形状转换为 updates
+      const updates = (request.folders || []).map(f => {
+        const fields: Record<string, any> = {};
+        if (typeof f.parent_folder_id !== 'undefined') fields.parent_id = f.parent_folder_id;
+        if (typeof f.sort_order !== 'undefined') fields.sort_order = f.sort_order;
+        return { id: f.id, fields };
+      }).filter(u => Object.keys(u.fields).length > 0);
+
       const response = await axios.post<APIResponse<void>>(
         `${API_BASE_URL}/document-folders/batch-update`,
-        request,
+        { updates },
         { headers: this.getAuthHeaders() }
       );
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to batch update folders');
       }
-    } catch (error: Error | unknown) {
+    } catch (error: any) {
       console.error('Error batch updating folders:', error);
       throw new Error(error.response?.data?.message || error.message || 'Failed to batch update folders');
     }

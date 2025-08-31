@@ -40,31 +40,20 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.optimized
+      dockerfile: Dockerfile
       target: development
     container_name: ai_backend
     depends_on:
       postgres-master:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      # 数据库配置
+      # Docker内部网络配置覆盖
       DB_HOST: postgres-master
       DB_PORT: 5432
-      DB_USER: dev_user
-      DB_PASSWORD: dev_password_2024
-      DB_NAME: ai_project_db
       DB_SOURCE: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
-      
-      # 应用配置
-      APP_ENV: development
-      PORT: 8080
-      JWT_SECRET: dev_jwt_secret_key_2024
-      
-      # Go开发配置
-      CGO_ENABLED: 0
-      
-      # 热重载配置
-      AIR_ENABLED: true
+      DATABASE_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
     ports:
       - "8081:8080"
     volumes:
@@ -95,32 +84,19 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
       target: development
     container_name: ai_frontend
     depends_on:
       - backend
+    env_file:
+      - .env
     environment:
-      # React开发配置
+      # Docker内部网络配置覆盖
       REACT_APP_API_URL: /api/v1
       REACT_APP_API_BASE_URL: /api/v1
-      REACT_APP_ENV: development
-      REACT_APP_ENVIRONMENT: development
-      REACT_APP_LOCAL_DEV: true
-      
-      # 开发服务器配置
       HOST: 0.0.0.0
-      PORT: 3000
-      CHOKIDAR_USEPOLLING: true
-      WATCHPACK_POLLING: true
       GENERATE_SOURCEMAP: false
-      TSC_COMPILE_ON_ERROR: true
-      ESLINT_NO_DEV_ERRORS: true
-      
-      # 热重载优化
-      FAST_REFRESH: true
-      WDS_SOCKET_HOST: localhost
-      WDS_SOCKET_PORT: 3001
     ports:
       - "3001:3000"
     volumes:
@@ -146,22 +122,18 @@ services:
   mcp-server:
     build:
       context: ./mcp-task-bridge
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: ai_mcp_server
     depends_on:
       - backend
+    env_file:
+      - .env
     environment:
-      NODE_ENV: development
+      # Docker内部网络配置覆盖
       API_BASE_URL: http://backend:8080/api/v1
       TASK_API_BASE: http://backend:8080/api/v1
-      TASK_API_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6ImFkbWluIiwidXNlcl90eXBlIjoic3lzdGVtIiwic3ViIjoiYWRtaW4iLCJpYXQiOjE3NTYxNzc2MTgsIm5iZiI6MTc1NjE3NzYxOCwiZXhwIjoxNzg3NzEzNjE4fQ.Ldz6Q9wUTmHMKpSCkjOqNpE2q5XNZdVZaPuCArLu7Fg
-      DEV_LOGIN_USERNAME: admin
-      # MCP权限系统配置（开发环境）
-      MCP_ENABLE_PERMISSIONS: false
-      MCP_STRICT_PERMISSIONS: false
-      MCP_DEBUG_PERMISSIONS: true
     ports:
-       - "3100:3001"
+       - "3100:3100"
     volumes:
       # 代码挂载（支持热重载）- 排除node_modules  
       - ./mcp-task-bridge:/app:cached
@@ -178,8 +150,10 @@ services:
     depends_on:
       postgres-master:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      # 连接到主数据库
+      # Docker内部网络配置覆盖
       DATABASE_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
     volumes:
       # 挂载 backend 目录以访问 prisma schema

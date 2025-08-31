@@ -44,9 +44,6 @@ import {
   FolderOutlined,
   FileExcelOutlined,
   FileTextOutlined,
-  WifiOutlined,
-  DisconnectOutlined,
-  SyncOutlined,
   NotificationOutlined
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -219,14 +216,7 @@ const AllFieldsTaskListPage: React.FC = () => {
   const [advancedFilterVisible, setAdvancedFilterVisible] = useState(false);
   const [filterForm] = Form.useForm();
   
-  // WebSocket实时更新状态
-  const [wsConnected, setWsConnected] = useState(false);
-  const [realtimeUpdates, setRealtimeUpdates] = useState(false); // 默认关闭，避免WebSocket错误
-  const [lastUpdateTime, setLastUpdateTime] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error' | 'disabled'>('disconnected');
-  const [wsSettingsVisible, setWsSettingsVisible] = useState(false);
+  // 移除了WebSocket实时更新功能
   const [notificationSettings, setNotificationSettings] = useState({
     showCreateNotifications: true,
     showUpdateNotifications: true,
@@ -1047,205 +1037,9 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
     }
   };
 
-  // WebSocket连接管理
-  const connectWebSocket = useCallback(() => {
-    if (!realtimeUpdates) return;
-    
-    try {
-      // 检查WebSocket功能是否可用
-      if (!window.WebSocket) {
-        console.warn('浏览器不支持WebSocket');
-        setConnectionStatus('error');
-        return;
-      }
+  // 移除了WebSocket连接管理功能
 
-      // 检查是否在开发环境中禁用WebSocket（避免错误日志）
-      // 默认禁用WebSocket，因为后端未实现WebSocket服务
-      const isWebSocketEnabled = localStorage.getItem('enableWebSocket') === 'true';
-      if (!isWebSocketEnabled) {
-        setConnectionStatus('disabled');
-        return;
-      }
-
-      setConnectionStatus('connecting');
-      
-      // 这里使用模拟的WebSocket地址，实际部署时需要替换为真实的WebSocket服务器地址
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? 'wss://your-domain.com/ws/tasks' 
-        : 'ws://localhost:8080/ws/tasks';
-      
-      const ws = new WebSocket(wsUrl);
-      
-      ws.onopen = () => {
-        setWsConnected(true);
-        setConnectionStatus('connected');
-        
-        // 发送认证消息
-        const token = localStorage.getItem('token');
-        if (token) {
-          ws.send(JSON.stringify({
-            type: 'auth',
-            token: token
-          }));
-        }
-        
-        // 订阅任务更新
-        ws.send(JSON.stringify({
-          type: 'subscribe',
-          channel: 'tasks'
-        }));
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          handleWebSocketMessage(message);
-        } catch (error) {
-          console.error('解析WebSocket消息失败:', error);
-        }
-      };
-      
-      ws.onclose = (event) => {
-        setWsConnected(false);
-        setConnectionStatus('disconnected');
-        
-        // 如果是正常关闭或者服务器拒绝连接，不要重连
-        if (event.code === 1000 || event.code === 1006) {
-          return;
-        }
-        
-        // 自动重连（如果启用了实时更新）
-        if (realtimeUpdates) {
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-          }, 10000); // 增加到10秒后重连，减少频率
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.warn('WebSocket连接错误 - 这是正常的，如果后端WebSocket服务未启动');
-        setConnectionStatus('error');
-        
-        // 如果连接立即失败，禁用WebSocket功能
-        if (ws.readyState === WebSocket.CONNECTING) {
-          localStorage.setItem('enableWebSocket', 'false');
-          }
-      };
-      
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('WebSocket连接失败:', error);
-      setConnectionStatus('error');
-    }
-  }, [realtimeUpdates]);
-
-  const disconnectWebSocket = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-    setWsConnected(false);
-    setConnectionStatus('disconnected');
-  }, []);
-
-const handleWebSocketMessage = useCallback((message: { type: string; data?: any }) => {
-    setLastUpdateTime(dayjs().format('HH:mm:ss'));
-    
-    switch (message.type) {
-      case 'task_created':
-        if (message.data) handleTaskCreated(message.data);
-        break;
-      case 'task_updated':
-        if (message.data) handleTaskUpdated(message.data);
-        break;
-      case 'task_deleted':
-        handleTaskDeleted(message.data as number);
-        break;
-      case 'bulk_update':
-        if (message.data) handleBulkUpdate(message.data);
-        break;
-      default:
-        // ignore unknown message types
-        }
-  }, []);
-
-  const handleTaskCreated = useCallback((taskData: Task) => {
-    setTasks(prevTasks => {
-      // 检查任务是否已存在，避免重复添加
-      if (prevTasks.some(task => task.id === taskData.id)) {
-        return prevTasks;
-      }
-      
-      const newTasks = [taskData, ...prevTasks];
-      
-      // 根据设置显示通知
-      if (notificationSettings.showCreateNotifications) {
-        message.info(`新任务已创建: ${taskData.title}`, 3);
-      }
-      
-      return newTasks;
-    });
-  }, [notificationSettings.showCreateNotifications]);
-
-  const handleTaskUpdated = useCallback((taskData: Task) => {
-    setTasks(prevTasks => {
-      const updatedTasks = prevTasks.map(task => 
-        task.id === taskData.id ? { ...task, ...taskData } : task
-      );
-      
-      // 根据设置显示通知
-      if (notificationSettings.showUpdateNotifications) {
-        message.info(`任务已更新: ${taskData.title}`, 3);
-      }
-      
-      return updatedTasks;
-    });
-  }, [notificationSettings.showUpdateNotifications]);
-
-  const handleTaskDeleted = useCallback((taskId: number) => {
-    setTasks(prevTasks => {
-      const deletedTask = prevTasks.find(task => task.id === taskId);
-      const filteredTasks = prevTasks.filter(task => task.id !== taskId);
-      
-      // 根据设置显示通知
-      if (notificationSettings.showDeleteNotifications && deletedTask) {
-        message.warning(`任务已删除: ${deletedTask.title}`, 3);
-      }
-      
-      return filteredTasks;
-    });
-  }, [notificationSettings.showDeleteNotifications]);
-
-  const handleBulkUpdate = useCallback((updates: { taskIds: number[], changes: Partial<Task> }) => {
-    setTasks(prevTasks => {
-      const updatedTasks = prevTasks.map(task => 
-        updates.taskIds.includes(task.id) 
-          ? { ...task, ...updates.changes }
-          : task
-      );
-      
-      // 显示通知
-      message.info(`批量更新了 ${updates.taskIds.length} 个任务`, 3);
-      
-      return updatedTasks;
-    });
-  }, []);
-
-  const toggleRealtimeUpdates = useCallback(() => {
-    if (realtimeUpdates) {
-      disconnectWebSocket();
-      setRealtimeUpdates(false);
-      message.success('实时更新已关闭');
-    } else {
-      setRealtimeUpdates(true);
-      connectWebSocket();
-      message.success('实时更新已开启');
-    }
-  }, [realtimeUpdates, disconnectWebSocket, connectWebSocket]);
+  // 移除了WebSocket消息处理和实时更新功能
 
   // Note: Drag end handler temporarily disabled
 
@@ -1409,48 +1203,20 @@ const handleWebSocketMessage = useCallback((message: { type: string; data?: any 
     loadData();
   }, [loadData]);
 
-  // WebSocket连接管理
-  useEffect(() => {
-    if (realtimeUpdates) {
-      connectWebSocket();
-    }
-
-    // 清理函数
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [realtimeUpdates, connectWebSocket, disconnectWebSocket]);
-
-  // 页面卸载时断开WebSocket连接
-  useEffect(() => {
-    return () => {
-      disconnectWebSocket();
-    };
-  }, [disconnectWebSocket]);
+  // 移除了WebSocket连接管理的useEffect
 
   // 自动刷新定时器
   useEffect(() => {
-    if (notificationSettings.autoRefreshInterval > 0 && realtimeUpdates) {
+    if (notificationSettings.autoRefreshInterval > 0) {
       const interval = setInterval(() => {
         loadData();
       }, notificationSettings.autoRefreshInterval);
 
       return () => clearInterval(interval);
     }
-  }, [notificationSettings.autoRefreshInterval, realtimeUpdates, loadData]);
+  }, [notificationSettings.autoRefreshInterval, loadData]);
 
-  // 加载保存的WebSocket设置
-  useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem('wsSettings');
-      if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
-        setNotificationSettings(parsed);
-      }
-    } catch (error) {
-      console.warn('Failed to load WebSocket settings:', error);
-    }
-  }, []);
+  // 移除了WebSocket设置加载
 
   // 强制要求项目ID - 全字段页面只支持项目内任务
   if (!projectId) {
@@ -1502,31 +1268,9 @@ const handleWebSocketMessage = useCallback((message: { type: string; data?: any 
               使用指南
             </Button>
             <Space.Compact>
-              <Button 
-                icon={realtimeUpdates ? (
-                  wsConnected ? <WifiOutlined /> : <SyncOutlined spin />
-                ) : <DisconnectOutlined />}
-                type={realtimeUpdates ? (wsConnected ? "default" : "default") : "text"}
-                onClick={toggleRealtimeUpdates}
-                size="small"
-                style={{
-                  color: realtimeUpdates ? (wsConnected ? '#52c41a' : '#faad14') : '#999'
-                }}
-              >
-                {realtimeUpdates ? (wsConnected ? '实时更新' : '连接中...') : '离线模式'}
-              </Button>
-              <Button
-                icon={<SettingOutlined />}
-                size="small"
-                onClick={() => setWsSettingsVisible(true)}
-                title="实时更新设置"
-              />
+              {/* 移除了WebSocket实时更新按钮 */}
             </Space.Compact>
-            {lastUpdateTime && wsConnected && (
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                最后更新: {lastUpdateTime}
-              </Text>
-            )}
+            {/* 移除了最后更新时间显示 */}
             <Text type="secondary" style={{ fontSize: '12px' }}>
               💡 点击列头进行排序
             </Text>
@@ -1614,29 +1358,7 @@ const handleWebSocketMessage = useCallback((message: { type: string; data?: any 
         )}
       </div>
 
-      {/* WebSocket连接状态提示 */}
-      {realtimeUpdates && (connectionStatus === 'error' || connectionStatus === 'disabled') && (
-        <div style={{ marginBottom: '16px' }}>
-          <Card size="small" style={{ backgroundColor: '#fffbe6', borderColor: '#ffe58f' }}>
-            <Space>
-              <DisconnectOutlined style={{ color: '#faad14' }} />
-              <div>
-                <Text>实时更新功能不可用</Text>
-                <br />
-                <Text type="secondary" style={{ fontSize: '12px' }}>
-                  {connectionStatus === 'disabled' 
-                    ? 'WebSocket已自动禁用。后端服务未启动WebSocket支持。'
-                    : '无法连接到WebSocket服务。这不影响正常功能使用。'
-                  }
-                </Text>
-              </div>
-              <Button size="small" onClick={() => setRealtimeUpdates(false)}>
-                关闭实时更新
-              </Button>
-            </Space>
-          </Card>
-        </div>
-      )}
+      {/* 移除了WebSocket连接状态提示 */}
 
       {/* 表格 */}
       <Card>
@@ -1718,140 +1440,7 @@ const handleWebSocketMessage = useCallback((message: { type: string; data?: any 
         </div>
       </Card>
 
-      {/* WebSocket设置模态框 */}
-      <Modal
-        title={
-          <Space>
-            <WifiOutlined />
-            实时更新设置
-          </Space>
-        }
-        open={wsSettingsVisible}
-        onCancel={() => setWsSettingsVisible(false)}
-        footer={
-          <Space>
-            <Button onClick={() => setWsSettingsVisible(false)}>
-              取消
-            </Button>
-            <Button 
-              type="primary" 
-              onClick={() => {
-                // 保存设置到localStorage
-                localStorage.setItem('wsSettings', JSON.stringify(notificationSettings));
-                setWsSettingsVisible(false);
-                message.success('设置已保存');
-              }}
-            >
-              保存设置
-            </Button>
-          </Space>
-        }
-        width={600}
-      >
-        <div style={{ marginBottom: '24px' }}>
-          <Title level={4}>连接状态</Title>
-          <Space>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {connectionStatus === 'connected' && <WifiOutlined style={{ color: '#52c41a' }} />}
-              {connectionStatus === 'connecting' && <SyncOutlined spin style={{ color: '#faad14' }} />}
-              {connectionStatus === 'disconnected' && <DisconnectOutlined style={{ color: '#999' }} />}
-              {connectionStatus === 'error' && <DisconnectOutlined style={{ color: '#ff4d4f' }} />}
-              {connectionStatus === 'disabled' && <DisconnectOutlined style={{ color: '#d9d9d9' }} />}
-              <Text>
-                {connectionStatus === 'connected' && '已连接'}
-                {connectionStatus === 'connecting' && '连接中...'}
-                {connectionStatus === 'disconnected' && '未连接'}
-                {connectionStatus === 'error' && '连接错误'}
-                {connectionStatus === 'disabled' && '已禁用'}
-              </Text>
-            </div>
-            <Button size="small" onClick={realtimeUpdates ? disconnectWebSocket : connectWebSocket}>
-              {realtimeUpdates ? '断开连接' : '重新连接'}
-            </Button>
-            {connectionStatus === 'error' && (
-              <Button 
-                size="small" 
-                onClick={() => {
-                  localStorage.removeItem('enableWebSocket');
-                  message.success('WebSocket功能已重置，请刷新页面');
-                }}
-              >
-                重置WebSocket
-              </Button>
-            )}
-          </Space>
-        </div>
-
-        <div style={{ marginBottom: '24px' }}>
-          <Title level={4}>通知设置</Title>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <div>
-              <Checkbox
-                checked={notificationSettings.showCreateNotifications}
-                onChange={(e) => setNotificationSettings(prev => ({
-                  ...prev,
-                  showCreateNotifications: e.target.checked
-                }))}
-              >
-                新建任务通知
-              </Checkbox>
-            </div>
-            <div>
-              <Checkbox
-                checked={notificationSettings.showUpdateNotifications}
-                onChange={(e) => setNotificationSettings(prev => ({
-                  ...prev,
-                  showUpdateNotifications: e.target.checked
-                }))}
-              >
-                任务更新通知
-              </Checkbox>
-            </div>
-            <div>
-              <Checkbox
-                checked={notificationSettings.showDeleteNotifications}
-                onChange={(e) => setNotificationSettings(prev => ({
-                  ...prev,
-                  showDeleteNotifications: e.target.checked
-                }))}
-              >
-                任务删除通知
-              </Checkbox>
-            </div>
-          </Space>
-        </div>
-
-        <div style={{ marginBottom: '24px' }}>
-          <Title level={4}>性能设置</Title>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <Text>自动刷新间隔:</Text>
-            <Select
-              value={notificationSettings.autoRefreshInterval}
-              onChange={(value) => setNotificationSettings(prev => ({
-                ...prev,
-                autoRefreshInterval: value
-              }))}
-              style={{ width: 120 }}
-            >
-              <Option value={10000}>10秒</Option>
-              <Option value={30000}>30秒</Option>
-              <Option value={60000}>1分钟</Option>
-              <Option value={300000}>5分钟</Option>
-              <Option value={0}>关闭</Option>
-            </Select>
-          </div>
-        </div>
-
-        <div style={{ padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-          <Title level={5}>说明</Title>
-          <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.6' }}>
-            <div>• 实时更新功能依赖WebSocket连接，需要后端服务支持</div>
-            <div>• 在网络不稳定的环境下，建议关闭实时更新以提高性能</div>
-            <div>• 通知设置可以帮助您只关注重要的变更</div>
-            <div>• 自动刷新会定期更新数据，但会增加服务器负载</div>
-          </div>
-        </div>
-      </Modal>
+      {/* 移除了WebSocket设置模态框 */}
 
       {/* 高级筛选器模态框 */}
       <Modal

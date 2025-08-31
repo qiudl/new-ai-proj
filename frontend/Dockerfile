@@ -1,0 +1,185 @@
+# Multi-stage Dockerfile for React Frontend
+# Supports both development and production builds
+
+# ======================================
+# Stage 1: Base Dependencies
+# ======================================
+FROM node:20-alpine AS base
+
+# Install essential packages
+RUN apk --no-cache add \
+    git \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodegroup && \
+    adduser -u 1001 -S nodeuser -G nodegroup
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for caching
+COPY package*.json ./
+
+# Install production dependencies with cache optimization
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --only=production && \
+    npm cache clean --force
+
+# ======================================
+# Stage 2: Development Environment
+# ======================================
+FROM base AS development
+
+# Install all dependencies including dev dependencies with cache optimization
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && \
+    npm cache clean --force && \
+    # Verify CSS files are present and create symlinks if needed
+    ls -la node_modules/react-grid-layout/css/ && \
+    ls -la node_modules/react-resizable/css/ && \
+    # Ensure proper permissions for CSS files
+    chmod -R 755 node_modules/react-grid-layout/css/ && \
+    chmod -R 755 node_modules/react-resizable/css/
+
+# Install global development tools
+RUN npm install -g \
+    @types/node \
+    typescript \
+    eslint \
+    prettier
+
+# Copy source code and entrypoint script
+COPY . .
+COPY docker-entrypoint.sh /usr/local/bin/
+
+# Make entrypoint executable and change ownership
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh && \
+    chown -R nodeuser:nodegroup /app
+
+# Switch to non-root user
+USER nodeuser
+
+# Expose port
+EXPOSE 3000
+
+# Environment variables for development
+ENV NODE_ENV=development
+ENV GENERATE_SOURCEMAP=false
+ENV REACT_APP_ENV=development
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+ENV TSC_COMPILE_ON_ERROR=true
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3001 || exit 1
+
+# Development command with hot reload
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["npm", "start"]
+
+# ======================================
+# Stage 3: Build for Production
+# ======================================
+FROM base AS builder
+
+# Install dependencies with cache optimization and explicit CSS handling  
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci && \
+    npm cache clean --force && \
+    # Ensure CSS files from react-grid-layout are accessible
+    ls -la node_modules/react-grid-layout/css/ && \
+    ls -la node_modules/react-resizable/css/
+
+# Copy source code
+COPY . .
+
+# Build arguments
+ARG REACT_APP_API_URL
+ARG REACT_APP_ENV=production
+ARG GENERATE_SOURCEMAP=false
+
+# Set build environment
+ENV NODE_ENV=production
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_ENV=${REACT_APP_ENV}
+ENV GENERATE_SOURCEMAP=${GENERATE_SOURCEMAP}
+
+# Build the application
+RUN npm run build
+
+# ======================================
+# Stage 4: Production Runtime
+# ======================================
+FROM nginx:alpine AS production
+
+# Install runtime dependencies
+RUN apk --no-cache add \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Copy built files from builder stage
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Create non-root user
+RUN addgroup -g 1001 -S nginxgroup && \
+    adduser -u 1001 -S nginxuser -G nginxgroup
+
+# Set proper permissions
+RUN chown -R nginxuser:nginxgroup /usr/share/nginx/html && \
+    chown -R nginxuser:nginxgroup /var/cache/nginx && \
+    chown -R nginxuser:nginxgroup /var/log/nginx && \
+    chown -R nginxuser:nginxgroup /etc/nginx/conf.d
+
+# Create pid file directory
+RUN mkdir -p /var/run/nginx && \
+    chown -R nginxuser:nginxgroup /var/run/nginx
+
+# Switch to non-root user
+USER nginxuser
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3001 || exit 1
+
+# Production command
+CMD ["nginx", "-g", "daemon off;"]
+
+# ======================================
+# Stage 5: Testing Environment
+# ======================================
+FROM base AS testing
+
+# Install all dependencies including dev dependencies
+RUN npm ci && \
+    npm cache clean --force
+
+# Install testing tools
+RUN npm install -g \
+    jest \
+    @testing-library/react \
+    @testing-library/jest-dom
+
+# Copy source code
+COPY . .
+
+# Change ownership
+RUN chown -R nodeuser:nodegroup /app
+
+# Switch to non-root user
+USER nodeuser
+
+# Environment for testing
+ENV NODE_ENV=test
+ENV CI=true
+
+# Run tests
+CMD ["npm", "test", "--coverage", "--watchAll=false"]

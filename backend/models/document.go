@@ -242,8 +242,8 @@ type DocumentListResponse struct {
 
 // DocumentTreeResponse 文档树响应
 type DocumentTreeResponse struct {
-	Folders   []DocumentFolder `json:"folders"`
-	Documents []Document       `json:"documents"`
+	// Folders   []DocumentFolder `json:"folders"` // Temporarily disabled
+	Documents []Document `json:"documents"`
 }
 
 // DocumentResponse 文档详情响应

@@ -48,6 +48,100 @@ type WorkNoteMetadata struct {
 	CustomFields   map[string]interface{} `json:"custom_fields,omitempty"`  // 自定义字段
 }
 
+// =====================================
+// 工作笔记转换相关结构
+// =====================================
+
+// ConversionOptions 转换选项
+type ConversionOptions struct {
+	PreserveOriginal bool              `json:"preserve_original"` // 是否保留原工作笔记
+	CopyRelations    bool              `json:"copy_relations"`    // 是否复制关联关系
+	ConvertFormat    string            `json:"convert_format"`    // 转换格式 markdown/txt/html
+	Visibility       Visibility        `json:"visibility"`        // 可见性
+	RelationType     string            `json:"relation_type"`     // 关联类型
+}
+
+// ConvertToTaskDocumentRequest 转换为任务文档请求
+type ConvertToTaskDocumentRequest struct {
+	TargetTaskID      int               `json:"target_task_id" binding:"required"`
+	ConversionOptions ConversionOptions `json:"conversion_options"`
+}
+
+// ConversionResult 转换结果
+type ConversionResult struct {
+	OriginalWorkNoteID    int                 `json:"original_work_note_id"`
+	CreatedTaskDocument   TaskDocumentSummary `json:"created_task_document"`
+	ConversionSummary     ConversionSummary   `json:"conversion_summary"`
+}
+
+// TaskDocumentSummary 任务文档摘要
+type TaskDocumentSummary struct {
+	ID        int       `json:"id"`
+	TaskID    int       `json:"task_id"`
+	Title     string    `json:"title"`
+	Format    string    `json:"format"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ConversionSummary 转换摘要
+type ConversionSummary struct {
+	ContentMigrated   bool `json:"content_migrated"`
+	RelationsCopied   int  `json:"relations_copied"`
+	AttachmentsMoved  int  `json:"attachments_moved"`
+}
+
+// ConvertPreviewRequest 转换预览请求
+type ConvertPreviewRequest struct {
+	TargetTaskID      int               `json:"target_task_id" binding:"required"`
+	ConversionOptions ConversionOptions `json:"conversion_options"`
+}
+
+// ConversionPreview 转换预览
+type ConversionPreview struct {
+	SourceDocument      WorkNoteSummary      `json:"source_document"`
+	TargetTaskID        int                  `json:"target_task_id"`
+	ConversionSettings  ConversionOptions    `json:"conversion_settings"`
+	PreviewContent      string               `json:"preview_content"`
+	EstimatedSize       int64                `json:"estimated_size"`
+	WarningMessages     []string             `json:"warning_messages,omitempty"`
+}
+
+// WorkNoteSummary 工作笔记摘要
+type WorkNoteSummary struct {
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
+	Size  int64  `json:"size"`
+}
+
+// BatchConversionItem 批量转换项
+type BatchConversionItem struct {
+	WorkNoteID int               `json:"work_note_id" binding:"required"`
+	TargetTaskID int             `json:"target_task_id" binding:"required"`
+	Options    ConversionOptions `json:"options"`
+}
+
+// BatchConvertRequest 批量转换请求
+type BatchConvertRequest struct {
+	Conversions   []BatchConversionItem `json:"conversions" binding:"required"`
+	GlobalOptions BatchGlobalOptions    `json:"global_options"`
+}
+
+// BatchGlobalOptions 批量转换全局选项
+type BatchGlobalOptions struct {
+	TransactionMode bool   `json:"transaction_mode"` // 是否使用事务模式
+	ErrorHandling   string `json:"error_handling"`   // 错误处理: continue/stop
+}
+
+// BatchConversionResult 批量转换结果
+type BatchConversionResult struct {
+	TotalRequested int                `json:"total_requested"`
+	TotalSucceeded int                `json:"total_succeeded"`
+	TotalFailed    int                `json:"total_failed"`
+	Results        []ConversionResult `json:"results"`
+	Errors         []string           `json:"errors,omitempty"`
+}
+
 // Value implements driver.Valuer interface
 func (wnm WorkNoteMetadata) Value() (driver.Value, error) {
 	return json.Marshal(wnm)
@@ -152,6 +246,64 @@ type WorkNoteFilter struct {
 	Order            string               `json:"order,omitempty"`       // asc, desc
 	Page             int                  `json:"page,omitempty"`
 	Limit            int                  `json:"limit,omitempty"`
+}
+
+// WorkNoteFolder 工作笔记文件夹模型
+type WorkNoteFolder struct {
+	ID          int       `json:"id" db:"id"`
+	Name        string    `json:"name" db:"name"`
+	Description *string   `json:"description" db:"description"`
+	ParentID    *int      `json:"parent_id" db:"parent_id"`
+	OwnerID     int       `json:"owner_id" db:"owner_id"`
+	ProjectID   *int      `json:"project_id" db:"project_id"`
+	Visibility  Visibility `json:"visibility" db:"visibility"`
+	Color       *string   `json:"color" db:"color"`
+	Icon        *string   `json:"icon" db:"icon"`
+	SortOrder   int       `json:"sort_order" db:"sort_order"`
+	CreatedBy   int       `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
+	
+	// 计算字段
+	NotesCount      int    `json:"notes_count,omitempty"`
+	SubfoldersCount int    `json:"subfolders_count,omitempty"`
+	Path            string `json:"path,omitempty"`
+	OwnerName       string `json:"owner_name,omitempty"`
+	
+	// 层级关系
+	Children []*WorkNoteFolder `json:"children,omitempty"`
+	Parent   *WorkNoteFolder   `json:"parent,omitempty"`
+}
+
+// CreateWorkNoteFolderRequest 创建工作笔记文件夹请求
+type CreateWorkNoteFolderRequest struct {
+	Name        string     `json:"name" validate:"required,min=1,max=100"`
+	Description *string    `json:"description,omitempty"`
+	ParentID    *int       `json:"parent_id,omitempty"`
+	ProjectID   *int       `json:"project_id,omitempty"`
+	Visibility  Visibility `json:"visibility" validate:"required"`
+	Color       *string    `json:"color,omitempty"`
+	Icon        *string    `json:"icon,omitempty"`
+}
+
+// UpdateWorkNoteFolderRequest 更新工作笔记文件夹请求
+type UpdateWorkNoteFolderRequest struct {
+	Name        *string    `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Description *string    `json:"description,omitempty"`
+	ParentID    *int       `json:"parent_id,omitempty"`
+	Visibility  *Visibility `json:"visibility,omitempty"`
+	Color       *string    `json:"color,omitempty"`
+	Icon        *string    `json:"icon,omitempty"`
+}
+
+// WorkNoteFolderFilter 工作笔记文件夹过滤器
+type WorkNoteFolderFilter struct {
+	OwnerID    *int       `json:"owner_id,omitempty"`
+	ProjectID  *int       `json:"project_id,omitempty"`
+	ParentID   *int       `json:"parent_id,omitempty"`
+	Visibility *Visibility `json:"visibility,omitempty"`
+	Search     string     `json:"search,omitempty"`
 }
 
 // WorkNoteListResponse 工作笔记列表响应

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip, Input, message } from 'antd';
 import { cleanupGlobalOverlays } from '../utils/overlayCleanup';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
@@ -35,7 +35,7 @@ import {
 const { Header, Sider, Content } = AntLayout;
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 // 类型守卫：检测是否包含 type 字段
@@ -409,7 +409,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span>AI上下文任务系统</span>
 {/* 环境标志显示 */}
-            {process.env.REACT_APP_LOCAL_DEV === 'true' && (
+            {process.env['REACT_APP_LOCAL_DEV'] === 'true' && (
               <span style={{
                 padding: '2px 8px',
                 backgroundColor: '#52c41a',
@@ -421,7 +421,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 开发环境
               </span>
             )}
-            {(process.env.REACT_APP_ENV === 'development' && process.env.REACT_APP_ENVIRONMENT === 'development' && process.env.REACT_APP_LOCAL_DEV !== 'true') && (
+            {(process.env['REACT_APP_ENV'] === 'development' && process.env['REACT_APP_ENVIRONMENT'] === 'development' && process.env['REACT_APP_LOCAL_DEV'] !== 'true') && (
               <span style={{
                 padding: '2px 8px',
                 backgroundColor: '#1890ff',
@@ -433,7 +433,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 测试版本
               </span>
             )}
-            {(process.env.REACT_APP_ENV === 'staging' || process.env.REACT_APP_ENVIRONMENT === 'staging') && (
+            {(process.env['REACT_APP_ENV'] === 'staging' || process.env['REACT_APP_ENVIRONMENT'] === 'staging') && (
               <span style={{
                 padding: '2px 8px',
                 backgroundColor: '#fa8c16',
@@ -445,7 +445,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 预发布
               </span>
             )}
-            {(process.env.REACT_APP_ENV === 'production' || process.env.REACT_APP_ENVIRONMENT === 'production') && (
+            {(process.env['REACT_APP_ENV'] === 'production' || process.env['REACT_APP_ENVIRONMENT'] === 'production') && (
               <span style={{
                 padding: '2px 8px',
                 backgroundColor: '#f5222d',
@@ -521,7 +521,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           />
         </Sider>
         <Content>
-          {children}
+          {children ?? <Outlet />}
         </Content>
       </AntLayout>
     </AntLayout>

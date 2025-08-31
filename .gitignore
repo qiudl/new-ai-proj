@@ -36,9 +36,7 @@ build/
 .DS_Store
 
 # Environment variables
-.env
 .env.local
-.env.*.local
 .env.mcp-token
 # direnv (do not commit)
 .envrc

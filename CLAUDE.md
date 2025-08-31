@@ -32,7 +32,7 @@ This is a production-ready AI project backend/API with comprehensive documentati
 
 ```bash
 # Set required environment variables
-export BASE_URL=http://localhost:8080/api/v1
+export BASE_URL=http://localhost:8081/api/v1
 export ACCESS_TOKEN={{YOUR_ACCESS_TOKEN}}
 ```
 
@@ -100,7 +100,7 @@ Use openapi-generator with `docs/api/openapi.yaml` as source.
 
 ```bash
 # Environment setup
-export BASE_URL=http://localhost:8080/api/v1
+export BASE_URL=http://localhost:8081/api/v1
 export ACCESS_TOKEN={{YOUR_ACCESS_TOKEN}}
 
 # Run health checks

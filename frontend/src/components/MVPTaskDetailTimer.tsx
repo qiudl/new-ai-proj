@@ -64,15 +64,21 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
 
   // 触发每秒重渲染以刷新显示用时
   const [tick, setTick] = useState(0);
+  const tickIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
   useEffect(() => {
-    const i = setInterval(() => setTick(t => t + 1), 1000);
-    return () => clearInterval(i);
+    tickIntervalRef.current = setInterval(() => setTick(t => t + 1), 1000);
+    return () => {
+      if (tickIntervalRef.current) {
+        clearInterval(tickIntervalRef.current);
+      }
+    };
   }, []);
 
-  // 初始刷新一次活动计时器列表
+  // 初始刷新一次活动计时器列表 - 只在组件挂载时执行
   useEffect(() => {
     refreshActiveTimers();
-  }, [refreshActiveTimers]);
+  }, []); // 移除 refreshActiveTimers 依赖，避免循环
   
   // 本地计时状态 - 用于实时更新
   const [localElapsedSeconds, setLocalElapsedSeconds] = useState(0);

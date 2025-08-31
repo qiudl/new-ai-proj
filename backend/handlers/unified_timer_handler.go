@@ -37,11 +37,11 @@ func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 	
 	// Create dependencies
 	typeInferenceEngine := services.NewTypeInferenceEngine(sqlDB)
-	notificationService := services.NewNotificationService()
+	// notificationService := services.NewNotificationService() // Temporarily disabled
 	
 	return &UnifiedTimerHandler{
 		db:           db,
-		timerService: services.NewUnifiedTimerService(sqlDB, typeInferenceEngine, notificationService),
+		timerService: services.NewUnifiedTimerService(sqlDB, typeInferenceEngine),
 	}
 }
 

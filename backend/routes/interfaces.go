@@ -15,6 +15,9 @@ type ApplicationInterface interface {
 	GetDB() database.DB
 	GetJWTManager() *utils.JWTManager
 
+	// WebSocket处理器 - DISABLED
+	// GetWebSocketHandler() gin.HandlerFunc
+
 	// 认证处理器
 	GetAuthHandler() *handlers.AuthHandler
 
@@ -86,7 +89,7 @@ type ApplicationInterface interface {
 	GetRouterDocumentHandler() *handlers.RouterDocumentHandler // New router-based document handler
 	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
 	GetSimpleDocumentHandler() *handlers.HybridDocumentHandler
-	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler
+	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler // Document folder handler
 	
 	// 工作笔记文件夹处理器
 	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler
@@ -104,4 +107,5 @@ type ApplicationInterface interface {
 	
 	// 任务层级处理器
 	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
+	GetTaskTimelineHandler() gin.HandlerFunc
 }

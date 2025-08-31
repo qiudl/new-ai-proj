@@ -144,11 +144,14 @@ func (pdb *PostgresDB) NewDocuments() DocumentRepositoryNew {
 }
 
 // DocumentFolders returns the document folder repository
+// Temporarily disabled due to model conflicts
+/*
 func (pdb *PostgresDB) DocumentFolders() DocumentFolderRepository {
 	// TODO: Fix DocumentFolderRepository implementation issues  
 	return nil // 临时注释，避免编译错误
 	// return NewDocumentFolderRepository(pdb.db)
 }
+*/
 
 // DocumentRelations returns the document relation repository
 func (pdb *PostgresDB) DocumentRelations() DocumentRelationRepository {
@@ -334,11 +337,14 @@ func (ptx *PostgresTx) Documents() DocumentRepository {
 }
 
 // DocumentFolders returns the document folder repository for transaction
+// Temporarily disabled due to model conflicts
+/*
 func (ptx *PostgresTx) DocumentFolders() DocumentFolderRepository {
 	// TODO: Fix DocumentFolderRepository implementation
 	return nil // 临时注释，避免编译错误
 	// return NewDocumentFolderRepository(ptx.tx)
 }
+*/
 
 // DocumentRelations returns the document relation repository for transaction
 func (ptx *PostgresTx) DocumentRelations() DocumentRelationRepository {

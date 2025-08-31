@@ -20,7 +20,8 @@ import {
   Badge,
   Tooltip,
   message,
-  Modal
+  Modal,
+  Pagination
 } from 'antd';
 import { 
   PlusOutlined,
@@ -40,12 +41,15 @@ import {
   UserOutlined,
   TagOutlined,
   FolderOutlined,
-  SwapOutlined
+  SwapOutlined,
+  FolderOpenOutlined
 } from '@ant-design/icons';
 import { workNotesService, WorkNote } from '../services/workNotesService';
+import { TaskService } from '../services/taskService';
 import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
 import WorkNoteConversionModal from '../components/conversion/WorkNoteConversionModal';
+import FolderTree from '../components/FolderTree';
 import '../styles/ModernDocumentManager.css';
 import { useSearchParams } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -88,6 +92,16 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const [sortBy, setSortBy] = useState<'updated' | 'created' | 'title'>('updated');
   const [favoriteFilter, setFavoriteFilter] = useState(false);
   
+  // 文件夹相关状态
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [folderPath, setFolderPath] = useState<string>('全部笔记');
+  const [showFolderTree, setShowFolderTree] = useState(true);
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalCount, setTotalCount] = useState(0);
+  
   // 统计信息
   const [stats, setStats] = useState({
     total: 0,
@@ -107,7 +121,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
         const results = await workNotesService.searchWorkNotes(searchQuery);
         data = { documents: results, total: results.length, page: 1, page_size: 50 };
       } else {
-        data = await workNotesService.listWorkNotes();
+        data = await workNotesService.listWorkNotes(selectedFolderId || undefined, currentPage, pageSize);
       }
       
       let filteredNotes = data?.documents || [];
@@ -119,6 +133,13 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       
       if (favoriteFilter) {
         filteredNotes = filteredNotes.filter(note => note.is_template);
+      }
+      
+      // 文件夹筛选
+      if (selectedFolderId !== null) {
+        filteredNotes = filteredNotes.filter(note => 
+          note.folder_id === selectedFolderId
+        );
       }
       
       if (selectedTags.length > 0) {
@@ -141,11 +162,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
       });
       
       setWorkNotes(filteredNotes);
+      setTotalCount(data?.total || 0);
       
       // 更新统计信息
       const allDocuments = data?.documents || [];
       setStats({
-        total: allDocuments.length,
+        total: data?.total || allDocuments.length,
         published: allDocuments.filter(n => n.status === 'published').length,
         drafts: allDocuments.filter(n => n.status === 'draft').length,
         templates: allDocuments.filter(n => n.is_template).length,
@@ -162,7 +184,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
 
   useEffect(() => {
     loadWorkNotes();
-  }, [searchQuery, statusFilter, favoriteFilter, selectedTags, sortBy]);
+  }, [searchQuery, statusFilter, favoriteFilter, selectedTags, sortBy, selectedFolderId, currentPage, pageSize]);
 
   // 初始化与监听 URL 参数变化，优先 URL -> 其次 localStorage -> 默认值
   useEffect(() => {
@@ -327,6 +349,20 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     }
     setSearchParams(next, { replace: true });
   };
+  
+  // 处理文件夹选择
+  const handleFolderSelect = (folderId: number | null, path: string) => {
+    setSelectedFolderId(folderId);
+    setFolderPath(path || '全部笔记');
+    setCurrentPage(1); // 重置到第一页
+    // loadWorkNotes 会被 useEffect 自动触发
+  };
+  
+  // 处理文件夹变更（创建、编辑、删除后）
+  const handleFolderChange = () => {
+    // 刷新工作笔记列表
+    loadWorkNotes();
+  };
 
   const handleDeleteNote = async (note: WorkNote) => {
     Modal.confirm({
@@ -386,6 +422,47 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     };
     const config = statusConfig[status as keyof typeof statusConfig] || { color: 'default', text: status };
     return <Tag color={config.color}>{config.text}</Tag>;
+  };
+
+  // 渲染关联任务
+  const renderRelatedTasks = (relatedTasks?: number[]) => {
+    if (!relatedTasks || relatedTasks.length === 0) {
+      return null;
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+        <Text type="secondary" style={{ fontSize: '12px' }}>
+          关联任务:
+        </Text>
+        {relatedTasks.map((taskId, index) => (
+          <Tooltip key={taskId} title={`任务 #${taskId}`}>
+            <Tag 
+              size="small" 
+              color="blue"
+              style={{ 
+                margin: 0, 
+                cursor: 'pointer',
+                fontSize: '11px',
+                lineHeight: '16px'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // 跳转到任务详情页
+                window.open(`/tasks/${taskId}`, '_blank');
+              }}
+            >
+              #{taskId}
+            </Tag>
+          </Tooltip>
+        ))}
+        {relatedTasks.length > 3 && (
+          <Text type="secondary" style={{ fontSize: '11px' }}>
+            +{relatedTasks.length - 3} 更多
+          </Text>
+        )}
+      </div>
+    );
   };
 
   // 渲染网格视图笔记卡片
@@ -465,6 +542,9 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             <ClockCircleOutlined style={{ marginRight: 4 }} />
             {new Date(note.updated_at).toLocaleDateString('zh-CN')}
           </Text>
+          <Text type="secondary" style={{ fontSize: '11px', marginLeft: 8, color: '#ccc' }}>
+            ID: {note.id}
+          </Text>
         </div>
         
         {note.description && (
@@ -490,6 +570,8 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             )}
           </div>
         )}
+        
+        {renderRelatedTasks(note.related_tasks)}
       </Card>
     );
   };
@@ -537,6 +619,9 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
                   {new Date(note.updated_at).toLocaleDateString('zh-CN')}
                 </span>
+                <span style={{ color: '#999' }}>
+                  ID: {note.id}
+                </span>
                 {note.tags && note.tags.length > 0 && (
                   <span>
                     <TagOutlined style={{ marginRight: 4 }} />
@@ -545,6 +630,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   </span>
                 )}
               </div>
+              {renderRelatedTasks(note.related_tasks)}
             </div>
           </div>
           <Dropdown 
@@ -668,6 +754,35 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             </Card>
           )}
           
+          {/* 文件夹树 */}
+          {!sidebarCollapsed && showFolderTree && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: 8 
+              }}>
+                <Text strong style={{ fontSize: '12px', color: '#666' }}>
+                  文件夹
+                </Text>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  onClick={() => message.info('创建文件夹功能开发中')}
+                />
+              </div>
+              <FolderTree
+                projectId={1}
+                selectedFolderId={selectedFolderId || undefined}
+                onFolderSelect={handleFolderSelect}
+                onFolderChange={handleFolderChange}
+                height={300}
+              />
+            </div>
+          )}
+          
           {/* 快速筛选 */}
           {!sidebarCollapsed && (
             <div style={{ marginBottom: 16 }}>
@@ -676,7 +791,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 <Button
                   size="small"
                   type={statusFilter === 'all' ? 'primary' : 'text'}
-                  onClick={() => setStatusFilter('all')}
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setCurrentPage(1);
+                  }}
                   style={{ width: '100%', textAlign: 'left', marginBottom: 4 }}
                 >
                   <FolderOutlined /> 全部笔记
@@ -684,7 +802,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 <Button
                   size="small"
                   type={statusFilter === 'draft' ? 'primary' : 'text'}
-                  onClick={() => setStatusFilter('draft')}
+                  onClick={() => {
+                    setStatusFilter('draft');
+                    setCurrentPage(1);
+                  }}
                   style={{ width: '100%', textAlign: 'left', marginBottom: 4 }}
                 >
                   <EditOutlined /> 草稿
@@ -692,7 +813,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 <Button
                   size="small"
                   type={statusFilter === 'published' ? 'primary' : 'text'}
-                  onClick={() => setStatusFilter('published')}
+                  onClick={() => {
+                    setStatusFilter('published');
+                    setCurrentPage(1);
+                  }}
                   style={{ width: '100%', textAlign: 'left', marginBottom: 4 }}
                 >
                   <FileMarkdownOutlined /> 已发布
@@ -700,7 +824,10 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 <Button
                   size="small"
                   type={favoriteFilter ? 'primary' : 'text'}
-                  onClick={() => setFavoriteFilter(!favoriteFilter)}
+                  onClick={() => {
+                    setFavoriteFilter(!favoriteFilter);
+                    setCurrentPage(1);
+                  }}
                   style={{ width: '100%', textAlign: 'left' }}
                 >
                   <StarOutlined /> 收藏夹
@@ -795,6 +922,31 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
               </Row>
             )}
           </Spin>
+
+          {/* 分页组件 */}
+          {totalCount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+              <Pagination
+                current={currentPage}
+                total={totalCount}
+                pageSize={pageSize}
+                showSizeChanger
+                showQuickJumper
+                showTotal={(total, range) => 
+                  `第 ${range[0]}-${range[1]} 条，共 ${total} 条记录`
+                }
+                pageSizeOptions={['10', '20', '50', '100']}
+                onChange={(page, size) => {
+                  if (size !== pageSize) {
+                    setPageSize(size);
+                    setCurrentPage(1); // 改变页面大小时重置到第一页
+                  } else {
+                    setCurrentPage(page);
+                  }
+                }}
+              />
+            </div>
+          )}
         </Content>
       </Layout>
 

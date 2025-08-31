@@ -82,6 +82,7 @@ const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGloba
 const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 const PermissionDemoPage = React.lazy(() => import('./pages/PermissionDemoPage'));
 const RefreshTestPage = React.lazy(() => import('./pages/RefreshTestPage'));
+// const WebSocketProgressTestPage = React.lazy(() => import('./pages/WebSocketProgressTestPage')); // DISABLED: WebSocket functionality
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -375,14 +376,6 @@ const AppContent: React.FC = () => {
                     <APIKeyEdit />
                   </PermissionRoute>
                 } />
-
-                {/* Test Center and test pages */}
-                <Route path="/test-center" element={<TestCenter />} />
-                <Route path="/hierarchical-gantt-test" element={<HierarchicalGanttTestPage />} />
-                <Route path="/interactive-gantt-test" element={<InteractiveGanttTestPage />} />
-                <Route path="/project-global-gantt-test" element={<ProjectGlobalGanttTestPage />} />
-                <Route path="/dropdown-test" element={<DropdownTestPage />} />
-                <Route path="/refresh-test" element={<RefreshTestPage />} />
               </Route>
             </Routes>
           </Suspense>

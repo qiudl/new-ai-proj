@@ -1,5 +1,6 @@
-import { message, notification } from 'antd';
+import { message as antdMessage, notification } from 'antd';
 import { ExclamationCircleOutlined, ReloadOutlined, CloseOutlined } from '@ant-design/icons';
+import React from 'react';
 
 // 错误类型枚举
 export enum ErrorType {
@@ -198,7 +199,7 @@ export class RefreshErrorHandler {
   // 检查错误是否应该自动重试
   shouldAutoRetry(error: RefreshError): boolean {
     return (
-      error.canRetry &&
+      !!error.canRetry &&
       this.config.autoRetryOn.includes(error.type) &&
       (error.retryCount || 0) < this.config.maxRetries
     );
@@ -282,14 +283,14 @@ export class RefreshErrorHandler {
   }
 
   private showNotification(error: RefreshError): void {
-    const { type, severity, message, canRetry, retryCount, maxRetries } = error;
+    const { type, severity, message: errorMessage, canRetry, retryCount, maxRetries } = error;
 
     // 根据严重程度选择通知类型
     if (severity === ErrorSeverity.CRITICAL) {
       // 严重错误使用notification
       notification.error({
         message: '严重错误',
-        description: message,
+        description: errorMessage,
         icon: <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />,
         duration: 0, // 不自动关闭
         key: `refresh-error-${type}`,
@@ -300,7 +301,7 @@ export class RefreshErrorHandler {
               style={{ cursor: 'pointer', color: '#1890ff' }}
             />
             <CloseOutlined 
-              onClick={() => notification.close(`refresh-error-${type}`)}
+              onClick={() => notification.destroy(`refresh-error-${type}`)}
               style={{ cursor: 'pointer' }}
             />
           </div>
@@ -310,16 +311,16 @@ export class RefreshErrorHandler {
       // 高严重程度错误
       notification.warning({
         message: '刷新失败',
-        description: message,
+        description: errorMessage,
         duration: this.config.notificationDuration / 1000,
         key: `refresh-error-${type}`
       });
     } else if (severity === ErrorSeverity.MEDIUM) {
       // 中等严重程度使用message
-      message.warning(message, this.config.notificationDuration / 1000);
+      antdMessage.warning(errorMessage, this.config.notificationDuration / 1000);
     } else {
       // 低严重程度使用简单message
-      message.info(message, this.config.notificationDuration / 1000);
+      antdMessage.info(errorMessage, this.config.notificationDuration / 1000);
     }
   }
 
