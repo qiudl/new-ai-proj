@@ -216,7 +216,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
         
         setState(prev => ({
           ...prev,
-          documents: (prev.documents as unknown[]).filter((doc: unknown) => !documentIds.includes(doc.id)),
+          documents: (prev.documents as any[]).filter((doc: any) => !documentIds.includes(doc.id)),
           selectedDocuments: [],
           isSelectMode: false,
           total: prev.total - documentIds.length

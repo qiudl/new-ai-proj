@@ -130,7 +130,7 @@ export function useProgress(
       if (entityType === 'task') {
         try {
           const response = await api.get(`/tasks/${entityId}/progress`);
-          const legacy = response as LegacyTaskProgress;
+          const legacy = (response as any).data as LegacyTaskProgress;
           return mapLegacyToProgressResult(entityId, legacy);
         } catch (error) {
           // Log the error for debugging but continue with fallback
@@ -194,7 +194,7 @@ export function useProgressSnapshots(
         `/progress/${entityType}/${entityId}/snapshots?${params.toString()}`
       );
       
-      return (response as ProgressSnapshot[]) || [];
+      return ((response as any).data as ProgressSnapshot[]) || [];
     },
     enabled: enabled && !!entityId,
   });
@@ -210,14 +210,14 @@ export function useRecomputeProgress() {
     mutationFn: async (request: RecomputeRequest) => {
       try {
         const response = await api.post('/progress/recompute', request);
-        return response as ProgressResult;
+        return (response as any).data as ProgressResult;
       } catch (err: any) {
         // Fallback: if recompute endpoint not available, just fetch latest legacy progress
         const status = err?.status ?? err?.response?.status;
         if (request.entityType === 'task' && (status === 404 || status === 501)) {
           try {
             const legacyResponse = await api.get(`/tasks/${request.id}/progress`);
-            const legacy = legacyResponse as LegacyTaskProgress;
+            const legacy = (legacyResponse as any).data as LegacyTaskProgress;
             return mapLegacyToProgressResult(request.id, legacy);
           } catch (legacyErr) {
             console.warn(`Failed to fetch legacy progress for task ${request.id}:`, legacyErr);

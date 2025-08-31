@@ -306,17 +306,17 @@ const AIConfigPage: React.FC = () => {
 
       // 只有在提供了新的API密钥时才添加到请求中
       if (apiKey) {
-        testRequest.apiKey = apiKey;
+        (testRequest as any).apiKey = apiKey;
       }
 
       // 添加自定义测试问题
       const customQuestion = testQuestions[provider];
       if (customQuestion && customQuestion.trim()) {
-        testRequest.testText = customQuestion.trim();
+        (testRequest as any).testText = customQuestion.trim();
       }
       
       // 使用已有的aiConfigDatabaseService进行测试
-      const response = await aiConfigDatabaseService.testConnection(testRequest);
+      const response = await aiConfigDatabaseService.testConnection(testRequest as any);
       
       // 处理API响应格式
       const testResult = response.success ? response.data : {

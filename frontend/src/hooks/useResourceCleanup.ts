@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 
 // 定时器管理Hook - 自动清理防止内存泄漏
 export const useTimerCleanup = () => {
-  const timers = useRef<Set<NodeJS.Timeout>>(new Set());
+  const timers = useRef<Set<any>>(new Set());
   
   // 创建受管理的定时器
   const createTimer = useCallback((callback: Function, delay: number, isInterval = false) => {
