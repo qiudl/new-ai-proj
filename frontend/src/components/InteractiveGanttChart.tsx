@@ -505,8 +505,8 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
       const progress = task.status === 'completed' ? 100 : 
                       task.status === 'in_progress' ? Math.floor(Math.random() * 80) + 10 : 0;
 
-      const children = task.children.map(child => 
-        convertToInteractiveTask(child, level + 1, startDate)
+      const children = (task.children || []).map(child => 
+        convertToInteractiveTask({ ...child, children: (child as any).children || [] }, level + 1, startDate)
       );
 
       return {
@@ -536,7 +536,7 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
     };
 
     const now = new Date();
-    return rootTasks.map(task => convertToInteractiveTask(task, 0, now));
+    return rootTasks.map(task => convertToInteractiveTask({ ...task, children: task.children || [] }, 0, now));
   }, [selectedTasks]);
 
   // Flatten hierarchical tasks for rendering

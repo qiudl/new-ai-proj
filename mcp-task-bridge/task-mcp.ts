@@ -268,6 +268,9 @@ export class TaskMCPServer {
         const token = (response.data as any).access_token || (response.data as any).token;
         if (token) {
           this.setAuthToken(token);
+          console.error('[AUTH] Dev quick login: token set in services');
+        } else {
+          console.error('[AUTH] Dev quick login: no token found in response');
         }
 
         return {

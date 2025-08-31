@@ -171,8 +171,8 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
       const progress = task.status === 'completed' ? 100 : 
                       task.status === 'in_progress' ? Math.floor(Math.random() * 80) + 10 : 0;
 
-      const children = task.children.map(child => 
-        convertToGanttTask(child, level + 1, startDate)
+      const children = (task.children || []).map(child => 
+        convertToGanttTask({ ...child, children: (child as any).children || [] }, level + 1, startDate)
       );
 
       return {
@@ -195,7 +195,7 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
     };
 
     const now = new Date();
-    return rootTasks.map(task => convertToGanttTask(task, 0, now));
+    return rootTasks.map(task => convertToGanttTask({ ...task, children: task.children || [] }, 0, now));
   }, []);
 
   // 展平层级结构为可视化列表（考虑展开状态）

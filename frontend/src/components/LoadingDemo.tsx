@@ -303,9 +303,6 @@ export const LoadingDemo: React.FC = () => {
                     这里展示的是加载完成后的实际内容。在真实应用中，
                     用户会看到骨架屏到实际内容的平滑过渡。
                   </Paragraph>
-                  {demoState === 'loading' && (
-                    <Progress percent={Math.random() * 100} size="small" />
-                  )}
                 </div>
               )}
             </div>

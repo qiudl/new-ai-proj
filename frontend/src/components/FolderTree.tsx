@@ -81,8 +81,15 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       // 调用真实API获取文件夹树
       const data = await documentFolderService.getFolderTree();
       const folders = (data && (data as any).tree) ? (data as any).tree as DocumentFolder[] : [];
-      setFolders(folders);
-      buildTreeData(folders as any);
+      // 转换为 FolderWithExtras 类型，添加缺失的属性
+      const foldersWithExtras: FolderWithExtras[] = folders.map(folder => ({
+        ...folder,
+        path: folder.name, // 使用文件夹名称作为路径
+        document_count: folder.documents_count || 0, // 使用正确的属性名
+        children: folder.children as FolderWithExtras[] || []
+      }));
+      setFolders(foldersWithExtras);
+      buildTreeData(foldersWithExtras);
     } catch (error: any) {
       console.error('Failed to load folders:', error);
       message.error(error?.message || '加载文件夹失败');

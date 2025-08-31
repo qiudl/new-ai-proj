@@ -123,7 +123,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         }
         
         // 在所有项目中查找任务
-        let foundTask: unknown = null;
+        let foundTask: TaskInfo | null = null;
         for (const project of projects) {
           try {
             const tasksResponse = await api.get(`projects/${project.id}/tasks`);

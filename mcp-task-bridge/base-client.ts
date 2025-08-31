@@ -46,6 +46,8 @@ export abstract class BaseClient {
     params?: Record<string, any>
   ): Promise<ApiResponse<T>> {
     try {
+      // Debug safe-log: do not print token value
+      console.error(`[HTTP] ${method} ${url} auth=${this.authToken ? 'present' : 'none'}`);
       const config = {
         method,
         url: `${this.apiBase}${url}`,

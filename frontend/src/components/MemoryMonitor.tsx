@@ -32,7 +32,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
 
   const getMemoryStats = (): MemoryStats | null => {
     if ('memory' in performance) {
-      const memory = (performance as unknown).memory;
+      const memory = (performance as any).memory;
       const cacheStats = globalCache.getStats();
       
       return {
@@ -89,7 +89,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
       
       // Force garbage collection if available
       if ('gc' in window) {
-        (window as unknown).gc();
+        (window as any).gc();
       }
       
       } catch (error) {
