@@ -195,7 +195,7 @@ const AITaskManagerPage: React.FC = () => {
         </Col>
         <Col>
           <Space>
-            <Badge status={healthInfo.color as unknown} />
+            <Badge status={healthInfo.color as any} />
             <Tooltip title={healthInfo.text}>
               {healthInfo.icon}
               <Text style={{ marginLeft: '8px' }}>{healthInfo.text}</Text>

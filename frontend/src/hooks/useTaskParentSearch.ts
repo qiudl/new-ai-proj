@@ -202,7 +202,7 @@ export const useTaskParentSearch = (): UseTaskParentSearchReturn => {
           total = responseData.length;
         } else if (responseData && typeof responseData === 'object' && 'data' in responseData) {
           data = Array.isArray(responseData.data) ? responseData.data : [];
-          total = responseData.total || data.length;
+          total = (responseData as any).total || data.length;
         } else {
           data = [];
           total = 0;

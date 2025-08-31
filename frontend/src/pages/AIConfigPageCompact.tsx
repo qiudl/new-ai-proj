@@ -131,8 +131,8 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
       // 处理API返回的嵌套数据结构
       let configsData: unknown = response.data || [];
       // 如果data是对象且包含data字段，则提取内层的data
-      if (configsData && typeof configsData === 'object' && !Array.isArray(configsData) && configsData.data) {
-        configsData = configsData.data;
+      if (configsData && typeof configsData === 'object' && !Array.isArray(configsData) && (configsData as any).data) {
+        configsData = (configsData as any).data;
       }
       
       if (response.success && configsData && Array.isArray(configsData) && configsData.length > 0) {
@@ -253,7 +253,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
           response = await aiConfigDatabaseService.createConfig(createRequest);
         } catch (createError: unknown) {
           // 如果创建失败且是409冲突，说明配置已存在，改为更新
-          if (createError.response?.status === 409) {
+          if ((createError as any).response?.status === 409) {
             const updateRequest: Partial<AIConfigUpdateRequest> = {
               provider,
               apiKey: tempValue,
@@ -333,38 +333,38 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
 
       const response = await aiConfigDatabaseService.testConnection(testRequest);
       // 处理API返回的嵌套数据结构
-      let testResult: unknown = response.data || {};
+      let testResult: any = response.data || {};
       // 如果data是对象且包含data字段，则提取内层的data
-      if (testResult && typeof testResult === 'object' && !Array.isArray(testResult) && testResult.data) {
-        testResult = testResult.data;
+      if (testResult && typeof testResult === 'object' && !Array.isArray(testResult) && (testResult as any).data) {
+        testResult = (testResult as any).data;
       }
       
       // 如果response.success为true但testResult没有success字段，则设置为true
-      if (response.success && !testResult.hasOwnProperty('success')) {
-        testResult.success = true;
-        testResult.message = testResult.message || response.message || '测试成功';
+      if (response.success && !(testResult as any).hasOwnProperty('success')) {
+        (testResult as any).success = true;
+        (testResult as any).message = (testResult as any).message || response.message || '测试成功';
       }
       
-      if (testResult.success && testResult.conversation) {
+      if ((testResult as any).success && (testResult as any).conversation) {
         // 添加AI回复
         const assistantMessage: ChatMessage = {
           type: 'assistant',
-          content: testResult.conversation.answer,
+          content: (testResult as any).conversation.answer,
           timestamp: new Date(),
-          model: testResult.conversation.model,
-          tokens: testResult.conversation.usage ? {
-            prompt: testResult.conversation.usage.prompt_tokens,
-            completion: testResult.conversation.usage.completion_tokens,
-            total: testResult.conversation.usage.total_tokens
+          model: (testResult as any).conversation.model,
+          tokens: (testResult as any).conversation.usage ? {
+            prompt: (testResult as any).conversation.usage.prompt_tokens,
+            completion: (testResult as any).conversation.usage.completion_tokens,
+            total: (testResult as any).conversation.usage.total_tokens
           } : undefined
         };
 
         setChatMessages(prev => [...prev, assistantMessage]);
-        } else if (testResult.success) {
+        } else if ((testResult as any).success) {
         // 成功但没有对话内容，可能是连接测试成功的消息
         const successMessage: ChatMessage = {
           type: 'assistant',
-          content: `✅ 连接测试成功: ${testResult.message || '与AI服务连接正常'}`,
+          content: `✅ 连接测试成功: ${(testResult as any).message || '与AI服务连接正常'}`,
           timestamp: new Date()
         };
 
@@ -372,18 +372,18 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
         } else {
         // 添加错误消息，显示具体的错误信息
         let errorContent = `❌ 连接失败`;
-        if (testResult.message) {
+        if ((testResult as any).message) {
           // 针对常见错误提供用户友好的提示
-          if (testResult.message.includes('exceeded your current quota')) {
+          if ((testResult as any).message.includes('exceeded your current quota')) {
             errorContent = `❌ OpenAI配额不足：请检查账户余额和使用计划。详情请查看 https://platform.openai.com/account/billing`;
-          } else if (testResult.message.includes('Not Found')) {
+          } else if ((testResult as any).message.includes('Not Found')) {
             errorContent = `❌ API端点错误：请检查API密钥是否有效，或BaseURL配置是否正确`;
-          } else if (testResult.message.includes('API密钥格式错误')) {
-            errorContent = `❌ ${testResult.message}`;
-          } else if (testResult.message.includes('unauthorized') || testResult.message.includes('Unauthorized')) {
+          } else if ((testResult as any).message.includes('API密钥格式错误')) {
+            errorContent = `❌ ${(testResult as any).message}`;
+          } else if ((testResult as any).message.includes('unauthorized') || (testResult as any).message.includes('Unauthorized')) {
             errorContent = `❌ 认证失败：请检查API密钥是否正确`;
           } else {
-            errorContent = `❌ 连接失败: ${testResult.message}`;
+            errorContent = `❌ 连接失败: ${(testResult as any).message}`;
           }
         }
         
@@ -464,9 +464,9 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     provider: AIProvider,
     field: string,
     label: string,
-    value: React.FormEvent | React.ChangeEvent<HTMLInputElement>,
+    value: any,
     type: 'text' | 'select' | 'number' | 'switch' | 'password' = 'text',
-    options?: Array<{label: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>}>,
+    options?: Array<{label: string, value: any}>,
     placeholder?: string,
     size: 'small' | 'default' = 'small'
   ) => {

@@ -287,9 +287,9 @@ const AIConfigPageInlineEdit: React.FC = () => {
     provider: AIProvider, 
     field: string, 
     label: string, 
-    value: React.FormEvent | React.ChangeEvent<HTMLInputElement>, 
+    value: any, 
     type: 'text' | 'select' | 'number' | 'switch' | 'password' = 'text',
-    options?: Array<{label: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>}>,
+    options?: Array<{label: string, value: any}>,
     placeholder?: string
   ) => {
     const isEditing = editingField?.provider === provider && editingField?.field === field;

@@ -574,7 +574,7 @@ const AllFieldsTaskListPage: React.FC = () => {
       switch (config.key) {
         case 'id':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (id: number) => (
               <Text strong style={{ color: '#1890ff' }}>#{id}</Text>
             ),
@@ -582,8 +582,8 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'title':
           return {
-            ...baseColumn,
-            render: (title: string, record: unknown) => {
+            ...(baseColumn as any),
+            render: (title: string, record: any) => {
               const hasChildren = record.hasChildren || false;
               const isExpanded = record.isExpanded || false;
               const level = record.level || 0;
@@ -660,7 +660,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'status':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (status: string) => {
               const statusConfig = {
                 todo: { color: '#d9d9d9', text: '待开始' },
@@ -675,7 +675,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'project_name':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (projectName: string, record: Task) => (
               <Button
                 type="link"
@@ -691,7 +691,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'assignee_name':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (assigneeName: string, record: Task) => (
               assigneeName ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -706,7 +706,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'due_date':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (dueDate: string) => {
               if (!dueDate) return <Text type="secondary">-</Text>;
               const date = dayjs(dueDate);
@@ -730,7 +730,7 @@ const AllFieldsTaskListPage: React.FC = () => {
         case 'created_at':
         case 'updated_at':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (dateTime: string) => (
               <Text style={{ fontSize: '12px' }}>
                 {dayjs(dateTime).format('MM-DD HH:mm')}
@@ -740,7 +740,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'parent_title':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (parentTitle: string, record: Task) => (
               parentTitle ? (
                 <Button
@@ -759,7 +759,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'children_count':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             render: (count: number) => (
               count > 0 ? (
                 <Badge count={count} color="#52c41a" />
@@ -771,7 +771,7 @@ const AllFieldsTaskListPage: React.FC = () => {
 
         case 'actions':
           return {
-            ...baseColumn,
+            ...(baseColumn as any),
             fixed: 'right', // 确保操作列固定在右侧
             width: 120, // 固定宽度
             render: (_: unknown, record: Task) => (
@@ -812,7 +812,7 @@ const AllFieldsTaskListPage: React.FC = () => {
             const fieldConfig = customFields.find(f => f.key === fieldKey);
             
 return {
-              ...baseColumn,
+              ...(baseColumn as any),
               render: (value: any, record: Task) => {
                 if (fieldConfig?.render) {
                   return fieldConfig.render(value, record);
@@ -837,7 +837,7 @@ return {
           page: pagination.current,
           page_size: pagination.pageSize,
           search: filters.search || undefined,
-          status: filters.status.length > 0 ? filters.status.join(',') as unknown : undefined,
+          status: filters.status.length > 0 ? filters.status.join(',') as any : undefined,
           assignee_id: filters.assignee_id,
           due_after: filters.due_date_range?.[0]?.format('YYYY-MM-DD'),
           due_before: filters.due_date_range?.[1]?.format('YYYY-MM-DD'),
@@ -1423,7 +1423,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
             }}
             loading={loading}
             scroll={{ x: 'max-content', y: 600 }}
-            rowClassName={(record: unknown) => {
+            rowClassName={(record: any) => {
               const level = record.level || 0;
               const classes = [`task-level-${level}`];
               if (record.hasChildren) {

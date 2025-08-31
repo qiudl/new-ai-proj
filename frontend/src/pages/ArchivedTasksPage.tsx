@@ -73,7 +73,7 @@ const ArchivedTasksPage: React.FC = () => {
         total: data.total
       });
     } catch (error: Error | unknown) {
-      message.error(error.message || '获取归档任务失败');
+      message.error((error as any).message || '获取归档任务失败');
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,7 @@ const ArchivedTasksPage: React.FC = () => {
       const stats = await getArchiveStatistics(parseInt(projectId));
       setStatistics(stats);
     } catch (error: Error | unknown) {
-      message.error(error.message || '获取统计信息失败');
+      message.error((error as any).message || '获取统计信息失败');
     }
   }, [projectId]);
 
@@ -102,7 +102,7 @@ const ArchivedTasksPage: React.FC = () => {
       fetchArchivedTasks(pagination.current, pagination.pageSize);
       fetchStatistics();
     } catch (error: Error | unknown) {
-      message.error(error.message || '取消归档失败');
+      message.error((error as any).message || '取消归档失败');
     } finally {
       setUnarchivingTasks(prev => {
         const newSet = new Set(prev);
@@ -113,7 +113,7 @@ const ArchivedTasksPage: React.FC = () => {
   };
 
   // 处理分页变化
-  const handleTableChange = (newPagination: unknown) => {
+  const handleTableChange = (newPagination: any) => {
     fetchArchivedTasks(newPagination.current, newPagination.pageSize);
   };
 
