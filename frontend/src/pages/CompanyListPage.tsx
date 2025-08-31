@@ -191,9 +191,9 @@ const CompanyListPage: React.FC = () => {
         setCompanies(companies);
         setPagination(prev => ({
           ...prev,
-          total: paginationData.total || companies.length || 0,
-          current: paginationData.page || prev.current,
-          pageSize: paginationData.pageSize || prev.pageSize,
+          total: (paginationData as any).total || companies.length || 0,
+          current: (paginationData as any).page || prev.current,
+          pageSize: (paginationData as any).pageSize || prev.pageSize,
         }));
       } else {
         // 兜底处理 - 确保安全

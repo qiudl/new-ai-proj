@@ -41,7 +41,7 @@ import {
   BankOutlined,
   StarOutlined,
 } from '@ant-design/icons';
-import type { ColumnType } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 import type { TableRowSelection } from 'antd/es/table/interface';
 import dayjs from 'dayjs';
 
@@ -180,7 +180,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [filters, loadUsers]);
 
   // Handle filter change
-  const handleFilterChange = useCallback((key: string, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilterChange = useCallback((key: string, value: any) => {
     const newFilters = { ...filters, [key]: value, page: 1 };
     setFilters(newFilters);
     loadUsers(newFilters);
@@ -214,7 +214,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
       
       // 获取密码，支持多种可能的数据结构
       // 修复后的API拦截器应该正确解包，密码应该在response.password中
-      const password = response?.password || response?.data?.password || response?.user?.password;
+      const password = (response as any)?.password || (response as any)?.data?.password || (response as any)?.user?.password;
       
       if (!password) {
         console.error('No password in response:', response);
@@ -375,7 +375,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
   }, [editForm]);
 
   // Table columns
-  const columns: ColumnType<EnterpriseUserResponse>[] = useMemo(() => [
+  const columns: ColumnsType<EnterpriseUserResponse> = useMemo(() => [
     {
       title: '用户信息',
       key: 'userInfo',
@@ -437,7 +437,7 @@ const CompanyUserManagementPage: React.FC<CompanyUserManagementPageProps> = () =
         return (
           <div>
             <Badge
-              status={statusConfig.color as unknown}
+              status={statusConfig.color as any}
               text={statusConfig.text}
             />
             {isExpired && (

@@ -142,7 +142,7 @@ const BulkImportPage: React.FC = () => {
       }
     } catch (error: Error | unknown) {
       console.error('AI导入失败:', error);
-      message.error(error.message || 'AI任务导入失败');
+      message.error((error as any).message || 'AI任务导入失败');
     } finally {
       setLoading(false);
     }
@@ -251,7 +251,7 @@ const BulkImportPage: React.FC = () => {
         total_tasks: tasksToCreate.length,
         success_count: createdTasks.length,
         failure_count: tasksToCreate.length - createdTasks.length,
-        imported_tasks: createdTasks.map(task => task.id)
+        imported_tasks: createdTasks.map(task => (task as any).id)
       };
       
       setCurrentStep(2);
@@ -649,7 +649,7 @@ const BulkImportPage: React.FC = () => {
                   childrenMap.get(parentId).push(child);
                 });
 
-                const renderTask = (task: unknown, index: number, isChild = false) => (
+                const renderTask = (task: any, index: number, isChild = false) => (
                   <div key={`${task.parent_id || 'root'}-${index}`} className="task-item" style={{ 
                     marginLeft: isChild ? '24px' : '0',
                     borderLeft: isChild ? '2px solid #1890ff' : 'none',

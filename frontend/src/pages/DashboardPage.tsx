@@ -39,7 +39,7 @@ const DashboardPage: React.FC = () => {
       // voiceAnnouncer.announce(`开始为任务 "${task.title}" 计时`, 'medium'); // 隐藏调试功能
       message.success(`开始计时: ${task.title}`);
     } else {
-      startTimer();
+      startTimer(0, '默认任务', 'personal');
       // voiceAnnouncer.announce('开始计时', 'medium'); // 隐藏调试功能
     }
   }, [startTimer]);
