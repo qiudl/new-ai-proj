@@ -5,6 +5,14 @@ import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import MermaidRenderer from './MermaidRenderer';
 
+// 修复 ReactMarkdown 代码组件类型定义
+interface CodeComponentProps {
+  node?: any;
+  inline?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
+
 interface MarkdownRendererProps {
   content: string;
   style?: React.CSSProperties;
@@ -23,7 +31,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          code: ({ node, inline, className, children, ...props }) => {
+          code: ({ node, inline, className, children, ...props }: CodeComponentProps & any) => {
             const match = /language-(\w+)/.exec(className || '');
             const language = match ? match[1] : '';
             
@@ -41,7 +49,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             // 处理其他代码块
             return !inline && match ? (
               <SyntaxHighlighter
-                style={tomorrow}
+                style={tomorrow as any}
                 language={language}
                 PreTag="div"
                 customStyle={{ 
@@ -49,7 +57,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   margin: '8px 0',
                   borderRadius: '4px'
                 }}
-                {...props}
               >
                 {String(children).replace(/\n$/, '')}
               </SyntaxHighlighter>

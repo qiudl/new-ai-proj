@@ -41,7 +41,10 @@ export class TimerService extends BaseClient {
           message: `⏱️ 任务 "${response.data.data?.task_title || taskId}" 开始计时`
         };
       } else {
-        return response as ApiResponse<TimerData>;
+        return {
+          success: false,
+          error: response.error || '开始计时失败'
+        } as ApiResponse<TimerData>;
       }
     } catch (error: any) {
       return {
@@ -100,7 +103,7 @@ export class TimerService extends BaseClient {
             error: response.error || '停止计时失败'
           } as ApiResponse<TimerData>;
         }
-        return response as ApiResponse<TimerData>;
+        return { success: false, error: '停止计时失败' } as ApiResponse<TimerData>;
       }
     } catch (error: any) {
       return {
@@ -145,7 +148,10 @@ export class TimerService extends BaseClient {
             : '📝 当前无活跃计时器'
         };
       } else {
-        return response as ApiResponse<{ active_timers: TimerData[] }>;
+        return {
+          success: false,
+          error: response.error || '获取当前计时状态失败'
+        } as ApiResponse<{ active_timers: TimerData[] }>;
       }
     } catch (error: any) {
       return {

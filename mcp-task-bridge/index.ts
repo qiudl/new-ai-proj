@@ -983,9 +983,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     let result: any;
 
     switch (name) {
-      case 'create_task':
-        result = await taskServer.createTask(args.title as string, args.projectId as number);
-        break;      
+      case 'create_task': {
+        // 支持可选参数透传：description/priority/status/parent_id/tags/estimated_hours/custom_fields
+        const options: any = {};
+        if ((args as any).description) options.description = (args as any).description;
+        if ((args as any).priority) options.priority = (args as any).priority;
+        if ((args as any).status) options.status = (args as any).status;
+        const parentId = (args as any).parent_id ?? (args as any).parentId;
+        if (parentId != null) options.parent_id = parentId as number;
+        if ((args as any).estimated_hours != null) options.estimated_hours = (args as any).estimated_hours;
+        if (Array.isArray((args as any).tags)) options.tags = (args as any).tags as string[];
+        if ((args as any).custom_fields) options.custom_fields = (args as any).custom_fields;
+        result = await taskServer.createTask(args.title as string, args.projectId as number, options);
+        break;
+      }      
       case 'start_task':
         result = await taskServer.startTask(args.id as number);
         break;
@@ -1018,10 +1029,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       // 📝 工作笔记管理工具
       case 'create_work_note':
         result = await taskServer.createWorkNote(args.title as string, args.content as string, {
-          type: args.type as string,
+          type: args.type as any,
           tags: args.tags as string[],
-          visibility: args.visibility as string,
-          status: args.status as string
+          visibility: args.visibility as any,
+          status: args.status as any
         });
         break;
       
@@ -1029,8 +1040,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.listWorkNotes({
           page: args.page as number,
           limit: args.limit as number,
-          status: args.status as string,
-          type: args.type as string
+          status: args.status as any,
+          type: args.type as any
         });
         break;
       
@@ -1232,9 +1243,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await taskServer.createSiblingTask(
           args.siblingId as number, 
           args.title as string, 
-          args.description as string,
-          args.status as 'draft' | 'planning' | 'todo' | 'in_progress' | 'testing' | 'completed' | 'cancelled' | 'on_hold' | 'suspended' | 'blocked' | 'archived',
-          args.priority as 'low' | 'medium' | 'high'
+          {
+            description: args.description as string,
+            status: args.status as any,
+            priority: args.priority as any
+          }
         );
         break;
 

@@ -264,16 +264,18 @@ export class TaskMCPServer {
       });
 
       if (response.success && response.data) {
-        // 更新所有服务的认证令牌
-        const token = response.data.token;
-        this.setAuthToken(token);
+        // 更新所有服务的认证令牌（兼容多种返回格式）
+        const token = (response.data as any).access_token || (response.data as any).token;
+        if (token) {
+          this.setAuthToken(token);
+        }
 
         return {
           success: true,
           data: { token: token },
           token: token,
-          username: response.data.username,
-          message: '开发环境快速登录成功，已更新内存中的 Authorization 令牌'
+          username: (response.data as any).user?.username || (response.data as any).username,
+          message: token ? '开发环境快速登录成功，已更新内存中的 Authorization 令牌' : '开发环境快速登录成功，但未返回访问令牌'
         };
       } else {
         return response as ApiResponse<{ token?: string }>;
@@ -387,6 +389,48 @@ export class TaskMCPServer {
       return {
         success: false,
         error: `完成任务和停止计时失败: ${error.message || error}`
+      };
+    }
+  }
+
+  // 智能切换任务：完成当前进行中的任务，切换到新任务（不存在则创建）
+  async switchToTask(newTaskTitle: string, projectId: number = 1): Promise<ApiResponse> {
+    try {
+      // 1) 列出当前进行中的任务
+      const inProgress = await this.listTasks({ status: ['in_progress'], projectId });
+      if (inProgress.success && inProgress.data?.tasks?.length) {
+        for (const t of inProgress.data.tasks) {
+          try {
+            await this.completeTask(t.id);
+          } catch {}
+        }
+      }
+
+      // 2) 查找目标任务
+      const found = await this.findTaskByName(newTaskTitle);
+      let targetId: number | null = null;
+      if ((found as any).success && (found as any).data?.tasks?.length) {
+        targetId = (found as any).data.tasks[0].id;
+      } else if ((found as any).success && (found as any).tasks?.length) {
+        targetId = (found as any).tasks[0].id;
+      }
+
+      // 3) 不存在则创建
+      if (!targetId) {
+        const created = await this.createTask(newTaskTitle, projectId);
+        if (!created.success || !created.data?.id) {
+          return created;
+        }
+        targetId = created.data.id;
+      }
+
+      // 4) 启动目标任务
+      const started = await this.startTask(targetId);
+      return started;
+    } catch (error: any) {
+      return {
+        success: false,
+        error: `切换任务失败: ${error.message || error}`
       };
     }
   }

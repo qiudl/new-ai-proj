@@ -14,6 +14,14 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+
+// 修复 ReactMarkdown 代码组件类型定义
+interface CodeComponentProps {
+  node?: any;
+  inline?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}
 import ImageUpload from './ImageUpload';
 import PDFViewer from './PDFViewer';
 import './MarkdownEditor.css';
@@ -368,14 +376,18 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeHighlight]}
           components={{
-            code: ({ node, inline, className, children, ...props }) => {
+            code: ({ node, inline, className, children, ...props }: CodeComponentProps & any) => {
               const match = /language-(\w+)/.exec(className || '');
               return !inline && match ? (
                 <SyntaxHighlighter
-                  style={tomorrow}
+                  style={tomorrow as any}
                   language={match[1]}
                   PreTag="div"
-                  {...props}
+                  customStyle={{
+                    fontSize: '14px',
+                    margin: '8px 0',
+                    borderRadius: '4px'
+                  }}
                 >
                   {String(children).replace(/\n$/, '')}
                 </SyntaxHighlighter>

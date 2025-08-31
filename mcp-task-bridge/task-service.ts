@@ -527,7 +527,10 @@ export class TaskService extends BaseClient {
           message: `🔍 通过名称找到 ${tasks.length} 个匹配任务`
         };
       } else {
-        return response as ApiResponse<{ tasks: Task[] }>;
+        return {
+          success: false,
+          error: response.error || '按名称查找任务失败'
+        } as ApiResponse<{ tasks: Task[] }>;
       }
     } catch (error: any) {
       return {

@@ -52,11 +52,11 @@ const { Step } = Steps;
 interface BatchConversionItem {
   id: number;
   title: string;
-  content: string;
+  content?: string;  // 修改为可选，与 WorkNote 保持一致
   description?: string;
   status: 'draft' | 'published' | 'archived' | 'template';
   visibility: 'private' | 'team' | 'public';
-  tags: string[];
+  tags?: string[];  // 修改为可选，与 WorkNote 保持一致
   is_template: boolean;
   type: string;
   owner_id: number;

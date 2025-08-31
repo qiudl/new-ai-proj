@@ -32,7 +32,7 @@ import {
   validateRefreshConfig,
   RefreshConfig 
 } from '../contexts/RefreshConfigContext';
-import { globalRefreshErrorHandler } from '../utils/RefreshErrorHandler.tsx';
+import { globalRefreshErrorHandler } from '../utils/RefreshErrorHandler';
 
 const { Title, Text } = Typography;
 const { Option } = Select;

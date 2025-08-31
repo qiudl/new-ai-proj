@@ -78,6 +78,13 @@ export class MCPPermissionManager {
   }
 
   /**
+   * 设置API基础URL
+   */
+  setApiBase(apiBase: string): void {
+    this.apiBase = apiBase;
+  }
+
+  /**
    * 设置认证令牌和用户ID
    */
   setAuth(authToken: string, companyUserId?: number): void {

@@ -22,7 +22,7 @@ export abstract class BaseClient {
       {
         enablePermissionCheck: process.env.MCP_ENABLE_PERMISSIONS !== 'false', // 默认启用
         // enableLogging: process.env.MCP_DEBUG === 'true', // 默认关闭
-        cacheTimeout: parseInt(process.env.MCP_CACHE_TIMEOUT || '300') // 默认5分钟
+        cacheTTL: parseInt(process.env.MCP_CACHE_TIMEOUT || '300') // 默认5分钟
       }
     );
   }
@@ -123,7 +123,8 @@ export abstract class BaseClient {
   // 权限检查装饰器辅助方法
   protected async checkPermission(operation: string, resourceType?: string): Promise<boolean> {
     try {
-      return await this.permissionManager.hasPermission(operation, resourceType);
+      const res = await this.permissionManager.checkPermission(operation, undefined, resourceType);
+      return !!res?.has_permission;
     } catch (error) {
       console.warn(`Permission check failed for ${operation}:`, error);
       // 如果权限检查失败，默认允许操作（向下兼容）
@@ -139,7 +140,7 @@ export abstract class BaseClient {
   // 设置认证令牌
   public setAuthToken(token: string): void {
     this.authToken = token;
-    this.permissionManager.setAuthToken(token);
+    this.permissionManager.setAuth(token);
   }
 
   // 获取API基础URL
