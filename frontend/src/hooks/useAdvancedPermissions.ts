@@ -48,7 +48,7 @@ export const useAdvancedPermissions = (options: UseAdvancedPermissionsOptions = 
         }
 
         // 检查是否有任意一个权限即可访问
-        const hasPermission = await checkAnyPermission(requiredPermissions);
+        const hasPermission = await checkAnyPermission([...requiredPermissions]);
         setRoutePermissionGranted(hasPermission);
 
         // 开发环境日志

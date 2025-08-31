@@ -7,7 +7,7 @@ interface CacheOptions {
 }
 
 interface CacheEntry {
-  data: Record<string, unknown>;
+  data: any;
   timestamp: number;
   ttl: number;
   memorySize: number; // Estimated memory size in MB
@@ -57,7 +57,7 @@ class MemoryAwareCache {
   }
 
   set<T>(key: string, data: T, ttl = 5 * 60 * 1000): void {
-    const estimatedSize = this.estimateMemoryUsage(data);
+    const estimatedSize = this.estimateMemoryUsage(data as any);
     
     // Don't cache if single item is too large (>10MB)
     if (estimatedSize > 10) {
@@ -75,7 +75,7 @@ class MemoryAwareCache {
     }
 
     const entry: CacheEntry = {
-      data,
+      data: data as any,
       timestamp: Date.now(),
       ttl,
       memorySize: estimatedSize,
@@ -279,7 +279,7 @@ export function useCache<T>(
       setData(result);
       return result;
     } catch (err: unknown) {
-      if (!isMountedRef.current || err.name === 'AbortError') {
+      if (!isMountedRef.current || (err as any).name === 'AbortError') {
         return null;
       }
       

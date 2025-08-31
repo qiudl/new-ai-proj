@@ -76,7 +76,7 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
 
   // 构建查询参数
   const getQueryParams = useCallback(() => {
-    const params: unknown = {
+    const params: any = {
       page: state.page,
       limit: state.pageSize,
       sort_by: state.sortBy,
@@ -123,13 +123,13 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
 
       setState(prev => ({
         ...prev,
-        documents: documents,
+        documents: documents as any,
         total,
         loading: false
       }));
 
     } catch (error: Error | unknown) {
-      const errorMessage = error.message || '加载文档失败';
+      const errorMessage = (error as any).message || '加载文档失败';
       setState(prev => ({
         ...prev,
         loading: false,
@@ -194,14 +194,14 @@ const useDocumentManager = (options: UseDocumentManagerOptions) => {
         // 从状态中移除文档
         setState(prev => ({
           ...prev,
-          documents: (prev.documents as unknown[]).filter((doc: unknown) => doc.id !== documentId),
+          documents: (prev.documents as any[]).filter((doc: any) => doc.id !== documentId),
           selectedDocuments: prev.selectedDocuments.filter(id => id !== documentId),
           total: prev.total - 1
         }));
         
         // clearCache(); // Disabled cache
       } catch (error: Error | unknown) {
-        message.error(error.message || '删除文档失败');
+        message.error((error as any).message || '删除文档失败');
       }
     },
 

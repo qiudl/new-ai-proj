@@ -747,7 +747,12 @@ const renderMainControls = () => (
                 alignItems: 'center',
                 justifyContent: 'flex-start'
               }}
-              onClick={() => handleSuggestionClick(suggestion)}
+              onClick={() => handleSuggestionClick({
+                ...suggestion,
+                id: index + 1,
+                confidence: 0.8,
+                reasoning: ['快速建议']
+              })}
             >
               <span style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {suggestion.title}
