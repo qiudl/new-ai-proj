@@ -62,6 +62,9 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     projectId
   }), [rootTaskId, projectId]);
 
+  // 固定依赖数组引用，避免 useAutoRefreshOptimized 因依赖数组引用变化而重复触发
+  const refreshDeps = React.useMemo<React.DependencyList>(() => [projectId, rootTaskId, limit], [projectId, rootTaskId, limit]);
+
   const setNodeLoading = (id: number, val: boolean) => setLoadingById(prev => ({ ...prev, [id]: val }));
   const setNodeError = (id: number, msg?: string) => setErrorById(prev => ({ ...prev, [id]: msg }));
 
@@ -101,7 +104,7 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     loadRootChildren,
     {
       interval: refreshConfig?.taskTreeInterval ? refreshConfig.taskTreeInterval * 1000 : 30000,
-      dependencies: [projectId, rootTaskId, limit],
+      dependencies: refreshDeps,
       enableVisibilityDetection: refreshConfig?.enableVisibilityDetection ?? true,
       enabled: true,
       maxRetries: refreshConfig?.maxRetries ?? 3,

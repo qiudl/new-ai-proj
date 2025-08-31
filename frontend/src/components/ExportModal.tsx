@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+
+// 类型定义
+interface StatItem {
+  label: string;
+  value: string | number;
+}
 import {
   Modal,
   Form,
@@ -403,7 +409,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </Row>
             <Divider />
             <Row gutter={[16, 8]}>
-              {previewData.summary.stats.map((stat: unknown, index: number) => (
+              {previewData.summary.stats.map((stat: StatItem, index: number) => (
                 <Col span={6} key={index}>
                   <div style={{ textAlign: 'center' }}>
                     <Text type="secondary">{stat.label}</Text>

@@ -162,7 +162,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
   }, [editingTasks, onEdit]);
 
   // 更新任务字段
-  const updateTaskField = useCallback((index: number, field: keyof GeneratedSubTask, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const updateTaskField = useCallback((index: number, field: keyof GeneratedSubTask, value: any) => {
     setEditingTasks(prev => prev.map((task, i) => 
       i === index ? { ...task, [field]: value } : task
     ));

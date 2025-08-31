@@ -18,6 +18,13 @@ import './FloatingTimer.css';
 
 const { Text } = Typography;
 
+// 类型定义
+interface TaskInfo {
+  id: number;
+  project_id?: number;
+  title: string;
+}
+
 interface FloatingTimerProps {
   defaultPosition?: { x: number; y: number };
   className?: string;
@@ -121,7 +128,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
           try {
             const tasksResponse = await api.get(`projects/${project.id}/tasks`);
             const tasks = tasksResponse?.data?.data || tasksResponse?.data || [];
-            const task = tasks.find((t: unknown) => t.id === taskId);
+            const task = tasks.find((t: TaskInfo) => t.id === taskId);
             
             if (task) {
               foundTask = {

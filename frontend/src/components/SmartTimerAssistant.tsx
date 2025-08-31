@@ -335,7 +335,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
     };
   }, [stopAnalysisTimer]);
 
-  const handleSettingChange = (key: keyof SmartSettings, value: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+  const handleSettingChange = (key: keyof SmartSettings, value: any) => {
     const newSettings = { ...settings, [key]: value };
     saveSettings(newSettings);
   };

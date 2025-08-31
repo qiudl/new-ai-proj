@@ -242,7 +242,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
       onCancel={handleClose}
       width={800}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Steps current={currentStep} className="mb-6">
         <Step title="配置选项" icon={<SettingOutlined />} />

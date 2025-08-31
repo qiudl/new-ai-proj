@@ -6,7 +6,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ThunderboltOutlined,
-  MemoryIcon
+  DatabaseOutlined as MemoryIcon
 } from '@ant-design/icons';
 
 interface PerformanceStats {
