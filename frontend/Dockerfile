@@ -4,7 +4,7 @@
 # ======================================
 # Stage 1: Base Dependencies
 # ======================================
-FROM node:20-alpine AS base
+FROM node:18-alpine AS base
 
 # Install essential packages
 RUN apk --no-cache add \
@@ -74,7 +74,7 @@ ENV TSC_COMPILE_ON_ERROR=true
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001 || exit 1
+    CMD curl -f http://localhost:3000 || exit 1
 
 # Development command with hot reload
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
@@ -148,7 +148,7 @@ EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001 || exit 1
+    CMD curl -f http://localhost:3000 || exit 1
 
 # Production command
 CMD ["nginx", "-g", "daemon off;"]

@@ -1,6 +1,9 @@
 const path = require('path');
 
 module.exports = {
+  eslint: {
+    enable: false, // 禁用ESLint，避免插件问题
+  },
   webpack: {
     configure: (webpackConfig) => {
       // 优化chunk命名和分割策略
@@ -59,7 +62,7 @@ module.exports = {
   },
   devServer: {
     host: '0.0.0.0',
-    port: 3000,
+    port: 3001,
     allowedHosts: 'all',
     headers: {
       'Access-Control-Allow-Origin': '*',
@@ -81,19 +84,9 @@ module.exports = {
         ignored: /node_modules/
       }
     },
-    client: {
-      webSocketURL: 'ws://localhost:3000/ws'
-    },
     proxy: {
       '/api': {
         target: 'http://localhost:8081',
-        changeOrigin: true,
-        secure: false,
-        logLevel: 'debug'
-      },
-      '/ws': {
-        target: 'ws://localhost:8081',
-        ws: true,
         changeOrigin: true,
         secure: false,
         logLevel: 'debug'

@@ -13,17 +13,8 @@ echo "REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8081/api/v1}"
 echo "REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL:-$REACT_APP_API_URL}"
 echo "Working directory: $(pwd)"
 
-# Check if node_modules exists
-if [ ! -d "node_modules" ]; then
-    echo "⚠️  node_modules not found, installing dependencies..."
-    npm install
-fi
-
-# Check for package.json changes
-if [ package.json -nt node_modules/.package-lock.json ] 2>/dev/null; then
-    echo "📦 Package.json updated, refreshing dependencies..."
-    npm install
-fi
+# Skip node_modules check - already installed in Docker image
+echo "📦 Using pre-installed dependencies from Docker image"
 
 # Create .env file for development if it doesn't exist
 if [ ! -f .env ]; then
