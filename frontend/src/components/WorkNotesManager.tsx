@@ -991,14 +991,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
               rowClassName={(record, index) => 
                 index % 2 === 0 ? 'table-row-light' : 'table-row-dark'
               }
-              style={{
-                '& .table-row-light': {
-                  backgroundColor: '#fafafa'
-                },
-                '& .table-row-dark': {
-                  backgroundColor: '#ffffff'
-                }
-              }}
+              style={{}}
             />
           )}
         </Spin>

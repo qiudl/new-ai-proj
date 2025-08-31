@@ -72,8 +72,8 @@ export const checkMemoryUsage = () => {
 // 触发内存清理
 export const triggerMemoryCleanup = () => {
   // 清理性能监控数据
-  if (window.performanceMonitor) {
-    window.performanceMonitor.cleanup();
+  if ((window as any).performanceMonitor) {
+    (window as any).performanceMonitor.cleanup();
   }
   
   // 清理过期的localStorage数据

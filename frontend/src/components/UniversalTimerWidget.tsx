@@ -119,7 +119,7 @@ export const UniversalTimerWidget: React.FC<UniversalTimerWidgetProps> = ({
     target_type: 'project_task' as const,
     target_title: timerState.taskTitle,
     start_time: new Date().toISOString(),
-    status: isRunning ? (isPaused ? 'paused' : 'running') : 'stopped',
+    status: isRunning ? (isPaused ? 'paused' : 'running') : 'completed',
     pause_count: 0,
     pause_total_seconds: 0,
     pause_events: [],

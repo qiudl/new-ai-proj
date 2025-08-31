@@ -183,7 +183,7 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
       
       if (!isAutoSave) {
         message.success(note ? '笔记更新成功' : '笔记创建成功');
-        onSave();
+        onSave(values);
       } else {
         message.success('自动保存成功', 1);
       }
