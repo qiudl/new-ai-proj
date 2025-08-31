@@ -113,7 +113,7 @@ class DocumentFolderService {
   async createFolder(request: CreateDocumentFolderRequest): Promise<DocumentFolder> {
     try {
       const response = await axios.post<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/document-folders`,
+        `${API_BASE_URL}/work-note-folders`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -133,7 +133,7 @@ class DocumentFolderService {
   async getFolder(id: number): Promise<DocumentFolder> {
     try {
       const response = await axios.get<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/document-folders/${id}`,
+        `${API_BASE_URL}/work-note-folders/${id}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -152,7 +152,7 @@ class DocumentFolderService {
   async updateFolder(id: number, request: UpdateDocumentFolderRequest): Promise<DocumentFolder> {
     try {
       const response = await axios.put<APIResponse<DocumentFolder>>(
-        `${API_BASE_URL}/document-folders/${id}`,
+        `${API_BASE_URL}/work-note-folders/${id}`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -172,7 +172,7 @@ class DocumentFolderService {
   async deleteFolder(id: number): Promise<void> {
     try {
       const response = await axios.delete<APIResponse<void>>(
-        `${API_BASE_URL}/document-folders/${id}`,
+        `${API_BASE_URL}/work-note-folders/${id}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -209,7 +209,7 @@ class DocumentFolderService {
       }
 
       const response = await axios.get<APIResponse<ListFoldersResponse>>(
-        `${API_BASE_URL}/document-folders?${params}`,
+        `${API_BASE_URL}/work-note-folders?${params}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -233,7 +233,7 @@ class DocumentFolderService {
       }
 
       const response = await axios.get<APIResponse<FolderTreeResponse>>(
-        `${API_BASE_URL}/document-folders/tree?${params}`,
+        `${API_BASE_URL}/work-note-folders/tree?${params}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -252,7 +252,7 @@ class DocumentFolderService {
   async getFolderStats(id: number): Promise<DocumentFolderStats> {
     try {
       const response = await axios.get<APIResponse<DocumentFolderStats>>(
-        `${API_BASE_URL}/document-folders/${id}/stats`,
+        `${API_BASE_URL}/work-note-folders/${id}/stats`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -271,7 +271,7 @@ class DocumentFolderService {
   async moveFolder(id: number, request: MoveFolderRequest): Promise<void> {
     try {
       const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/document-folders/${id}/move`,
+        `${API_BASE_URL}/work-note-folders/${id}/move`,
         request,
         { headers: this.getAuthHeaders() }
       );
@@ -289,7 +289,7 @@ class DocumentFolderService {
   async getFolderChildren(id: number): Promise<DocumentFolder[]> {
     try {
       const response = await axios.get<APIResponse<DocumentFolder[]>>(
-        `${API_BASE_URL}/document-folders/${id}/children`,
+        `${API_BASE_URL}/work-note-folders/${id}/children`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -316,7 +316,7 @@ class DocumentFolderService {
         total_count: number;
         has_more: boolean;
       }>>(
-        `${API_BASE_URL}/document-folders/${id}/documents?limit=${limit}&offset=${offset}`,
+        `${API_BASE_URL}/work-note-folders/${id}/documents?limit=${limit}&offset=${offset}`,
         { headers: this.getAuthHeaders() }
       );
       
@@ -335,7 +335,7 @@ class DocumentFolderService {
   async moveDocument(documentId: number, folderId: number | 'root'): Promise<void> {
     try {
       const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/document-folders/move-document/${documentId}/to/${folderId}`,
+        `${API_BASE_URL}/work-note-folders/move-document/${documentId}/to/${folderId}`,
         {},
         { headers: this.getAuthHeaders() }
       );
@@ -361,7 +361,7 @@ class DocumentFolderService {
       }).filter(u => Object.keys(u.fields).length > 0);
 
       const response = await axios.post<APIResponse<void>>(
-        `${API_BASE_URL}/document-folders/batch-update`,
+        `${API_BASE_URL}/work-note-folders/batch-update`,
         { updates },
         { headers: this.getAuthHeaders() }
       );
@@ -379,7 +379,7 @@ class DocumentFolderService {
   async getUserFolderStats(): Promise<any> {
     try {
       const response = await axios.get<APIResponse<any>>(
-        `${API_BASE_URL}/document-folders/stats`,
+        `${API_BASE_URL}/work-note-folders/stats`,
         { headers: this.getAuthHeaders() }
       );
       
