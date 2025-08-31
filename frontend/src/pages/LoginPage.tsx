@@ -61,9 +61,9 @@ const LoginPage: React.FC = () => {
     } catch (error: Error | unknown) {
       console.error('Login error:', error);
       
-      if (error.name === 'AbortError') {
+      if ((error as any).name === 'AbortError') {
         message.error('登录请求超时，请检查网络连接或稍后重试');
-      } else if (error.message.includes('Failed to fetch')) {
+      } else if ((error as any).message?.includes('Failed to fetch')) {
         message.error('无法连接到服务器，请确保服务已启动');
       } else {
         message.error('登录失败，请稍后重试');

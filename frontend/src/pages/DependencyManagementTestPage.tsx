@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  PageHeader,
   Card,
   Row,
   Col,
@@ -24,15 +23,27 @@ import {
   SettingOutlined,
   PlayCircleOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons';
-import { Project, Task } from '../types/task';
+import { Task } from '../types/task';
+
+// 本地Project接口定义
+interface Project {
+  id: number;
+  name: string;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
 import {
   TaskDependency,
   CreateDependencyRequest,
-  DependencyStatistics
+  DependencyStatistics,
+  DependencyType,
+  DependencyStrength
 } from '../types/dependency';
-import { taskService } from '../services/taskService';
+import { TaskService } from '../services/taskService';
 import DependencyService from '../services/dependencyService';
 import DependencyManager from '../components/dependency/DependencyManager';
 import EnhancedDependencyGraph from '../components/dependency/EnhancedDependencyGraph';
@@ -63,7 +74,10 @@ const DependencyManagementTestPage: React.FC = () => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const projectList = await taskService.getProjects();
+        const projectList = [
+          { id: 1, name: '项目A', owner_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+          { id: 2, name: '项目B', owner_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+        ];
         setProjects(projectList);
         if (projectList.length > 0) {
           setSelectedProject(projectList[0]);
@@ -89,12 +103,13 @@ const DependencyManagementTestPage: React.FC = () => {
     setLoading(true);
     try {
       const [projectTasks, projectDependencies, projectStatistics] = await Promise.all([
-        taskService.getProjectTasks(selectedProject.id),
+        TaskService.getRootTasks(selectedProject.id),
         DependencyService.getDependencies(selectedProject.id),
         DependencyService.getDependencyStatistics(selectedProject.id)
       ]);
 
-      setTasks(projectTasks);
+      const tasks = Array.isArray(projectTasks) ? projectTasks : (projectTasks as any).data || [];
+      setTasks(tasks);
       setDependencies(projectDependencies);
       setStatistics(projectStatistics);
     } catch (error) {
@@ -141,8 +156,8 @@ const DependencyManagementTestPage: React.FC = () => {
               [{
                 predecessor_id: tasks[0].id,
                 successor_id: tasks[1].id,
-                type: 'FS',
-                strength: 'MANDATORY'
+                type: DependencyType.FINISH_TO_START,
+                strength: DependencyStrength.MANDATORY
               }]
             );
             if (!canCreate.isValid && canCreate.errors.length === 0) {
@@ -209,12 +224,13 @@ const DependencyManagementTestPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <PageHeader
-        title="依赖关系管理测试"
-        subTitle="测试拖拽创建依赖关系和智能管理功能"
-        extra={[
+      <Card style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title level={2} style={{ margin: 0 }}>依赖关系管理测试</Title>
+            <Text type="secondary">测试拖拽创建依赖关系和智能管理功能</Text>
+          </div>
           <Button
-            key="test"
             type="primary"
             icon={<PlayCircleOutlined />}
             onClick={runDragDropTests}
@@ -222,8 +238,8 @@ const DependencyManagementTestPage: React.FC = () => {
           >
             运行功能测试
           </Button>
-        ]}
-      />
+        </div>
+      </Card>
 
       {/* 项目选择和统计信息 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

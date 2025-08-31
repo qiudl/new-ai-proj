@@ -97,7 +97,7 @@ const PermissionManagementPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await permissionService.getRoles();
-      setRoles(response.roles || []);
+      setRoles((response as any).roles || []);
     } catch (error) {
       message.error('加载角色失败');
     } finally {

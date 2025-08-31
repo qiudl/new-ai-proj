@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  PageHeader,
   Card,
   Row,
   Col,
@@ -41,9 +40,17 @@ import {
   FireOutlined
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
-import { Project, Task } from '../types/task';
-import { TaskDependency } from '../types/dependency';
-import { taskService } from '../services/taskService';
+import { Task } from '../types/task';
+
+interface Project {
+  id: number;
+  name: string;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
+import { TaskDependency, DependencyType, DependencyStrength } from '../types/dependency';
+import { TaskService } from '../services/taskService';
 import DependencyService from '../services/dependencyService';
 import ConflictDetectionService, {
   ConflictDetectionResult,
@@ -96,7 +103,10 @@ const ConflictDetectionTestPage: React.FC = () => {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const projectList = await taskService.getProjects();
+        const projectList = [
+          { id: 1, name: '项目A', owner_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+          { id: 2, name: '项目B', owner_id: 1, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }
+        ];
         setProjects(projectList);
         if (projectList.length > 0) {
           setSelectedProject(projectList[0]);
@@ -121,11 +131,12 @@ const ConflictDetectionTestPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const [projectTasks, projectDependencies] = await Promise.all([
-        taskService.getProjectTasks(selectedProject.id),
+      const [projectTasksResponse, projectDependencies] = await Promise.all([
+        TaskService.getRootTasks(selectedProject.id),
         DependencyService.getDependencies(selectedProject.id)
       ]);
 
+      const projectTasks = Array.isArray(projectTasksResponse) ? projectTasksResponse : (projectTasksResponse as any).data || [];
       setTasks(projectTasks);
       setDependencies(projectDependencies);
     } catch (error) {
@@ -217,34 +228,34 @@ const ConflictDetectionTestPage: React.FC = () => {
                 id: 9999,
                 predecessor_id: tasks[0].id,
                 successor_id: tasks[1].id,
-                type: 'FS',
-                strength: 'MANDATORY',
+                type: DependencyType.FINISH_TO_START,
+                strength: DependencyStrength.MANDATORY,
                 lag_days: 0,
-                project_id: selectedProject!.id,
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                created_by: 1
               },
               {
                 id: 9998,
                 predecessor_id: tasks[1].id,
                 successor_id: tasks[2].id,
-                type: 'FS',
-                strength: 'MANDATORY',
+                type: DependencyType.FINISH_TO_START,
+                strength: DependencyStrength.MANDATORY,
                 lag_days: 0,
-                project_id: selectedProject!.id,
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                created_by: 1
               },
               {
                 id: 9997,
                 predecessor_id: tasks[2].id,
                 successor_id: tasks[0].id,
-                type: 'FS',
-                strength: 'MANDATORY',
+                type: DependencyType.FINISH_TO_START,
+                strength: DependencyStrength.MANDATORY,
                 lag_days: 0,
-                project_id: selectedProject!.id,
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                created_by: 1
               }
             ];
             
@@ -275,12 +286,12 @@ const ConflictDetectionTestPage: React.FC = () => {
               id: 9996,
               predecessor_id: mockTasks[0].id,
               successor_id: mockTasks[1].id,
-              type: 'FS',
-              strength: 'MANDATORY',
+              type: DependencyType.FINISH_TO_START,
+              strength: DependencyStrength.MANDATORY,
               lag_days: 0,
-              project_id: selectedProject!.id,
               created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              updated_at: new Date().toISOString(),
+              created_by: 1
             }];
             
             const result = await conflictDetectionService.detectConflicts(
@@ -526,37 +537,38 @@ const ConflictDetectionTestPage: React.FC = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <PageHeader
-        title="依赖冲突检测与解决"
-        subTitle="智能检测任务依赖关系中的冲突并提供解决方案"
-        extra={[
-          <Button
-            key="config"
-            icon={<SettingOutlined />}
-            onClick={() => setConfigModalVisible(true)}
-          >
-            检测配置
-          </Button>,
-          <Button
-            key="test"
-            icon={<PlayCircleOutlined />}
-            onClick={runAutomatedTests}
-            disabled={!selectedProject}
-          >
-            自动化测试
-          </Button>,
-          <Button
-            key="detect"
-            type="primary"
-            icon={<SafetyCertificateOutlined />}
-            onClick={runConflictDetection}
-            loading={loading}
-            disabled={!selectedProject}
-          >
-            开始检测
-          </Button>
-        ]}
-      />
+      <Card style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ margin: 0 }}>依赖冲突检测与解决</h1>
+            <p style={{ margin: '8px 0 0 0', color: '#666' }}>智能检测任务依赖关系中的冲突并提供解决方案</p>
+          </div>
+          <Space>
+            <Button
+              icon={<SettingOutlined />}
+              onClick={() => setConfigModalVisible(true)}
+            >
+              检测配置
+            </Button>
+            <Button
+              icon={<PlayCircleOutlined />}
+              onClick={runAutomatedTests}
+              disabled={!selectedProject}
+            >
+              自动化测试
+            </Button>
+            <Button
+              type="primary"
+              icon={<SafetyCertificateOutlined />}
+              onClick={runConflictDetection}
+              loading={loading}
+              disabled={!selectedProject}
+            >
+              开始检测
+            </Button>
+          </Space>
+        </div>
+      </Card>
 
       {/* 项目选择和概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

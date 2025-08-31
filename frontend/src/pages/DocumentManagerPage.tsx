@@ -27,7 +27,7 @@ import DocumentList from '../components/DocumentList';
 import DocumentViewer from '../components/DocumentViewer';
 import DocumentVersionHistory from '../components/DocumentVersionHistory';
 import DocumentImportExportModal from '../components/DocumentImportExportModal';
-import type { Document } from '../components/DocumentList';
+// import type { Document } from '../components/DocumentList'; // 移除未使用的导入
 import type { ImportResult } from '../utils/documentImportExport';
 
 const { Content } = Layout;
@@ -90,7 +90,7 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
               管理和编辑您的工作笔记文档
             </div>
           </div>
-          <WorkNotesManager showImportExport={true} />
+          <WorkNotesManager />
         </Content>
       </Layout>
     );
