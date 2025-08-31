@@ -72,7 +72,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
     const apiDailyStats = weeklyReport.daily_stats || [];
     const dailyDataMap = new Map();
     
-    apiDailyStats.forEach((dayData: unknown) => {
+    apiDailyStats.forEach((dayData: any) => {
       dailyDataMap.set(dayData.date, dayData);
     });
     

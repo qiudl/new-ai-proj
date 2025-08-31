@@ -164,7 +164,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
         tasks.forEach(task => {
           // 递归添加项目信息
           const addProjectInfo = (t: TaskWithChildren) => {
-            (t as unknown).project = project;
+            (t as any).project = project;
             if (t.children) {
               t.children.forEach(addProjectInfo);
             }
@@ -180,7 +180,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       
       // 改进的错误处理：区分不同类型的错误
       if (error instanceof AppError) {
-        if (error.type === ErrorType.AUTHENTICATION || error.statusCode === 401) {
+        if (error.type === ErrorType.AUTHENTICATION || (error as any).statusCode === 401) {
           console.warn('认证失败，token可能已过期，用户将被重定向到登录页');
           // 认证错误已经在api.ts中处理，这里只需要记录
         } else if (error.type === ErrorType.NETWORK) {
@@ -437,7 +437,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
   // AI模式的额外功能
   const buildTreeNodes = useCallback((tasks: TaskWithChildren[]): TaskTreeNode[] => {
     return tasks.map(task => {
-      const project = (task as unknown).project as Project;
+      const project = (task as any).project as Project;
       const hasChildren = task.children && task.children.length > 0;
       
       return {
@@ -580,9 +580,9 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
             <Text strong>已选择:</Text>
             <div style={{ marginTop: 4 }}>
               <Text>{value.title}</Text>
-              {(value as unknown).project && showProjectNames && (
+              {(value as any).project && showProjectNames && (
                 <Text type="secondary" style={{ marginLeft: 8 }}>
-                  ({((value as unknown).project as Project).name})
+                  ({((value as any).project as Project).name})
                 </Text>
               )}
             </div>
@@ -608,7 +608,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
       showSearch
       filterOption={(input, option) => {
         if (aiMode) {
-          const task = (currentTasks as unknown[]).find((t: unknown) => t.id === option?.value);
+          const task = (currentTasks as any[]).find((t: any) => t.id === option?.value);
           const searchText = input.toLowerCase();
           return (
             task?.title?.toLowerCase().includes(searchText) ||

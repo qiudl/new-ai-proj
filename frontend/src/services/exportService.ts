@@ -49,6 +49,7 @@ export interface ExportOptions {
   groupBy?: 'project' | 'status' | 'priority' | 'assignee' | 'none';
   dateFormat?: string;
   language?: 'zh' | 'en';
+  fontSize?: number;
 }
 
 // 默认导出配置
@@ -57,6 +58,7 @@ const DEFAULT_OPTIONS: Required<ExportOptions> = {
   includeStats: true,
   includeDetails: true,
   includeCharts: false,
+  fontSize: 12,
   customFields: [],
   groupBy: 'none',
   dateFormat: 'YYYY-MM-DD',

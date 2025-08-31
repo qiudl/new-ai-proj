@@ -62,8 +62,8 @@ class TimerErrorBoundary extends Component<Props, State> {
       });
       
       // Force garbage collection if available
-      if ('gc' in window && typeof (window as unknown).gc === 'function') {
-        (window as unknown).gc();
+      if ('gc' in window && typeof (window as any).gc === 'function') {
+        (window as any).gc();
       }
       
       } catch (cleanupError) {

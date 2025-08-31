@@ -37,7 +37,8 @@ import {
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
 import dayjs, { Dayjs } from 'dayjs';
-import { Project, Task } from '../../types/task';
+import { Task } from '../../types/task';
+import { Project } from '../../types/project';
 import SchedulingService, {
   SchedulingResult,
   SchedulingConfig,
@@ -382,7 +383,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                     max={50}
                     style={{ width: '100%' }}
                     formatter={value => `${value}%`}
-                    parser={(value) => value!.replace('%', '')}
+                    parser={(value) => Number(value!.replace('%', ''))}
                   />
                 </Card>
               </Col>
@@ -756,7 +757,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                   min={0}
                   max={50}
                   formatter={value => `${value}%`}
-                  parser={(value) => value!.replace('%', '')}
+                  parser={(value) => Number(value!.replace('%', ''))}
                   style={{ width: '100%' }}
                 />
               </Form.Item>

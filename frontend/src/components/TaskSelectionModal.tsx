@@ -67,12 +67,12 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
     try {
       const response = await projectService.getProjects({ page: 1, pageSize: 100 });
       const projectsWithStats = await Promise.all(
-        response.data.map(async (project: unknown) => {
+        response.data.map(async (project: any) => {
           try {
             const tasks = await TaskService.getTasks(project.id);
             return {
               ...project,
-              taskCount: tasks.data.filter((task: unknown) => 
+              taskCount: tasks.data.filter((task: any) => 
                 task.status === 'todo' || task.status === 'in_progress'
               ).length
             };
