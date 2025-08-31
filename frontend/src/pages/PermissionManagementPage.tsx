@@ -108,7 +108,7 @@ const PermissionManagementPage: React.FC = () => {
   const loadPermissions = async () => {
     try {
       const response = await permissionService.getPermissions();
-      setPermissions(response.permissions || []);
+      setPermissions((response as any).permissions || []);
     } catch (error) {
       message.error('加载权限失败');
     }
@@ -140,10 +140,10 @@ const PermissionManagementPage: React.FC = () => {
   const handleCreateRole = async (values: unknown) => {
     try {
       const roleData = {
-        roleCode: values.roleCode,
-        roleName: values.roleName,
-        roleDescription: values.roleDescription,
-        permissionCodes: values.permissions || []
+        roleCode: (values as any).roleCode,
+        roleName: (values as any).roleName,
+        roleDescription: (values as any).roleDescription,
+        permissionCodes: (values as any).permissions || []
       };
       
       await permissionService.createRole(roleData);
@@ -161,9 +161,9 @@ const PermissionManagementPage: React.FC = () => {
     
     try {
       const roleData = {
-        roleName: values.roleName,
-        roleDescription: values.roleDescription,
-        permissionCodes: values.permissions || []
+        roleName: (values as any).roleName,
+        roleDescription: (values as any).roleDescription,
+        permissionCodes: (values as any).permissions || []
       };
       
       await permissionService.updateRole(selectedRole.id, roleData);

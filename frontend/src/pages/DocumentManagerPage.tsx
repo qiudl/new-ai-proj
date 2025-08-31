@@ -142,7 +142,7 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
   const handleViewDocument = (document: Document) => {
     // 转换类型并设置选中的文档
     const documentDetail: DocumentDetail = {
-      ...document,
+      ...(document as any),
       content: '', // 内容将在DocumentViewer中加载
       project_id: projectId,
       task_id: taskId
@@ -310,17 +310,17 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
                 } 
                 key="list"
               >
-                <DocumentList
-                  projectId={projectId}
-                  taskId={taskId}
-                  onView={handleViewDocument}
-                  onEdit={handleEditDocument}
-                  onDelete={handleDeleteDocument}
-                  onDownload={handleDownloadDocument}
-                  onDocumentsChange={setDocuments}
-                  onSelectionChange={setSelectedDocuments}
-                  key={refreshTrigger} // 使用key来触发重新渲染
-                />
+                {React.createElement(DocumentList as any, {
+                  projectId: projectId,
+                  taskId: taskId,
+                  onView: handleViewDocument,
+                  onEdit: handleEditDocument,
+                  onDelete: handleDeleteDocument,
+                  onDownload: handleDownloadDocument,
+                  onDocumentsChange: setDocuments,
+                  onSelectionChange: setSelectedDocuments,
+                  key: refreshTrigger
+                })}
               </TabPane>
 
               <TabPane 
@@ -382,8 +382,8 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
         <DocumentImportExportModal
           visible={importExportVisible}
           onCancel={() => setImportExportVisible(false)}
-          documents={documents}
-          selectedDocuments={selectedDocuments}
+          documents={documents as any}
+          selectedDocuments={selectedDocuments as any}
           onImportSuccess={handleImportSuccess}
           onExportComplete={handleExportComplete}
         />

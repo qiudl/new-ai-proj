@@ -452,7 +452,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 window.open(`/tasks/${taskId}`, '_blank');
               }}
             >
-              #{taskId}
+              {`#${taskId}`}
             </Tag>
           </Tooltip>
         ))}

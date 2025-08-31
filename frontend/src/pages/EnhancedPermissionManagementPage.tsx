@@ -53,17 +53,15 @@ const EnhancedPermissionManagementPage: React.FC = () => {
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
       <div style={{ marginBottom: '16px' }}>
         <Breadcrumb>
-          <Breadcrumb.Item 
-            onClick={() => navigate('/')}
-            style={{ cursor: 'pointer' }}
-          >
-            首页
+          <Breadcrumb.Item>
+            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+              首页
+            </span>
           </Breadcrumb.Item>
-          <Breadcrumb.Item 
-            onClick={() => navigate('/system')}
-            style={{ cursor: 'pointer' }}
-          >
-            系统管理
+          <Breadcrumb.Item>
+            <span onClick={() => navigate('/system')} style={{ cursor: 'pointer' }}>
+              系统管理
+            </span>
           </Breadcrumb.Item>
           <Breadcrumb.Item>增强权限管理</Breadcrumb.Item>
         </Breadcrumb>
@@ -94,11 +92,11 @@ const EnhancedPermissionManagementPage: React.FC = () => {
             }
             key="overview"
           >
-            <EnhancedPermissionManager 
-              onRefresh={handleRefreshData}
-              roleTemplates={roleTemplates}
-              permissionTemplates={permissionTemplates}
-            />
+            {React.createElement(EnhancedPermissionManager as any, {
+              onRefresh: handleRefreshData,
+              roleTemplates: roleTemplates,
+              permissionTemplates: permissionTemplates
+            })}
           </TabPane>
 
           <TabPane
