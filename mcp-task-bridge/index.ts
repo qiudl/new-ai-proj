@@ -862,6 +862,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               ],
               description: '任务ID或任务标题（支持模糊匹配）' 
             },
+            timerDescription: {
+              type: 'string',
+              description: '计时器描述（可选）'
+            },
             projectId: { 
               type: 'number', 
               description: '项目ID（可选，默认为1）' 
@@ -1271,7 +1275,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       // 🚀 核心功能1：智能启动任务并开始计时
       case 'start_task_with_timer':
-        result = await taskServer.startTaskWithTimer(args.taskIdOrTitle, args.projectId as number);
+        // 首先处理taskIdOrTitle，如果是字符串需要先查找任务
+        let taskId: number;
+        if (typeof args.taskIdOrTitle === 'string') {
+          // 通过标题模糊匹配找到任务
+          const findResult = await taskServer.findTaskByName(args.taskIdOrTitle);
+          if (!findResult.success || !findResult.tasks || findResult.tasks.length === 0) {
+            result = {
+              success: false,
+              error: `找不到匹配标题 "${args.taskIdOrTitle}" 的任务`
+            };
+            break;
+          }
+          taskId = findResult.tasks[0].id;
+        } else {
+          taskId = args.taskIdOrTitle as number;
+        }
+        result = await taskServer.startTaskWithTimer(taskId, args.timerDescription);
         break;
       
       // 🔄 核心功能2：智能工作切换
