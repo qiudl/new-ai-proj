@@ -35,10 +35,10 @@ import './styles/TaskDocuments.css';
 
 // Lazy load pages for code splitting
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
-const DashboardPage = React.lazy(() => import('./pages/DashboardPage'));
-const ProjectsPage = React.lazy(() => import('./pages/ProjectsPage'));
-const TasksPage = React.lazy(() => import('./pages/TasksPage'));
-const TaskDetailPageNew = React.lazy(() => import('./pages/TaskDetailPageNew'));
+const DashboardPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/DashboardPage'));
+const ProjectsPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/ProjectsPage'));
+const TasksPage = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TasksPage'));
+const TaskDetailPageNew = React.lazy(() => import(/* webpackPrefetch: true */ './pages/TaskDetailPageNew'));
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const SmartSwimlanesPage = React.lazy(() => import('./pages/SmartSwimlanesPage'));
@@ -68,7 +68,6 @@ const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'
 const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
 
-const DocumentManagerPage = React.lazy(() => import('./pages/DocumentManagerPage'));
 const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
 const DropdownTestPage = React.lazy(() => import('./pages/DropdownTestPage'));
@@ -114,7 +113,7 @@ const AppContent: React.FC = () => {
 
   // 开发环境按需加载定时器诊断工具（登录页不加载）
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && !isLoginRoute) {
+    if (process.env['NODE_ENV'] === 'development' && !isLoginRoute) {
       import('./utils/timerDiagnostics.js').catch(error => {
         console.warn('Failed to load timer diagnostics:', error);
       });
@@ -131,541 +130,266 @@ const AppContent: React.FC = () => {
         <TimerProvider>
           <Suspense fallback={<PageLoading />}>
             <Routes>
-            {/* Private routes - all wrapped with TimerProvider */}
-            <Route path="/" element={
-              <PrivateRoute>
-                <Layout>
-                  <DashboardPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/dashboard" element={
-              <PrivateRoute>
-                <PermissionRoute permission={DASHBOARD_PERMISSIONS.READ}>
-                  <Layout>
+              {/* 将 Layout 提升为父级并由 PrivateRoute 保护，子路由不再重复包裹 */}
+              <Route element={
+                <PrivateRoute>
+                  <Layout />
+                </PrivateRoute>
+              }>
+                <Route index element={<DashboardPage />} />
+
+                <Route path="/dashboard" element={
+                  <PermissionRoute permission={DASHBOARD_PERMISSIONS.READ}>
                     <DashboardPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/personal-timer" element={
-              <PrivateRoute>
-                <PermissionRoute permission={TIME_PERMISSIONS.READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/personal-timer" element={
+                  <PermissionRoute permission={TIME_PERMISSIONS.READ}>
                     <PersonalTimerPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/timer-analytics" element={
-              <PrivateRoute>
-                <PermissionRoute permission={TIME_PERMISSIONS.ANALYTICS_READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/timer-analytics" element={
+                  <PermissionRoute permission={TIME_PERMISSIONS.ANALYTICS_READ}>
                     <TimerAnalyticsPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            
-            <Route path="/projects" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/projects" element={
+                  <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
                     <ProjectsPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            <Route path="/projects/:projectId" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
-                  <Layout>
+                <Route path="/projects/:projectId" element={
+                  <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
                     <ProjectDetailPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            <Route path="/projects/:projectId/edit" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PROJECT_PERMISSIONS.UPDATE}>
-                  <Layout>
+                <Route path="/projects/:projectId/edit" element={
+                  <PermissionRoute permission={PROJECT_PERMISSIONS.UPDATE}>
                     <ProjectEditPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            <Route path="/projects/create" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PROJECT_PERMISSIONS.CREATE}>
-                  <Layout>
+                <Route path="/projects/create" element={
+                  <PermissionRoute permission={PROJECT_PERMISSIONS.CREATE}>
                     <ProjectEditPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-
-
-            <Route path="/projects/:projectId/documents/new" element={
-              <PrivateRoute>
-                <Layout>
+                <Route path="/projects/:projectId/documents/new" element={
                   <div style={{ padding: '50px', textAlign: 'center' }}>
                     <h2>📄 文档编辑器已归档</h2>
                     <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
                   </div>
-                </Layout>
-              </PrivateRoute>
-            } />
+                } />
 
-            <Route path="/documents/new" element={
-              <PrivateRoute>
-                <Layout>
+                <Route path="/documents/new" element={
                   <div style={{ padding: '50px', textAlign: 'center' }}>
                     <h2>📄 文档编辑器已归档</h2>
                     <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
                   </div>
-                </Layout>
-              </PrivateRoute>
-            } />
+                } />
 
-            <Route path="/documents/:id/edit" element={
-              <PrivateRoute>
-                <Layout>
+                <Route path="/documents/:id/edit" element={
                   <div style={{ padding: '50px', textAlign: 'center' }}>
                     <h2>📄 文档编辑器已归档</h2>
                     <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
                   </div>
-                </Layout>
-              </PrivateRoute>
-            } />
+                } />
 
-            <Route path="/documents/:id" element={
-              <PrivateRoute>
-                <Layout>
+                <Route path="/documents/:id" element={
                   <div style={{ padding: '50px', textAlign: 'center' }}>
                     <h2>📄 文档编辑器已归档</h2>
                     <p>复杂的文档编辑功能已简化，请使用任务详情页面中的文档编辑功能</p>
                   </div>
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            {/* 全部任务（跨项目） */}
-<Route path="/tasks" element={
-              <PrivateRoute>
-                <PermissionRoute permission={TASK_PERMISSIONS.READ}>
-                  <Layout>
+                } />
+
+                {/* 全部任务（跨项目） */}
+                <Route path="/tasks" element={
+                  <PermissionRoute permission={TASK_PERMISSIONS.READ}>
                     <TasksPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* 全局洞察 */}
-            <Route path="/insights" element={
-              <PrivateRoute>
-                <PermissionRoute permission={DASHBOARD_PERMISSIONS.INSIGHTS_READ}>
-                  <Layout>
+                {/* 全局洞察 */}
+                <Route path="/insights" element={
+                  <PermissionRoute permission={DASHBOARD_PERMISSIONS.INSIGHTS_READ}>
                     <InsightsPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-<Route path="/projects/:projectId/insights" element={
-              <PrivateRoute>
-                <Layout>
-                  <InsightsPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                <Route path="/projects/:projectId/insights" element={<InsightsPage />} />
 
-            <Route path="/projects/:projectId/tasks" element={
-              <PrivateRoute>
-                <Layout>
-                  <TasksPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                <Route path="/projects/:projectId/tasks" element={<TasksPage />} />
 
-{/* Beta MVP: 智能泳道视图 */}
-            <Route path="/projects/:projectId/tasks/swimlanes" element={
-              <PrivateRoute>
-                <Layout>
-                  <SmartSwimlanesPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                {/* Beta MVP: 智能泳道视图 */}
+                <Route path="/projects/:projectId/tasks/swimlanes" element={<SmartSwimlanesPage />} />
 
-            {/* Beta MVP: 任务日历视图 */}
-            <Route path="/projects/:projectId/tasks/calendar" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskCalendarPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                {/* Beta MVP: 任务日历视图 */}
+                <Route path="/projects/:projectId/tasks/calendar" element={<TaskCalendarPage />} />
 
-            {/* Beta MVP: 批量级联页面 */}
-            <Route path="/projects/:projectId/tasks/batch-cascade" element={
-              <PrivateRoute>
-                <Layout>
-                  <BatchCascadePage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            {/* 项目任务列表 - 只支持项目内任务 */}
-            
-            <Route path="/projects/:projectId/tasks/all-fields" element={
-              <PrivateRoute>
-                <Layout>
-                  <AllFieldsTaskListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/bulk-import" element={
-              <PrivateRoute>
-                <Layout>
-                  <BulkImportPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/projects/:projectId/bulk-import" element={
-              <PrivateRoute>
-                <Layout>
-                  <BulkImportPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/projects/:projectId/tasks/:taskId/edit" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskEditPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/projects/:projectId/tasks/:taskId" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskDetailPageNew />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/projects/:projectId/archived-tasks" element={
-              <PrivateRoute>
-                <Layout>
-                  <ArchivedTasksPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/task-dashboard" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskDashboardPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/time-analysis" element={
-              <PrivateRoute>
-                <Layout>
-                  {/* <TimeAnalysisPage /> */}
-                  <div>时间分析页面暂时不可用</div>
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/time-weekly-report" element={
-              <PrivateRoute>
-                <PermissionRoute permission={TIME_PERMISSIONS.REPORT_READ}>
-                  <Layout>
+                {/* Beta MVP: 批量级联页面 */}
+                <Route path="/projects/:projectId/tasks/batch-cascade" element={<BatchCascadePage />} />
+
+                {/* 项目任务列表 - 只支持项目内任务 */}
+                <Route path="/projects/:projectId/tasks/all-fields" element={<AllFieldsTaskListPage />} />
+
+                <Route path="/bulk-import" element={<BulkImportPage />} />
+
+                <Route path="/projects/:projectId/bulk-import" element={<BulkImportPage />} />
+
+                <Route path="/projects/:projectId/tasks/:taskId/edit" element={<TaskEditPage />} />
+
+                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPageNew />} />
+
+                <Route path="/projects/:projectId/archived-tasks" element={<ArchivedTasksPage />} />
+
+                <Route path="/task-dashboard" element={<TaskDashboardPage />} />
+
+                <Route path="/time-analysis" element={<div>时间分析页面暂时不可用</div>} />
+
+                <Route path="/time-weekly-report" element={
+                  <PermissionRoute permission={TIME_PERMISSIONS.REPORT_READ}>
                     <TimeWeeklyReportPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/recycle-bin" element={
-              <PrivateRoute>
-                <Layout>
-                  <RecycleBinPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/audit-logs" element={
-              <PrivateRoute>
-                <PermissionRoute permission={AUDIT_PERMISSIONS.READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/recycle-bin" element={<RecycleBinPage />} />
+
+                <Route path="/audit-logs" element={
+                  <PermissionRoute permission={AUDIT_PERMISSIONS.READ}>
                     <AuditLogPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/navigation-management" element={
-              <PrivateRoute>
-                <PermissionRoute permission={NAVIGATION_PERMISSIONS.ADMIN}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/navigation-management" element={
+                  <PermissionRoute permission={NAVIGATION_PERMISSIONS.ADMIN}>
                     <NavigationManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/user-profile" element={
-              <PrivateRoute>
-                <PermissionRoute permission={USER_PERMISSIONS.PROFILE_READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/user-profile" element={
+                  <PermissionRoute permission={USER_PERMISSIONS.PROFILE_READ}>
                     <UserProfilePage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            {/* Enterprise customer management routes */}
-            <Route path="/companies" element={
-              <PrivateRoute>
-                <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                {/* Enterprise customer management routes */}
+                <Route path="/companies" element={
+                  <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
                     <CompanyListPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/companies/:id" element={
-              <PrivateRoute>
-                <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/companies/:id" element={
+                  <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
                     <CompanyDetailPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/companies/create" element={
-              <PrivateRoute>
-                <PermissionRoute permission={COMPANY_PERMISSIONS.CREATE}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/companies/create" element={
+                  <PermissionRoute permission={COMPANY_PERMISSIONS.CREATE}>
                     <CompanyCreatePage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/companies/:id/edit" element={
-              <PrivateRoute>
-                <PermissionRoute permission={COMPANY_PERMISSIONS.UPDATE}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/companies/:id/edit" element={
+                  <PermissionRoute permission={COMPANY_PERMISSIONS.UPDATE}>
                     <CompanyEditPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/document-manager" element={<ModernDocumentManagerPage />} />
 
 
-            
-            <Route path="/document-manager" element={
-              <PrivateRoute>
-                <Layout>
-                  <ModernDocumentManagerPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/document-manager-old" element={
-              <PrivateRoute>
-                <Layout>
-                  <DocumentManagerPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                <Route path="/task-documents" element={<TaskDocumentListPage />} />
 
-            <Route path="/task-documents" element={
-              <PrivateRoute>
-                <Layout>
-                  <TaskDocumentListPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-
-            {/* Permission management routes */}
-            <Route path="/permissions" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                  <Layout>
+                {/* Permission management routes */}
+                <Route path="/permissions" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
                     <PermissionManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            <Route path="/enhanced-permissions" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                  <Layout>
+                <Route path="/enhanced-permissions" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
                     <EnhancedPermissionManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* Role management routes */}
-            <Route path="/role-management" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                  <Layout>
+                {/* Role management routes */}
+                <Route path="/role-management" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
                     <RoleManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            <Route path="/role-management/:id" element={
-              <PrivateRoute>
-                <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                  <Layout>
+                <Route path="/role-management/:id" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
                     <RoleManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* Permission demo page */}
-            <Route path="/permission-demo" element={
-              <PrivateRoute>
-                <Layout>
-                  <PermissionDemoPage />
-                </Layout>
-              </PrivateRoute>
-            } />
+                {/* Permission demo page */}
+                <Route path="/permission-demo" element={<PermissionDemoPage />} />
 
-            {/* User management routes */}
-            <Route path="/user-management" element={
-              <PrivateRoute>
-                <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
-                  <Layout>
+                {/* User management routes */}
+                <Route path="/user-management" element={
+                  <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
                     <UserManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            <Route path="/company-user-management" element={
-              <PrivateRoute>
-                <PermissionRoute permission={COMPANY_PERMISSIONS.USER_ADMIN}>
-                  <Layout>
+                  </PermissionRoute>
+                } />
+
+                <Route path="/company-user-management" element={
+                  <PermissionRoute permission={COMPANY_PERMISSIONS.USER_ADMIN}>
                     <CompanyUserManagementPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* AI configuration routes */}
-            <Route path="/ai-config" element={
-              <PrivateRoute>
-                <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
-                  <Layout>
+                {/* AI configuration routes */}
+                <Route path="/ai-config" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <AIConfigPage />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* API Key management routes */}
-            <Route path="/api-keys" element={
-              <PrivateRoute>
-                <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
-                  <Layout>
+                {/* API Key management routes */}
+                <Route path="/api-keys" element={
+                  <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
                     <APIKeyManagement />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/api-keys/:id" element={
-              <PrivateRoute>
-                <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
-                  <Layout>
-                    <APIKeyDetail />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
-            
-            <Route path="/api-keys/:id/edit" element={
-              <PrivateRoute>
-                <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
-                  <Layout>
-                    <APIKeyEdit />
-                  </Layout>
-                </PermissionRoute>
-              </PrivateRoute>
-            } />
+                  </PermissionRoute>
+                } />
 
-            {/* Test Center route */}
-            <Route path="/test-center" element={
-              <PrivateRoute>
-                <TestCenter />
-              </PrivateRoute>
-            } />
-            
-            {/* Hierarchical Gantt Test Page */}
-            <Route path="/hierarchical-gantt-test" element={
-              <PrivateRoute>
-                <HierarchicalGanttTestPage />
-              </PrivateRoute>
-            } />
-            
-            {/* Interactive Gantt Test Page */}
-            <Route path="/interactive-gantt-test" element={
-              <PrivateRoute>
-                <InteractiveGanttTestPage />
-              </PrivateRoute>
-            } />
-            
-            {/* Project Global Gantt Test Page */}
-            <Route path="/project-global-gantt-test" element={
-              <PrivateRoute>
-                <ProjectGlobalGanttTestPage />
-              </PrivateRoute>
-            } />
-            
-            {/* Dropdown Error Test Page */}
-            <Route path="/dropdown-test" element={
-              <PrivateRoute>
-                <DropdownTestPage />
-              </PrivateRoute>
-            } />
-            
-            {/* Refresh Component Test Page */}
-            <Route path="/refresh-test" element={
-              <PrivateRoute>
-                <Layout>
-                  <RefreshTestPage />
-                </Layout>
-              </PrivateRoute>
-            } />
-          </Routes>
+                <Route path="/api-keys/:id" element={
+                  <PermissionRoute permission={API_KEY_PERMISSIONS.READ}>
+                    <APIKeyDetail />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/api-keys/:id/edit" element={
+                  <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
+                    <APIKeyEdit />
+                  </PermissionRoute>
+                } />
+
+                {/* Test Center and test pages */}
+                <Route path="/test-center" element={<TestCenter />} />
+                <Route path="/hierarchical-gantt-test" element={<HierarchicalGanttTestPage />} />
+                <Route path="/interactive-gantt-test" element={<InteractiveGanttTestPage />} />
+                <Route path="/project-global-gantt-test" element={<ProjectGlobalGanttTestPage />} />
+                <Route path="/dropdown-test" element={<DropdownTestPage />} />
+                <Route path="/refresh-test" element={<RefreshTestPage />} />
+              </Route>
+            </Routes>
           </Suspense>
-          
+
           {/* 悬浮计时器 */}
           <FloatingTimer />
-          
+
         </TimerProvider>
       ) : (
         <Suspense fallback={<PageLoading />}>
@@ -674,11 +398,11 @@ const AppContent: React.FC = () => {
           </Routes>
         </Suspense>
       )}
-        
-        {/* Unified Debug Panel - includes timer and JWT debug (隐藏调试功能) */}
-        {/* <UnifiedDebugPanel /> */}
-      </div>
-    );
+
+      {/* Unified Debug Panel - includes timer and JWT debug (隐藏调试功能) */}
+      {/* <UnifiedDebugPanel /> */}
+    </div>
+  );
 };
 
 function App() {

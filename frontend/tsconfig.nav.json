@@ -1,0 +1,27 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/components/Layout.tsx",
+    "src/components/TaskDetailDescendantsTree.tsx",
+    "src/components/AnimatedContainer.tsx",
+    "src/components/LoadingIndicator.tsx",
+    "src/contexts/RefreshConfigContext.tsx",
+    "src/hooks/useAutoRefreshOptimized.ts",
+    "src/services/taskService.ts",
+    "src/types/**/*.ts",
+    "src/types/**/*.d.ts"
+  ],
+  "exclude": [
+    "src/__tests__/**",
+    "src/components/__tests__/**",
+    "src/pages/**/__tests__/**",
+    "src/utils/RefreshErrorHandler.tsx",
+    "src/examples/**",
+    "src/components/_archived_document_components/**"
+  ]
+}
+

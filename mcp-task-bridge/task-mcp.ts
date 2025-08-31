@@ -1270,28 +1270,35 @@ export class TaskMCPServer {
       const task = await this.findTaskById(taskId);
       const actualProjectId = task.project_id || projectId;
       
-      // 列出任务文档并选择最新一个（兼容两种路由）
+      // 直接获取任务文档列表
       let docs: any[] = [];
       try {
-        const listResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/list`, {
+        const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
           headers: this.getHeaders(),
           proxy: false
         });
-        docs = listResp.data?.data?.documents || [];
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
-          // 回退到无 /list 的别名路由
-          const altResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
-            headers: this.getHeaders(),
-            proxy: false
-          });
-          const raw = altResp?.data ?? {};
-          // 兼容包装与直出
-          const payload = raw?.data || raw;
-          docs = payload?.documents || (Array.isArray(payload) ? payload : []);
+        
+        // 解析响应数据
+        const responseData = response.data;
+        console.error(`[DEBUG] getTaskDocument API响应:`, JSON.stringify(responseData, null, 2));
+        
+        // 处理不同格式的响应
+        if (responseData && Array.isArray(responseData.data)) {
+          // 格式: { data: [...], success: true, ... }
+          docs = responseData.data;
+        } else if (responseData && Array.isArray(responseData)) {
+          // 格式: [...]
+          docs = responseData;
         } else {
-          throw e;
+          // 其他格式
+          docs = [];
         }
+        
+        console.error(`[DEBUG] getTaskDocument 解析结果: 文档数量=${docs.length}`);
+        
+      } catch (error: any) {
+        console.error(`[ERROR] 获取任务文档列表失败:`, error.response?.data || error.message);
+        docs = [];
       }
       if (!docs.length) {
         return {
@@ -1357,31 +1364,36 @@ export class TaskMCPServer {
       
       let hasDoc = false;
       try {
-        const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents/has`, {
+        // 直接使用正确的API端点获取文档列表
+        const response = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
           headers: this.getHeaders(),
           proxy: false
         });
-        hasDoc = !!(response.data && response.data.data && response.data.data.has_document);
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
-          // 回退：直接列出文档并判断是否有条目
-          try {
-            const altResp = await axios.get(`${this.apiBase}/projects/${actualProjectId}/tasks/${taskId}/documents`, {
-              headers: this.getHeaders(),
-              proxy: false
-            });
-            const raw = altResp?.data ?? {};
-            const payload = raw?.data || raw;
-            const docs = payload?.documents || (Array.isArray(payload) ? payload : []);
-            hasDoc = Array.isArray(docs) && docs.length > 0;
-          } catch (e2: any) {
-            // 无法确定，保持 false 并携带提示
-            console.error('[WARN] hasTaskDocument: 后端无 /has 与 /documents 列表路由');
-            hasDoc = false;
-          }
+        
+        // 解析响应数据
+        const responseData = response.data;
+        console.error(`[DEBUG] API响应:`, JSON.stringify(responseData, null, 2));
+        
+        // 处理不同格式的响应
+        let docs = [];
+        if (responseData && Array.isArray(responseData.data)) {
+          // 格式: { data: [...], success: true, ... }
+          docs = responseData.data;
+        } else if (responseData && Array.isArray(responseData)) {
+          // 格式: [...]
+          docs = responseData;
         } else {
-          throw e;
+          // 其他格式，尝试找到文档数组
+          docs = [];
         }
+        
+        hasDoc = Array.isArray(docs) && docs.length > 0;
+        console.error(`[DEBUG] 解析结果: 文档数量=${docs.length}, hasDoc=${hasDoc}`);
+        
+      } catch (error: any) {
+        console.error(`[ERROR] 获取任务文档列表失败:`, error.response?.data || error.message);
+        // 如果请求失败，返回false
+        hasDoc = false;
       }
       
       return {
