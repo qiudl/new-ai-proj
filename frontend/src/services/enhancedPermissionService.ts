@@ -163,12 +163,12 @@ class EnhancedPermissionService {
   // Role template methods
   async getRoleTemplates(): Promise<RoleTemplate[]> {
     const response = await api.get(`${this.baseUrl}/role-templates`);
-    return response;
+    return (response as any).data;
   }
 
   async getPermissionTemplates(): Promise<PermissionTemplate[]> {
     const response = await api.get(`${this.baseUrl}/permission-templates`);
-    return response;
+    return (response as any).data;
   }
 
   async createRoleFromTemplate(request: CreateRoleFromTemplateRequest): Promise<any> {
@@ -179,7 +179,7 @@ class EnhancedPermissionService {
   // Permission request methods
   async requestPermission(request: RequestPermissionRequest): Promise<PermissionRequest> {
     const response = await api.post(`${this.baseUrl}/request`, request);
-    return response;
+    return (response as any).data;
   }
 
   async getPermissionRequests(params?: {
@@ -189,7 +189,7 @@ class EnhancedPermissionService {
     limit?: number;
   }): Promise<PermissionRequest[]> {
     const response = await api.get(`${this.baseUrl}/requests`, { params });
-    return response;
+    return (response as any).data;
   }
 
   async approvePermissionRequest(requestId: number, data: ApproveRequestRequest): Promise<void> {
@@ -203,7 +203,7 @@ class EnhancedPermissionService {
   // Permission delegation methods
   async delegatePermissions(request: DelegatePermissionsRequest): Promise<PermissionDelegation> {
     const response = await api.post(`${this.baseUrl}/delegate`, request);
-    return response;
+    return (response as any).data;
   }
 
   async getUserDelegations(userId: number): Promise<PermissionDelegation[]> {

@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Layout,
   Card,
@@ -38,47 +39,62 @@ import {
 import TaskAnalysisPanel from '../components/TaskAnalysisPanel';
 
 const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
 
 const TestCenter: React.FC = () => {
   const [activeTab, setActiveTab] = useState('google-docs-test');
+  const navigate = useNavigate();
 
   const testModules = [
     {
-      key: 'google-docs-test',
-      name: 'Google Docs 集成测试',
-      description: '测试 Google Docs API 集成功能',
-      icon: <GoogleOutlined style={{ color: '#4285f4' }} />,
-      category: 'integration'
-    },
-    {
-      key: 'unified-manager',
-      name: '统一文档管理器',
-      description: '核心文档管理功能测试',
-      icon: <FileTextOutlined style={{ color: '#1890ff' }} />,
-      category: 'core'
-    },
-    {
-      key: 'enterprise-demo',
-      name: '企业级功能演示',
-      description: '展示企业级功能配置',
-      icon: <TrophyOutlined style={{ color: '#faad14' }} />,
-      category: 'enterprise'
-    },
-    {
-      key: 'system-showcase',
-      name: '系统完整展示',
-      description: '完整的系统架构展示',
-      icon: <ThunderboltOutlined style={{ color: '#52c41a' }} />,
-      category: 'showcase'
+      key: 'mcp-test',
+      name: 'MCP 接口批量测试',
+      description: '测试所有MCP相关接口的功能和性能',
+      icon: <BugOutlined style={{ color: '#f5222d' }} />,
+      category: 'api',
+      url: '/mcp-test',
+      priority: 1
     },
     {
       key: 'task-analysis',
       name: '任务分析系统',
       description: '智能任务分析与周报生成',
       icon: <BulbOutlined style={{ color: '#722ed1' }} />,
-      category: 'ai'
+      category: 'ai',
+      priority: 2
+    },
+    {
+      key: 'google-docs-test',
+      name: 'Google Docs 集成测试',
+      description: '测试 Google Docs API 集成功能',
+      icon: <GoogleOutlined style={{ color: '#4285f4' }} />,
+      category: 'integration',
+      priority: 3
+    },
+    {
+      key: 'unified-manager',
+      name: '统一文档管理器',
+      description: '核心文档管理功能测试',
+      icon: <FileTextOutlined style={{ color: '#1890ff' }} />,
+      category: 'core',
+      priority: 4
+    },
+    {
+      key: 'enterprise-demo',
+      name: '企业级功能演示',
+      description: '展示企业级功能配置',
+      icon: <TrophyOutlined style={{ color: '#faad14' }} />,
+      category: 'enterprise',
+      priority: 5
+    },
+    {
+      key: 'system-showcase',
+      name: '系统完整展示',
+      description: '完整的系统架构展示',
+      icon: <ThunderboltOutlined style={{ color: '#52c41a' }} />,
+      category: 'showcase',
+      priority: 6
     }
   ];
 
@@ -190,7 +206,13 @@ const TestCenter: React.FC = () => {
                       <Button 
                         type="link" 
                         size="small"
-                        onClick={() => setActiveTab(module.key)}
+                        onClick={() => {
+                          if (module.url) {
+                            navigate(module.url);
+                          } else {
+                            setActiveTab(module.key);
+                          }
+                        }}
                         style={{ padding: 0, height: 'auto' }}
                       >
                         {module.name}
@@ -246,6 +268,61 @@ const TestCenter: React.FC = () => {
             key="overview"
           >
             {renderOverview()}
+          </TabPane>
+
+          <TabPane 
+            tab={
+              <Space>
+                <BugOutlined />
+                MCP 接口测试
+                <Badge count="NEW" />
+              </Space>
+            } 
+            key="mcp-test"
+          >
+            <Card>
+              <Alert
+                message="MCP 接口批量测试"
+                description="这里可以批量测试所有 MCP 相关接口，包括项目管理、任务管理、计时管理、文档管理等核心功能。"
+                type="success"
+                showIcon
+                style={{ marginBottom: 24 }}
+                action={
+                  <Button type="primary" onClick={() => navigate('/mcp-test')}>
+                    进入测试页面
+                  </Button>
+                }
+              />
+              
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <Space direction="vertical" size="large">
+                  <div>
+                    <BugOutlined style={{ fontSize: '48px', color: '#f5222d', marginBottom: '16px' }} />
+                    <Title level={3}>MCP 接口批量测试工具</Title>
+                    <Paragraph style={{ fontSize: '16px', color: '#666', maxWidth: '600px', margin: '0 auto' }}>
+                      专业的 API 测试工具，支持批量测试、实时监控、结果导出。
+                      涵盖项目管理、任务管理、计时器、文档管理等所有核心 MCP 接口。
+                    </Paragraph>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', flexWrap: 'wrap' }}>
+                    <Statistic title="支持接口数" value={15} prefix={<GoogleOutlined />} />
+                    <Statistic title="测试分类" value={6} prefix={<FileTextOutlined />} />
+                    <Statistic title="响应监控" value="实时" prefix={<ThunderboltOutlined />} />
+                  </div>
+                  
+                  <Button 
+                    type="primary" 
+                    size="large" 
+                    icon={<BugOutlined />}
+                    onClick={() => navigate('/mcp-test')}
+                    style={{ marginTop: '24px' }}
+                  >
+                    立即开始测试
+                  </Button>
+                </Space>
+              </div>
+            </Card>
           </TabPane>
 
           <TabPane 

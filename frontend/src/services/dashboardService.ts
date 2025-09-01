@@ -167,9 +167,9 @@ export class DashboardService {
       const response = await api.get(url);
       
       // 处理API响应结构：{ success: true, data: {...} }
-      let data = response;
-      if (response && response.data) {
-        data = response.data;
+      let data = response as any;
+      if ((response as any) && (response as any).data) {
+        data = (response as any).data;
       }
       
       // 验证响应数据结构
@@ -178,15 +178,15 @@ export class DashboardService {
         throw new Error('Invalid response format from weekly stats API');
       }
       
-      if (!data.summary) {
+      if (!(data as any).summary) {
         console.error('Response missing summary field:', data);
         throw new Error('Weekly stats response missing summary field');
       }
       
       // 缓存结果
-      timerCache.cacheWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId, data);
+      timerCache.cacheWeeklyDashboard(userId, finalStartDate, finalEndDate, projectId, data as any);
       
-      return data;
+      return data as any;
     } catch (error) {
       console.error('Error fetching weekly dashboard stats:', error);
       throw new Error('Failed to fetch weekly dashboard statistics: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -220,7 +220,7 @@ export class DashboardService {
       if (weeklyStats.summary) {
         // 标准结构：{ summary: {...} }
         summaryData = weeklyStats.summary;
-      } else if (weeklyStats.total_tasks !== undefined) {
+      } else if ((weeklyStats as any).total_tasks !== undefined) {
         // 扁平结构：直接就是summary数据
         summaryData = weeklyStats;
       } else {
@@ -266,8 +266,8 @@ export class DashboardService {
 
       // 为每个项目获取任务数据，使用Promise.allSettled避免单个项目失败影响整体
       const taskPromises = projects.map((project: unknown) => 
-        api.get(`/projects/${project.id}/tasks?page=1&page_size=100`).catch(error => {
-          console.warn(`Failed to load tasks for project ${project.id}:`, error);
+        api.get(`/projects/${(project as any).id}/tasks?page=1&page_size=100`).catch(error => {
+          console.warn(`Failed to load tasks for project ${(project as any).id}:`, error);
           return { data: { data: [] } }; // 返回空数组作为降级
         })
       );
@@ -396,7 +396,7 @@ export class DashboardService {
         .slice(0, limit);
       
       // 缓存结果
-      timerCache.cacheRecentActivities(userId, limit, activities);
+      timerCache.cacheRecentActivities(userId, limit, activities as any);
       
       return activities;
     } catch (error) {
@@ -488,7 +488,7 @@ export class DashboardService {
       const projectProgress = await Promise.all(progressPromises);
       
       // 缓存结果
-      timerCache.cacheProjectProgress(userId, projectProgress);
+      timerCache.cacheProjectProgress(userId, projectProgress as any);
       
       return projectProgress;
     } catch (error) {
@@ -572,7 +572,7 @@ export class DashboardService {
       });
       
       // 缓存结果
-      timerCache.cacheUserWorkload(userId, userWorkload);
+      timerCache.cacheUserWorkload(userId, userWorkload as any);
       
       return userWorkload;
     } catch (error) {
@@ -883,10 +883,17 @@ export class DashboardService {
       const tasks = await this.getAllTasks();
 
       const byStatus: Record<TaskStatus, number> = {
+        draft: 0,
+        planning: 0,
         todo: 0,
         in_progress: 0,
+        testing: 0,
         completed: 0,
-        cancelled: 0
+        cancelled: 0,
+        on_hold: 0,
+        suspended: 0,
+        blocked: 0,
+        archived: 0
       };
 
       const byPriority: Record<string, number> = {

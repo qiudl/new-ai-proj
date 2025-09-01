@@ -76,6 +76,7 @@ const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
 const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
 const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
 const TestCenter = React.lazy(() => import('./pages/TestCenter'));
+const MCPTestPage = React.lazy(() => import('./pages/MCPTestPage'));
 const HierarchicalGanttTestPage = React.lazy(() => import('./pages/HierarchicalGanttTestPage'));
 const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGanttTestPage'));
 const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
@@ -376,6 +377,19 @@ const AppContent: React.FC = () => {
                     <APIKeyEdit />
                   </PermissionRoute>
                 } />
+
+                {/* 开发测试相关路由 */}
+                <Route path="/test-center" element={<TestCenter />} />
+                <Route path="/mcp-test" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                    <MCPTestPage />
+                  </PermissionRoute>
+                } />
+                <Route path="/dropdown-test" element={<DropdownTestPage />} />
+                <Route path="/hierarchical-gantt-test" element={<HierarchicalGanttTestPage />} />
+                <Route path="/interactive-gantt-test" element={<InteractiveGanttTestPage />} />
+                <Route path="/project-global-gantt-test" element={<ProjectGlobalGanttTestPage />} />
+                <Route path="/refresh-test" element={<RefreshTestPage />} />
               </Route>
             </Routes>
           </Suspense>

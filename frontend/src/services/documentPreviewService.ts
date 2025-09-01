@@ -555,7 +555,7 @@ class DocumentPreviewService {
     if (!cached) return null;
 
     // 检查是否过期
-    if (Date.now() - (cached as unknown).generatedAt > this.CACHE_EXPIRY) {
+    if (Date.now() - (cached as any).generatedAt > this.CACHE_EXPIRY) {
       this.cache.delete(key);
       return null;
     }
@@ -575,7 +575,7 @@ class DocumentPreviewService {
   private cleanExpiredCache(): void {
     const now = Date.now();
     for (const [key, value] of this.cache.entries()) {
-      if (now - (value as unknown).generatedAt > this.CACHE_EXPIRY) {
+      if (now - (value as any).generatedAt > this.CACHE_EXPIRY) {
         this.cache.delete(key);
       }
     }
@@ -594,7 +594,7 @@ class DocumentPreviewService {
   getCacheStats(): { size: number; entries: number } {
     let totalSize = 0;
     for (const value of this.cache.values()) {
-      totalSize += (value as unknown).size || 0;
+      totalSize += (value as any).size || 0;
     }
     
     return {
