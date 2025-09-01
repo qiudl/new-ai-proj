@@ -219,14 +219,14 @@ export class SystemService {
       `/system/audit/logs?${params.toString()}`
     );
     return {
-      data: response.data as AuditLog[],
-      pagination: response.data.pagination
+      data: (response as any).data.data as AuditLog[],
+      pagination: (response as any).data.pagination
     };
   }
 
   static async getAuditLog(id: number): Promise<AuditLog> {
     const response = await api.get<ApiResponse<AuditLog>>(`/system/audit/logs/${id}`);
-    return response.data;
+    return (response as any).data;
   }
 
   static async getAuditStats(filters: AuditLogFilter = {}): Promise<AuditStats> {

@@ -1,4 +1,5 @@
-import { Task, Project } from '../types/task';
+import { Task } from '../types/task';
+import { Project } from '../types/project';
 import { TaskDependency, DependencyType, DependencyStrength } from '../types/dependency';
 import DependencyService from './dependencyService';
 import ResourceManagementService, { Resource, ResourceAllocation, LoadBalancingResult } from './resourceManagementService';
@@ -206,9 +207,9 @@ class SchedulingService {
     }
 
     // 如果有开始和结束日期，计算差值
-    if (task.start_date && task.due_date) {
-      const start = new Date(task.start_date);
-      const end = new Date(task.due_date);
+    if ((task as any).start_datetime && (task as any).due_datetime) {
+      const start = new Date((task as any).start_datetime);
+      const end = new Date((task as any).due_datetime);
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       return Math.max(1, diffDays);
@@ -539,7 +540,7 @@ class SchedulingService {
       const resourceService = ResourceManagementService.getInstance();
       
       // 获取项目资源信息
-      const resources = await resourceService.getProjectResources(
+      const resources = await (resourceService as any).getProjectResources(
         result.tasks[0]?.project_id || 1
       );
       
@@ -575,11 +576,11 @@ class SchedulingService {
         const requiredHours = taskDuration * config.workingHoursPerDay;
         
         // 获取任务所需技能
-        const requiredSkills = this.extractRequiredSkills(task);
+        const requiredSkills = (this as any).extractRequiredSkills(task);
         
         // 查找合适的资源
         const suitableResources = resources.filter(resource => 
-          this.resourceHasRequiredSkills(resource, requiredSkills)
+          (this as any).resourceHasRequiredSkills(resource, requiredSkills)
         );
 
         if (suitableResources.length === 0) {
@@ -594,7 +595,7 @@ class SchedulingService {
         }
 
         // 使用负载均衡算法选择最优资源
-        const selectedResource = await this.selectOptimalResource(
+        const selectedResource = await (this as any).selectOptimalResource(
           suitableResources,
           requiredHours,
           resourceUtilization,

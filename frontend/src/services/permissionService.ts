@@ -132,7 +132,7 @@ export const permissionService = {
   async getPermissionAuditLogs(userId?: number, limit = 20, offset = 0) {
     const params = { limit, offset };
     if (userId) {
-      (params as unknown).user_id = userId;
+      (params as any).user_id = userId;
     }
     const response = await api.get('/permissions/audit-logs', { params });
     return response;
@@ -141,7 +141,7 @@ export const permissionService = {
   // Company User Permission Management (through company service)
   async getCompanyUserPermissions(companyId: number, userId: number): Promise<{ permissions: UserPermissionSummary }> {
     const response = await api.get(`/companies/${companyId}/users/${userId}/permissions`);
-    return response;
+    return (response as any).data;
   },
 
   async updateCompanyUserPermissions(companyId: number, userId: number, permissionData: {

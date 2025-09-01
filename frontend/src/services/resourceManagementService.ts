@@ -1,4 +1,5 @@
-import { Task, Project } from '../types/task';
+import { Task } from '../types/task';
+import { Project } from '../types/project';
 import { TaskDependency } from '../types/dependency';
 import SchedulingService, { ScheduleTask, SchedulingResult } from './schedulingService';
 import ConflictDetectionService, { ConflictDetectionResult } from './conflictDetectionService';
@@ -258,8 +259,8 @@ class ResourceManagementService {
         skillsRequired,
         hoursRequired: estimatedHours,
         priority,
-        startDate: task.start_date ? new Date(task.start_date) : new Date(),
-        endDate: task.due_date ? new Date(task.due_date) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        startDate: (task as any).start_datetime ? new Date((task as any).start_datetime) : new Date(),
+        endDate: (task as any).due_datetime ? new Date((task as any).due_datetime) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         resourceType: this.inferResourceType(task),
         minCapacity: 1
       };
