@@ -10,7 +10,7 @@ import {
   AI_TASK_GENERATION_CONSTANTS,
   TaskGenerationHistory
 } from '../types/aiTaskGenerator';
-import aiConfigDatabaseService from './aiConfigDatabaseService';
+import aiConfigDatabaseService, { AIConfigResponse } from './aiConfigDatabaseService';
 import { DeepSeekProvider } from './aiProviders/deepseekProvider';
 import { PromptSelector, PromptValidator } from './aiTaskPrompts';
 
@@ -582,7 +582,7 @@ class AITaskGeneratorService {
       ];
 
       // 调用AI API
-      const aiResponse = await instance.chat(messages);
+      const aiResponse = await (instance as any).chat(messages);
       
       if (!aiResponse.success) {
         const response: AITaskGenerationResponse = {
@@ -638,7 +638,7 @@ class AITaskGeneratorService {
         data: {
           generatedTasks: parseResult.tasks,
           usedProvider: provider,
-          usedModel: config.model,
+          usedModel: (config as any).model,
           generationId: this.generateId(),
           estimatedQuality: quality.overallScore,
           tokensUsed: aiResponse.data.usage || { input: 0, output: 0, total: 0 },
@@ -698,31 +698,31 @@ class AITaskGeneratorService {
 
       const tasks: GeneratedSubTask[] = parsed.tasks.map((task: unknown, index: number) => {
         // 验证必需字段
-        if (!task.title) {
+        if (!(task as any).title) {
           warnings.push(`任务${index + 1}缺少标题`);
-          task.title = `子任务${index + 1}`;
+          (task as any).title = `子任务${index + 1}`;
         }
         
         // 规范化优先级
-        if (!['high', 'medium', 'low'].includes(task.priority)) {
+        if (!['high', 'medium', 'low'].includes((task as any).priority)) {
           warnings.push(`任务${index + 1}优先级无效，已设为medium`);
-          task.priority = 'medium';
+          (task as any).priority = 'medium';
         }
         
         // 验证工时估算
-        if (typeof task.estimatedHours !== 'number' || task.estimatedHours <= 0) {
+        if (typeof (task as any).estimatedHours !== 'number' || (task as any).estimatedHours <= 0) {
           warnings.push(`任务${index + 1}工时估算无效，已设为2小时`);
-          task.estimatedHours = 2;
+          (task as any).estimatedHours = 2;
         }
 
         return {
-          title: task.title,
-          description: task.description || '',
-          priority: task.priority,
-          estimatedHours: task.estimatedHours,
+          title: (task as any).title,
+          description: (task as any).description || '',
+          priority: (task as any).priority,
+          estimatedHours: (task as any).estimatedHours,
           status: 'todo' as const,
           custom_fields: {
-            tags: Array.isArray(task.tags) ? task.tags : [],
+            tags: Array.isArray((task as any).tags) ? (task as any).tags : [],
             ai_generated: true,
             generation_id: this.generateId(),
             confidence_score: 85 // 默认置信度
@@ -1358,8 +1358,8 @@ class AITaskGeneratorService {
       
       const parsed = JSON.parse(data);
       return parsed.map((item: unknown) => ({
-        ...item,
-        timestamp: new Date(item.timestamp)
+        ...(item as any),
+        timestamp: new Date((item as any).timestamp)
       }));
     } catch (error) {
       console.error('读取历史记录失败:', error);
