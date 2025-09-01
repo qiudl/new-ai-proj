@@ -8,6 +8,9 @@ import (
 func RegisterWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	println("[DEBUG] RegisterWorkNotesRoutes called (full implementation)...")
 	
+	// 获取权限中间件 - 注释掉直到权限系统完全集成
+	// permissionMiddleware := app.GetPermissionMiddleware()
+	
 	// 工作笔记路由
 	workNotes := authorized.Group("/work-notes")
 	{

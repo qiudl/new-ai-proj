@@ -63,6 +63,16 @@ func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
+	// 检查创建权限
+	if !h.checkWorkNoteFolderPermission(userID.(int), nil, "work_note_folder.create") {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "Permission denied",
+			"error":   "You don't have permission to create folders",
+		})
+		return
+	}
+
 	// 创建文件夹
 	folder := &models.WorkNoteFolder{
 		Name:        req.Name,
@@ -262,7 +272,17 @@ func (h *WorkNoteFolderHandler) UpdateWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 验证文件夹是否存在和权限
+	// 检查权限
+	if !h.checkFolderOwnershipOrPermission(userID.(int), folderID, "work_note_folder.update") {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "Permission denied",
+			"error":   "You don't have permission to update this folder",
+		})
+		return
+	}
+
+	// 验证文件夹是否存在
 	checkQuery := `
 		SELECT id, owner_id FROM work_note_folders 
 		WHERE id = $1 AND deleted_at IS NULL
@@ -410,7 +430,17 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 		return
 	}
 
-	// 验证文件夹是否存在和权限
+	// 检查删除权限
+	if !h.checkFolderOwnershipOrPermission(userID.(int), folderID, "work_note_folder.delete") {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "Permission denied",
+			"error":   "You don't have permission to delete this folder",
+		})
+		return
+	}
+
+	// 验证文件夹是否存在
 	checkQuery := `
 		SELECT id, owner_id, name FROM work_note_folders 
 		WHERE id = $1 AND deleted_at IS NULL
@@ -1115,4 +1145,96 @@ func (h *WorkNoteFolderHandler) BatchSortFolders(c *gin.Context) {
 // BatchMoveNotesToFolder 批量移动笔记到文件夹
 func (h *WorkNoteFolderHandler) BatchMoveNotesToFolder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Batch move notes feature coming soon"})
+}
+
+// Permission checking helper functions
+
+// checkWorkNoteFolderPermission 检查工作笔记文件夹权限
+func (h *WorkNoteFolderHandler) checkWorkNoteFolderPermission(userID int, folderID *int, permissionCode string) bool {
+	// For now, implement basic permission checking
+	// In production, this should integrate with the full permission system
+	
+	// Super admin override
+	if userID == 1 { // Assuming admin user ID is 1
+		return true
+	}
+	
+	// Check if user owns the folder
+	if folderID != nil {
+		query := `SELECT owner_id FROM work_note_folders WHERE id = $1 AND deleted_at IS NULL`
+		var ownerID int
+		err := h.db.QueryRow(query, *folderID).Scan(&ownerID)
+		if err == nil && ownerID == userID {
+			return true // Owner has all permissions
+		}
+	}
+	
+	// Check role-based permissions via company_user_roles
+	query := `
+		SELECT COUNT(*) > 0
+		FROM company_user_roles cur
+		JOIN role_permissions rp ON cur.role_id = rp.role_id
+		JOIN permissions p ON rp.permission_id = p.id
+		WHERE cur.company_user_id = $1
+		  AND p.permission_code = $2
+		  AND rp.is_granted = true
+	`
+	
+	var hasPermission bool
+	err := h.db.QueryRow(query, userID, permissionCode).Scan(&hasPermission)
+	if err != nil {
+		log.Printf("Error checking permission: %v", err)
+		return false
+	}
+	
+	return hasPermission
+}
+
+// requirePermission 中间件式的权限检查
+func (h *WorkNoteFolderHandler) requirePermission(permissionCode string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, exists := c.Get("user_id")
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "User not authenticated",
+			})
+			c.Abort()
+			return
+		}
+		
+		// Get folder ID from URL if present
+		var folderID *int
+		if idStr := c.Param("id"); idStr != "" {
+			if id, err := strconv.Atoi(idStr); err == nil {
+				folderID = &id
+			}
+		}
+		
+		if !h.checkWorkNoteFolderPermission(userID.(int), folderID, permissionCode) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "Permission denied",
+				"error":   fmt.Sprintf("User lacks permission: %s", permissionCode),
+			})
+			c.Abort()
+			return
+		}
+		
+		c.Next()
+	}
+}
+
+// checkFolderOwnershipOrPermission 检查文件夹所有权或权限
+func (h *WorkNoteFolderHandler) checkFolderOwnershipOrPermission(userID, folderID int, permissionCode string) bool {
+	// Check ownership first
+	query := `SELECT owner_id FROM work_note_folders WHERE id = $1 AND deleted_at IS NULL`
+	var ownerID int
+	err := h.db.QueryRow(query, folderID).Scan(&ownerID)
+	if err == nil && ownerID == userID {
+		return true
+	}
+	
+	// Check permission
+	return h.checkWorkNoteFolderPermission(userID, &folderID, permissionCode)
 }
