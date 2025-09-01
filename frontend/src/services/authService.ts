@@ -35,7 +35,10 @@ class AuthService {
   async initiateGoogleAuth(): Promise<GoogleAuthResponse> {
     try {
       const response = await api.get('/auth/google');
-      return response;
+      return {
+        success: true,
+        ...response.data
+      };
     } catch (error) {
       console.error('发起Google认证失败:', error);
       return {
@@ -52,7 +55,10 @@ class AuthService {
   async getGoogleConnectionStatus(): Promise<ApiResponse<GoogleConnectionStatus>> {
     try {
       const response = await api.get('/users/google-connection');
-      return response;
+      return {
+        success: true,
+        data: response.data
+      };
     } catch (error) {
       console.error('获取Google连接状态失败:', error);
       return {
@@ -69,7 +75,10 @@ class AuthService {
   async disconnectGoogle(): Promise<ApiResponse> {
     try {
       const response = await api.delete('/users/google-connection');
-      return response;
+      return {
+        success: true,
+        data: response.data
+      };
     } catch (error) {
       console.error('断开Google连接失败:', error);
       return {
@@ -87,12 +96,18 @@ class AuthService {
     try {
       const response = await api.post('/auth/login', credentials);
       
-      if (response.success && response.data?.token) {
+      if ((response as any).success && (response as any).data?.token) {
         // 使用TokenManager保存token
-        TokenManager.setToken(response.data.token);
+        TokenManager.setToken((response as any).data.token);
       }
       
-      return response;
+      return {
+        success: true,
+        data: {
+          token: (response as any).data?.token,
+          user: (response as any).data?.user
+        }
+      };
     } catch (error) {
       console.error('登录失败:', error);
       return {
@@ -130,7 +145,12 @@ class AuthService {
   async checkAuthStatus(): Promise<ApiResponse<{ user: any }>> {
     try {
       const response = await api.get('/auth/me');
-      return response;
+      return {
+        success: true,
+        data: {
+          user: response.data
+        }
+      };
     } catch (error) {
       console.error('检查认证状态失败:', error);
       return {
@@ -177,11 +197,16 @@ class AuthService {
     try {
       const response = await api.post('/auth/refresh');
       
-      if (response.success && response.data?.token) {
-        TokenManager.setToken(response.data.token);
+      if ((response as any).success && (response as any).data?.token) {
+        TokenManager.setToken((response as any).data.token);
       }
       
-      return response;
+      return {
+        success: true,
+        data: {
+          token: (response as any).data?.token
+        }
+      };
     } catch (error) {
       console.error('刷新token失败:', error);
       return {

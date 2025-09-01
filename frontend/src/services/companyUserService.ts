@@ -32,7 +32,7 @@ export class CompanyUserService {
       );
       
       console.log('API response received:', response);
-      return response.data;
+      return (response as any).data;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -71,7 +71,7 @@ export class CompanyUserService {
     const response = await api.get<APIResponse<CompanyUserListResponse>>(
       `${this.BASE_PATH}?${queryParams.toString()}`
     );
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -81,7 +81,7 @@ export class CompanyUserService {
     const response = await api.get<APIResponse<EnterpriseUserResponse>>(
       `${this.BASE_PATH}/${id}`
     );
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -95,7 +95,7 @@ export class CompanyUserService {
       `${this.BASE_PATH}/${id}`,
       data
     );
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -109,7 +109,7 @@ export class CompanyUserService {
       `${this.BASE_PATH}/${id}/status`,
       data
     );
-    return response.data;
+    return (response as any).data;
   }
 
   /**
@@ -135,7 +135,7 @@ export class CompanyUserService {
     const response = await api.get<APIResponse<CompanyUserStats>>(
       `${this.BASE_PATH}/stats`
     );
-    return response.data;
+    return (response as any).data;
   }
 
   /**

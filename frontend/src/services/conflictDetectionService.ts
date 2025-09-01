@@ -1,4 +1,5 @@
-import { Task, Project } from '../types/task';
+import { Task } from '../types/task';
+import { Project } from '../types/project';
 import { TaskDependency, DependencyType, DependencyStrength } from '../types/dependency';
 import DependencyService from './dependencyService';
 import SchedulingService, { ScheduleTask } from './schedulingService';
@@ -298,11 +299,11 @@ class ConflictDetectionService {
       if (!predecessor || !successor) continue;
 
       // 检查时间逻辑是否合理
-      if (predecessor.start_date && successor.start_date && predecessor.due_date && successor.due_date) {
-        const predStart = new Date(predecessor.start_date);
-        const predEnd = new Date(predecessor.due_date);
-        const succStart = new Date(successor.start_date);
-        const succEnd = new Date(successor.due_date);
+      if ((predecessor as any).start_datetime && (successor as any).start_datetime && (predecessor as any).due_datetime && (successor as any).due_datetime) {
+        const predStart = new Date((predecessor as any).start_datetime);
+        const predEnd = new Date((predecessor as any).due_datetime);
+        const succStart = new Date((successor as any).start_datetime);
+        const succEnd = new Date((successor as any).due_datetime);
 
         let hasConflict = false;
         let conflictReason = '';

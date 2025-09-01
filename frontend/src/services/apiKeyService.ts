@@ -79,8 +79,10 @@ export class APIKeyService {
       }));
 
       return {
-        ...response,
-        data: processedData
+        data: processedData,
+        total: processedData.length,
+        page: 1,
+        pageSize: processedData.length
       };
     } catch (error) {
       console.error('Failed to load API keys:', error);
