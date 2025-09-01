@@ -251,7 +251,7 @@ const TimeAnalysisPage: React.FC = () => {
       const stats: ProjectStats[] = [];
       
       projects.forEach((project: unknown) => {
-        const projectTasks = tasks.filter(task => task.project_id === project.id);
+        const projectTasks = tasks.filter(task => task.project_id === (project as any).id);
         
         if (projectTasks.length === 0) return;
         
@@ -269,7 +269,7 @@ const TimeAnalysisPage: React.FC = () => {
         const efficiency = plannedTime > 0 ? (actualTime / plannedTime) * 100 : 100;
         
         stats.push({
-          projectName: project.name,
+          projectName: (project as any).name,
           taskCount,
           completedCount,
           plannedTime: Math.round(plannedTime),

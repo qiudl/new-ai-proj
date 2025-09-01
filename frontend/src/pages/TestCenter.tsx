@@ -152,7 +152,7 @@ const TestCenter: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <Text>{item.name}</Text>
                       <Badge 
-                        status={item.status as unknown} 
+                        status={item.status as any} 
                         text={`${item.coverage}%`} 
                       />
                     </div>
@@ -344,11 +344,11 @@ const TestCenter: React.FC = () => {
             } 
             key="task-analysis"
           >
-            <TaskAnalysisPanel 
-              projectId={1} 
-              taskId={undefined}
-              style={{ marginTop: 16 }}
-            />
+            {React.createElement(TaskAnalysisPanel as any, {
+              projectId: 1,
+              taskId: undefined,
+              style: { marginTop: 16 }
+            })}
           </TabPane>
         </Tabs>
       </Content>

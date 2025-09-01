@@ -487,7 +487,7 @@ const TaskDetailPageNew: React.FC = () => {
     if (isNaN(parsedProjectId)) return;
     
     try {
-      updateRelationState(prev => ({ ...prev, loading: true }));
+      updateRelationState((prev: any) => ({ ...prev, loading: true }));
       
       // 获取同项目下的其他任务
       const tasksResponse = await TaskService.getTasks(parsedProjectId, {
@@ -764,7 +764,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateUIState({ modalLoading: true });
       // 添加parent_id到任务数据
       const subtaskData = {
-        ...taskData,
+        ...(taskData as any),
         parent_id: taskState.task.id
       };
       
@@ -793,7 +793,7 @@ const TaskDetailPageNew: React.FC = () => {
       updateUIState({ modalLoading: true });
       // 使用当前任务的parent_id作为兄弟任务的parent_id
       const siblingData = {
-        ...taskData,
+        ...(taskData as any),
         parent_id: taskState.task.parent_id || null // 如果当前任务是根任务，兄弟任务也是根任务
       };
       

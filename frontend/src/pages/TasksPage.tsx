@@ -481,7 +481,7 @@ const TasksPage: React.FC = () => {
       // 直接使用服务端排序结果，不再在前端强制改为按更新时间排序
       const finalTasks = Array.isArray(validTasks) ? validTasks : [];
 
-      setTasks(finalTasks);
+      setTasks(finalTasks as any);
 
       // 修复分页计算，确保total不会超过实际需要的页数
       const actualTotal = response.pagination?.total || 0;
@@ -606,7 +606,7 @@ const TasksPage: React.FC = () => {
       }
     } catch (error: Error | unknown) {
       console.error('Task creation error:', error);
-      message.error(error.message || '任务创建失败');
+      message.error((error as any).message || '任务创建失败');
     } finally {
       setModalLoading(false);
     }
@@ -636,7 +636,7 @@ const TasksPage: React.FC = () => {
       setExpandedTasks(new Set());
       loadTasks(pagination.current, pagination.pageSize);
     } catch (error: Error | unknown) {
-      message.error(error.message || '任务更新失败');
+      message.error((error as any).message || '任务更新失败');
     } finally {
       setModalLoading(false);
     }
@@ -670,7 +670,7 @@ const TasksPage: React.FC = () => {
           setExpandedTasks(new Set());
           loadTasks(pagination.current, pagination.pageSize);
         } catch (error: Error | unknown) {
-          message.error(error.message || '任务删除失败');
+          message.error((error as any).message || '任务删除失败');
         }
       },
     });
@@ -735,13 +735,13 @@ const TasksPage: React.FC = () => {
     
     // 在全局模式下，自动设置项目选择器到父任务的项目
     if (!effectiveProjectId && parentTask.project_id) {
-      message.info(`已自动选择项目：${(parentTask as unknown).project_name || parentTask.project_id}`);
+      message.info(`已自动选择项目：${(parentTask as any).project_name || parentTask.project_id}`);
       setSelectedProjectId(parentTask.project_id);
       // 如果有项目名称，也设置项目对象
-      if ((parentTask as unknown).project_name) {
+      if ((parentTask as any).project_name) {
         setSelectedProject({
           id: parentTask.project_id,
-          name: (parentTask as unknown).project_name,
+          name: (parentTask as any).project_name,
           description: '',
           owner_id: 1, // 默认值
           created_at: '',
@@ -859,7 +859,7 @@ const TasksPage: React.FC = () => {
           
         } catch (error: Error | unknown) {
           console.error('Error loading children for task:', taskId, error);
-          message.error(error.message || '获取子任务失败');
+          message.error((error as any).message || '获取子任务失败');
           return;
         } finally {
           // 清除加载状态
@@ -918,7 +918,7 @@ const TasksPage: React.FC = () => {
       }
 
       await TaskService.updateTask(projectId, taskId, { 
-        status: newStatus as unknown
+        status: newStatus as any
       });
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'status_change', taskId, projectId, newStatus }); } catch {}
@@ -1067,12 +1067,12 @@ const TasksPage: React.FC = () => {
       loadTasks(pagination.current, pagination.pageSize);
     } catch (error: Error | unknown) {
       console.error('Title update error:', error);
-      if (error.statusCode === 403) {
+      if ((error as any).statusCode === 403) {
         message.error('权限不足，无法更新任务标题');
-      } else if (error.statusCode === 404) {
+      } else if ((error as any).statusCode === 404) {
         message.error('任务不存在或已被删除');
       } else {
-        message.error(error.message || '标题更新失败');
+        message.error((error as any).message || '标题更新失败');
       }
     } finally {
       setSavingTitle(false);
@@ -1147,7 +1147,7 @@ const TasksPage: React.FC = () => {
           setExpandedTasks(new Set());
           loadTasks(pagination.current, pagination.pageSize);
         } catch (error: Error | unknown) {
-          message.error(error.message || '批量删除失败');
+          message.error((error as any).message || '批量删除失败');
         } finally {
           setBulkDeleteLoading(false);
         }

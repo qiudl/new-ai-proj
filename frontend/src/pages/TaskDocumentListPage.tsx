@@ -282,7 +282,7 @@ const TaskDocumentListPage: React.FC = () => {
             {text}
           </div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {(record as unknown).projectName}
+            {(record as any).projectName}
           </Text>
         </div>
       ),
