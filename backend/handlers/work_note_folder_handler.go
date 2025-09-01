@@ -17,6 +17,99 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 标准化错误码常量
+const (
+	// 通用错误码
+	ErrCodeInvalidRequest   = "INVALID_REQUEST"
+	ErrCodeUnauthorized     = "UNAUTHORIZED"
+	ErrCodeForbidden        = "FORBIDDEN"
+	ErrCodeNotFound         = "NOT_FOUND"
+	ErrCodeConflict         = "CONFLICT"
+	ErrCodeInternalError    = "INTERNAL_ERROR"
+	ErrCodeValidationFailed = "VALIDATION_FAILED"
+
+	// 工作笔记文件夹特定错误码
+	ErrCodeFolderNotFound     = "FOLDER_NOT_FOUND"
+	ErrCodeFolderNameExists   = "FOLDER_NAME_EXISTS"
+	ErrCodeCyclicReference    = "CYCLIC_REFERENCE"
+	ErrCodeFolderNotEmpty     = "FOLDER_NOT_EMPTY"
+	ErrCodeInvalidParent      = "INVALID_PARENT"
+	ErrCodePermissionDenied   = "PERMISSION_DENIED"
+	ErrCodeMaxDepthExceeded   = "MAX_DEPTH_EXCEEDED"
+)
+
+// StandardResponse 标准化响应结构
+type StandardResponse struct {
+	Success   bool        `json:"success"`
+	Message   string      `json:"message"`
+	Data      interface{} `json:"data,omitempty"`
+	Error     *ErrorInfo  `json:"error,omitempty"`
+	Timestamp int64       `json:"timestamp"`
+}
+
+// ErrorInfo 详细错误信息
+type ErrorInfo struct {
+	Code    string                 `json:"code"`
+	Details map[string]interface{} `json:"details,omitempty"`
+}
+
+// PaginatedResponse 分页响应结构
+type PaginatedResponse struct {
+	Items      interface{}    `json:"items"`
+	Pagination PaginationInfo `json:"pagination"`
+}
+
+// PaginationInfo 分页信息
+type PaginationInfo struct {
+	Page       int   `json:"page"`
+	Size       int   `json:"size"`
+	Total      int64 `json:"total"`
+	TotalPages int   `json:"totalPages"`
+}
+
+// 响应构造函数
+func (h *WorkNoteFolderHandler) successResponse(c *gin.Context, message string, data interface{}) {
+	response := StandardResponse{
+		Success:   true,
+		Message:   message,
+		Data:      data,
+		Timestamp: time.Now().Unix(),
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func (h *WorkNoteFolderHandler) errorResponse(c *gin.Context, statusCode int, errorCode, message string, details map[string]interface{}) {
+	response := StandardResponse{
+		Success: false,
+		Message: message,
+		Error: &ErrorInfo{
+			Code:    errorCode,
+			Details: details,
+		},
+		Timestamp: time.Now().Unix(),
+	}
+	
+	// 记录错误日志
+	log.Printf("[WorkNoteFolderHandler] Error: %s - %s, Details: %+v", errorCode, message, details)
+	
+	c.JSON(statusCode, response)
+}
+
+func (h *WorkNoteFolderHandler) validationErrorResponse(c *gin.Context, field, message string) {
+	details := map[string]interface{}{
+		"field": field,
+	}
+	h.errorResponse(c, http.StatusBadRequest, ErrCodeValidationFailed, message, details)
+}
+
+func (h *WorkNoteFolderHandler) paginatedResponse(c *gin.Context, message string, items interface{}, pagination PaginationInfo) {
+	data := PaginatedResponse{
+		Items:      items,
+		Pagination: pagination,
+	}
+	h.successResponse(c, message, data)
+}
+
 // WorkNoteFolderHandler 工作笔记文件夹处理器
 type WorkNoteFolderHandler struct {
 	db database.DB
@@ -33,43 +126,72 @@ func NewWorkNoteFolderHandler(db database.DB) *WorkNoteFolderHandler {
 func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 	var req models.CreateWorkNoteFolderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Invalid request format",
-			"error":   err.Error(),
-		})
+		h.errorResponse(c, http.StatusBadRequest, ErrCodeInvalidRequest, 
+			"Invalid request format", map[string]interface{}{"parseError": err.Error()})
 		return
 	}
 
-	// 验证请求 - temporarily disabled
-	/*
-	if err := utils.ValidateStruct(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Validation failed",
-			"error":   err.Error(),
-		})
+	// 基础验证
+	if strings.TrimSpace(req.Name) == "" {
+		h.validationErrorResponse(c, "name", "Folder name is required")
 		return
 	}
-	*/
+
+	if len(req.Name) > 255 {
+		h.validationErrorResponse(c, "name", "Folder name must not exceed 255 characters")
+		return
+	}
 
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "User not authenticated",
-		})
+		h.errorResponse(c, http.StatusUnauthorized, ErrCodeUnauthorized, 
+			"User not authenticated", nil)
 		return
 	}
 
 	// 检查创建权限
 	if !h.checkWorkNoteFolderPermission(userID.(int), nil, "work_note_folder.create") {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"message": "Permission denied",
-			"error":   "You don't have permission to create folders",
-		})
+		h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied, 
+			"You don't have permission to create folders", map[string]interface{}{
+				"requiredPermission": "work_note_folder.create",
+			})
+		return
+	}
+
+	// 检查父文件夹存在性和权限
+	if req.ParentID != nil {
+		if !h.checkFolderExists(*req.ParentID) {
+			h.errorResponse(c, http.StatusBadRequest, ErrCodeInvalidParent, 
+				"Parent folder not found", map[string]interface{}{
+					"parentId": *req.ParentID,
+				})
+			return
+		}
+		
+		if !h.checkFolderOwnershipOrPermission(userID.(int), *req.ParentID, "work_note_folder.content.manage") {
+			h.errorResponse(c, http.StatusForbidden, ErrCodePermissionDenied, 
+				"You don't have permission to create folders in this parent", map[string]interface{}{
+					"parentId": *req.ParentID,
+				})
+			return
+		}
+
+		// 检查循环引用（虽然新建时不太可能，但为了保险）
+		if h.wouldCreateCycle(*req.ParentID, 0) {
+			h.errorResponse(c, http.StatusBadRequest, ErrCodeCyclicReference, 
+				"Creating folder would create a circular reference", nil)
+			return
+		}
+	}
+
+	// 检查同级文件夹名称重复
+	if h.checkFolderNameExists(req.Name, req.ParentID, userID.(int), 0) {
+		h.errorResponse(c, http.StatusConflict, ErrCodeFolderNameExists, 
+			"A folder with this name already exists at this location", map[string]interface{}{
+				"name": req.Name,
+				"parentId": req.ParentID,
+			})
 		return
 	}
 
@@ -107,20 +229,31 @@ func (h *WorkNoteFolderHandler) CreateWorkNoteFolder(c *gin.Context) {
 	).Scan(&id)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to create work note folder",
-			"error":   err.Error(),
-		})
+		// 检查是否是约束违反错误
+		if strings.Contains(err.Error(), "unique constraint") || strings.Contains(err.Error(), "duplicate key") {
+			h.errorResponse(c, http.StatusConflict, ErrCodeFolderNameExists, 
+				"A folder with this name already exists", map[string]interface{}{
+					"name": req.Name,
+					"dbError": err.Error(),
+				})
+			return
+		}
+		
+		h.errorResponse(c, http.StatusInternalServerError, ErrCodeInternalError, 
+			"Failed to create work note folder", map[string]interface{}{
+				"dbError": err.Error(),
+			})
 		return
 	}
 
 	folder.ID = id
 
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "Work note folder created successfully",
-		"data":    folder,
+	// 返回创建成功的响应
+	c.JSON(http.StatusCreated, StandardResponse{
+		Success:   true,
+		Message:   "Work note folder created successfully",
+		Data:      folder,
+		Timestamp: time.Now().Unix(),
 	})
 }
 
@@ -129,30 +262,25 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 	// 获取文件夹ID
 	idStr := c.Param("id")
 	if idStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Folder ID is required",
-		})
+		h.validationErrorResponse(c, "id", "Folder ID is required")
 		return
 	}
 
 	folderID, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Invalid folder ID",
-			"error":   err.Error(),
-		})
+		h.errorResponse(c, http.StatusBadRequest, ErrCodeInvalidRequest, 
+			"Invalid folder ID format", map[string]interface{}{
+				"providedId": idStr,
+				"parseError": err.Error(),
+			})
 		return
 	}
 
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "User not authenticated",
-		})
+		h.errorResponse(c, http.StatusUnauthorized, ErrCodeUnauthorized, 
+			"User not authenticated", nil)
 		return
 	}
 
@@ -183,10 +311,18 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"message": "Work note folder not found or access denied",
-		})
+		if strings.Contains(err.Error(), "no rows") {
+			h.errorResponse(c, http.StatusNotFound, ErrCodeFolderNotFound, 
+				"Work note folder not found or access denied", map[string]interface{}{
+					"folderId": folderID,
+				})
+		} else {
+			h.errorResponse(c, http.StatusInternalServerError, ErrCodeInternalError, 
+				"Failed to retrieve folder", map[string]interface{}{
+					"folderId": folderID,
+					"dbError": err.Error(),
+				})
+		}
 		return
 	}
 
@@ -199,7 +335,7 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 	var noteCount int
 	err = h.db.QueryRow(noteCountQuery, folderID).Scan(&noteCount)
 	if err != nil {
-		// 如果查询失败，设置为0
+		log.Printf("[GetWorkNoteFolder] Warning: Failed to count notes for folder %d: %v", folderID, err)
 		noteCount = 0
 	}
 	folder.NotesCount = noteCount
@@ -212,6 +348,7 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 	var subfolderCount int
 	err = h.db.QueryRow(subfolderCountQuery, folderID).Scan(&subfolderCount)
 	if err != nil {
+		log.Printf("[GetWorkNoteFolder] Warning: Failed to count subfolders for folder %d: %v", folderID, err)
 		subfolderCount = 0
 	}
 	folder.SubfoldersCount = subfolderCount
@@ -223,11 +360,7 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolder(c *gin.Context) {
 		folder.Path = folder.Name
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Work note folder retrieved successfully",
-		"data":    folder,
-	})
+	h.successResponse(c, "Work note folder retrieved successfully", folder)
 }
 // UpdateWorkNoteFolder 更新工作笔记文件夹
 func (h *WorkNoteFolderHandler) UpdateWorkNoteFolder(c *gin.Context) {
@@ -403,30 +536,25 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 	// 获取文件夹ID
 	idStr := c.Param("id")
 	if idStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Folder ID is required",
-		})
+		h.validationErrorResponse(c, "id", "Folder ID is required")
 		return
 	}
 
 	folderID, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "Invalid folder ID",
-			"error":   err.Error(),
-		})
+		h.errorResponse(c, http.StatusBadRequest, ErrCodeInvalidRequest, 
+			"Invalid folder ID format", map[string]interface{}{
+				"providedId": idStr,
+				"parseError": err.Error(),
+			})
 		return
 	}
 
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "User not authenticated",
-		})
+		h.errorResponse(c, http.StatusUnauthorized, ErrCodeUnauthorized, 
+			"User not authenticated", nil)
 		return
 	}
 
@@ -554,10 +682,8 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		fmt.Println("DEBUG: User not authenticated")
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"success": false,
-			"message": "User not authenticated",
-		})
+		h.errorResponse(c, http.StatusUnauthorized, ErrCodeUnauthorized, 
+			"User not authenticated", nil)
 		return
 	}
 	fmt.Printf("DEBUG: UserID: %v\n", userID)
@@ -687,34 +813,36 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 		folders = append(folders, folder)
 	}
 
-	// 计算分页信息
+	// 构建分页信息
 	totalPages := (totalCount + pageSize - 1) / pageSize
-	hasMore := page < totalPages
 	
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    folders,
-		"pagination": gin.H{
-			"current_page": page,
-			"page_size":    pageSize,
-			"total_count":  totalCount,
-			"total_pages":  totalPages,
-			"has_more":     hasMore,
-		},
-	})
+	pagination := PaginationInfo{
+		Page:       page,
+		Size:       pageSize,
+		Total:      int64(totalCount),
+		TotalPages: totalPages,
+	}
+	
+	// 返回分页响应
+	h.paginatedResponse(c, fmt.Sprintf("Retrieved %d work note folders", len(folders)), folders, pagination)
 }
 
 // GetWorkNoteFolderTree 获取工作笔记文件夹树（懒加载优化）
 func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
+	log.Printf("[GetWorkNoteFolderTree] Starting request")
+	
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
+		log.Printf("[GetWorkNoteFolderTree] User not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "User not authenticated",
 		})
 		return
 	}
+	
+	log.Printf("[GetWorkNoteFolderTree] UserID: %v", userID)
 
 	// 懒加载参数
 	parentID := c.Query("parent_id") // 如果提供，只加载指定父级的直接子级
@@ -824,8 +952,12 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 		args = []interface{}{userID, maxDepth}
 	}
 
+	log.Printf("[GetWorkNoteFolderTree] Executing query with args: %v", args)
+	log.Printf("[GetWorkNoteFolderTree] Query: %s", query)
+	
 	rows, err := h.db.Query(query, args...)
 	if err != nil {
+		log.Printf("[GetWorkNoteFolderTree] Query error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to fetch work note folders",
@@ -834,6 +966,8 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
+	
+	log.Printf("[GetWorkNoteFolderTree] Query executed successfully")
 
 	// 读取文件夹
 	var folders []*models.WorkNoteFolder
@@ -1352,6 +1486,67 @@ func (h *WorkNoteFolderHandler) requirePermission(permissionCode string) gin.Han
 		
 		c.Next()
 	}
+}
+
+// checkFolderExists 检查文件夹是否存在
+func (h *WorkNoteFolderHandler) checkFolderExists(folderID int) bool {
+	query := `SELECT 1 FROM work_note_folders WHERE id = $1 AND deleted_at IS NULL`
+	var exists int
+	err := h.db.QueryRow(query, folderID).Scan(&exists)
+	return err == nil
+}
+
+// wouldCreateCycle 检查移动操作是否会创建循环引用
+func (h *WorkNoteFolderHandler) wouldCreateCycle(parentID, folderID int) bool {
+	if parentID == folderID {
+		return true
+	}
+	
+	// 递归检查父级路径中是否包含当前文件夹
+	query := `
+		WITH RECURSIVE parent_path AS (
+			SELECT id, parent_id, 1 as level
+			FROM work_note_folders 
+			WHERE id = $1 AND deleted_at IS NULL
+			
+			UNION ALL
+			
+			SELECT wnf.id, wnf.parent_id, pp.level + 1
+			FROM work_note_folders wnf
+			INNER JOIN parent_path pp ON wnf.id = pp.parent_id
+			WHERE wnf.deleted_at IS NULL AND pp.level < 50
+		)
+		SELECT 1 FROM parent_path WHERE id = $2 LIMIT 1
+	`
+	
+	var exists int
+	err := h.db.QueryRow(query, parentID, folderID).Scan(&exists)
+	return err == nil
+}
+
+// checkFolderNameExists 检查文件夹名称是否在指定位置已存在
+func (h *WorkNoteFolderHandler) checkFolderNameExists(name string, parentID *int, ownerID, excludeID int) bool {
+	query := `
+		SELECT 1 FROM work_note_folders 
+		WHERE name = $1 AND owner_id = $2 AND deleted_at IS NULL
+	`
+	args := []interface{}{name, ownerID}
+	
+	if parentID != nil {
+		query += ` AND parent_id = $3`
+		args = append(args, *parentID)
+	} else {
+		query += ` AND parent_id IS NULL`
+	}
+	
+	if excludeID > 0 {
+		query += ` AND id != $` + strconv.Itoa(len(args)+1)
+		args = append(args, excludeID)
+	}
+	
+	var exists int
+	err := h.db.QueryRow(query, args...).Scan(&exists)
+	return err == nil
 }
 
 // checkFolderOwnershipOrPermission 检查文件夹所有权或权限
