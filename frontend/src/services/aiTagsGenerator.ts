@@ -453,16 +453,16 @@ export class AITagsGenerator {
   private generateReasoning(suggestions: TagSuggestion[], analysis: unknown): string {
     const parts = [];
 
-    if (analysis.extractedKeywords.length > 0) {
-      parts.push(`提取了 ${analysis.extractedKeywords.length} 个关键词`);
+    if ((analysis as any).extractedKeywords.length > 0) {
+      parts.push(`提取了 ${(analysis as any).extractedKeywords.length} 个关键词`);
     }
 
-    if (analysis.techStackTags.length > 0) {
-      parts.push(`识别了 ${analysis.techStackTags.length} 个技术栈标签`);
+    if ((analysis as any).techStackTags.length > 0) {
+      parts.push(`识别了 ${(analysis as any).techStackTags.length} 个技术栈标签`);
     }
 
-    if (analysis.businessDomainTags.length > 0) {
-      parts.push(`分类了 ${analysis.businessDomainTags.length} 个业务领域`);
+    if ((analysis as any).businessDomainTags.length > 0) {
+      parts.push(`分类了 ${(analysis as any).businessDomainTags.length} 个业务领域`);
     }
 
     const highConfidenceTags = suggestions.filter(s => s.confidence > 0.8).length;

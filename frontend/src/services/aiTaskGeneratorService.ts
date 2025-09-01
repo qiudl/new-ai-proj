@@ -81,7 +81,7 @@ class AITaskGeneratorService {
       return data.success ? data.data : data;
     } catch (error: Error | unknown) {
       console.error('Generate tasks failed:', error);
-      throw new Error(error.message || '任务生成失败');
+      throw new Error((error as any).message || '任务生成失败');
     }
   }
 
@@ -103,7 +103,7 @@ class AITaskGeneratorService {
       return data.success ? data.data : data;
     } catch (error: Error | unknown) {
       console.error('Validate tasks failed:', error);
-      throw new Error(error.message || '任务验证失败');
+      throw new Error((error as any).message || '任务验证失败');
     }
   }
 
@@ -125,7 +125,7 @@ class AITaskGeneratorService {
       return data.success ? data.data : data;
     } catch (error: Error | unknown) {
       console.error('Optimize tasks failed:', error);
-      throw new Error(error.message || '任务优化失败');
+      throw new Error((error as any).message || '任务优化失败');
     }
   }
 
@@ -148,7 +148,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Get templates failed:', error);
-      throw new Error(error.message || '获取模板失败');
+      throw new Error((error as any).message || '获取模板失败');
     }
   }
 
@@ -170,7 +170,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Create template failed:', error);
-      throw new Error(error.message || '创建模板失败');
+      throw new Error((error as any).message || '创建模板失败');
     }
   }
 
@@ -192,7 +192,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Update template failed:', error);
-      throw new Error(error.message || '更新模板失败');
+      throw new Error((error as any).message || '更新模板失败');
     }
   }
 
@@ -212,7 +212,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Delete template failed:', error);
-      throw new Error(error.message || '删除模板失败');
+      throw new Error((error as any).message || '删除模板失败');
     }
   }
 
@@ -234,7 +234,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Generate from template failed:', error);
-      throw new Error(error.message || '基于模板生成任务失败');
+      throw new Error((error as any).message || '基于模板生成任务失败');
     }
   }
 
@@ -256,7 +256,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Batch optimize failed:', error);
-      throw new Error(error.message || '批量优化失败');
+      throw new Error((error as any).message || '批量优化失败');
     }
   }
 
@@ -279,7 +279,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Get cost summary failed:', error);
-      throw new Error(error.message || '获取成本摘要失败');
+      throw new Error((error as any).message || '获取成本摘要失败');
     }
   }
 
@@ -302,7 +302,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Get budget status failed:', error);
-      throw new Error(error.message || '获取预算状态失败');
+      throw new Error((error as any).message || '获取预算状态失败');
     }
   }
 
@@ -324,7 +324,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Set budget limit failed:', error);
-      throw new Error(error.message || '设置预算限制失败');
+      throw new Error((error as any).message || '设置预算限制失败');
     }
   }
 
@@ -343,7 +343,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Get budget alerts failed:', error);
-      throw new Error(error.message || '获取预算警告失败');
+      throw new Error((error as any).message || '获取预算警告失败');
     }
   }
 
@@ -366,7 +366,7 @@ class AITaskGeneratorService {
       return data;
     } catch (error: Error | unknown) {
       console.error('Get usage stats failed:', error);
-      throw new Error(error.message || '获取使用统计失败');
+      throw new Error((error as any).message || '获取使用统计失败');
     }
   }
 

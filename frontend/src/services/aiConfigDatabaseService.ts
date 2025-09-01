@@ -295,14 +295,14 @@ class AIConfigDatabaseService {
       };
       
       // 只有在字段存在时才添加
-      if (testConfig.apiKey !== undefined) {
-        apiTestConfig.api_key = testConfig.apiKey;
+      if ((testConfig as any).api_key !== undefined) {
+        apiTestConfig.api_key = (testConfig as any).api_key;
       }
-      if (testConfig.baseURL !== undefined) {
-        apiTestConfig.base_url = testConfig.baseURL;
+      if ((testConfig as any).base_url !== undefined) {
+        apiTestConfig.base_url = (testConfig as any).base_url;
       }
-      if (testConfig.testText !== undefined) {
-        apiTestConfig.test_text = testConfig.testText;
+      if ((testConfig as any).test_text !== undefined) {
+        apiTestConfig.test_text = (testConfig as any).test_text;
       }
       
       return await request.post<AITestResponse>('/system/ai-configs/test', apiTestConfig);
