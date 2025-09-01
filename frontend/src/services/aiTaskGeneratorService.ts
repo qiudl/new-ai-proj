@@ -30,7 +30,7 @@ class AITaskGeneratorService {
   /**
    * 解析AI配置数据为数组格式
    */
-  private parseConfigData(data: Record<string, unknown>): any[] {
+  private parseConfigData(data: Record<string, unknown> | AIConfigResponse[]): any[] {
     if (Array.isArray(data)) {
       return data;
     } else if (typeof data === 'object' && data !== null) {
@@ -503,11 +503,11 @@ class AITaskGeneratorService {
    */
   private createProviderInstance(provider: AIProvider, config: unknown): unknown {
     const providerConfig = {
-      apiKey: config.apiKey || 'placeholder', // 实际使用时会从数据库获取
-      baseURL: config.baseURL,
-      model: config.model,
-      temperature: config.temperature,
-      maxTokens: config.maxTokens
+      apiKey: (config as any).apiKey || 'placeholder', // 实际使用时会从数据库获取
+      baseURL: (config as any).baseURL,
+      model: (config as any).model,
+      temperature: (config as any).temperature,
+      maxTokens: (config as any).maxTokens
     };
 
     switch (provider) {
@@ -565,12 +565,12 @@ class AITaskGeneratorService {
 
       // 构建prompt
       const systemPrompt = PromptSelector.getSystemPrompt(
-        provider as unknown,
+        provider as any,
         request.complexity || 'detailed'
       );
       
       const userPrompt = PromptSelector.getUserPrompt(
-        provider as unknown,
+        provider as any,
         request.parentTaskTitle,
         request.keywords,
         request.complexity || 'detailed'

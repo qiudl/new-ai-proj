@@ -211,14 +211,14 @@ class AIConfigDatabaseService {
       };
       
       // 只有在字段存在时才添加
-      if ((config as any).api_key !== undefined) {
-        apiConfig.api_key = (config as any).api_key;
+      if (config.apiKey !== undefined) {
+        (apiConfig as any).api_key = config.apiKey;
       }
-      if ((config as any).base_url !== undefined) {
-        apiConfig.base_url = (config as any).base_url;
+      if (config.baseURL !== undefined) {
+        (apiConfig as any).base_url = config.baseURL;
       }
-      if ((config as any).max_tokens !== undefined) {
-        apiConfig.max_tokens = (config as any).max_tokens;
+      if (config.maxTokens !== undefined) {
+        (apiConfig as any).max_tokens = config.maxTokens;
       }
       
       return await request.put<AIConfigResponse>(`/system/ai-configs/${provider}`, apiConfig);
@@ -295,14 +295,14 @@ class AIConfigDatabaseService {
       };
       
       // 只有在字段存在时才添加
-      if ((testConfig as any).api_key !== undefined) {
-        apiTestConfig.api_key = (testConfig as any).api_key;
+      if (testConfig.apiKey !== undefined) {
+        (apiTestConfig as any).api_key = testConfig.apiKey;
       }
-      if ((testConfig as any).base_url !== undefined) {
-        apiTestConfig.base_url = (testConfig as any).base_url;
+      if (testConfig.baseURL !== undefined) {
+        (apiTestConfig as any).base_url = testConfig.baseURL;
       }
-      if ((testConfig as any).test_text !== undefined) {
-        apiTestConfig.test_text = (testConfig as any).test_text;
+      if (testConfig.testText !== undefined) {
+        (apiTestConfig as any).test_text = testConfig.testText;
       }
       
       return await request.post<AITestResponse>('/system/ai-configs/test', apiTestConfig);
