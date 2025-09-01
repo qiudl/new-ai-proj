@@ -201,7 +201,13 @@ const TaskDetailPageNew: React.FC = () => {
         ? subtasksData.data 
         : [];
       
-      updateRelationState({ subtasks: children });
+      // 只有在子任务真正发生变化时才更新状态
+      const currentSubtaskIds = relationState.subtasks.map(t => t.id).sort().join(',');
+      const newSubtaskIds = children.map(t => t.id).sort().join(',');
+      
+      if (currentSubtaskIds !== newSubtaskIds) {
+        updateRelationState({ subtasks: children });
+      }
       
       // 直接计算统计，避免函数依赖
       const stats = {
@@ -217,14 +223,24 @@ const TaskDetailPageNew: React.FC = () => {
         stats.completionRate = Math.round((stats.completedSubtasks / stats.totalSubtasks) * 100);
       }
       
-      updateCompletionState(stats);
+      // 只有在统计数据真正变化时才更新
+      if (JSON.stringify(stats) !== JSON.stringify({
+        totalSubtasks: completionState.totalSubtasks,
+        completedSubtasks: completionState.completedSubtasks,
+        inProgressSubtasks: completionState.inProgressSubtasks,
+        todoSubtasks: completionState.todoSubtasks,
+        completionRate: completionState.completionRate,
+        loading: false
+      })) {
+        updateCompletionState(stats);
+      }
     } catch (error) {
       console.error('刷新完成统计失败:', error);
       setCompletionStatsError(error as Error);
     } finally {
       setIsCompletionStatsRefreshing(false);
     }
-  }, [projectId, task?.id, updateRelationState, updateCompletionState]);
+  }, [projectId, task?.id, relationState.subtasks, completionState, updateRelationState, updateCompletionState]);
 
   // 暂时禁用自动刷新以调试无限渲染问题
   // useEffect(() => {

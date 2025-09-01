@@ -53,6 +53,11 @@ export const TaskRelationsPanel: React.FC<TaskRelationsPanelProps> = React.memo(
     onNavigateToTask(taskId, projectId);
   }, [onNavigateToTask]);
 
+  // 缓存相关任务总数计算，避免每次渲染都重新计算
+  const relatedTasksCount = React.useMemo(() => {
+    return (parentTask ? 1 : 0) + subtasks.length + siblingTasks.length;
+  }, [parentTask, subtasks.length, siblingTasks.length]);
+
   return (
     <>
       {/* 快速操作 */}
@@ -107,11 +112,7 @@ export const TaskRelationsPanel: React.FC<TaskRelationsPanelProps> = React.memo(
             <BranchesOutlined />
             <span>相关任务</span>
             <Badge 
-              count={
-                (parentTask ? 1 : 0) + 
-                subtasks.length + 
-                siblingTasks.length
-              } 
+              count={relatedTasksCount} 
               showZero={false}
               size="small"
             />
