@@ -487,7 +487,7 @@ const TaskDetailPageNew: React.FC = () => {
     if (isNaN(parsedProjectId)) return;
     
     try {
-      updateRelationState((prev: any) => ({ ...prev, loading: true }));
+      updateRelationState({ loading: true });
       
       // 获取同项目下的其他任务
       const tasksResponse = await TaskService.getTasks(parsedProjectId, {

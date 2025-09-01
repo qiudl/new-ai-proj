@@ -36,7 +36,7 @@ import {
   BuildOutlined,
   BankOutlined
 } from '@ant-design/icons';
-import type { ColumnType } from 'antd/es/table';
+import type { ColumnsType } from 'antd/es/table';
 // import { useNavigate } from 'react-router-dom';
 import { 
   User, 
@@ -268,8 +268,8 @@ const UserManagementPage: React.FC = () => {
   const handleTableChange = useCallback((pagination: unknown) => {
     setSearchParams(prev => ({
       ...prev,
-      page: pagination.current,
-      page_size: pagination.pageSize
+      page: (pagination as any).current,
+      page_size: (pagination as any).pageSize
     }));
   }, []);
 
@@ -925,7 +925,7 @@ const UserManagementPage: React.FC = () => {
             selectedRowKeys,
             onChange: setSelectedRowKeys,
             getCheckboxProps: (record: unknown) => ({
-              disabled: record.role === 'admin' && record.id === 1, // 防止删除超级管理员
+              disabled: (record as any).role === 'admin' && (record as any).id === 1, // 防止删除超级管理员
             }),
           }}
           pagination={{

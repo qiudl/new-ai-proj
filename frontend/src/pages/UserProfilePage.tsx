@@ -74,7 +74,7 @@ const UserProfilePage: React.FC = () => {
       
       message.success('个人资料更新成功');
     } catch (error: Error | unknown) {
-      const errorMessage = error.response?.data?.error?.message || '更新个人资料失败';
+      const errorMessage = (error as any).response?.data?.error?.message || '更新个人资料失败';
       message.error(errorMessage);
       console.error('Error updating profile:', error);
     } finally {
@@ -89,7 +89,7 @@ const UserProfilePage: React.FC = () => {
       passwordForm.resetFields();
       message.success('密码修改成功');
     } catch (error: Error | unknown) {
-      const errorMessage = error.response?.data?.error?.message || '密码修改失败';
+      const errorMessage = (error as any).response?.data?.error?.message || '密码修改失败';
       message.error(errorMessage);
       console.error('Error changing password:', error);
     } finally {

@@ -189,6 +189,9 @@ const TimeWeeklyReportPage: React.FC = () => {
           project_id: 1, // 默认项目ID
           created_at: new Date().toISOString(),
           due_date: null,
+          task_level: 1,
+          sort_order: 0,
+          updated_at: new Date().toISOString(),
           custom_fields: {
             priority: entry.priority
           }
@@ -237,6 +240,9 @@ const TimeWeeklyReportPage: React.FC = () => {
           project_id: 1, // 默认项目ID
           created_at: new Date().toISOString(),
           due_date: null,
+          task_level: 1,
+          sort_order: 0,
+          updated_at: new Date().toISOString(),
           custom_fields: {
             priority: entry.priority
           }

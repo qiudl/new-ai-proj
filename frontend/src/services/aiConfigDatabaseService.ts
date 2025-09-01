@@ -179,7 +179,7 @@ class AIConfigDatabaseService {
       };
       
       // 更新或添加配置
-      const existingIndex = configs.findIndex((c: unknown) => c.provider === config.provider);
+      const existingIndex = configs.findIndex((c: unknown) => (c as any).provider === config.provider);
       if (existingIndex >= 0) {
         configs[existingIndex] = newConfig;
       } else {
@@ -211,14 +211,14 @@ class AIConfigDatabaseService {
       };
       
       // 只有在字段存在时才添加
-      if (config.apiKey !== undefined) {
-        apiConfig.api_key = config.apiKey;
+      if ((config as any).api_key !== undefined) {
+        apiConfig.api_key = (config as any).api_key;
       }
-      if (config.baseURL !== undefined) {
-        apiConfig.base_url = config.baseURL;
+      if ((config as any).base_url !== undefined) {
+        apiConfig.base_url = (config as any).base_url;
       }
-      if (config.maxTokens !== undefined) {
-        apiConfig.max_tokens = config.maxTokens;
+      if ((config as any).max_tokens !== undefined) {
+        apiConfig.max_tokens = (config as any).max_tokens;
       }
       
       return await request.put<AIConfigResponse>(`/system/ai-configs/${provider}`, apiConfig);
@@ -229,7 +229,7 @@ class AIConfigDatabaseService {
       const savedConfigs = localStorage.getItem('ai-configs-demo');
       const configs = savedConfigs ? JSON.parse(savedConfigs) : [];
       
-      const existingIndex = configs.findIndex((c: unknown) => c.provider === provider);
+      const existingIndex = configs.findIndex((c: unknown) => (c as any).provider === provider);
       if (existingIndex >= 0) {
         // 更新现有配置
         const updatedConfig = {
@@ -251,7 +251,7 @@ class AIConfigDatabaseService {
         return {
           success: false,
           message: '未找到要更新的配置',
-          data: null as unknown,
+          data: {} as any,
           timestamp: new Date().toISOString()
         };
       }
@@ -271,13 +271,13 @@ class AIConfigDatabaseService {
       const savedConfigs = localStorage.getItem('ai-configs-demo');
       const configs = savedConfigs ? JSON.parse(savedConfigs) : [];
       
-      const filteredConfigs = configs.filter((c: unknown) => c.provider !== provider);
+      const filteredConfigs = configs.filter((c: unknown) => (c as any).provider !== provider);
       localStorage.setItem('ai-configs-demo', JSON.stringify(filteredConfigs));
       
       return {
         success: true,
         message: '配置已从本地模拟存储中删除',
-        data: null as unknown,
+        data: undefined as any,
         timestamp: new Date().toISOString()
       };
     }
