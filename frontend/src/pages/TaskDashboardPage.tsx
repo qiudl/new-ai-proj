@@ -1292,14 +1292,12 @@ const TaskDashboardPage: React.FC = () => {
                 任务分析
               </Space>
             ),
-            children: (
-              {React.createElement(TaskAnalysisPanel as any, {
-                projectId: selectedProject,
-                taskId: undefined,
-                style: { marginTop: 16 },
-                allTasks: allTasks
-              })}
-            )
+            children: React.createElement(TaskAnalysisPanel as any, {
+              projectId: selectedProject,
+              taskId: undefined,
+              style: { marginTop: 16 },
+              allTasks: allTasks
+            })
           }
         ]}
       />
