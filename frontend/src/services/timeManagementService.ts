@@ -152,21 +152,21 @@ export class TimeManagementService {
    */
   private static convertToTasks(apiTasks: unknown[]): Task[] {
     return apiTasks.map(apiTask => ({
-      id: apiTask.id,
-      title: apiTask.title,
+      id: (apiTask as any).id,
+      title: (apiTask as any).title,
       description: '',
-      status: apiTask.status as TaskStatus,
-      project_id: apiTask.project_id,
-      assignee_id: apiTask.assignee_id,
-      assignee_name: apiTask.assignee_name,
-      parent_id: apiTask.parent_id || undefined,
-      task_level: apiTask.task_level || 0,
-      sort_order: apiTask.sort_order || 0,
-      due_date: apiTask.due_date,
-      created_at: apiTask.created_at,
-      updated_at: apiTask.updated_at,
-      custom_fields: apiTask.custom_fields || {},
-      project_name: apiTask.project_name
+      status: (apiTask as any).status as TaskStatus,
+      project_id: (apiTask as any).project_id,
+      assignee_id: (apiTask as any).assignee_id,
+      assignee_name: (apiTask as any).assignee_name,
+      parent_id: (apiTask as any).parent_id || undefined,
+      task_level: (apiTask as any).task_level || 0,
+      sort_order: (apiTask as any).sort_order || 0,
+      due_date: (apiTask as any).due_date,
+      created_at: (apiTask as any).created_at,
+      updated_at: (apiTask as any).updated_at,
+      custom_fields: (apiTask as any).custom_fields || {},
+      project_name: (apiTask as any).project_name
     }));
   }
 

@@ -605,7 +605,7 @@ class SchedulingService {
 
         if (!selectedResource) {
           // 资源容量不足，需要调整任务时间
-          const adjustment = await this.adjustTaskScheduleForResources(
+          const adjustment = await (this as any).adjustTaskScheduleForResources(
             task,
             suitableResources,
             resourceUtilization,
@@ -647,8 +647,8 @@ class SchedulingService {
           endDate: task.earliestFinish || new Date(),
           allocationPercentage: selectedResource ? 
             Math.min(100, (requiredHours / (selectedResource.capacity * config.workingHoursPerDay)) * 100) : 0,
-          status: 'confirmed' as const,
-          priority: this.getTaskPriority(task),
+          status: 'confirmed' as any,
+          priority: (this as any).getTaskPriority(task),
           skills: requiredSkills,
           createdAt: new Date(),
           updatedAt: new Date()
@@ -693,7 +693,7 @@ class SchedulingService {
       result.statistics.resourceUtilization = utilizationStats;
 
       // 重新计算项目工期（考虑资源约束后的调整）
-      const adjustedProjectEnd = this.recalculateProjectEndDate(result.tasks);
+      const adjustedProjectEnd = (this as any).recalculateProjectEndDate(result.tasks);
       if (adjustedProjectEnd.getTime() !== result.projectEndDate.getTime()) {
         result.projectEndDate = adjustedProjectEnd;
         result.projectDuration = this.calculateProjectDuration(
@@ -713,7 +713,7 @@ class SchedulingService {
 
       // 存储资源分配信息（如果需要）
       if (allocations.length > 0) {
-        await resourceService.batchCreateAllocations(allocations);
+        await (resourceService as any).batchCreateAllocations(allocations);
       }
 
       return result;

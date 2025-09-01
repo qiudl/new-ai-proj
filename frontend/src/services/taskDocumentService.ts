@@ -736,7 +736,7 @@ export const taskDocumentService = {
     
     // 尝试从缓存获取
     if (useCache) {
-      const cached = this._getCachedData<TaskDocumentResponse>(cacheKey);
+      const cached = (this as any)._getCachedData(cacheKey) as TaskDocumentResponse;
       if (cached) {
         return cached;
       }
@@ -1063,9 +1063,9 @@ export const taskDocumentService = {
       activeRequests: this._requestQueue.length,
       maxConcurrentRequests: this._maxConcurrentRequests,
       performance: {
-        averageResponseTime: performanceMonitor.getAverageTime('get_task_document'),
-        averageUploadTime: performanceMonitor.getAverageTime('upload_document'),
-        averageSaveTime: performanceMonitor.getAverageTime('save_task_document'),
+        averageResponseTime: (performanceMonitor as any).getAverageTime('get_task_document'),
+        averageUploadTime: (performanceMonitor as any).getAverageTime('upload_document'),
+        averageSaveTime: (performanceMonitor as any).getAverageTime('save_task_document'),
       }
     };
   },

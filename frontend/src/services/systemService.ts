@@ -242,7 +242,7 @@ export class SystemService {
     const response = await api.get<ApiResponse<AuditStats>>(
       `/system/audit/stats?${params.toString()}`
     );
-    return response.data;
+    return (response as any).data;
   }
 
   static async exportAuditLogs(
