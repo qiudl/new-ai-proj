@@ -89,10 +89,10 @@ class GoogleDocsService {
       script.onload = async () => {
         try {
           await new Promise<void>((resolveGapi) => {
-            window.gapi.load('client:auth2', resolveGapi);
+            (window as any).gapi.load('client:auth2', resolveGapi);
           });
 
-          await window.gapi.client.init(GOOGLE_CONFIG.GAPI_CONFIG);
+          await (window as any).gapi.client.init(GOOGLE_CONFIG.GAPI_CONFIG);
 
           this.isGapiLoaded = true;
           resolve();
@@ -112,7 +112,7 @@ class GoogleDocsService {
     try {
       await this.initialize();
       
-      const authInstance = window.gapi.auth2.getAuthInstance();
+      const authInstance = (window as any).gapi.auth2.getAuthInstance();
       
       if (!authInstance.isSignedIn.get()) {
         const user = await authInstance.signIn();
@@ -149,7 +149,7 @@ class GoogleDocsService {
    */
   async signOut(): Promise<void> {
     if (this.isGapiLoaded) {
-      const authInstance = window.gapi.auth2.getAuthInstance();
+      const authInstance = (window as any).gapi.auth2.getAuthInstance();
       await authInstance.signOut();
     }
     
@@ -168,7 +168,7 @@ class GoogleDocsService {
 
     try {
       // 创建文档
-      const response = await window.gapi.client.docs.documents.create({
+      const response = await (window as any).gapi.client.docs.documents.create({
         title
       });
 
@@ -195,7 +195,7 @@ class GoogleDocsService {
     }
 
     try {
-      const response = await window.gapi.client.docs.documents.get({
+      const response = await (window as any).gapi.client.docs.documents.get({
         documentId
       });
 
@@ -241,7 +241,7 @@ class GoogleDocsService {
         }
       ];
 
-      await window.gapi.client.docs.documents.batchUpdate({
+      await (window as any).gapi.client.docs.documents.batchUpdate({
         documentId,
         requests
       });
@@ -295,7 +295,7 @@ class GoogleDocsService {
     }
 
     try {
-      await window.gapi.client.drive.permissions.create({
+      await (window as any).gapi.client.drive.permissions.create({
         fileId: documentId,
         resource: {
           role,
@@ -319,7 +319,7 @@ class GoogleDocsService {
     }
 
     try {
-      const response = await window.gapi.client.drive.files.list({
+      const response = await (window as any).gapi.client.drive.files.list({
         q: "mimeType='application/vnd.google-apps.document' and trashed=false",
         pageSize: maxResults,
         fields: 'files(id,name,mimeType,createdTime,modifiedTime,webViewLink,owners,permissions)',
@@ -384,7 +384,7 @@ class GoogleDocsService {
     }
 
     try {
-      const response = await window.gapi.client.drive.files.get({
+      const response = await (window as any).gapi.client.drive.files.get({
         fileId: documentId,
         fields: 'webViewLink'
       });
@@ -405,7 +405,7 @@ class GoogleDocsService {
     }
 
     try {
-      const response = await window.gapi.client.drive.revisions.list({
+      const response = await (window as any).gapi.client.drive.revisions.list({
         fileId: documentId,
         fields: 'revisions(id,modifiedTime,lastModifyingUser)'
       });
@@ -426,7 +426,7 @@ class GoogleDocsService {
     }
 
     try {
-      const response = await window.gapi.client.drive.permissions.list({
+      const response = await (window as any).gapi.client.drive.permissions.list({
         fileId: documentId,
         fields: 'permissions(id,displayName,emailAddress,role,type)'
       });
@@ -486,7 +486,7 @@ class GoogleDocsService {
     }
 
     try {
-      const authInstance = window.gapi.auth2.getAuthInstance();
+      const authInstance = (window as any).gapi.auth2.getAuthInstance();
       const user = authInstance.currentUser.get();
       const profile = user.getBasicProfile();
 
@@ -524,7 +524,7 @@ export const exportToGoogleDocs = (title: string, content: string) =>
 
 // 在开发环境下挂载到window
 if (process.env.NODE_ENV === 'development') {
-  (window as unknown).googleDocsService = googleDocsService;
+  (window as any).googleDocsService = googleDocsService;
 }
 
 export default GoogleDocsService;

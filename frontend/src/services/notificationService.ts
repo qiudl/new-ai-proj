@@ -30,7 +30,7 @@ class NotificationService {
 
       // Initialize audio context for better sound control
       if ('AudioContext' in window || 'webkitAudioContext' in window) {
-        this.audioContext = new (window.AudioContext || (window as unknown).webkitAudioContext)();
+        this.audioContext = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
       }
 
       // Preload common sounds

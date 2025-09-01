@@ -77,6 +77,7 @@ const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
 const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
 const TestCenter = React.lazy(() => import('./pages/TestCenter'));
 const MCPTestPage = React.lazy(() => import('./pages/MCPTestPage'));
+const MCPTestPageFixed = React.lazy(() => import('./pages/MCPTestPageFixed'));
 const HierarchicalGanttTestPage = React.lazy(() => import('./pages/HierarchicalGanttTestPage'));
 const InteractiveGanttTestPage = React.lazy(() => import('./pages/InteractiveGanttTestPage'));
 const ProjectGlobalGanttTestPage = React.lazy(() => import('./pages/ProjectGlobalGanttTestPage'));
@@ -383,6 +384,11 @@ const AppContent: React.FC = () => {
                 <Route path="/mcp-test" element={
                   <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
                     <MCPTestPage />
+                  </PermissionRoute>
+                } />
+                <Route path="/mcp-test-fixed" element={
+                  <PermissionRoute permission={SYSTEM_PERMISSIONS.ADMIN}>
+                    <MCPTestPageFixed />
                   </PermissionRoute>
                 } />
                 <Route path="/dropdown-test" element={<DropdownTestPage />} />

@@ -101,7 +101,7 @@ export const permissionService = {
   // User Permission Management
   async getUserPermissions(userId: number): Promise<{ permissions: UserPermissionSummary }> {
     const response = await api.get(`/permissions/users/${userId}`);
-    return response;
+    return (response as any).data;
   },
 
   async updateUserPermissions(userId: number, permissionData: {

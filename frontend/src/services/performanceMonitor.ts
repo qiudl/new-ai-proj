@@ -401,7 +401,7 @@ class PerformanceMonitor {
         // 监控 First Input Delay (FID)
         const fidObserver = new PerformanceObserver((list) => {
           list.getEntries().forEach((entry: unknown) => {
-            this.trackUserAction('web-vital', 'FID', { value: entry.processingStart - entry.startTime });
+            this.trackUserAction('web-vital', 'FID', { value: (entry as any).processingStart - (entry as any).startTime });
           });
         });
         fidObserver.observe({ entryTypes: ['first-input'] });
@@ -409,8 +409,8 @@ class PerformanceMonitor {
         // 监控 Cumulative Layout Shift (CLS)
         const clsObserver = new PerformanceObserver((list) => {
           list.getEntries().forEach((entry: unknown) => {
-            if (!entry.hadRecentInput) {
-              this.trackUserAction('web-vital', 'CLS', { value: entry.value });
+            if (!(entry as any).hadRecentInput) {
+              this.trackUserAction('web-vital', 'CLS', { value: (entry as any).value });
             }
           });
         });

@@ -164,7 +164,7 @@ export class GanttChartService {
       duration,
       progress,
       priority: task.priority || 'medium',
-      status: task.status,
+      status: task.status as any,
       dependencies: task.dependencies || [],
       estimatedHours,
       actualHours: task.total_time_seconds ? task.total_time_seconds / 3600 : undefined,
@@ -435,7 +435,7 @@ export class GanttChartService {
     
     ganttTasks.forEach(task => {
       // 假设task中有assignee_id字段
-      const assigneeId = (task as unknown).assignee_id;
+      const assigneeId = (task as any).assignee_id;
       if (assigneeId) {
         if (!tasksByAssignee.has(assigneeId)) {
           tasksByAssignee.set(assigneeId, []);

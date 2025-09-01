@@ -315,7 +315,7 @@ export const exportToExcel = async (data: ExportData, options: Partial<ExportOpt
 // PDF导出
 export const exportToPDF = async (data: ExportData, options: Partial<ExportOptions> = {}) => {
   // 检查jsPDF可用性
-  if (typeof window === 'undefined' || !window.jsPDF) {
+  if (typeof window === 'undefined' || !(window as any).jsPDF) {
     throw new Error('PDF导出库未加载，请检查网络连接或重新刷新页面');
   }
   
@@ -374,7 +374,7 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
         headStyles: { fillColor: [66, 139, 202] },
       });
 
-      yPosition = (pdf as unknown).lastAutoTable.finalY + 15;
+      yPosition = (pdf as any).lastAutoTable.finalY + 15;
     }
 
     // 任务详情表
