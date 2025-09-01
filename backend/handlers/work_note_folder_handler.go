@@ -546,7 +546,7 @@ func (h *WorkNoteFolderHandler) DeleteWorkNoteFolder(c *gin.Context) {
 	})
 }
 
-// ListWorkNoteFolders 获取工作笔记文件夹列表
+// ListWorkNoteFolders 获取工作笔记文件夹列表（带分页优化）
 func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 	fmt.Println("DEBUG: ListWorkNoteFolders called")
 	
@@ -565,48 +565,98 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 	// 查询参数
 	projectID := c.Query("project_id")
 	parentID := c.Query("parent_id")
+	
+	// 分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if page < 1 {
+		page = 1
+	}
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
+	if pageSize < 1 {
+		pageSize = 50
+	}
+	if pageSize > 200 { // 限制最大页面大小
+		pageSize = 200
+	}
+	
+	offset := (page - 1) * pageSize
 
-	// 构建查询 (simplified for debugging)
-	query := `
+	// 构建基础 WHERE 条件
+	whereConditions := []string{"wnf.deleted_at IS NULL"}
+	args := []interface{}{userID}
+	paramCount := 1
+	
+	// 权限过滤
+	whereConditions = append(whereConditions, "(wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))")
+	
+	// 项目过滤
+	if projectID != "" {
+		if pid, err := strconv.Atoi(projectID); err == nil {
+			paramCount++
+			whereConditions = append(whereConditions, fmt.Sprintf("wnf.project_id = $%d", paramCount))
+			args = append(args, pid)
+		}
+	}
+
+	// 父文件夹过滤
+	if parentID != "" {
+		if pid, err := strconv.Atoi(parentID); err == nil {
+			paramCount++
+			whereConditions = append(whereConditions, fmt.Sprintf("wnf.parent_id = $%d", paramCount))
+			args = append(args, pid)
+		} else if parentID == "null" {
+			whereConditions = append(whereConditions, "wnf.parent_id IS NULL")
+		}
+	}
+	
+	whereClause := strings.Join(whereConditions, " AND ")
+	
+	// 先查询总数（用于分页信息）
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM work_note_folders wnf
+		WHERE %s
+	`, whereClause)
+	
+	var totalCount int
+	err := h.db.QueryRow(countQuery, args...).Scan(&totalCount)
+	if err != nil {
+		fmt.Printf("DEBUG LIST: Count query error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to count work note folders",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// 构建优化后的主查询（带分页和统计信息）
+	query := fmt.Sprintf(`
 		SELECT 
 			wnf.id, wnf.name, wnf.description, wnf.parent_id, 
 			wnf.owner_id, wnf.project_id, wnf.visibility, 
 			wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
 			wnf.created_at, wnf.updated_at, wnf.deleted_at,
 			COALESCE(u.username, '') as owner_name,
-			0 as notes_count,
-			0 as subfolders_count
+			COALESCE(stats.notes_count, 0) as notes_count,
+			COALESCE(stats.subfolders_count, 0) as subfolders_count
 		FROM work_note_folders wnf
 		LEFT JOIN users u ON wnf.owner_id = u.id
-		WHERE wnf.deleted_at IS NULL 
-		AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
-	`
-
-	args := []interface{}{userID}
+		LEFT JOIN (
+			SELECT 
+				wf.id,
+				-- 统计工作笔记数量（假设有work_notes表关联）
+				0 as notes_count,
+				-- 统计子文件夹数量
+				(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = wf.id AND sf.deleted_at IS NULL) as subfolders_count
+			FROM work_note_folders wf
+		) stats ON wnf.id = stats.id
+		WHERE %s
+		ORDER BY wnf.sort_order, wnf.name
+		LIMIT $%d OFFSET $%d
+	`, whereClause, paramCount+1, paramCount+2)
 	
-	fmt.Printf("DEBUG LIST: Executing query: %s with userID: %v\n", query, userID)
-
-	paramCount := 1
-	
-	if projectID != "" {
-		if pid, err := strconv.Atoi(projectID); err == nil {
-			paramCount++
-			query += fmt.Sprintf(" AND wnf.project_id = $%d", paramCount)
-			args = append(args, pid)
-		}
-	}
-
-	if parentID != "" {
-		if pid, err := strconv.Atoi(parentID); err == nil {
-			paramCount++
-			query += fmt.Sprintf(" AND wnf.parent_id = $%d", paramCount)
-			args = append(args, pid)
-		} else if parentID == "null" {
-			query += " AND wnf.parent_id IS NULL"
-		}
-	}
-
-	query += " ORDER BY wnf.sort_order, wnf.name"
+	args = append(args, pageSize, offset)
 
 	fmt.Printf("DEBUG LIST: About to execute query with args: %v\n", args)
 	rows, err := h.db.Query(query, args...)
@@ -637,58 +687,145 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 		folders = append(folders, folder)
 	}
 
+	// 计算分页信息
+	totalPages := (totalCount + pageSize - 1) / pageSize
+	hasMore := page < totalPages
+	
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    folders,
+		"pagination": gin.H{
+			"current_page": page,
+			"page_size":    pageSize,
+			"total_count":  totalCount,
+			"total_pages":  totalPages,
+			"has_more":     hasMore,
+		},
 	})
 }
 
-// GetWorkNoteFolderTree 获取工作笔记文件夹树
+// GetWorkNoteFolderTree 获取工作笔记文件夹树（懒加载优化）
 func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
-	// Compilation test - this should break if changes are being picked up
-	// COMPILATION_TEST_REMOVE_THIS_LINE
-	
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data": gin.H{
-			"tree": []interface{}{},
-		},
-	})
-	return
-	
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
-		fmt.Println("DEBUG TREE: User not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
 			"message": "User not authenticated",
 		})
 		return
 	}
-	fmt.Printf("DEBUG TREE: UserID: %v\n", userID)
 
-	// 查询所有可访问的文件夹 (simplified for debugging)
-	query := `
-		SELECT 
-			wnf.id, wnf.name, wnf.description, wnf.parent_id, 
-			wnf.owner_id, wnf.project_id, wnf.visibility, 
-			wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
-			wnf.created_at, wnf.updated_at, wnf.deleted_at,
-			COALESCE(u.username, '') as owner_name,
-			0 as notes_count,
-			0 as subfolders_count
-		FROM work_note_folders wnf
-		LEFT JOIN users u ON wnf.owner_id = u.id
-		WHERE wnf.deleted_at IS NULL 
-		AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
-		ORDER BY wnf.sort_order, wnf.name
-	`
+	// 懒加载参数
+	parentID := c.Query("parent_id") // 如果提供，只加载指定父级的直接子级
+	maxDepth, _ := strconv.Atoi(c.DefaultQuery("max_depth", "2")) // 默认只加载2层
+	if maxDepth < 1 {
+		maxDepth = 1
+	}
+	if maxDepth > 5 { // 限制最大深度
+		maxDepth = 5
+	}
 
-	fmt.Printf("DEBUG: Executing query: %s with userID: %v\n", query, userID)
-	rows, err := h.db.Query(query, userID)
+	var query string
+	var args []interface{}
+	
+	if parentID != "" {
+		// 懒加载模式：只获取指定父级的直接子级
+		if parentID == "null" {
+			// 获取根级文件夹
+			query = `
+				SELECT 
+					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
+					wnf.owner_id, wnf.project_id, wnf.visibility, 
+					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
+					wnf.created_at, wnf.updated_at, wnf.deleted_at,
+					COALESCE(u.username, '') as owner_name,
+					0 as notes_count,
+					(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = wnf.id AND sf.deleted_at IS NULL) as subfolders_count
+				FROM work_note_folders wnf
+				LEFT JOIN users u ON wnf.owner_id = u.id
+				WHERE wnf.deleted_at IS NULL 
+				AND wnf.parent_id IS NULL
+				AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
+				ORDER BY wnf.sort_order, wnf.name
+			`
+			args = []interface{}{userID}
+		} else {
+			// 获取指定父级的子文件夹
+			if pid, err := strconv.Atoi(parentID); err == nil {
+				query = `
+					SELECT 
+						wnf.id, wnf.name, wnf.description, wnf.parent_id, 
+						wnf.owner_id, wnf.project_id, wnf.visibility, 
+						wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
+						wnf.created_at, wnf.updated_at, wnf.deleted_at,
+						COALESCE(u.username, '') as owner_name,
+						0 as notes_count,
+						(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = wnf.id AND sf.deleted_at IS NULL) as subfolders_count
+					FROM work_note_folders wnf
+					LEFT JOIN users u ON wnf.owner_id = u.id
+					WHERE wnf.deleted_at IS NULL 
+					AND wnf.parent_id = $2
+					AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
+					ORDER BY wnf.sort_order, wnf.name
+				`
+				args = []interface{}{userID, pid}
+			} else {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Invalid parent_id",
+				})
+				return
+			}
+		}
+	} else {
+		// 完整树模式：使用递归CTE限制深度
+		query = `
+			WITH RECURSIVE folder_tree AS (
+				-- 根级文件夹
+				SELECT 
+					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
+					wnf.owner_id, wnf.project_id, wnf.visibility, 
+					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
+					wnf.created_at, wnf.updated_at, wnf.deleted_at,
+					1 as depth
+				FROM work_note_folders wnf
+				WHERE wnf.deleted_at IS NULL 
+				AND wnf.parent_id IS NULL
+				AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
+				
+				UNION ALL
+				
+				-- 递归获取子文件夹（限制深度）
+				SELECT 
+					wnf.id, wnf.name, wnf.description, wnf.parent_id, 
+					wnf.owner_id, wnf.project_id, wnf.visibility, 
+					wnf.color, wnf.icon, wnf.sort_order, wnf.created_by,
+					wnf.created_at, wnf.updated_at, wnf.deleted_at,
+					ft.depth + 1
+				FROM work_note_folders wnf
+				INNER JOIN folder_tree ft ON wnf.parent_id = ft.id
+				WHERE wnf.deleted_at IS NULL 
+				AND ft.depth < $2
+				AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
+			)
+			SELECT 
+				ft.id, ft.name, ft.description, ft.parent_id, 
+				ft.owner_id, ft.project_id, ft.visibility, 
+				ft.color, ft.icon, ft.sort_order, ft.created_by,
+				ft.created_at, ft.updated_at, ft.deleted_at,
+				COALESCE(u.username, '') as owner_name,
+				0 as notes_count,
+				(SELECT COUNT(*) FROM work_note_folders sf WHERE sf.parent_id = ft.id AND sf.deleted_at IS NULL) as subfolders_count
+			FROM folder_tree ft
+			LEFT JOIN users u ON ft.owner_id = u.id
+			ORDER BY ft.sort_order, ft.name
+		`
+		args = []interface{}{userID, maxDepth}
+	}
+
+	rows, err := h.db.Query(query, args...)
 	if err != nil {
-		fmt.Printf("DEBUG: Query error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to fetch work note folders",
@@ -698,10 +835,8 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 	}
 	defer rows.Close()
 
-	// 读取所有文件夹
-	var allFolders []*models.WorkNoteFolder
-	folderMap := make(map[int]*models.WorkNoteFolder)
-
+	// 读取文件夹
+	var folders []*models.WorkNoteFolder
 	for rows.Next() {
 		folder := &models.WorkNoteFolder{}
 		err := rows.Scan(
@@ -715,32 +850,26 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 			continue
 		}
 		
-		allFolders = append(allFolders, folder)
-		folderMap[folder.ID] = folder
+		// 为每个文件夹添加子文件夹信息（前端可以根据SubfoldersCount判断是否有子级）
+		folders = append(folders, folder)
 	}
 
-	// 构建树结构
-	var rootFolders []*models.WorkNoteFolder
-	for _, folder := range allFolders {
-		if folder.ParentID == nil {
-			rootFolders = append(rootFolders, folder)
-		} else {
-			parent, exists := folderMap[*folder.ParentID]
-			if exists {
-				if parent.Children == nil {
-					parent.Children = []*models.WorkNoteFolder{}
-				}
-				parent.Children = append(parent.Children, folder)
-			}
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{
+	// 响应格式
+	response := gin.H{
 		"success": true,
-		"data": gin.H{
-			"tree": rootFolders,
-		},
-	})
+		"data":    folders,
+	}
+	
+	// 如果是懒加载模式，添加额外信息
+	if parentID != "" {
+		response["parent_id"] = parentID
+		response["is_lazy_load"] = true
+	} else {
+		response["max_depth"] = maxDepth
+		response["is_complete_tree"] = maxDepth >= 5
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
 // SearchWorkNoteFolders 搜索工作笔记文件夹
