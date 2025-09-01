@@ -188,7 +188,7 @@ const PermissionDemoPage: React.FC = () => {
               key: 'resetPassword',
               label: '重置密码',
               permission: USER_PERMISSIONS.UPDATE,
-              onClick: (record) => message.info(`重置 ${record.name} 的密码`)
+              onClick: (record) => { message.info(`重置 ${record.name} 的密码`); }
             }
           ]}
         />

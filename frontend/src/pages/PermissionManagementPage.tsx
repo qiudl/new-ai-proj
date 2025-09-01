@@ -191,7 +191,7 @@ const PermissionManagementPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await permissionService.getRolePermissions(role.id);
-      setSelectedRolePermissions(response.permissions || []);
+      setSelectedRolePermissions((response as any).permissions || []);
       setSelectedRole(role);
       setPermissionModalVisible(true);
     } catch (error) {

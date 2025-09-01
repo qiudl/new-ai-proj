@@ -356,19 +356,19 @@ const InteractiveGanttTestPage: React.FC<InteractiveGanttTestPageProps> = () => 
         {/* 右侧甘特图显示区域 */}
         <Col span={18}>
           {selectedProject && tasks.length > 0 ? (
-            <InteractiveGanttChart
-              tasks={tasks}
-              projectId={selectedProject.id}
-              style={{ minHeight: '800px' }}
-              onTaskUpdate={(updatedTask) => {
+            React.createElement(InteractiveGanttChart as any, {
+              tasks: tasks,
+              projectId: selectedProject.id,
+              style: { minHeight: '800px' },
+              onTaskUpdate: (updatedTask: any) => {
                 setTasks(prevTasks => 
                   prevTasks.map(task => 
                     task.id === updatedTask.id ? updatedTask : task
                   )
                 );
                 message.success(`任务 "${updatedTask.title}" 更新成功`);
-              }}
-            />
+              }
+            })
           ) : selectedProject && tasks.length === 0 ? (
             <Card 
               style={{ minHeight: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

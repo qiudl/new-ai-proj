@@ -249,8 +249,8 @@ const ProjectsPage: React.FC = () => {
     if (!sortConfig) return projects;
     
     return [...projects].sort((a, b) => {
-      let aValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
-      let bValue: React.FormEvent | React.ChangeEvent<HTMLInputElement>;
+      let aValue: any;
+      let bValue: any;
       
       // 根据不同字段处理排序值
       switch (sortConfig.field) {
