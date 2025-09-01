@@ -709,11 +709,13 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 
 	// 构建基础 WHERE 条件
 	whereConditions := []string{"wnf.deleted_at IS NULL"}
-	args := []interface{}{userID}
-	paramCount := 1
+	args := []interface{}{}
+	paramCount := 0
 	
 	// 权限过滤
-	whereConditions = append(whereConditions, "(wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))")
+	paramCount++
+	whereConditions = append(whereConditions, fmt.Sprintf("(wnf.owner_id = $%d OR wnf.visibility IN ('team', 'public'))", paramCount))
+	args = append(args, userID)
 	
 	// 项目过滤
 	if projectID != "" {
@@ -829,7 +831,7 @@ func (h *WorkNoteFolderHandler) ListWorkNoteFolders(c *gin.Context) {
 
 // GetWorkNoteFolderTree 获取工作笔记文件夹树（懒加载优化）
 func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
-	log.Printf("[GetWorkNoteFolderTree] Starting request")
+	log.Printf("[GetWorkNoteFolderTree] Starting request V2")
 	
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
@@ -935,7 +937,7 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 				INNER JOIN folder_tree ft ON wnf.parent_id = ft.id
 				WHERE wnf.deleted_at IS NULL 
 				AND ft.depth < $2
-				AND (wnf.owner_id = $1 OR wnf.visibility IN ('team', 'public'))
+				AND (wnf.owner_id = $3 OR wnf.visibility IN ('team', 'public'))
 			)
 			SELECT 
 				ft.id, ft.name, ft.description, ft.parent_id, 
@@ -949,7 +951,7 @@ func (h *WorkNoteFolderHandler) GetWorkNoteFolderTree(c *gin.Context) {
 			LEFT JOIN users u ON ft.owner_id = u.id
 			ORDER BY ft.sort_order, ft.name
 		`
-		args = []interface{}{userID, maxDepth}
+		args = []interface{}{userID, maxDepth, userID}
 	}
 
 	log.Printf("[GetWorkNoteFolderTree] Executing query with args: %v", args)
