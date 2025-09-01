@@ -73,7 +73,7 @@ class TimerService {
       if (response && typeof response === 'object' && 'data' in response) {
         data = response.data;
       } else {
-        data = response;
+        data = response as any;
       }
       
       // Ensure the response has the correct structure with safe defaults
@@ -110,7 +110,7 @@ class TimerService {
       if (response && typeof response === 'object' && 'data' in response) {
         data = response.data;
       } else {
-        data = response;
+        data = response as any;
       }
       
       return data;
@@ -168,10 +168,10 @@ class TimerService {
       
       // Transform the response to TaskOption format
       return allTasks.map((task: unknown) => ({
-        id: task.id,
-        title: task.title,
-        project_name: task.project_name || 'Unknown Project',
-        status: task.status
+        id: (task as any).id,
+        title: (task as any).title,
+        project_name: (task as any).project_name || 'Unknown Project',
+        status: (task as any).status
       }));
     } catch (error) {
       console.error('Failed to get available tasks:', error);

@@ -645,11 +645,8 @@ class SchedulingService {
           allocatedHours: requiredHours,
           startDate: task.earliestStart || new Date(),
           endDate: task.earliestFinish || new Date(),
-          allocationPercentage: selectedResource ? 
-            Math.min(100, (requiredHours / (selectedResource.capacity * config.workingHoursPerDay)) * 100) : 0,
           status: 'confirmed' as any,
           priority: (this as any).getTaskPriority(task),
-          skills: requiredSkills,
           createdAt: new Date(),
           updatedAt: new Date()
         };

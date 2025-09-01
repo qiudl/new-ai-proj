@@ -5,10 +5,10 @@ import * as weekOfYear from 'dayjs/plugin/weekOfYear';
 import * as utc from 'dayjs/plugin/utc';
 import * as timezone from 'dayjs/plugin/timezone';
 
-dayjs.extend(isoWeek);
-dayjs.extend(weekOfYear);
-dayjs.extend(utc);
-dayjs.extend(timezone);
+dayjs.extend((isoWeek as any).default || isoWeek);
+dayjs.extend((weekOfYear as any).default || weekOfYear);
+dayjs.extend((utc as any).default || utc);
+dayjs.extend((timezone as any).default || timezone);
 
 // 基础数据接口
 export interface TimerSession {
@@ -154,7 +154,7 @@ class TimerDataAnalyticsService {
    * 生成模拟的今日统计数据（基于真实模式）
    */
   private generateTodayMockData(): TimerAnalyticsData['today_stats'] {
-    const now = dayjs();
+    const now = (dayjs as any)();
     const todayStart = now.startOf('day');
     
     // 模拟项目分布数据
@@ -232,7 +232,7 @@ class TimerDataAnalyticsService {
    */
   private generateWeeklyMockData(): WeeklyTrendData[] {
     const weeklyData: WeeklyTrendData[] = [];
-    const today = dayjs();
+    const today = (dayjs as any)();
     
     for (let i = 6; i >= 0; i--) {
       const date = today.subtract(i, 'day');

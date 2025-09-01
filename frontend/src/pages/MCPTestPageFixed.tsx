@@ -469,7 +469,8 @@ const MCPTestPageFixed: React.FC = () => {
       method: 'POST',
       payload: {
         title: `任务工作笔记-${Date.now()}`,
-        content: '# 任务相关工作笔记\n\n## 进展记录\n任务进展顺利\n\n## 技术要点\n- API测试\n- 功能验证'
+        content: '# 任务相关工作笔记\n\n## 进展记录\n任务进展顺利\n\n## 技术要点\n- API测试\n- 功能验证',
+        visibility: 'private'
       },
       timeout: 10000
     },
