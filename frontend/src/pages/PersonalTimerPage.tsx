@@ -111,7 +111,7 @@ const PersonalTimerPage: React.FC = () => {
         throw new Error('Dashboard data missing required fields');
       }
       
-      setDashboardData(data);
+      setDashboardData(data as any);
       // 🔧 不再需要setCurrentTimer，计时器状态由TimerContext管理
     } catch (error) {
       message.error('加载个人计时数据失败，请刷新页面重试');

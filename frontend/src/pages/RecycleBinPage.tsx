@@ -43,7 +43,7 @@ const RecycleBinPage: React.FC = () => {
       
       // Safely extract pagination data with fallbacks
       const paginationData = response.pagination || {};
-      const total = typeof paginationData.total === 'number' ? paginationData.total : 0;
+      const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
       
       setRecycledProjects(projectsData);
       setProjectsTotal(total);
@@ -78,7 +78,7 @@ const RecycleBinPage: React.FC = () => {
       
       // Safely extract pagination data with fallbacks
       const paginationData = response.pagination || {};
-      const total = typeof paginationData.total === 'number' ? paginationData.total : 0;
+      const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
       
       setRecycledTasks(tasksData);
       setTasksTotal(total);

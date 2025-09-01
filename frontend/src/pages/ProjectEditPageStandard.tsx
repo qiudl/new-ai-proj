@@ -161,8 +161,8 @@ const ProjectEditPageNew: React.FC = () => {
       }
 
       // 设置选中的用户（如果项目详情包含用户信息）
-      if ((projectData as unknown).users) {
-        const userKeys = (projectData as unknown).users.map((pu: unknown) => `${pu.user_id}_${pu.project_id}`);
+      if ((projectData as any).users) {
+        const userKeys = (projectData as any).users.map((pu: any) => `${pu.user_id}_${pu.project_id}`);
         setSelectedUsers(userKeys);
       }
     } catch (error) {

@@ -438,7 +438,6 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
         {relatedTasks.map((taskId, index) => (
           <Tooltip key={taskId} title={`任务 #${taskId}`}>
             <Tag 
-              size='small' 
               color="blue"
               style={{ 
                 margin: 0, 

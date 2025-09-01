@@ -141,13 +141,11 @@ const ProjectDetailPage: React.FC = () => {
           {/* 项目进度总览 */}
           <Col xs={24}>
             <Card title="项目进度总览" extra={<BarChartOutlined />}>
-              {projectId && (
-                <ProjectProgressDisplay 
-                  projectId={Number(projectId)} 
-                  showTopTasks={true}
-                  maxTopTasks={5}
-                />
-              )}
+              {projectId && React.createElement(ProjectProgressDisplay as any, {
+                projectId: Number(projectId),
+                showTopTasks: true,
+                maxTopTasks: 5
+              })}
             </Card>
           </Col>
           {/* 项目基础信息 */}
@@ -250,9 +248,9 @@ const ProjectDetailPage: React.FC = () => {
                             style={{ backgroundColor: '#52c41a' }} 
                           />
                           <div>
-<Text strong style={{ color: companyInfo?.deleted ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
+<Text strong style={{ color: (companyInfo as any)?.deleted ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
                               {companyInfo?.companyName || '加载中...'}
-                              {companyInfo?.deleted && '（已删除）'}
+                              {(companyInfo as any)?.deleted && '（已删除）'}
                             </Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
@@ -276,8 +274,8 @@ const ProjectDetailPage: React.FC = () => {
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业状态</Text>
                                 <br />
-<Tag color={companyInfo.deleted ? 'red' : (companyInfo.status === 'active' ? 'green' : 'orange')}>
-                                  {companyInfo.deleted ? '已删除' : (companyInfo.statusText || '未设置')}
+<Tag color={(companyInfo as any).deleted ? 'red' : ((companyInfo as any).status === 'active' ? 'green' : 'orange')}>
+                                  {(companyInfo as any).deleted ? '已删除' : ((companyInfo as any).statusText || '未设置')}
                                 </Tag>
                               </Col>
                               <Col span={12}>
