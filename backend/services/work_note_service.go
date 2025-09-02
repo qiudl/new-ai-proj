@@ -35,6 +35,9 @@ func (s *WorkNoteService) CreateWorkNote(ctx context.Context, req models.CreateW
 	if req.WorkNoteType == "" {
 		req.WorkNoteType = models.WorkNoteTypeGeneral
 	}
+	if req.Visibility == "" {
+		req.Visibility = models.VisibilityPrivate
+	}
 
 	metadata := models.DocumentMetadata{
 		"work_note_type": req.WorkNoteType,

@@ -355,8 +355,13 @@ func (app *Application) GetSimpleDocumentHandler() *handlers.HybridDocumentHandl
 	return app.documentHandler
 }
 
+
 // GetWorkNoteFolderHandler returns the work note folder handler
 func (app *Application) GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler {
+	if app.handlers != nil && app.handlers.WorkNoteFolderHandler != nil {
+		return app.handlers.WorkNoteFolderHandler
+	}
+	// Fallback: create a new instance
 	return handlers.NewWorkNoteFolderHandler(app.db)
 }
 
