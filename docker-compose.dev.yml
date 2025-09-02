@@ -161,9 +161,10 @@ services:
     ports:
        - "3100:3100"
     volumes:
-      # 代码挂载（支持热重载）- 排除node_modules  
+      # 代码挂载（支持热重载）- 排除node_modules以避免平台兼容性问题  
       - ./mcp-task-bridge:/app:cached
-    command: ["npm", "run", "dev"]
+      - /app/node_modules  # 排除node_modules，使用容器内安装的版本
+    command: ["sh", "-c", "npm ci && node dist/index.js"]
     restart: unless-stopped
     networks:
       - ai_dev_network

@@ -84,6 +84,9 @@ type ApplicationInterface interface {
 	// 工作笔记处理器
 	GetWorkNoteHandler() *handlers.WorkNoteHandler
 
+	// 报告处理器
+	GetReportHandler() *handlers.ReportHandler
+
 	// 文档处理器
 	GetDocumentHandler() *handlers.DocumentHandler
 	GetRouterDocumentHandler() *handlers.RouterDocumentHandler // New router-based document handler

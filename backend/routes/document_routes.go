@@ -188,6 +188,12 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/stats", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": map[string]int{"total": 0}})
 		})
+
+		// 工作笔记任务关联功能
+		workNotes.POST("/:id/attach-task", workNotesHandler.AttachWorkNoteToTask)
+		workNotes.DELETE("/:id/detach-task/:taskId", workNotesHandler.DetachWorkNoteFromTask)
+		workNotes.GET("/:id/tasks", workNotesHandler.GetWorkNoteTaskRelations)
+		workNotes.GET("/relation-stats", workNotesHandler.GetWorkNoteTaskRelationStats)
 		workNotes.GET("/recent", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 		})

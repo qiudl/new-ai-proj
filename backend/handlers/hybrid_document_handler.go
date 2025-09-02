@@ -10,18 +10,33 @@ import (
 
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 // HybridDocumentHandler 混合文档处理器，直接使用SQL查询
 type HybridDocumentHandler struct {
-	db database.DB
+	db              database.DB
+	relationService *services.WorkNoteTaskRelationService
 }
 
 // NewHybridDocumentHandler 创建新的混合文档处理器
 func NewHybridDocumentHandler(db database.DB) *HybridDocumentHandler {
+	// 获取SQL连接用于关联服务
+	sqlDB, ok := db.GetDB().(*sql.DB)
+	if !ok {
+		sqlDB = nil
+	}
+
+	var relationService *services.WorkNoteTaskRelationService
+	if sqlDB != nil {
+		relationService = services.NewWorkNoteTaskRelationService(sqlDB)
+	}
+
 	return &HybridDocumentHandler{
-		db: db,
+		db:              db,
+		relationService: relationService,
 	}
 }
 
@@ -988,11 +1003,91 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		return
 	}
 
+	// 查询任务关联的工作笔记
+	var workNotes []map[string]interface{}
+	if h.relationService != nil {
+		relations, err := h.relationService.GetWorkNotesByTask(c.Request.Context(), taskID)
+		if err == nil && len(relations) > 0 {
+			// 获取工作笔记详细信息
+			workNoteQuery := `
+				SELECT d.id, d.title, d.content, d.type, d.status, d.tags,
+				       d.created_by, d.created_at, d.updated_at,
+				       u.username as owner_name
+				FROM documents d
+				LEFT JOIN users u ON d.created_by = u.id
+				WHERE d.id = ANY($1) AND d.deleted_at IS NULL
+				ORDER BY d.updated_at DESC`
+
+			// 提取工作笔记ID
+			workNoteIDs := make([]int, len(relations))
+			relationMap := make(map[int]string) // 工作笔记ID -> 关联类型
+			for i, relation := range relations {
+				workNoteIDs[i] = relation.WorkNoteID
+				relationMap[relation.WorkNoteID] = relation.RelationType
+			}
+
+			// 使用 pq.Array 来传递数组参数
+			workNoteRows, err := sqlDB.Query(workNoteQuery, pq.Array(workNoteIDs))
+			if err == nil {
+				defer workNoteRows.Close()
+
+				for workNoteRows.Next() {
+					var workNote struct {
+						ID        int            `json:"id"`
+						Title     string         `json:"title"`
+						Content   string         `json:"content"`
+						Type      string         `json:"type"`
+						Status    string         `json:"status"`
+						Tags      sql.NullString `json:"-"`
+						CreatedBy int            `json:"created_by"`
+						CreatedAt time.Time      `json:"created_at"`
+						UpdatedAt time.Time      `json:"updated_at"`
+						OwnerName sql.NullString `json:"-"`
+					}
+
+					err := workNoteRows.Scan(
+						&workNote.ID, &workNote.Title, &workNote.Content,
+						&workNote.Type, &workNote.Status, &workNote.Tags,
+						&workNote.CreatedBy, &workNote.CreatedAt, &workNote.UpdatedAt,
+						&workNote.OwnerName,
+					)
+					if err == nil {
+						// 处理 tags
+						var tags []string
+						if workNote.Tags.Valid && workNote.Tags.String != "" {
+							json.Unmarshal([]byte(workNote.Tags.String), &tags)
+						}
+
+						workNoteData := map[string]interface{}{
+							"id":            workNote.ID,
+							"title":         workNote.Title,
+							"content":       workNote.Content,
+							"type":          workNote.Type,
+							"status":        workNote.Status,
+							"tags":          tags,
+							"created_by":    workNote.CreatedBy,
+							"created_at":    workNote.CreatedAt,
+							"updated_at":    workNote.UpdatedAt,
+							"relation_type": relationMap[workNote.ID],
+						}
+
+						if workNote.OwnerName.Valid {
+							workNoteData["owner_name"] = workNote.OwnerName.String
+						}
+
+						workNotes = append(workNotes, workNoteData)
+					}
+				}
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    documents,
-		"total":   len(documents),
-		"message": "Task documents retrieved successfully",
+		"success":    true,
+		"data":       documents,
+		"work_notes": workNotes,
+		"total":      len(documents),
+		"message":    "Task documents retrieved successfully",
 	})
 }
 

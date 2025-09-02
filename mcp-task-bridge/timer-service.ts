@@ -8,9 +8,12 @@ export class TimerService extends BaseClient {
   // @requiresPermission('start_timer')
   async startTimer(taskId: number, description?: string): Promise<ApiResponse<TimerData>> {
     try {
-      const payload: any = { taskId: taskId };
+      const payload: any = { 
+        task_id: taskId,  // 修正参数名：taskId -> task_id
+        title: description || `计时器-任务${taskId}`
+      };
       if (description) {
-        payload.description = description;
+        payload.context = description;
       }
 
       const response = await this.makeRequest<{

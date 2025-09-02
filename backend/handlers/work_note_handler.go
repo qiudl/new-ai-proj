@@ -23,16 +23,30 @@ import (
 
 // WorkNoteHandler 工作笔记处理器
 type WorkNoteHandler struct {
-	workNoteService services.WorkNoteServiceInterface
-	jwtManager      *utils.JWTManager
-	documentRouter  *services.DocumentRouter
-	db              database.DB // 添加数据库连接
+	workNoteService         services.WorkNoteServiceInterface
+	relationService         *services.WorkNoteTaskRelationService
+	jwtManager              *utils.JWTManager
+	documentRouter          *services.DocumentRouter
+	db                      database.DB // 添加数据库连接
 }
 
 // NewWorkNoteHandler 创建工作笔记处理器
 func NewWorkNoteHandler(workNoteService services.WorkNoteServiceInterface, jwtManager *utils.JWTManager, db database.DB) *WorkNoteHandler {
+	// 获取SQL连接用于关联服务
+	sqlDB, ok := db.GetDB().(*sql.DB)
+	if !ok {
+		// 如果无法获取SQL连接，关联服务将为nil
+		sqlDB = nil
+	}
+
+	var relationService *services.WorkNoteTaskRelationService
+	if sqlDB != nil {
+		relationService = services.NewWorkNoteTaskRelationService(sqlDB)
+	}
+
 	return &WorkNoteHandler{
 		workNoteService: workNoteService,
+		relationService: relationService,
 		jwtManager:      jwtManager,
 		documentRouter:  nil, // 将在需要时注入
 		db:              db,
@@ -1019,5 +1033,258 @@ func (h *WorkNoteHandler) BatchConvertToTaskDocuments(c *gin.Context) {
 		"message": fmt.Sprintf("Batch conversion completed: %d succeeded, %d failed",
 			batchResult.TotalSucceeded, batchResult.TotalFailed),
 		"data": batchResult,
+	})
+}
+
+// ======================== 工作笔记任务关联方法 ========================
+
+// AttachWorkNoteToTask 将工作笔记关联到任务
+// POST /api/v1/work-notes/:id/attach-task
+func (h *WorkNoteHandler) AttachWorkNoteToTask(c *gin.Context) {
+	if h.relationService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联服务不可用",
+		})
+		return
+	}
+
+	workNoteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的工作笔记ID",
+		})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "用户未认证",
+		})
+		return
+	}
+
+	var req struct {
+		TaskID       int    `json:"task_id" binding:"required"`
+		RelationType string `json:"relation_type,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "请求参数无效: " + err.Error(),
+		})
+		return
+	}
+
+	// 验证工作笔记存在
+	_, err = h.workNoteService.GetWorkNote(c.Request.Context(), workNoteID, userID.(int))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "工作笔记不存在或无权访问",
+		})
+		return
+	}
+
+	// 创建关联
+	relation, err := h.relationService.AttachWorkNoteToTask(
+		c.Request.Context(),
+		workNoteID,
+		req.TaskID,
+		userID.(int),
+		req.RelationType,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"relation":    relation,
+		"work_note_id": workNoteID,
+		"task_id":     req.TaskID,
+		"message":     fmt.Sprintf("工作笔记 %d 已成功关联到任务 %d", workNoteID, req.TaskID),
+	})
+}
+
+// DetachWorkNoteFromTask 将工作笔记从任务中移除关联
+// DELETE /api/v1/work-notes/:id/detach-task/:taskId
+func (h *WorkNoteHandler) DetachWorkNoteFromTask(c *gin.Context) {
+	if h.relationService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联服务不可用",
+		})
+		return
+	}
+
+	workNoteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的工作笔记ID",
+		})
+		return
+	}
+
+	taskID, err := strconv.Atoi(c.Param("taskId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的任务ID",
+		})
+		return
+	}
+
+	relationType := c.Query("relation_type")
+	if relationType == "" {
+		relationType = "reference"
+	}
+
+	err = h.relationService.DetachWorkNoteFromTask(
+		c.Request.Context(),
+		workNoteID,
+		taskID,
+		relationType,
+	)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "移除关联失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"work_note_id": workNoteID,
+		"task_id":     taskID,
+		"message":     fmt.Sprintf("工作笔记 %d 与任务 %d 的关联已移除", workNoteID, taskID),
+	})
+}
+
+// GetWorkNoteTaskRelations 获取工作笔记关联的任务
+// GET /api/v1/work-notes/:id/tasks
+func (h *WorkNoteHandler) GetWorkNoteTaskRelations(c *gin.Context) {
+	if h.relationService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联服务不可用",
+		})
+		return
+	}
+
+	workNoteID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的工作笔记ID",
+		})
+		return
+	}
+
+	relations, err := h.relationService.GetTasksByWorkNote(c.Request.Context(), workNoteID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取关联任务失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":     true,
+		"work_note_id": workNoteID,
+		"relations":   relations,
+		"total":       len(relations),
+		"message":     fmt.Sprintf("工作笔记 %d 关联了 %d 个任务", workNoteID, len(relations)),
+	})
+}
+
+// GetTaskWorkNoteRelations 获取任务关联的工作笔记
+func (h *WorkNoteHandler) GetTaskWorkNoteRelations(c *gin.Context) {
+	if h.relationService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联服务不可用",
+		})
+		return
+	}
+
+	// 先尝试从 :id 参数获取（任务路由），再尝试从 :taskId 参数获取
+	var taskID int
+	var err error
+	if idStr := c.Param("id"); idStr != "" {
+		taskID, err = strconv.Atoi(idStr)
+	} else if taskIdStr := c.Param("taskId"); taskIdStr != "" {
+		taskID, err = strconv.Atoi(taskIdStr)
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "缺少任务ID参数",
+		})
+		return
+	}
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的任务ID",
+		})
+		return
+	}
+
+	relations, err := h.relationService.GetWorkNotesByTask(c.Request.Context(), taskID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取关联工作笔记失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success":   true,
+		"task_id":   taskID,
+		"relations": relations,
+		"total":     len(relations),
+		"message":   fmt.Sprintf("任务 %d 关联了 %d 个工作笔记", taskID, len(relations)),
+	})
+}
+
+// GetWorkNoteTaskRelationStats 获取工作笔记任务关联统计
+// GET /api/v1/work-notes/relation-stats
+func (h *WorkNoteHandler) GetWorkNoteTaskRelationStats(c *gin.Context) {
+	if h.relationService == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "关联服务不可用",
+		})
+		return
+	}
+
+	stats, err := h.relationService.GetRelationStats(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "获取统计信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"stats":   stats,
+		"message": "获取工作笔记任务关联统计成功",
 	})
 }

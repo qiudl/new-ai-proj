@@ -91,6 +91,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册文档管理路由（包含工作笔记路由）
 	RegisterDocumentRoutes(authorized, app)
 
+	// 注册MCP专用路由
+	RegisterMCPRoutes(authorized, app)
+
 	// 注册修复的任务文档路由（优先级更高，会覆盖之前的路由）
 	// 获取数据库连接用于修复
 	if dbProvider, ok := app.(interface{ GetDB() interface{} }); ok {
