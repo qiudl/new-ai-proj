@@ -266,7 +266,7 @@ func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int)
 
 	var allTasks []*models.Task
 	taskMap := make(map[int]*models.HierarchicalTask)
-	
+
 	for rows.Next() {
 		task := &models.Task{}
 		var customFieldsJSON []byte
@@ -320,7 +320,7 @@ func (r *PostgresTaskRepository) GetTaskTree(ctx context.Context, projectID int)
 	var rootTasks []*models.HierarchicalTask
 	for _, task := range allTasks {
 		hierarchicalTask := taskMap[task.ID]
-		
+
 		if task.ParentID == nil {
 			// Root task
 			rootTasks = append(rootTasks, hierarchicalTask)
@@ -474,22 +474,22 @@ func (r *PostgresTaskRepository) GetTaskUpdates(ctx context.Context, taskID int,
 // UpdateTaskUpdateNotes updates the notes field of a task update record
 func (r *PostgresTaskRepository) UpdateTaskUpdateNotes(ctx context.Context, updateID int, notes string) error {
 	query := `UPDATE task_updates SET notes = $2 WHERE id = $1`
-	
+
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, updateID, notes)
 	if err != nil {
 		return fmt.Errorf("failed to update task update notes: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get affected rows: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("task update not found")
 	}
-	
+
 	return nil
 }
 
@@ -498,22 +498,22 @@ func (r *PostgresTaskRepository) DeleteTaskUpdate(ctx context.Context, updateID 
 	// Note: This is a hard delete since task_updates table doesn't have deleted_at column
 	// In production, consider adding a deleted_at column or an admin-only flag
 	query := `DELETE FROM task_updates WHERE id = $1`
-	
+
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, updateID)
 	if err != nil {
 		return fmt.Errorf("failed to delete task update: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get affected rows: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("task update not found")
 	}
-	
+
 	return nil
 }
 

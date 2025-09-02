@@ -8,14 +8,14 @@ import (
 func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// 获取计时器处理器
 	timerHandler := app.GetUnifiedTimerHandler()
-	
+
 	// 用户计时器路由
 	user := authorized.Group("/user")
 	{
 		timer := user.Group("/timer")
 		{
 			timer.GET("/current", timerHandler.GetCurrentTimer)
-			timer.GET("/active", timerHandler.GetActiveTimers)  // 添加活跃定时器接口
+			timer.GET("/active", timerHandler.GetActiveTimers) // 添加活跃定时器接口
 			timer.POST("/start", timerHandler.StartTimer)
 			timer.POST("/stop", timerHandler.StopTimer)
 			timer.POST("/pause", timerHandler.PauseTimer)
@@ -23,17 +23,17 @@ func RegisterTimerRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 			timer.GET("/history", timerHandler.GetUserTimerHistory)
 			timer.GET("/preferences", timerHandler.GetUserTimerPreferences)
 			timer.PUT("/preferences", timerHandler.UpdateUserTimerPreferences)
-			
+
 			// 具体定时器ID操作
 			timer.POST("/:id/pause", timerHandler.PauseTimerByID)
 			timer.POST("/:id/resume", timerHandler.ResumeTimerByID)
 			timer.POST("/:id/stop", timerHandler.StopTimerByID)
 		}
 	}
-	
+
 	// 全局定时器路由（用于兼容前端现有调用）
 	timer := authorized.Group("/timer")
 	{
-		timer.GET("/recent-tasks", timerHandler.GetRecentTasks)  // 添加最近任务接口
+		timer.GET("/recent-tasks", timerHandler.GetRecentTasks) // 添加最近任务接口
 	}
 }

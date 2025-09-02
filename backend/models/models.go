@@ -16,7 +16,7 @@ func IsValidStatus(status string) bool {
 		TaskStatusDone,
 		TaskStatusCancelled,
 	}
-	
+
 	for _, validStatus := range validStatuses {
 		if status == validStatus {
 			return true

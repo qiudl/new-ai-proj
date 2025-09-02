@@ -1,5 +1,11 @@
 import { useMemo, useCallback, useRef, useEffect } from 'react';
 
+// React import for lazy loading
+import React from 'react';
+
+// Add useState import
+import { useState } from 'react';
+
 /**
  * 性能优化工具集
  * 提供各种性能监控和优化的工具函数和Hooks
@@ -237,9 +243,6 @@ export function createLazyLoader<T extends React.ComponentType<any>>(
   return LazyComponent;
 }
 
-// React import for lazy loading
-import React from 'react';
-
 /**
  * 批处理状态更新
  */
@@ -289,9 +292,6 @@ export function useVirtualScroll(
     setScrollTop
   };
 }
-
-// Add useState import
-import { useState } from 'react';
 
 // Simple cache implementation for API responses
 class APICache {

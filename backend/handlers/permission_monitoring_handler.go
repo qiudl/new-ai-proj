@@ -38,7 +38,7 @@ func (h *PermissionMonitoringHandler) GetPermissionStats(c *gin.Context) {
 	managerStats, err := h.permissionManager.GetManagerStats(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get permission manager stats",
+			"error":   "Failed to get permission manager stats",
 			"details": err.Error(),
 		})
 		return
@@ -108,7 +108,7 @@ func (h *PermissionMonitoringHandler) CheckUserPermission(c *gin.Context) {
 	response, err := h.permissionManager.CheckPermission(ctx, request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Permission check failed",
+			"error":   "Permission check failed",
 			"details": err.Error(),
 		})
 		return
@@ -124,7 +124,7 @@ func (h *PermissionMonitoringHandler) CheckBatchPermissions(c *gin.Context) {
 	var request middleware.BatchPermissionRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
@@ -149,7 +149,7 @@ func (h *PermissionMonitoringHandler) CheckBatchPermissions(c *gin.Context) {
 	response, err := h.permissionManager.CheckBatchPermissions(ctx, &request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Batch permission check failed",
+			"error":   "Batch permission check failed",
 			"details": err.Error(),
 		})
 		return
@@ -176,7 +176,7 @@ func (h *PermissionMonitoringHandler) GetUserPermissionProfile(c *gin.Context) {
 	profile, err := h.predictor.GetUserPermissionProfile(ctx, companyUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get user permission profile",
+			"error":   "Failed to get user permission profile",
 			"details": err.Error(),
 		})
 		return
@@ -203,7 +203,7 @@ func (h *PermissionMonitoringHandler) GetPermissionRecommendations(c *gin.Contex
 	recommendations, err := h.predictor.GetPermissionRecommendations(ctx, companyUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get permission recommendations",
+			"error":   "Failed to get permission recommendations",
 			"details": err.Error(),
 		})
 		return
@@ -236,7 +236,7 @@ func (h *PermissionMonitoringHandler) PrewarmUserCache(c *gin.Context) {
 	err = h.predictor.PrewarmPermissionCache(ctx, h.cacheMiddleware, companyUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to prewarm user cache",
+			"error":   "Failed to prewarm user cache",
 			"details": err.Error(),
 		})
 		return
@@ -269,7 +269,7 @@ func (h *PermissionMonitoringHandler) InvalidateUserCache(c *gin.Context) {
 	err = h.permissionManager.InvalidateUserCache(ctx, companyUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to invalidate user cache",
+			"error":   "Failed to invalidate user cache",
 			"details": err.Error(),
 		})
 		return
@@ -291,7 +291,7 @@ func (h *PermissionMonitoringHandler) GetCacheStats(c *gin.Context) {
 	if h.cacheMiddleware == nil {
 		c.JSON(http.StatusOK, gin.H{
 			"cache_enabled": false,
-			"message": "Cache is not enabled",
+			"message":       "Cache is not enabled",
 		})
 		return
 	}
@@ -300,7 +300,7 @@ func (h *PermissionMonitoringHandler) GetCacheStats(c *gin.Context) {
 	cacheStats, err := h.cacheMiddleware.GetCacheStats(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get cache stats",
+			"error":   "Failed to get cache stats",
 			"details": err.Error(),
 		})
 		return
@@ -308,8 +308,8 @@ func (h *PermissionMonitoringHandler) GetCacheStats(c *gin.Context) {
 
 	response := gin.H{
 		"cache_enabled": true,
-		"stats": cacheStats,
-		"retrieved_at": time.Now(),
+		"stats":         cacheStats,
+		"retrieved_at":  time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -335,7 +335,7 @@ func (h *PermissionMonitoringHandler) ValidatePredictionAccuracy(c *gin.Context)
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
@@ -345,10 +345,10 @@ func (h *PermissionMonitoringHandler) ValidatePredictionAccuracy(c *gin.Context)
 	accuracy := h.predictor.ValidatePredictionAccuracy(ctx, companyUserID, request.ActualPermissions)
 
 	response := gin.H{
-		"company_user_id": companyUserID,
-		"accuracy_score": accuracy,
+		"company_user_id":          companyUserID,
+		"accuracy_score":           accuracy,
 		"actual_permissions_count": len(request.ActualPermissions),
-		"validated_at": time.Now(),
+		"validated_at":             time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -371,7 +371,7 @@ func (h *PermissionMonitoringHandler) GetPermissionAnalytics(c *gin.Context) {
 	managerStats, err := h.permissionManager.GetManagerStats(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get manager stats",
+			"error":   "Failed to get manager stats",
 			"details": err.Error(),
 		})
 		return
@@ -381,9 +381,9 @@ func (h *PermissionMonitoringHandler) GetPermissionAnalytics(c *gin.Context) {
 		"period": period,
 		"analytics": gin.H{
 			"most_used_permissions": mostUsed,
-			"cache_optimization": cacheOptimizations,
-			"system_performance": managerStats,
-			"total_permissions": len(mostUsed),
+			"cache_optimization":    cacheOptimizations,
+			"system_performance":    managerStats,
+			"total_permissions":     len(mostUsed),
 		},
 		"generated_at": time.Now(),
 	}
@@ -395,14 +395,14 @@ func (h *PermissionMonitoringHandler) GetPermissionAnalytics(c *gin.Context) {
 func (h *PermissionMonitoringHandler) TestPermissionMiddleware(c *gin.Context) {
 	// This endpoint can be used to test various permission scenarios
 	var request struct {
-		CompanyUserID    int                    `json:"company_user_id" binding:"required"`
-		TestScenarios    []TestScenario         `json:"test_scenarios" binding:"required"`
-		ResourceContext  map[string]interface{} `json:"resource_context,omitempty"`
+		CompanyUserID   int                    `json:"company_user_id" binding:"required"`
+		TestScenarios   []TestScenario         `json:"test_scenarios" binding:"required"`
+		ResourceContext map[string]interface{} `json:"resource_context,omitempty"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
@@ -419,8 +419,8 @@ func (h *PermissionMonitoringHandler) TestPermissionMiddleware(c *gin.Context) {
 
 	response := gin.H{
 		"company_user_id": request.CompanyUserID,
-		"test_results": results,
-		"tested_at": time.Now(),
+		"test_results":    results,
+		"tested_at":       time.Now(),
 	}
 
 	c.JSON(http.StatusOK, response)
@@ -437,13 +437,13 @@ type TestScenario struct {
 
 // TestResult represents the result of a permission test
 type TestResult struct {
-	Scenario       TestScenario `json:"scenario"`
-	ActualResult   bool         `json:"actual_result"`
-	Passed         bool         `json:"passed"`
-	ResponseTime   time.Duration `json:"response_time"`
-	Source         string       `json:"source"`
-	Reason         string       `json:"reason"`
-	Error          string       `json:"error,omitempty"`
+	Scenario     TestScenario  `json:"scenario"`
+	ActualResult bool          `json:"actual_result"`
+	Passed       bool          `json:"passed"`
+	ResponseTime time.Duration `json:"response_time"`
+	Source       string        `json:"source"`
+	Reason       string        `json:"reason"`
+	Error        string        `json:"error,omitempty"`
 }
 
 // runTestScenario runs a single test scenario
@@ -484,8 +484,8 @@ func (h *PermissionMonitoringHandler) runTestScenario(ctx context.Context, compa
 func (h *PermissionMonitoringHandler) GetPermissionHealth(c *gin.Context) {
 	ctx := c.Request.Context()
 	health := gin.H{
-		"status": "healthy",
-		"timestamp": time.Now(),
+		"status":     "healthy",
+		"timestamp":  time.Now(),
 		"components": gin.H{},
 	}
 
@@ -494,13 +494,13 @@ func (h *PermissionMonitoringHandler) GetPermissionHealth(c *gin.Context) {
 	if err != nil {
 		health["components"].(gin.H)["manager"] = gin.H{
 			"status": "unhealthy",
-			"error": err.Error(),
+			"error":  err.Error(),
 		}
 		health["status"] = "degraded"
 	} else {
 		health["components"].(gin.H)["manager"] = gin.H{
 			"status": "healthy",
-			"stats": managerStats,
+			"stats":  managerStats,
 		}
 	}
 
@@ -510,13 +510,13 @@ func (h *PermissionMonitoringHandler) GetPermissionHealth(c *gin.Context) {
 		if err != nil {
 			health["components"].(gin.H)["cache"] = gin.H{
 				"status": "unhealthy",
-				"error": err.Error(),
+				"error":  err.Error(),
 			}
 			health["status"] = "degraded"
 		} else {
 			health["components"].(gin.H)["cache"] = gin.H{
 				"status": "healthy",
-				"stats": cacheStats,
+				"stats":  cacheStats,
 			}
 		}
 	} else {
@@ -529,7 +529,7 @@ func (h *PermissionMonitoringHandler) GetPermissionHealth(c *gin.Context) {
 	predictorStats := h.predictor.GetPredictorStats()
 	health["components"].(gin.H)["predictor"] = gin.H{
 		"status": "healthy",
-		"stats": predictorStats,
+		"stats":  predictorStats,
 	}
 
 	// Set overall status

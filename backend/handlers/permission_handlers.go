@@ -1,12 +1,12 @@
 package handlers
 
 import (
-	"ai-project-backend/models"
 	"ai-project-backend/database"
+	"ai-project-backend/models"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 	"strings"
-	"github.com/gin-gonic/gin"
 )
 
 // PermissionHandler handles permission-related HTTP requests
@@ -24,7 +24,7 @@ func NewPermissionHandler(permissionRepo database.PermissionRepository) *Permiss
 // GetRoles handles GET /api/v1/permissions/roles
 func (h *PermissionHandler) GetRoles(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Optional company filter
 	var companyID *int
 	if companyIDStr := c.Query("company_id"); companyIDStr != "" {
@@ -110,7 +110,7 @@ func (h *PermissionHandler) CreateRole(c *gin.Context) {
 // UpdateRole handles PUT /api/v1/permissions/roles/:id
 func (h *PermissionHandler) UpdateRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
@@ -176,7 +176,7 @@ func (h *PermissionHandler) UpdateRole(c *gin.Context) {
 // DeleteRole handles DELETE /api/v1/permissions/roles/:id
 func (h *PermissionHandler) DeleteRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
@@ -195,9 +195,9 @@ func (h *PermissionHandler) DeleteRole(c *gin.Context) {
 // GetPermissions handles GET /api/v1/permissions
 func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	module := c.Query("module")
-	
+
 	var permissions []*models.Permission
 	var err error
 
@@ -224,7 +224,7 @@ func (h *PermissionHandler) GetPermissions(c *gin.Context) {
 // GetRolePermissions handles GET /api/v1/permissions/roles/:id/permissions
 func (h *PermissionHandler) GetRolePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
@@ -251,7 +251,7 @@ func (h *PermissionHandler) GetRolePermissions(c *gin.Context) {
 // SetRolePermissions handles POST /api/v1/permissions/roles/:id/permissions
 func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role ID"})
@@ -278,9 +278,9 @@ func (h *PermissionHandler) SetRolePermissions(c *gin.Context) {
 
 // CheckUserPermission handles POST /api/v1/permissions/check
 // Compatibility notes:
-// - Accepts permission codes with either dot or underscore separators (e.g., "task.read" or "task_read").
-// - If company_user_id is not available in context but the authenticated user has role=admin,
-//   grants permission via admin override to unblock development flows.
+//   - Accepts permission codes with either dot or underscore separators (e.g., "task.read" or "task_read").
+//   - If company_user_id is not available in context but the authenticated user has role=admin,
+//     grants permission via admin override to unblock development flows.
 func (h *PermissionHandler) CheckUserPermission(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -367,7 +367,9 @@ func (h *PermissionHandler) BatchCheckPermissions(c *gin.Context) {
 	// Normalize permission codes
 	perms := make([]string, 0, len(req.Permissions))
 	for _, p := range req.Permissions {
-		if p != "" && !containsDot(p) { p = underscoreToDot(p) }
+		if p != "" && !containsDot(p) {
+			p = underscoreToDot(p)
+		}
 		perms = append(perms, p)
 	}
 	results, err := h.permissionRepo.CheckMultiplePermissions(ctx, req.CompanyUserID, perms, req.ResourceID)
@@ -381,7 +383,7 @@ func (h *PermissionHandler) BatchCheckPermissions(c *gin.Context) {
 // GetUserPermissions handles GET /api/v1/permissions/users/:id
 func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -400,7 +402,7 @@ func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 // UpdateUserPermissions handles PUT /api/v1/permissions/users/:id
 func (h *PermissionHandler) UpdateUserPermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -459,11 +461,11 @@ func (h *PermissionHandler) UpdateUserPermissions(c *gin.Context) {
 // GetPermissionAuditLogs handles GET /api/v1/permissions/audit-logs
 func (h *PermissionHandler) GetPermissionAuditLogs(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Parse query parameters
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	
+
 	var companyUserID *int
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
 		if id, err := strconv.Atoi(userIDStr); err == nil {
@@ -478,11 +480,11 @@ func (h *PermissionHandler) GetPermissionAuditLogs(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"logs":       logs,
-		"total":      totalCount,
-		"limit":      limit,
-		"offset":     offset,
-		"has_more":   offset+limit < totalCount,
+		"logs":     logs,
+		"total":    totalCount,
+		"limit":    limit,
+		"offset":   offset,
+		"has_more": offset+limit < totalCount,
 	})
 }
 
@@ -618,7 +620,7 @@ func (h *PermissionHandler) AnalyzePermissionConflicts(c *gin.Context) {
 // GetPermissionModules handles GET /api/v1/permissions/modules
 func (h *PermissionHandler) GetPermissionModules(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// Get all permissions to extract modules
 	permissions, err := h.permissionRepo.GetPermissions(ctx)
 	if err != nil {
@@ -654,7 +656,7 @@ func (h *PermissionHandler) GetPermissionModules(c *gin.Context) {
 func (h *PermissionHandler) GetModulePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
 	module := c.Param("module")
-	
+
 	if module == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Module name is required"})
 		return
@@ -702,12 +704,12 @@ func (h *PermissionHandler) GetUserRoles(c *gin.Context) {
 				"assigned_at": "2025-08-27T00:00:00Z",
 				"is_active":   true,
 				"role": gin.H{
-					"id":              3,
-					"role_code":       "ENTERPRISE_ADMIN",
-					"role_name":       "企业管理员",
+					"id":               3,
+					"role_code":        "ENTERPRISE_ADMIN",
+					"role_name":        "企业管理员",
 					"role_description": "企业最高权限用户",
-					"is_system_role":  false,
-					"is_active":       true,
+					"is_system_role":   false,
+					"is_active":        true,
 				},
 				"assigned_by_name": "系统管理员",
 			},
@@ -718,7 +720,7 @@ func (h *PermissionHandler) GetUserRoles(c *gin.Context) {
 // AssignUserRole handles POST /api/v1/users/:id/roles
 func (h *PermissionHandler) AssignUserRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
@@ -759,10 +761,10 @@ func (h *PermissionHandler) AssignUserRole(c *gin.Context) {
 	})
 }
 
-// RemoveUserRole handles DELETE /api/v1/users/:id/roles/:roleId  
+// RemoveUserRole handles DELETE /api/v1/users/:id/roles/:roleId
 func (h *PermissionHandler) RemoveUserRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})

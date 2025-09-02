@@ -107,7 +107,7 @@ func (h *AuditEnhancedHandler) GetAuditLogs(c *gin.Context) {
 		ORDER BY created_at DESC 
 		LIMIT $%d OFFSET $%d`,
 		strings.Join(whereClause, " AND "), argIndex, argIndex+1)
-	
+
 	args = append(args, limit, offset)
 
 	rows, err := sqlDB.Query(query, args...)
@@ -198,7 +198,7 @@ func (h *AuditEnhancedHandler) GetAuditLog(c *gin.Context) {
 // GetAuditStats 获取审计统计信息
 func (h *AuditEnhancedHandler) GetAuditStats(c *gin.Context) {
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// Get total count
 	var totalCount int
 	err := sqlDB.QueryRow("SELECT COUNT(*) FROM audit_logs").Scan(&totalCount)
@@ -248,9 +248,9 @@ func (h *AuditEnhancedHandler) GetAuditStats(c *gin.Context) {
 	}
 
 	stats := map[string]interface{}{
-		"total_count":   totalCount,
-		"today_count":   todayCount,
-		"action_stats":  actionStats,
+		"total_count":  totalCount,
+		"today_count":  todayCount,
+		"action_stats": actionStats,
 	}
 
 	response := models.NewSuccessResponse(stats, "Audit statistics retrieved successfully")
@@ -273,7 +273,6 @@ func (h *AuditEnhancedHandler) exportAuditLogsAsCSV(c *gin.Context, logs []inter
 		}
 	}
 }
-
 
 // formatAuditLogCSVRow 格式化审计日志为CSV行
 func (h *AuditEnhancedHandler) formatAuditLogCSVRow(log *models.AuditLog) string {

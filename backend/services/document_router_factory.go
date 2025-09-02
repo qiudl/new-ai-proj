@@ -25,30 +25,30 @@ func (f *DocumentRouterFactory) CreateDocumentRouter(basePath string, strategy R
 		Strategy:                strategy,
 		EnableHealthCheck:       true,
 		HealthCheckInterval:     30 * time.Second,
-		MaxRetries:             3,
-		RetryDelay:             100 * time.Millisecond,
+		MaxRetries:              3,
+		RetryDelay:              100 * time.Millisecond,
 		EnableCircuitBreaker:    true,
 		CircuitBreakerThreshold: 5,
 		FallbackTimeout:         5 * time.Second,
 	}
-	
+
 	router := NewDocumentRouter(config)
-	
+
 	// 注册V1服务（传统文件系统服务）
 	if v1Service := f.createV1Service(basePath); v1Service != nil {
 		router.RegisterService(ServiceV1, v1Service)
 	}
-	
+
 	// 注册V2服务（统一文档服务）
 	if v2Service := f.createV2Service(basePath); v2Service != nil {
 		router.RegisterService(ServiceV2, v2Service)
 	}
-	
+
 	// 注册数据库服务（如果需要）
 	if dbService := f.createDBService(); dbService != nil {
 		router.RegisterService(ServiceDB, dbService)
 	}
-	
+
 	return router
 }
 
@@ -56,7 +56,7 @@ func (f *DocumentRouterFactory) CreateDocumentRouter(basePath string, strategy R
 func (f *DocumentRouterFactory) createV1Service(basePath string) interfaces.DocumentServiceInterface {
 	// 这里可以创建传统的文件系统文档服务
 	// 由于现有的DocumentService不完全实现接口，我们创建一个适配器
-	
+
 	// 临时禁用 V1 服务，避免 GORM 转换问题
 	// TODO: 实现 PostgresDB 的 GORM 支持或者重构 LegacyDocumentServiceAdapter
 	return nil
@@ -86,7 +86,7 @@ func (f *DocumentRouterFactory) createV2Service(basePath string) interfaces.Docu
 			AuthorEmail:  "system@aiproject.local",
 		},
 	}
-	
+
 	return NewUnifiedDocumentService(config)
 }
 

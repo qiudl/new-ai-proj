@@ -12,7 +12,7 @@ import (
 // PermissionPredictor predicts permissions based on user patterns and role analysis
 type PermissionPredictor struct {
 	permissionRepo database.PermissionRepository
-	userPatterns   map[int][]string // User ID -> frequently used permissions
+	userPatterns   map[int][]string    // User ID -> frequently used permissions
 	rolePatterns   map[string][]string // Role code -> common permissions
 	lastUpdate     time.Time
 	updateInterval time.Duration
@@ -20,20 +20,20 @@ type PermissionPredictor struct {
 
 // PermissionPattern represents a permission usage pattern
 type PermissionPattern struct {
-	PermissionCode string  `json:"permission_code"`
-	Frequency      float64 `json:"frequency"`
+	PermissionCode string    `json:"permission_code"`
+	Frequency      float64   `json:"frequency"`
 	LastUsed       time.Time `json:"last_used"`
-	UserCount      int     `json:"user_count"`
+	UserCount      int       `json:"user_count"`
 }
 
 // UserPermissionProfile represents a user's permission usage profile
 type UserPermissionProfile struct {
-	CompanyUserID      int                 `json:"company_user_id"`
-	RoleCode           string              `json:"role_code"`
-	FrequentPermissions []PermissionPattern `json:"frequent_permissions"`
-	PredictedPermissions []string           `json:"predicted_permissions"`
-	LastAnalyzed       time.Time           `json:"last_analyzed"`
-	AccuracyScore      float64             `json:"accuracy_score"`
+	CompanyUserID        int                 `json:"company_user_id"`
+	RoleCode             string              `json:"role_code"`
+	FrequentPermissions  []PermissionPattern `json:"frequent_permissions"`
+	PredictedPermissions []string            `json:"predicted_permissions"`
+	LastAnalyzed         time.Time           `json:"last_analyzed"`
+	AccuracyScore        float64             `json:"accuracy_score"`
 }
 
 // PermissionPredictionConfig configures the permission predictor
@@ -192,7 +192,7 @@ func (p *PermissionPredictor) PredictUserPermissions(ctx context.Context, compan
 	// Remove duplicates and limit results
 	predictions = p.deduplicateAndLimit(predictions, 20)
 
-	log.Printf("[PERMISSION_PREDICTOR] Predicted %d permissions for user %d (role: %s)", 
+	log.Printf("[PERMISSION_PREDICTOR] Predicted %d permissions for user %d (role: %s)",
 		len(predictions), companyUserID, roleCode)
 
 	return predictions, nil
@@ -235,12 +235,12 @@ func (p *PermissionPredictor) GetUserPermissionProfile(ctx context.Context, comp
 	}
 
 	profile := &UserPermissionProfile{
-		CompanyUserID:       companyUserID,
-		RoleCode:           roleCode,
-		FrequentPermissions: frequentPatterns,
+		CompanyUserID:        companyUserID,
+		RoleCode:             roleCode,
+		FrequentPermissions:  frequentPatterns,
 		PredictedPermissions: predicted,
-		LastAnalyzed:       time.Now(),
-		AccuracyScore:      0.85, // Simulated accuracy score
+		LastAnalyzed:         time.Now(),
+		AccuracyScore:        0.85, // Simulated accuracy score
 	}
 
 	return profile, nil
@@ -264,7 +264,7 @@ func (p *PermissionPredictor) PrewarmPermissionCache(ctx context.Context, cacheM
 		// Check permission and cache result
 		result, err := cacheMiddleware.CheckCachedPermission(ctx, companyUserID, permissionCode, nil)
 		if err != nil {
-			log.Printf("[PERMISSION_PREDICTOR] Failed to preload permission %s for user %d: %v", 
+			log.Printf("[PERMISSION_PREDICTOR] Failed to preload permission %s for user %d: %v",
 				permissionCode, companyUserID, err)
 			continue
 		}
@@ -285,12 +285,12 @@ func (p *PermissionPredictor) AnalyzePermissionCorrelations(ctx context.Context)
 	// Define some common permission correlations
 	// In practice, this would be derived from usage pattern analysis
 	commonCorrelations := map[string][]string{
-		"project.detail.read": {"task.list.read", "project.list.read"},
-		"task.create": {"task.list.read", "project.detail.read", "task.update"},
-		"task.update": {"task.list.read", "project.detail.read"},
-		"task.delete": {"task.update", "task.list.read", "project.detail.read"},
-		"project.create": {"project.list.read", "project.update", "task.create"},
-		"project.update": {"project.detail.read", "project.list.read", "task.update"},
+		"project.detail.read":    {"task.list.read", "project.list.read"},
+		"task.create":            {"task.list.read", "project.detail.read", "task.update"},
+		"task.update":            {"task.list.read", "project.detail.read"},
+		"task.delete":            {"task.update", "task.list.read", "project.detail.read"},
+		"project.create":         {"project.list.read", "project.update", "task.create"},
+		"project.update":         {"project.detail.read", "project.list.read", "task.update"},
 		"project.members.manage": {"project.detail.read", "company.users.read"},
 	}
 
@@ -358,7 +358,7 @@ func (p *PermissionPredictor) UpdateUserPattern(companyUserID int, permissionCod
 	}
 
 	patterns := p.userPatterns[companyUserID]
-	
+
 	// Check if permission already exists
 	exists := false
 	for _, existingPerm := range patterns {
@@ -371,7 +371,7 @@ func (p *PermissionPredictor) UpdateUserPattern(companyUserID int, permissionCod
 	// Add to patterns if not exists
 	if !exists {
 		p.userPatterns[companyUserID] = append(patterns, permissionCode)
-		
+
 		// Limit pattern size
 		if len(p.userPatterns[companyUserID]) > 50 {
 			p.userPatterns[companyUserID] = p.userPatterns[companyUserID][1:] // Remove oldest
@@ -383,7 +383,7 @@ func (p *PermissionPredictor) UpdateUserPattern(companyUserID int, permissionCod
 func (p *PermissionPredictor) GetPredictorStats() map[string]interface{} {
 	userPatternCount := len(p.userPatterns)
 	rolePatternCount := len(p.rolePatterns)
-	
+
 	totalUserPermissions := 0
 	for _, patterns := range p.userPatterns {
 		totalUserPermissions += len(patterns)
@@ -399,7 +399,7 @@ func (p *PermissionPredictor) GetPredictorStats() map[string]interface{} {
 		"role_pattern_count":      rolePatternCount,
 		"total_user_permissions":  totalUserPermissions,
 		"total_role_permissions":  totalRolePermissions,
-		"last_update":            p.lastUpdate,
+		"last_update":             p.lastUpdate,
 		"update_interval_minutes": p.updateInterval.Minutes(),
 	}
 }
@@ -413,7 +413,7 @@ func (p *PermissionPredictor) deduplicateAndLimit(permissions []string, limit in
 		if !seen[perm] {
 			seen[perm] = true
 			result = append(result, perm)
-			
+
 			if len(result) >= limit {
 				break
 			}
@@ -466,8 +466,8 @@ func (p *PermissionPredictor) ValidatePredictionAccuracy(ctx context.Context, co
 	}
 
 	accuracy := float64(intersection) / float64(union)
-	
-	log.Printf("[PERMISSION_PREDICTOR] Prediction accuracy for user %d: %.2f (intersection: %d, union: %d)", 
+
+	log.Printf("[PERMISSION_PREDICTOR] Prediction accuracy for user %d: %.2f (intersection: %d, union: %d)",
 		companyUserID, accuracy, intersection, union)
 
 	return accuracy
@@ -476,7 +476,7 @@ func (p *PermissionPredictor) ValidatePredictionAccuracy(ctx context.Context, co
 // GetMostUsedPermissions returns the most frequently used permissions across all users
 func (p *PermissionPredictor) GetMostUsedPermissions() []PermissionPattern {
 	permissionCounts := make(map[string]int)
-	
+
 	// Count permissions across all user patterns
 	for _, patterns := range p.userPatterns {
 		for _, perm := range patterns {
@@ -525,11 +525,11 @@ func (p *PermissionPredictor) GetMostUsedPermissions() []PermissionPattern {
 // OptimizeCacheStrategy suggests cache optimization based on permission patterns
 func (p *PermissionPredictor) OptimizeCacheStrategy(ctx context.Context) map[string]interface{} {
 	mostUsed := p.GetMostUsedPermissions()
-	
+
 	// Suggest high-priority permissions for aggressive caching
 	highPriority := make([]string, 0)
 	mediumPriority := make([]string, 0)
-	
+
 	for i, pattern := range mostUsed {
 		if i < 10 && pattern.Frequency > 0.1 {
 			highPriority = append(highPriority, pattern.PermissionCode)
@@ -539,7 +539,7 @@ func (p *PermissionPredictor) OptimizeCacheStrategy(ctx context.Context) map[str
 	}
 
 	recommendations := map[string]interface{}{
-		"high_priority_cache": highPriority,
+		"high_priority_cache":   highPriority,
 		"medium_priority_cache": mediumPriority,
 		"suggested_ttl": map[string]interface{}{
 			"high_priority_minutes":   30, // Cache high-priority permissions longer

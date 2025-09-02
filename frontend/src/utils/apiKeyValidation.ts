@@ -106,7 +106,7 @@ export class APIKeyValidator {
     const hasSpecial = /[^a-zA-Z0-9]/.test(apiKey);
     
     let score = 0;
-    let weaknesses: string[] = [];
+    const weaknesses: string[] = [];
 
     if (hasLower) score++;
     else weaknesses.push('缺少小写字母');

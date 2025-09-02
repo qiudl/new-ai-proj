@@ -425,8 +425,10 @@ function App() {
     
     if (config.enablePerformanceMonitoring) {
       installPerformanceInterceptors();
-      console.log('性能监控已启用');
-    } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('性能监控已启用');
+      }
+    } else if (process.env.NODE_ENV === 'development') {
       console.log('性能监控已禁用（优化内存使用）');
     }
     

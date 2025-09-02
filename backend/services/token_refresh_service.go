@@ -14,39 +14,39 @@ import (
 
 // TokenRefreshService Token刷新服务
 type TokenRefreshService struct {
-	googleService     *EnhancedGoogleCalendarService
-	googleAuthRepo    database.GoogleAuthRepository
-	logger           *log.Logger
-	retryExecutor    *utils.RetryExecutor
-	refreshInterval   time.Duration
-	isRunning        bool
-	stopChan         chan struct{}
-	mutex            sync.RWMutex
-	refreshStats     *RefreshStats
+	googleService   *EnhancedGoogleCalendarService
+	googleAuthRepo  database.GoogleAuthRepository
+	logger          *log.Logger
+	retryExecutor   *utils.RetryExecutor
+	refreshInterval time.Duration
+	isRunning       bool
+	stopChan        chan struct{}
+	mutex           sync.RWMutex
+	refreshStats    *RefreshStats
 }
 
 // RefreshStats Token刷新统计信息
 type RefreshStats struct {
-	TotalRefreshAttempts  int       `json:"total_refresh_attempts"`
-	SuccessfulRefreshes   int       `json:"successful_refreshes"`
-	FailedRefreshes       int       `json:"failed_refreshes"`
-	LastRefreshTime       time.Time `json:"last_refresh_time"`
-	LastFailureTime       time.Time `json:"last_failure_time"`
-	LastFailureReason     string    `json:"last_failure_reason,omitempty"`
-	CurrentActiveUsers    int       `json:"current_active_users"`
-	AverageRefreshTime    time.Duration `json:"average_refresh_time"`
-	RefreshSuccessRate    float64   `json:"refresh_success_rate"`
+	TotalRefreshAttempts int           `json:"total_refresh_attempts"`
+	SuccessfulRefreshes  int           `json:"successful_refreshes"`
+	FailedRefreshes      int           `json:"failed_refreshes"`
+	LastRefreshTime      time.Time     `json:"last_refresh_time"`
+	LastFailureTime      time.Time     `json:"last_failure_time"`
+	LastFailureReason    string        `json:"last_failure_reason,omitempty"`
+	CurrentActiveUsers   int           `json:"current_active_users"`
+	AverageRefreshTime   time.Duration `json:"average_refresh_time"`
+	RefreshSuccessRate   float64       `json:"refresh_success_rate"`
 }
 
 // TokenRefreshResult Token刷新结果
 type TokenRefreshResult struct {
-	UserID      int           `json:"user_id"`
-	Success     bool          `json:"success"`
-	Error       string        `json:"error,omitempty"`
-	Duration    time.Duration `json:"duration"`
+	UserID      int                 `json:"user_id"`
+	Success     bool                `json:"success"`
+	Error       string              `json:"error,omitempty"`
+	Duration    time.Duration       `json:"duration"`
 	OldToken    *models.GoogleToken `json:"-"` // 不序列化敏感信息
 	NewToken    *models.GoogleToken `json:"-"` // 不序列化敏感信息
-	RefreshTime time.Time     `json:"refresh_time"`
+	RefreshTime time.Time           `json:"refresh_time"`
 }
 
 // NewTokenRefreshService 创建Token刷新服务
@@ -65,11 +65,11 @@ func NewTokenRefreshService(
 	return &TokenRefreshService{
 		googleService:   googleService,
 		googleAuthRepo:  googleAuthRepo,
-		logger:         logger,
-		retryExecutor:  retryExecutor,
+		logger:          logger,
+		retryExecutor:   retryExecutor,
 		refreshInterval: refreshInterval,
-		stopChan:       make(chan struct{}),
-		refreshStats:   &RefreshStats{},
+		stopChan:        make(chan struct{}),
+		refreshStats:    &RefreshStats{},
 	}
 }
 
@@ -109,7 +109,7 @@ func (trs *TokenRefreshService) Stop() error {
 // RefreshGoogleToken 刷新单个用户的Google Token
 func (trs *TokenRefreshService) RefreshGoogleToken(ctx context.Context, userID int) (*TokenRefreshResult, error) {
 	startTime := time.Now()
-	
+
 	result := &TokenRefreshResult{
 		UserID:      userID,
 		RefreshTime: startTime,
@@ -185,16 +185,16 @@ func (trs *TokenRefreshService) RefreshGoogleToken(ctx context.Context, userID i
 
 	// 更新数据库中的Token
 	updatedToken := &models.GoogleToken{
-		ID:                     currentToken.ID,
-		UserID:                 currentToken.UserID,
-		AccessTokenEncrypted:   encryptedAccessToken,
-		RefreshTokenEncrypted:  encryptedRefreshToken,
-		TokenType:              newGoogleToken.TokenType,
-		ExpiresAt:              newGoogleToken.ExpiresAt,
-		Scopes:                 currentToken.Scopes,
-		CreatedAt:              currentToken.CreatedAt,
-		UpdatedAt:              time.Now(),
-		LastRefreshAt:          &startTime,
+		ID:                    currentToken.ID,
+		UserID:                currentToken.UserID,
+		AccessTokenEncrypted:  encryptedAccessToken,
+		RefreshTokenEncrypted: encryptedRefreshToken,
+		TokenType:             newGoogleToken.TokenType,
+		ExpiresAt:             newGoogleToken.ExpiresAt,
+		Scopes:                currentToken.Scopes,
+		CreatedAt:             currentToken.CreatedAt,
+		UpdatedAt:             time.Now(),
+		LastRefreshAt:         &startTime,
 	}
 
 	err = trs.googleAuthRepo.UpdateGoogleToken(ctx, updatedToken)
@@ -214,15 +214,15 @@ func (trs *TokenRefreshService) RefreshGoogleToken(ctx context.Context, userID i
 
 	// 创建同步日志
 	syncLog := &models.GoogleSyncLog{
-		UserID:          userID,
-		Operation:       "token_refresh",
-		ResourceType:    "token",
-		ResourceID:      fmt.Sprintf("user_%d", userID),
-		Status:          models.LogStatusSuccess,
-		Message:         stringPtr("Token refreshed successfully"),
+		UserID:       userID,
+		Operation:    "token_refresh",
+		ResourceType: "token",
+		ResourceID:   fmt.Sprintf("user_%d", userID),
+		Status:       models.LogStatusSuccess,
+		Message:      stringPtr("Token refreshed successfully"),
 		Details: map[string]interface{}{
-			"old_expires_at": currentToken.ExpiresAt,
-			"new_expires_at": newGoogleToken.ExpiresAt,
+			"old_expires_at":      currentToken.ExpiresAt,
+			"new_expires_at":      newGoogleToken.ExpiresAt,
 			"refresh_duration_ms": result.Duration.Milliseconds(),
 		},
 		ExecutionTimeMs: intPtr(int(result.Duration.Milliseconds())),
@@ -343,7 +343,7 @@ func (trs *TokenRefreshService) GetUserTokenStatus(ctx context.Context, userID i
 		"needs_refresh":     token.NeedsRefresh(),
 		"last_refresh_at":   token.LastRefreshAt,
 		"time_until_expiry": time.Until(token.ExpiresAt),
-		"scopes":           token.Scopes,
+		"scopes":            token.Scopes,
 	}
 
 	// 验证Token有效性
@@ -365,13 +365,13 @@ func (trs *TokenRefreshService) GetUserTokenStatus(ctx context.Context, userID i
 // ForceRefreshToken 强制刷新用户Token（即使未过期）
 func (trs *TokenRefreshService) ForceRefreshToken(ctx context.Context, userID int) (*TokenRefreshResult, error) {
 	trs.logger.Printf("Force refreshing token for user %d", userID)
-	
+
 	trs.mutex.Lock()
 	trs.refreshStats.TotalRefreshAttempts++
 	trs.mutex.Unlock()
 
 	result, err := trs.RefreshGoogleToken(ctx, userID)
-	
+
 	trs.mutex.Lock()
 	if result.Success {
 		trs.refreshStats.SuccessfulRefreshes++
@@ -400,9 +400,9 @@ func intPtr(i int) *int {
 // HealthCheck 健康检查
 func (trs *TokenRefreshService) HealthCheck() map[string]interface{} {
 	return map[string]interface{}{
-		"service_running":    trs.IsRunning(),
-		"refresh_interval":   trs.refreshInterval,
-		"stats":             trs.GetRefreshStats(),
-		"last_check_time":   time.Now(),
+		"service_running":  trs.IsRunning(),
+		"refresh_interval": trs.refreshInterval,
+		"stats":            trs.GetRefreshStats(),
+		"last_check_time":  time.Now(),
 	}
 }

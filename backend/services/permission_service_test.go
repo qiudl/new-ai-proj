@@ -39,17 +39,17 @@ func (m *MockDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, err
 // TestPermissionService_GetSystemPermissions tests the system permissions retrieval
 func TestPermissionService_GetSystemPermissions(t *testing.T) {
 	service := &PermissionService{}
-	
+
 	permissions := service.GetSystemPermissions()
-	
+
 	assert.Greater(t, len(permissions), 0, "Should have system permissions")
-	
+
 	// Check for essential permissions
 	permissionCodes := make(map[string]bool)
 	for _, perm := range permissions {
 		permissionCodes[perm.Code] = true
 	}
-	
+
 	assert.True(t, permissionCodes["system.admin"], "Should have system.admin permission")
 	assert.True(t, permissionCodes["project.read"], "Should have project.read permission")
 	assert.True(t, permissionCodes["task.create"], "Should have task.create permission")
@@ -59,16 +59,16 @@ func TestPermissionService_GetSystemPermissions(t *testing.T) {
 // TestPermissionService_GetRoleTemplates tests the role templates retrieval
 func TestPermissionService_GetRoleTemplates(t *testing.T) {
 	service := &PermissionService{}
-	
+
 	templates := service.GetRoleTemplates()
-	
+
 	assert.Greater(t, len(templates), 0, "Should have role templates")
-	
+
 	// Check for essential roles
 	assert.Contains(t, templates, RoleTypeSystemAdmin, "Should have system admin role")
 	assert.Contains(t, templates, RoleTypeDeveloper, "Should have developer role")
 	assert.Contains(t, templates, RoleTypeViewer, "Should have viewer role")
-	
+
 	// Check developer role permissions
 	developerPerms := templates[RoleTypeDeveloper]
 	assert.Contains(t, developerPerms, "project.read", "Developer should have project.read")
@@ -79,10 +79,10 @@ func TestPermissionService_GetRoleTemplates(t *testing.T) {
 // TestPermissionService_BuildPermissionCode tests permission code building
 func TestPermissionService_BuildPermissionCode(t *testing.T) {
 	service := &PermissionService{}
-	
+
 	code := service.buildPermissionCode(ResourceProject, ActionRead)
 	assert.Equal(t, "project.read", code, "Should build correct permission code")
-	
+
 	code = service.buildPermissionCode(ResourceTask, ActionUpdate)
 	assert.Equal(t, "task.update", code, "Should build correct permission code")
 }
@@ -91,13 +91,13 @@ func TestPermissionService_BuildPermissionCode(t *testing.T) {
 func TestPermissionService_CheckUserPermission(t *testing.T) {
 	// This would require a more complex mock setup with database responses
 	// For now, we'll test the structure and logic
-	
+
 	service := &PermissionService{}
-	
+
 	// Test invalid permission code format
 	_, err := service.CheckUserPermission(context.Background(), 1, "invalid_format")
 	assert.Error(t, err, "Should return error for invalid permission code format")
-	
+
 	// Test valid permission code format parsing
 	_, err = service.CheckUserPermission(context.Background(), 1, "project.read")
 	// This will fail without proper DB mock, but tests the parsing logic
@@ -107,13 +107,13 @@ func TestPermissionService_CheckUserPermission(t *testing.T) {
 // TestPermissionService_CheckProjectPermission tests project permission checking
 func TestPermissionService_CheckProjectPermission(t *testing.T) {
 	service := &PermissionService{}
-	
+
 	// Test the method signature and basic validation
 	ctx := context.Background()
 	userID := 1
 	projectID := 100
 	action := ActionRead
-	
+
 	// This would require database mocking to test fully
 	_, err := service.CheckProjectPermission(ctx, userID, projectID, action)
 	// Without DB mock, this will fail with a DB error, which is expected
@@ -124,7 +124,7 @@ func TestPermissionService_CheckProjectPermission(t *testing.T) {
 func TestUserPermissionContext(t *testing.T) {
 	projectID := 100
 	resourceID := 200
-	
+
 	ctx := &UserPermissionContext{
 		UserID:       1,
 		ProjectID:    &projectID,
@@ -133,7 +133,7 @@ func TestUserPermissionContext(t *testing.T) {
 		Action:       ActionUpdate,
 		Metadata:     map[string]interface{}{"source": "test"},
 	}
-	
+
 	assert.Equal(t, 1, ctx.UserID, "Should set user ID correctly")
 	assert.Equal(t, 100, *ctx.ProjectID, "Should set project ID correctly")
 	assert.Equal(t, 200, *ctx.ResourceID, "Should set resource ID correctly")
@@ -151,7 +151,7 @@ func TestPermissionCheckResult(t *testing.T) {
 		Context:       map[string]interface{}{"role_id": 5},
 		CheckedAt:     time.Now(),
 	}
-	
+
 	assert.True(t, result.HasPermission, "Should have permission")
 	assert.Equal(t, "role_permission", result.Source, "Should set source correctly")
 	assert.Equal(t, "granted by user role", result.Reason, "Should set reason correctly")
@@ -165,10 +165,10 @@ func TestPermissionService_Integration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	// This would set up a test database and run full integration tests
 	// Example structure:
-	
+
 	// 1. Set up test database
 	// 2. Initialize permission service with test DB
 	// 3. Create test users and roles
@@ -180,12 +180,12 @@ func TestPermissionService_Integration(t *testing.T) {
 func BenchmarkPermissionService_CheckUserPermission(b *testing.B) {
 	// This would benchmark the permission checking performance
 	// Useful for ensuring the permission system doesn't become a bottleneck
-	
+
 	b.Skip("Benchmark requires database setup")
-	
+
 	// Example structure:
 	// service := setupTestService()
-	// 
+	//
 	// b.ResetTimer()
 	// for i := 0; i < b.N; i++ {
 	//     service.CheckUserPermission(context.Background(), 1, "project.read")
@@ -194,11 +194,11 @@ func BenchmarkPermissionService_CheckUserPermission(b *testing.B) {
 
 func BenchmarkPermissionService_CheckMultiplePermissions(b *testing.B) {
 	b.Skip("Benchmark requires database setup")
-	
+
 	// Example structure:
 	// service := setupTestService()
 	// permissions := []string{"project.read", "task.create", "document.update", "timer.read"}
-	// 
+	//
 	// b.ResetTimer()
 	// for i := 0; i < b.N; i++ {
 	//     service.CheckMultiplePermissions(context.Background(), 1, permissions)
@@ -254,30 +254,30 @@ func setupTestPermissionContext(userID int, projectID *int, resourceType Resourc
 // Example of how to write a test with database mocking
 func TestPermissionService_CheckPermissionWithMock(t *testing.T) {
 	t.Skip("Example test - requires proper mock setup")
-	
+
 	// This is an example of how you would structure a test with proper database mocking
 	// You would need to use a library like sqlmock or create interfaces for dependency injection
-	
+
 	/*
-	// Set up mock database
-	db, mock, err := sqlmock.New()
-	require.NoError(t, err)
-	defer db.Close()
-	
-	service := NewPermissionService(db)
-	
-	// Mock the database responses for role permission check
-	mock.ExpectQuery("SELECT DISTINCT p.permission_code").
-		WithArgs(1).
-		WillReturnRows(sqlmock.NewRows([]string{"permission_code", "is_granted"}).
-			AddRow("project.read", true))
-	
-	// Test the permission check
-	hasPermission, err := service.CheckUserPermission(context.Background(), 1, "project.read")
-	require.NoError(t, err)
-	assert.True(t, hasPermission)
-	
-	// Verify all expectations were met
-	require.NoError(t, mock.ExpectationsWereMet())
+		// Set up mock database
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+		defer db.Close()
+
+		service := NewPermissionService(db)
+
+		// Mock the database responses for role permission check
+		mock.ExpectQuery("SELECT DISTINCT p.permission_code").
+			WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"permission_code", "is_granted"}).
+				AddRow("project.read", true))
+
+		// Test the permission check
+		hasPermission, err := service.CheckUserPermission(context.Background(), 1, "project.read")
+		require.NoError(t, err)
+		assert.True(t, hasPermission)
+
+		// Verify all expectations were met
+		require.NoError(t, mock.ExpectationsWereMet())
 	*/
 }

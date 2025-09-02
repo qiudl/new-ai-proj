@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"time"
 
+	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"github.com/gin-gonic/gin"
 	"github.com/lib/pq"
-	"ai-project-backend/database" 
-	"ai-project-backend/models"
 )
 
-// ArchiveHandler handles archive-related operations  
+// ArchiveHandler handles archive-related operations
 type ArchiveHandler struct {
 	db database.DB
 }
@@ -48,7 +48,7 @@ type ArchivedTask struct {
 func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -133,8 +133,8 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 		"success": true,
 		"message": "Task archived successfully",
 		"data": gin.H{
-			"task_id":    taskID,
-			"project_id": projectID,
+			"task_id":     taskID,
+			"project_id":  projectID,
 			"archived_at": time.Now(),
 		},
 	})
@@ -145,7 +145,7 @@ func (h *ArchiveHandler) ArchiveTask(c *gin.Context) {
 func (h *ArchiveHandler) UnarchiveTask(c *gin.Context) {
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

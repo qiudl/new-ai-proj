@@ -2,8 +2,8 @@
 package middleware
 
 import (
-	"ai-project-backend/models"
 	"ai-project-backend/database"
+	"ai-project-backend/models"
 	"bytes"
 	// "context"
 	"encoding/json"
@@ -19,14 +19,14 @@ import (
 
 // AuditConfig holds configuration for the audit middleware
 type AuditConfig struct {
-	DB                 database.DB
-	ExcludePaths       []string
-	ExcludeMethods     []string
-	LogRequestBody     bool
-	LogResponseBody    bool
-	MaxBodySize        int64
-	SensitiveHeaders   []string
-	SensitiveBodyKeys  []string
+	DB                database.DB
+	ExcludePaths      []string
+	ExcludeMethods    []string
+	LogRequestBody    bool
+	LogResponseBody   bool
+	MaxBodySize       int64
+	SensitiveHeaders  []string
+	SensitiveBodyKeys []string
 }
 
 // AuditMiddleware provides HTTP request/response auditing
@@ -39,7 +39,7 @@ func NewAuditMiddleware(config *AuditConfig) *AuditMiddleware {
 	if config.MaxBodySize == 0 {
 		config.MaxBodySize = 1024 * 1024 // 1MB default
 	}
-	
+
 	if config.SensitiveHeaders == nil {
 		config.SensitiveHeaders = []string{
 			"authorization",
@@ -48,11 +48,11 @@ func NewAuditMiddleware(config *AuditConfig) *AuditMiddleware {
 			"set-cookie",
 		}
 	}
-	
+
 	if config.SensitiveBodyKeys == nil {
 		config.SensitiveBodyKeys = []string{
 			"password",
-			"current_password", 
+			"current_password",
 			"new_password",
 			"password_hash",
 			"token",
@@ -95,12 +95,12 @@ func (am *AuditMiddleware) Middleware() gin.HandlerFunc {
 
 		// Capture request details
 		auditData := &models.AuditEventData{
-			RequestID:   requestID,
-			IPAddress:   am.getClientIP(c),
-			UserAgent:   c.GetHeader("User-Agent"),
-			Action:      am.determineAction(c.Request.Method, c.Request.URL.Path),
+			RequestID:    requestID,
+			IPAddress:    am.getClientIP(c),
+			UserAgent:    c.GetHeader("User-Agent"),
+			Action:       am.determineAction(c.Request.Method, c.Request.URL.Path),
 			ResourceType: am.determineResourceType(c.Request.URL.Path),
-			ResourceID:  am.extractResourceID(c.Request.URL.Path),
+			ResourceID:   am.extractResourceID(c.Request.URL.Path),
 		}
 
 		// Try to get user from context (set by auth middleware)
@@ -159,7 +159,7 @@ func (am *AuditMiddleware) Middleware() gin.HandlerFunc {
 		// Capture response details
 		statusCode := c.Writer.Status()
 		auditData.Status = am.getStatusFromCode(statusCode)
-		
+
 		// Capture response body if needed
 		var responseBody interface{}
 		if am.config.LogResponseBody && bodyBuffer.Len() > 0 {
@@ -178,14 +178,14 @@ func (am *AuditMiddleware) Middleware() gin.HandlerFunc {
 
 		// Set metadata
 		auditData.Metadata = map[string]interface{}{
-			"method":          c.Request.Method,
-			"path":           c.Request.URL.Path,
-			"query":          am.sanitizeQuery(c.Request.URL.RawQuery),
-			"status_code":    statusCode,
-			"duration_ms":    duration.Milliseconds(),
-			"request_size":   c.Request.ContentLength,
-			"response_size":  bodyBuffer.Len(),
-			"headers":        am.sanitizeHeaders(c.Request.Header),
+			"method":        c.Request.Method,
+			"path":          c.Request.URL.Path,
+			"query":         am.sanitizeQuery(c.Request.URL.RawQuery),
+			"status_code":   statusCode,
+			"duration_ms":   duration.Milliseconds(),
+			"request_size":  c.Request.ContentLength,
+			"response_size": bodyBuffer.Len(),
+			"headers":       am.sanitizeHeaders(c.Request.Header),
 		}
 
 		// Set before/after data
@@ -223,7 +223,7 @@ func (am *AuditMiddleware) shouldExclude(method, path string) bool {
 	// Exclude health checks and static assets by default
 	excludeDefaults := []string{
 		"/health",
-		"/version", 
+		"/version",
 		"/metrics",
 		"/favicon.ico",
 		"/static/",
@@ -287,7 +287,7 @@ func (am *AuditMiddleware) determineAction(method, path string) string {
 				return models.ActionTaskBulkDelete
 			}
 		}
-		
+
 		switch method {
 		case "POST":
 			return models.ActionTaskCreate
@@ -358,7 +358,7 @@ func (am *AuditMiddleware) determineResourceType(path string) string {
 func (am *AuditMiddleware) extractResourceID(path string) string {
 	// Match patterns like /api/v1/projects/123 or /api/projects/123/tasks/456
 	segments := strings.Split(strings.Trim(path, "/"), "/")
-	
+
 	for i, segment := range segments {
 		// Look for numeric IDs after resource names
 		if (segment == "projects" || segment == "tasks" || segment == "users") && i+1 < len(segments) {
@@ -369,7 +369,7 @@ func (am *AuditMiddleware) extractResourceID(path string) string {
 			}
 		}
 	}
-	
+
 	return ""
 }
 
@@ -469,7 +469,7 @@ func (am *AuditMiddleware) sanitizeHeaders(headers http.Header) map[string]inter
 				break
 			}
 		}
-		
+
 		if isSensitive {
 			result[key] = "***REDACTED***"
 		} else {
@@ -524,7 +524,7 @@ func (am *AuditMiddleware) extractNameFromData(data interface{}, nameFields []st
 				}
 			}
 		}
-		
+
 		// Try nested data object
 		if nested, exists := dataMap["data"]; exists {
 			return am.extractNameFromData(nested, nameFields)
@@ -537,7 +537,7 @@ func (am *AuditMiddleware) extractNameFromData(data interface{}, nameFields []st
 func (am *AuditMiddleware) generateDescription(auditData *models.AuditEventData, statusCode int, duration time.Duration) string {
 	action := strings.Replace(auditData.Action, ".", " ", -1)
 	resource := auditData.ResourceType
-	
+
 	if auditData.ResourceName != "" && auditData.ResourceName != "unknown" {
 		resource = fmt.Sprintf("%s '%s'", resource, auditData.ResourceName)
 	} else if auditData.ResourceID != "" {
@@ -545,7 +545,7 @@ func (am *AuditMiddleware) generateDescription(auditData *models.AuditEventData,
 	}
 
 	description := fmt.Sprintf("%s %s", strings.Title(action), resource)
-	
+
 	if statusCode >= 400 {
 		description += fmt.Sprintf(" (failed with %d)", statusCode)
 	} else {
@@ -728,4 +728,3 @@ func (am *AuditMiddleware) deepEqual(a, b interface{}) bool {
 	}
 	return string(aJSON) == string(bJSON)
 }
-

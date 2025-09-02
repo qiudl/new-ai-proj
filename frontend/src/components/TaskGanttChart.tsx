@@ -271,7 +271,7 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
       const startPref = parseDate(t.start_datetime) || parseDate(t.custom_fields?.start_date) || parseDate(t.created_at);
       const duePref = parseDate(t.due_datetime) || parseDate(t.due_date) || parseDate(t.custom_fields?.due_date);
 
-      let startDate = startPref || new Date(cursor);
+      const startDate = startPref || new Date(cursor);
       let endDate = duePref || new Date(startDate);
       if (!duePref) {
         // 按估算工时推导结束日期

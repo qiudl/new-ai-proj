@@ -75,7 +75,7 @@ func (s *CompanyUserService) CreateCompanyUser(ctx context.Context, req *models.
 
 	// Convert request to user model
 	user := req.ToUser(string(passwordHash))
-	
+
 	// Create user
 	createdUser, err := s.userRepo.Create(ctx, user)
 	if err != nil {
@@ -232,7 +232,7 @@ func (s *CompanyUserService) GetPrimaryContactForCompany(ctx context.Context, co
 	if err != nil {
 		return nil, fmt.Errorf("failed to get primary contact for company %d: %w", companyID, err)
 	}
-	
+
 	return user, nil
 }
 
@@ -301,7 +301,7 @@ func (s *CompanyUserService) GetCompanyUserStats(ctx context.Context) (*models.C
 	if err != nil {
 		return nil, fmt.Errorf("failed to get company user statistics: %w", err)
 	}
-	
+
 	return stats, nil
 }
 
@@ -364,7 +364,7 @@ func (s *CompanyUserService) batchUpdateStatus(ctx context.Context, userIDs []in
 			return fmt.Errorf("failed to update status for user %d: %w", userID, err)
 		}
 	}
-	
+
 	// Log batch operation
 	s.auditLogger.LogEvent(&models.AuditEventData{
 		UserID:       &operatorID,
@@ -381,22 +381,22 @@ func (s *CompanyUserService) batchUpdateStatus(ctx context.Context, userIDs []in
 func (s *CompanyUserService) batchExtendExpiry(ctx context.Context, userIDs []int, operatorID int) error {
 	// Extend expiry by 1 year from current time
 	newExpiry := time.Now().AddDate(1, 0, 0)
-	
+
 	for _, userID := range userIDs {
 		user, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			return fmt.Errorf("failed to get user %d: %w", userID, err)
 		}
-		
+
 		user.AccountExpiresAt = &newExpiry
 		user.UpdatedAt = time.Now()
-		
+
 		_, err = s.userRepo.Update(ctx, user)
 		if err != nil {
 			return fmt.Errorf("failed to extend expiry for user %d: %w", userID, err)
 		}
 	}
-	
+
 	// Log batch operation
 	s.auditLogger.LogEvent(&models.AuditEventData{
 		UserID:       &operatorID,
@@ -430,6 +430,6 @@ func (s *CompanyUserService) GetExpiringAccounts(ctx context.Context, days int) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expiring accounts: %w", err)
 	}
-	
+
 	return users, nil
 }

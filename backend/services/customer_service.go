@@ -180,12 +180,12 @@ func (s *CustomerService) GetCustomerAnalytics(ctx context.Context) (*models.Cus
 	analytics := &models.CustomerAnalytics{
 		Stats: *stats,
 		// Add conversion rates, growth trends, etc.
-		ConversionRate:     s.calculateConversionRate(stats),
-		AverageLifetime:    s.calculateAverageLifetime(ctx),
-		TopIndustries:      s.getTopIndustries(stats),
-		RecentTrends:       s.calculateRecentTrends(ctx),
-		UpcomingRenewals:   s.getUpcomingRenewals(ctx),
-		RiskCustomers:      s.identifyRiskCustomers(ctx),
+		ConversionRate:   s.calculateConversionRate(stats),
+		AverageLifetime:  s.calculateAverageLifetime(ctx),
+		TopIndustries:    s.getTopIndustries(stats),
+		RecentTrends:     s.calculateRecentTrends(ctx),
+		UpcomingRenewals: s.getUpcomingRenewals(ctx),
+		RiskCustomers:    s.identifyRiskCustomers(ctx),
 	}
 
 	return analytics, nil

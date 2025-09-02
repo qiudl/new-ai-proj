@@ -8,9 +8,9 @@ import (
 	"mime/multipart"
 	"time"
 
+	"ai-project-backend/models"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
-	"ai-project-backend/models"
 )
 
 // DocumentVersionService handles document version management
@@ -31,22 +31,22 @@ func NewDocumentVersionService(db *gorm.DB, storageAdapter StorageAdapter, baseS
 
 // DocumentVersionInfo represents version information
 type DocumentVersionInfo struct {
-	ID              uint64                 `json:"id"`
-	DocumentID      uint64                 `json:"document_id"`
-	VersionNumber   int                    `json:"version_number"`
-	Title           string                 `json:"title"`
-	Description     string                 `json:"description"`
-	ChangesSummary  string                 `json:"changes_summary"`
-	FileName        string                 `json:"file_name"`
-	FileSize        int64                  `json:"file_size"`
-	Checksum        string                 `json:"checksum"`
-	StoragePath     string                 `json:"storage_path"`
-	ParentVersion   *int                   `json:"parent_version"`
-	CreatedBy       uint64                 `json:"created_by"`  
-	CreatedByName   string                 `json:"created_by_name"`
-	CreatedAt       time.Time              `json:"created_at"`
-	Metadata        map[string]interface{} `json:"metadata"`
-	IsCurrent       bool                   `json:"is_current"`
+	ID             uint64                 `json:"id"`
+	DocumentID     uint64                 `json:"document_id"`
+	VersionNumber  int                    `json:"version_number"`
+	Title          string                 `json:"title"`
+	Description    string                 `json:"description"`
+	ChangesSummary string                 `json:"changes_summary"`
+	FileName       string                 `json:"file_name"`
+	FileSize       int64                  `json:"file_size"`
+	Checksum       string                 `json:"checksum"`
+	StoragePath    string                 `json:"storage_path"`
+	ParentVersion  *int                   `json:"parent_version"`
+	CreatedBy      uint64                 `json:"created_by"`
+	CreatedByName  string                 `json:"created_by_name"`
+	CreatedAt      time.Time              `json:"created_at"`
+	Metadata       map[string]interface{} `json:"metadata"`
+	IsCurrent      bool                   `json:"is_current"`
 }
 
 // VersionUploadRequest represents a request to create a new version
@@ -230,27 +230,27 @@ func (dvs *DocumentVersionService) GetVersionHistory(ctx context.Context, docume
 	var versionInfos []DocumentVersionInfo
 	for _, v := range versions {
 		versionInfos = append(versionInfos, DocumentVersionInfo{
-			ID:              uint64(v.ID),
-			DocumentID:      uint64(v.DocumentID),
-			VersionNumber:   v.VersionNumber,
-			Title:           v.Title,
-			Description:     "", // Not available in DocumentVersion model
-			ChangesSummary:  func() string {
+			ID:            uint64(v.ID),
+			DocumentID:    uint64(v.DocumentID),
+			VersionNumber: v.VersionNumber,
+			Title:         v.Title,
+			Description:   "", // Not available in DocumentVersion model
+			ChangesSummary: func() string {
 				if v.ChangeSummary != nil {
 					return *v.ChangeSummary
 				}
 				return ""
 			}(),
-			FileName:        "", // Not available in DocumentVersion model
-			FileSize:        v.FileSize,
-			Checksum:        "", // Not available in DocumentVersion model
-			StoragePath:     "", // Not available in DocumentVersion model
-			ParentVersion:   nil, // Not available in DocumentVersion model
-			CreatedBy:       uint64(v.CreatedBy),
-			CreatedByName:   v.CreatedByName,
-			CreatedAt:       v.CreatedAt,
-			Metadata:        map[string]interface{}(v.Metadata),
-			IsCurrent:       v.VersionNumber == document.Version,
+			FileName:      "", // Not available in DocumentVersion model
+			FileSize:      v.FileSize,
+			Checksum:      "",  // Not available in DocumentVersion model
+			StoragePath:   "",  // Not available in DocumentVersion model
+			ParentVersion: nil, // Not available in DocumentVersion model
+			CreatedBy:     uint64(v.CreatedBy),
+			CreatedByName: v.CreatedByName,
+			CreatedAt:     v.CreatedAt,
+			Metadata:      map[string]interface{}(v.Metadata),
+			IsCurrent:     v.VersionNumber == document.Version,
 		})
 	}
 
@@ -289,27 +289,27 @@ func (dvs *DocumentVersionService) GetVersion(ctx context.Context, documentID ui
 	}
 
 	return &DocumentVersionInfo{
-		ID:              uint64(versionData.ID),
-		DocumentID:      uint64(versionData.DocumentID),
-		VersionNumber:   versionData.VersionNumber,
-		Title:           versionData.Title,
-		Description:     "", // Not available in DocumentVersion model
-		ChangesSummary:  func() string {
+		ID:            uint64(versionData.ID),
+		DocumentID:    uint64(versionData.DocumentID),
+		VersionNumber: versionData.VersionNumber,
+		Title:         versionData.Title,
+		Description:   "", // Not available in DocumentVersion model
+		ChangesSummary: func() string {
 			if versionData.ChangeSummary != nil {
 				return *versionData.ChangeSummary
 			}
 			return ""
 		}(),
-		FileName:        "", // Not available in DocumentVersion model
-		FileSize:        versionData.FileSize,
-		Checksum:        "", // Not available in DocumentVersion model
-		StoragePath:     "", // Not available in DocumentVersion model
-		ParentVersion:   nil, // Not available in DocumentVersion model
-		CreatedBy:       uint64(versionData.CreatedBy),
-		CreatedByName:   versionData.CreatedByName,
-		CreatedAt:       versionData.CreatedAt,
-		Metadata:        map[string]interface{}(versionData.Metadata),
-		IsCurrent:       versionData.IsCurrent,
+		FileName:      "", // Not available in DocumentVersion model
+		FileSize:      versionData.FileSize,
+		Checksum:      "",  // Not available in DocumentVersion model
+		StoragePath:   "",  // Not available in DocumentVersion model
+		ParentVersion: nil, // Not available in DocumentVersion model
+		CreatedBy:     uint64(versionData.CreatedBy),
+		CreatedByName: versionData.CreatedByName,
+		CreatedAt:     versionData.CreatedAt,
+		Metadata:      map[string]interface{}(versionData.Metadata),
+		IsCurrent:     versionData.IsCurrent,
 	}, nil
 }
 
@@ -500,7 +500,7 @@ func (dvs *DocumentVersionService) generateComparisonSummary(v1, v2 *DocumentVer
 	}
 
 	summary := fmt.Sprintf("Content changed from version %d to %d", v1.VersionNumber, v2.VersionNumber)
-	
+
 	if sizeDiff > 0 {
 		summary += fmt.Sprintf(", file size increased by %d bytes", sizeDiff)
 	} else if sizeDiff < 0 {
@@ -527,7 +527,7 @@ func (dvs *DocumentVersionService) logVersionOperation(db *gorm.DB, documentID u
 			"timestamp": time.Now(),
 			"operation": operationType,
 		},
-		CreatedAt:     time.Now(),
+		CreatedAt: time.Now(),
 	}
 
 	if c != nil {

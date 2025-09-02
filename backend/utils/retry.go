@@ -10,12 +10,12 @@ import (
 
 // RetryConfig 重试配置
 type RetryConfig struct {
-	MaxRetries      int           `json:"max_retries"`      // 最大重试次数
-	BaseDelay       time.Duration `json:"base_delay"`       // 基础延迟时间
-	MaxDelay        time.Duration `json:"max_delay"`        // 最大延迟时间
-	BackoffFactor   float64       `json:"backoff_factor"`   // 退避因子
-	Jitter          bool          `json:"jitter"`           // 是否添加随机抖动
-	RetryCondition  func(error) bool // 重试条件判断函数
+	MaxRetries     int              `json:"max_retries"`    // 最大重试次数
+	BaseDelay      time.Duration    `json:"base_delay"`     // 基础延迟时间
+	MaxDelay       time.Duration    `json:"max_delay"`      // 最大延迟时间
+	BackoffFactor  float64          `json:"backoff_factor"` // 退避因子
+	Jitter         bool             `json:"jitter"`         // 是否添加随机抖动
+	RetryCondition func(error) bool // 重试条件判断函数
 }
 
 // DefaultRetryConfig 默认重试配置
@@ -45,30 +45,30 @@ func GoogleAPIRetryConfig() *RetryConfig {
 			if err == nil {
 				return false
 			}
-			
+
 			// 对于Google API，重试特定的错误类型
 			errStr := err.Error()
-			
+
 			// 429 - 配额限制
 			if containsAny(errStr, []string{"429", "quotaExceeded", "rateLimitExceeded"}) {
 				return true
 			}
-			
+
 			// 5xx - 服务器错误
 			if containsAny(errStr, []string{"500", "502", "503", "504", "internalError", "backendError"}) {
 				return true
 			}
-			
+
 			// 网络相关错误
 			if containsAny(errStr, []string{"timeout", "connection reset", "network", "EOF"}) {
 				return true
 			}
-			
+
 			// Token过期错误不重试，需要刷新token
 			if containsAny(errStr, []string{"invalid_token", "token_expired", "unauthorized"}) {
 				return false
 			}
-			
+
 			return false
 		},
 	}
@@ -89,7 +89,7 @@ func NewRetryExecutor(config *RetryConfig) *RetryExecutor {
 	if config == nil {
 		config = DefaultRetryConfig()
 	}
-	
+
 	return &RetryExecutor{
 		config: config,
 	}
@@ -104,7 +104,7 @@ type RetryableFuncWithResult[T any] func() (T, error)
 // Execute 执行重试逻辑
 func (r *RetryExecutor) Execute(ctx context.Context, fn RetryableFunc) error {
 	var lastErr error
-	
+
 	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
 		// 检查上下文是否已取消
 		select {
@@ -112,28 +112,28 @@ func (r *RetryExecutor) Execute(ctx context.Context, fn RetryableFunc) error {
 			return fmt.Errorf("context cancelled: %w", ctx.Err())
 		default:
 		}
-		
+
 		// 执行函数
 		err := fn()
 		if err == nil {
 			return nil // 成功，无需重试
 		}
-		
+
 		lastErr = err
-		
+
 		// 检查是否应该重试
 		if !r.config.RetryCondition(err) {
 			return fmt.Errorf("retry condition not met: %w", err)
 		}
-		
+
 		// 如果已经达到最大重试次数，返回最后的错误
 		if attempt >= r.config.MaxRetries {
 			break
 		}
-		
+
 		// 计算延迟时间
 		delay := r.calculateDelay(attempt)
-		
+
 		// 等待指定时间后重试
 		select {
 		case <-ctx.Done():
@@ -142,7 +142,7 @@ func (r *RetryExecutor) Execute(ctx context.Context, fn RetryableFunc) error {
 			// 继续下一次重试
 		}
 	}
-	
+
 	return fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)
 }
 
@@ -150,7 +150,7 @@ func (r *RetryExecutor) Execute(ctx context.Context, fn RetryableFunc) error {
 func ExecuteWithResult[T any](ctx context.Context, r *RetryExecutor, fn RetryableFuncWithResult[T]) (T, error) {
 	var lastErr error
 	var zeroValue T
-	
+
 	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
 		// 检查上下文是否已取消
 		select {
@@ -158,28 +158,28 @@ func ExecuteWithResult[T any](ctx context.Context, r *RetryExecutor, fn Retryabl
 			return zeroValue, fmt.Errorf("context cancelled: %w", ctx.Err())
 		default:
 		}
-		
+
 		// 执行函数
 		result, err := fn()
 		if err == nil {
 			return result, nil // 成功，无需重试
 		}
-		
+
 		lastErr = err
-		
+
 		// 检查是否应该重试
 		if !r.config.RetryCondition(err) {
 			return zeroValue, fmt.Errorf("retry condition not met: %w", err)
 		}
-		
+
 		// 如果已经达到最大重试次数，返回最后的错误
 		if attempt >= r.config.MaxRetries {
 			break
 		}
-		
+
 		// 计算延迟时间
 		delay := r.calculateDelay(attempt)
-		
+
 		// 等待指定时间后重试
 		select {
 		case <-ctx.Done():
@@ -188,7 +188,7 @@ func ExecuteWithResult[T any](ctx context.Context, r *RetryExecutor, fn Retryabl
 			// 继续下一次重试
 		}
 	}
-	
+
 	return zeroValue, fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)
 }
 
@@ -196,24 +196,24 @@ func ExecuteWithResult[T any](ctx context.Context, r *RetryExecutor, fn Retryabl
 func (r *RetryExecutor) calculateDelay(attempt int) time.Duration {
 	// 计算指数退避延迟
 	delay := float64(r.config.BaseDelay) * math.Pow(r.config.BackoffFactor, float64(attempt))
-	
+
 	// 确保不超过最大延迟
 	if time.Duration(delay) > r.config.MaxDelay {
 		delay = float64(r.config.MaxDelay)
 	}
-	
+
 	// 添加随机抖动以避免雷群效应
 	if r.config.Jitter {
-		jitterRange := delay * 0.1 // 10%的抖动范围
+		jitterRange := delay * 0.1                         // 10%的抖动范围
 		jitter := (rand.Float64() - 0.5) * 2 * jitterRange // -10% 到 +10%
 		delay += jitter
-		
+
 		// 确保延迟不为负数
 		if delay < 0 {
 			delay = float64(r.config.BaseDelay)
 		}
 	}
-	
+
 	return time.Duration(delay)
 }
 
@@ -254,10 +254,10 @@ func (r *RetryExecutor) ExecuteWithStats(ctx context.Context, fn RetryableFunc) 
 	stats := &RetryStats{}
 	var lastErr error
 	startTime := time.Now()
-	
+
 	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
 		stats.TotalAttempts = attempt + 1
-		
+
 		// 检查上下文是否已取消
 		select {
 		case <-ctx.Done():
@@ -266,7 +266,7 @@ func (r *RetryExecutor) ExecuteWithStats(ctx context.Context, fn RetryableFunc) 
 			return stats, fmt.Errorf("context cancelled: %w", ctx.Err())
 		default:
 		}
-		
+
 		// 执行函数
 		err := fn()
 		if err == nil {
@@ -274,24 +274,24 @@ func (r *RetryExecutor) ExecuteWithStats(ctx context.Context, fn RetryableFunc) 
 			stats.TotalDelay = time.Since(startTime)
 			return stats, nil // 成功，无需重试
 		}
-		
+
 		lastErr = err
-		
+
 		// 检查是否应该重试
 		if !r.config.RetryCondition(err) {
 			stats.TotalDelay = time.Since(startTime)
 			stats.LastError = err.Error()
 			return stats, fmt.Errorf("retry condition not met: %w", err)
 		}
-		
+
 		// 如果已经达到最大重试次数，返回最后的错误
 		if attempt >= r.config.MaxRetries {
 			break
 		}
-		
+
 		// 计算延迟时间
 		delay := r.calculateDelay(attempt)
-		
+
 		// 等待指定时间后重试
 		select {
 		case <-ctx.Done():
@@ -302,7 +302,7 @@ func (r *RetryExecutor) ExecuteWithStats(ctx context.Context, fn RetryableFunc) 
 			// 继续下一次重试
 		}
 	}
-	
+
 	stats.TotalDelay = time.Since(startTime)
 	stats.LastError = lastErr.Error()
 	return stats, fmt.Errorf("max retries (%d) exceeded: %w", r.config.MaxRetries, lastErr)
@@ -336,14 +336,14 @@ func WithJitter(delay time.Duration, jitterPercent float64) time.Duration {
 	if jitterPercent <= 0 || jitterPercent > 100 {
 		return delay
 	}
-	
+
 	jitterRange := float64(delay) * (jitterPercent / 100.0)
 	jitter := (rand.Float64() - 0.5) * 2 * jitterRange
 	result := float64(delay) + jitter
-	
+
 	if result < 0 {
 		return delay
 	}
-	
+
 	return time.Duration(result)
 }

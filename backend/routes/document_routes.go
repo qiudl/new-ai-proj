@@ -2,10 +2,13 @@ package routes
 
 import (
 	"database/sql"
+	"fmt"
+	"github.com/gin-gonic/gin"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
-	"github.com/gin-gonic/gin"
 )
 
 // RegisterDocumentRoutes 注册文档管理相关路由
@@ -15,19 +18,19 @@ func RegisterDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 
 	// 注册统一任务文档路由（基于项目/任务的文档接口，包括 create-and-attach）
 	registerUnifiedTaskDocumentRoutes(authorized, app)
-	
+
 	// 注册基于路由器的新API（优先使用RouterDocumentHandler）
 	registerRouterBasedTaskDocumentRoutes(authorized, app)
-	
+
 	// 注册工作笔记路由
 	registerWorkNotesRoutes(authorized, app)
-	
+
 	// 注册文档文件夹管理路由（扩展版）
 	registerDocumentFolderRoutes(authorized, app)
-	
+
 	// 注册文档协作路由（占位符）
 	registerDocumentCollaborationRoutes(authorized, app)
-	
+
 	// 注册文档元数据路由
 	registerDocumentMetadataRoutes(authorized, app)
 }
@@ -41,31 +44,31 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 			c.JSON(200, gin.H{"success": true, "message": "Debug endpoint coming soon"})
 		})
 	}
-	
+
 	// Document CRUD routes（全局文档资源）
 	authorized.GET("/documents", app.GetDocumentHandler().GetDocuments)
 	authorized.POST("/documents", app.GetDocumentHandler().CreateDocument)
 	authorized.GET("/documents/:id", app.GetDocumentHandler().GetDocument)
 	authorized.PUT("/documents/:id", app.GetDocumentHandler().UpdateDocument)
 	authorized.DELETE("/documents/:id", app.GetDocumentHandler().DeleteDocument)
-	
+
 	// Archive/Unarchive - 占位符实现
 	authorized.POST("/documents/:id/archive", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "message": "Archive feature coming soon"})
 	})
 	authorized.POST("/documents/:id/unarchive", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "message": "Unarchive feature coming soon"})
-	})	
+	})
 	// Batch operations - 占位符实现
 	authorized.POST("/documents/batch", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "message": "Batch operations coming soon"})
 	})
-	
+
 	// Search - 占位符实现
 	authorized.GET("/documents/search", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Search coming soon"})
 	})
-	
+
 	// Version management - 占位符实现
 	authorized.GET("/documents/:id/versions", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Version management coming soon"})
@@ -73,7 +76,7 @@ func registerBasicDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	authorized.POST("/documents/:id/versions", func(c *gin.Context) {
 		c.JSON(200, gin.H{"success": true, "message": "Version creation coming soon"})
 	})
-	
+
 	// Legacy compatibility routes (使用现有的HybridDocumentHandler方法)
 	authorized.POST("/documents/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 	authorized.POST("/documents/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
@@ -89,8 +92,8 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 			// 旧的单数路由兼容性处理
 			tasks.GET("/:taskId/document", func(c *gin.Context) {
 				c.JSON(410, gin.H{
-					"success": false,
-					"message": "This GET endpoint is deprecated. Use /projects/:id/tasks/:taskId/documents instead.",
+					"success":     false,
+					"message":     "This GET endpoint is deprecated. Use /projects/:id/tasks/:taskId/documents instead.",
 					"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
 				})
 			})
@@ -100,7 +103,7 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 			})
 			tasks.PUT("/:taskId/document", func(c *gin.Context) {
 				c.JSON(200, gin.H{"success": true, "message": "Task document upsert coming soon"})
-			})			
+			})
 			taskDocuments := tasks.Group("/:taskId/documents")
 			{
 				// 获取任务的所有文档
@@ -110,24 +113,24 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 				taskDocuments.GET("/list", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 				})
-				
+
 				// 原子：创建文档并关联到任务（使用现有方法）
 				taskDocuments.POST("/create-and-attach", app.GetDocumentHandler().CreateAndAttachDocument)
 				// 别名路由
 				taskDocuments.POST("", app.GetDocumentHandler().CreateAndAttachDocument)
-				
+
 				// 批量更新任务文档关联 - 占位符
 				taskDocuments.PUT("", func(c *gin.Context) {
 					c.JSON(200, gin.H{
 						"success": true,
 						"message": "批量更新功能开发中，请使用单个文档更新接口",
-						"note": "请使用 PUT /api/v1/documents/:documentId 来更新特定文档",
+						"note":    "请使用 PUT /api/v1/documents/:documentId 来更新特定文档",
 					})
 				})
-				
+
 				// 更新特定任务文档 (便捷路由，实际调用标准文档更新)
 				taskDocuments.PUT("/:documentId", app.GetDocumentHandler().UpdateDocument)
-				
+
 				// 文档归档/解归档（便捷路由）- 占位符
 				taskDocuments.POST("/:documentId/archive", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "message": "Archive coming soon"})
@@ -135,12 +138,12 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 				taskDocuments.POST("/:documentId/unarchive", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "message": "Unarchive coming soon"})
 				})
-				
+
 				// 将现有文档关联到任务 - 占位符
 				taskDocuments.POST("/:documentId/attach", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "message": "Attach document coming soon"})
 				})
-				
+
 				// 从任务中移除文档 - 占位符
 				taskDocuments.DELETE("/:documentId", func(c *gin.Context) {
 					c.JSON(200, gin.H{"success": true, "message": "Detach document coming soon"})
@@ -149,8 +152,11 @@ func registerUnifiedTaskDocumentRoutes(authorized *gin.RouterGroup, app Applicat
 		}
 	}
 }
+
 // registerWorkNotesRoutes 注册工作笔记路由
 func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
+	fmt.Println("DEBUG: registerWorkNotesRoutes function called from document_routes.go!")
+	log.Printf("DEBUG: registerWorkNotesRoutes function called from document_routes.go!")
 	workNotes := authorized.Group("/work-notes")
 	{
 		// 开发环境辅助端点
@@ -163,10 +169,10 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 				c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 			})
 		}
-		
+
 		// 使用专用的WorkNoteHandler处理工作笔记特有功能
 		workNotesHandler := app.GetWorkNoteHandler()
-		
+
 		// 基础CRUD操作
 		workNotes.GET("", workNotesHandler.ListWorkNotes)
 		workNotes.POST("", workNotesHandler.CreateWorkNote)
@@ -174,7 +180,7 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/:id", workNotesHandler.GetWorkNote)
 		workNotes.PUT("/:id", workNotesHandler.UpdateWorkNote)
 		workNotes.DELETE("/:id", workNotesHandler.DeleteWorkNote)
-		
+
 		// 工作笔记特有功能 - 占位符实现
 		workNotes.POST("/batch", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "message": "Batch operations coming soon"})
@@ -191,7 +197,7 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		workNotes.GET("/bookmarked", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
 		})
-		
+
 		// 单个笔记操作 - 占位符实现
 		workNotes.POST("/:id/pin", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "message": "Pin feature coming soon"})
@@ -201,11 +207,11 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 		})
 		workNotes.GET("/:id/related", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": []interface{}{}})
-		})		
+		})
 		// 兼容性：保留一些通用文档操作
 		workNotes.POST("/:id/copy", app.GetHybridDocumentHandler().CopyDocument)
 		workNotes.POST("/:id/toggle-template", app.GetHybridDocumentHandler().ToggleTemplate)
-		
+
 		// 工作笔记转任务文档功能 - 占位符实现
 		workNotes.POST("/:id/convert-to-task-document", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "message": "Convert to task document coming soon"})
@@ -217,34 +223,50 @@ func registerWorkNotesRoutes(authorized *gin.RouterGroup, app ApplicationInterfa
 			c.JSON(200, gin.H{"success": true, "message": "Batch convert coming soon"})
 		})
 	}
-	
+
 	// 工作笔记文件夹路由
 	workNoteFolders := authorized.Group("/work-note-folders")
 	{
 		folderHandler := app.GetWorkNoteFolderHandler()
+		fmt.Printf("DEBUG ROUTES: folderHandler is nil: %v\n", folderHandler == nil)
 		if folderHandler != nil {
-			// 基础CRUD操作
-			workNoteFolders.GET("", folderHandler.ListWorkNoteFolders)
+			fmt.Println("DEBUG ROUTES: Registering work note folder routes with valid handler")
+			// 基础CRUD操作 - Add debug wrapper
+			workNoteFolders.GET("", func(c *gin.Context) {
+				fmt.Println("DEBUG WRAPPER: Route handler wrapper called!")
+				folderHandler.ListWorkNoteFolders(c)
+			})
 			workNoteFolders.POST("", folderHandler.CreateWorkNoteFolder)
 			workNoteFolders.GET("/:id", folderHandler.GetWorkNoteFolder)
 			workNoteFolders.PUT("/:id", folderHandler.UpdateWorkNoteFolder)
 			workNoteFolders.DELETE("/:id", folderHandler.DeleteWorkNoteFolder)
-			
+
 			// 文件夹树和层级操作
 			workNoteFolders.GET("/tree", folderHandler.GetWorkNoteFolderTree)
 			workNoteFolders.GET("/search", folderHandler.SearchWorkNoteFolders)
 			workNoteFolders.GET("/:id/ancestors", folderHandler.GetFolderAncestors)
 			workNoteFolders.GET("/:id/descendants", folderHandler.GetFolderDescendants)
 			workNoteFolders.GET("/:id/stats", folderHandler.GetFolderStats)
-			
+
 			// 批量操作
 			workNoteFolders.POST("/:id/move", folderHandler.MoveWorkNoteFolder)
 			workNoteFolders.POST("/batch/move", folderHandler.BatchMoveFolders)
 			workNoteFolders.POST("/batch/sort", folderHandler.BatchSortFolders)
 			workNoteFolders.POST("/batch/move-notes", folderHandler.BatchMoveNotesToFolder)
+		} else {
+			fmt.Println("DEBUG ROUTES: folderHandler is nil! Registering fallback routes")
+			// Fallback route to show the issue
+			workNoteFolders.GET("", func(c *gin.Context) {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error":   "WorkNoteFolderHandler is nil",
+					"message": "Failed to initialize work note folder handler",
+				})
+			})
 		}
 	}
 }
+
 // registerDocumentFolderRoutes 注册文档文件夹管理路由
 // registerDocumentFolderRoutes 注册文档文件夹路由
 func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
@@ -261,7 +283,7 @@ func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationIn
 		})
 		return
 	}
-	
+
 	documentFolders := authorized.Group("/document-folders")
 	{
 		// 使用现有的HybridDocumentFolderHandler方法
@@ -273,7 +295,7 @@ func registerDocumentFolderRoutes(authorized *gin.RouterGroup, app ApplicationIn
 		documentFolders.DELETE("/:id", h.DeleteFolder)
 		documentFolders.POST("/:id/move", h.MoveFolder)
 		documentFolders.POST("/batch-update", h.BatchUpdateFolders)
-		
+
 		// 文件夹内文档管理 - 使用基础的DocumentHandler
 		documentFolders.GET("/:id/documents", func(c *gin.Context) {
 			c.JSON(200, gin.H{"success": true, "data": []interface{}{}, "message": "Folder documents coming soon"})
@@ -304,6 +326,7 @@ func registerDocumentCollaborationRoutes(authorized *gin.RouterGroup, app Applic
 		}
 	}
 }
+
 // registerDocumentMetadataRoutes 注册文档元数据路由
 func registerDocumentMetadataRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// 文档元数据获取路由
@@ -317,8 +340,8 @@ func RegisterPersonalTimerDocumentRoutes(timerTasks *gin.RouterGroup, app Applic
 	// 个人计时器任务的文档管理
 	timerTasks.GET("/:id/document", func(c *gin.Context) {
 		c.JSON(410, gin.H{
-			"success": false,
-			"message": "This file-based personal GET endpoint is deprecated. Use documents API instead.",
+			"success":     false,
+			"message":     "This file-based personal GET endpoint is deprecated. Use documents API instead.",
 			"replacement": "/api/v1/projects/:id/tasks/:taskId/documents",
 		})
 	})
@@ -344,7 +367,7 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 					LEFT JOIN task_documents td ON td.document_id = d.id
 					WHERE td.document_id IS NULL AND d.deleted_at IS NULL
 				`)
-					_ = row.Scan(&orphanDocs)
+				_ = row.Scan(&orphanDocs)
 
 				row2 := sqlDB.QueryRow(`
 					SELECT COALESCE(COUNT(*),0)
@@ -352,18 +375,18 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 					LEFT JOIN documents d ON d.id = td.document_id
 					WHERE d.id IS NULL
 				`)
-					_ = row2.Scan(&orphanLinks)
+				_ = row2.Scan(&orphanLinks)
 			}
 		}
 		c.JSON(200, gin.H{
 			"success": true,
 			"message": "Document service is healthy",
 			"data": gin.H{
-				"status": status,
-				"timestamp": time.Now().Format(time.RFC3339),
+				"status":           status,
+				"timestamp":        time.Now().Format(time.RFC3339),
 				"orphan_documents": orphanDocs,
-				"orphan_links": orphanLinks,
-				"mirror_writable": false,
+				"orphan_links":     orphanLinks,
+				"mirror_writable":  false,
 			},
 		})
 	})
@@ -411,13 +434,13 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 			"success": true,
 			"message": "Document service health",
 			"data": gin.H{
-				"status": status,
-				"timestamp": time.Now().Format(time.RFC3339),
+				"status":           status,
+				"timestamp":        time.Now().Format(time.RFC3339),
 				"orphan_documents": orphanDocs,
-				"orphan_links": orphanLinks,
-				"mirror_enabled": mirrorEnabled,
+				"orphan_links":     orphanLinks,
+				"mirror_enabled":   mirrorEnabled,
 				"mirror_base_path": mirrorPath,
-				"mirror_writable": mirrorWritable,
+				"mirror_writable":  mirrorWritable,
 			},
 		})
 	})
@@ -426,7 +449,7 @@ func RegisterDocumentHealthRoute(router *gin.Engine, app ApplicationInterface) {
 // registerRouterBasedTaskDocumentRoutes 注册基于路由器的任务文档路由（新架构）
 func registerRouterBasedTaskDocumentRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	routerHandler := app.GetRouterDocumentHandler()
-	
+
 	// 新架构路由：/api/v1/router/projects/:id/tasks/:taskId/documents
 	routerGroup := authorized.Group("/router")
 	{
@@ -441,21 +464,21 @@ func registerRouterBasedTaskDocumentRoutes(authorized *gin.RouterGroup, app Appl
 					taskDocuments.GET("/read", routerHandler.GetDocument)
 					taskDocuments.PUT("/update", routerHandler.UpdateDocument)
 					taskDocuments.DELETE("/delete", routerHandler.DeleteDocument)
-					
+
 					// 创建并关联文档到任务（兼容现有API）
 					taskDocuments.POST("/create-and-attach", routerHandler.CreateAndAttachDocument)
-					
+
 					// 文档历史
 					taskDocuments.GET("/history", routerHandler.GetDocumentHistory)
-					
+
 					// 文档归档
 					taskDocuments.POST("/archive", routerHandler.ArchiveDocument)
-					
+
 					// 搜索（项目范围）
 					taskDocuments.GET("/search", routerHandler.SearchDocuments)
 				}
 			}
-			
+
 			// 项目级别的批量操作
 			projectDocs := projects.Group("/:id/documents")
 			{
@@ -464,10 +487,10 @@ func registerRouterBasedTaskDocumentRoutes(authorized *gin.RouterGroup, app Appl
 				projectDocs.POST("/export", routerHandler.ExportDocuments)
 			}
 		}
-		
+
 		// 全局文档搜索
 		routerGroup.GET("/documents/search", routerHandler.SearchDocuments)
-		
+
 		// 管理接口
 		management := routerGroup.Group("/management")
 		{

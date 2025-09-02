@@ -20,10 +20,10 @@ type TaskDocumentFileService struct {
 
 // GitCommit Git提交信息
 type GitCommit struct {
-	Hash      string    `json:"hash"`
-	Author    string    `json:"author"`
-	Date      time.Time `json:"date"`
-	Message   string    `json:"message"`
+	Hash    string    `json:"hash"`
+	Author  string    `json:"author"`
+	Date    time.Time `json:"date"`
+	Message string    `json:"message"`
 }
 
 // DocumentDiff 文档差异信息
@@ -39,10 +39,10 @@ func NewTaskDocumentFileService(basePath string) *TaskDocumentFileService {
 		basePath:   basePath,
 		gitEnabled: true,
 	}
-	
+
 	// 确保基础目录存在
 	service.ensureDirectories()
-	
+
 	return service
 }
 
@@ -54,7 +54,7 @@ func (s *TaskDocumentFileService) ensureDirectories() {
 		filepath.Join(s.basePath, "tasks", "templates"),
 		filepath.Join(s.basePath, "tasks", "archives"),
 	}
-	
+
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0755)
 	}
@@ -64,17 +64,17 @@ func (s *TaskDocumentFileService) ensureDirectories() {
 func (s *TaskDocumentFileService) CreateTaskDocument(ctx context.Context, task *models.Task, projectID int) error {
 	docPath := s.getTaskDocumentPath(task.ID, projectID)
 	content := s.generateTaskDocumentContent(task, projectID)
-	
+
 	// 确保项目目录存在
 	if err := os.MkdirAll(filepath.Dir(docPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// 写入文件
 	if err := ioutil.WriteFile(docPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.gitEnabled {
 		if err := s.gitCommit(docPath, fmt.Sprintf("Create task document: %s (ID: %d)", task.Title, task.ID)); err != nil {
@@ -82,7 +82,7 @@ func (s *TaskDocumentFileService) CreateTaskDocument(ctx context.Context, task *
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -90,53 +90,53 @@ func (s *TaskDocumentFileService) CreateTaskDocument(ctx context.Context, task *
 func (s *TaskDocumentFileService) CreatePersonalTaskDocument(ctx context.Context, task *models.UserTimerTask) error {
 	docPath := s.getPersonalTaskDocumentPath(task.ID, task.UserID)
 	content := s.generatePersonalTaskDocumentContent(task)
-	
+
 	// 确保用户目录存在
 	if err := os.MkdirAll(filepath.Dir(docPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// 写入文件
 	if err := ioutil.WriteFile(docPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write personal document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.gitEnabled {
 		if err := s.gitCommit(docPath, fmt.Sprintf("Create personal task document: %s (ID: %d)", task.Title, task.ID)); err != nil {
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
 // UpdateTaskDocument 更新任务文档元数据
 func (s *TaskDocumentFileService) UpdateTaskDocument(ctx context.Context, task *models.Task, projectID int) error {
 	docPath := s.getTaskDocumentPath(task.ID, projectID)
-	
+
 	// 读取现有内容
 	existingContent, err := s.readTaskDocument(docPath)
 	if err != nil {
 		// 如果文档不存在，创建新的
 		return s.CreateTaskDocument(ctx, task, projectID)
 	}
-	
+
 	// 更新元数据部分，保留内容部分
 	updatedContent := s.updateTaskDocumentMetadata(existingContent, task)
-	
+
 	// 写入文件
 	if err := ioutil.WriteFile(docPath, []byte(updatedContent), 0644); err != nil {
 		return fmt.Errorf("failed to update document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.gitEnabled {
 		if err := s.gitCommit(docPath, fmt.Sprintf("Update task document metadata: %s (ID: %d)", task.Title, task.ID)); err != nil {
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -156,7 +156,7 @@ func (s *TaskDocumentFileService) ReadPersonalTaskDocument(taskID, userID int) (
 func (s *TaskDocumentFileService) UpdateDocumentContent(taskID, projectID int, content string, isPersonal bool, userID int) error {
 	var docPath string
 	var commitMessage string
-	
+
 	if isPersonal {
 		docPath = s.getPersonalTaskDocumentPath(taskID, userID)
 		commitMessage = fmt.Sprintf("Update personal task document content: task-%d", taskID)
@@ -164,18 +164,18 @@ func (s *TaskDocumentFileService) UpdateDocumentContent(taskID, projectID int, c
 		docPath = s.getTaskDocumentPath(taskID, projectID)
 		commitMessage = fmt.Sprintf("Update task document content: task-%d", taskID)
 	}
-	
+
 	if err := ioutil.WriteFile(docPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to update document content: %w", err)
 	}
-	
+
 	// Git提交
 	if s.gitEnabled {
 		if err := s.gitCommit(docPath, commitMessage); err != nil {
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -183,34 +183,34 @@ func (s *TaskDocumentFileService) UpdateDocumentContent(taskID, projectID int, c
 func (s *TaskDocumentFileService) ArchiveTaskDocument(taskID, projectID int) error {
 	sourcePath := s.getTaskDocumentPath(taskID, projectID)
 	archivePath := s.getArchivedDocumentPath(taskID)
-	
+
 	// 检查源文件是否存在
 	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
 		return nil // 文档不存在，无需归档
 	}
-	
+
 	// 确保归档目录存在
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
 		return fmt.Errorf("failed to create archive directory: %w", err)
 	}
-	
+
 	// 复制文件到归档目录（而不是移动，保留原文件用于历史记录）
 	content, err := ioutil.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	
+
 	if err := ioutil.WriteFile(archivePath, content, 0644); err != nil {
 		return fmt.Errorf("failed to write archive file: %w", err)
 	}
-	
+
 	// Git提交归档
 	if s.gitEnabled {
 		if err := s.gitCommit(archivePath, fmt.Sprintf("Archive task document: task-%d", taskID)); err != nil {
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -222,18 +222,18 @@ func (s *TaskDocumentFileService) GetDocumentHistory(taskID, projectID int, isPe
 	} else {
 		docPath = s.getTaskDocumentPath(taskID, projectID)
 	}
-	
+
 	// 获取相对路径（相对于仓库根目录）
 	relPath, err := filepath.Rel(s.getRepoRoot(), docPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get relative path: %w", err)
 	}
-	
+
 	output, err := s.execGitCommandWithOutput("log", "--pretty=format:%H|%an|%ad|%s", "--date=iso", "--", relPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get git log: %w", err)
 	}
-	
+
 	return s.parseGitLog(output), nil
 }
 
@@ -245,17 +245,17 @@ func (s *TaskDocumentFileService) CompareDocumentVersions(taskID, projectID int,
 	} else {
 		docPath = s.getTaskDocumentPath(taskID, projectID)
 	}
-	
+
 	relPath, err := filepath.Rel(s.getRepoRoot(), docPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get relative path: %w", err)
 	}
-	
+
 	diff, err := s.execGitCommandWithOutput("diff", fromHash, toHash, "--", relPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get diff: %w", err)
 	}
-	
+
 	return &DocumentDiff{
 		FromHash: fromHash,
 		ToHash:   toHash,
@@ -346,7 +346,7 @@ created_date: "{CREATED_DATE}"
 // generateTaskDocumentContent 生成任务文档内容
 func (s *TaskDocumentFileService) generateTaskDocumentContent(task *models.Task, projectID int) string {
 	template := s.loadTemplate("task-template.md")
-	
+
 	// 替换模板变量
 	content := strings.ReplaceAll(template, "{TASK_ID}", fmt.Sprintf("%d", task.ID))
 	content = strings.ReplaceAll(content, "{PROJECT_ID}", fmt.Sprintf("%d", projectID))
@@ -373,14 +373,14 @@ func (s *TaskDocumentFileService) generateTaskDocumentContent(task *models.Task,
 	content = strings.ReplaceAll(content, "{END}", "")
 	content = strings.ReplaceAll(content, "{DURATION}", "")
 	content = strings.ReplaceAll(content, "{DESCRIPTION}", "")
-	
+
 	return content
 }
 
 // generatePersonalTaskDocumentContent 生成个人任务文档内容
 func (s *TaskDocumentFileService) generatePersonalTaskDocumentContent(task *models.UserTimerTask) string {
 	template := s.loadTemplate("personal-task-template.md")
-	
+
 	// 替换模板变量
 	content := strings.ReplaceAll(template, "{TASK_ID}", fmt.Sprintf("%d", task.ID))
 	content = strings.ReplaceAll(content, "{USER_ID}", fmt.Sprintf("%d", task.UserID))
@@ -413,7 +413,7 @@ func (s *TaskDocumentFileService) generatePersonalTaskDocumentContent(task *mode
 	content = strings.ReplaceAll(content, "{PREV_DURATION}", "")
 	content = strings.ReplaceAll(content, "{PREV_WORK_CONTENT}", "")
 	content = strings.ReplaceAll(content, "{PREV_COMPLETION_STATUS}", "")
-	
+
 	return content
 }
 
@@ -433,21 +433,21 @@ func (s *TaskDocumentFileService) updateTaskDocumentMetadata(existingContent str
 	var updatedLines []string
 	inFrontMatter := false
 	frontMatterEnded := false
-	
+
 	for i, line := range lines {
 		if i == 0 && strings.TrimSpace(line) == "---" {
 			inFrontMatter = true
 			updatedLines = append(updatedLines, line)
 			continue
 		}
-		
+
 		if inFrontMatter && strings.TrimSpace(line) == "---" && i > 0 {
 			frontMatterEnded = true
 			inFrontMatter = false
 			updatedLines = append(updatedLines, line)
 			continue
 		}
-		
+
 		if inFrontMatter && !frontMatterEnded {
 			// 更新元数据字段
 			if strings.HasPrefix(line, "title:") {
@@ -463,7 +463,7 @@ func (s *TaskDocumentFileService) updateTaskDocumentMetadata(existingContent str
 			updatedLines = append(updatedLines, line)
 		}
 	}
-	
+
 	return strings.Join(updatedLines, "\n")
 }
 
@@ -472,12 +472,12 @@ func (s *TaskDocumentFileService) updateTaskDocumentMetadata(existingContent str
 // gitCommit 提交文件到Git
 func (s *TaskDocumentFileService) gitCommit(filePath, message string) error {
 	repoRoot := s.getRepoRoot()
-	
+
 	// 添加文件到暂存区
 	if err := s.execGitCommand(repoRoot, "add", filePath); err != nil {
 		return fmt.Errorf("git add failed: %w", err)
 	}
-	
+
 	// 提交更改
 	if err := s.execGitCommand(repoRoot, "commit", "-m", message); err != nil {
 		// 如果没有更改需要提交，不报错
@@ -486,7 +486,7 @@ func (s *TaskDocumentFileService) gitCommit(filePath, message string) error {
 		}
 		return fmt.Errorf("git commit failed: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -516,12 +516,12 @@ func (s *TaskDocumentFileService) execGitCommandWithOutput(args ...string) (stri
 func (s *TaskDocumentFileService) parseGitLog(output string) []GitCommit {
 	var commits []GitCommit
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Split(line, "|")
 		if len(parts) >= 4 {
 			date, _ := time.Parse("2006-01-02 15:04:05 -0700", parts[2])
@@ -533,6 +533,6 @@ func (s *TaskDocumentFileService) parseGitLog(output string) []GitCommit {
 			})
 		}
 	}
-	
+
 	return commits
 }

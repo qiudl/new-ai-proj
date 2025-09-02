@@ -117,7 +117,7 @@ func GetCommonRoleRequirements() map[string]RoleRequirement {
 			RequiredPermissions:  []string{"finance.contracts.read"},
 			ValidatePermissions:  true,
 			StrictPermissionMode: false,
-			ErrorMessage:        "Financial data access permission required",
+			ErrorMessage:         "Financial data access permission required",
 		},
 		"project_management": {
 			RequiredPermissions: []string{
@@ -126,14 +126,14 @@ func GetCommonRoleRequirements() map[string]RoleRequirement {
 			},
 			ValidatePermissions:  true,
 			StrictPermissionMode: true,
-			ErrorMessage:        "Project management permissions required",
+			ErrorMessage:         "Project management permissions required",
 		},
 		"audit_read_only": {
 			RoleCodes:           []string{"system_auditor", "system_admin", "superadmin"},
 			MatchAny:            true,
 			RequiredPermissions: []string{"system.audit.read"},
 			ValidatePermissions: true,
-			ErrorMessage:       "Audit access permission required",
+			ErrorMessage:        "Audit access permission required",
 		},
 	}
 }
@@ -153,7 +153,7 @@ func (v *DefaultRolePermissionValidator) ValidateRole(roleCode string, context m
 	if roleCode == "" {
 		return fmt.Errorf("role code cannot be empty")
 	}
-	
+
 	// 可以在这里添加更多的角色验证逻辑
 	return nil
 }
@@ -163,7 +163,7 @@ func (v *DefaultRolePermissionValidator) ValidatePermission(permissionCode strin
 	if permissionCode == "" {
 		return fmt.Errorf("permission code cannot be empty")
 	}
-	
+
 	// 可以在这里添加更多的权限验证逻辑
 	return nil
 }

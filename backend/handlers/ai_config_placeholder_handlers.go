@@ -47,10 +47,10 @@ func (h *AIConfigPlaceholderHandler) CreateAIConfig(c *gin.Context) {
 
 	// Placeholder response with mock data
 	mockConfig := map[string]interface{}{
-		"id":       1,
-		"provider": req["provider"],
-		"model":    req["model"],
-		"enabled":  true,
+		"id":         1,
+		"provider":   req["provider"],
+		"model":      req["model"],
+		"enabled":    true,
 		"created_at": time.Now(),
 	}
 
@@ -61,13 +61,13 @@ func (h *AIConfigPlaceholderHandler) CreateAIConfig(c *gin.Context) {
 // GetAIConfig 获取单个AI配置 (占位实现)
 func (h *AIConfigPlaceholderHandler) GetAIConfig(c *gin.Context) {
 	provider := c.Param("provider")
-	
+
 	// Placeholder response with mock data
 	mockConfig := map[string]interface{}{
-		"id":       1,
-		"provider": provider,
-		"model":    "gpt-3.5-turbo",
-		"enabled":  true,
+		"id":         1,
+		"provider":   provider,
+		"model":      "gpt-3.5-turbo",
+		"enabled":    true,
 		"created_at": time.Now(),
 	}
 
@@ -97,48 +97,48 @@ func (h *AIConfigPlaceholderHandler) TestAIConnection(c *gin.Context) {
 	}
 
 	var testResult map[string]interface{}
-	
+
 	// Simulate different test outcomes based on provider
 	switch provider {
 	case "openai":
 		testResult = map[string]interface{}{
-			"status":      "success",
-			"provider":    provider,
-			"model":       "gpt-3.5-turbo",
-			"latency_ms":  150,
-			"message":     "OpenAI connection test successful",
+			"status":     "success",
+			"provider":   provider,
+			"model":      "gpt-3.5-turbo",
+			"latency_ms": 150,
+			"message":    "OpenAI connection test successful",
 		}
 	case "claude":
 		testResult = map[string]interface{}{
-			"status":      "success", 
-			"provider":    provider,
-			"model":       "claude-3-sonnet",
-			"latency_ms":  180,
-			"message":     "Claude connection test successful",
+			"status":     "success",
+			"provider":   provider,
+			"model":      "claude-3-sonnet",
+			"latency_ms": 180,
+			"message":    "Claude connection test successful",
 		}
 	case "deepseek":
 		testResult = map[string]interface{}{
-			"status":      "success",
-			"provider":    provider,
-			"model":       "deepseek-chat",
-			"latency_ms":  120,
-			"message":     "DeepSeek connection test successful",
+			"status":     "success",
+			"provider":   provider,
+			"model":      "deepseek-chat",
+			"latency_ms": 120,
+			"message":    "DeepSeek connection test successful",
 		}
 	default:
 		// Simulate random success/failure for unknown providers
 		rand.Seed(time.Now().UnixNano())
 		if rand.Float32() > 0.3 {
 			testResult = map[string]interface{}{
-				"status":      "success",
-				"provider":    provider,
-				"latency_ms":  100 + rand.Intn(200),
-				"message":     fmt.Sprintf("%s connection test successful", provider),
+				"status":     "success",
+				"provider":   provider,
+				"latency_ms": 100 + rand.Intn(200),
+				"message":    fmt.Sprintf("%s connection test successful", provider),
 			}
 		} else {
 			testResult = map[string]interface{}{
-				"status":  "error",
+				"status":   "error",
 				"provider": provider,
-				"message": fmt.Sprintf("Failed to connect to %s: Connection timeout", provider),
+				"message":  fmt.Sprintf("Failed to connect to %s: Connection timeout", provider),
 			}
 		}
 	}
@@ -163,9 +163,9 @@ func (h *AIConfigPlaceholderHandler) ToggleAIConfig(c *gin.Context) {
 	}
 
 	mockConfig := map[string]interface{}{
-		"id":       1,
-		"provider": provider,
-		"enabled":  enabled,
+		"id":         1,
+		"provider":   provider,
+		"enabled":    enabled,
 		"updated_at": time.Now(),
 	}
 
@@ -183,10 +183,10 @@ func (h *AIConfigPlaceholderHandler) GetEnabledAIConfig(c *gin.Context) {
 // GetAIConfigStats 获取AI配置统计信息 (占位实现)
 func (h *AIConfigPlaceholderHandler) GetAIConfigStats(c *gin.Context) {
 	stats := map[string]interface{}{
-		"total_configs": 3,
+		"total_configs":   3,
 		"enabled_configs": 2,
-		"total_requests": 150,
-		"success_rate": 95.5,
+		"total_requests":  150,
+		"success_rate":    95.5,
 	}
 
 	response := models.NewSuccessResponse(stats, "AI configuration stats retrieved successfully")
@@ -204,7 +204,7 @@ func (h *AIConfigPlaceholderHandler) BatchUpdateAIConfigs(c *gin.Context) {
 
 	result := map[string]interface{}{
 		"updated_count": 3,
-		"success": true,
+		"success":       true,
 	}
 
 	response := models.NewSuccessResponse(result, "AI configurations updated successfully")

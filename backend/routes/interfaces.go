@@ -77,34 +77,34 @@ type ApplicationInterface interface {
 	GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
-	
+
 	// 公司管理处理器
 	GetCompanyHandler() *handlers.CompanyHandler
-	
+
 	// 工作笔记处理器
 	GetWorkNoteHandler() *handlers.WorkNoteHandler
-	
+
 	// 文档处理器
 	GetDocumentHandler() *handlers.DocumentHandler
 	GetRouterDocumentHandler() *handlers.RouterDocumentHandler // New router-based document handler
 	GetHybridDocumentHandler() *handlers.HybridDocumentHandler
 	GetSimpleDocumentHandler() *handlers.HybridDocumentHandler
 	GetHybridDocumentFolderHandler() *handlers.HybridDocumentFolderHandler // Document folder handler
-	
+
 	// 工作笔记文件夹处理器
 	GetWorkNoteFolderHandler() *handlers.WorkNoteFolderHandler
-	
+
 	// 协作处理器
 	GetCollaborationHandler() *handlers.DocumentCollaborationHandler
-	
+
 	// 任务文档文件处理器
 	GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler
-	
+
 	// 文档元数据处理器
 	GetDocumentProjectsHandler() gin.HandlerFunc
 	GetDocumentCustomersHandler() gin.HandlerFunc
 	GetDocumentCategoriesHandler() gin.HandlerFunc
-	
+
 	// 任务层级处理器
 	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	GetTaskTimelineHandler() gin.HandlerFunc

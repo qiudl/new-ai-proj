@@ -394,8 +394,8 @@ func (r *PostgresUserTimerRepository) GetUserTimerStats(ctx context.Context, use
 	// Calculate additional statistics (simplified implementation)
 	if stats.TotalTasks > 0 {
 		stats.AverageDaily = stats.TotalTimeSeconds / 30 // Rough estimate
-		stats.MostProductiveDay = "Tuesday"             // Placeholder
-		stats.MostUsedCategory = "personal"             // Placeholder
+		stats.MostProductiveDay = "Tuesday"              // Placeholder
+		stats.MostUsedCategory = "personal"              // Placeholder
 	}
 
 	return &stats, nil
@@ -433,22 +433,24 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 			LIMIT 1`
 		row := r.db.QueryRowContext(ctx, query, userID)
 		var (
-			id int
-			typeStr string
+			id            int
+			typeStr       string
 			maybeTargetID sql.NullInt64
-			title string
-			color string
-			category string
-			start time.Time
-			status string
-			pauseTotal int
+			title         string
+			color         string
+			category      string
+			start         time.Time
+			status        string
+			pauseTotal    int
 		)
 		if err := row.Scan(&id, &typeStr, &maybeTargetID, &title, &color, &category, &start, &status, &pauseTotal); err == nil {
 			elapsed := int(time.Since(start).Seconds())
-			if elapsed < 0 { elapsed = 0 }
+			if elapsed < 0 {
+				elapsed = 0
+			}
 			dashboard.CurrentTimer = &models.PersonalTimerCurrent{
 				IsRunning:      status == "running",
-				TaskType:       map[string]string{"project_task":"project", "personal_task":"personal"}[typeStr],
+				TaskType:       map[string]string{"project_task": "project", "personal_task": "personal"}[typeStr],
 				TaskTitle:      &title,
 				TaskColor:      &color,
 				TaskCategory:   &category,
@@ -495,9 +497,13 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 			var start time.Time
 			if err := r.db.QueryRowContext(ctx, query, userID).Scan(&start); err == nil {
 				ovStart := start
-				if ovStart.Before(startUTC) { ovStart = startUTC }
+				if ovStart.Before(startUTC) {
+					ovStart = startUTC
+				}
 				ovEnd := time.Now().UTC()
-				if ovEnd.After(endUTC) { ovEnd = endUTC }
+				if ovEnd.After(endUTC) {
+					ovEnd = endUTC
+				}
 				if ovEnd.After(ovStart) {
 					stats.TotalSeconds += int(ovEnd.Sub(ovStart).Seconds())
 				}
@@ -538,7 +544,9 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 			var topTitle sql.NullString
 			var topSec int
 			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&topTitle, &topSec); err == nil {
-				if topTitle.Valid { stats.MostWorkedTask = topTitle.String }
+				if topTitle.Valid {
+					stats.MostWorkedTask = topTitle.String
+				}
 			}
 		}
 		// Productive hours distribution (timezone aware)
@@ -557,7 +565,9 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 				for rows.Next() {
 					var h, sec int
 					if err := rows.Scan(&h, &sec); err == nil {
-						if h >= 0 && h < 24 { stats.ProductiveHours[h] = sec }
+						if h >= 0 && h < 24 {
+							stats.ProductiveHours[h] = sec
+						}
 					}
 				}
 			}
@@ -572,8 +582,12 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 			var work, total int
 			if err := r.db.QueryRowContext(ctx, query, userID, startUTC, endUTC).Scan(&work, &total); err == nil && total > 0 {
 				score := (float64(work) / float64(total)) * 100.0
-				if score < 0 { score = 0 }
-				if score > 100 { score = 100 }
+				if score < 0 {
+					score = 0
+				}
+				if score > 100 {
+					score = 100
+				}
 				stats.EfficiencyScore = score
 			}
 		}
@@ -645,7 +659,9 @@ func (r *PostgresUserTimerRepository) GetDashboardData(ctx context.Context, user
 					var color sql.NullString
 					if err := rows.Scan(&category, &sec, &color); err == nil {
 						percent := 0.0
-						if stats.TotalSeconds > 0 { percent = (float64(sec) / float64(stats.TotalSeconds)) * 100.0 }
+						if stats.TotalSeconds > 0 {
+							percent = (float64(sec) / float64(stats.TotalSeconds)) * 100.0
+						}
 						c := models.PersonalCategoryItem{
 							Category:      category,
 							TotalSeconds:  sec,
@@ -761,7 +777,7 @@ func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, user
 		var targetID sql.NullInt64
 		var projectID sql.NullInt64
 		var dateStr string
-		
+
 		err := rows.Scan(
 			&session.ID,
 			&session.TaskType,
@@ -781,19 +797,19 @@ func (r *PostgresUserTimerRepository) GetTimerSessions(ctx context.Context, user
 			return nil, fmt.Errorf("failed to scan timer session: %w", err)
 		}
 
-	// Handle nullable fields
-	if targetID.Valid {
-		taskID := int(targetID.Int64)
-		session.TaskID = &taskID
-	}
-	if projectID.Valid {
-		pid := int(projectID.Int64)
-		session.ProjectID = &pid
-	}
-	if endTime.Valid {
-		session.EndTime = &endTime.Time
-	}
-	session.Date = dateStr
+		// Handle nullable fields
+		if targetID.Valid {
+			taskID := int(targetID.Int64)
+			session.TaskID = &taskID
+		}
+		if projectID.Valid {
+			pid := int(projectID.Int64)
+			session.ProjectID = &pid
+		}
+		if endTime.Valid {
+			session.EndTime = &endTime.Time
+		}
+		session.Date = dateStr
 
 		sessions = append(sessions, session)
 	}
@@ -836,13 +852,13 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 	end := now
 
 	analytics := &models.PersonalTimerAnalytics{
-		DateRange:           dateRange,
-		TotalTime:           models.PersonalTimeAnalytics{},
-		CategoryBreakdown:   []models.PersonalCategoryAnalytics{},
-		WeeklyTrend:         []models.PersonalWeeklyTrend{},
-		HourlyDistribution:  []models.PersonalHourlyDistribution{},
-		TaskEfficiency:      []models.PersonalTaskEfficiency{},
-		ProductivityScore:   models.PersonalProductivityScore{OverallScore: 75.0},
+		DateRange:          dateRange,
+		TotalTime:          models.PersonalTimeAnalytics{},
+		CategoryBreakdown:  []models.PersonalCategoryAnalytics{},
+		WeeklyTrend:        []models.PersonalWeeklyTrend{},
+		HourlyDistribution: []models.PersonalHourlyDistribution{},
+		TaskEfficiency:     []models.PersonalTaskEfficiency{},
+		ProductivityScore:  models.PersonalProductivityScore{OverallScore: 75.0},
 		Recommendations:    []string{"保持良好习惯，合理安排高效时段"},
 	}
 
@@ -861,7 +877,9 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 		if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&totalSeconds); err != nil {
 			return nil, fmt.Errorf("failed to compute total analytics time: %w", err)
 		}
-		if totalSeconds < 0 { totalSeconds = 0 }
+		if totalSeconds < 0 {
+			totalSeconds = 0
+		}
 		analytics.TotalTime.TotalSeconds = totalSeconds
 		analytics.TotalTime.FormattedTime = models.FormatDuration(totalSeconds)
 		if days > 0 {
@@ -989,12 +1007,12 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 				return nil, fmt.Errorf("failed to scan daily trend: %w", err)
 			}
 			trends = append(trends, models.PersonalWeeklyTrend{
-				WeekStart:        day.Format("2006-01-02"),
-				WeekEnd:          day.Format("2006-01-02"),
-				TotalSeconds:     seconds,
-				FormattedTime:    models.FormatDuration(seconds),
-				SessionsCount:    sessionsCount,
-				TasksCount:       tasksCount,
+				WeekStart:         day.Format("2006-01-02"),
+				WeekEnd:           day.Format("2006-01-02"),
+				TotalSeconds:      seconds,
+				FormattedTime:     models.FormatDuration(seconds),
+				SessionsCount:     sessionsCount,
+				TasksCount:        tasksCount,
 				ComparisonPercent: 0,
 			})
 		}
@@ -1097,7 +1115,9 @@ func (r *PostgresUserTimerRepository) GetAnalytics(ctx context.Context, userID i
 					efficiency = int(100 * ratio)
 				} else {
 					v := 100 - int((ratio-1.0)*50)
-					if v < 0 { v = 0 }
+					if v < 0 {
+						v = 0
+					}
 					efficiency = v
 				}
 			} else if totalSec > 0 {

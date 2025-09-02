@@ -30,47 +30,47 @@ func (p *UserProfile) Scan(value interface{}) error {
 		*p = UserProfile{}
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("cannot scan %T into UserProfile", value)
 	}
-	
+
 	return json.Unmarshal(bytes, p)
 }
 
 // User represents a user in the system
 type User struct {
-	ID                  int          `json:"id" db:"id"`
-	Username            string       `json:"username" db:"username" validate:"required,min=3,max=50"`
-	Email               string       `json:"email" db:"email" validate:"required,email"`
-	PasswordHash        string       `json:"-" db:"password_hash"`
-	UserType            string       `json:"user_type" db:"user_type" validate:"required,oneof=system company"`
-	CompanyID           *int         `json:"company_id,omitempty" db:"company_id"`
-	CompanyUserID       *int         `json:"company_user_id,omitempty" db:"company_user_id"`
-	Role                string       `json:"role" db:"role" validate:"required"`
-	Status              string       `json:"status" db:"status" validate:"required,oneof=active inactive suspended"`
-	Profile             UserProfile  `json:"profile" db:"profile"`
-	LastLoginAt         *time.Time   `json:"last_login_at,omitempty" db:"last_login_at"`
+	ID            int         `json:"id" db:"id"`
+	Username      string      `json:"username" db:"username" validate:"required,min=3,max=50"`
+	Email         string      `json:"email" db:"email" validate:"required,email"`
+	PasswordHash  string      `json:"-" db:"password_hash"`
+	UserType      string      `json:"user_type" db:"user_type" validate:"required,oneof=system company"`
+	CompanyID     *int        `json:"company_id,omitempty" db:"company_id"`
+	CompanyUserID *int        `json:"company_user_id,omitempty" db:"company_user_id"`
+	Role          string      `json:"role" db:"role" validate:"required"`
+	Status        string      `json:"status" db:"status" validate:"required,oneof=active inactive suspended"`
+	Profile       UserProfile `json:"profile" db:"profile"`
+	LastLoginAt   *time.Time  `json:"last_login_at,omitempty" db:"last_login_at"`
 	// Enterprise user fields
-	ContactPersonName   *string      `json:"contact_person_name,omitempty" db:"contact_person_name"`
-	ContactPhone        *string      `json:"contact_phone,omitempty" db:"contact_phone"`
-	DepartmentTitle     *string      `json:"department_title,omitempty" db:"department_title"`
-	IsPrimaryContact    bool         `json:"is_primary_contact" db:"is_primary_contact"`
-	AccountExpiresAt    *time.Time   `json:"account_expires_at,omitempty" db:"account_expires_at"`
-	LastProjectAccess   *time.Time   `json:"last_project_access,omitempty" db:"last_project_access"`
-	Notes               *string      `json:"notes,omitempty" db:"notes"`
+	ContactPersonName *string    `json:"contact_person_name,omitempty" db:"contact_person_name"`
+	ContactPhone      *string    `json:"contact_phone,omitempty" db:"contact_phone"`
+	DepartmentTitle   *string    `json:"department_title,omitempty" db:"department_title"`
+	IsPrimaryContact  bool       `json:"is_primary_contact" db:"is_primary_contact"`
+	AccountExpiresAt  *time.Time `json:"account_expires_at,omitempty" db:"account_expires_at"`
+	LastProjectAccess *time.Time `json:"last_project_access,omitempty" db:"last_project_access"`
+	Notes             *string    `json:"notes,omitempty" db:"notes"`
 	// Timer fields
-	CurrentTimingTaskID     *int         `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
-	CurrentUserTimerTaskID  *int         `json:"current_user_timer_task_id,omitempty" db:"current_user_timer_task_id"`
-	TimingStartTime         *time.Time   `json:"timing_start_time,omitempty" db:"timing_start_time"`
-	TimingStatus            string       `json:"timing_status" db:"timing_status"`
+	CurrentTimingTaskID    *int       `json:"current_timing_task_id,omitempty" db:"current_timing_task_id"`
+	CurrentUserTimerTaskID *int       `json:"current_user_timer_task_id,omitempty" db:"current_user_timer_task_id"`
+	TimingStartTime        *time.Time `json:"timing_start_time,omitempty" db:"timing_start_time"`
+	TimingStatus           string     `json:"timing_status" db:"timing_status"`
 	// Pause/Resume fields for Phase 3
-	TimingPausedTime        *time.Time   `json:"timing_paused_time,omitempty" db:"timing_paused_time"`         // When the timer was paused
-	TimingAccumulatedSeconds int         `json:"timing_accumulated_seconds" db:"timing_accumulated_seconds"`   // Seconds accumulated before pause
-	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
-	DeletedAt           *time.Time   `json:"deleted_at,omitempty" db:"deleted_at"`
+	TimingPausedTime         *time.Time `json:"timing_paused_time,omitempty" db:"timing_paused_time"`       // When the timer was paused
+	TimingAccumulatedSeconds int        `json:"timing_accumulated_seconds" db:"timing_accumulated_seconds"` // Seconds accumulated before pause
+	CreatedAt                time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt                time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt                *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // UserCreateRequest represents a user creation request
@@ -107,26 +107,26 @@ type UserListParams struct {
 
 // UserResponse represents a user response (without sensitive data)
 type UserResponse struct {
-	ID                int          `json:"id"`
-	Username          string       `json:"username"`
-	Email             string       `json:"email"`
-	UserType          string       `json:"user_type"`
-	CompanyID         *int         `json:"company_id,omitempty"`
-	CompanyUserID     *int         `json:"company_user_id,omitempty"`
-	Role              string       `json:"role"`
-	Status            string       `json:"status"`
-	Profile           UserProfile  `json:"profile"`
-	LastLoginAt       *time.Time   `json:"last_login_at,omitempty"`
+	ID            int         `json:"id"`
+	Username      string      `json:"username"`
+	Email         string      `json:"email"`
+	UserType      string      `json:"user_type"`
+	CompanyID     *int        `json:"company_id,omitempty"`
+	CompanyUserID *int        `json:"company_user_id,omitempty"`
+	Role          string      `json:"role"`
+	Status        string      `json:"status"`
+	Profile       UserProfile `json:"profile"`
+	LastLoginAt   *time.Time  `json:"last_login_at,omitempty"`
 	// Enterprise user fields
-	ContactPersonName *string      `json:"contact_person_name,omitempty"`
-	ContactPhone      *string      `json:"contact_phone,omitempty"`
-	DepartmentTitle   *string      `json:"department_title,omitempty"`
-	IsPrimaryContact  bool         `json:"is_primary_contact"`
-	AccountExpiresAt  *time.Time   `json:"account_expires_at,omitempty"`
-	LastProjectAccess *time.Time   `json:"last_project_access,omitempty"`
-	Notes             *string      `json:"notes,omitempty"`
-	CreatedAt         time.Time    `json:"created_at"`
-	UpdatedAt         time.Time    `json:"updated_at"`
+	ContactPersonName *string    `json:"contact_person_name,omitempty"`
+	ContactPhone      *string    `json:"contact_phone,omitempty"`
+	DepartmentTitle   *string    `json:"department_title,omitempty"`
+	IsPrimaryContact  bool       `json:"is_primary_contact"`
+	AccountExpiresAt  *time.Time `json:"account_expires_at,omitempty"`
+	LastProjectAccess *time.Time `json:"last_project_access,omitempty"`
+	Notes             *string    `json:"notes,omitempty"`
+	CreatedAt         time.Time  `json:"created_at"`
+	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
 // UserListResponse represents a paginated list of users
@@ -139,10 +139,10 @@ type UserListResponse struct {
 
 // UserStats represents user statistics
 type UserStats struct {
-	Total                int                    `json:"total"`
-	ByRole               map[string]int         `json:"by_role"`
-	ByStatus             map[string]int         `json:"by_status"`
-	RecentRegistrations  int                    `json:"recent_registrations"`
+	Total               int            `json:"total"`
+	ByRole              map[string]int `json:"by_role"`
+	ByStatus            map[string]int `json:"by_status"`
+	RecentRegistrations int            `json:"recent_registrations"`
 }
 
 // PasswordResetRequest represents a password reset request
@@ -190,7 +190,7 @@ func (u *User) ToResponse() UserResponse {
 func ValidateUserRole(userType, role string) error {
 	systemRoles := []string{"admin", "project_manager", "developer"}
 	companyRoles := []string{"company_admin", "company_user"}
-	
+
 	switch userType {
 	case "system":
 		for _, r := range systemRoles {

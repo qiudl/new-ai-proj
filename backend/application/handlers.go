@@ -14,7 +14,7 @@ import (
 func (app *Application) GetHealthHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status": "ok",
+			"status":  "ok",
 			"message": "Service is healthy",
 			"service": "ai-project-backend",
 		})
@@ -26,7 +26,7 @@ func (app *Application) GetVersionHandler() gin.HandlerFunc {
 		c.JSON(http.StatusOK, gin.H{
 			"version": "1.0.0",
 			"service": "ai-project-backend",
-			"build": "development",
+			"build":   "development",
 		})
 	}
 }

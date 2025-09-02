@@ -14,6 +14,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import ImageUpload from './ImageUpload';
+import PDFViewer from './PDFViewer';
+import './MarkdownEditor.css';
 
 // 修复 ReactMarkdown 代码组件类型定义
 interface CodeComponentProps {
@@ -22,9 +25,6 @@ interface CodeComponentProps {
   className?: string;
   children: React.ReactNode;
 }
-import ImageUpload from './ImageUpload';
-import PDFViewer from './PDFViewer';
-import './MarkdownEditor.css';
 
 const { TextArea } = Input;
 const { Title } = Typography;

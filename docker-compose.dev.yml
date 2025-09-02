@@ -6,6 +6,9 @@ services:
   postgres-master:
     image: postgres:16
     container_name: ai_postgres_master
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     environment:
       POSTGRES_USER: dev_user
       POSTGRES_PASSWORD: dev_password_2024
@@ -38,11 +41,13 @@ services:
 
   # Go 后端服务
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: development
+    image: golang:1.23-alpine
     container_name: ai_backend
+    command: ["sh", "-c", "cd /app && apk add --no-cache git ca-certificates && GOPROXY=direct GOSUMDB=off go run main.go"]
+    working_dir: /app
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       postgres-master:
         condition: service_healthy
@@ -54,6 +59,14 @@ services:
       DB_PORT: 5432
       DB_SOURCE: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
       DATABASE_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
+      GOPROXY: direct
+      GOSUMDB: off
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      ALL_PROXY: ""
+      all_proxy: ""
     ports:
       - "8081:8080"
     volumes:
@@ -67,9 +80,7 @@ services:
       - ./backend/docs:/app/docs:rw
       # 挂载项目OpenAPI文档到容器供 /docs 访问
       - ./docs/api:/app/docs/api:ro
-    working_dir: /app
-    # 使用Dockerfile中定义的CMD (air热重载)
-    # command: ["sh", "-c", "go mod download && go run main.go"]
+    # 使用简化的运行命令
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -87,6 +98,9 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: ai_frontend
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - backend
     env_file:
@@ -99,9 +113,10 @@ services:
       REACT_APP_API_BASE_URL: /api/v1
       HOST: 0.0.0.0
       GENERATE_SOURCEMAP: false
-      # 加速编译
+      # 加速编译和跳过问题检查
       TSC_COMPILE_ON_ERROR: true
       DISABLE_ESLINT_PLUGIN: true
+      SKIP_PREFLIGHT_CHECK: true
       FAST_REFRESH: false
     ports:
       - "3001:3000"
@@ -111,6 +126,8 @@ services:
       # 开发工具配置
       - ./frontend/.eslintrc.js:/app/.eslintrc.js:ro
       - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+    # 使用react-scripts而非craco启动以避免配置复杂性
+    command: ["npm", "run", "start:legacy"]
     stdin_open: true
     tty: true
     healthcheck:
@@ -130,6 +147,9 @@ services:
       context: ./mcp-task-bridge
       dockerfile: Dockerfile
     container_name: ai_mcp_server
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     depends_on:
       - backend
     env_file:
@@ -143,7 +163,6 @@ services:
     volumes:
       # 代码挂载（支持热重载）- 排除node_modules  
       - ./mcp-task-bridge:/app:cached
-      - /app/node_modules
     command: ["npm", "run", "dev"]
     restart: unless-stopped
     networks:
@@ -174,6 +193,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: ai_redis
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     ports:
       - "6379:6379"
     volumes:

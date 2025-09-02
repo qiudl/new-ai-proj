@@ -1,12 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-
-// 类型定义
-interface SessionInfo {
-  date: string;
-  start_time: string;
-  end_time: string;
-  duration: string;
-}
 import { 
   List, 
   Typography, 
@@ -32,6 +24,14 @@ import {
 import { HistoryTask } from '../types/historyTask';
 import { HistoryTaskService } from '../services/historyTaskService';
 import { useTimer } from '../contexts/TimerContext';
+
+// 类型定义
+interface SessionInfo {
+  date: string;
+  start_time: string;
+  end_time: string;
+  duration: string;
+}
 
 const { Text, Title } = Typography;
 

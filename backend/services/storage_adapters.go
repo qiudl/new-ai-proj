@@ -46,33 +46,33 @@ func NewLocalStorageAdapter(basePath, baseURL string) *LocalStorageAdapter {
 // Store saves a file to local storage
 func (l *LocalStorageAdapter) Store(ctx context.Context, path string, reader io.Reader) error {
 	fullPath := filepath.Join(l.basePath, path)
-	
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory %s: %w", dir, err)
 	}
-	
+
 	// Create the file
 	file, err := os.Create(fullPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", fullPath, err)
 	}
 	defer file.Close()
-	
+
 	// Copy content
 	_, err = io.Copy(file, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write file content: %w", err)
 	}
-	
+
 	return nil
 }
 
 // Retrieve reads a file from local storage
 func (l *LocalStorageAdapter) Retrieve(ctx context.Context, path string) (io.ReadCloser, error) {
 	fullPath := filepath.Join(l.basePath, path)
-	
+
 	file, err := os.Open(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -80,26 +80,26 @@ func (l *LocalStorageAdapter) Retrieve(ctx context.Context, path string) (io.Rea
 		}
 		return nil, fmt.Errorf("failed to open file %s: %w", fullPath, err)
 	}
-	
+
 	return file, nil
 }
 
 // Delete removes a file from local storage
 func (l *LocalStorageAdapter) Delete(ctx context.Context, path string) error {
 	fullPath := filepath.Join(l.basePath, path)
-	
+
 	err := os.Remove(fullPath)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to delete file %s: %w", fullPath, err)
 	}
-	
+
 	return nil
 }
 
 // Exists checks if a file exists in local storage
 func (l *LocalStorageAdapter) Exists(ctx context.Context, path string) (bool, error) {
 	fullPath := filepath.Join(l.basePath, path)
-	
+
 	_, err := os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -107,7 +107,7 @@ func (l *LocalStorageAdapter) Exists(ctx context.Context, path string) (bool, er
 		}
 		return false, fmt.Errorf("failed to check file existence: %w", err)
 	}
-	
+
 	return true, nil
 }
 
@@ -117,11 +117,11 @@ func (l *LocalStorageAdapter) GetURL(ctx context.Context, path string) (string, 
 	if l.baseURL == "" {
 		return "", fmt.Errorf("base URL not configured for local storage")
 	}
-	
+
 	// Clean path and ensure it doesn't start with /
 	cleanPath := strings.TrimPrefix(filepath.ToSlash(path), "/")
 	url := strings.TrimSuffix(l.baseURL, "/") + "/" + cleanPath
-	
+
 	return url, nil
 }
 
@@ -129,12 +129,12 @@ func (l *LocalStorageAdapter) GetURL(ctx context.Context, path string) (string, 
 func (l *LocalStorageAdapter) ListFiles(ctx context.Context, prefix string) ([]string, error) {
 	fullPrefix := filepath.Join(l.basePath, prefix)
 	var files []string
-	
+
 	err := filepath.Walk(fullPrefix, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		if !info.IsDir() {
 			// Convert back to relative path
 			relPath, err := filepath.Rel(l.basePath, path)
@@ -143,21 +143,21 @@ func (l *LocalStorageAdapter) ListFiles(ctx context.Context, prefix string) ([]s
 			}
 			files = append(files, filepath.ToSlash(relPath))
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil && !os.IsNotExist(err) {
 		return nil, fmt.Errorf("failed to list files: %w", err)
 	}
-	
+
 	return files, nil
 }
 
 // GetFileInfo returns metadata about a file
 func (l *LocalStorageAdapter) GetFileInfo(ctx context.Context, path string) (*FileInfo, error) {
 	fullPath := filepath.Join(l.basePath, path)
-	
+
 	stat, err := os.Stat(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -165,10 +165,10 @@ func (l *LocalStorageAdapter) GetFileInfo(ctx context.Context, path string) (*Fi
 		}
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
-	
+
 	// Determine content type based on extension
 	contentType := l.getContentType(path)
-	
+
 	return &FileInfo{
 		Path:         path,
 		Size:         stat.Size(),
@@ -181,7 +181,7 @@ func (l *LocalStorageAdapter) GetFileInfo(ctx context.Context, path string) (*Fi
 // getContentType determines content type based on file extension
 func (l *LocalStorageAdapter) getContentType(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	
+
 	switch ext {
 	case ".md", ".markdown":
 		return "text/markdown"
@@ -362,30 +362,30 @@ func (f *StorageFactory) CreateAdapter(adapterType string, config map[string]str
 			return nil, fmt.Errorf("base_path is required for local storage")
 		}
 		return NewLocalStorageAdapter(basePath, baseURL), nil
-		
+
 	case "s3":
 		bucket := config["bucket"]
 		region := config["region"]
 		accessKey := config["access_key"]
 		secretKey := config["secret_key"]
 		endpoint := config["endpoint"]
-		
+
 		if bucket == "" || region == "" || accessKey == "" || secretKey == "" {
 			return nil, fmt.Errorf("bucket, region, access_key, and secret_key are required for S3 storage")
 		}
 		return NewS3StorageAdapter(bucket, region, accessKey, secretKey, endpoint), nil
-		
+
 	case "azure":
 		accountName := config["account_name"]
 		accountKey := config["account_key"]
 		containerName := config["container_name"]
 		endpoint := config["endpoint"]
-		
+
 		if accountName == "" || accountKey == "" || containerName == "" {
 			return nil, fmt.Errorf("account_name, account_key, and container_name are required for Azure storage")
 		}
 		return NewAzureStorageAdapter(accountName, accountKey, containerName, endpoint), nil
-		
+
 	default:
 		return nil, fmt.Errorf("unsupported storage adapter type: %s", adapterType)
 	}

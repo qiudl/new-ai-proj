@@ -31,7 +31,7 @@ func TestUnifiedTimerActiveEndpoint(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	// inject user_id via middleware for tests
-	r.Use(func(c *gin.Context){ c.Set("user_id", 1); c.Next() })
+	r.Use(func(c *gin.Context) { c.Set("user_id", 1); c.Next() })
 	// register only the endpoint under test
 	r.GET("/api/v1/user/timer/active", h.GetActiveTimers)
 
@@ -42,4 +42,3 @@ func TestUnifiedTimerActiveEndpoint(t *testing.T) {
 		t.Fatalf("unexpected status for active timers: %d", w.Code)
 	}
 }
-

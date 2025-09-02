@@ -1,0 +1,205 @@
+# Docker Compose 开发环境配置
+# 专为本机Docker开发环境设计，支持PostgreSQL主从复制
+
+services:
+  # PostgreSQL 主数据库 (Docker内)
+  postgres-master:
+    image: postgres:16
+    container_name: ai_postgres_master
+    environment:
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_password_2024
+      POSTGRES_DB: ai_project_db
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+      # 复制相关环境变量
+      POSTGRES_REPLICATION_USER: repl_user
+      POSTGRES_REPLICATION_PASSWORD: repl_password_2024
+    ports:
+      - "5433:5432"  # 使用5433端口避免与本机PostgreSQL冲突
+    volumes:
+      # 数据持久化
+      - postgres_master_data:/var/lib/postgresql/data
+      # 初始化脚本
+      - ./docker/postgres/init-master.sql:/docker-entrypoint-initdb.d/01-init-master.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d ai_project_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # Go 后端服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: ai_backend
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    environment:
+      # 数据库配置
+      DB_HOST: postgres-master
+      DB_PORT: 5432
+      DB_USER: dev_user
+      DB_PASSWORD: dev_password_2024
+      DB_NAME: ai_project_db
+      DB_SOURCE: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
+      
+      # 应用配置
+      APP_ENV: development
+      PORT: 8080
+      JWT_SECRET: dev_jwt_secret_key_2024
+      
+      # Go开发配置
+      CGO_ENABLED: 0
+      
+      # 热重载配置
+      AIR_ENABLED: true
+    ports:
+      - "8081:8080"
+    volumes:
+      # 代码挂载（支持热重载）
+      - ./backend:/app:cached
+      # Go模块缓存
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/go/cache
+      # 日志和文档
+      - ./backend/logs:/app/logs
+      - ./backend/docs:/app/docs:rw
+      # 挂载项目OpenAPI文档到容器供 /docs 访问
+      - ./docs/api:/app/docs/api:ro
+    working_dir: /app
+    # 使用Dockerfile中定义的CMD (air热重载)
+    # command: ["sh", "-c", "go mod download && go run main.go"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # React 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: ai_frontend
+    depends_on:
+      - backend
+    environment:
+      # React开发配置
+      REACT_APP_API_URL: /api/v1
+      REACT_APP_API_BASE_URL: /api/v1
+      REACT_APP_ENV: development
+      REACT_APP_ENVIRONMENT: development
+      REACT_APP_LOCAL_DEV: true
+      
+      # 开发服务器配置
+      HOST: 0.0.0.0
+      PORT: 3000
+      CHOKIDAR_USEPOLLING: true
+      WATCHPACK_POLLING: true
+      GENERATE_SOURCEMAP: false
+      TSC_COMPILE_ON_ERROR: true
+      ESLINT_NO_DEV_ERRORS: true
+      
+      # 热重载优化
+      FAST_REFRESH: true
+      WDS_SOCKET_HOST: localhost
+      WDS_SOCKET_PORT: 3001
+    ports:
+      - "3001:3000"
+    volumes:
+      # 代码挂载（支持热重载）
+      - ./frontend:/app:cached
+      # node_modules缓存（提升性能）
+      - frontend_node_modules:/app/node_modules
+      # 开发工具配置
+      - ./frontend/.eslintrc.js:/app/.eslintrc.js:ro
+      - ./frontend/tsconfig.json:/app/tsconfig.json:ro
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+
+  # MCP服务器 (标准MCP协议 - 仅stdio通信)
+  mcp-server:
+    build:
+      context: ./mcp-task-bridge
+      dockerfile: Dockerfile.dev
+    container_name: ai_mcp_server
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      API_BASE_URL: http://backend:8080/api/v1
+    # 移除端口映射 - MCP使用stdio通信，不需要HTTP端点
+    # ports:
+    #   - "3100:3001"
+    volumes:
+      - ./mcp-task-bridge:/app:cached
+      - mcp_node_modules:/app/node_modules
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+    # MCP服务器不需要健康检查 - 使用stdio通信
+
+  # Redis (缓存和会话存储)
+  redis:
+    image: redis:7-alpine
+    container_name: ai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/etc/redis/redis.conf:ro
+    command: ["redis-server", "/etc/redis/redis.conf"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+# 网络配置
+networks:
+  ai_dev_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+
+# 数据卷
+volumes:
+  postgres_master_data:
+    driver: local
+  go_mod_cache:
+    driver: local
+  go_build_cache:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  mcp_node_modules:
+    driver: local
+  redis_data:
+    driver: local

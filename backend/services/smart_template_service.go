@@ -26,34 +26,34 @@ func NewSmartTemplateService(db *sql.DB) *SmartTemplateService {
 type TemplateType string
 
 const (
-	TemplateTypeTask      TemplateType = "task"
-	TemplateTypeProject   TemplateType = "project"
-	TemplateTypeCustom    TemplateType = "custom"
-	TemplateTypeAI        TemplateType = "ai_generated"
+	TemplateTypeTask    TemplateType = "task"
+	TemplateTypeProject TemplateType = "project"
+	TemplateTypeCustom  TemplateType = "custom"
+	TemplateTypeAI      TemplateType = "ai_generated"
 )
 
 // TaskDocumentTemplate 任务文档模板
 type TaskDocumentTemplate struct {
-	ID          int                    `json:"id"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Type        TemplateType           `json:"type"`
-	Category    string                 `json:"category"`
-	Content     string                 `json:"content"`
-	Variables   []TemplateVariable     `json:"variables"`
-	Conditions  []TemplateCondition    `json:"conditions"`
-	Metadata    models.CustomFields    `json:"metadata"`
-	UsageCount  int                    `json:"usage_count"`
-	CreatedBy   int                    `json:"created_by"`
-	CreatedAt   time.Time             `json:"created_at"`
-	UpdatedAt   time.Time             `json:"updated_at"`
-	IsActive    bool                  `json:"is_active"`
+	ID          int                 `json:"id"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	Type        TemplateType        `json:"type"`
+	Category    string              `json:"category"`
+	Content     string              `json:"content"`
+	Variables   []TemplateVariable  `json:"variables"`
+	Conditions  []TemplateCondition `json:"conditions"`
+	Metadata    models.CustomFields `json:"metadata"`
+	UsageCount  int                 `json:"usage_count"`
+	CreatedBy   int                 `json:"created_by"`
+	CreatedAt   time.Time           `json:"created_at"`
+	UpdatedAt   time.Time           `json:"updated_at"`
+	IsActive    bool                `json:"is_active"`
 }
 
 // TemplateVariable 模板变量
 type TemplateVariable struct {
 	Name         string      `json:"name"`
-	Type         string      `json:"type"`         // string, number, date, select, boolean
+	Type         string      `json:"type"` // string, number, date, select, boolean
 	DefaultValue interface{} `json:"default_value"`
 	Options      []string    `json:"options,omitempty"` // for select type
 	Required     bool        `json:"required"`
@@ -65,27 +65,27 @@ type TemplateCondition struct {
 	Field    string      `json:"field"`    // task.status, task.priority, project.type
 	Operator string      `json:"operator"` // equals, contains, starts_with, in
 	Value    interface{} `json:"value"`
-	Weight   float64     `json:"weight"`   // 匹配权重
+	Weight   float64     `json:"weight"` // 匹配权重
 }
 
 // TemplateGenerationRequest 模板生成请求
 type TemplateGenerationRequest struct {
-	TaskID      int                    `json:"task_id"`
-	ProjectID   int                    `json:"project_id"`
-	TaskTitle   string                 `json:"task_title"`
-	TaskStatus  string                 `json:"task_status"`
-	Priority    string                 `json:"priority,omitempty"`
-	Category    string                 `json:"category,omitempty"`
-	Context     models.CustomFields    `json:"context,omitempty"`
-	UserPrefs   map[string]interface{} `json:"user_preferences,omitempty"`
+	TaskID     int                    `json:"task_id"`
+	ProjectID  int                    `json:"project_id"`
+	TaskTitle  string                 `json:"task_title"`
+	TaskStatus string                 `json:"task_status"`
+	Priority   string                 `json:"priority,omitempty"`
+	Category   string                 `json:"category,omitempty"`
+	Context    models.CustomFields    `json:"context,omitempty"`
+	UserPrefs  map[string]interface{} `json:"user_preferences,omitempty"`
 }
 
 // TemplateRecommendation 模板推荐
 type TemplateRecommendation struct {
-	Template    TaskDocumentTemplate `json:"template"`
-	Score       float64             `json:"score"`
-	Reason      string              `json:"reason"`
-	Variables   map[string]interface{} `json:"variables,omitempty"`
+	Template  TaskDocumentTemplate   `json:"template"`
+	Score     float64                `json:"score"`
+	Reason    string                 `json:"reason"`
+	Variables map[string]interface{} `json:"variables,omitempty"`
 }
 
 // ====================
@@ -99,29 +99,29 @@ func (s *SmartTemplateService) GetRecommendedTemplates(ctx context.Context, req 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 获取任务详细信息
 	taskInfo, err := s.getTaskInfo(ctx, req.TaskID, req.ProjectID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var recommendations []TemplateRecommendation
-	
+
 	// 为每个模板计算匹配分数
 	for _, template := range templates {
 		score := s.calculateTemplateScore(template, taskInfo, req)
 		if score > 0.1 { // 只返回分数大于阈值的模板
 			recommendation := TemplateRecommendation{
-				Template: template,
-				Score:    score,
-				Reason:   s.generateRecommendationReason(template, taskInfo, score),
+				Template:  template,
+				Score:     score,
+				Reason:    s.generateRecommendationReason(template, taskInfo, score),
 				Variables: s.generateTemplateVariables(template, taskInfo, req),
 			}
 			recommendations = append(recommendations, recommendation)
 		}
 	}
-	
+
 	// 按分数排序
 	for i := 0; i < len(recommendations)-1; i++ {
 		for j := i + 1; j < len(recommendations); j++ {
@@ -130,51 +130,51 @@ func (s *SmartTemplateService) GetRecommendedTemplates(ctx context.Context, req 
 			}
 		}
 	}
-	
+
 	// 返回前5个推荐
 	if len(recommendations) > 5 {
 		recommendations = recommendations[:5]
 	}
-	
+
 	return recommendations, nil
 }
 
 // calculateTemplateScore 计算模板匹配分数
 func (s *SmartTemplateService) calculateTemplateScore(template TaskDocumentTemplate, taskInfo *TaskInfo, req TemplateGenerationRequest) float64 {
 	score := 0.0
-	
+
 	// 基础分数
 	score += 0.1
-	
+
 	// 基于条件的匹配
 	for _, condition := range template.Conditions {
 		if s.evaluateCondition(condition, taskInfo, req) {
 			score += condition.Weight
 		}
 	}
-	
+
 	// 基于使用频率的推荐
 	if template.UsageCount > 0 {
 		score += float64(template.UsageCount) * 0.01 // 每次使用增加0.01分
 	}
-	
+
 	// 基于任务标题的语义匹配（简化版）
 	if s.semanticMatch(template.Name, req.TaskTitle) {
 		score += 0.2
 	}
-	
+
 	// 基于分类匹配
 	if req.Category != "" && template.Category == req.Category {
 		score += 0.3
 	}
-	
+
 	return score
 }
 
 // evaluateCondition 评估模板条件
 func (s *SmartTemplateService) evaluateCondition(condition TemplateCondition, taskInfo *TaskInfo, req TemplateGenerationRequest) bool {
 	var fieldValue interface{}
-	
+
 	switch condition.Field {
 	case "task.status":
 		fieldValue = taskInfo.Status
@@ -187,7 +187,7 @@ func (s *SmartTemplateService) evaluateCondition(condition TemplateCondition, ta
 	default:
 		return false
 	}
-	
+
 	switch condition.Operator {
 	case "equals":
 		return fmt.Sprintf("%v", fieldValue) == fmt.Sprintf("%v", condition.Value)
@@ -204,7 +204,7 @@ func (s *SmartTemplateService) evaluateCondition(condition TemplateCondition, ta
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -212,7 +212,7 @@ func (s *SmartTemplateService) evaluateCondition(condition TemplateCondition, ta
 func (s *SmartTemplateService) semanticMatch(templateName, taskTitle string) bool {
 	templateWords := strings.Fields(strings.ToLower(templateName))
 	titleWords := strings.Fields(strings.ToLower(taskTitle))
-	
+
 	matchCount := 0
 	for _, templateWord := range templateWords {
 		for _, titleWord := range titleWords {
@@ -222,35 +222,35 @@ func (s *SmartTemplateService) semanticMatch(templateName, taskTitle string) boo
 			}
 		}
 	}
-	
+
 	return float64(matchCount)/float64(len(templateWords)) > 0.3
 }
 
 // generateRecommendationReason 生成推荐理由
 func (s *SmartTemplateService) generateRecommendationReason(template TaskDocumentTemplate, taskInfo *TaskInfo, score float64) string {
 	reasons := []string{}
-	
+
 	if score > 0.8 {
 		reasons = append(reasons, "高度匹配您的任务类型")
 	} else if score > 0.5 {
 		reasons = append(reasons, "适合您的任务场景")
 	}
-	
+
 	if template.UsageCount > 10 {
 		reasons = append(reasons, "广受欢迎的模板")
 	}
-	
+
 	if len(reasons) == 0 {
 		reasons = append(reasons, "基于任务特征推荐")
 	}
-	
+
 	return strings.Join(reasons, "，")
 }
 
 // generateTemplateVariables 生成模板变量值
 func (s *SmartTemplateService) generateTemplateVariables(template TaskDocumentTemplate, taskInfo *TaskInfo, req TemplateGenerationRequest) map[string]interface{} {
 	variables := make(map[string]interface{})
-	
+
 	for _, variable := range template.Variables {
 		switch variable.Name {
 		case "task_title":
@@ -269,7 +269,7 @@ func (s *SmartTemplateService) generateTemplateVariables(template TaskDocumentTe
 			}
 		}
 	}
-	
+
 	return variables
 }
 
@@ -284,20 +284,20 @@ func (s *SmartTemplateService) GenerateDocumentFromTemplate(ctx context.Context,
 	if err != nil {
 		return "", err
 	}
-	
+
 	// 替换模板变量
 	content := template.Content
 	for name, value := range variables {
 		placeholder := fmt.Sprintf("{{%s}}", name)
 		content = strings.ReplaceAll(content, placeholder, fmt.Sprintf("%v", value))
 	}
-	
+
 	// 处理条件块（简化版）
 	content = s.processConditionalBlocks(content, variables)
-	
+
 	// 更新使用次数
 	s.incrementTemplateUsage(ctx, templateID)
-	
+
 	return content, nil
 }
 
@@ -305,12 +305,12 @@ func (s *SmartTemplateService) GenerateDocumentFromTemplate(ctx context.Context,
 func (s *SmartTemplateService) processConditionalBlocks(content string, variables map[string]interface{}) string {
 	// 简化的条件块处理
 	// 格式: {{#if variable_name}}content{{/if}}
-	
+
 	lines := strings.Split(content, "\n")
 	var result []string
 	inCondition := false
 	conditionMet := false
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "{{#if ") {
 			// 提取条件变量名
@@ -327,7 +327,7 @@ func (s *SmartTemplateService) processConditionalBlocks(content string, variable
 			result = append(result, line)
 		}
 	}
-	
+
 	return strings.Join(result, "\n")
 }
 
@@ -345,11 +345,11 @@ func (s *SmartTemplateService) CreateTemplate(ctx context.Context, template Task
 	`, template.Name, template.Description, template.Type, template.Category,
 		template.Content, template.Variables, template.Conditions, template.Metadata, template.CreatedBy).Scan(
 		&template.ID, &template.CreatedAt, &template.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &template, nil
 }
 
@@ -366,7 +366,7 @@ func (s *SmartTemplateService) GetActiveTemplates(ctx context.Context) ([]TaskDo
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var templates []TaskDocumentTemplate
 	for rows.Next() {
 		var template TaskDocumentTemplate
@@ -381,7 +381,7 @@ func (s *SmartTemplateService) GetActiveTemplates(ctx context.Context) ([]TaskDo
 		}
 		templates = append(templates, template)
 	}
-	
+
 	return templates, nil
 }
 
@@ -399,11 +399,11 @@ func (s *SmartTemplateService) GetTemplateByID(ctx context.Context, templateID i
 		&template.Metadata, &template.UsageCount, &template.CreatedBy,
 		&template.CreatedAt, &template.UpdatedAt, &template.IsActive,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &template, nil
 }
 
@@ -414,7 +414,7 @@ func (s *SmartTemplateService) incrementTemplateUsage(ctx context.Context, templ
 		SET usage_count = usage_count + 1, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 	`, templateID)
-	
+
 	return err
 }
 
@@ -452,10 +452,10 @@ func (s *SmartTemplateService) getTaskInfo(ctx context.Context, taskID, projectI
 		&taskInfo.ProjectName, &taskInfo.AssigneeID, &taskInfo.AssigneeName,
 		&taskInfo.CreatedAt, &taskInfo.ProjectType,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &taskInfo, nil
 }

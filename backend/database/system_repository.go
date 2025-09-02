@@ -69,7 +69,7 @@ func (r *PostgresSystemRepository) GetRecycledTasks(ctx context.Context, limit, 
 			WHERE t.deleted_at IS NOT NULL
 			ORDER BY t.deleted_at DESC
 			LIMIT $1 OFFSET $2`
-		
+
 		rows, err = exec.QueryContext(ctx, query, limit, offset)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to list recycled tasks: %w", err)
@@ -176,62 +176,62 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		       metadata, tags
 		FROM audit_logs
 	`
-	
+
 	countQuery := `SELECT COUNT(*) FROM audit_logs`
-	
+
 	// Build WHERE clauses
 	var whereConditions []string
 	var args []interface{}
 	argIndex := 1
-	
+
 	if filter.Action != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("action = $%d", argIndex))
 		args = append(args, filter.Action)
 		argIndex++
 	}
-	
+
 	if filter.ResourceType != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("resource_type = $%d", argIndex))
 		args = append(args, filter.ResourceType)
 		argIndex++
 	}
-	
+
 	if filter.UserID != nil {
 		whereConditions = append(whereConditions, fmt.Sprintf("user_id = $%d", argIndex))
 		args = append(args, *filter.UserID)
 		argIndex++
 	}
-	
+
 	if !filter.StartTime.IsZero() {
 		whereConditions = append(whereConditions, fmt.Sprintf("timestamp >= $%d", argIndex))
 		args = append(args, filter.StartTime)
 		argIndex++
 	}
-	
+
 	if !filter.EndTime.IsZero() {
 		whereConditions = append(whereConditions, fmt.Sprintf("timestamp <= $%d", argIndex))
 		args = append(args, filter.EndTime)
 		argIndex++
 	}
-	
+
 	if filter.IPAddress != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("ip_address = $%d", argIndex))
 		args = append(args, filter.IPAddress)
 		argIndex++
 	}
-	
+
 	if filter.Status != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("status = $%d", argIndex))
 		args = append(args, filter.Status)
 		argIndex++
 	}
-	
+
 	if filter.SessionID != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("session_id = $%d", argIndex))
 		args = append(args, filter.SessionID)
 		argIndex++
 	}
-	
+
 	// Add full-text search if description filter is provided
 	if filter.Description != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("(description ILIKE $%d OR action ILIKE $%d OR user_name ILIKE $%d)", argIndex, argIndex, argIndex))
@@ -239,7 +239,7 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		args = append(args, searchTerm)
 		argIndex++
 	}
-	
+
 	// Construct final queries
 	if len(whereConditions) > 0 {
 		whereClause := " WHERE " + fmt.Sprintf("%s", whereConditions[0])
@@ -249,7 +249,7 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		baseQuery += whereClause
 		countQuery += whereClause
 	}
-	
+
 	// Add ORDER BY and pagination
 	baseQuery += " ORDER BY timestamp DESC"
 	paginationArgs := args
@@ -262,23 +262,23 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		baseQuery += fmt.Sprintf(" OFFSET $%d", argIndex)
 		paginationArgs = append(paginationArgs, filter.Offset)
 	}
-	
+
 	exec := r.getExecer()
-	
+
 	// Get total count
 	var total int
 	row := exec.QueryRowContext(ctx, countQuery, args...)
 	if err := row.Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to get audit log count: %w", err)
 	}
-	
+
 	// Get audit logs
 	rows, err := exec.QueryContext(ctx, baseQuery, paginationArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query audit logs: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var logs []interface{}
 	for rows.Next() {
 		log := &models.AuditLog{}
@@ -286,7 +286,7 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		var projectID sql.NullInt64
 		var beforeData, afterData, changes, metadata []byte
 		var tags sql.NullString
-		
+
 		err := rows.Scan(
 			&log.ID, &log.EventID, &log.Timestamp, &userID, &log.UserEmail,
 			&log.UserName, &log.UserRole, &log.Action, &log.ResourceType,
@@ -298,7 +298,7 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan audit log: %w", err)
 		}
-		
+
 		if userID.Valid {
 			intVal := int(userID.Int64)
 			log.UserID = &intVal
@@ -307,7 +307,7 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 			intVal := int(projectID.Int64)
 			log.ProjectID = &intVal
 		}
-		
+
 		// Parse JSON fields
 		if len(beforeData) > 0 {
 			if err := json.Unmarshal(beforeData, &log.BeforeData); err != nil {
@@ -329,14 +329,14 @@ func (r *PostgresSystemRepository) GetAuditLogsWithFilter(ctx context.Context, f
 				log.Metadata = make(models.JSONB)
 			}
 		}
-		
+
 		logs = append(logs, log)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
-	
+
 	return logs, total, nil
 }
 
@@ -351,16 +351,16 @@ func (r *PostgresSystemRepository) GetAuditLogByID(ctx context.Context, id int64
 		FROM audit_logs
 		WHERE id = $1
 	`
-	
+
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
-	
+
 	log := &models.AuditLog{}
 	var userID sql.NullInt64
 	var projectID sql.NullInt64
 	var beforeData, afterData, changes, metadata []byte
 	var tags sql.NullString
-	
+
 	err := row.Scan(
 		&log.ID, &log.EventID, &log.Timestamp, &userID, &log.UserEmail,
 		&log.UserName, &log.UserRole, &log.Action, &log.ResourceType,
@@ -375,7 +375,7 @@ func (r *PostgresSystemRepository) GetAuditLogByID(ctx context.Context, id int64
 		}
 		return nil, fmt.Errorf("failed to get audit log: %w", err)
 	}
-	
+
 	if userID.Valid {
 		intVal := int(userID.Int64)
 		log.UserID = &intVal
@@ -384,7 +384,7 @@ func (r *PostgresSystemRepository) GetAuditLogByID(ctx context.Context, id int64
 		intVal := int(projectID.Int64)
 		log.ProjectID = &intVal
 	}
-	
+
 	// Parse JSON fields
 	if len(beforeData) > 0 {
 		if err := json.Unmarshal(beforeData, &log.BeforeData); err != nil {
@@ -406,23 +406,23 @@ func (r *PostgresSystemRepository) GetAuditLogByID(ctx context.Context, id int64
 			log.Metadata = make(models.JSONB)
 		}
 	}
-	
+
 	return log, nil
 }
 
 // GetAuditStats gets audit statistics based on filter and grouping
 func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *models.AuditLogFilter, groupBy string) (interface{}, error) {
 	exec := r.getExecer()
-	
+
 	// Build basic stats
 	stats := make(map[string]interface{})
-	
+
 	// Get total events count
 	countQuery := `SELECT COUNT(*) FROM audit_logs`
 	var whereConditions []string
 	var args []interface{}
 	argIndex := 1
-	
+
 	// Apply filters to count query
 	if filter.Action != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("action = $%d", argIndex))
@@ -444,7 +444,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		args = append(args, filter.EndTime)
 		argIndex++
 	}
-	
+
 	if len(whereConditions) > 0 {
 		whereClause := " WHERE " + fmt.Sprintf("%s", whereConditions[0])
 		for i := 1; i < len(whereConditions); i++ {
@@ -452,14 +452,14 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		}
 		countQuery += whereClause
 	}
-	
+
 	var totalEvents int64
 	row := exec.QueryRowContext(ctx, countQuery, args...)
 	if err := row.Scan(&totalEvents); err != nil {
 		return nil, fmt.Errorf("failed to get total events count: %w", err)
 	}
 	stats["total_events"] = totalEvents
-	
+
 	// Get actions distribution
 	actionsQuery := `
 		SELECT action, COUNT(*) as count 
@@ -475,13 +475,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		GROUP BY action 
 		ORDER BY count DESC 
 		LIMIT 10`
-	
+
 	rows, err := exec.QueryContext(ctx, actionsQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get actions distribution: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var actionsDistribution []map[string]interface{}
 	for rows.Next() {
 		var action string
@@ -495,7 +495,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		})
 	}
 	stats["actions_distribution"] = actionsDistribution
-	
+
 	// Get entities distribution
 	entitiesQuery := `
 		SELECT resource_type, COUNT(*) as count 
@@ -510,13 +510,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	entitiesQuery += `
 		GROUP BY resource_type 
 		ORDER BY count DESC`
-	
+
 	rows, err = exec.QueryContext(ctx, entitiesQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get entities distribution: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var entitiesDistribution []map[string]interface{}
 	for rows.Next() {
 		var entityType string
@@ -530,7 +530,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		})
 	}
 	stats["entities_distribution"] = entitiesDistribution
-	
+
 	// Get timeline data (last 30 days to ensure we have data)
 	timelineQuery := `
 		SELECT DATE(timestamp) as date, COUNT(*) as count
@@ -544,13 +544,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	timelineQuery += `
 		GROUP BY DATE(timestamp)
 		ORDER BY date DESC`
-	
+
 	rows, err = exec.QueryContext(ctx, timelineQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get timeline data: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var timelineData []map[string]interface{}
 	for rows.Next() {
 		var date string
@@ -564,7 +564,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		})
 	}
 	stats["timeline_data"] = timelineData
-	
+
 	// Get top users
 	usersQuery := `
 		SELECT user_name, COUNT(*) as count
@@ -579,13 +579,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		GROUP BY user_name
 		ORDER BY count DESC
 		LIMIT 5`
-	
+
 	rows, err = exec.QueryContext(ctx, usersQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get top users: %w", err)
 	}
 	defer rows.Close()
-	
+
 	var topUsers []map[string]interface{}
 	for rows.Next() {
 		var userName string
@@ -599,7 +599,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		})
 	}
 	stats["top_users"] = topUsers
-	
+
 	// Get unique users and IPs count
 	uniqueUsersQuery := `SELECT COUNT(DISTINCT user_id) FROM audit_logs` + func() string {
 		if len(whereConditions) > 0 {
@@ -607,13 +607,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		}
 		return ""
 	}()
-	
+
 	var uniqueUsers int64
 	row = exec.QueryRowContext(ctx, uniqueUsersQuery, args...)
 	if err := row.Scan(&uniqueUsers); err == nil {
 		stats["unique_users"] = uniqueUsers
 	}
-	
+
 	uniqueIPsQuery := `SELECT COUNT(DISTINCT ip_address) FROM audit_logs WHERE ip_address IS NOT NULL` + func() string {
 		if len(whereConditions) > 0 {
 			conditions := ""
@@ -624,13 +624,13 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		}
 		return ""
 	}()
-	
+
 	var uniqueIPs int64
 	row = exec.QueryRowContext(ctx, uniqueIPsQuery, args...)
 	if err := row.Scan(&uniqueIPs); err == nil {
 		stats["unique_ips"] = uniqueIPs
 	}
-	
+
 	// Calculate error rate
 	errorQuery := `
 		SELECT 
@@ -642,7 +642,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 		}
 		return ""
 	}()
-	
+
 	var errors, total int64
 	row = exec.QueryRowContext(ctx, errorQuery, args...)
 	if err := row.Scan(&errors, &total); err == nil && total > 0 {
@@ -651,7 +651,7 @@ func (r *PostgresSystemRepository) GetAuditStats(ctx context.Context, filter *mo
 	} else {
 		stats["error_rate"] = 0.0
 	}
-	
+
 	return stats, nil
 }
 
@@ -662,12 +662,12 @@ func (r *PostgresSystemRepository) GetAuditLogs(ctx context.Context, limit, offs
 		Limit:  limit,
 		Offset: offset,
 	}
-	
+
 	logs, total, err := r.GetAuditLogsWithFilter(ctx, filter)
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Convert []interface{} to []*models.AuditLog
 	var auditLogs []*models.AuditLog
 	for _, log := range logs {
@@ -675,7 +675,7 @@ func (r *PostgresSystemRepository) GetAuditLogs(ctx context.Context, limit, offs
 			auditLogs = append(auditLogs, auditLog)
 		}
 	}
-	
+
 	return auditLogs, total, nil
 }
 
@@ -686,7 +686,6 @@ func (r *PostgresSystemRepository) LogAction(ctx context.Context, userID *int, a
 	// For now, we'll just return nil to avoid breaking existing code
 	return nil
 }
-
 
 // GetRecycledProjects gets all deleted projects with pagination
 func (r *PostgresSystemRepository) GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error) {
@@ -732,7 +731,7 @@ func (r *PostgresSystemRepository) GetRecycledProjects(ctx context.Context, limi
 			GROUP BY p.id, p.name, p.description, p.owner_id, u.username, p.created_at, p.updated_at, p.deleted_at
 			ORDER BY p.deleted_at DESC
 			LIMIT $1 OFFSET $2`
-		
+
 		rows, err = exec.QueryContext(ctx, query, limit, offset)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to list recycled projects: %w", err)
@@ -806,4 +805,3 @@ func (r *PostgresSystemRepository) HardDeleteProject(ctx context.Context, id int
 
 	return nil
 }
-

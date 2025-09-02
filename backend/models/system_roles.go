@@ -10,12 +10,12 @@ import "fmt"
 
 const (
 	// 系统角色代码常量
-	RoleCodeSuperAdmin      = "superadmin"      // 超级管理员
-	RoleCodeSystemAdmin     = "system_admin"    // 系统管理员
-	RoleCodeSystemOperator  = "system_operator" // 系统操作员
-	RoleCodeSystemAuditor   = "system_auditor"  // 系统审计员
-	RoleCodeSystemSupport   = "system_support"  // 系统支持员
-	RoleCodeSystemGuest     = "system_guest"    // 系统访客
+	RoleCodeSuperAdmin     = "superadmin"      // 超级管理员
+	RoleCodeSystemAdmin    = "system_admin"    // 系统管理员
+	RoleCodeSystemOperator = "system_operator" // 系统操作员
+	RoleCodeSystemAuditor  = "system_auditor"  // 系统审计员
+	RoleCodeSystemSupport  = "system_support"  // 系统支持员
+	RoleCodeSystemGuest    = "system_guest"    // 系统访客
 )
 
 // SystemRoleInfo 系统角色信息结构
@@ -38,7 +38,7 @@ var SystemRoles = map[string]SystemRoleInfo{
 	},
 	RoleCodeSystemAdmin: {
 		Code:        RoleCodeSystemAdmin,
-		Name:        "系统管理员", 
+		Name:        "系统管理员",
 		Description: "系统管理员，负责系统配置和用户管理",
 		Level:       2,
 		IsSystem:    true,
@@ -121,7 +121,7 @@ func CanAccessRole(userRoleCode, targetRoleCode string) bool {
 	if IsSuperAdmin(userRoleCode) {
 		return true
 	}
-	
+
 	// 用户只能访问同级或更低级别的角色
 	return GetSystemRoleLevel(userRoleCode) <= GetSystemRoleLevel(targetRoleCode)
 }
@@ -146,7 +146,7 @@ var SystemRolePermissionLevels = map[string][]string{
 	},
 	RoleCodeSystemAdmin: {
 		"system.*",
-		"company.*", 
+		"company.*",
 		"project.*",
 		"task.*",
 		"document.*",

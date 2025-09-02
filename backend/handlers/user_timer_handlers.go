@@ -27,7 +27,7 @@ func NewUserTimerHandler(db database.DB, documentService *services.TaskDocumentF
 
 // CreateUserTimerTask handles POST /api/v1/user/timer-tasks
 func (h *UserTimerHandler) CreateUserTimerTask(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -117,7 +117,7 @@ func (h *UserTimerHandler) CreateUserTimerTask(c *gin.Context) {
 
 // GetUserTimerTasks handles GET /api/v1/user/timer-tasks
 func (h *UserTimerHandler) GetUserTimerTasks(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -179,7 +179,7 @@ func (h *UserTimerHandler) GetUserTimerTasks(c *gin.Context) {
 
 // GetUserTimerTask handles GET /api/v1/user/timer-tasks/:id
 func (h *UserTimerHandler) GetUserTimerTask(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -224,7 +224,7 @@ func (h *UserTimerHandler) GetUserTimerTask(c *gin.Context) {
 
 // UpdateUserTimerTask handles PUT /api/v1/user/timer-tasks/:id
 func (h *UserTimerHandler) UpdateUserTimerTask(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -322,7 +322,7 @@ func (h *UserTimerHandler) UpdateUserTimerTask(c *gin.Context) {
 
 // DeleteUserTimerTask handles DELETE /api/v1/user/timer-tasks/:id
 func (h *UserTimerHandler) DeleteUserTimerTask(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -371,7 +371,7 @@ func (h *UserTimerHandler) DeleteUserTimerTask(c *gin.Context) {
 
 // ToggleFavoriteUserTimerTask handles POST /api/v1/user/timer-tasks/:id/favorite
 func (h *UserTimerHandler) ToggleFavoriteUserTimerTask(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -437,7 +437,7 @@ func (h *UserTimerHandler) ToggleFavoriteUserTimerTask(c *gin.Context) {
 
 // GetUserTimerDashboard handles GET /api/v1/user/timer/dashboard
 func (h *UserTimerHandler) GetUserTimerDashboard(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -464,7 +464,7 @@ func (h *UserTimerHandler) GetUserTimerDashboard(c *gin.Context) {
 
 // GetUserTimerStats handles GET /api/v1/user/timer/stats
 func (h *UserTimerHandler) GetUserTimerStats(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -489,7 +489,7 @@ func (h *UserTimerHandler) GetUserTimerStats(c *gin.Context) {
 
 // GetUserTimerHistory handles GET /api/v1/user/timer/history
 func (h *UserTimerHandler) GetUserTimerHistory(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -534,7 +534,7 @@ func (h *UserTimerHandler) GetUserTimerHistory(c *gin.Context) {
 
 // GetUserTimerAnalytics handles GET /api/v1/user/timer/analytics
 func (h *UserTimerHandler) GetUserTimerAnalytics(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -564,7 +564,7 @@ func (h *UserTimerHandler) GetUserTimerAnalytics(c *gin.Context) {
 
 // GetWeeklyReport handles GET /api/v1/timer/weekly
 func (h *UserTimerHandler) GetWeeklyReport(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -582,7 +582,7 @@ func (h *UserTimerHandler) GetWeeklyReport(c *gin.Context) {
 	if startDate == "" || endDate == "" {
 		now := time.Now()
 		weekday := now.Weekday()
-		
+
 		// Calculate Monday (start of week)
 		mondayOffset := int(time.Monday - weekday)
 		if weekday == time.Sunday {
@@ -590,7 +590,7 @@ func (h *UserTimerHandler) GetWeeklyReport(c *gin.Context) {
 		}
 		monday := now.AddDate(0, 0, mondayOffset)
 		startDate = monday.Format("2006-01-02")
-		
+
 		// Calculate Sunday (end of week)
 		sunday := monday.AddDate(0, 0, 6)
 		endDate = sunday.Format("2006-01-02")

@@ -24,10 +24,6 @@ import {
   Tabs,
   Pagination
 } from 'antd';
-
-// 懒加载非关键组件
-const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
-const TaskAnalysisPanel = lazy(() => import('../components/TaskAnalysisPanel'));
 import { 
   EditOutlined, 
   DeleteOutlined, 
@@ -92,6 +88,10 @@ import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgres
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import PerformanceMonitor from '../components/PerformanceMonitor';
 import type { DocumentItem } from '../components/UnifiedTaskDocumentArea';
+
+// 懒加载非关键组件
+const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
+const TaskAnalysisPanel = lazy(() => import('../components/TaskAnalysisPanel'));
 
 const { Title, Paragraph, Text } = Typography;
 

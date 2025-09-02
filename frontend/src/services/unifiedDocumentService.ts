@@ -258,7 +258,7 @@ export class UnifiedDocumentService {
         return document;
       }
       
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get document');
     }
   }
 
@@ -299,7 +299,7 @@ export class UnifiedDocumentService {
         return updated;
       }
       
-      throw new Error(error.response?.data?.message || error.message || 'Failed to update document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to update document');
     }
   }
 
@@ -337,29 +337,29 @@ export class UnifiedDocumentService {
       // 但组件期望 Document[] 数组
       if (response.success && Array.isArray(response.data)) {
         const documents: Document[] = response.data.map((doc: unknown) => adaptSimpleToDocument({
-          id: doc.id,
-          folder_id: doc.folder_id,
-          title: doc.title,
-          content: doc.content,
-          type: doc.type,
-          status: doc.status,
-          description: doc.description,
-          tags: doc.tags || [],
-          owner_id: doc.owner_id,
-          visibility: doc.visibility,
-          version: doc.version,
-          is_template: doc.is_template,
-          created_at: doc.created_at,
-          updated_at: doc.updated_at,
-          created_by: doc.created_by,
-          owner_name: doc.owner_name,
-          folder_name: doc.folder_name,
-          project_id: doc.project_id,
-          project_name: doc.project_name,
-          customer_id: doc.customer_id,
-          customer_name: doc.customer_name,
-          category: doc.category,
-          is_favorite: doc.is_favorite
+          id: (doc as any).id,
+          folder_id: (doc as any).folder_id,
+          title: (doc as any).title,
+          content: (doc as any).content,
+          type: (doc as any).type,
+          status: (doc as any).status,
+          description: (doc as any).description,
+          tags: (doc as any).tags || [],
+          owner_id: (doc as any).owner_id,
+          visibility: (doc as any).visibility,
+          version: (doc as any).version,
+          is_template: (doc as any).is_template,
+          created_at: (doc as any).created_at,
+          updated_at: (doc as any).updated_at,
+          created_by: (doc as any).created_by,
+          owner_name: (doc as any).owner_name,
+          folder_name: (doc as any).folder_name,
+          project_id: (doc as any).project_id,
+          project_name: (doc as any).project_name,
+          customer_id: (doc as any).customer_id,
+          customer_name: (doc as any).customer_name,
+          category: (doc as any).category,
+          is_favorite: (doc as any).is_favorite
         }));
         
         return documents;
@@ -373,14 +373,14 @@ export class UnifiedDocumentService {
       console.error('Error getting documents:', error);
       
       // 区分错误类型，提供更精确的错误处理
-      if (error.status === 401) {
+      if ((error as any).status === 401) {
         // 认证失败，清除无效token
         localStorage.removeItem('token');
         throw new Error('认证失败，请重新登录');
-      } else if (error.status === 404) {
+      } else if ((error as any).status === 404) {
         // API端点不存在
         throw new Error('文档API不可用，请联系管理员');
-      } else if (error.name === 'NetworkError' || !error.status) {
+      } else if ((error as any).name === 'NetworkError' || !(error as any).status) {
         // 网络错误，使用本地数据降级
         console.warn('Network error, using local storage fallback');
         const localDocuments = LocalDocumentStore.getDocuments();
@@ -391,7 +391,7 @@ export class UnifiedDocumentService {
       }
       
       // 其他服务器错误，也使用降级处理但记录错误
-      console.warn('Server error, using local storage fallback:', error.message);
+      console.warn('Server error, using local storage fallback:', (error as any).message);
       const localDocuments = LocalDocumentStore.getDocuments();
       if (folderId !== undefined) {
         return localDocuments.filter(doc => doc.folder_id === folderId);
@@ -422,16 +422,16 @@ export class UnifiedDocumentService {
       if (response.success && response.data) {
         const adaptedResponse: DocumentListResponse = {
           documents: response.data.map((doc: unknown) => ({
-            id: doc.id,
-            title: doc.title,
-            type: doc.type,
-            status: doc.status,
-            owner_name: doc.owner_name || 'Unknown',
-            folder_name: doc.folder_name,
-            tags: doc.tags || [],
-            updated_at: doc.updated_at,
-            file_size: doc.content?.length || 0,
-            is_favorite: doc.is_favorite || false
+            id: (doc as any).id,
+            title: (doc as any).title,
+            type: (doc as any).type,
+            status: (doc as any).status,
+            owner_name: (doc as any).owner_name || 'Unknown',
+            folder_name: (doc as any).folder_name,
+            tags: (doc as any).tags || [],
+            updated_at: (doc as any).updated_at,
+            file_size: (doc as any).content?.length || 0,
+            is_favorite: (doc as any).is_favorite || false
           })),
           total: response.data.length,
           page: filter?.page || 1,
@@ -518,7 +518,7 @@ export class UnifiedDocumentService {
       return response;
     } catch (error: Error | unknown) {
       console.error('Error copying document:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to copy document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to copy document');
     }
   }
 
@@ -531,7 +531,7 @@ export class UnifiedDocumentService {
       return response;
     } catch (error: Error | unknown) {
       console.error('Error toggling template:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to toggle template');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to toggle template');
     }
   }
 
@@ -543,7 +543,7 @@ export class UnifiedDocumentService {
       await apiCall.post('/documents/batch-delete', { document_ids: documentIds });
     } catch (error: Error | unknown) {
       console.error('Error batch deleting documents:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to batch delete documents');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to batch delete documents');
     }
   }
 
@@ -558,7 +558,7 @@ export class UnifiedDocumentService {
       return response;
     } catch (error: Error | unknown) {
       console.error('Error duplicating document:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to duplicate document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to duplicate document');
     }
   }
 
@@ -574,7 +574,7 @@ export class UnifiedDocumentService {
       return response.data as Blob;
     } catch (error: Error | unknown) {
       console.error('Error exporting document:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to export document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to export document');
     }
   }
 
@@ -621,7 +621,7 @@ export class UnifiedDocumentService {
       return response;
     } catch (error: Error | unknown) {
       console.error('Error uploading image:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to upload image');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to upload image');
     }
   }
 
@@ -647,7 +647,7 @@ export class UnifiedDocumentService {
       return response;
     } catch (error: Error | unknown) {
       console.error('Error restoring document version:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to restore document version');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to restore document version');
     }
   }
 }

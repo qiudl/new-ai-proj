@@ -40,50 +40,50 @@ const (
 
 // ServiceStatus 服务状态
 type ServiceStatus struct {
-	Version     ServiceVersion `json:"version"`
-	Available   bool          `json:"available"`
-	LastCheck   time.Time     `json:"last_check"`
-	ErrorCount  int           `json:"error_count"`
-	ResponseTime time.Duration `json:"response_time"`
+	Version      ServiceVersion `json:"version"`
+	Available    bool           `json:"available"`
+	LastCheck    time.Time      `json:"last_check"`
+	ErrorCount   int            `json:"error_count"`
+	ResponseTime time.Duration  `json:"response_time"`
 }
 
 // RoutingConfig 路由配置
 type RoutingConfig struct {
-	Strategy              RoutingStrategy `json:"strategy"`
-	EnableHealthCheck     bool           `json:"enable_health_check"`
-	HealthCheckInterval   time.Duration  `json:"health_check_interval"`
-	MaxRetries           int            `json:"max_retries"`
-	RetryDelay           time.Duration  `json:"retry_delay"`
-	EnableCircuitBreaker bool           `json:"enable_circuit_breaker"`
-	CircuitBreakerThreshold int         `json:"circuit_breaker_threshold"`
-	FallbackTimeout      time.Duration  `json:"fallback_timeout"`
+	Strategy                RoutingStrategy `json:"strategy"`
+	EnableHealthCheck       bool            `json:"enable_health_check"`
+	HealthCheckInterval     time.Duration   `json:"health_check_interval"`
+	MaxRetries              int             `json:"max_retries"`
+	RetryDelay              time.Duration   `json:"retry_delay"`
+	EnableCircuitBreaker    bool            `json:"enable_circuit_breaker"`
+	CircuitBreakerThreshold int             `json:"circuit_breaker_threshold"`
+	FallbackTimeout         time.Duration   `json:"fallback_timeout"`
 }
 
 // DocumentRouter 文档路由器
 type DocumentRouter struct {
 	// 服务实例
 	services map[ServiceVersion]interfaces.DocumentServiceInterface
-	
+
 	// 配置和状态
 	config   *RoutingConfig
 	statuses map[ServiceVersion]*ServiceStatus
-	
+
 	// 并发控制
-	mu       sync.RWMutex
-	
+	mu sync.RWMutex
+
 	// 统计信息
-	stats    *RouterStats
-	
+	stats *RouterStats
+
 	// 健康检查
-	healthTicker *time.Ticker
+	healthTicker    *time.Ticker
 	stopHealthCheck chan struct{}
 }
 
 // RouterStats 路由器统计信息
 type RouterStats struct {
-	TotalRequests   map[ServiceVersion]int64  `json:"total_requests"`
-	SuccessRequests map[ServiceVersion]int64  `json:"success_requests"`
-	FailedRequests  map[ServiceVersion]int64  `json:"failed_requests"`
+	TotalRequests   map[ServiceVersion]int64         `json:"total_requests"`
+	SuccessRequests map[ServiceVersion]int64         `json:"success_requests"`
+	FailedRequests  map[ServiceVersion]int64         `json:"failed_requests"`
 	AverageLatency  map[ServiceVersion]time.Duration `json:"average_latency"`
 	LastRequestTime map[ServiceVersion]time.Time     `json:"last_request_time"`
 	mu              sync.RWMutex
@@ -94,12 +94,12 @@ func NewDocumentRouter(config *RoutingConfig) *DocumentRouter {
 	if config == nil {
 		config = DefaultRoutingConfig()
 	}
-	
+
 	router := &DocumentRouter{
-		services:        make(map[ServiceVersion]interfaces.DocumentServiceInterface),
-		config:         config,
-		statuses:       make(map[ServiceVersion]*ServiceStatus),
-		stats:          &RouterStats{
+		services: make(map[ServiceVersion]interfaces.DocumentServiceInterface),
+		config:   config,
+		statuses: make(map[ServiceVersion]*ServiceStatus),
+		stats: &RouterStats{
 			TotalRequests:   make(map[ServiceVersion]int64),
 			SuccessRequests: make(map[ServiceVersion]int64),
 			FailedRequests:  make(map[ServiceVersion]int64),
@@ -108,12 +108,12 @@ func NewDocumentRouter(config *RoutingConfig) *DocumentRouter {
 		},
 		stopHealthCheck: make(chan struct{}),
 	}
-	
+
 	// 启动健康检查
 	if config.EnableHealthCheck {
 		router.startHealthCheck()
 	}
-	
+
 	return router
 }
 
@@ -123,8 +123,8 @@ func DefaultRoutingConfig() *RoutingConfig {
 		Strategy:                StrategyDefault,
 		EnableHealthCheck:       true,
 		HealthCheckInterval:     30 * time.Second,
-		MaxRetries:             3,
-		RetryDelay:             100 * time.Millisecond,
+		MaxRetries:              3,
+		RetryDelay:              100 * time.Millisecond,
 		EnableCircuitBreaker:    true,
 		CircuitBreakerThreshold: 5,
 		FallbackTimeout:         5 * time.Second,
@@ -135,7 +135,7 @@ func DefaultRoutingConfig() *RoutingConfig {
 func (r *DocumentRouter) RegisterService(version ServiceVersion, service interfaces.DocumentServiceInterface) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	r.services[version] = service
 	r.statuses[version] = &ServiceStatus{
 		Version:   version,
@@ -148,7 +148,7 @@ func (r *DocumentRouter) RegisterService(version ServiceVersion, service interfa
 func (r *DocumentRouter) UnregisterService(version ServiceVersion) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	delete(r.services, version)
 	delete(r.statuses, version)
 }
@@ -157,7 +157,7 @@ func (r *DocumentRouter) UnregisterService(version ServiceVersion) {
 func (r *DocumentRouter) selectService(operation string) (ServiceVersion, interfaces.DocumentServiceInterface, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	switch r.config.Strategy {
 	case StrategyDefault:
 		return r.selectDefaultService(operation)
@@ -184,21 +184,21 @@ func (r *DocumentRouter) selectDefaultService(operation string) (ServiceVersion,
 			return ServiceV2, service, nil
 		}
 	}
-	
+
 	// 回退到V1
 	if status, exists := r.statuses[ServiceV1]; exists && status.Available {
 		if service, ok := r.services[ServiceV1]; ok {
 			return ServiceV1, service, nil
 		}
 	}
-	
+
 	// 最后尝试数据库服务
 	if status, exists := r.statuses[ServiceDB]; exists && status.Available {
 		if service, ok := r.services[ServiceDB]; ok {
 			return ServiceDB, service, nil
 		}
 	}
-	
+
 	return "", nil, fmt.Errorf("no available service for operation: %s", operation)
 }
 
@@ -209,7 +209,7 @@ func (r *DocumentRouter) selectSpecificService(version ServiceVersion) (ServiceV
 			return version, service, nil
 		}
 	}
-	
+
 	return "", nil, fmt.Errorf("service %s is not available", version)
 }
 
@@ -217,37 +217,37 @@ func (r *DocumentRouter) selectSpecificService(version ServiceVersion) (ServiceV
 func (r *DocumentRouter) selectLoadBalancedService(operation string) (ServiceVersion, interfaces.DocumentServiceInterface, error) {
 	// 简单的轮询负载均衡
 	availableServices := make([]ServiceVersion, 0)
-	
+
 	for version, status := range r.statuses {
 		if status.Available {
 			availableServices = append(availableServices, version)
 		}
 	}
-	
+
 	if len(availableServices) == 0 {
 		return "", nil, fmt.Errorf("no available services for load balancing")
 	}
-	
+
 	// 选择延迟最低的服务
 	var bestVersion ServiceVersion
 	var bestLatency time.Duration = time.Hour
-	
+
 	for _, version := range availableServices {
 		if latency := r.stats.AverageLatency[version]; latency < bestLatency {
 			bestLatency = latency
 			bestVersion = version
 		}
 	}
-	
+
 	if bestVersion == "" {
 		// 如果没有延迟数据，选择第一个可用的
 		bestVersion = availableServices[0]
 	}
-	
+
 	if service, ok := r.services[bestVersion]; ok {
 		return bestVersion, service, nil
 	}
-	
+
 	return "", nil, fmt.Errorf("selected service %s is not available", bestVersion)
 }
 
@@ -255,7 +255,7 @@ func (r *DocumentRouter) selectLoadBalancedService(operation string) (ServiceVer
 func (r *DocumentRouter) selectMigrationService(operation string) (ServiceVersion, interfaces.DocumentServiceInterface, error) {
 	// 迁移模式：写操作使用V2，读操作先尝试V2再回退V1
 	isWriteOperation := operation == "create" || operation == "update" || operation == "delete"
-	
+
 	if isWriteOperation {
 		// 写操作优先使用V2
 		if status, exists := r.statuses[ServiceV2]; exists && status.Available {
@@ -283,35 +283,35 @@ func (r *DocumentRouter) selectMigrationService(operation string) (ServiceVersio
 			}
 		}
 	}
-	
+
 	return "", nil, fmt.Errorf("no available service for migration mode operation: %s", operation)
 }
 
 // executeWithRetry 带重试的执行
 func (r *DocumentRouter) executeWithRetry(ctx context.Context, operation string, fn func(interfaces.DocumentServiceInterface) error) error {
 	var lastError error
-	
+
 	for retry := 0; retry <= r.config.MaxRetries; retry++ {
 		version, service, err := r.selectService(operation)
 		if err != nil {
 			lastError = err
 			continue
 		}
-		
+
 		// 记录统计信息
 		startTime := time.Now()
 		r.recordRequest(version)
-		
+
 		// 执行操作
 		err = fn(service)
 		duration := time.Since(startTime)
-		
+
 		if err != nil {
 			// 记录失败
 			r.recordFailure(version, duration)
 			r.markServiceUnhealthy(version, err)
 			lastError = err
-			
+
 			// 如果不是最后一次重试，等待后重试
 			if retry < r.config.MaxRetries {
 				time.Sleep(r.config.RetryDelay)
@@ -323,7 +323,7 @@ func (r *DocumentRouter) executeWithRetry(ctx context.Context, operation string,
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("operation failed after %d retries, last error: %w", r.config.MaxRetries, lastError)
 }
 
@@ -333,7 +333,7 @@ func (r *DocumentRouter) executeWithFallback(ctx context.Context, operation stri
 	if err := r.executeWithRetry(ctx, operation, fn); err == nil {
 		return nil
 	}
-	
+
 	// 如果是迁移模式且主要服务失败，尝试回退服务
 	if r.config.Strategy == StrategyMigration || r.config.Strategy == StrategyDefault {
 		// 对于读操作，尝试其他可用的服务
@@ -342,11 +342,11 @@ func (r *DocumentRouter) executeWithFallback(ctx context.Context, operation stri
 			if !status.Available {
 				continue
 			}
-			
+
 			if service, ok := r.services[version]; ok {
 				startTime := time.Now()
 				r.recordRequest(version)
-				
+
 				if err := fn(service); err == nil {
 					r.recordSuccess(version, time.Since(startTime))
 					r.mu.RUnlock()
@@ -358,9 +358,9 @@ func (r *DocumentRouter) executeWithFallback(ctx context.Context, operation stri
 		}
 		r.mu.RUnlock()
 	}
-	
+
 	return fmt.Errorf("operation failed on all available services: %s", operation)
-}// ===== DocumentServiceInterface 实现 =====
+} // ===== DocumentServiceInterface 实现 =====
 
 // CreateDocument 创建文档（路由实现）
 func (r *DocumentRouter) CreateDocument(ctx context.Context, req *interfaces.CreateDocumentRequest) error {
@@ -373,7 +373,7 @@ func (r *DocumentRouter) CreateDocument(ctx context.Context, req *interfaces.Cre
 func (r *DocumentRouter) ReadDocument(ctx context.Context, req *interfaces.ReadDocumentRequest) (*interfaces.DocumentResponse, error) {
 	var result *interfaces.DocumentResponse
 	var resultErr error
-	
+
 	err := r.executeWithFallback(ctx, "read", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.ReadDocument(ctx, req)
 		if err != nil {
@@ -382,11 +382,11 @@ func (r *DocumentRouter) ReadDocument(ctx context.Context, req *interfaces.ReadD
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, resultErr
 }
 
@@ -407,7 +407,7 @@ func (r *DocumentRouter) DeleteDocument(ctx context.Context, req *interfaces.Del
 // GetDocumentHistory 获取文档历史（路由实现）
 func (r *DocumentRouter) GetDocumentHistory(ctx context.Context, req *interfaces.HistoryRequest) ([]interfaces.GitCommit, error) {
 	var result []interfaces.GitCommit
-	
+
 	err := r.executeWithFallback(ctx, "history", func(service interfaces.DocumentServiceInterface) error {
 		commits, err := service.GetDocumentHistory(ctx, req)
 		if err != nil {
@@ -416,11 +416,11 @@ func (r *DocumentRouter) GetDocumentHistory(ctx context.Context, req *interfaces
 		result = commits
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -441,7 +441,7 @@ func (r *DocumentRouter) MigrateDocument(ctx context.Context, req *interfaces.Mi
 // CompareVersions 比较版本（路由实现）
 func (r *DocumentRouter) CompareVersions(ctx context.Context, req *interfaces.CompareVersionsRequest) (*interfaces.VersionComparisonResponse, error) {
 	var result *interfaces.VersionComparisonResponse
-	
+
 	err := r.executeWithFallback(ctx, "compare", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.CompareVersions(ctx, req)
 		if err != nil {
@@ -450,18 +450,18 @@ func (r *DocumentRouter) CompareVersions(ctx context.Context, req *interfaces.Co
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 // GetDocumentAtVersion 获取特定版本文档（路由实现）
 func (r *DocumentRouter) GetDocumentAtVersion(ctx context.Context, req *interfaces.VersionRequest) (*interfaces.DocumentResponse, error) {
 	var result *interfaces.DocumentResponse
-	
+
 	err := r.executeWithFallback(ctx, "version", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.GetDocumentAtVersion(ctx, req)
 		if err != nil {
@@ -470,11 +470,11 @@ func (r *DocumentRouter) GetDocumentAtVersion(ctx context.Context, req *interfac
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -488,7 +488,7 @@ func (r *DocumentRouter) ResolveConflict(ctx context.Context, req *interfaces.Co
 // SearchDocuments 搜索文档（路由实现）
 func (r *DocumentRouter) SearchDocuments(ctx context.Context, req *interfaces.SearchRequest) (*interfaces.SearchResponse, error) {
 	var result *interfaces.SearchResponse
-	
+
 	err := r.executeWithFallback(ctx, "search", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.SearchDocuments(ctx, req)
 		if err != nil {
@@ -497,11 +497,11 @@ func (r *DocumentRouter) SearchDocuments(ctx context.Context, req *interfaces.Se
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -515,7 +515,7 @@ func (r *DocumentRouter) IndexDocument(ctx context.Context, req *interfaces.Inde
 // BatchCreateDocuments 批量创建文档（路由实现）
 func (r *DocumentRouter) BatchCreateDocuments(ctx context.Context, req *interfaces.BatchCreateRequest) (*interfaces.BatchOperationResponse, error) {
 	var result *interfaces.BatchOperationResponse
-	
+
 	err := r.executeWithRetry(ctx, "batch_create", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.BatchCreateDocuments(ctx, req)
 		if err != nil {
@@ -524,18 +524,18 @@ func (r *DocumentRouter) BatchCreateDocuments(ctx context.Context, req *interfac
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 // BatchUpdateDocuments 批量更新文档（路由实现）
 func (r *DocumentRouter) BatchUpdateDocuments(ctx context.Context, req *interfaces.BatchUpdateRequest) (*interfaces.BatchOperationResponse, error) {
 	var result *interfaces.BatchOperationResponse
-	
+
 	err := r.executeWithRetry(ctx, "batch_update", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.BatchUpdateDocuments(ctx, req)
 		if err != nil {
@@ -544,18 +544,18 @@ func (r *DocumentRouter) BatchUpdateDocuments(ctx context.Context, req *interfac
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 // BatchDeleteDocuments 批量删除文档（路由实现）
 func (r *DocumentRouter) BatchDeleteDocuments(ctx context.Context, req *interfaces.BatchDeleteRequest) (*interfaces.BatchOperationResponse, error) {
 	var result *interfaces.BatchOperationResponse
-	
+
 	err := r.executeWithRetry(ctx, "batch_delete", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.BatchDeleteDocuments(ctx, req)
 		if err != nil {
@@ -564,18 +564,18 @@ func (r *DocumentRouter) BatchDeleteDocuments(ctx context.Context, req *interfac
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 // ExportDocuments 导出文档（路由实现）
 func (r *DocumentRouter) ExportDocuments(ctx context.Context, req *interfaces.ExportRequest) (*interfaces.ExportResponse, error) {
 	var result *interfaces.ExportResponse
-	
+
 	err := r.executeWithFallback(ctx, "export", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.ExportDocuments(ctx, req)
 		if err != nil {
@@ -584,18 +584,18 @@ func (r *DocumentRouter) ExportDocuments(ctx context.Context, req *interfaces.Ex
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
 // ImportDocuments 导入文档（路由实现）
 func (r *DocumentRouter) ImportDocuments(ctx context.Context, req *interfaces.ImportRequest) (*interfaces.ImportResponse, error) {
 	var result *interfaces.ImportResponse
-	
+
 	err := r.executeWithRetry(ctx, "import", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.ImportDocuments(ctx, req)
 		if err != nil {
@@ -604,11 +604,11 @@ func (r *DocumentRouter) ImportDocuments(ctx context.Context, req *interfaces.Im
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -629,7 +629,7 @@ func (r *DocumentRouter) UnlockDocument(ctx context.Context, req *interfaces.Doc
 // GetDocumentLockStatus 获取文档锁定状态（路由实现）
 func (r *DocumentRouter) GetDocumentLockStatus(ctx context.Context, req *interfaces.LockStatusRequest) (*interfaces.LockStatusResponse, error) {
 	var result *interfaces.LockStatusResponse
-	
+
 	err := r.executeWithFallback(ctx, "lock_status", func(service interfaces.DocumentServiceInterface) error {
 		resp, err := service.GetDocumentLockStatus(ctx, req)
 		if err != nil {
@@ -638,11 +638,11 @@ func (r *DocumentRouter) GetDocumentLockStatus(ctx context.Context, req *interfa
 		result = resp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return result, nil
 }
 
@@ -650,28 +650,28 @@ func (r *DocumentRouter) GetDocumentLockStatus(ctx context.Context, req *interfa
 func (r *DocumentRouter) HealthCheck(ctx context.Context) error {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	hasHealthyService := false
-	
+
 	for _, status := range r.statuses {
 		if status.Available {
 			hasHealthyService = true
 			break
 		}
 	}
-	
+
 	if !hasHealthyService {
 		return fmt.Errorf("no healthy services available")
 	}
-	
+
 	return nil
-}// ===== 管理和监控功能 =====
+} // ===== 管理和监控功能 =====
 
 // GetServiceStatuses 获取所有服务状态
 func (r *DocumentRouter) GetServiceStatuses() map[ServiceVersion]*ServiceStatus {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	statuses := make(map[ServiceVersion]*ServiceStatus)
 	for version, status := range r.statuses {
 		// 深拷贝避免数据竞争
@@ -683,7 +683,7 @@ func (r *DocumentRouter) GetServiceStatuses() map[ServiceVersion]*ServiceStatus 
 			ResponseTime: status.ResponseTime,
 		}
 	}
-	
+
 	return statuses
 }
 
@@ -691,7 +691,7 @@ func (r *DocumentRouter) GetServiceStatuses() map[ServiceVersion]*ServiceStatus 
 func (r *DocumentRouter) GetRouterStats() *RouterStats {
 	r.stats.mu.RLock()
 	defer r.stats.mu.RUnlock()
-	
+
 	stats := &RouterStats{
 		TotalRequests:   make(map[ServiceVersion]int64),
 		SuccessRequests: make(map[ServiceVersion]int64),
@@ -699,7 +699,7 @@ func (r *DocumentRouter) GetRouterStats() *RouterStats {
 		AverageLatency:  make(map[ServiceVersion]time.Duration),
 		LastRequestTime: make(map[ServiceVersion]time.Time),
 	}
-	
+
 	// 深拷贝统计数据
 	for version, count := range r.stats.TotalRequests {
 		stats.TotalRequests[version] = count
@@ -716,7 +716,7 @@ func (r *DocumentRouter) GetRouterStats() *RouterStats {
 	for version, t := range r.stats.LastRequestTime {
 		stats.LastRequestTime[version] = t
 	}
-	
+
 	return stats
 }
 
@@ -724,7 +724,7 @@ func (r *DocumentRouter) GetRouterStats() *RouterStats {
 func (r *DocumentRouter) SetRoutingStrategy(strategy RoutingStrategy) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	r.config.Strategy = strategy
 }
 
@@ -732,7 +732,7 @@ func (r *DocumentRouter) SetRoutingStrategy(strategy RoutingStrategy) {
 func (r *DocumentRouter) GetRoutingStrategy() RoutingStrategy {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	return r.config.Strategy
 }
 
@@ -740,14 +740,14 @@ func (r *DocumentRouter) GetRoutingStrategy() RoutingStrategy {
 func (r *DocumentRouter) EnableService(version ServiceVersion) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if status, exists := r.statuses[version]; exists {
 		status.Available = true
 		status.LastCheck = time.Now()
 		status.ErrorCount = 0
 		return nil
 	}
-	
+
 	return fmt.Errorf("service %s not found", version)
 }
 
@@ -755,7 +755,7 @@ func (r *DocumentRouter) EnableService(version ServiceVersion) error {
 func (r *DocumentRouter) DisableService(version ServiceVersion) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if status, exists := r.statuses[version]; exists {
 		status.Available = false
 		status.LastCheck = time.Now()
@@ -766,11 +766,11 @@ func (r *DocumentRouter) DisableService(version ServiceVersion) {
 func (r *DocumentRouter) IsServiceAvailable(version ServiceVersion) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	
+
 	if status, exists := r.statuses[version]; exists {
 		return status.Available
 	}
-	
+
 	return false
 }
 
@@ -780,7 +780,7 @@ func (r *DocumentRouter) IsServiceAvailable(version ServiceVersion) bool {
 func (r *DocumentRouter) recordRequest(version ServiceVersion) {
 	r.stats.mu.Lock()
 	defer r.stats.mu.Unlock()
-	
+
 	r.stats.TotalRequests[version]++
 	r.stats.LastRequestTime[version] = time.Now()
 }
@@ -789,13 +789,13 @@ func (r *DocumentRouter) recordRequest(version ServiceVersion) {
 func (r *DocumentRouter) recordSuccess(version ServiceVersion, duration time.Duration) {
 	r.stats.mu.Lock()
 	defer r.stats.mu.Unlock()
-	
+
 	r.stats.SuccessRequests[version]++
-	
+
 	// 更新平均延迟（简单移动平均）
 	currentLatency := r.stats.AverageLatency[version]
 	successCount := r.stats.SuccessRequests[version]
-	
+
 	if successCount == 1 {
 		r.stats.AverageLatency[version] = duration
 	} else {
@@ -808,7 +808,7 @@ func (r *DocumentRouter) recordSuccess(version ServiceVersion, duration time.Dur
 func (r *DocumentRouter) recordFailure(version ServiceVersion, duration time.Duration) {
 	r.stats.mu.Lock()
 	defer r.stats.mu.Unlock()
-	
+
 	r.stats.FailedRequests[version]++
 }
 
@@ -816,11 +816,11 @@ func (r *DocumentRouter) recordFailure(version ServiceVersion, duration time.Dur
 func (r *DocumentRouter) markServiceUnhealthy(version ServiceVersion, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if status, exists := r.statuses[version]; exists {
 		status.ErrorCount++
 		status.LastCheck = time.Now()
-		
+
 		// 如果错误次数超过阈值且启用了熔断器，则禁用服务
 		if r.config.EnableCircuitBreaker && status.ErrorCount >= r.config.CircuitBreakerThreshold {
 			status.Available = false
@@ -831,7 +831,7 @@ func (r *DocumentRouter) markServiceUnhealthy(version ServiceVersion, err error)
 // startHealthCheck 启动健康检查
 func (r *DocumentRouter) startHealthCheck() {
 	r.healthTicker = time.NewTicker(r.config.HealthCheckInterval)
-	
+
 	go func() {
 		for {
 			select {
@@ -852,7 +852,7 @@ func (r *DocumentRouter) performHealthCheck() {
 		services[version] = service
 	}
 	r.mu.RUnlock()
-	
+
 	for version, service := range services {
 		go r.checkServiceHealth(version, service)
 	}
@@ -862,18 +862,18 @@ func (r *DocumentRouter) performHealthCheck() {
 func (r *DocumentRouter) checkServiceHealth(version ServiceVersion, service interfaces.DocumentServiceInterface) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	startTime := time.Now()
 	err := service.HealthCheck(ctx)
 	duration := time.Since(startTime)
-	
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	if status, exists := r.statuses[version]; exists {
 		status.LastCheck = time.Now()
 		status.ResponseTime = duration
-		
+
 		if err != nil {
 			status.ErrorCount++
 			// 如果健康检查失败且启用了熔断器
@@ -893,7 +893,7 @@ func (r *DocumentRouter) Stop() {
 	if r.healthTicker != nil {
 		r.healthTicker.Stop()
 	}
-	
+
 	close(r.stopHealthCheck)
 }
 
@@ -907,7 +907,7 @@ func NewDocumentRouterWithServices(
 	dbService interfaces.DocumentServiceInterface,
 ) *DocumentRouter {
 	router := NewDocumentRouter(config)
-	
+
 	if v1Service != nil {
 		router.RegisterService(ServiceV1, v1Service)
 	}
@@ -917,7 +917,7 @@ func NewDocumentRouterWithServices(
 	if dbService != nil {
 		router.RegisterService(ServiceDB, dbService)
 	}
-	
+
 	return router
 }
 
@@ -925,37 +925,37 @@ func NewDocumentRouterWithServices(
 
 // RouterInfo 路由器信息
 type RouterInfo struct {
-	Strategy         RoutingStrategy              `json:"strategy"`
-	ServicesCount    int                          `json:"services_count"`
-	HealthyServices  int                          `json:"healthy_services"`
-	ServiceStatuses  map[ServiceVersion]*ServiceStatus `json:"service_statuses"`
-	Stats           *RouterStats                  `json:"stats"`
-	Configuration   *RoutingConfig               `json:"configuration"`
+	Strategy        RoutingStrategy                   `json:"strategy"`
+	ServicesCount   int                               `json:"services_count"`
+	HealthyServices int                               `json:"healthy_services"`
+	ServiceStatuses map[ServiceVersion]*ServiceStatus `json:"service_statuses"`
+	Stats           *RouterStats                      `json:"stats"`
+	Configuration   *RoutingConfig                    `json:"configuration"`
 }
 
 // GetRouterInfo 获取路由器完整信息
 func (r *DocumentRouter) GetRouterInfo() *RouterInfo {
 	statuses := r.GetServiceStatuses()
 	stats := r.GetRouterStats()
-	
+
 	healthyCount := 0
 	for _, status := range statuses {
 		if status.Available {
 			healthyCount++
 		}
 	}
-	
+
 	r.mu.RLock()
 	config := *r.config // 拷贝配置
 	r.mu.RUnlock()
-	
+
 	return &RouterInfo{
 		Strategy:        config.Strategy,
 		ServicesCount:   len(statuses),
 		HealthyServices: healthyCount,
 		ServiceStatuses: statuses,
-		Stats:          stats,
-		Configuration:  &config,
+		Stats:           stats,
+		Configuration:   &config,
 	}
 }
 
@@ -963,7 +963,7 @@ func (r *DocumentRouter) GetRouterInfo() *RouterInfo {
 func (r *DocumentRouter) ResetStats() {
 	r.stats.mu.Lock()
 	defer r.stats.mu.Unlock()
-	
+
 	r.stats.TotalRequests = make(map[ServiceVersion]int64)
 	r.stats.SuccessRequests = make(map[ServiceVersion]int64)
 	r.stats.FailedRequests = make(map[ServiceVersion]int64)
@@ -975,16 +975,16 @@ func (r *DocumentRouter) ResetStats() {
 func (r *DocumentRouter) UpdateConfig(newConfig *RoutingConfig) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	
+
 	oldHealthCheck := r.config.EnableHealthCheck
 	*r.config = *newConfig
-	
+
 	// 如果健康检查设置发生变化，重启健康检查
 	if oldHealthCheck != newConfig.EnableHealthCheck {
 		if r.healthTicker != nil {
 			r.healthTicker.Stop()
 		}
-		
+
 		if newConfig.EnableHealthCheck {
 			r.startHealthCheck()
 		}

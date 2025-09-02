@@ -23,10 +23,10 @@ type DocumentCommentExt struct {
 	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at" db:"updated_at"`
 	DeletedAt       *time.Time `json:"deleted_at" db:"deleted_at"`
-	
+
 	// 关联字段
-	UserName        string  `json:"user_name,omitempty" db:"user_name"`
-	ResolvedByName  *string `json:"resolved_by_name,omitempty" db:"resolved_by_name"`
+	UserName       string  `json:"user_name,omitempty" db:"user_name"`
+	ResolvedByName *string `json:"resolved_by_name,omitempty" db:"resolved_by_name"`
 }
 
 // AddCommentRequest 添加评论请求
@@ -54,18 +54,18 @@ type CommentListResponse struct {
 
 // DocumentCollaboratorExt 扩展的文档协作者模型（扩展原有DocumentCollaborator）
 type DocumentCollaboratorExt struct {
-	ID               int        `json:"id" db:"id"`
-	DocumentID       int        `json:"document_id" db:"document_id"`
-	UserID           int        `json:"user_id" db:"user_id"`
-	PermissionLevel  string     `json:"permission_level" db:"permission_level"`
-	GrantedBy        int        `json:"granted_by" db:"granted_by"`
-	GrantedAt        time.Time  `json:"granted_at" db:"granted_at"`
-	ExpiresAt        *time.Time `json:"expires_at" db:"expires_at"`
-	LastAccessedAt   *time.Time `json:"last_accessed_at" db:"last_accessed_at"`
-	
+	ID              int        `json:"id" db:"id"`
+	DocumentID      int        `json:"document_id" db:"document_id"`
+	UserID          int        `json:"user_id" db:"user_id"`
+	PermissionLevel string     `json:"permission_level" db:"permission_level"`
+	GrantedBy       int        `json:"granted_by" db:"granted_by"`
+	GrantedAt       time.Time  `json:"granted_at" db:"granted_at"`
+	ExpiresAt       *time.Time `json:"expires_at" db:"expires_at"`
+	LastAccessedAt  *time.Time `json:"last_accessed_at" db:"last_accessed_at"`
+
 	// 关联字段
-	UserName        *string `json:"user_name,omitempty" db:"user_name"`
-	GrantedByName   *string `json:"granted_by_name,omitempty" db:"granted_by_name"`
+	UserName      *string `json:"user_name,omitempty" db:"user_name"`
+	GrantedByName *string `json:"granted_by_name,omitempty" db:"granted_by_name"`
 }
 
 // AddCollaboratorExtRequest 添加协作者请求（扩展版）
@@ -94,7 +94,7 @@ type DocumentChangeRecord struct {
 	IPAddress     *string   `json:"ip_address" db:"ip_address"`
 	UserAgent     *string   `json:"user_agent" db:"user_agent"`
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	
+
 	// 关联字段
 	UserName string `json:"user_name,omitempty" db:"user_name"`
 }
@@ -127,11 +127,11 @@ type ActiveCollaborator struct {
 
 // DocumentCollaborationStats 文档协作统计
 type DocumentCollaborationStats struct {
-	DocumentID        int `json:"document_id"`
-	CollaboratorCount int `json:"collaborator_count"`
-	CommentCount      int `json:"comment_count"`
+	DocumentID         int `json:"document_id"`
+	CollaboratorCount  int `json:"collaborator_count"`
+	CommentCount       int `json:"comment_count"`
 	UnresolvedComments int `json:"unresolved_comments"`
-	ChangeCount       int `json:"change_count"`
+	ChangeCount        int `json:"change_count"`
 }
 
 // UserCollaborationDashboard 用户协作仪表板

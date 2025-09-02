@@ -63,8 +63,8 @@ func (h *UnifiedDocumentHandler) CreateDocument(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"code":  "INVALID_REQUEST",
+			"error":   "Invalid request body",
+			"code":    "INVALID_REQUEST",
 			"details": err.Error(),
 		})
 		return
@@ -88,8 +88,8 @@ func (h *UnifiedDocumentHandler) CreateDocument(c *gin.Context) {
 	// 调用服务
 	if err := h.documentService.CreateDocument(c.Request.Context(), req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to create document",
-			"code":  "CREATE_FAILED",
+			"error":   "Failed to create document",
+			"code":    "CREATE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -155,8 +155,8 @@ func (h *UnifiedDocumentHandler) GetDocument(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to read document",
-				"code":  "READ_FAILED",
+				"error":   "Failed to read document",
+				"code":    "READ_FAILED",
 				"details": err.Error(),
 			})
 		}
@@ -207,8 +207,8 @@ func (h *UnifiedDocumentHandler) UpdateDocument(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"code":  "INVALID_REQUEST",
+			"error":   "Invalid request body",
+			"code":    "INVALID_REQUEST",
 			"details": err.Error(),
 		})
 		return
@@ -232,8 +232,8 @@ func (h *UnifiedDocumentHandler) UpdateDocument(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to update document",
-				"code":  "UPDATE_FAILED",
+				"error":   "Failed to update document",
+				"code":    "UPDATE_FAILED",
 				"details": err.Error(),
 			})
 		}
@@ -305,8 +305,8 @@ func (h *UnifiedDocumentHandler) DeleteDocument(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to delete document",
-				"code":  "DELETE_FAILED",
+				"error":   "Failed to delete document",
+				"code":    "DELETE_FAILED",
 				"details": err.Error(),
 			})
 		}
@@ -382,8 +382,8 @@ func (h *UnifiedDocumentHandler) GetDocumentHistory(c *gin.Context) {
 	history, err := h.documentService.GetDocumentHistory(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get document history",
-			"code":  "HISTORY_FAILED",
+			"error":   "Failed to get document history",
+			"code":    "HISTORY_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -457,8 +457,8 @@ func (h *UnifiedDocumentHandler) ArchiveDocument(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Failed to archive document",
-				"code":  "ARCHIVE_FAILED",
+				"error":   "Failed to archive document",
+				"code":    "ARCHIVE_FAILED",
 				"details": err.Error(),
 			})
 		}
@@ -496,8 +496,8 @@ func (h *UnifiedDocumentHandler) MigrateDocument(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
-			"code":  "INVALID_REQUEST",
+			"error":   "Invalid request body",
+			"code":    "INVALID_REQUEST",
 			"details": err.Error(),
 		})
 		return
@@ -514,8 +514,8 @@ func (h *UnifiedDocumentHandler) MigrateDocument(c *gin.Context) {
 	// 调用服务
 	if err := h.documentService.MigrateDocument(c.Request.Context(), req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to migrate document",
-			"code":  "MIGRATE_FAILED",
+			"error":   "Failed to migrate document",
+			"code":    "MIGRATE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -803,10 +803,10 @@ func (h *UnifiedDocumentHandler) ResolveConflict(c *gin.Context) {
 	}
 
 	var requestBody struct {
-		BaseVersion    string                              `json:"base_version"`
-		ConflictBlocks []interfaces.ConflictBlock          `json:"conflict_blocks"`
-		Resolution     interfaces.ConflictResolutionType   `json:"resolution"`
-		Message        string                              `json:"message"`
+		BaseVersion    string                            `json:"base_version"`
+		ConflictBlocks []interfaces.ConflictBlock        `json:"conflict_blocks"`
+		Resolution     interfaces.ConflictResolutionType `json:"resolution"`
+		Message        string                            `json:"message"`
 	}
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {

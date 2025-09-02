@@ -1,5 +1,22 @@
 import api from './api';
 
+import { ValidationHelper, AppError } from '../utils/errorTypes';
+import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
+import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
+import {
+  Task,
+  TaskRequest,
+  TaskFilter,
+  PaginationParams,
+  PaginatedResponse,
+  BulkImportRequest,
+  BulkImportResponse,
+  APIResponse,
+  HierarchicalTask,
+  TaskUpdate,
+  TimelineEvent,
+} from '../types/task';
+
 // Task service additions for descendants API
 export async function fetchTaskDescendants(projectId: number, taskId: number, params?: { depth?: number; limit?: number }) {
   const depth = params?.depth ?? 2;
@@ -28,23 +45,6 @@ export async function fetchTaskDescendants(projectId: number, taskId: number, pa
   }
 
 }
-
-import { ValidationHelper, AppError } from '../utils/errorTypes';
-import { logApiError, logTaskAction, logPerformance } from '../utils/logger';
-import { validateTaskRequest, sanitizeForAPI, sanitizeFromAPI } from '../utils/dataValidator';
-import {
-  Task,
-  TaskRequest,
-  TaskFilter,
-  PaginationParams,
-  PaginatedResponse,
-  BulkImportRequest,
-  BulkImportResponse,
-  APIResponse,
-  HierarchicalTask,
-  TaskUpdate,
-  TimelineEvent,
-} from '../types/task';
 
 // Cache capability detection to avoid repeated 404s when backend endpoint is unavailable
 let LEGACY_PROGRESS_AVAILABLE: boolean | null = false;

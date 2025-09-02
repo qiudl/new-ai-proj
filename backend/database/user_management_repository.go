@@ -35,7 +35,7 @@ func (r *UserManagementRepository) CreateUser(ctx context.Context, user *models.
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.Username, user.Email, user.PasswordHash, user.UserType, 
+		user.Username, user.Email, user.PasswordHash, user.UserType,
 		user.CompanyID, user.CompanyUserID, user.Role, user.Status, user.Profile)
 
 	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
@@ -123,7 +123,7 @@ func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *
 
 	// Add updated_at
 	setParts = append(setParts, "updated_at = NOW()")
-	
+
 	// Add WHERE clause
 	args = append(args, id)
 	whereClause := fmt.Sprintf("id = $%d", argIndex)

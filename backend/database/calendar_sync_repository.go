@@ -55,7 +55,7 @@ type TaskSyncInfo struct {
 	ID                    int            `json:"id" db:"id"`
 	Title                 string         `json:"title" db:"title"`
 	Description           sql.NullString `json:"description" db:"description"`
-	DueDate              sql.NullTime   `json:"due_date" db:"due_date"`
+	DueDate               sql.NullTime   `json:"due_date" db:"due_date"`
 	Status                string         `json:"status" db:"status"`
 	Priority              sql.NullString `json:"priority" db:"priority"`
 	SyncToCalendar        bool           `json:"sync_to_calendar" db:"sync_to_calendar"`
@@ -80,7 +80,7 @@ func (r *CalendarSyncRepository) AddToSyncQueue(operationType string, taskID int
 		INSERT INTO calendar_sync_queue (task_id, operation_type, priority, payload)
 		VALUES ($1, $2, $3, $4)
 	`
-	
+
 	_, err = r.db.Exec(query, taskID, operationType, priority, string(payloadJSON))
 	if err != nil {
 		return fmt.Errorf("添加同步队列项失败: %v", err)
@@ -114,7 +114,7 @@ func (r *CalendarSyncRepository) GetPendingSyncItems(limit int) ([]*SyncQueueIte
 
 		err := rows.Scan(&item.ID, &item.TaskID, &item.OperationType, &item.Priority,
 			&payloadStr, &item.RetryCount, &item.MaxRetries, &item.Status,
-			&item.ErrorMessage, &item.CreatedAt, &item.ScheduledAt, 
+			&item.ErrorMessage, &item.CreatedAt, &item.ScheduledAt,
 			&item.StartedAt, &item.CompletedAt)
 		if err != nil {
 			return nil, fmt.Errorf("扫描同步项失败: %v", err)
@@ -403,7 +403,7 @@ func (r *CalendarSyncRepository) UpdateTaskFromCalendarSync(taskID int, updateFi
 		SET %s, updated_at = NOW()
 		WHERE id = $%d AND deleted_at IS NULL
 	`, strings.Join(setParts, ", "), argIndex)
-	
+
 	args = append(args, taskID)
 
 	result, err := r.db.Exec(query, args...)

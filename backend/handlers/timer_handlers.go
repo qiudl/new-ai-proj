@@ -1,15 +1,15 @@
 package handlers
 
 import (
+	"ai-project-backend/database"
 	"context"
 	"fmt"
-	"ai-project-backend/database"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/models"
+	"github.com/gin-gonic/gin"
 )
 
 type TimerHandler struct {
@@ -28,7 +28,7 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 		return
 	}
 
-	var req models.TimerStartRequest  
+	var req models.TimerStartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format", "details": err.Error()})
 		return
@@ -37,7 +37,7 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 	// Enhanced validation
 	if req.TaskID <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid task ID",
+			"error":   "Invalid task ID",
 			"details": "Task ID must be a positive integer",
 		})
 		return
@@ -54,8 +54,8 @@ func (h *TimerHandler) StartTimer(c *gin.Context) {
 	}
 
 	// Check if user already has this task running (prevent duplicate starts)
-	if user.TimingStatus == string(models.TimingStatusRunning) && 
-	   user.CurrentTimingTaskID != nil && *user.CurrentTimingTaskID == req.TaskID {
+	if user.TimingStatus == string(models.TimingStatusRunning) &&
+		user.CurrentTimingTaskID != nil && *user.CurrentTimingTaskID == req.TaskID {
 		// Same task is already running, return current state instead of error
 		c.JSON(http.StatusOK, models.TimerStartResponse{
 			TaskID:    req.TaskID,
@@ -204,9 +204,9 @@ func (h *TimerHandler) GetCurrentTimer(c *gin.Context) {
 	}
 
 	response := models.TimerCurrentResponse{
-		IsRunning:     user.TimingStatus == string(models.TimingStatusRunning),
+		IsRunning:      user.TimingStatus == string(models.TimingStatusRunning),
 		ElapsedSeconds: 0,
-		FormattedTime: "00:00:00",
+		FormattedTime:  "00:00:00",
 	}
 
 	// If timer is running, get task details and calculate elapsed time
@@ -259,19 +259,19 @@ func (h *TimerHandler) GetTimerRecentTasks(c *gin.Context) {
 	// Parse pagination parameters
 	limit := 8 // Default page size
 	offset := 0
-	
+
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
 			limit = parsedLimit
 		}
 	}
-	
+
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
 	}
-	
+
 	// Add a short timeout to avoid hanging requests (server-side protection)
 	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
 	defer cancel()
@@ -312,7 +312,7 @@ func (h *TimerHandler) GetWeeklyReport(c *gin.Context) {
 	// Parse query parameters for date range
 	startDate := c.Query("start_date")
 	endDate := c.Query("end_date")
-	
+
 	if startDate == "" || endDate == "" {
 		// Default to current week
 		now := time.Now()

@@ -13,7 +13,7 @@ func RegisterPermissionRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		permissions.GET("", app.GetPermissionHandler().GetPermissions)
 		permissions.GET("/modules", app.GetPermissionHandler().GetPermissionModules)
 		permissions.GET("/modules/:module/permissions", app.GetPermissionHandler().GetModulePermissions)
-		
+
 		// 角色管理
 		permissions.GET("/roles", app.GetPermissionHandler().GetRoles)
 		permissions.POST("/roles", app.GetPermissionHandler().CreateRole)
@@ -21,7 +21,7 @@ func RegisterPermissionRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		permissions.DELETE("/roles/:id", app.GetPermissionHandler().DeleteRole)
 		permissions.GET("/roles/:id/permissions", app.GetPermissionHandler().GetRolePermissions)
 		permissions.POST("/roles/:id/permissions", app.GetPermissionHandler().SetRolePermissions)
-		
+
 		// 用户权限管理 - 这里是前端请求的关键路由
 		permissions.GET("/users/:id", app.GetPermissionHandler().GetUserPermissions)
 		permissions.PUT("/users/:id", app.GetPermissionHandler().UpdateUserPermissions)
@@ -33,11 +33,11 @@ func RegisterPermissionRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		permissions.GET("/users/:id/roles", app.GetPermissionHandler().GetUserRoles)
 		permissions.POST("/users/:id/roles", app.GetPermissionHandler().AssignUserRole)
 		permissions.DELETE("/users/:id/roles/:roleId", app.GetPermissionHandler().RemoveUserRole)
-		
+
 		// 权限检查
 		permissions.POST("/check", app.GetPermissionHandler().CheckUserPermission)
 		permissions.POST("/check/batch", app.GetPermissionHandler().BatchCheckPermissions)
-		
+
 		// 审计日志
 		permissions.GET("/audit-logs", app.GetPermissionHandler().GetPermissionAuditLogs)
 	}

@@ -62,7 +62,7 @@ func (h *SmartTemplateHandler) GetRecommendedTemplates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"recommendations": recommendations,
-		"count":          len(recommendations),
+		"count":           len(recommendations),
 	})
 }
 
@@ -96,9 +96,9 @@ func (h *SmartTemplateHandler) GenerateFromTemplate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"content": content,
+		"content":     content,
 		"template_id": templateID,
-		"variables": request.Variables,
+		"variables":   request.Variables,
 	})
 }
 
@@ -132,9 +132,9 @@ func (h *SmartTemplateHandler) GetTemplates(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"templates":   templates,
-		"grouped":     grouped,
-		"total":       len(templates),
+		"templates": templates,
+		"grouped":   grouped,
+		"total":     len(templates),
 	})
 }
 
@@ -217,9 +217,9 @@ func (h *SmartTemplateHandler) GetTemplateStats(c *gin.Context) {
 	stats := gin.H{
 		"total_templates": len(templates),
 		"categories":      make(map[string]int),
-		"types":          make(map[string]int),
-		"most_used":      []services.TaskDocumentTemplate{},
-		"recent":         []services.TaskDocumentTemplate{},
+		"types":           make(map[string]int),
+		"most_used":       []services.TaskDocumentTemplate{},
+		"recent":          []services.TaskDocumentTemplate{},
 	}
 
 	categoryCount := make(map[string]int)

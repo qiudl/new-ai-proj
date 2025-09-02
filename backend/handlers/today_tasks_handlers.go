@@ -89,7 +89,7 @@ func (h *TodayTasksHandler) GetTodayTasksStats(c *gin.Context) {
 		fmt.Printf("Key: %s, Value: %v\n", key, value)
 	}
 	fmt.Printf("Total map keys: %d\n", len(stats))
-	
+
 	if totalPlanned, exists := stats["totalPlannedTime"]; exists {
 		fmt.Printf("totalPlannedTime EXISTS: %v\n", totalPlanned)
 	} else {
@@ -177,8 +177,8 @@ func (h *TodayTasksHandler) PostponeTodayTask(c *gin.Context) {
 // BulkOperationTodayTasks 批量操作今日任务
 func (h *TodayTasksHandler) BulkOperationTodayTasks(c *gin.Context) {
 	var req struct {
-		TaskIDs   []int  `json:"task_ids" validate:"required"`
-		Operation string `json:"operation" validate:"required,oneof=complete postpone delete"`
+		TaskIDs    []int  `json:"task_ids" validate:"required"`
+		Operation  string `json:"operation" validate:"required,oneof=complete postpone delete"`
 		NewDueDate string `json:"new_due_date,omitempty"`
 	}
 
@@ -454,12 +454,12 @@ func (h *TodayTasksHandler) taskToMap(task *models.Task) map[string]interface{} 
 
 func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string]interface{} {
 	stats := map[string]interface{}{
-		"total_count":     len(tasks),
-		"completed_count": 0,
-		"in_progress_count": 0,
-		"pending_count":   0,
-		"overdue_count":   0,
-		"due_today_count": 0,
+		"total_count":         len(tasks),
+		"completed_count":     0,
+		"in_progress_count":   0,
+		"pending_count":       0,
+		"overdue_count":       0,
+		"due_today_count":     0,
 		"created_today_count": 0,
 		"updated_today_count": 0,
 		"high_priority_count": 0,
@@ -468,18 +468,18 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 			"medium": 0,
 			"low":    0,
 		},
-		
+
 		// 时间统计 - 精准时间支持
-		"totalPlannedTime":   0.0,   // 分钟 (精准到分钟)
-		"totalActualTime":    0.0,   // 分钟 (精准到分钟)  
-		"totalRemainingTime": 0.0,   // 分钟 (精准到分钟)
-		"timeEfficiency":     0.0,   // 百分比
-		
+		"totalPlannedTime":   0.0, // 分钟 (精准到分钟)
+		"totalActualTime":    0.0, // 分钟 (精准到分钟)
+		"totalRemainingTime": 0.0, // 分钟 (精准到分钟)
+		"timeEfficiency":     0.0, // 百分比
+
 		// 新增：精准时间格式统计
-		"totalPlannedTimeFormatted":   "0分钟",   // 格式化显示
-		"totalActualTimeFormatted":    "0分钟",   // 格式化显示
-		"totalRemainingTimeFormatted": "0分钟",   // 格式化显示
-		
+		"totalPlannedTimeFormatted":   "0分钟", // 格式化显示
+		"totalActualTimeFormatted":    "0分钟", // 格式化显示
+		"totalRemainingTimeFormatted": "0分钟", // 格式化显示
+
 		// 时间分布统计
 		"timeDistribution": map[string]float64{
 			"short":  0, // 0-2小时
@@ -492,7 +492,7 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 	today := time.Now().Format("2006-01-02")
 	priorityStats := stats["priority_stats"].(map[string]int)
 	timeDistribution := stats["timeDistribution"].(map[string]float64)
-	
+
 	var totalPlannedMinutes, totalActualMinutes float64
 
 	for _, task := range tasks {
@@ -520,7 +520,7 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 		if task.CreatedAt.Format("2006-01-02") == today {
 			stats["created_today_count"] = stats["created_today_count"].(int) + 1
 		}
-		
+
 		// Updated today (where updated_at ≠ created_at)
 		if task.UpdatedAt.Format("2006-01-02") == today && !task.UpdatedAt.Equal(task.CreatedAt) {
 			stats["updated_today_count"] = stats["updated_today_count"].(int) + 1
@@ -539,7 +539,7 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 					}
 				}
 			}
-			
+
 			// 时间统计处理 - 支持精准时间
 			h.processTaskTimeStats(task, &totalPlannedMinutes, &totalActualMinutes, timeDistribution)
 		}
@@ -552,7 +552,7 @@ func (h *TodayTasksHandler) calculateTodayStats(tasks []*models.Task) map[string
 	} else {
 		stats["completion_rate"] = 0.0
 	}
-	
+
 	// 完成时间统计计算
 	h.finalizeTimeStats(stats, totalPlannedMinutes, totalActualMinutes)
 
@@ -570,7 +570,7 @@ func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlanned
 	if task.CustomFields == nil {
 		return
 	}
-	
+
 	// 提取精准时间数据 (estimatedMinutes)
 	var plannedMinutes float64
 	if estimatedMinutes, exists := task.CustomFields["estimatedMinutes"]; exists {
@@ -580,7 +580,7 @@ func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlanned
 			plannedMinutes = float64(minutesInt)
 		}
 	}
-	
+
 	// 如果没有estimatedMinutes，尝试从estimated_hours获取（向后兼容）
 	if plannedMinutes == 0 {
 		if estimatedHours, exists := task.CustomFields["estimated_hours"]; exists {
@@ -591,7 +591,7 @@ func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlanned
 			}
 		}
 	}
-	
+
 	// 提取实际时间数据
 	var actualMinutes float64
 	if actualTime, exists := task.CustomFields["actual_time"]; exists {
@@ -601,10 +601,10 @@ func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlanned
 			actualMinutes = float64(minutesInt)
 		}
 	}
-	
+
 	*totalPlannedMinutes += plannedMinutes
 	*totalActualMinutes += actualMinutes
-	
+
 	// 时间分布统计 (基于计划时间)
 	if plannedMinutes > 0 {
 		if plannedMinutes <= 120 { // 0-2小时
@@ -623,18 +623,18 @@ func (h *TodayTasksHandler) processTaskTimeStats(task *models.Task, totalPlanned
 func (h *TodayTasksHandler) finalizeTimeStats(stats map[string]interface{}, totalPlannedMinutes, totalActualMinutes float64) {
 	// 调试日志
 	h.logger.Printf("DEBUG: finalizeTimeStats - totalPlannedMinutes: %f, totalActualMinutes: %f", totalPlannedMinutes, totalActualMinutes)
-	
+
 	// 设置原始分钟数
 	stats["totalPlannedTime"] = totalPlannedMinutes
 	stats["totalActualTime"] = totalActualMinutes
-	
+
 	// 计算剩余时间
 	totalRemainingMinutes := totalPlannedMinutes - totalActualMinutes
 	if totalRemainingMinutes < 0 {
 		totalRemainingMinutes = 0
 	}
 	stats["totalRemainingTime"] = totalRemainingMinutes
-	
+
 	// 计算时间效率
 	var timeEfficiency float64
 	if totalPlannedMinutes > 0 {
@@ -644,7 +644,7 @@ func (h *TodayTasksHandler) finalizeTimeStats(stats map[string]interface{}, tota
 		}
 	}
 	stats["timeEfficiency"] = timeEfficiency
-	
+
 	// 生成格式化的时间字符串
 	stats["totalPlannedTimeFormatted"] = h.formatMinutesToReadable(totalPlannedMinutes)
 	stats["totalActualTimeFormatted"] = h.formatMinutesToReadable(totalActualMinutes)
@@ -656,11 +656,11 @@ func (h *TodayTasksHandler) formatMinutesToReadable(minutes float64) string {
 	if minutes == 0 {
 		return "0分钟"
 	}
-	
+
 	if minutes < 60 {
 		return strconv.FormatFloat(minutes, 'f', 0, 64) + "分钟"
 	}
-	
+
 	hours := minutes / 60
 	if hours < 24 {
 		if hours == float64(int(hours)) {
@@ -668,7 +668,7 @@ func (h *TodayTasksHandler) formatMinutesToReadable(minutes float64) string {
 		}
 		return strconv.FormatFloat(hours, 'f', 1, 64) + "小时"
 	}
-	
+
 	days := hours / 24
 	if days == float64(int(days)) {
 		return strconv.Itoa(int(days)) + "天"

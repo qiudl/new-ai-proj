@@ -54,7 +54,7 @@ func (r *PostgresProjectRepository) GetByID(ctx context.Context, id int) (*model
 
 	err := row.Scan(
 		&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
-		&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+		&project.CompanyID, &project.Status, &project.Priority, &project.Progress,
 		&project.StartDate, &project.EndDate, &project.Budget,
 		&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 	)
@@ -101,7 +101,7 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 
 		err := rows.Scan(
 			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
-			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress,
 			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
@@ -125,7 +125,7 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 	whereConditions := []string{"deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
-	
+
 	// Filter by ownership or membership if user ID provided
 	if userID > 0 {
 		// Include projects owned by the user OR where the user is a member in project_users
@@ -133,36 +133,36 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 		args = append(args, userID, userID)
 		argIndex += 2
 	}
-	
+
 	// Add search condition
 	if search != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("(name ILIKE $%d OR description ILIKE $%d)", argIndex, argIndex))
 		args = append(args, "%"+search+"%")
 		argIndex++
 	}
-	
+
 	// Add status filter
 	if status != "" {
 		whereConditions = append(whereConditions, fmt.Sprintf("status = $%d", argIndex))
 		args = append(args, status)
 		argIndex++
 	}
-	
+
 	whereClause := "WHERE " + whereConditions[0]
 	for i := 1; i < len(whereConditions); i++ {
 		whereClause += " AND " + whereConditions[i]
 	}
-	
+
 	// Get total count
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM projects %s", whereClause)
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery, args...)
-	
+
 	var total int
 	if err := row.Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to get project count: %w", err)
 	}
-	
+
 	// Build ORDER BY clause
 	orderBy := "ORDER BY updated_at DESC" // default
 	if sortBy != "" {
@@ -178,7 +178,7 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 			orderBy = fmt.Sprintf("ORDER BY %s %s", sortBy, direction)
 		}
 	}
-	
+
 	// Get projects with pagination
 	query := fmt.Sprintf(`
 		SELECT id, project_number, name, description, owner_id, company_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
@@ -186,37 +186,37 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 		%s
 		%s
 		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)
-	
+
 	args = append(args, pageSize, offset)
-	
+
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list projects: %w", err)
 	}
 	defer rows.Close()
-	
+
 	// Initialize as empty slice to ensure JSON encodes [] instead of null when no results
 	projects := make([]*models.Project, 0)
 	for rows.Next() {
 		project := &models.Project{}
-		
+
 		err := rows.Scan(
 			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
-			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress,
 			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan project: %w", err)
 		}
-		
+
 		projects = append(projects, project)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
-	
+
 	return projects, total, nil
 }
 
@@ -337,7 +337,7 @@ func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
 		project.ID, project.ProjectNumber, project.Name, project.Description, project.CompanyID,
-		project.Status, project.Priority, project.Progress, project.StartDate, 
+		project.Status, project.Priority, project.Progress, project.StartDate,
 		project.EndDate, project.Budget)
 
 	err := row.Scan(&project.UpdatedAt)
@@ -351,7 +351,7 @@ func (r *PostgresProjectRepository) Update(ctx context.Context, project *models.
 // Delete soft deletes a project (sets deleted_at timestamp)
 func (r *PostgresProjectRepository) Delete(ctx context.Context, id int) error {
 	log.Printf("Executing delete for project ID: %d", id)
-	
+
 	query := `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
@@ -412,7 +412,7 @@ func (r *PostgresProjectRepository) List(ctx context.Context, limit, offset int)
 
 		err := rows.Scan(
 			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
-			&project.CompanyID, &project.Status, &project.Priority, &project.Progress, 
+			&project.CompanyID, &project.Status, &project.Priority, &project.Progress,
 			&project.StartDate, &project.EndDate, &project.Budget,
 			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
 		)
@@ -466,10 +466,10 @@ func (r *PostgresProjectRepository) ListWithCompanyInfo(ctx context.Context, lim
 		projectWithCompany := &models.ProjectWithCompany{}
 
 		err := rows.Scan(
-			&projectWithCompany.ID, &projectWithCompany.ProjectNumber, &projectWithCompany.Name, &projectWithCompany.Description, 
-			&projectWithCompany.OwnerID, &projectWithCompany.CompanyID, &projectWithCompany.Status, 
-			&projectWithCompany.Priority, &projectWithCompany.Progress, &projectWithCompany.StartDate, 
-			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt, 
+			&projectWithCompany.ID, &projectWithCompany.ProjectNumber, &projectWithCompany.Name, &projectWithCompany.Description,
+			&projectWithCompany.OwnerID, &projectWithCompany.CompanyID, &projectWithCompany.Status,
+			&projectWithCompany.Priority, &projectWithCompany.Progress, &projectWithCompany.StartDate,
+			&projectWithCompany.EndDate, &projectWithCompany.Budget, &projectWithCompany.CreatedAt,
 			&projectWithCompany.UpdatedAt, &projectWithCompany.DeletedAt,
 			&projectWithCompany.CompanyName,
 		)

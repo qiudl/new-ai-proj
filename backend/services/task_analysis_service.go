@@ -27,25 +27,25 @@ func NewTaskAnalysisService(db database.DB) *TaskAnalysisService {
 
 // Task represents a task for analysis
 type Task struct {
-	ID          int                    `json:"id"`
-	Title       string                 `json:"title"`
-	Description string                 `json:"description"`
-	Status      string                 `json:"status"`
-	Priority    string                 `json:"priority"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID           int                    `json:"id"`
+	Title        string                 `json:"title"`
+	Description  string                 `json:"description"`
+	Status       string                 `json:"status"`
+	Priority     string                 `json:"priority"`
+	CreatedAt    time.Time              `json:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at"`
 	CustomFields map[string]interface{} `json:"custom_fields"`
 }
 
 // TagStatistics represents comprehensive tag statistics
 type TagStatistics struct {
-	TotalTasks       int                    `json:"total_tasks"`
-	TaggedTasks      int                    `json:"tagged_tasks"`
-	TaggingCoverage  float64                `json:"tagging_coverage"`
-	TagDistribution  map[string]int         `json:"tag_distribution"`
-	CategoryStats    map[string]CategoryStat `json:"category_stats"`
-	MostUsedTags     []TagUsage             `json:"most_used_tags"`
-	RecentlyAddedTags []TagUsage            `json:"recently_added_tags"`
+	TotalTasks        int                     `json:"total_tasks"`
+	TaggedTasks       int                     `json:"tagged_tasks"`
+	TaggingCoverage   float64                 `json:"tagging_coverage"`
+	TagDistribution   map[string]int          `json:"tag_distribution"`
+	CategoryStats     map[string]CategoryStat `json:"category_stats"`
+	MostUsedTags      []TagUsage              `json:"most_used_tags"`
+	RecentlyAddedTags []TagUsage              `json:"recently_added_tags"`
 }
 
 // CategoryStat represents statistics for a tag category
@@ -65,7 +65,7 @@ type TagUsage struct {
 // GenerateTagStatistics generates comprehensive tag statistics using Go
 func (s *TaskAnalysisService) GenerateTagStatistics() (*TagStatistics, error) {
 	log.Printf("📊 Starting database-driven tag statistics generation")
-	
+
 	// Query all tasks from database
 	ctx := context.Background()
 	tasks, totalTasks, err := s.db.Tasks().GetAll(ctx, 10000, 0) // Get all tasks
@@ -73,12 +73,12 @@ func (s *TaskAnalysisService) GenerateTagStatistics() (*TagStatistics, error) {
 		log.Printf("❌ Failed to fetch tasks from database: %v", err)
 		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
 	}
-	
+
 	log.Printf("📋 Fetched %d tasks from database for analysis", totalTasks)
-	
+
 	// Calculate real tag distribution from actual database data
 	tagDistribution := s.calculateRealTagDistributionFromTasks(tasks)
-	
+
 	// Count unique tasks that have tags
 	taggedTasksSet := make(map[int]bool)
 	for _, task := range tasks {
@@ -90,25 +90,25 @@ func (s *TaskAnalysisService) GenerateTagStatistics() (*TagStatistics, error) {
 		}
 	}
 	taggedTasks := len(taggedTasksSet)
-	
+
 	// Calculate coverage
 	taggingCoverage := 0.0
 	if totalTasks > 0 {
 		taggingCoverage = float64(taggedTasks) / float64(totalTasks) * 100
 	}
-	
+
 	// Generate category statistics based on real tag distribution
 	categoryStats := s.generateRealCategoryStats(tagDistribution)
-	
+
 	// Generate most used tags
 	mostUsedTags := s.generateMostUsedTags(tagDistribution)
-	
+
 	// Generate recently added tags by analyzing system development pattern
 	recentlyAddedTags := s.generateRecentlyAddedTags(tagDistribution)
-	
-	log.Printf("✅ Generated tag statistics: %d total tasks, %d tagged tasks (%.1f%% coverage), %d unique tags", 
+
+	log.Printf("✅ Generated tag statistics: %d total tasks, %d tagged tasks (%.1f%% coverage), %d unique tags",
 		totalTasks, taggedTasks, taggingCoverage, len(tagDistribution))
-	
+
 	return &TagStatistics{
 		TotalTasks:        totalTasks,
 		TaggedTasks:       taggedTasks,
@@ -123,9 +123,9 @@ func (s *TaskAnalysisService) GenerateTagStatistics() (*TagStatistics, error) {
 // calculateRealTagDistributionFromTasks calculates tag distribution from actual task data
 func (s *TaskAnalysisService) calculateRealTagDistributionFromTasks(tasks []*models.Task) map[string]int {
 	log.Printf("🔍 Processing %d tasks for tag analysis", len(tasks))
-	
+
 	tagDistribution := make(map[string]int)
-	
+
 	// Process each task's custom fields to extract tags
 	for _, task := range tasks {
 		if task.CustomFields != nil {
@@ -137,9 +137,9 @@ func (s *TaskAnalysisService) calculateRealTagDistributionFromTasks(tasks []*mod
 			}
 		}
 	}
-	
+
 	log.Printf("📊 Extracted %d unique tags from database", len(tagDistribution))
-	
+
 	// If no tags found in database, return minimal fallback distribution
 	if len(tagDistribution) == 0 {
 		log.Printf("⚠️  No tags found in database, using minimal fallback")
@@ -147,7 +147,7 @@ func (s *TaskAnalysisService) calculateRealTagDistributionFromTasks(tasks []*mod
 			"未分类": 1,
 		}
 	}
-	
+
 	return tagDistribution
 }
 
@@ -155,91 +155,91 @@ func (s *TaskAnalysisService) calculateRealTagDistributionFromTasks(tasks []*mod
 func (s *TaskAnalysisService) calculateRealTagDistribution() map[string]int {
 	// This method is deprecated - use calculateRealTagDistributionFromTasks instead
 	// Keeping for backward compatibility
-	
+
 	return map[string]int{
 		// Technical stack tags (most common)
-		"前端":          28,
-		"后端":          24,
-		"API":          20,
-		"数据库":         15,
-		"UI":           18,
-		"React":        16,
-		
+		"前端":    28,
+		"后端":    24,
+		"API":   20,
+		"数据库":   15,
+		"UI":    18,
+		"React": 16,
+
 		// Task type tags
-		"功能":          32,
-		"优化":          18,
-		"修复":          14,
-		"测试":          12,
-		"文档":          8,
-		"重构":          6,
-		
+		"功能": 32,
+		"优化": 18,
+		"修复": 14,
+		"测试": 12,
+		"文档": 8,
+		"重构": 6,
+
 		// Complexity tags
-		"简单":          25,
-		"中等":          35,
-		"复杂":          15,
-		
+		"简单": 25,
+		"中等": 35,
+		"复杂": 15,
+
 		// Project/business tags
-		"计时器":         12,
-		"任务管理":        20,
-		"项目管理":        15,
-		"用户界面":        18,
-		"系统集成":        8,
-		
+		"计时器":  12,
+		"任务管理": 20,
+		"项目管理": 15,
+		"用户界面": 18,
+		"系统集成": 8,
+
 		// Priority/urgency tags
-		"高优先级":        22,
-		"中优先级":        45,
-		"低优先级":        18,
-		
+		"高优先级": 22,
+		"中优先级": 45,
+		"低优先级": 18,
+
 		// Recent project specific tags
-		"甘特图":         3,
-		"时间管理":        5,
-		"报表优化":        4,
-		"可视化":         6,
-		"工作笔记":        4,
-		"Markdown":      7,
-		"统一文档":        3,
-		
+		"甘特图":      3,
+		"时间管理":     5,
+		"报表优化":     4,
+		"可视化":      6,
+		"工作笔记":     4,
+		"Markdown": 7,
+		"统一文档":     3,
+
 		// Development phases
-		"Phase1":       8,
-		"Phase2":       6,
-		"Phase3":       4,
-		"Phase4":       3,
-		
+		"Phase1": 8,
+		"Phase2": 6,
+		"Phase3": 4,
+		"Phase4": 3,
+
 		// Quality tags
-		"性能":          12,
-		"安全":          6,
-		"可访问性":        4,
-		"兼容性":         5,
+		"性能":   12,
+		"安全":   6,
+		"可访问性": 4,
+		"兼容性":  5,
 	}
 }
 
 // generateRecentlyAddedTags analyzes tag distribution to identify recently added or rare tags
 func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[string]int) []TagUsage {
 	log.Printf("🔍 Analyzing tag distribution for recently added tags")
-	
+
 	var recentTags []TagUsage
-	
+
 	// Convert tag distribution to sorted slice for analysis
 	type tagCount struct {
 		tag   string
 		count int
 	}
-	
+
 	var allTags []tagCount
 	for tag, count := range tagDistribution {
 		allTags = append(allTags, tagCount{tag: tag, count: count})
 	}
-	
+
 	// Sort by count (ascending) to find least used tags which might be recently added
 	sort.Slice(allTags, func(i, j int) bool {
 		return allTags[i].count < allTags[j].count
 	})
-	
+
 	// Identify recently added tags using heuristics:
 	// 1. Tags with low usage count (1-3 uses) are likely recently added
 	// 2. Tags containing modern/recent keywords
 	// 3. Tags with specific patterns indicating recent development
-	
+
 	recentKeywords := []string{
 		"AI", "智能", "自动化", "机器学习", "深度学习",
 		"微服务", "容器", "Docker", "Kubernetes", "云原生",
@@ -249,19 +249,19 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 		"实时协作", "低代码", "无代码", "自动部署",
 		"监控", "可观测性", "链路追踪", "性能优化",
 	}
-	
+
 	for _, tagItem := range allTags {
 		tag := tagItem.tag
 		count := tagItem.count
-		
+
 		// Skip if we already have enough recent tags
 		if len(recentTags) >= 10 {
 			break
 		}
-		
+
 		isRecent := false
 		trend := "稳定"
-		
+
 		// Heuristic 1: Tags with very low usage (1-5 uses) are likely new
 		if count <= 5 {
 			isRecent = true
@@ -273,7 +273,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 				trend = "小众"
 			}
 		}
-		
+
 		// Heuristic 2: Tags containing recent technology keywords
 		if !isRecent {
 			tagLower := strings.ToLower(tag)
@@ -285,7 +285,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 				}
 			}
 		}
-		
+
 		// Heuristic 3: Tags with specific patterns (Version numbers, Phase indicators, etc.)
 		if !isRecent {
 			// Look for version patterns (v1, v2, 2024, Phase1, etc.)
@@ -295,7 +295,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 				trend = "版本标识"
 			}
 		}
-		
+
 		if isRecent {
 			recentTags = append(recentTags, TagUsage{
 				Tag:   tag,
@@ -304,7 +304,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 			})
 		}
 	}
-	
+
 	// If no recently added tags found using heuristics, return the least used tags
 	if len(recentTags) == 0 && len(allTags) > 0 {
 		log.Printf("⚠️  No recently added tags found using heuristics, using least used tags")
@@ -312,7 +312,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 		if len(allTags) < 5 {
 			limit = len(allTags)
 		}
-		
+
 		for i := 0; i < limit; i++ {
 			recentTags = append(recentTags, TagUsage{
 				Tag:   allTags[i].tag,
@@ -321,7 +321,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 			})
 		}
 	}
-	
+
 	log.Printf("📊 Found %d recently added tags", len(recentTags))
 	return recentTags
 }
@@ -329,7 +329,7 @@ func (s *TaskAnalysisService) generateRecentlyAddedTags(tagDistribution map[stri
 // generateRealCategoryStats generates category statistics based on real tag distribution
 func (s *TaskAnalysisService) generateRealCategoryStats(tagDistribution map[string]int) map[string]CategoryStat {
 	categories := make(map[string]CategoryStat)
-	
+
 	// Technical category
 	technicalTags := map[string]int{}
 	technicalCount := 0
@@ -339,7 +339,7 @@ func (s *TaskAnalysisService) generateRealCategoryStats(tagDistribution map[stri
 			technicalCount += count
 		}
 	}
-	
+
 	// Type category
 	typeTags := map[string]int{}
 	typeCount := 0
@@ -349,7 +349,7 @@ func (s *TaskAnalysisService) generateRealCategoryStats(tagDistribution map[stri
 			typeCount += count
 		}
 	}
-	
+
 	// Complexity category
 	complexityTags := map[string]int{}
 	complexityCount := 0
@@ -359,7 +359,7 @@ func (s *TaskAnalysisService) generateRealCategoryStats(tagDistribution map[stri
 			complexityCount += count
 		}
 	}
-	
+
 	// Business category
 	businessTags := map[string]int{}
 	businessCount := 0
@@ -369,38 +369,38 @@ func (s *TaskAnalysisService) generateRealCategoryStats(tagDistribution map[stri
 			businessCount += count
 		}
 	}
-	
+
 	totalTagUsage := 0
 	for _, count := range tagDistribution {
 		totalTagUsage += count
 	}
-	
+
 	if totalTagUsage > 0 {
 		categories["technical"] = CategoryStat{
 			Count:      technicalCount,
 			Percentage: float64(technicalCount) / float64(totalTagUsage) * 100,
 			Tags:       technicalTags,
 		}
-		
+
 		categories["type"] = CategoryStat{
 			Count:      typeCount,
 			Percentage: float64(typeCount) / float64(totalTagUsage) * 100,
 			Tags:       typeTags,
 		}
-		
+
 		categories["complexity"] = CategoryStat{
 			Count:      complexityCount,
 			Percentage: float64(complexityCount) / float64(totalTagUsage) * 100,
 			Tags:       complexityTags,
 		}
-		
+
 		categories["business"] = CategoryStat{
 			Count:      businessCount,
 			Percentage: float64(businessCount) / float64(totalTagUsage) * 100,
 			Tags:       businessTags,
 		}
 	}
-	
+
 	return categories
 }
 
@@ -470,21 +470,21 @@ func (s *TaskAnalysisService) generateCategoryStats(tagDistribution map[string]i
 			Count:      32,
 			Percentage: 21.3,
 			Tags: map[string]int{
-				"ui-ux":          12,
-				"documentation":  5,
-				"security":       4,
-				"performance":    3,
+				"ui-ux":         12,
+				"documentation": 5,
+				"security":      4,
+				"performance":   3,
 			},
 		},
 	}
-	
+
 	return categories
 }
 
 // generateMostUsedTags generates most used tags with trends
 func (s *TaskAnalysisService) generateMostUsedTags(tagDistribution map[string]int) []TagUsage {
 	var tags []TagUsage
-	
+
 	for tag, count := range tagDistribution {
 		trend := s.calculateTrend(tag, count)
 		tags = append(tags, TagUsage{
@@ -493,17 +493,17 @@ func (s *TaskAnalysisService) generateMostUsedTags(tagDistribution map[string]in
 			Trend: trend,
 		})
 	}
-	
+
 	// Sort by count (descending)
 	sort.Slice(tags, func(i, j int) bool {
 		return tags[i].Count > tags[j].Count
 	})
-	
+
 	// Return top 10
 	if len(tags) > 10 {
 		tags = tags[:10]
 	}
-	
+
 	return tags
 }
 
@@ -531,7 +531,7 @@ func (s *TaskAnalysisService) AnalyzeTaskContent(title, description string) ([]s
 	content := strings.ToLower(title + " " + description)
 	var suggestedTags []string
 	confidence := 0.0
-	
+
 	// Technical stack analysis
 	techPatterns := map[string]string{
 		"frontend": `(?i)(前端|react|vue|ui|界面|组件|component|frontend)`,
@@ -539,36 +539,36 @@ func (s *TaskAnalysisService) AnalyzeTaskContent(title, description string) ([]s
 		"database": `(?i)(数据库|sql|db|database|表|table|查询|query)`,
 		"mobile":   `(?i)(移动|mobile|app|android|ios|手机)`,
 	}
-	
+
 	for tag, pattern := range techPatterns {
 		if matched, _ := regexp.MatchString(pattern, content); matched {
 			suggestedTags = append(suggestedTags, tag)
 			confidence += 0.2
 		}
 	}
-	
+
 	// Task type analysis
 	typePatterns := map[string]string{
-		"enhancement": `(?i)(功能|feature|enhancement|改进|优化|新增)`,
-		"bugfix":      `(?i)(修复|bug|fix|错误|问题|issue)`,
-		"refactor":    `(?i)(重构|refactor|优化|重写|重新设计)`,
-		"testing":     `(?i)(测试|test|验证|检查|quality)`,
+		"enhancement":   `(?i)(功能|feature|enhancement|改进|优化|新增)`,
+		"bugfix":        `(?i)(修复|bug|fix|错误|问题|issue)`,
+		"refactor":      `(?i)(重构|refactor|优化|重写|重新设计)`,
+		"testing":       `(?i)(测试|test|验证|检查|quality)`,
 		"documentation": `(?i)(文档|doc|documentation|说明|readme)`,
 	}
-	
+
 	for tag, pattern := range typePatterns {
 		if matched, _ := regexp.MatchString(pattern, content); matched {
 			suggestedTags = append(suggestedTags, tag)
 			confidence += 0.15
 		}
 	}
-	
+
 	// Complexity analysis
 	complexityPatterns := map[string]string{
 		"simple":  `(?i)(简单|simple|小|minor|调整|微调)`,
 		"complex": `(?i)(复杂|complex|架构|architecture|设计|重构|系统)`,
 	}
-	
+
 	complexityFound := false
 	for tag, pattern := range complexityPatterns {
 		if matched, _ := regexp.MatchString(pattern, content); matched {
@@ -578,19 +578,19 @@ func (s *TaskAnalysisService) AnalyzeTaskContent(title, description string) ([]s
 			break
 		}
 	}
-	
+
 	if !complexityFound {
 		suggestedTags = append(suggestedTags, "medium")
 		confidence += 0.1
 	}
-	
+
 	// Priority analysis
 	priorityPatterns := map[string]string{
-		"urgent":       `(?i)(紧急|urgent|critical|重要|立即|马上)`,
+		"urgent":        `(?i)(紧急|urgent|critical|重要|立即|马上)`,
 		"high-priority": `(?i)(高优先级|high|重要|priority|关键)`,
 		"low-priority":  `(?i)(低优先级|low|次要|optional|可选)`,
 	}
-	
+
 	for tag, pattern := range priorityPatterns {
 		if matched, _ := regexp.MatchString(pattern, content); matched {
 			suggestedTags = append(suggestedTags, tag)
@@ -598,12 +598,12 @@ func (s *TaskAnalysisService) AnalyzeTaskContent(title, description string) ([]s
 			break
 		}
 	}
-	
+
 	// Normalize confidence to 0-1 range
 	if confidence > 1.0 {
 		confidence = 1.0
 	}
-	
+
 	// Remove duplicates
 	uniqueTags := make([]string, 0, len(suggestedTags))
 	seen := make(map[string]bool)
@@ -613,7 +613,7 @@ func (s *TaskAnalysisService) AnalyzeTaskContent(title, description string) ([]s
 			seen[tag] = true
 		}
 	}
-	
+
 	return uniqueTags, confidence
 }
 
@@ -627,11 +627,11 @@ func (s *TaskAnalysisService) GenerateWeeklyReport(startDate, endDate string, pr
 		},
 		"executive_summary": map[string]interface{}{
 			"key_metrics": map[string]interface{}{
-				"completed_tasks":  18,
-				"completion_rate":  78.3,
-				"new_tasks":        12,
-				"velocity":         18,
-				"blockage_rate":    8.5,
+				"completed_tasks": 18,
+				"completion_rate": 78.3,
+				"new_tasks":       12,
+				"velocity":        18,
+				"blockage_rate":   8.5,
 			},
 			"technical_distribution": []map[string]interface{}{
 				{"area": "frontend", "count": 8, "percentage": 44.4},
@@ -683,7 +683,7 @@ func (s *TaskAnalysisService) GenerateWeeklyReport(startDate, endDate string, pr
 		"generated_at": time.Now(),
 		"report_url":   fmt.Sprintf("/reports/weekly-report-%s-to-%s.json", startDate, endDate),
 	}
-	
+
 	return report, nil
 }
 
@@ -692,39 +692,39 @@ func (s *TaskAnalysisService) GetTagColor(tag string) string {
 	categoryColors := map[string]string{
 		// Technical tags
 		"frontend": "#1890ff",
-		"backend":  "#52c41a", 
+		"backend":  "#52c41a",
 		"api":      "#13c2c2",
 		"database": "#722ed1",
 		"mobile":   "#eb2f96",
-		
+
 		// Type tags
-		"enhancement":    "#52c41a",
-		"bugfix":         "#f5222d",
-		"refactor":       "#fa8c16",
-		"testing":        "#faad14",
-		"documentation":  "#1890ff",
-		
+		"enhancement":   "#52c41a",
+		"bugfix":        "#f5222d",
+		"refactor":      "#fa8c16",
+		"testing":       "#faad14",
+		"documentation": "#1890ff",
+
 		// Complexity tags
 		"simple":  "#52c41a",
 		"medium":  "#faad14",
 		"complex": "#f5222d",
-		
+
 		// Priority tags
 		"urgent":        "#ff4d4f",
 		"high-priority": "#fa541c",
 		"low-priority":  "#52c41a",
-		
+
 		// Other tags
 		"security":     "#f5222d",
 		"performance":  "#fa8c16",
 		"ui-ux":        "#eb2f96",
 		"optimization": "#13c2c2",
 	}
-	
+
 	if color, exists := categoryColors[tag]; exists {
 		return color
 	}
-	
+
 	return "#666666" // Default gray
 }
 
@@ -732,19 +732,19 @@ func (s *TaskAnalysisService) GetTagColor(tag string) string {
 func (s *TaskAnalysisService) NormalizeTag(tag string) string {
 	// Convert to lowercase
 	normalized := strings.ToLower(strings.TrimSpace(tag))
-	
+
 	// Replace spaces with hyphens
 	normalized = regexp.MustCompile(`\s+`).ReplaceAllString(normalized, "-")
-	
+
 	// Remove invalid characters
 	normalized = regexp.MustCompile(`[^a-z0-9-]`).ReplaceAllString(normalized, "")
-	
+
 	// Remove multiple consecutive hyphens
 	normalized = regexp.MustCompile(`-+`).ReplaceAllString(normalized, "-")
-	
+
 	// Remove leading/trailing hyphens
 	normalized = strings.Trim(normalized, "-")
-	
+
 	return normalized
 }
 
@@ -753,7 +753,7 @@ func (s *TaskAnalysisService) ValidateTag(tag string) bool {
 	if len(tag) == 0 || len(tag) > 50 {
 		return false
 	}
-	
+
 	// Check if tag contains only valid characters
 	matched, _ := regexp.MatchString(`^[a-z0-9-]+$`, tag)
 	return matched
@@ -762,22 +762,22 @@ func (s *TaskAnalysisService) ValidateTag(tag string) bool {
 // ParseCustomFields safely parses custom fields JSON
 func (s *TaskAnalysisService) ParseCustomFields(customFieldsJSON string) map[string]interface{} {
 	var fields map[string]interface{}
-	
+
 	if customFieldsJSON == "" {
 		return make(map[string]interface{})
 	}
-	
+
 	if err := json.Unmarshal([]byte(customFieldsJSON), &fields); err != nil {
 		return make(map[string]interface{})
 	}
-	
+
 	return fields
 }
 
 // ExtractTagsFromCustomFields extracts tags from custom fields
 func (s *TaskAnalysisService) ExtractTagsFromCustomFields(customFields map[string]interface{}) []string {
 	tags := make([]string, 0)
-	
+
 	if tagsInterface, exists := customFields["tags"]; exists {
 		switch v := tagsInterface.(type) {
 		case []interface{}:
@@ -798,6 +798,6 @@ func (s *TaskAnalysisService) ExtractTagsFromCustomFields(customFields map[strin
 			}
 		}
 	}
-	
+
 	return tags
 }

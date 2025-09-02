@@ -100,7 +100,7 @@ func (g *GoogleCalendarService) GetCalendarService(ctx context.Context, accessTo
 	}
 
 	client := g.config.Client(ctx, token)
-	
+
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create calendar service: %v", err)
@@ -150,18 +150,18 @@ func (g *GoogleCalendarService) IsTokenExpired(expiresAt time.Time) bool {
 func (g *GoogleCalendarService) RevokeToken(ctx context.Context, accessToken string) error {
 	// Google的令牌撤销端点
 	revokeURL := fmt.Sprintf("https://oauth2.googleapis.com/revoke?token=%s", accessToken)
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(revokeURL, "application/x-www-form-urlencoded", nil)
 	if err != nil {
 		return fmt.Errorf("failed to make revoke request: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to revoke token, status: %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
@@ -174,7 +174,7 @@ type GoogleCalendarEvent struct {
 	EndTime     time.Time `json:"end_time"`
 	Location    string    `json:"location,omitempty"`
 	IsAllDay    bool      `json:"is_all_day"`
-	Status      string    `json:"status"` // confirmed, tentative, cancelled
+	Status      string    `json:"status"`               // confirmed, tentative, cancelled
 	Visibility  string    `json:"visibility,omitempty"` // default, public, private
 	Attendees   []string  `json:"attendees,omitempty"`
 }
@@ -350,11 +350,11 @@ func (g *GoogleCalendarService) WatchEvents(ctx context.Context, accessToken, ca
 
 	// 生成唯一的频道ID
 	channelID := fmt.Sprintf("channel_%d_%s", time.Now().Unix(), calendarID)
-	
+
 	channel := &calendar.Channel{
-		Id:      channelID,
-		Type:    "web_hook",
-		Address: webhookURL,
+		Id:         channelID,
+		Type:       "web_hook",
+		Address:    webhookURL,
 		Expiration: time.Now().Add(ttl).Unix() * 1000, // 毫秒时间戳
 	}
 
@@ -415,7 +415,7 @@ func (g *GoogleCalendarService) BatchCreateEvents(ctx context.Context, accessTok
 	}
 
 	createdEvents := make([]*GoogleCalendarEvent, 0, len(events))
-	
+
 	// Google Calendar API 不直接支持批量操作，所以我们逐个创建
 	// 在生产环境中可以考虑使用 Google Batch API
 	for _, event := range events {

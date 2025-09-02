@@ -14,16 +14,16 @@ import (
 
 // AuditHandler handles audit log related operations
 type AuditHandler struct {
-	db       database.DB
-	logger   *log.Logger
+	db        database.DB
+	logger    *log.Logger
 	validator *validator.Validate
 }
 
 // NewAuditHandler creates a new audit handler
 func NewAuditHandler(db database.DB, logger *log.Logger, validator *validator.Validate) *AuditHandler {
 	return &AuditHandler{
-		db:       db,
-		logger:   logger,
+		db:        db,
+		logger:    logger,
 		validator: validator,
 	}
 }
@@ -324,23 +324,23 @@ func (h *AuditHandler) formatCSVRow(log *models.AuditLog) string {
 // enhanceAuditStats enhances basic stats with additional metrics
 func (h *AuditHandler) enhanceAuditStats(ctx gin.Context, basicStats interface{}, filter *models.AuditLogFilter) map[string]interface{} {
 	enhanced := make(map[string]interface{})
-	
+
 	// Add basic stats
 	enhanced["basic_stats"] = basicStats
-	
+
 	// Add additional metrics
 	enhanced["total_events"] = h.getTotalEventsCount(ctx, filter)
 	enhanced["unique_users"] = h.getUniqueUsersCount(ctx, filter)
 	enhanced["unique_ips"] = h.getUniqueIPsCount(ctx, filter)
 	enhanced["error_rate"] = h.getErrorRate(ctx, filter)
-	
+
 	// Add time-based distributions
 	enhanced["actions_distribution"] = h.getActionsDistribution(ctx, filter)
 	enhanced["entities_distribution"] = h.getEntitiesDistribution(ctx, filter)
 	enhanced["timeline_data"] = h.getTimelineData(ctx, filter)
 	enhanced["top_users"] = h.getTopUsers(ctx, filter)
 	enhanced["peak_hours"] = h.getPeakHours(ctx, filter)
-	
+
 	return enhanced
 }
 

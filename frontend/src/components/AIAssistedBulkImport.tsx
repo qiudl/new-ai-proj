@@ -371,7 +371,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     } finally {
       setGenerating(false);
     }
-  }, [selectedParentTask, keywords, selectedProvider, maxTasks, complexity, projectId, availableProviders.length, onTasksGenerated]);
+  }, [selectedParentTask, keywords, selectedProvider, maxTasks, complexity, projectId, availableProviders, externalParentTask, selectedParentTaskId, onTasksGenerated]);
 
   // 处理任务编辑
   const handleTasksEdit = useCallback((tasks: GeneratedSubTask[]) => {
@@ -475,7 +475,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
       console.error('导入任务失败:', error);
       message.error('导入失败，请检查网络连接');
     }
-  }, [editedTasks, selectedParentTask, selectedProvider, availableProviders, keywords, maxTasks, projectId, onImport]);
+  }, [editedTasks, selectedParentTask, selectedProvider, availableProviders, keywords, maxTasks, projectId, externalParentTask, selectedParentTaskId, onImport]);
 
   // 处理历史记录复用
   const handleReuseHistory = useCallback(async (history: unknown, tasks: GeneratedSubTask[]) => {
@@ -518,12 +518,6 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
     message.success(`模板"${templateName}"已保存`);
   }, []);
 
-  // 获取提供商状态颜色
-  const getProviderStatusColor = (provider: AIProvider): string => {
-    const status = serviceStatus.get(provider);
-    if (!status) return 'default';
-    return status.available ? 'green' : 'red';
-  };
 
   // 获取质量评分颜色
   const getQualityColor = (score: number): string => {

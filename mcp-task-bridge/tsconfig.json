@@ -19,7 +19,8 @@
   "include": [
     "index.ts",
     "task-mcp.ts",
-    "permission-manager.ts"
+    "permission-manager.ts",
+    "task-service.ts"
   ],
   "exclude": [
     "dist",

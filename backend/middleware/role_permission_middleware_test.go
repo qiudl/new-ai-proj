@@ -159,7 +159,7 @@ func TestRolePermissionMiddleware(t *testing.T) {
 // BenchmarkRolePermissionMiddleware 性能基准测试
 func BenchmarkRolePermissionMiddleware(b *testing.B) {
 	gin.SetMode(gin.TestMode)
-	
+
 	mockRepo := &MockPermissionRepository{}
 	config := &RolePermissionConfig{
 		EnableCache: true,
@@ -180,11 +180,11 @@ func BenchmarkRolePermissionMiddleware(b *testing.B) {
 	mockRepo.On("GetUserPermissions", mock.Anything, mock.AnythingOfType("int")).Return(userPermissions, nil)
 
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		c, _ := gin.CreateTestContext(nil)
 		c.Set("company_user_id", i%100) // 模拟100个不同用户
-		
+
 		handler := middleware.RequireSystemRole(models.RoleCodeSystemAdmin)
 		handler(c)
 	}
@@ -219,41 +219,41 @@ func TestRolePermissionFactory(t *testing.T) {
 // ExampleRolePermissionMiddleware 示例代码
 func ExampleRolePermissionMiddleware() {
 	// 这个函数演示如何使用角色权限中间件
-	
+
 	// 1. 创建中间件工厂
 	var permissionRepo database.PermissionRepository // 实际实现
 	factory := NewRolePermissionMiddlewareFactory(permissionRepo)
-	
+
 	// 2. 创建标准中间件
 	roleMiddleware := factory.CreateStandardMiddleware()
-	
+
 	// 3. 在路由中使用
 	r := gin.Default()
-	
+
 	// 要求系统管理员角色
 	r.GET("/admin/users", roleMiddleware.RequireSystemRole(models.RoleCodeSystemAdmin), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Admin area"})
 	})
-	
+
 	// 要求最低角色级别
 	r.GET("/manager/projects", roleMiddleware.RequireMinimumRoleLevel(3), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Manager area"})
 	})
-	
+
 	// 要求特定权限
 	r.GET("/finance/reports", roleMiddleware.RequireFinanceAccess(), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"message": "Financial reports"})
 	})
-	
+
 	fmt.Println("角色权限中间件配置完成")
 }
 
 // IntegrationTest 集成测试
 func IntegrationTestRolePermissionMiddleware() {
 	log.Println("开始角色权限中间件集成测试...")
-	
+
 	// 这里可以添加更复杂的集成测试场景
 	// 例如：多用户并发访问、缓存一致性、数据库连接等
-	
+
 	log.Println("集成测试完成")
 }

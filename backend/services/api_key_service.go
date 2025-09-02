@@ -110,7 +110,7 @@ func (s *APIKeyService) ValidateIPAddresses(ips models.IPSlice) error {
 // ValidateDomains validates domain names in the allowed domains list
 func (s *APIKeyService) ValidateDomains(domains models.StringSlice) error {
 	domainRegex := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$`)
-	
+
 	for _, domain := range domains {
 		if !domainRegex.MatchString(domain) {
 			return fmt.Errorf("invalid domain name: %s", domain)
@@ -160,26 +160,26 @@ func (s *APIKeyService) CreateAPIKey(ctx context.Context, req *models.APIKeyCrea
 
 	// Create API key model
 	apiKey := &models.APIKey{
-		Name:                 req.Name,
-		Description:          req.Description,
-		KeyHash:              keyHash,
-		KeyPrefix:            keyPrefix,
-		SecretHash:           &secretHash,
-		Permissions:          req.Permissions,
-		ScopeProjects:        req.ScopeProjects,
-		ScopeUsers:           req.ScopeUsers,
-		RateLimitCount:       req.RateLimitCount,
-		RateLimitWindow:      req.RateLimitWindow,
-		DailyQuota:           req.DailyQuota,
-		MonthlyQuota:         req.MonthlyQuota,
-		IsActive:             true, // Default to active
-		ExpiresAt:            req.ExpiresAt,
-		AllowedIPs:           req.AllowedIPs,
-		AllowedDomains:       req.AllowedDomains,
-		UserAgentPattern:     req.UserAgentPattern,
-		CreatedBy:            createdBy,
-		Metadata:             req.Metadata,
-		Tags:                 req.Tags,
+		Name:             req.Name,
+		Description:      req.Description,
+		KeyHash:          keyHash,
+		KeyPrefix:        keyPrefix,
+		SecretHash:       &secretHash,
+		Permissions:      req.Permissions,
+		ScopeProjects:    req.ScopeProjects,
+		ScopeUsers:       req.ScopeUsers,
+		RateLimitCount:   req.RateLimitCount,
+		RateLimitWindow:  req.RateLimitWindow,
+		DailyQuota:       req.DailyQuota,
+		MonthlyQuota:     req.MonthlyQuota,
+		IsActive:         true, // Default to active
+		ExpiresAt:        req.ExpiresAt,
+		AllowedIPs:       req.AllowedIPs,
+		AllowedDomains:   req.AllowedDomains,
+		UserAgentPattern: req.UserAgentPattern,
+		CreatedBy:        createdBy,
+		Metadata:         req.Metadata,
+		Tags:             req.Tags,
 	}
 
 	// Save to database
@@ -465,29 +465,29 @@ func (s *APIKeyService) RotateAPIKey(ctx context.Context, id int64, rotatedBy in
 
 	// Update the API key with new hashes
 	updateReq := &models.APIKeyUpdateRequest{}
-	
+
 	// Create new API key with same properties but new key
 	newKey := &models.APIKey{
-		Name:                 existingKey.Name + " (Rotated)",
-		Description:          existingKey.Description,
-		KeyHash:              keyHash,
-		KeyPrefix:            existingKey.KeyPrefix,
-		SecretHash:           &secretHash,
-		Permissions:          existingKey.Permissions,
-		ScopeProjects:        existingKey.ScopeProjects,
-		ScopeUsers:           existingKey.ScopeUsers,
-		RateLimitCount:       existingKey.RateLimitCount,
-		RateLimitWindow:      existingKey.RateLimitWindow,
-		DailyQuota:           existingKey.DailyQuota,
-		MonthlyQuota:         existingKey.MonthlyQuota,
-		IsActive:             true,
-		ExpiresAt:            existingKey.ExpiresAt,
-		AllowedIPs:           existingKey.AllowedIPs,
-		AllowedDomains:       existingKey.AllowedDomains,
-		UserAgentPattern:     existingKey.UserAgentPattern,
-		CreatedBy:            rotatedBy,
-		Metadata:             existingKey.Metadata,
-		Tags:                 existingKey.Tags,
+		Name:             existingKey.Name + " (Rotated)",
+		Description:      existingKey.Description,
+		KeyHash:          keyHash,
+		KeyPrefix:        existingKey.KeyPrefix,
+		SecretHash:       &secretHash,
+		Permissions:      existingKey.Permissions,
+		ScopeProjects:    existingKey.ScopeProjects,
+		ScopeUsers:       existingKey.ScopeUsers,
+		RateLimitCount:   existingKey.RateLimitCount,
+		RateLimitWindow:  existingKey.RateLimitWindow,
+		DailyQuota:       existingKey.DailyQuota,
+		MonthlyQuota:     existingKey.MonthlyQuota,
+		IsActive:         true,
+		ExpiresAt:        existingKey.ExpiresAt,
+		AllowedIPs:       existingKey.AllowedIPs,
+		AllowedDomains:   existingKey.AllowedDomains,
+		UserAgentPattern: existingKey.UserAgentPattern,
+		CreatedBy:        rotatedBy,
+		Metadata:         existingKey.Metadata,
+		Tags:             existingKey.Tags,
 	}
 
 	// Create the new API key

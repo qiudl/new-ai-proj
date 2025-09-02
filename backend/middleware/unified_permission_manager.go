@@ -154,21 +154,21 @@ type PermissionCheckRequest struct {
 
 // PermissionCheckResponse represents a permission check response
 type PermissionCheckResponse struct {
-	HasPermission   bool                   `json:"has_permission"`
-	Source          string                 `json:"source"`
-	Reason          string                 `json:"reason"`
-	CheckedAt       time.Time             `json:"checked_at"`
-	CacheHit        bool                   `json:"cache_hit"`
-	ResponseTime    time.Duration          `json:"response_time"`
-	Metadata        map[string]interface{} `json:"metadata,omitempty"`
+	HasPermission bool                   `json:"has_permission"`
+	Source        string                 `json:"source"`
+	Reason        string                 `json:"reason"`
+	CheckedAt     time.Time              `json:"checked_at"`
+	CacheHit      bool                   `json:"cache_hit"`
+	ResponseTime  time.Duration          `json:"response_time"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // BatchPermissionRequest represents a batch permission check request
 type BatchPermissionRequest struct {
-	CompanyUserID   int               `json:"company_user_id"`
-	Permissions     []PermissionCheck `json:"permissions"`
+	CompanyUserID   int                    `json:"company_user_id"`
+	Permissions     []PermissionCheck      `json:"permissions"`
 	ResourceContext map[string]interface{} `json:"resource_context,omitempty"`
-	EnableOverrides bool              `json:"enable_overrides"`
+	EnableOverrides bool                   `json:"enable_overrides"`
 }
 
 // PermissionCheck represents a single permission in a batch request
@@ -181,16 +181,16 @@ type PermissionCheck struct {
 // BatchPermissionResponse represents a batch permission check response
 type BatchPermissionResponse struct {
 	Results      map[string]*PermissionCheckResponse `json:"results"`
-	CheckedAt    time.Time                          `json:"checked_at"`
-	ResponseTime time.Duration                      `json:"response_time"`
-	CacheHits    int                                `json:"cache_hits"`
-	DatabaseHits int                                `json:"database_hits"`
+	CheckedAt    time.Time                           `json:"checked_at"`
+	ResponseTime time.Duration                       `json:"response_time"`
+	CacheHits    int                                 `json:"cache_hits"`
+	DatabaseHits int                                 `json:"database_hits"`
 }
 
 // NewUnifiedPermissionManager creates a new unified permission manager
 func NewUnifiedPermissionManager(config *UnifiedPermissionConfig) *UnifiedPermissionManager {
 	var cacheMiddleware *PermissionCacheMiddleware
-	
+
 	if config.EnableCache && config.RedisClient != nil {
 		cacheMiddleware = NewPermissionCacheMiddleware(&PermissionCacheConfig{
 			RedisClient:    config.RedisClient,
@@ -214,7 +214,7 @@ func NewUnifiedPermissionManager(config *UnifiedPermissionConfig) *UnifiedPermis
 // CheckPermission performs a single permission check
 func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request *PermissionCheckRequest) (*PermissionCheckResponse, error) {
 	startTime := time.Now()
-	
+
 	response := &PermissionCheckResponse{
 		CheckedAt: startTime,
 		CacheHit:  false,
@@ -223,7 +223,7 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 	// Rate limiting check (must NOT be bypassed)
 	if m.enableRateLimit && m.rateLimiter != nil {
 		rateLimitResult := m.rateLimiter.CheckRateLimitByUser(
-			request.CompanyUserID, 
+			request.CompanyUserID,
 			1000, // 1000 requests per minute per user
 			security.WindowPerMinute,
 		)
@@ -257,18 +257,18 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 	// Use cache if available
 	if m.cacheMiddleware != nil {
 		result, err = m.cacheMiddleware.CheckCachedPermission(
-			ctx, 
-			request.CompanyUserID, 
-			request.PermissionCode, 
+			ctx,
+			request.CompanyUserID,
+			request.PermissionCode,
 			request.ResourceID,
 		)
 		response.CacheHit = true
 	} else {
 		// Direct database check
 		result, err = m.permissionRepo.CheckUserPermission(
-			ctx, 
-			request.CompanyUserID, 
-			request.PermissionCode, 
+			ctx,
+			request.CompanyUserID,
+			request.PermissionCode,
 			request.ResourceID,
 		)
 	}
@@ -278,11 +278,11 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 		response.Reason = fmt.Sprintf("Permission check failed: %v", err)
 		response.Source = "error"
 		response.ResponseTime = time.Since(startTime)
-		
+
 		// Log error
-		log.Printf("[UNIFIED_PERM] Permission check error for user %d, permission %s: %v", 
+		log.Printf("[UNIFIED_PERM] Permission check error for user %d, permission %s: %v",
 			request.CompanyUserID, request.PermissionCode, err)
-		
+
 		return response, err
 	}
 
@@ -310,18 +310,18 @@ func (m *UnifiedPermissionManager) CheckPermission(ctx context.Context, request 
 // CheckBatchPermissions performs batch permission checks
 func (m *UnifiedPermissionManager) CheckBatchPermissions(ctx context.Context, request *BatchPermissionRequest) (*BatchPermissionResponse, error) {
 	startTime := time.Now()
-	
+
 	response := &BatchPermissionResponse{
-		Results:   make(map[string]*PermissionCheckResponse),
-		CheckedAt: startTime,
-		CacheHits: 0,
+		Results:      make(map[string]*PermissionCheckResponse),
+		CheckedAt:    startTime,
+		CacheHits:    0,
 		DatabaseHits: 0,
 	}
 
 	// Rate limiting check for batch operations
 	if m.enableRateLimit && m.rateLimiter != nil {
 		rateLimitResult := m.rateLimiter.CheckRateLimitByUser(
-			request.CompanyUserID, 
+			request.CompanyUserID,
 			100, // Lower limit for batch operations
 			security.WindowPerMinute,
 		)
@@ -354,12 +354,12 @@ func (m *UnifiedPermissionManager) CheckBatchPermissions(ctx context.Context, re
 		}
 
 		results, err := m.cacheMiddleware.BatchCheckCachedPermissions(
-			ctx, 
-			request.CompanyUserID, 
-			permissionCodes, 
+			ctx,
+			request.CompanyUserID,
+			permissionCodes,
 			resourceID,
 		)
-		
+
 		if err != nil {
 			return nil, err
 		}
@@ -385,12 +385,12 @@ func (m *UnifiedPermissionManager) CheckBatchPermissions(ctx context.Context, re
 		// In a production system, you might want to optimize this further
 		for _, perm := range request.Permissions {
 			result, err := m.permissionRepo.CheckUserPermission(
-				ctx, 
-				request.CompanyUserID, 
-				perm.PermissionCode, 
+				ctx,
+				request.CompanyUserID,
+				perm.PermissionCode,
 				perm.ResourceID,
 			)
-			
+
 			if err != nil {
 				response.Results[perm.PermissionCode] = &PermissionCheckResponse{
 					HasPermission: false,
@@ -432,7 +432,7 @@ func (m *UnifiedPermissionManager) CreatePermissionMiddleware(permissionCode str
 	if m.cacheMiddleware != nil {
 		return m.cacheMiddleware.RequireCachedPermission(permissionCode)
 	}
-	
+
 	// Fallback to traditional permission middleware if cache is not available
 	return func(c *gin.Context) {
 		request := &PermissionCheckRequest{
@@ -519,9 +519,9 @@ func (m *UnifiedPermissionManager) InvalidateUserCache(ctx context.Context, comp
 // GetManagerStats returns statistics about the permission manager
 func (m *UnifiedPermissionManager) GetManagerStats(ctx context.Context) (map[string]interface{}, error) {
 	stats := map[string]interface{}{
-		"cache_enabled":        m.cacheMiddleware != nil,
+		"cache_enabled":         m.cacheMiddleware != nil,
 		"audit_logging_enabled": m.enableAuditLogging,
-		"rate_limit_enabled":   m.enableRateLimit,
+		"rate_limit_enabled":    m.enableRateLimit,
 	}
 
 	// Get cache stats if available
@@ -549,15 +549,15 @@ func (m *UnifiedPermissionManager) logPermissionCheck(ctx context.Context, reque
 	}
 
 	auditLog := &models.AuditLog{
-		UserID:      &request.CompanyUserID,
-		Action:      "permission_check",
-		EntityType:  request.PermissionCode,
-		EntityData:  map[string]interface{}{
-			"permission_code": request.PermissionCode,
-			"resource_type":   request.ResourceType,
-			"result_source":   response.Source,
-			"result_reason":   response.Reason,
-			"cache_hit":       response.CacheHit,
+		UserID:     &request.CompanyUserID,
+		Action:     "permission_check",
+		EntityType: request.PermissionCode,
+		EntityData: map[string]interface{}{
+			"permission_code":  request.PermissionCode,
+			"resource_type":    request.ResourceType,
+			"result_source":    response.Source,
+			"result_reason":    response.Reason,
+			"cache_hit":        response.CacheHit,
 			"response_time_ms": response.ResponseTime.Milliseconds(),
 		},
 	}

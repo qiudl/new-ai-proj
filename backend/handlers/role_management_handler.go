@@ -27,17 +27,17 @@ func NewRoleManagementHandler(permissionRepo database.PermissionRepository) *Rol
 // GetRoles handles GET /api/v1/roles
 func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	// 解析查询参数
 	includeInactive := c.Query("include_inactive") == "true"
 	moduleFilter := c.Query("module")
-	
+
 	// 获取角色列表
 	roles, err := h.permissionRepo.GetRoles(ctx, nil)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to retrieve roles",
+			"error":   "Failed to retrieve roles",
 			"message": err.Error(),
 		})
 		return
@@ -52,7 +52,7 @@ func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 		}
 
 		roleResponse := role.ToResponse()
-		
+
 		// 获取角色权限
 		permissions, err := h.permissionRepo.GetRolePermissions(ctx, role.ID)
 		if err == nil {
@@ -89,12 +89,12 @@ func (h *RoleManagementHandler) GetRoles(c *gin.Context) {
 // GetRole handles GET /api/v1/roles/:id
 func (h *RoleManagementHandler) GetRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -104,13 +104,13 @@ func (h *RoleManagementHandler) GetRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
 
 	roleResponse := role.ToResponse()
-	
+
 	// 获取角色权限
 	permissions, err := h.permissionRepo.GetRolePermissions(ctx, roleID)
 	if err == nil {
@@ -130,19 +130,19 @@ func (h *RoleManagementHandler) GetRole(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": roleResponse,
+		"data":    roleResponse,
 	})
 }
 
 // CreateRole handles POST /api/v1/roles
 func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	var req models.CreateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
@@ -153,7 +153,7 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 	if existingRole != nil {
 		c.JSON(http.StatusConflict, gin.H{
 			"success": false,
-			"error": "Role code already exists",
+			"error":   "Role code already exists",
 		})
 		return
 	}
@@ -173,7 +173,7 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to create role",
+			"error":   "Failed to create role",
 			"message": err.Error(),
 		})
 		return
@@ -185,7 +185,7 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Invalid permission codes",
+				"error":   "Invalid permission codes",
 				"message": err.Error(),
 			})
 			return
@@ -195,7 +195,7 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error": "Role created but failed to set permissions",
+				"error":   "Role created but failed to set permissions",
 				"message": err.Error(),
 			})
 			return
@@ -204,7 +204,7 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": createdRole.ToResponse(),
+		"data":    createdRole.ToResponse(),
 		"message": "Role created successfully",
 	})
 }
@@ -212,12 +212,12 @@ func (h *RoleManagementHandler) CreateRole(c *gin.Context) {
 // UpdateRole handles PUT /api/v1/roles/:id
 func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -226,7 +226,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 			"details": err.Error(),
 		})
 		return
@@ -237,7 +237,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -246,7 +246,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 	if existingRole.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot modify system roles",
+			"error":   "Cannot modify system roles",
 		})
 		return
 	}
@@ -260,7 +260,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to update role",
+			"error":   "Failed to update role",
 			"message": err.Error(),
 		})
 		return
@@ -272,7 +272,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Invalid permission codes",
+				"error":   "Invalid permission codes",
 				"message": err.Error(),
 			})
 			return
@@ -282,7 +282,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"error": "Role updated but failed to set permissions",
+				"error":   "Role updated but failed to set permissions",
 				"message": err.Error(),
 			})
 			return
@@ -291,7 +291,7 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": updatedRole.ToResponse(),
+		"data":    updatedRole.ToResponse(),
 		"message": "Role updated successfully",
 	})
 }
@@ -299,12 +299,12 @@ func (h *RoleManagementHandler) UpdateRole(c *gin.Context) {
 // DeleteRole handles DELETE /api/v1/roles/:id
 func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -314,7 +314,7 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -323,7 +323,7 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	if role.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot delete system roles",
+			"error":   "Cannot delete system roles",
 		})
 		return
 	}
@@ -338,11 +338,11 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	// 	})
 	// 	return
 	// }
-	userCount := 0 // 临时设为0
+	userCount := 0                       // 临时设为0
 	if err := (error)(nil); err != nil { // 避免未使用变量警告
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to check role usage",
+			"error":   "Failed to check role usage",
 		})
 		return
 	}
@@ -350,7 +350,7 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	if userCount > 0 {
 		c.JSON(http.StatusConflict, gin.H{
 			"success": false,
-			"error": "Cannot delete role with active users",
+			"error":   "Cannot delete role with active users",
 			"details": fmt.Sprintf("Role has %d active users", userCount),
 		})
 		return
@@ -361,7 +361,7 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to delete role",
+			"error":   "Failed to delete role",
 			"message": err.Error(),
 		})
 		return
@@ -376,12 +376,12 @@ func (h *RoleManagementHandler) DeleteRole(c *gin.Context) {
 // UpdateRoleStatus handles PATCH /api/v1/roles/:id/status
 func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -392,7 +392,7 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 		})
 		return
 	}
@@ -402,7 +402,7 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -411,7 +411,7 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 	if role.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot modify system role status",
+			"error":   "Cannot modify system role status",
 		})
 		return
 	}
@@ -424,7 +424,7 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to update role status",
+			"error":   "Failed to update role status",
 			"message": err.Error(),
 		})
 		return
@@ -437,7 +437,7 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": updatedRole.ToResponse(),
+		"data":    updatedRole.ToResponse(),
 		"message": fmt.Sprintf("Role %s successfully", action),
 	})
 }
@@ -445,12 +445,12 @@ func (h *RoleManagementHandler) UpdateRoleStatus(c *gin.Context) {
 // GetRolePermissions handles GET /api/v1/roles/:id/permissions
 func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -460,7 +460,7 @@ func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -470,7 +470,7 @@ func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to get permissions",
+			"error":   "Failed to get permissions",
 		})
 		return
 	}
@@ -480,7 +480,7 @@ func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to get role permissions",
+			"error":   "Failed to get role permissions",
 		})
 		return
 	}
@@ -502,9 +502,9 @@ func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"permissions": permissionResponses,
+			"permissions":   permissionResponses,
 			"granted_count": len(rolePermissions),
-			"total_count": len(allPermissions),
+			"total_count":   len(allPermissions),
 		},
 	})
 }
@@ -512,12 +512,12 @@ func (h *RoleManagementHandler) GetRolePermissions(c *gin.Context) {
 // SetRolePermissions handles POST /api/v1/roles/:id/permissions
 func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -529,7 +529,7 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 		})
 		return
 	}
@@ -539,7 +539,7 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -547,7 +547,7 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 	if role.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot modify system role permissions",
+			"error":   "Cannot modify system role permissions",
 		})
 		return
 	}
@@ -561,7 +561,7 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Invalid permission codes",
+				"error":   "Invalid permission codes",
 				"message": err.Error(),
 			})
 			return
@@ -573,7 +573,7 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to set role permissions",
+			"error":   "Failed to set role permissions",
 			"message": err.Error(),
 		})
 		return
@@ -591,12 +591,12 @@ func (h *RoleManagementHandler) SetRolePermissions(c *gin.Context) {
 // UpdateRolePermissions handles PATCH /api/v1/roles/:id/permissions
 func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -608,7 +608,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid request format",
+			"error":   "Invalid request format",
 		})
 		return
 	}
@@ -618,7 +618,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -626,7 +626,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	if role.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot modify system role permissions",
+			"error":   "Cannot modify system role permissions",
 		})
 		return
 	}
@@ -636,7 +636,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to get current permissions",
+			"error":   "Failed to get current permissions",
 		})
 		return
 	}
@@ -653,7 +653,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Invalid permission codes in add list",
+				"error":   "Invalid permission codes in add list",
 				"message": err.Error(),
 			})
 			return
@@ -670,7 +670,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"error": "Invalid permission codes in remove list",
+				"error":   "Invalid permission codes in remove list",
 				"message": err.Error(),
 			})
 			return
@@ -692,7 +692,7 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to update role permissions",
+			"error":   "Failed to update role permissions",
 			"message": err.Error(),
 		})
 		return
@@ -703,8 +703,8 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 		"message": "Role permissions updated successfully",
 		"data": gin.H{
 			"granted_count": len(finalPermissionIDs),
-			"added": len(req.Add),
-			"removed": len(req.Remove),
+			"added":         len(req.Add),
+			"removed":       len(req.Remove),
 		},
 	})
 }
@@ -712,12 +712,12 @@ func (h *RoleManagementHandler) UpdateRolePermissions(c *gin.Context) {
 // RemoveRolePermission handles DELETE /api/v1/roles/:id/permissions/:permissionId
 func (h *RoleManagementHandler) RemoveRolePermission(c *gin.Context) {
 	ctx := c.Request.Context()
-	
+
 	roleID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid role ID",
+			"error":   "Invalid role ID",
 		})
 		return
 	}
@@ -726,7 +726,7 @@ func (h *RoleManagementHandler) RemoveRolePermission(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Invalid permission ID",
+			"error":   "Invalid permission ID",
 		})
 		return
 	}
@@ -736,7 +736,7 @@ func (h *RoleManagementHandler) RemoveRolePermission(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Role not found",
+			"error":   "Role not found",
 		})
 		return
 	}
@@ -744,7 +744,7 @@ func (h *RoleManagementHandler) RemoveRolePermission(c *gin.Context) {
 	if role.IsSystemRole {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
-			"error": "Cannot modify system role permissions",
+			"error":   "Cannot modify system role permissions",
 		})
 		return
 	}
@@ -773,7 +773,7 @@ func (h *RoleManagementHandler) RemoveRolePermission(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to remove permission",
+			"error":   "Failed to remove permission",
 			"message": err.Error(),
 		})
 		return
@@ -791,13 +791,13 @@ func (h *RoleManagementHandler) getPermissionIDsByCodes(ctx context.Context, per
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 创建代码到ID的映射
 	codeToID := make(map[string]int)
 	for _, perm := range allPermissions {
 		codeToID[perm.PermissionCode] = perm.ID
 	}
-	
+
 	// 获取请求的权限ID
 	var permissionIDs []int
 	for _, code := range permissionCodes {
@@ -807,6 +807,6 @@ func (h *RoleManagementHandler) getPermissionIDsByCodes(ctx context.Context, per
 			return nil, fmt.Errorf("permission code not found: %s", code)
 		}
 	}
-	
+
 	return permissionIDs, nil
 }

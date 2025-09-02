@@ -27,25 +27,25 @@ const (
 type WorkNotePriority string
 
 const (
-	WorkNotePriorityLow      WorkNotePriority = "low"
-	WorkNotePriorityMedium   WorkNotePriority = "medium"
-	WorkNotePriorityHigh     WorkNotePriority = "high"
-	WorkNotePriorityUrgent   WorkNotePriority = "urgent"
+	WorkNotePriorityLow    WorkNotePriority = "low"
+	WorkNotePriorityMedium WorkNotePriority = "medium"
+	WorkNotePriorityHigh   WorkNotePriority = "high"
+	WorkNotePriorityUrgent WorkNotePriority = "urgent"
 )
 
 // WorkNoteMetadata 工作笔记专用元数据
 type WorkNoteMetadata struct {
-	ReadTime       *int                 `json:"read_time,omitempty"`        // 预估阅读时间（分钟）
-	WordCount      *int                 `json:"word_count,omitempty"`       // 字数统计
-	LastReadAt     *time.Time           `json:"last_read_at,omitempty"`     // 最后阅读时间
-	ViewCount      int                  `json:"view_count"`                 // 阅读次数
-	IsPinned       bool                 `json:"is_pinned"`                  // 是否置顶
-	IsBookmarked   bool                 `json:"is_bookmarked"`              // 是否收藏
-	WorkNoteType   WorkNoteType         `json:"work_note_type"`             // 笔记类型
-	Priority       WorkNotePriority     `json:"priority"`                   // 优先级
-	RelatedTasks   []int                `json:"related_tasks,omitempty"`    // 相关任务ID
-	RelatedNotes   []int                `json:"related_notes,omitempty"`    // 相关笔记ID
-	CustomFields   map[string]interface{} `json:"custom_fields,omitempty"`  // 自定义字段
+	ReadTime     *int                   `json:"read_time,omitempty"`     // 预估阅读时间（分钟）
+	WordCount    *int                   `json:"word_count,omitempty"`    // 字数统计
+	LastReadAt   *time.Time             `json:"last_read_at,omitempty"`  // 最后阅读时间
+	ViewCount    int                    `json:"view_count"`              // 阅读次数
+	IsPinned     bool                   `json:"is_pinned"`               // 是否置顶
+	IsBookmarked bool                   `json:"is_bookmarked"`           // 是否收藏
+	WorkNoteType WorkNoteType           `json:"work_note_type"`          // 笔记类型
+	Priority     WorkNotePriority       `json:"priority"`                // 优先级
+	RelatedTasks []int                  `json:"related_tasks,omitempty"` // 相关任务ID
+	RelatedNotes []int                  `json:"related_notes,omitempty"` // 相关笔记ID
+	CustomFields map[string]interface{} `json:"custom_fields,omitempty"` // 自定义字段
 }
 
 // =====================================
@@ -54,11 +54,11 @@ type WorkNoteMetadata struct {
 
 // ConversionOptions 转换选项
 type ConversionOptions struct {
-	PreserveOriginal bool              `json:"preserve_original"` // 是否保留原工作笔记
-	CopyRelations    bool              `json:"copy_relations"`    // 是否复制关联关系
-	ConvertFormat    string            `json:"convert_format"`    // 转换格式 markdown/txt/html
-	Visibility       Visibility        `json:"visibility"`        // 可见性
-	RelationType     string            `json:"relation_type"`     // 关联类型
+	PreserveOriginal bool       `json:"preserve_original"` // 是否保留原工作笔记
+	CopyRelations    bool       `json:"copy_relations"`    // 是否复制关联关系
+	ConvertFormat    string     `json:"convert_format"`    // 转换格式 markdown/txt/html
+	Visibility       Visibility `json:"visibility"`        // 可见性
+	RelationType     string     `json:"relation_type"`     // 关联类型
 }
 
 // ConvertToTaskDocumentRequest 转换为任务文档请求
@@ -69,9 +69,9 @@ type ConvertToTaskDocumentRequest struct {
 
 // ConversionResult 转换结果
 type ConversionResult struct {
-	OriginalWorkNoteID    int                 `json:"original_work_note_id"`
-	CreatedTaskDocument   TaskDocumentSummary `json:"created_task_document"`
-	ConversionSummary     ConversionSummary   `json:"conversion_summary"`
+	OriginalWorkNoteID  int                 `json:"original_work_note_id"`
+	CreatedTaskDocument TaskDocumentSummary `json:"created_task_document"`
+	ConversionSummary   ConversionSummary   `json:"conversion_summary"`
 }
 
 // TaskDocumentSummary 任务文档摘要
@@ -85,9 +85,9 @@ type TaskDocumentSummary struct {
 
 // ConversionSummary 转换摘要
 type ConversionSummary struct {
-	ContentMigrated   bool `json:"content_migrated"`
-	RelationsCopied   int  `json:"relations_copied"`
-	AttachmentsMoved  int  `json:"attachments_moved"`
+	ContentMigrated  bool `json:"content_migrated"`
+	RelationsCopied  int  `json:"relations_copied"`
+	AttachmentsMoved int  `json:"attachments_moved"`
 }
 
 // ConvertPreviewRequest 转换预览请求
@@ -98,12 +98,12 @@ type ConvertPreviewRequest struct {
 
 // ConversionPreview 转换预览
 type ConversionPreview struct {
-	SourceDocument      WorkNoteSummary      `json:"source_document"`
-	TargetTaskID        int                  `json:"target_task_id"`
-	ConversionSettings  ConversionOptions    `json:"conversion_settings"`
-	PreviewContent      string               `json:"preview_content"`
-	EstimatedSize       int64                `json:"estimated_size"`
-	WarningMessages     []string             `json:"warning_messages,omitempty"`
+	SourceDocument     WorkNoteSummary   `json:"source_document"`
+	TargetTaskID       int               `json:"target_task_id"`
+	ConversionSettings ConversionOptions `json:"conversion_settings"`
+	PreviewContent     string            `json:"preview_content"`
+	EstimatedSize      int64             `json:"estimated_size"`
+	WarningMessages    []string          `json:"warning_messages,omitempty"`
 }
 
 // WorkNoteSummary 工作笔记摘要
@@ -116,9 +116,9 @@ type WorkNoteSummary struct {
 
 // BatchConversionItem 批量转换项
 type BatchConversionItem struct {
-	WorkNoteID int               `json:"work_note_id" binding:"required"`
-	TargetTaskID int             `json:"target_task_id" binding:"required"`
-	Options    ConversionOptions `json:"options"`
+	WorkNoteID   int               `json:"work_note_id" binding:"required"`
+	TargetTaskID int               `json:"target_task_id" binding:"required"`
+	Options      ConversionOptions `json:"options"`
 }
 
 // BatchConvertRequest 批量转换请求
@@ -153,12 +153,12 @@ func (wnm *WorkNoteMetadata) Scan(value interface{}) error {
 		*wnm = WorkNoteMetadata{}
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("type assertion to []byte failed")
 	}
-	
+
 	return json.Unmarshal(bytes, wnm)
 }
 
@@ -166,26 +166,26 @@ func (wnm *WorkNoteMetadata) Scan(value interface{}) error {
 type WorkNote struct {
 	// 基础Document字段
 	Document
-	
+
 	// 工作笔记专用字段（通过metadata存储，这里提供便捷访问）
-	WorkNoteType   WorkNoteType         `json:"work_note_type"`
-	Priority       WorkNotePriority     `json:"priority"`
-	ReadTime       *int                 `json:"read_time,omitempty"`
-	WordCount      *int                 `json:"word_count,omitempty"`
-	ViewCount      int                  `json:"view_count"`
-	LastReadAt     *time.Time           `json:"last_read_at,omitempty"`
-	IsPinned       bool                 `json:"is_pinned"`
-	IsBookmarked   bool                 `json:"is_bookmarked"`
-	
+	WorkNoteType WorkNoteType     `json:"work_note_type"`
+	Priority     WorkNotePriority `json:"priority"`
+	ReadTime     *int             `json:"read_time,omitempty"`
+	WordCount    *int             `json:"word_count,omitempty"`
+	ViewCount    int              `json:"view_count"`
+	LastReadAt   *time.Time       `json:"last_read_at,omitempty"`
+	IsPinned     bool             `json:"is_pinned"`
+	IsBookmarked bool             `json:"is_bookmarked"`
+
 	// 关联信息
-	RelatedTasks   []int                `json:"related_tasks,omitempty"`
-	RelatedNotes   []int                `json:"related_notes,omitempty"`
-	
+	RelatedTasks []int `json:"related_tasks,omitempty"`
+	RelatedNotes []int `json:"related_notes,omitempty"`
+
 	// 文件夹关联（通过Document.FolderID，这里提供类型安全的访问）
 	WorkNoteFolderID *int `json:"work_note_folder_id,omitempty"`
-	
+
 	// 运行时计算字段（不存储在数据库）
-	FolderPath      string   `json:"folder_path,omitempty"`      // 文件夹路径
+	FolderPath      string   `json:"folder_path,omitempty"`       // 文件夹路径
 	RelatedTaskInfo []string `json:"related_task_info,omitempty"` // 相关任务信息
 }
 
@@ -193,84 +193,84 @@ type WorkNote struct {
 
 // CreateWorkNoteRequest 创建工作笔记请求
 type CreateWorkNoteRequest struct {
-	Title            string               `json:"title" validate:"required,min=1,max=255"`
-	Content          *string              `json:"content,omitempty"`
-	Description      *string              `json:"description,omitempty"`
-	WorkNoteFolderID *int                 `json:"work_note_folder_id,omitempty"`
-	WorkNoteType     WorkNoteType         `json:"work_note_type" validate:"required"`
-	Priority         WorkNotePriority     `json:"priority"`
-	Tags             []string             `json:"tags,omitempty"`
-	Visibility       Visibility           `json:"visibility" validate:"required"`
-	IsPinned         bool                 `json:"is_pinned"`
-	IsBookmarked     bool                 `json:"is_bookmarked"`
-	RelatedTasks     []int                `json:"related_tasks,omitempty"`
-	RelatedNotes     []int                `json:"related_notes,omitempty"`
+	Title            string                 `json:"title" validate:"required,min=1,max=255"`
+	Content          *string                `json:"content,omitempty"`
+	Description      *string                `json:"description,omitempty"`
+	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"`
+	WorkNoteType     WorkNoteType           `json:"work_note_type" validate:"required"`
+	Priority         WorkNotePriority       `json:"priority"`
+	Tags             []string               `json:"tags,omitempty"`
+	Visibility       Visibility             `json:"visibility" validate:"required"`
+	IsPinned         bool                   `json:"is_pinned"`
+	IsBookmarked     bool                   `json:"is_bookmarked"`
+	RelatedTasks     []int                  `json:"related_tasks,omitempty"`
+	RelatedNotes     []int                  `json:"related_notes,omitempty"`
 	CustomFields     map[string]interface{} `json:"custom_fields,omitempty"`
 }
 
 // UpdateWorkNoteRequest 更新工作笔记请求
 type UpdateWorkNoteRequest struct {
-	Title            *string              `json:"title,omitempty" validate:"omitempty,min=1,max=255"`
-	Content          *string              `json:"content,omitempty"`
-	Description      *string              `json:"description,omitempty"`
-	WorkNoteFolderID *int                 `json:"work_note_folder_id,omitempty"`
-	WorkNoteType     *WorkNoteType        `json:"work_note_type,omitempty"`
-	Priority         *WorkNotePriority    `json:"priority,omitempty"`
-	Tags             []string             `json:"tags,omitempty"`
-	Visibility       *Visibility          `json:"visibility,omitempty"`
-	IsPinned         *bool                `json:"is_pinned,omitempty"`
-	IsBookmarked     *bool                `json:"is_bookmarked,omitempty"`
-	RelatedTasks     []int                `json:"related_tasks,omitempty"`
-	RelatedNotes     []int                `json:"related_notes,omitempty"`
+	Title            *string                `json:"title,omitempty" validate:"omitempty,min=1,max=255"`
+	Content          *string                `json:"content,omitempty"`
+	Description      *string                `json:"description,omitempty"`
+	WorkNoteFolderID *int                   `json:"work_note_folder_id,omitempty"`
+	WorkNoteType     *WorkNoteType          `json:"work_note_type,omitempty"`
+	Priority         *WorkNotePriority      `json:"priority,omitempty"`
+	Tags             []string               `json:"tags,omitempty"`
+	Visibility       *Visibility            `json:"visibility,omitempty"`
+	IsPinned         *bool                  `json:"is_pinned,omitempty"`
+	IsBookmarked     *bool                  `json:"is_bookmarked,omitempty"`
+	RelatedTasks     []int                  `json:"related_tasks,omitempty"`
+	RelatedNotes     []int                  `json:"related_notes,omitempty"`
 	CustomFields     map[string]interface{} `json:"custom_fields,omitempty"`
 }
 
 // WorkNoteFilter 工作笔记过滤器
 type WorkNoteFilter struct {
-	OwnerID          *int                 `json:"owner_id,omitempty"`
-	WorkNoteFolderID *int                 `json:"work_note_folder_id,omitempty"`
-	WorkNoteType     *WorkNoteType        `json:"work_note_type,omitempty"`
-	Priority         *WorkNotePriority    `json:"priority,omitempty"`
-	Visibility       *Visibility          `json:"visibility,omitempty"`
-	Status           *DocumentStatus      `json:"status,omitempty"`
-	IsPinned         *bool                `json:"is_pinned,omitempty"`
-	IsBookmarked     *bool                `json:"is_bookmarked,omitempty"`
-	IsTemplate       *bool                `json:"is_template,omitempty"`
-	Tags             []string             `json:"tags,omitempty"`
-	Search           string               `json:"search,omitempty"`
-	CreatedAfter     *time.Time           `json:"created_after,omitempty"`
-	CreatedBefore    *time.Time           `json:"created_before,omitempty"`
-	UpdatedAfter     *time.Time           `json:"updated_after,omitempty"`
-	UpdatedBefore    *time.Time           `json:"updated_before,omitempty"`
-	SortBy           string               `json:"sort_by,omitempty"`     // created_at, updated_at, title, priority, view_count
-	Order            string               `json:"order,omitempty"`       // asc, desc
-	Page             int                  `json:"page,omitempty"`
-	Limit            int                  `json:"limit,omitempty"`
+	OwnerID          *int              `json:"owner_id,omitempty"`
+	WorkNoteFolderID *int              `json:"work_note_folder_id,omitempty"`
+	WorkNoteType     *WorkNoteType     `json:"work_note_type,omitempty"`
+	Priority         *WorkNotePriority `json:"priority,omitempty"`
+	Visibility       *Visibility       `json:"visibility,omitempty"`
+	Status           *DocumentStatus   `json:"status,omitempty"`
+	IsPinned         *bool             `json:"is_pinned,omitempty"`
+	IsBookmarked     *bool             `json:"is_bookmarked,omitempty"`
+	IsTemplate       *bool             `json:"is_template,omitempty"`
+	Tags             []string          `json:"tags,omitempty"`
+	Search           string            `json:"search,omitempty"`
+	CreatedAfter     *time.Time        `json:"created_after,omitempty"`
+	CreatedBefore    *time.Time        `json:"created_before,omitempty"`
+	UpdatedAfter     *time.Time        `json:"updated_after,omitempty"`
+	UpdatedBefore    *time.Time        `json:"updated_before,omitempty"`
+	SortBy           string            `json:"sort_by,omitempty"` // created_at, updated_at, title, priority, view_count
+	Order            string            `json:"order,omitempty"`   // asc, desc
+	Page             int               `json:"page,omitempty"`
+	Limit            int               `json:"limit,omitempty"`
 }
 
 // WorkNoteFolder 工作笔记文件夹模型
 type WorkNoteFolder struct {
-	ID          int       `json:"id" db:"id"`
-	Name        string    `json:"name" db:"name"`
-	Description *string   `json:"description" db:"description"`
-	ParentID    *int      `json:"parent_id" db:"parent_id"`
-	OwnerID     int       `json:"owner_id" db:"owner_id"`
-	ProjectID   *int      `json:"project_id" db:"project_id"`
+	ID          int        `json:"id" db:"id"`
+	Name        string     `json:"name" db:"name"`
+	Description *string    `json:"description" db:"description"`
+	ParentID    *int       `json:"parent_id" db:"parent_id"`
+	OwnerID     int        `json:"owner_id" db:"owner_id"`
+	ProjectID   *int       `json:"project_id" db:"project_id"`
 	Visibility  Visibility `json:"visibility" db:"visibility"`
-	Color       *string   `json:"color" db:"color"`
-	Icon        *string   `json:"icon" db:"icon"`
-	SortOrder   int       `json:"sort_order" db:"sort_order"`
-	CreatedBy   int       `json:"created_by" db:"created_by"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	Color       *string    `json:"color" db:"color"`
+	Icon        *string    `json:"icon" db:"icon"`
+	SortOrder   int        `json:"sort_order" db:"sort_order"`
+	CreatedBy   int        `json:"created_by" db:"created_by"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
 	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
-	
+
 	// 计算字段
 	NotesCount      int    `json:"notes_count,omitempty"`
 	SubfoldersCount int    `json:"subfolders_count,omitempty"`
 	Path            string `json:"path,omitempty"`
 	OwnerName       string `json:"owner_name,omitempty"`
-	
+
 	// 层级关系
 	Children []*WorkNoteFolder `json:"children,omitempty"`
 	Parent   *WorkNoteFolder   `json:"parent,omitempty"`
@@ -289,21 +289,21 @@ type CreateWorkNoteFolderRequest struct {
 
 // UpdateWorkNoteFolderRequest 更新工作笔记文件夹请求
 type UpdateWorkNoteFolderRequest struct {
-	Name        *string    `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
-	Description *string    `json:"description,omitempty"`
-	ParentID    *int       `json:"parent_id,omitempty"`
+	Name        *string     `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Description *string     `json:"description,omitempty"`
+	ParentID    *int        `json:"parent_id,omitempty"`
 	Visibility  *Visibility `json:"visibility,omitempty"`
-	Color       *string    `json:"color,omitempty"`
-	Icon        *string    `json:"icon,omitempty"`
+	Color       *string     `json:"color,omitempty"`
+	Icon        *string     `json:"icon,omitempty"`
 }
 
 // WorkNoteFolderFilter 工作笔记文件夹过滤器
 type WorkNoteFolderFilter struct {
-	OwnerID    *int       `json:"owner_id,omitempty"`
-	ProjectID  *int       `json:"project_id,omitempty"`
-	ParentID   *int       `json:"parent_id,omitempty"`
+	OwnerID    *int        `json:"owner_id,omitempty"`
+	ProjectID  *int        `json:"project_id,omitempty"`
+	ParentID   *int        `json:"parent_id,omitempty"`
 	Visibility *Visibility `json:"visibility,omitempty"`
-	Search     string     `json:"search,omitempty"`
+	Search     string      `json:"search,omitempty"`
 }
 
 // WorkNoteListResponse 工作笔记列表响应
@@ -317,10 +317,10 @@ type WorkNoteListResponse struct {
 // WorkNoteSearchResult 工作笔记搜索结果
 type WorkNoteSearchResult struct {
 	WorkNote
-	MatchType         string    `json:"match_type"`      // title, content, description, tags
-	MatchScore        float64   `json:"match_score"`
-	HighlightedTitle  *string   `json:"highlighted_title,omitempty"`
-	HighlightedExcerpt *string  `json:"highlighted_excerpt,omitempty"`
+	MatchType          string  `json:"match_type"` // title, content, description, tags
+	MatchScore         float64 `json:"match_score"`
+	HighlightedTitle   *string `json:"highlighted_title,omitempty"`
+	HighlightedExcerpt *string `json:"highlighted_excerpt,omitempty"`
 }
 
 // BatchWorkNoteOperation 批量工作笔记操作
@@ -332,20 +332,20 @@ type BatchWorkNoteOperation struct {
 
 // WorkNoteStats 工作笔记统计信息
 type WorkNoteStats struct {
-	TotalNotes      int                           `json:"total_notes"`
-	NotesByType     map[WorkNoteType]int          `json:"notes_by_type"`
-	NotesByPriority map[WorkNotePriority]int      `json:"notes_by_priority"`
-	NotesByFolder   map[int]int                   `json:"notes_by_folder"`
-	PinnedCount     int                           `json:"pinned_count"`
-	BookmarkedCount int                           `json:"bookmarked_count"`
-	RecentActivity  []WorkNoteRecentActivity      `json:"recent_activity,omitempty"`
+	TotalNotes      int                      `json:"total_notes"`
+	NotesByType     map[WorkNoteType]int     `json:"notes_by_type"`
+	NotesByPriority map[WorkNotePriority]int `json:"notes_by_priority"`
+	NotesByFolder   map[int]int              `json:"notes_by_folder"`
+	PinnedCount     int                      `json:"pinned_count"`
+	BookmarkedCount int                      `json:"bookmarked_count"`
+	RecentActivity  []WorkNoteRecentActivity `json:"recent_activity,omitempty"`
 }
 
 // WorkNoteRecentActivity 工作笔记最近活动
 type WorkNoteRecentActivity struct {
 	NoteID    int       `json:"note_id"`
 	NoteTitle string    `json:"note_title"`
-	Action    string    `json:"action"`    // created, updated, viewed
+	Action    string    `json:"action"` // created, updated, viewed
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -355,23 +355,23 @@ type WorkNoteRecentActivity struct {
 func (wn *WorkNote) ToDocument() Document {
 	// 构建metadata
 	metadata := DocumentMetadata{
-		"work_note_type":   wn.WorkNoteType,
-		"priority":         wn.Priority,
-		"read_time":        wn.ReadTime,
-		"word_count":       wn.WordCount,
-		"view_count":       wn.ViewCount,
-		"last_read_at":     wn.LastReadAt,
-		"is_pinned":        wn.IsPinned,
-		"is_bookmarked":    wn.IsBookmarked,
-		"related_tasks":    wn.RelatedTasks,
-		"related_notes":    wn.RelatedNotes,
+		"work_note_type": wn.WorkNoteType,
+		"priority":       wn.Priority,
+		"read_time":      wn.ReadTime,
+		"word_count":     wn.WordCount,
+		"view_count":     wn.ViewCount,
+		"last_read_at":   wn.LastReadAt,
+		"is_pinned":      wn.IsPinned,
+		"is_bookmarked":  wn.IsBookmarked,
+		"related_tasks":  wn.RelatedTasks,
+		"related_notes":  wn.RelatedNotes,
 	}
-	
+
 	doc := wn.Document
 	doc.Metadata = metadata
 	doc.FolderID = wn.WorkNoteFolderID
 	doc.Type = DocumentTypeMarkdown // 工作笔记默认为markdown类型
-	
+
 	return doc
 }
 
@@ -379,7 +379,7 @@ func (wn *WorkNote) ToDocument() Document {
 func (wn *WorkNote) FromDocument(doc Document) error {
 	wn.Document = doc
 	wn.WorkNoteFolderID = doc.FolderID
-	
+
 	// 从metadata解析工作笔记专用字段
 	if doc.Metadata != nil {
 		if v, ok := doc.Metadata["work_note_type"]; ok {
@@ -387,45 +387,45 @@ func (wn *WorkNote) FromDocument(doc Document) error {
 				wn.WorkNoteType = WorkNoteType(typeStr)
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["priority"]; ok {
 			if priorityStr, ok := v.(string); ok {
 				wn.Priority = WorkNotePriority(priorityStr)
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["read_time"]; ok {
 			if readTime, ok := v.(float64); ok { // JSON numbers are float64
 				rt := int(readTime)
 				wn.ReadTime = &rt
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["word_count"]; ok {
 			if wordCount, ok := v.(float64); ok {
 				wc := int(wordCount)
 				wn.WordCount = &wc
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["view_count"]; ok {
 			if viewCount, ok := v.(float64); ok {
 				wn.ViewCount = int(viewCount)
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["is_pinned"]; ok {
 			if isPinned, ok := v.(bool); ok {
 				wn.IsPinned = isPinned
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["is_bookmarked"]; ok {
 			if isBookmarked, ok := v.(bool); ok {
 				wn.IsBookmarked = isBookmarked
 			}
 		}
-		
+
 		// 解析关联任务和笔记
 		if v, ok := doc.Metadata["related_tasks"]; ok {
 			if tasks, ok := v.([]interface{}); ok {
@@ -437,7 +437,7 @@ func (wn *WorkNote) FromDocument(doc Document) error {
 				}
 			}
 		}
-		
+
 		if v, ok := doc.Metadata["related_notes"]; ok {
 			if notes, ok := v.([]interface{}); ok {
 				wn.RelatedNotes = make([]int, len(notes))
@@ -449,7 +449,7 @@ func (wn *WorkNote) FromDocument(doc Document) error {
 			}
 		}
 	}
-	
+
 	// 设置默认值
 	if wn.WorkNoteType == "" {
 		wn.WorkNoteType = WorkNoteTypeGeneral
@@ -457,7 +457,7 @@ func (wn *WorkNote) FromDocument(doc Document) error {
 	if wn.Priority == "" {
 		wn.Priority = WorkNotePriorityMedium
 	}
-	
+
 	return nil
 }
 
@@ -466,7 +466,7 @@ func (wn *WorkNote) UpdateMetadata() {
 	if wn.Document.Metadata == nil {
 		wn.Document.Metadata = make(DocumentMetadata)
 	}
-	
+
 	wn.Document.Metadata["work_note_type"] = wn.WorkNoteType
 	wn.Document.Metadata["priority"] = wn.Priority
 	wn.Document.Metadata["read_time"] = wn.ReadTime
@@ -484,7 +484,7 @@ func IsWorkNote(doc Document) bool {
 	if doc.Metadata == nil {
 		return false
 	}
-	
+
 	_, hasType := doc.Metadata["work_note_type"]
 	return hasType
 }
@@ -495,11 +495,11 @@ func (wn *WorkNote) Validate() error {
 	if wn.Title == "" {
 		return errors.New("work note title is required")
 	}
-	
+
 	if len(wn.Title) > 255 {
 		return errors.New("work note title too long")
 	}
-	
+
 	// 验证工作笔记类型
 	validTypes := map[WorkNoteType]bool{
 		WorkNoteTypeGeneral:   true,
@@ -509,11 +509,11 @@ func (wn *WorkNote) Validate() error {
 		WorkNoteTypeReference: true,
 		WorkNoteTypeTemplate:  true,
 	}
-	
+
 	if !validTypes[wn.WorkNoteType] {
 		return errors.New("invalid work note type")
 	}
-	
+
 	// 验证优先级
 	validPriorities := map[WorkNotePriority]bool{
 		WorkNotePriorityLow:    true,
@@ -521,11 +521,11 @@ func (wn *WorkNote) Validate() error {
 		WorkNotePriorityHigh:   true,
 		WorkNotePriorityUrgent: true,
 	}
-	
+
 	if !validPriorities[wn.Priority] {
 		return errors.New("invalid work note priority")
 	}
-	
+
 	return nil
 }
 
@@ -534,18 +534,18 @@ func (wn *WorkNote) CalculateReadTime() {
 	if wn.Content == nil || *wn.Content == "" {
 		return
 	}
-	
+
 	// 简单的字数统计（中英文）
 	content := *wn.Content
 	wordCount := len([]rune(content))
-	
+
 	// 假设平均阅读速度：中文250字/分钟，英文200词/分钟
 	// 这里简化为300字符/分钟
 	readTime := wordCount / 300
 	if readTime < 1 {
 		readTime = 1
 	}
-	
+
 	wn.ReadTime = &readTime
 	wn.WordCount = &wordCount
 }

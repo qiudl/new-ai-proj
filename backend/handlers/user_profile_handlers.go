@@ -43,7 +43,7 @@ func (h *UserProfileHandler) GetUserProfile(c *gin.Context) {
 	for key, value := range c.Keys {
 		h.logger.Printf("[PROFILE] - %s: %v", key, value)
 	}
-	
+
 	// Extract user ID from context (set by mapUserToCompanyUser middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -204,7 +204,7 @@ func (h *UserProfileHandler) ChangePassword(c *gin.Context) {
 // GetProjectStatistics 获取项目统计信息
 func (h *UserProfileHandler) GetProjectStatistics(dbConn *sql.DB, projectID int) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
-	
+
 	// Get task count
 	var taskCount int
 	err := dbConn.QueryRow("SELECT COUNT(*) FROM tasks WHERE project_id = $1 AND deleted_at IS NULL", projectID).Scan(&taskCount)
@@ -337,7 +337,7 @@ func (h *UserProfileHandler) UploadAvatar(c *gin.Context) {
 func isValidImageFile(header *multipart.FileHeader) bool {
 	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif"}
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	
+
 	for _, allowedType := range allowedTypes {
 		if ext == allowedType {
 			return true

@@ -22,27 +22,27 @@ func NewStatisticsHandlers(db *sql.DB) *StatisticsHandlers {
 // TodayTaskStats 今日任务统计数据
 type TodayTaskStats struct {
 	// 基础统计
-	TotalTasks       int `json:"totalTasks"`
-	CompletedTasks   int `json:"completedTasks"`
-	InProgressTasks  int `json:"inProgressTasks"`
-	TodoTasks        int `json:"todoTasks"`
-	OverdueTasks     int `json:"overdueTasks"`
+	TotalTasks      int `json:"totalTasks"`
+	CompletedTasks  int `json:"completedTasks"`
+	InProgressTasks int `json:"inProgressTasks"`
+	TodoTasks       int `json:"todoTasks"`
+	OverdueTasks    int `json:"overdueTasks"`
 
 	// 完成率和效率
-	CompletionRate         float64 `json:"completionRate"`
-	OnTimeCompletionRate   float64 `json:"onTimeCompletionRate"`
+	CompletionRate       float64 `json:"completionRate"`
+	OnTimeCompletionRate float64 `json:"onTimeCompletionRate"`
 
 	// 时间统计 - 精准时间支持
 	TotalPlannedTime   float64 `json:"totalPlannedTime"`   // 分钟 (精准到分钟)
-	TotalActualTime    float64 `json:"totalActualTime"`    // 分钟 (精准到分钟)  
+	TotalActualTime    float64 `json:"totalActualTime"`    // 分钟 (精准到分钟)
 	TotalRemainingTime float64 `json:"totalRemainingTime"` // 分钟 (精准到分钟)
 	TimeEfficiency     float64 `json:"timeEfficiency"`     // 百分比
-	
+
 	// 新增：精准时间格式统计
 	TotalPlannedTimeFormatted   string `json:"totalPlannedTimeFormatted"`   // 格式化显示 (如: "2小时30分钟")
 	TotalActualTimeFormatted    string `json:"totalActualTimeFormatted"`    // 格式化显示
 	TotalRemainingTimeFormatted string `json:"totalRemainingTimeFormatted"` // 格式化显示
-	
+
 	// 时间分布统计
 	TimeDistribution map[string]float64 `json:"timeDistribution"` // 按时间范围分布统计
 
@@ -58,22 +58,22 @@ type TodayTaskStats struct {
 	WeeklyTrend         float64 `json:"weeklyTrend"`
 
 	// 特殊任务列表
-	UrgentTasks         []TaskInfo `json:"urgentTasks"`
-	UpcomingDeadlines   []TaskInfo `json:"upcomingDeadlines"`
+	UrgentTasks       []TaskInfo `json:"urgentTasks"`
+	UpcomingDeadlines []TaskInfo `json:"upcomingDeadlines"`
 }
 
 // TaskInfo 任务信息（用于统计）
 type TaskInfo struct {
-	ID           int                    `json:"id"`
-	Title        string                 `json:"title"`
-	Status       string                 `json:"status"`
-	ProjectID    int                    `json:"project_id"`
-	ProjectName  string                 `json:"project_name"`
-	AssigneeID   *int                   `json:"assignee_id"`
-	AssigneeName *string                `json:"assignee_name"`
-	DueDate      *string                `json:"due_date"`
-	CreatedAt    string                 `json:"created_at"`
-	UpdatedAt    *string                `json:"updated_at"`
+	ID           int                 `json:"id"`
+	Title        string              `json:"title"`
+	Status       string              `json:"status"`
+	ProjectID    int                 `json:"project_id"`
+	ProjectName  string              `json:"project_name"`
+	AssigneeID   *int                `json:"assignee_id"`
+	AssigneeName *string             `json:"assignee_name"`
+	DueDate      *string             `json:"due_date"`
+	CreatedAt    string              `json:"created_at"`
+	UpdatedAt    *string             `json:"updated_at"`
 	CustomFields models.CustomFields `json:"custom_fields,omitempty"`
 }
 
@@ -102,11 +102,11 @@ func (sh *StatisticsHandlers) getTodayTaskStats() (*TodayTaskStats, error) {
 	todayStart := today + " 00:00:00"
 	todayEnd := today + " 23:59:59"
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	
+
 	stats := &TodayTaskStats{
 		PriorityDistribution: make(map[string]int),
-		UrgentTasks:         []TaskInfo{},
-		UpcomingDeadlines:   []TaskInfo{},
+		UrgentTasks:          []TaskInfo{},
+		UpcomingDeadlines:    []TaskInfo{},
 	}
 
 	// 获取今日相关任务的基础统计
@@ -502,12 +502,12 @@ func formatMinutesToReadable(minutes float64) string {
 	}
 
 	totalMinutes := int(minutes)
-	days := totalMinutes / (8 * 60)    // 按8小时工作日计算
+	days := totalMinutes / (8 * 60) // 按8小时工作日计算
 	hours := (totalMinutes % (8 * 60)) / 60
 	remainingMinutes := totalMinutes % 60
 
 	var parts []string
-	
+
 	if days > 0 {
 		parts = append(parts, fmt.Sprintf("%d天", days))
 	}
@@ -530,17 +530,17 @@ func formatMinutesToReadable(minutes float64) string {
 		}
 		result += part
 	}
-	
+
 	return result
 }
 
 // calculateTimeDistribution 计算时间分布统计
 func (sh *StatisticsHandlers) calculateTimeDistribution(today string) map[string]float64 {
 	distribution := map[string]float64{
-		"short":  0,  // 0-2小时 (0-120分钟)
-		"medium": 0,  // 2-8小时 (120-480分钟)
-		"long":   0,  // 8小时-1天 (480-480分钟，实际上应该是8小时以上)
-		"huge":   0,  // 1天以上 (超过8小时)
+		"short":  0, // 0-2小时 (0-120分钟)
+		"medium": 0, // 2-8小时 (120-480分钟)
+		"long":   0, // 8小时-1天 (480-480分钟，实际上应该是8小时以上)
+		"huge":   0, // 1天以上 (超过8小时)
 	}
 
 	query := `

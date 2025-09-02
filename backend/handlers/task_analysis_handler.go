@@ -12,14 +12,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/database"
 	"ai-project-backend/services"
+	"github.com/gin-gonic/gin"
 )
 
 // TaskAnalysisHandler handles task analysis related endpoints
 type TaskAnalysisHandler struct {
-	db             database.DB // Properly typed database interface
+	db              database.DB // Properly typed database interface
 	analysisService *services.TaskAnalysisService
 }
 
@@ -33,14 +33,14 @@ func NewTaskAnalysisHandler(db database.DB) *TaskAnalysisHandler {
 
 // TagAnalysisResult represents the result of tag analysis
 type TagAnalysisResult struct {
-	TaskID         int                    `json:"task_id"`
-	Title          string                 `json:"title"`
-	ExistingTags   []string               `json:"existing_tags"`
-	SuggestedTags  []string               `json:"suggested_tags"`
-	NewTags        []string               `json:"new_tags"`
-	TagCategories  map[string][]string    `json:"tag_categories"`
-	Confidence     float64                `json:"confidence"`
-	Analysis       map[string]interface{} `json:"analysis"`
+	TaskID        int                    `json:"task_id"`
+	Title         string                 `json:"title"`
+	ExistingTags  []string               `json:"existing_tags"`
+	SuggestedTags []string               `json:"suggested_tags"`
+	NewTags       []string               `json:"new_tags"`
+	TagCategories map[string][]string    `json:"tag_categories"`
+	Confidence    float64                `json:"confidence"`
+	Analysis      map[string]interface{} `json:"analysis"`
 }
 
 // TaskAnalysisRequest represents a request for task analysis
@@ -63,13 +63,13 @@ type WeeklyReportRequest struct {
 
 // WeeklyReportResponse represents the weekly report response
 type WeeklyReportResponse struct {
-	Period           ReportPeriod      `json:"period"`
-	ExecutiveSummary ExecutiveSummary  `json:"executive_summary"`
-	DetailedAnalysis DetailedAnalysis  `json:"detailed_analysis"`
-	Insights         []ReportInsight   `json:"insights"`
-	Recommendations  []Recommendation  `json:"recommendations"`
-	GeneratedAt      time.Time         `json:"generated_at"`
-	ReportURL        string            `json:"report_url,omitempty"`
+	Period           ReportPeriod     `json:"period"`
+	ExecutiveSummary ExecutiveSummary `json:"executive_summary"`
+	DetailedAnalysis DetailedAnalysis `json:"detailed_analysis"`
+	Insights         []ReportInsight  `json:"insights"`
+	Recommendations  []Recommendation `json:"recommendations"`
+	GeneratedAt      time.Time        `json:"generated_at"`
+	ReportURL        string           `json:"report_url,omitempty"`
 }
 
 type ReportPeriod struct {
@@ -78,19 +78,19 @@ type ReportPeriod struct {
 }
 
 type ExecutiveSummary struct {
-	KeyMetrics           KeyMetrics            `json:"key_metrics"`
-	TechnicalDistribution []TechnicalArea      `json:"technical_distribution"`
-	MajorAchievements    []Achievement         `json:"major_achievements"`
-	Risks                []Risk                `json:"risks"`
-	Trend                map[string]string     `json:"trend"`
+	KeyMetrics            KeyMetrics        `json:"key_metrics"`
+	TechnicalDistribution []TechnicalArea   `json:"technical_distribution"`
+	MajorAchievements     []Achievement     `json:"major_achievements"`
+	Risks                 []Risk            `json:"risks"`
+	Trend                 map[string]string `json:"trend"`
 }
 
 type KeyMetrics struct {
-	CompletedTasks   int     `json:"completed_tasks"`
-	CompletionRate   float64 `json:"completion_rate"`
-	NewTasks         int     `json:"new_tasks"`
-	Velocity         int     `json:"velocity"`
-	BlockageRate     float64 `json:"blockage_rate"`
+	CompletedTasks int     `json:"completed_tasks"`
+	CompletionRate float64 `json:"completion_rate"`
+	NewTasks       int     `json:"new_tasks"`
+	Velocity       int     `json:"velocity"`
+	BlockageRate   float64 `json:"blockage_rate"`
 }
 
 type TechnicalArea struct {
@@ -111,16 +111,16 @@ type Risk struct {
 }
 
 type DetailedAnalysis struct {
-	TaskBreakdown      map[string]TaskGroup   `json:"task_breakdown"`
+	TaskBreakdown        map[string]TaskGroup `json:"task_breakdown"`
 	DistributionAnalysis DistributionAnalysis `json:"distribution_analysis"`
-	QualityMetrics     QualityMetrics         `json:"quality_metrics"`
-	EfficiencyMetrics  EfficiencyMetrics      `json:"efficiency_metrics"`
+	QualityMetrics       QualityMetrics       `json:"quality_metrics"`
+	EfficiencyMetrics    EfficiencyMetrics    `json:"efficiency_metrics"`
 }
 
 type TaskGroup struct {
-	Title string              `json:"title"`
-	Count int                 `json:"count"`
-	Tasks []AnalysisTaskInfo  `json:"tasks"`
+	Title string             `json:"title"`
+	Count int                `json:"count"`
+	Tasks []AnalysisTaskInfo `json:"tasks"`
 }
 
 type AnalysisTaskInfo struct {
@@ -132,9 +132,9 @@ type AnalysisTaskInfo struct {
 }
 
 type DistributionAnalysis struct {
-	Complexity map[string]ComplexityMetric   `json:"complexity"`
-	Technical  []TechnicalDistribution       `json:"technical"`
-	Business   []BusinessDistribution        `json:"business"`
+	Complexity map[string]ComplexityMetric `json:"complexity"`
+	Technical  []TechnicalDistribution     `json:"technical"`
+	Business   []BusinessDistribution      `json:"business"`
 }
 
 type ComplexityMetric struct {
@@ -181,18 +181,18 @@ type Recommendation struct {
 
 // TagStatistics represents tag usage statistics
 type TagStatistics struct {
-	TotalTasks       int                      `json:"total_tasks"`
-	TaggedTasks      int                      `json:"tagged_tasks"`
-	TaggingCoverage  float64                  `json:"tagging_coverage"`
-	TagDistribution  map[string]int           `json:"tag_distribution"`
-	CategoryStats    map[string]CategoryStat  `json:"category_stats"`
-	MostUsedTags     []TagUsage               `json:"most_used_tags"`
+	TotalTasks        int                     `json:"total_tasks"`
+	TaggedTasks       int                     `json:"tagged_tasks"`
+	TaggingCoverage   float64                 `json:"tagging_coverage"`
+	TagDistribution   map[string]int          `json:"tag_distribution"`
+	CategoryStats     map[string]CategoryStat `json:"category_stats"`
+	MostUsedTags      []TagUsage              `json:"most_used_tags"`
 	RecentlyAddedTags []TagUsage              `json:"recently_added_tags"`
 }
 
 type CategoryStat struct {
-	Count      int     `json:"count"`
-	Percentage float64 `json:"percentage"`
+	Count      int            `json:"count"`
+	Percentage float64        `json:"percentage"`
 	Tags       map[string]int `json:"tags"`
 }
 
@@ -204,14 +204,14 @@ type TagUsage struct {
 
 // NodejsEnvironmentInfo contains Node.js environment diagnosis information
 type NodejsEnvironmentInfo struct {
-	NodeAvailable    bool   `json:"node_available"`
-	NodeVersion      string `json:"node_version"`
-	NPMAvailable     bool   `json:"npm_available"`
-	NPMVersion       string `json:"npm_version"`
-	WorkingDirectory string `json:"working_directory"`
-	ScriptPath       string `json:"script_path"`
-	PathVariable     string `json:"path_variable"`
-	DiagnosisMessage string `json:"diagnosis_message"`
+	NodeAvailable    bool     `json:"node_available"`
+	NodeVersion      string   `json:"node_version"`
+	NPMAvailable     bool     `json:"npm_available"`
+	NPMVersion       string   `json:"npm_version"`
+	WorkingDirectory string   `json:"working_directory"`
+	ScriptPath       string   `json:"script_path"`
+	PathVariable     string   `json:"path_variable"`
+	DiagnosisMessage string   `json:"diagnosis_message"`
 	SolutionSteps    []string `json:"solution_steps"`
 }
 
@@ -355,7 +355,7 @@ func (h *TaskAnalysisHandler) GenerateWeeklyReport(c *gin.Context) {
 		return
 	}
 
-	log.Printf("📈 Generating weekly report using Go analysis service for period %s to %s", 
+	log.Printf("📈 Generating weekly report using Go analysis service for period %s to %s",
 		req.StartDate, req.EndDate)
 
 	// Use the Go-based analysis service instead of Node.js
@@ -380,7 +380,7 @@ func (h *TaskAnalysisHandler) GenerateWeeklyReport(c *gin.Context) {
 // GetTagStatistics returns comprehensive tag usage statistics using Go
 func (h *TaskAnalysisHandler) GetTagStatistics(c *gin.Context) {
 	log.Printf("📊 Generating tag statistics using Go analysis service")
-	
+
 	// Use the Go-based analysis service instead of Node.js
 	stats, err := h.analysisService.GenerateTagStatistics()
 	if err != nil {
@@ -392,7 +392,7 @@ func (h *TaskAnalysisHandler) GetTagStatistics(c *gin.Context) {
 		return
 	}
 
-	log.Printf("✅ Successfully generated tag statistics: %d total tasks, %.1f%% coverage", 
+	log.Printf("✅ Successfully generated tag statistics: %d total tasks, %.1f%% coverage",
 		stats.TotalTasks, stats.TaggingCoverage)
 
 	c.JSON(http.StatusOK, gin.H{
@@ -426,13 +426,13 @@ func (h *TaskAnalysisHandler) executeTaskAnalysis(taskID int) (*TagAnalysisResul
 		SuggestedTags: []string{"frontend", "enhancement", "medium"},
 		NewTags:       []string{"frontend", "enhancement", "medium"},
 		TagCategories: map[string][]string{
-			"technical":   {"frontend"},
-			"type":        {"enhancement"},
-			"complexity":  {"medium"},
+			"technical":  {"frontend"},
+			"type":       {"enhancement"},
+			"complexity": {"medium"},
 		},
 		Confidence: 0.85,
 		Analysis: map[string]interface{}{
-			"keywords_found": []string{"UI", "interface", "component"},
+			"keywords_found":   []string{"UI", "interface", "component"},
 			"complexity_score": 6.5,
 			"technical_domain": "frontend",
 		},
@@ -658,9 +658,9 @@ func (h *TaskAnalysisHandler) executeTagStatistics() (*TagStatistics, error) {
 				Count:      47,
 				Percentage: 36.2,
 				Tags: map[string]int{
-					"enhancement": 15,
-					"bugfix":      12,
-					"feature":     10,
+					"enhancement":  15,
+					"bugfix":       12,
+					"feature":      10,
 					"optimization": 10,
 				},
 			},
@@ -694,21 +694,21 @@ func (h *TaskAnalysisHandler) isValidDate(dateStr string) bool {
 // checkNodejsEnvironment performs comprehensive Node.js environment diagnosis
 func (h *TaskAnalysisHandler) checkNodejsEnvironment() (*NodejsEnvironmentInfo, error) {
 	info := &NodejsEnvironmentInfo{}
-	
+
 	// Get current working directory
 	wd, err := os.Getwd()
 	if err != nil {
 		wd = "unknown"
 	}
 	info.WorkingDirectory = wd
-	
+
 	// Get PATH environment variable
 	info.PathVariable = os.Getenv("PATH")
-	
+
 	// Set script path
 	projectRoot := "/Users/johnqiu/coding/www/projects/new-ai-proj"
 	info.ScriptPath = filepath.Join(projectRoot, "task-tagging-script.js")
-	
+
 	// Check Node.js availability
 	nodeCmd := exec.Command("node", "--version")
 	if nodeOutput, err := nodeCmd.Output(); err == nil {
@@ -718,7 +718,7 @@ func (h *TaskAnalysisHandler) checkNodejsEnvironment() (*NodejsEnvironmentInfo, 
 		info.NodeAvailable = false
 		info.NodeVersion = "not found"
 	}
-	
+
 	// Check NPM availability
 	npmCmd := exec.Command("npm", "--version")
 	if npmOutput, err := npmCmd.Output(); err == nil {
@@ -728,7 +728,7 @@ func (h *TaskAnalysisHandler) checkNodejsEnvironment() (*NodejsEnvironmentInfo, 
 		info.NPMAvailable = false
 		info.NPMVersion = "not found"
 	}
-	
+
 	// Generate diagnosis message and solution steps
 	if !info.NodeAvailable {
 		info.DiagnosisMessage = "Node.js is not installed or not accessible in the current environment"
@@ -741,7 +741,7 @@ func (h *TaskAnalysisHandler) checkNodejsEnvironment() (*NodejsEnvironmentInfo, 
 		}
 		return info, fmt.Errorf("exec: \"node\": executable file not found in $PATH")
 	}
-	
+
 	// Check if script file exists
 	if _, err := os.Stat(info.ScriptPath); os.IsNotExist(err) {
 		info.DiagnosisMessage = "Node.js is available but required script files are missing"
@@ -752,22 +752,22 @@ func (h *TaskAnalysisHandler) checkNodejsEnvironment() (*NodejsEnvironmentInfo, 
 		}
 		return info, fmt.Errorf("script file not found: %s", info.ScriptPath)
 	}
-	
+
 	info.DiagnosisMessage = "Node.js environment is ready"
 	info.SolutionSteps = []string{"Environment is properly configured"}
-	
+
 	return info, nil
 }
 
 // GetNodejsEnvironmentStatus returns the Node.js environment status for debugging
 func (h *TaskAnalysisHandler) GetNodejsEnvironmentStatus(c *gin.Context) {
 	info, err := h.checkNodejsEnvironment()
-	
+
 	status := "ready"
 	if err != nil {
 		status = "not_ready"
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -784,33 +784,33 @@ func (h *TaskAnalysisHandler) executeGoTaskAnalysis(taskID int) (*TagAnalysisRes
 	// Mock task data - in real implementation, fetch from database
 	taskTitle := fmt.Sprintf("Task %d", taskID)
 	taskDescription := "Sample task description for analysis testing. This involves frontend development and API integration work."
-	
+
 	// Use Go analysis service
 	suggestedTags, confidence := h.analysisService.AnalyzeTaskContent(taskTitle, taskDescription)
-	
+
 	// Simulate existing tags (in real implementation, fetch from database)
 	existingTags := []string{}
-	
+
 	// Calculate new tags
 	newTags := make([]string, 0)
 	existingTagsMap := make(map[string]bool)
 	for _, tag := range existingTags {
 		existingTagsMap[tag] = true
 	}
-	
+
 	for _, tag := range suggestedTags {
 		if !existingTagsMap[tag] {
 			newTags = append(newTags, tag)
 		}
 	}
-	
+
 	// Categorize tags
 	tagCategories := make(map[string][]string)
 	for _, tag := range suggestedTags {
 		category := h.getTagCategory(tag)
 		tagCategories[category] = append(tagCategories[category], tag)
 	}
-	
+
 	result := &TagAnalysisResult{
 		TaskID:        taskID,
 		Title:         taskTitle,
@@ -826,7 +826,7 @@ func (h *TaskAnalysisHandler) executeGoTaskAnalysis(taskID int) (*TagAnalysisRes
 			"analysis_time":    time.Now(),
 		},
 	}
-	
+
 	return result, nil
 }
 
@@ -836,30 +836,30 @@ func (h *TaskAnalysisHandler) getTagCategory(tag string) string {
 	typeTags := []string{"enhancement", "bugfix", "refactor", "testing", "documentation"}
 	complexityTags := []string{"simple", "medium", "complex"}
 	priorityTags := []string{"urgent", "high-priority", "low-priority"}
-	
+
 	for _, t := range technicalTags {
 		if t == tag {
 			return "technical"
 		}
 	}
-	
+
 	for _, t := range typeTags {
 		if t == tag {
 			return "type"
 		}
 	}
-	
+
 	for _, t := range complexityTags {
 		if t == tag {
 			return "complexity"
 		}
 	}
-	
+
 	for _, t := range priorityTags {
 		if t == tag {
 			return "priority"
 		}
 	}
-	
+
 	return "other"
 }

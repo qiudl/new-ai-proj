@@ -9,7 +9,7 @@ import (
 // UserContext represents minimal auth context extracted from Gin
 // This is intentionally minimal; handlers mostly use it as a presence check.
 type UserContext struct {
-	UserID  *int
+	UserID   *int
 	AuthType string // "user", "api_key", or other
 }
 
@@ -45,4 +45,3 @@ func GetUserContext(c *gin.Context) *UserContext {
 
 	return nil
 }
-

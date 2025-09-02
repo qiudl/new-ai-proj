@@ -21,81 +21,81 @@ func NewEnhancedPermissionService(db *sql.DB) *EnhancedPermissionService {
 
 // RoleTemplate represents a predefined role template
 type RoleTemplate struct {
-	ID              int                 `json:"id"`
-	Name            string              `json:"name"`
-	Description     string              `json:"description"`
-	Category        string              `json:"category"` // e.g., "management", "development", "support"
-	DefaultPermissions []string         `json:"default_permissions"`
-	RequiredPermissions []string        `json:"required_permissions"`
-	ConflictingRoles []string           `json:"conflicting_roles"`
-	RecommendedFor  []string            `json:"recommended_for"`
-	IsBuiltIn       bool                `json:"is_built_in"`
-	CreatedAt       time.Time           `json:"created_at"`
-	UpdatedAt       time.Time           `json:"updated_at"`
+	ID                  int       `json:"id"`
+	Name                string    `json:"name"`
+	Description         string    `json:"description"`
+	Category            string    `json:"category"` // e.g., "management", "development", "support"
+	DefaultPermissions  []string  `json:"default_permissions"`
+	RequiredPermissions []string  `json:"required_permissions"`
+	ConflictingRoles    []string  `json:"conflicting_roles"`
+	RecommendedFor      []string  `json:"recommended_for"`
+	IsBuiltIn           bool      `json:"is_built_in"`
+	CreatedAt           time.Time `json:"created_at"`
+	UpdatedAt           time.Time `json:"updated_at"`
 }
 
 // PermissionTemplate represents a permission template for quick setup
 type PermissionTemplate struct {
-	ID          int               `json:"id"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Permissions map[string]bool   `json:"permissions"` // permission_code -> granted
-	UseCases    []string          `json:"use_cases"`
-	IsBuiltIn   bool              `json:"is_built_in"`
+	ID          int             `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Permissions map[string]bool `json:"permissions"` // permission_code -> granted
+	UseCases    []string        `json:"use_cases"`
+	IsBuiltIn   bool            `json:"is_built_in"`
 }
 
 // DynamicPermission represents a permission that can be granted based on context
 type DynamicPermission struct {
-	ID              int                    `json:"id"`
-	PermissionCode  string                 `json:"permission_code"`
-	ResourceType    string                 `json:"resource_type"`
-	Conditions      map[string]interface{} `json:"conditions"`
-	ValidFrom       *time.Time             `json:"valid_from"`
-	ValidUntil      *time.Time             `json:"valid_until"`
-	GrantedBy       int                    `json:"granted_by"`
-	Reason          string                 `json:"reason"`
-	IsActive        bool                   `json:"is_active"`
-	CreatedAt       time.Time              `json:"created_at"`
+	ID             int                    `json:"id"`
+	PermissionCode string                 `json:"permission_code"`
+	ResourceType   string                 `json:"resource_type"`
+	Conditions     map[string]interface{} `json:"conditions"`
+	ValidFrom      *time.Time             `json:"valid_from"`
+	ValidUntil     *time.Time             `json:"valid_until"`
+	GrantedBy      int                    `json:"granted_by"`
+	Reason         string                 `json:"reason"`
+	IsActive       bool                   `json:"is_active"`
+	CreatedAt      time.Time              `json:"created_at"`
 }
 
 // PermissionRequest represents a request for temporary permissions
 type PermissionRequest struct {
-	ID              int                    `json:"id"`
-	RequesterID     int                    `json:"requester_id"`
-	RequesterName   string                 `json:"requester_name"`
-	PermissionCode  string                 `json:"permission_code"`
-	ResourceType    string                 `json:"resource_type"`
-	ResourceID      *int                   `json:"resource_id"`
-	Justification   string                 `json:"justification"`
-	RequestedDuration time.Duration        `json:"requested_duration"`
-	Status          string                 `json:"status"` // pending, approved, rejected, expired
-	ApproverID      *int                   `json:"approver_id"`
-	ApproverName    *string                `json:"approver_name"`
-	ApprovedAt      *time.Time             `json:"approved_at"`
-	ExpiresAt       *time.Time             `json:"expires_at"`
-	Comments        string                 `json:"comments"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	ID                int           `json:"id"`
+	RequesterID       int           `json:"requester_id"`
+	RequesterName     string        `json:"requester_name"`
+	PermissionCode    string        `json:"permission_code"`
+	ResourceType      string        `json:"resource_type"`
+	ResourceID        *int          `json:"resource_id"`
+	Justification     string        `json:"justification"`
+	RequestedDuration time.Duration `json:"requested_duration"`
+	Status            string        `json:"status"` // pending, approved, rejected, expired
+	ApproverID        *int          `json:"approver_id"`
+	ApproverName      *string       `json:"approver_name"`
+	ApprovedAt        *time.Time    `json:"approved_at"`
+	ExpiresAt         *time.Time    `json:"expires_at"`
+	Comments          string        `json:"comments"`
+	CreatedAt         time.Time     `json:"created_at"`
+	UpdatedAt         time.Time     `json:"updated_at"`
 }
 
 // Permission delegation
 type PermissionDelegation struct {
-	ID              int                    `json:"id"`
-	DelegatorID     int                    `json:"delegator_id"`
-	DelegatorName   string                 `json:"delegator_name"`
-	DelegateID      int                    `json:"delegate_id"`
-	DelegateName    string                 `json:"delegate_name"`
-	PermissionCodes []string               `json:"permission_codes"`
-	ResourceType    string                 `json:"resource_type"`
-	ResourceID      *int                   `json:"resource_id"`
-	ValidFrom       time.Time              `json:"valid_from"`
-	ValidUntil      time.Time              `json:"valid_until"`
-	CanDelegate     bool                   `json:"can_delegate"` // Can the delegate further delegate
-	IsActive        bool                   `json:"is_active"`
-	Reason          string                 `json:"reason"`
-	CreatedAt       time.Time              `json:"created_at"`
-	RevokedAt       *time.Time             `json:"revoked_at"`
-	RevokedBy       *int                   `json:"revoked_by"`
+	ID              int        `json:"id"`
+	DelegatorID     int        `json:"delegator_id"`
+	DelegatorName   string     `json:"delegator_name"`
+	DelegateID      int        `json:"delegate_id"`
+	DelegateName    string     `json:"delegate_name"`
+	PermissionCodes []string   `json:"permission_codes"`
+	ResourceType    string     `json:"resource_type"`
+	ResourceID      *int       `json:"resource_id"`
+	ValidFrom       time.Time  `json:"valid_from"`
+	ValidUntil      time.Time  `json:"valid_until"`
+	CanDelegate     bool       `json:"can_delegate"` // Can the delegate further delegate
+	IsActive        bool       `json:"is_active"`
+	Reason          string     `json:"reason"`
+	CreatedAt       time.Time  `json:"created_at"`
+	RevokedAt       *time.Time `json:"revoked_at"`
+	RevokedBy       *int       `json:"revoked_by"`
 }
 
 // GetBuiltInRoleTemplates returns predefined role templates
@@ -195,8 +195,8 @@ func (s *EnhancedPermissionService) GetPermissionTemplates() []PermissionTemplat
 			Name:        "基础项目访问",
 			Description: "查看项目和任务的基本权限",
 			Permissions: map[string]bool{
-				"project.read": true,
-				"task.read":    true,
+				"project.read":  true,
+				"task.read":     true,
 				"document.read": true,
 			},
 			UseCases:  []string{"新员工入职", "临时访问", "外部顾问"},
@@ -207,13 +207,13 @@ func (s *EnhancedPermissionService) GetPermissionTemplates() []PermissionTemplat
 			Name:        "内容创建者",
 			Description: "可以创建和编辑内容的权限",
 			Permissions: map[string]bool{
-				"project.read":     true,
-				"task.read":        true,
-				"task.create":      true,
-				"task.update":      true,
-				"document.read":    true,
-				"document.create":  true,
-				"document.update":  true,
+				"project.read":    true,
+				"task.read":       true,
+				"task.create":     true,
+				"task.update":     true,
+				"document.read":   true,
+				"document.create": true,
+				"document.update": true,
 			},
 			UseCases:  []string{"内容编辑", "文档管理", "任务创建"},
 			IsBuiltIn: true,
@@ -240,7 +240,7 @@ func (s *EnhancedPermissionService) GetPermissionTemplates() []PermissionTemplat
 // CreateRoleFromTemplate creates a new role based on a template
 func (s *EnhancedPermissionService) CreateRoleFromTemplate(ctx context.Context, templateID int, roleName string, customizations map[string]bool) (*models.CompanyRole, error) {
 	templates := s.GetBuiltInRoleTemplates()
-	
+
 	var template *RoleTemplate
 	for _, t := range templates {
 		if t.ID == templateID {
@@ -248,7 +248,7 @@ func (s *EnhancedPermissionService) CreateRoleFromTemplate(ctx context.Context, 
 			break
 		}
 	}
-	
+
 	if template == nil {
 		return nil, fmt.Errorf("template not found")
 	}
@@ -274,16 +274,16 @@ func (s *EnhancedPermissionService) CreateRoleFromTemplate(ctx context.Context, 
 // RequestPermission creates a new permission request
 func (s *EnhancedPermissionService) RequestPermission(ctx context.Context, requesterID int, permissionCode string, resourceType string, resourceID *int, justification string, duration time.Duration) (*PermissionRequest, error) {
 	request := &PermissionRequest{
-		ID:               int(time.Now().Unix()),
-		RequesterID:      requesterID,
-		PermissionCode:   permissionCode,
-		ResourceType:     resourceType,
-		ResourceID:       resourceID,
-		Justification:    justification,
+		ID:                int(time.Now().Unix()),
+		RequesterID:       requesterID,
+		PermissionCode:    permissionCode,
+		ResourceType:      resourceType,
+		ResourceID:        resourceID,
+		Justification:     justification,
 		RequestedDuration: duration,
-		Status:           "pending",
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		Status:            "pending",
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 
 	// In a real implementation, this would be stored in the database
@@ -297,7 +297,7 @@ func (s *EnhancedPermissionService) ApprovePermissionRequest(ctx context.Context
 	// 2. Create a dynamic permission entry
 	// 3. Set expiration time
 	// 4. Send notification to requester
-	
+
 	return nil
 }
 
@@ -307,7 +307,7 @@ func (s *EnhancedPermissionService) RejectPermissionRequest(ctx context.Context,
 	// 1. Update the request status to "rejected"
 	// 2. Store rejection reason
 	// 3. Send notification to requester
-	
+
 	return nil
 }
 
@@ -339,7 +339,7 @@ func (s *EnhancedPermissionService) RevokeDelegation(ctx context.Context, delega
 	// 2. Set revoked_at timestamp
 	// 3. Record who revoked it and why
 	// 4. Send notification to affected parties
-	
+
 	return nil
 }
 
@@ -396,7 +396,7 @@ func (s *EnhancedPermissionService) CheckDynamicPermission(ctx context.Context, 
 
 	// Check for temporary permissions from requests
 	// This would query the database for approved permission requests
-	
+
 	return false, "no dynamic permission found", nil
 }
 
@@ -405,35 +405,35 @@ func (s *EnhancedPermissionService) GetPermissionRequests(ctx context.Context, f
 	// Mock data for demonstration
 	requests := []PermissionRequest{
 		{
-			ID:              1,
-			RequesterID:     101,
-			RequesterName:   "王五",
-			PermissionCode:  "project.delete",
-			ResourceType:    "project",
-			ResourceID:      &[]int{789}[0],
-			Justification:   "需要清理测试项目",
+			ID:                1,
+			RequesterID:       101,
+			RequesterName:     "王五",
+			PermissionCode:    "project.delete",
+			ResourceType:      "project",
+			ResourceID:        &[]int{789}[0],
+			Justification:     "需要清理测试项目",
 			RequestedDuration: 24 * time.Hour,
-			Status:          "pending",
-			CreatedAt:       time.Now().Add(-2 * time.Hour),
-			UpdatedAt:       time.Now().Add(-2 * time.Hour),
+			Status:            "pending",
+			CreatedAt:         time.Now().Add(-2 * time.Hour),
+			UpdatedAt:         time.Now().Add(-2 * time.Hour),
 		},
 		{
-			ID:              2,
-			RequesterID:     102,
-			RequesterName:   "赵六",
-			PermissionCode:  "financial.read",
-			ResourceType:    "project",
-			ResourceID:      &[]int{456}[0],
-			Justification:   "准备项目预算报告",
+			ID:                2,
+			RequesterID:       102,
+			RequesterName:     "赵六",
+			PermissionCode:    "financial.read",
+			ResourceType:      "project",
+			ResourceID:        &[]int{456}[0],
+			Justification:     "准备项目预算报告",
 			RequestedDuration: 7 * 24 * time.Hour,
-			Status:          "approved",
-			ApproverID:      &[]int{201}[0],
-			ApproverName:    &[]string{"管理员"}[0],
-			ApprovedAt:      &[]time.Time{time.Now().Add(-1 * time.Hour)}[0],
-			ExpiresAt:       &[]time.Time{time.Now().Add(6*24*time.Hour)}[0],
-			Comments:        "已批准，请按时完成报告",
-			CreatedAt:       time.Now().Add(-3 * time.Hour),
-			UpdatedAt:       time.Now().Add(-1 * time.Hour),
+			Status:            "approved",
+			ApproverID:        &[]int{201}[0],
+			ApproverName:      &[]string{"管理员"}[0],
+			ApprovedAt:        &[]time.Time{time.Now().Add(-1 * time.Hour)}[0],
+			ExpiresAt:         &[]time.Time{time.Now().Add(6 * 24 * time.Hour)}[0],
+			Comments:          "已批准，请按时完成报告",
+			CreatedAt:         time.Now().Add(-3 * time.Hour),
+			UpdatedAt:         time.Now().Add(-1 * time.Hour),
 		},
 	}
 
@@ -492,14 +492,14 @@ func (s *EnhancedPermissionService) SuggestRoleOptimization(ctx context.Context,
 	suggestions := map[string]interface{}{
 		"user_id": userID,
 		"current_role": map[string]interface{}{
-			"id":   5,
-			"name": "开发人员",
+			"id":                5,
+			"name":              "开发人员",
 			"permissions_count": 12,
 		},
 		"usage_analysis": map[string]interface{}{
 			"used_permissions":   8,
 			"unused_permissions": 4,
-			"usage_rate":        "67%",
+			"usage_rate":         "67%",
 		},
 		"suggestions": []map[string]interface{}{
 			{
@@ -525,7 +525,7 @@ func (s *EnhancedPermissionService) SuggestRoleOptimization(ctx context.Context,
 				"confidence":  78,
 			},
 		},
-		"security_score": 88,
+		"security_score":         88,
 		"optimization_potential": "中等",
 	}
 
@@ -541,7 +541,7 @@ func (s *EnhancedPermissionService) CreatePermissionPolicy(ctx context.Context, 
 	// - Resource sensitivity
 	// - User attributes
 	// - Previous behavior patterns
-	
+
 	return nil
 }
 
@@ -553,6 +553,6 @@ func (s *EnhancedPermissionService) EvaluatePermissionPolicy(ctx context.Context
 	// - Location-based access
 	// - Risk-based decisions
 	// - Compliance requirements
-	
+
 	return true, "granted by policy", nil
 }

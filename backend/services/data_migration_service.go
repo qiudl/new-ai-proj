@@ -15,37 +15,37 @@ import (
 type DataMigrationService interface {
 	// 迁移检查和预览
 	CheckLegacyData(ctx context.Context) (*MigrationPreview, error)
-	
+
 	// 执行迁移
 	MigrateTaskTimeLogs(ctx context.Context, options *MigrationOptions) (*MigrationResult, error)
 	MigratePersonalTimers(ctx context.Context, options *MigrationOptions) (*MigrationResult, error)
 	MigrateUserPreferences(ctx context.Context) (*MigrationResult, error)
-	
+
 	// 迁移验证
 	ValidateMigration(ctx context.Context) (*MigrationValidation, error)
-	
+
 	// 回滚功能
 	RollbackMigration(ctx context.Context, migrationID string) error
 }
 
 // MigrationPreview 迁移预览
 type MigrationPreview struct {
-	TaskTimeLogsCount    int              `json:"task_time_logs_count"`
-	PersonalTimersCount  int              `json:"personal_timers_count"`
-	UserPreferencesCount int              `json:"user_preferences_count"`
-	EstimatedDuration    time.Duration    `json:"estimated_duration"`
-	PotentialIssues      []string         `json:"potential_issues"`
+	TaskTimeLogsCount    int               `json:"task_time_logs_count"`
+	PersonalTimersCount  int               `json:"personal_timers_count"`
+	UserPreferencesCount int               `json:"user_preferences_count"`
+	EstimatedDuration    time.Duration     `json:"estimated_duration"`
+	PotentialIssues      []string          `json:"potential_issues"`
 	DataQualityReport    DataQualityReport `json:"data_quality_report"`
 }
 
 // DataQualityReport 数据质量报告
 type DataQualityReport struct {
-	TotalRecords          int     `json:"total_records"`
-	CompleteRecords       int     `json:"complete_records"`
-	IncompleteRecords     int     `json:"incomplete_records"`
-	DuplicateRecords      int     `json:"duplicate_records"`
-	DataCompleteness      float64 `json:"data_completeness"`
-	RecommendedActions    []string `json:"recommended_actions"`
+	TotalRecords       int      `json:"total_records"`
+	CompleteRecords    int      `json:"complete_records"`
+	IncompleteRecords  int      `json:"incomplete_records"`
+	DuplicateRecords   int      `json:"duplicate_records"`
+	DataCompleteness   float64  `json:"data_completeness"`
+	RecommendedActions []string `json:"recommended_actions"`
 }
 
 // MigrationOptions 迁移选项
@@ -60,18 +60,18 @@ type MigrationOptions struct {
 
 // MigrationResult 迁移结果
 type MigrationResult struct {
-	MigrationID       string              `json:"migration_id"`
-	Success           bool                `json:"success"`
-	TotalRecords      int                 `json:"total_records"`
-	MigratedRecords   int                 `json:"migrated_records"`
-	FailedRecords     int                 `json:"failed_records"`
-	SkippedRecords    int                 `json:"skipped_records"`
-	StartTime         time.Time           `json:"start_time"`
-	EndTime           time.Time           `json:"end_time"`
-	Duration          time.Duration       `json:"duration"`
-	Errors            []MigrationError    `json:"errors,omitempty"`
-	Warnings          []string            `json:"warnings,omitempty"`
-	Summary           string              `json:"summary"`
+	MigrationID     string           `json:"migration_id"`
+	Success         bool             `json:"success"`
+	TotalRecords    int              `json:"total_records"`
+	MigratedRecords int              `json:"migrated_records"`
+	FailedRecords   int              `json:"failed_records"`
+	SkippedRecords  int              `json:"skipped_records"`
+	StartTime       time.Time        `json:"start_time"`
+	EndTime         time.Time        `json:"end_time"`
+	Duration        time.Duration    `json:"duration"`
+	Errors          []MigrationError `json:"errors,omitempty"`
+	Warnings        []string         `json:"warnings,omitempty"`
+	Summary         string           `json:"summary"`
 }
 
 // MigrationError 迁移错误
@@ -85,12 +85,12 @@ type MigrationError struct {
 
 // MigrationValidation 迁移验证
 type MigrationValidation struct {
-	IsValid                bool     `json:"is_valid"`
-	LegacyRecordsCount     int      `json:"legacy_records_count"`
-	MigratedRecordsCount   int      `json:"migrated_records_count"`
-	DataIntegrityIssues    []string `json:"data_integrity_issues"`
-	PerformanceImpact      string   `json:"performance_impact"`
-	RecommendedCleanup     []string `json:"recommended_cleanup"`
+	IsValid              bool     `json:"is_valid"`
+	LegacyRecordsCount   int      `json:"legacy_records_count"`
+	MigratedRecordsCount int      `json:"migrated_records_count"`
+	DataIntegrityIssues  []string `json:"data_integrity_issues"`
+	PerformanceImpact    string   `json:"performance_impact"`
+	RecommendedCleanup   []string `json:"recommended_cleanup"`
 }
 
 // dataMigrationServiceImpl 数据迁移服务实现
@@ -216,7 +216,7 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 			result.Summary = "干运行查询失败"
 			return result, err
 		}
-		
+
 		result.Success = true
 		result.TotalRecords = count
 		result.Summary = fmt.Sprintf("干运行完成，将迁移 %d 条记录", count)
@@ -260,11 +260,11 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 	batchCount := 0
 	for rows.Next() {
 		var (
-			id, taskID, userID                               int
-			startTime, endTime, createdAt                    time.Time
-			durationSeconds, createdBy                       int
-			title, projectName                               sql.NullString
-			projectID                                        sql.NullInt64
+			id, taskID, userID            int
+			startTime, endTime, createdAt time.Time
+			durationSeconds, createdBy    int
+			title, projectName            sql.NullString
+			projectID                     sql.NullInt64
 		)
 
 		err := rows.Scan(
@@ -285,9 +285,9 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 
 		// 构建metadata
 		metadata := map[string]interface{}{
-			"migrated_from":   "task_time_logs",
+			"migrated_from":    "task_time_logs",
 			"original_task_id": taskID,
-			"migration_date":  time.Now(),
+			"migration_date":   time.Now(),
 		}
 		if projectName.Valid {
 			metadata["project_name"] = projectName.String
@@ -315,7 +315,7 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 				Recoverable: false,
 			})
 			result.FailedRecords++
-			
+
 			if options.StopOnError {
 				break
 			}
@@ -332,7 +332,7 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 				result.Summary = "批量提交失败"
 				return result, err
 			}
-			
+
 			// 重新开始事务
 			tx, err = s.db.BeginTx(ctx, nil)
 			if err != nil {
@@ -341,7 +341,7 @@ func (s *dataMigrationServiceImpl) MigrateTaskTimeLogs(ctx context.Context, opti
 				return result, err
 			}
 			defer tx.Rollback()
-			
+
 			batchCount = 0
 			log.Printf("已迁移 %d 条记录", result.MigratedRecords)
 		}
@@ -455,9 +455,9 @@ func (s *dataMigrationServiceImpl) MigrateUserPreferences(ctx context.Context) (
 
 	for rows.Next() {
 		var (
-			userID                                         int
-			totalSessions, preferredHour, activeDays      int
-			avgDuration                                   float64
+			userID                                   int
+			totalSessions, preferredHour, activeDays int
+			avgDuration                              float64
 		)
 
 		err := rows.Scan(&userID, &totalSessions, &avgDuration, &preferredHour, &activeDays)
@@ -526,7 +526,7 @@ func (s *dataMigrationServiceImpl) ValidateMigration(ctx context.Context) (*Migr
 
 	// 检查数据完整性
 	var legacyCount, migratedCount int
-	
+
 	err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM task_time_logs").Scan(&legacyCount)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, fmt.Errorf("查询旧数据失败: %v", err)
@@ -543,7 +543,7 @@ func (s *dataMigrationServiceImpl) ValidateMigration(ctx context.Context) (*Migr
 	validation.MigratedRecordsCount = migratedCount
 
 	// 数据完整性检查
-	if migratedCount < int(float64(legacyCount) * 0.95) {
+	if migratedCount < int(float64(legacyCount)*0.95) {
 		validation.DataIntegrityIssues = append(validation.DataIntegrityIssues,
 			fmt.Sprintf("迁移数据量偏少：原始 %d 条，迁移 %d 条", legacyCount, migratedCount))
 	}
@@ -593,7 +593,7 @@ func (s *dataMigrationServiceImpl) RollbackMigration(ctx context.Context, migrat
 		WHERE source_type IN ('migrated_task', 'migrated_personal')
 		AND target_metadata->>'migration_id' = $1
 	`, migrationID)
-	
+
 	return err
 }
 

@@ -58,11 +58,11 @@ func (h *AnalyticsHandler) IngestEvents(c *gin.Context) {
 	}
 
 	allowed := map[string]struct{}{
-		"app_view":           {},
-		"task_open":          {},
+		"app_view":            {},
+		"task_open":           {},
 		"tasks_toggle_expand": {},
-		"tasks_search":       {},
-		"a11y_violation":     {},
+		"tasks_search":        {},
+		"a11y_violation":      {},
 	}
 
 	inserted := 0
@@ -147,7 +147,7 @@ func (h *AnalyticsHandler) ensureSchema(c *gin.Context) error {
 
 func (h *AnalyticsHandler) insertDeadLetter(sqldb *sql.DB, ev eventPayload, reason string) {
 	p, _ := json.Marshal(ev)
-	_, _ = sqldb.Exec(`INSERT INTO analytics.events_dead_letter (payload, reason) VALUES ($1::jsonb, $2)` , string(p), reason)
+	_, _ = sqldb.Exec(`INSERT INTO analytics.events_dead_letter (payload, reason) VALUES ($1::jsonb, $2)`, string(p), reason)
 }
 
 // GetKPI handles GET /api/v1/analytics/kpi/:name

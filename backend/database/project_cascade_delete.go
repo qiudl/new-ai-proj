@@ -15,7 +15,7 @@ func (r *PostgresProjectRepository) DeleteWithCascade(ctx context.Context, id in
 	if !ok {
 		return fmt.Errorf("database connection is not a *sql.DB")
 	}
-	
+
 	// Start a transaction for consistency
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
@@ -91,7 +91,7 @@ func (r *PostgresProjectRepository) RestoreWithCascade(ctx context.Context, id i
 	if !ok {
 		return fmt.Errorf("database connection is not a *sql.DB")
 	}
-	
+
 	// Start a transaction for consistency
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {

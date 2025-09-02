@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
 	"ai-project-backend/utils"
+	"github.com/gin-gonic/gin"
 )
 
 // AIConfigHandler AI配置处理器
@@ -51,7 +51,7 @@ func (h *AIConfigHandler) GetAllConfigs(c *gin.Context) {
 // GetConfig 获取指定提供商的配置
 func (h *AIConfigHandler) GetConfig(c *gin.Context) {
 	provider := models.AIProvider(c.Param("provider"))
-	
+
 	// 验证provider参数
 	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider", nil)
@@ -129,7 +129,7 @@ func (h *AIConfigHandler) CreateConfig(c *gin.Context) {
 // UpdateConfig 更新AI配置
 func (h *AIConfigHandler) UpdateConfig(c *gin.Context) {
 	provider := models.AIProvider(c.Param("provider"))
-	
+
 	// 验证provider参数
 	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider", nil)
@@ -146,7 +146,7 @@ func (h *AIConfigHandler) UpdateConfig(c *gin.Context) {
 
 	// 转换为标准请求，使用URL中的provider
 	req := updateReq.ToAIConfigRequest(provider)
-	
+
 	// 添加调试日志
 	log.Printf("[AI_CONFIG] Updating config for provider: %s, apiKey empty: %v", provider, req.APIKey == "")
 
@@ -181,7 +181,7 @@ func (h *AIConfigHandler) UpdateConfig(c *gin.Context) {
 // DeleteConfig 删除AI配置
 func (h *AIConfigHandler) DeleteConfig(c *gin.Context) {
 	provider := models.AIProvider(c.Param("provider"))
-	
+
 	// 验证provider参数
 	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider", nil)
@@ -203,7 +203,7 @@ func (h *AIConfigHandler) DeleteConfig(c *gin.Context) {
 // ToggleConfig 切换配置启用状态
 func (h *AIConfigHandler) ToggleConfig(c *gin.Context) {
 	provider := models.AIProvider(c.Param("provider"))
-	
+
 	// 验证provider参数
 	if provider != models.ProviderOpenAI && provider != models.ProviderClaude && provider != models.ProviderDeepSeek {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid provider", nil)
@@ -320,7 +320,7 @@ func (h *AIConfigHandler) TestConnection(c *gin.Context) {
 // performConnectionTest 执行连接测试（支持真实API调用和模拟测试）
 func (h *AIConfigHandler) performConnectionTest(req *models.AITestRequest) *models.AITestResponse {
 	startTime := time.Now()
-	
+
 	// 基本格式验证
 	var validationError string
 	switch req.Provider {
@@ -391,7 +391,7 @@ func (h *AIConfigHandler) performConnectionTest(req *models.AITestRequest) *mode
 			Provider:    req.Provider,
 			Model:       req.Model,
 			BaseURL:     req.BaseURL,
-			Temperature: 0.3, // 默认值
+			Temperature: 0.3,  // 默认值
 			MaxTokens:   2000, // 默认值
 		}
 		// 如果有现有配置，合并设置
@@ -450,7 +450,7 @@ func (h *AIConfigHandler) performConnectionTest(req *models.AITestRequest) *mode
 
 	// 设置临时解密的API密钥用于测试
 	config.APIKeyEncrypted = apiKey // 临时直接存储明文密钥
-	
+
 	// 使用真实的AI客户端进行测试
 	testResult, err := h.aiClient.TestConnection(ctx, config, testQuestion)
 	if err != nil {
@@ -461,10 +461,9 @@ func (h *AIConfigHandler) performConnectionTest(req *models.AITestRequest) *mode
 			Error:        err.Error(),
 		}
 	}
-	
+
 	return testResult
 }
-
 
 // validateAPIKeyFormat 验证API密钥格式
 func (h *AIConfigHandler) validateAPIKeyFormat(apiKey string, provider models.AIProvider) bool {
@@ -484,12 +483,12 @@ func (h *AIConfigHandler) validateAPIKeyFormat(apiKey string, provider models.AI
 func (h *AIConfigHandler) generateEnhancedAnswer(provider models.AIProvider, question string) string {
 	providerName := utils.GetProviderName(string(provider))
 	lowerQuestion := strings.ToLower(question)
-	
+
 	// 基于问题关键词生成相关回答
 	if strings.Contains(lowerQuestion, "介绍") || strings.Contains(lowerQuestion, "introduce") {
 		return fmt.Sprintf("你好！我是%s开发的AI助手。我能够理解和生成自然语言，帮助您解决各种问题，包括回答问题、写作、编程、分析等任务。连接测试成功！", providerName)
 	}
-	
+
 	if strings.Contains(lowerQuestion, "优势") || strings.Contains(lowerQuestion, "特点") || strings.Contains(lowerQuestion, "advantage") {
 		advantages := map[models.AIProvider]string{
 			models.ProviderOpenAI:   "OpenAI以其强大的GPT系列模型著称，在自然语言理解、创意写作和代码生成方面表现出色，具有广泛的应用场景和良好的API生态。",
@@ -500,15 +499,15 @@ func (h *AIConfigHandler) generateEnhancedAnswer(provider models.AIProvider, que
 			return advantage
 		}
 	}
-	
+
 	if strings.Contains(lowerQuestion, "发展") || strings.Contains(lowerQuestion, "历史") || strings.Contains(lowerQuestion, "history") || strings.Contains(lowerQuestion, "development") {
 		return "人工智能的发展经历了多个重要阶段：从1950年代的符号主义AI，到1980年代的专家系统，再到2010年代深度学习的突破，最终发展到今天的大语言模型时代。每个阶段都标志着AI能力的重大提升。"
 	}
-	
+
 	if strings.Contains(lowerQuestion, "编程") || strings.Contains(lowerQuestion, "代码") || strings.Contains(lowerQuestion, "programming") || strings.Contains(lowerQuestion, "code") {
 		return fmt.Sprintf("作为%s的AI助手，我在编程方面有很强的能力。我可以帮您编写代码、调试程序、解释算法、设计架构，支持多种编程语言包括Python、JavaScript、Go、Java等。", providerName)
 	}
-	
+
 	// 默认回答
 	return fmt.Sprintf("感谢您的提问！作为%s的AI助手，我很高兴为您提供帮助。我会尽力根据您的问题提供准确和有用的回答。连接测试成功！", providerName)
 }
@@ -520,7 +519,7 @@ func (h *AIConfigHandler) getTestQuestion(provider models.AIProvider) string {
 		models.ProviderClaude:   "Hello! Please introduce yourself and mention your capabilities.",
 		models.ProviderDeepSeek: "你好，请用一句话介绍DeepSeek的特点。",
 	}
-	
+
 	if question, exists := questions[provider]; exists {
 		return question
 	}
@@ -534,7 +533,7 @@ func (h *AIConfigHandler) getTestAnswer(provider models.AIProvider, question str
 		models.ProviderClaude:   "Hello! I'm Claude, an AI assistant created by Anthropic. I excel at analysis, reasoning, writing, coding, and creative tasks. I'm designed to be helpful, harmless, and honest. Connection test successful!",
 		models.ProviderDeepSeek: "你好！我是DeepSeek开发的AI助手。DeepSeek专注于推理和编程能力，提供高质量的AI服务。连接测试成功！",
 	}
-	
+
 	if answer, exists := answers[provider]; exists {
 		return answer
 	}

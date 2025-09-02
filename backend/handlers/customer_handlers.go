@@ -406,7 +406,7 @@ func (h *CustomerHandler) CreateContact(c *gin.Context) {
 	if req.ContactDate != nil {
 		contactDate = *req.ContactDate
 	}
-	
+
 	contact := &models.CustomerContact{
 		CustomerID:      customerID,
 		ContactType:     req.ContactType,

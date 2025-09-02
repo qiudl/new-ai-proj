@@ -40,11 +40,11 @@ type LoginRequest struct {
 
 // JWTLoginResponse represents the JWT login response structure
 type JWTLoginResponse struct {
-	AccessToken  string        `json:"access_token"`
-	RefreshToken string        `json:"refresh_token"`
-	TokenType    string        `json:"token_type"`
-	ExpiresIn    int64         `json:"expires_in"`
-	User         models.User   `json:"user"`
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	TokenType    string      `json:"token_type"`
+	ExpiresIn    int64       `json:"expires_in"`
+	User         models.User `json:"user"`
 }
 
 // Login godoc
@@ -65,7 +65,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	if h.tokenService == nil {
 		log.Printf("[CRITICAL] tokenService is nil in Login handler!")
 	}
-	
+
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("BAD_REQUEST", "请求数据格式错误", nil))
@@ -94,9 +94,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
-	
+
 	// Debug: Print the actual TokenPair structure
-	log.Printf("[DEBUG] TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+	log.Printf("[DEBUG] TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
 	response := JWTLoginResponse{
@@ -106,9 +106,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		ExpiresIn:    tokenPair.ExpiresIn,
 		User:         *user,
 	}
-	
+
 	// Debug: Print the JWTLoginResponse structure
-	log.Printf("[DEBUG] JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+	log.Printf("[DEBUG] JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		response.AccessToken, response.RefreshToken, response.TokenType, response.ExpiresIn)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "登录成功"))
@@ -119,7 +119,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// In a stateless JWT system, logout is typically handled client-side
 	// by removing the token from storage. However, we can implement
 	// server-side token blacklisting if needed in the future.
-	
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "登出成功"))
 }
 
@@ -181,9 +181,9 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse("INTERNAL_ERROR", "登录失败", nil))
 		return
 	}
-	
+
 	// Debug: Print the actual TokenPair structure
-	log.Printf("[DEBUG] DevLogin TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+	log.Printf("[DEBUG] DevLogin TokenPair: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		tokenPair.AccessToken, tokenPair.RefreshToken, tokenPair.TokenType, tokenPair.ExpiresIn)
 
 	response := JWTLoginResponse{
@@ -193,9 +193,9 @@ func (h *AuthHandler) DevQuickLogin(c *gin.Context) {
 		ExpiresIn:    tokenPair.ExpiresIn,
 		User:         *user,
 	}
-	
+
 	// Debug: Print the DevLogin JWTLoginResponse structure
-	log.Printf("[DEBUG] DevLogin JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d", 
+	log.Printf("[DEBUG] DevLogin JWTLoginResponse: AccessToken=%s, RefreshToken=%s, TokenType=%s, ExpiresIn=%d",
 		response.AccessToken, response.RefreshToken, response.TokenType, response.ExpiresIn)
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "开发环境快速登录成功"))
@@ -213,16 +213,16 @@ func (h *AuthHandler) GetDevAccounts(c *gin.Context) {
 	// Return predefined development accounts
 	devAccounts := []map[string]interface{}{
 		{
-			"username":    "admin",
+			"username":     "admin",
 			"display_name": "管理员",
-			"role":        "admin",
-			"description": "系统管理员账户",
+			"role":         "admin",
+			"description":  "系统管理员账户",
 		},
 		{
-			"username":    "qiudl",
+			"username":     "qiudl",
 			"display_name": "邱东林",
-			"role":        "admin",
-			"description": "开发者账户",
+			"role":         "admin",
+			"description":  "开发者账户",
 		},
 	}
 

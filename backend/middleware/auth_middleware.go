@@ -15,7 +15,7 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 调试日志
 		log.Printf("[AUTH] Processing request: %s %s", c.Request.Method, c.Request.URL.Path)
-		
+
 		// 获取Authorization header
 		authHeader := c.GetHeader("Authorization")
 		log.Printf("[AUTH] Authorization header: %s", authHeader)
@@ -71,14 +71,14 @@ func AuthMiddleware(jwtManager *utils.JWTManager) gin.HandlerFunc {
 		// 将用户信息设置到上下文中，供后续中间件使用
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
-		c.Set("user_role", claims.Role)           // 为 RoleBasedAccessMiddleware 使用
-		c.Set("current_user_role", claims.Role)   // 保持向后兼容
+		c.Set("user_role", claims.Role)         // 为 RoleBasedAccessMiddleware 使用
+		c.Set("current_user_role", claims.Role) // 保持向后兼容
 		c.Set("user_type", claims.UserType)
 		c.Set("current_user_type", claims.UserType) // 为 SystemUserOnlyMiddleware 使用
 		c.Set("token_claims", claims)
 
 		// 调试日志 - 确认设置的变量
-		log.Printf("[AUTH] Set context variables: user_id=%d, username=%s, user_role=%s, user_type=%s", 
+		log.Printf("[AUTH] Set context variables: user_id=%d, username=%s, user_role=%s, user_type=%s",
 			claims.UserID, claims.Username, claims.Role, claims.UserType)
 
 		// 继续处理请求

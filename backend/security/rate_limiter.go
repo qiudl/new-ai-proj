@@ -13,27 +13,27 @@ type RateLimitWindow string
 const (
 	WindowPerSecond RateLimitWindow = "per_second"
 	WindowPerMinute RateLimitWindow = "per_minute"
-	WindowPerHour   RateLimitWindow = "per_hour"  
+	WindowPerHour   RateLimitWindow = "per_hour"
 	WindowPerDay    RateLimitWindow = "per_day"
 	WindowPerMonth  RateLimitWindow = "per_month"
 )
 
 // RateLimitEntry represents a rate limit entry for a specific key
 type RateLimitEntry struct {
-	Count      int       `json:"count"`
+	Count       int       `json:"count"`
 	WindowStart time.Time `json:"window_start"`
-	LastAccess time.Time `json:"last_access"`
+	LastAccess  time.Time `json:"last_access"`
 }
 
 // RateLimitResult represents the result of a rate limit check
 type RateLimitResult struct {
-	Allowed        bool          `json:"allowed"`
-	CurrentCount   int           `json:"current_count"`
-	Limit          int           `json:"limit"`
+	Allowed        bool            `json:"allowed"`
+	CurrentCount   int             `json:"current_count"`
+	Limit          int             `json:"limit"`
 	Window         RateLimitWindow `json:"window"`
-	ResetTime      time.Time     `json:"reset_time"`
-	RemainingCount int           `json:"remaining_count"`
-	RetryAfter     time.Duration `json:"retry_after"`
+	ResetTime      time.Time       `json:"reset_time"`
+	RemainingCount int             `json:"remaining_count"`
+	RetryAfter     time.Duration   `json:"retry_after"`
 }
 
 // RateLimiter implements a sliding window rate limiter
@@ -49,10 +49,10 @@ func NewRateLimiter() *RateLimiter {
 		entries:    make(map[string]*RateLimitEntry),
 		cleanupTTL: 24 * time.Hour, // Clean up entries older than 24 hours
 	}
-	
+
 	// Start cleanup goroutine
 	go rl.startCleanup()
-	
+
 	return rl
 }
 
@@ -60,7 +60,7 @@ func NewRateLimiter() *RateLimiter {
 func (rl *RateLimiter) startCleanup() {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		rl.cleanup()
 	}
@@ -70,7 +70,7 @@ func (rl *RateLimiter) startCleanup() {
 func (rl *RateLimiter) cleanup() {
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
-	
+
 	now := time.Now()
 	for key, entry := range rl.entries {
 		if now.Sub(entry.LastAccess) > rl.cleanupTTL {
@@ -83,10 +83,10 @@ func (rl *RateLimiter) cleanup() {
 func (rl *RateLimiter) CheckRateLimit(key string, limit int, window RateLimitWindow) RateLimitResult {
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
-	
+
 	now := time.Now()
 	windowDuration := rl.getWindowDuration(window)
-	
+
 	// Get or create entry
 	entry, exists := rl.entries[key]
 	if !exists {
@@ -97,26 +97,26 @@ func (rl *RateLimiter) CheckRateLimit(key string, limit int, window RateLimitWin
 		}
 		rl.entries[key] = entry
 	}
-	
+
 	// Check if we need to reset the window
 	if now.Sub(entry.WindowStart) >= windowDuration {
 		// Reset window
 		entry.Count = 0
 		entry.WindowStart = now
 	}
-	
+
 	// Update last access
 	entry.LastAccess = now
-	
+
 	// Calculate reset time
 	resetTime := entry.WindowStart.Add(windowDuration)
-	
+
 	// Check if request is allowed
 	allowed := entry.Count < limit
 	if allowed {
 		entry.Count++
 	}
-	
+
 	return RateLimitResult{
 		Allowed:        allowed,
 		CurrentCount:   entry.Count,
@@ -151,21 +151,21 @@ func (rl *RateLimiter) CheckMultipleRateLimits(checks []RateLimitCheck) RateLimi
 	var mostRestrictive RateLimitResult
 	mostRestrictive.Allowed = true
 	mostRestrictive.RemainingCount = int(^uint(0) >> 1) // Max int
-	
+
 	for _, check := range checks {
 		result := rl.CheckRateLimit(check.Key, check.Limit, check.Window)
-		
+
 		// If any check fails, the overall result fails
 		if !result.Allowed {
 			return result
 		}
-		
+
 		// Track the most restrictive limit
 		if result.RemainingCount < mostRestrictive.RemainingCount {
 			mostRestrictive = result
 		}
 	}
-	
+
 	return mostRestrictive
 }
 
@@ -198,20 +198,20 @@ func (rl *RateLimiter) getWindowDuration(window RateLimitWindow) time.Duration {
 func (rl *RateLimiter) GetCurrentCount(key string, window RateLimitWindow) int {
 	rl.mutex.RLock()
 	defer rl.mutex.RUnlock()
-	
+
 	entry, exists := rl.entries[key]
 	if !exists {
 		return 0
 	}
-	
+
 	now := time.Now()
 	windowDuration := rl.getWindowDuration(window)
-	
+
 	// Check if window has expired
 	if now.Sub(entry.WindowStart) >= windowDuration {
 		return 0
 	}
-	
+
 	return entry.Count
 }
 
@@ -219,7 +219,7 @@ func (rl *RateLimiter) GetCurrentCount(key string, window RateLimitWindow) int {
 func (rl *RateLimiter) ResetRateLimit(key string) {
 	rl.mutex.Lock()
 	defer rl.mutex.Unlock()
-	
+
 	delete(rl.entries, key)
 }
 
@@ -237,33 +237,33 @@ func (rl *RateLimiter) ResetRateLimitByAPIKey(apiKeyID int64) {
 
 // GetStats returns statistics about the rate limiter
 type RateLimiterStats struct {
-	TotalEntries   int                 `json:"total_entries"`
-	ActiveEntries  int                 `json:"active_entries"`
-	OldestEntry    *time.Time          `json:"oldest_entry,omitempty"`
-	NewestEntry    *time.Time          `json:"newest_entry,omitempty"`
-	WindowStats    map[string]int      `json:"window_stats"`
+	TotalEntries  int            `json:"total_entries"`
+	ActiveEntries int            `json:"active_entries"`
+	OldestEntry   *time.Time     `json:"oldest_entry,omitempty"`
+	NewestEntry   *time.Time     `json:"newest_entry,omitempty"`
+	WindowStats   map[string]int `json:"window_stats"`
 }
 
 // GetStats returns current rate limiter statistics
 func (rl *RateLimiter) GetStats() RateLimiterStats {
 	rl.mutex.RLock()
 	defer rl.mutex.RUnlock()
-	
+
 	now := time.Now()
 	stats := RateLimiterStats{
 		TotalEntries: len(rl.entries),
 		WindowStats:  make(map[string]int),
 	}
-	
+
 	activeCount := 0
 	var oldest, newest *time.Time
-	
+
 	for _, entry := range rl.entries {
 		// Count active entries (accessed within cleanup TTL)
 		if now.Sub(entry.LastAccess) <= rl.cleanupTTL {
 			activeCount++
 		}
-		
+
 		// Track oldest and newest entries
 		if oldest == nil || entry.WindowStart.Before(*oldest) {
 			oldest = &entry.WindowStart
@@ -272,11 +272,11 @@ func (rl *RateLimiter) GetStats() RateLimiterStats {
 			newest = &entry.WindowStart
 		}
 	}
-	
+
 	stats.ActiveEntries = activeCount
 	stats.OldestEntry = oldest
 	stats.NewestEntry = newest
-	
+
 	return stats
 }
 

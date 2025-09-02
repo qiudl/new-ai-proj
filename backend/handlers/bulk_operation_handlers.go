@@ -409,7 +409,7 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 		return
 	}
 
-	h.logger.Printf("Processing batch update request: taskIds=%v, status=%v, parentId=%v", 
+	h.logger.Printf("Processing batch update request: taskIds=%v, status=%v, parentId=%v",
 		req.TaskIDs, req.Status, req.ParentID)
 
 	var updatedCount int
@@ -418,7 +418,7 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 	// 处理每个任务
 	for _, taskID := range req.TaskIDs {
 		h.logger.Printf("Processing task ID: %d", taskID)
-		
+
 		// 获取当前任务信息
 		currentTask, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
 		if err != nil {
@@ -433,7 +433,7 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 		// 更新父任务
 		if req.ParentID != nil {
 			h.logger.Printf("Updating parent for task %d: %v -> %v", taskID, currentTask.ParentID, *req.ParentID)
-			
+
 			// 验证父任务是否存在（如果不是设置为null）
 			if *req.ParentID != 0 {
 				parentTask, err := h.db.Tasks().GetByID(c.Request.Context(), *req.ParentID)
@@ -445,7 +445,7 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 					})
 					continue
 				}
-				
+
 				// 验证不能设置自己为父任务
 				if *req.ParentID == taskID {
 					h.logger.Printf("Task %d cannot be its own parent", taskID)
@@ -455,7 +455,7 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 					})
 					continue
 				}
-				
+
 				// 验证项目一致性
 				if parentTask.ProjectID != currentTask.ProjectID {
 					h.logger.Printf("Parent task %d is in different project than task %d", *req.ParentID, taskID)

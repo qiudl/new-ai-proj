@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"ai-project-backend/models"
 	"ai-project-backend/utils"
+	"github.com/jmoiron/sqlx"
 )
 
 // AIConfigRepository AI配置数据库操作接口
@@ -18,20 +18,20 @@ type AIConfigRepository interface {
 	GetAllConfigs() ([]*models.AIConfig, error)
 	UpdateConfig(provider models.AIProvider, config *models.AIConfigRequest, userID int) (*models.AIConfig, error)
 	DeleteConfig(provider models.AIProvider) error
-	
+
 	// 状态管理
 	ToggleConfig(provider models.AIProvider, enabled bool, userID int) error
 	GetEnabledConfig() (*models.AIConfig, error)
 	GetEnabledConfigs() ([]*models.AIConfig, error)
-	
+
 	// 测试相关
 	RecordTestResult(configID int, success bool, responseTime int, errorMsg string, userID int) error
 	GetTestHistory(provider models.AIProvider, limit int) ([]*models.AITestLog, error)
-	
+
 	// 统计和管理
 	GetConfigStats() (*models.AIConfigStats, error)
 	GetUsageStats(provider models.AIProvider, days int) ([]*models.AIUsageStats, error)
-	
+
 	// 加密密钥管理
 	GetActiveEncryptionKey() (*models.EncryptionKey, error)
 	CreateEncryptionKey(keyName, keyValue, algorithm string) error
@@ -47,23 +47,23 @@ type aiConfigRepository struct {
 // NewAIConfigRepository 创建AI配置仓库
 func NewAIConfigRepository(db *sqlx.DB) (AIConfigRepository, error) {
 	repo := &aiConfigRepository{db: db}
-	
+
 	// 初始化加密服务
 	encKey, err := repo.GetActiveEncryptionKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get encryption key: %w", err)
 	}
-	
+
 	key, err := utils.DecodeKey(encKey.KeyValue)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode encryption key: %w", err)
 	}
-	
+
 	encryptionService, err := utils.NewEncryptionService(key, encKey.KeyName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encryption service: %w", err)
 	}
-	
+
 	repo.encryptionService = encryptionService
 	return repo, nil
 }
@@ -73,38 +73,38 @@ func (r *aiConfigRepository) CreateConfig(req *models.AIConfigRequest, userID in
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
-	
+
 	// 加密API密钥
 	encryptedKey, err := r.encryptionService.EncryptAPIKey(req.APIKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt API key: %w", err)
 	}
-	
+
 	// 生成密钥哈希
 	keyHash := r.encryptionService.HashAPIKey(req.APIKey)
-	
+
 	// 如果没有提供元数据，使用默认值
 	metadata := req.Metadata
 	if metadata.Features == nil {
 		metadata = models.DefaultMetadata(req.Provider)
 	}
-	
+
 	config := &models.AIConfig{
-		Provider:         req.Provider,
-		APIKeyEncrypted:  encryptedKey,
-		APIKeyHash:       keyHash,
-		Model:            req.Model,
-		BaseURL:          req.BaseURL,
-		Temperature:      req.Temperature,
-		MaxTokens:        req.MaxTokens,
-		Enabled:          req.Enabled,
-		Metadata:         metadata,
-		CreatedBy:        userID,
-		UpdatedBy:        userID,
-		CreatedAt:        time.Now(),
-		UpdatedAt:        time.Now(),
+		Provider:        req.Provider,
+		APIKeyEncrypted: encryptedKey,
+		APIKeyHash:      keyHash,
+		Model:           req.Model,
+		BaseURL:         req.BaseURL,
+		Temperature:     req.Temperature,
+		MaxTokens:       req.MaxTokens,
+		Enabled:         req.Enabled,
+		Metadata:        metadata,
+		CreatedBy:       userID,
+		UpdatedBy:       userID,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 	}
-	
+
 	query := `
 		INSERT INTO ai_configs (
 			provider, api_key_encrypted, api_key_hash, model, base_url,
@@ -113,21 +113,21 @@ func (r *aiConfigRepository) CreateConfig(req *models.AIConfigRequest, userID in
 			:provider, :api_key_encrypted, :api_key_hash, :model, :base_url,
 			:temperature, :max_tokens, :enabled, :metadata, :created_by, :updated_by
 		) RETURNING id, created_at, updated_at`
-	
+
 	stmt, err := r.db.PrepareNamed(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
-	
+
 	err = stmt.Get(config, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AI config: %w", err)
 	}
-	
+
 	// 设置脱敏显示的API密钥
 	config.APIKeyMasked = r.encryptionService.MaskAPIKey(req.APIKey)
-	
+
 	return config, nil
 }
 
@@ -139,7 +139,7 @@ func (r *aiConfigRepository) GetConfig(provider models.AIProvider) (*models.AICo
 			   temperature, max_tokens, enabled, metadata, created_by, updated_by,
 			   created_at, updated_at, last_tested_at, test_success_count, test_failure_count
 		FROM ai_configs WHERE provider = $1`
-	
+
 	err := r.db.Get(config, query, provider)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -147,12 +147,12 @@ func (r *aiConfigRepository) GetConfig(provider models.AIProvider) (*models.AICo
 		}
 		return nil, fmt.Errorf("failed to get AI config: %w", err)
 	}
-	
+
 	// 解密API密钥并生成脱敏版本
 	if err := r.decryptAndMaskAPIKey(config); err != nil {
 		return nil, err
 	}
-	
+
 	return config, nil
 }
 
@@ -164,19 +164,19 @@ func (r *aiConfigRepository) GetAllConfigs() ([]*models.AIConfig, error) {
 			   temperature, max_tokens, enabled, metadata, created_by, updated_by,
 			   created_at, updated_at, last_tested_at, test_success_count, test_failure_count
 		FROM ai_configs ORDER BY provider`
-	
+
 	err := r.db.Select(&configs, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get AI configs: %w", err)
 	}
-	
+
 	// 为每个配置生成脱敏API密钥
 	for _, config := range configs {
 		if err := r.decryptAndMaskAPIKey(config); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return configs, nil
 }
 
@@ -190,7 +190,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 	if existingConfig == nil {
 		return nil, fmt.Errorf("configuration not found for provider: %s", provider)
 	}
-	
+
 	// 处理API密钥：如果为空则保持现有密钥
 	var encryptedKey, keyHash string
 	if req.APIKey != "" {
@@ -198,7 +198,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 		if len(req.APIKey) < 10 {
 			return nil, fmt.Errorf("api_key must be at least 10 characters")
 		}
-		
+
 		// 加密新的API密钥
 		encryptedKey, err = r.encryptionService.EncryptAPIKey(req.APIKey)
 		if err != nil {
@@ -210,7 +210,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 		encryptedKey = existingConfig.APIKeyEncrypted
 		keyHash = existingConfig.APIKeyHash
 	}
-	
+
 	// 验证其他字段
 	if req.Model == "" {
 		return nil, fmt.Errorf("model is required")
@@ -221,7 +221,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 	if req.MaxTokens < 1 || req.MaxTokens > 32000 {
 		return nil, fmt.Errorf("max_tokens must be between 1 and 32000")
 	}
-	
+
 	config := &models.AIConfig{
 		Provider:        provider,
 		APIKeyEncrypted: encryptedKey,
@@ -234,7 +234,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 		Metadata:        req.Metadata,
 		UpdatedBy:       userID,
 	}
-	
+
 	query := `
 		UPDATE ai_configs SET
 			api_key_encrypted = :api_key_encrypted,
@@ -249,13 +249,13 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 			updated_at = NOW()
 		WHERE provider = :provider
 		RETURNING id, created_by, created_at, updated_at, last_tested_at, test_success_count, test_failure_count`
-	
+
 	stmt, err := r.db.PrepareNamed(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
-	
+
 	err = stmt.Get(config, config)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -263,7 +263,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 		}
 		return nil, fmt.Errorf("failed to update AI config: %w", err)
 	}
-	
+
 	// 设置脱敏显示的API密钥
 	if req.APIKey != "" {
 		config.APIKeyMasked = r.encryptionService.MaskAPIKey(req.APIKey)
@@ -281,7 +281,7 @@ func (r *aiConfigRepository) UpdateConfig(provider models.AIProvider, req *model
 			}
 		}
 	}
-	
+
 	return config, nil
 }
 
@@ -292,16 +292,16 @@ func (r *aiConfigRepository) DeleteConfig(provider models.AIProvider) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete AI config: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("AI config not found for provider: %s", provider)
 	}
-	
+
 	return nil
 }
 
@@ -313,21 +313,21 @@ func (r *aiConfigRepository) ToggleConfig(provider models.AIProvider, enabled bo
 			updated_by = $2,
 			updated_at = NOW()
 		WHERE provider = $3`
-	
+
 	result, err := r.db.Exec(query, enabled, userID, provider)
 	if err != nil {
 		return fmt.Errorf("failed to toggle AI config: %w", err)
 	}
-	
+
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	
+
 	if rowsAffected == 0 {
 		return fmt.Errorf("AI config not found for provider: %s", provider)
 	}
-	
+
 	return nil
 }
 
@@ -348,7 +348,7 @@ func (r *aiConfigRepository) GetEnabledConfig() (*models.AIConfig, error) {
 				ELSE 4 
 			END
 		LIMIT 1`
-	
+
 	err := r.db.Get(config, query)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -356,11 +356,11 @@ func (r *aiConfigRepository) GetEnabledConfig() (*models.AIConfig, error) {
 		}
 		return nil, fmt.Errorf("failed to get enabled AI config: %w", err)
 	}
-	
+
 	if err := r.decryptAndMaskAPIKey(config); err != nil {
 		return nil, err
 	}
-	
+
 	return config, nil
 }
 
@@ -374,18 +374,18 @@ func (r *aiConfigRepository) GetEnabledConfigs() ([]*models.AIConfig, error) {
 		FROM ai_configs 
 		WHERE enabled = true 
 		ORDER BY provider`
-	
+
 	err := r.db.Select(&configs, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get enabled AI configs: %w", err)
 	}
-	
+
 	for _, config := range configs {
 		if err := r.decryptAndMaskAPIKey(config); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return configs, nil
 }
 
@@ -398,12 +398,12 @@ func (r *aiConfigRepository) RecordTestResult(configID int, success bool, respon
 			test_failure_count = CASE WHEN $1 THEN test_failure_count ELSE test_failure_count + 1 END,
 			last_tested_at = NOW()
 		WHERE id = $2`
-	
+
 	_, err := r.db.Exec(query, success, configID)
 	if err != nil {
 		return fmt.Errorf("failed to record test result: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -422,12 +422,12 @@ func (r *aiConfigRepository) GetConfigStats() (*models.AIConfigStats, error) {
 			COUNT(*) FILTER (WHERE enabled = true) as enabled_configs,
 			COUNT(*) FILTER (WHERE last_tested_at IS NOT NULL) as tested_configs
 		FROM ai_configs`
-	
+
 	err := r.db.Get(stats, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get config stats: %w", err)
 	}
-	
+
 	return stats, nil
 }
 
@@ -446,12 +446,12 @@ func (r *aiConfigRepository) GetActiveEncryptionKey() (*models.EncryptionKey, er
 		WHERE is_active = true 
 		ORDER BY created_at DESC 
 		LIMIT 1`
-	
+
 	err := r.db.Get(key, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active encryption key: %w", err)
 	}
-	
+
 	return key, nil
 }
 
@@ -460,12 +460,12 @@ func (r *aiConfigRepository) CreateEncryptionKey(keyName, keyValue, algorithm st
 	query := `
 		INSERT INTO encryption_keys (key_name, key_value, algorithm)
 		VALUES ($1, $2, $3)`
-	
+
 	_, err := r.db.Exec(query, keyName, keyValue, algorithm)
 	if err != nil {
 		return fmt.Errorf("failed to create encryption key: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -473,7 +473,7 @@ func (r *aiConfigRepository) CreateEncryptionKey(keyName, keyValue, algorithm st
 func (r *aiConfigRepository) DecryptAPIKey(provider models.AIProvider) (string, error) {
 	config := &models.AIConfig{}
 	query := `SELECT api_key_encrypted FROM ai_configs WHERE provider = $1`
-	
+
 	err := r.db.Get(config, query, provider)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -481,12 +481,12 @@ func (r *aiConfigRepository) DecryptAPIKey(provider models.AIProvider) (string, 
 		}
 		return "", fmt.Errorf("failed to get AI config: %w", err)
 	}
-	
+
 	decryptedKey, err := r.encryptionService.DecryptAPIKey(config.APIKeyEncrypted)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt API key: %w", err)
 	}
-	
+
 	return decryptedKey, nil
 }
 
@@ -494,11 +494,11 @@ func (r *aiConfigRepository) DecryptAPIKey(provider models.AIProvider) (string, 
 func (r *aiConfigRepository) decryptAndMaskAPIKey(config *models.AIConfig) error {
 	// 这里只生成脱敏版本，不解密完整密钥
 	// 如果需要完整密钥，调用DecryptAPIKey方法
-	
+
 	// 从加密数据生成脱敏版本（简化实现）
 	// 在实际场景中，可能需要部分解密来获得正确的前后缀
 	config.APIKeyMasked = "sk-••••••••••••••••••••••••••••••••••••••••••••"
-	
+
 	// 根据provider调整脱敏格式
 	switch config.Provider {
 	case models.ProviderClaude:
@@ -508,6 +508,6 @@ func (r *aiConfigRepository) decryptAndMaskAPIKey(config *models.AIConfig) error
 	case models.ProviderOpenAI:
 		config.APIKeyMasked = "sk-••••••••••••••••••••••••••••••••••••••••••••"
 	}
-	
+
 	return nil
 }

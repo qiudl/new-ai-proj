@@ -3,9 +3,9 @@ package handlers
 import (
 	"net/http"
 	"strings"
-	
-	"github.com/gin-gonic/gin"
+
 	"ai-project-backend/utils"
+	"github.com/gin-gonic/gin"
 )
 
 // RefreshTokenHandler handles token refresh requests
@@ -33,7 +33,7 @@ func RefreshTokenHandler(jwtManager *utils.JWTManager) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"token": newToken,
+			"token":   newToken,
 			"message": "Token refreshed successfully",
 		})
 	}

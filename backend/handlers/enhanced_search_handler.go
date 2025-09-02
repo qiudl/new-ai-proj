@@ -280,10 +280,10 @@ func (h *EnhancedSearchHandler) SearchStats(c *gin.Context) {
 	// Generate mock statistics for now
 	// In production, this would query actual search logs
 	stats := map[string]interface{}{
-		"total_searches":    1250,
-		"unique_queries":    890,
-		"avg_results":       12.5,
-		"most_searched":     []string{"项目文档", "任务管理", "用户指南", "API文档", "会议记录"},
+		"total_searches": 1250,
+		"unique_queries": 890,
+		"avg_results":    12.5,
+		"most_searched":  []string{"项目文档", "任务管理", "用户指南", "API文档", "会议记录"},
 		"search_types": map[string]int{
 			"document": 850,
 			"task":     300,
@@ -462,13 +462,13 @@ func (h *EnhancedSearchHandler) DeleteSavedSearch(c *gin.Context) {
 func (h *EnhancedSearchHandler) GetIndexStatus(c *gin.Context) {
 	// Mock index status for now
 	status := map[string]interface{}{
-		"total_documents":    25000,
-		"indexed_documents":  24850,
-		"pending_documents":  150,
-		"last_index_time":    time.Now().Add(-time.Hour * 2).Format(time.RFC3339),
-		"index_health":       "green",
-		"index_size":         "2.5GB",
-		"avg_query_time":     "45ms",
+		"total_documents":   25000,
+		"indexed_documents": 24850,
+		"pending_documents": 150,
+		"last_index_time":   time.Now().Add(-time.Hour * 2).Format(time.RFC3339),
+		"index_health":      "green",
+		"index_size":        "2.5GB",
+		"avg_query_time":    "45ms",
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -490,10 +490,10 @@ func (h *EnhancedSearchHandler) GetIndexStatus(c *gin.Context) {
 func (h *EnhancedSearchHandler) RebuildIndex(c *gin.Context) {
 	// Mock rebuild operation
 	job := map[string]interface{}{
-		"job_id":      fmt.Sprintf("rebuild_%d", time.Now().Unix()),
-		"status":      "started",
-		"message":     "索引重建已开始",
-		"started_at":  time.Now().Format(time.RFC3339),
+		"job_id":             fmt.Sprintf("rebuild_%d", time.Now().Unix()),
+		"status":             "started",
+		"message":            "索引重建已开始",
+		"started_at":         time.Now().Format(time.RFC3339),
 		"estimated_duration": "30-45分钟",
 	}
 
@@ -715,33 +715,33 @@ func (h *EnhancedSearchHandler) GetTrendingSearches(c *gin.Context) {
 	// Mock trending searches
 	trending := []map[string]interface{}{
 		{
-			"query": "项目文档",
-			"count": 156,
-			"trend": "up",
+			"query":          "项目文档",
+			"count":          156,
+			"trend":          "up",
 			"change_percent": 23.5,
 		},
 		{
-			"query": "API文档",
-			"count": 134,
-			"trend": "up",
+			"query":          "API文档",
+			"count":          134,
+			"trend":          "up",
 			"change_percent": 18.2,
 		},
 		{
-			"query": "任务管理",
-			"count": 98,
-			"trend": "stable",
+			"query":          "任务管理",
+			"count":          98,
+			"trend":          "stable",
 			"change_percent": 2.1,
 		},
 		{
-			"query": "用户指南",
-			"count": 87,
-			"trend": "down",
+			"query":          "用户指南",
+			"count":          87,
+			"trend":          "down",
 			"change_percent": -5.3,
 		},
 		{
-			"query": "会议记录",
-			"count": 76,
-			"trend": "up",
+			"query":          "会议记录",
+			"count":          76,
+			"trend":          "up",
 			"change_percent": 12.8,
 		},
 	}
@@ -775,7 +775,7 @@ func (h *EnhancedSearchHandler) GetTrendingSearches(c *gin.Context) {
 func (h *EnhancedSearchHandler) FindSimilarContent(c *gin.Context) {
 	contentType := c.Param("type")
 	idStr := c.Param("id")
-	
+
 	contentID, err := strconv.Atoi(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{

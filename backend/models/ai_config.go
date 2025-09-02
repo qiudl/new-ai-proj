@@ -18,14 +18,14 @@ const (
 
 // AIConfigMetadata 存储额外的配置元数据
 type AIConfigMetadata struct {
-	Features        []string               `json:"features,omitempty"`         // 支持的功能
-	RateLimit       *RateLimitConfig       `json:"rate_limit,omitempty"`       // 速率限制
-	CustomHeaders   map[string]string      `json:"custom_headers,omitempty"`   // 自定义请求头
-	Timeout         int                    `json:"timeout,omitempty"`          // 超时时间(秒)
-	RetryConfig     *RetryConfig           `json:"retry_config,omitempty"`     // 重试配置
-	CostTracking    *CostTrackingConfig    `json:"cost_tracking,omitempty"`    // 成本跟踪
-	SecurityConfig  *SecurityConfig        `json:"security_config,omitempty"`  // 安全配置
-	Extra           map[string]interface{} `json:"extra,omitempty"`            // 其他配置
+	Features       []string               `json:"features,omitempty"`        // 支持的功能
+	RateLimit      *RateLimitConfig       `json:"rate_limit,omitempty"`      // 速率限制
+	CustomHeaders  map[string]string      `json:"custom_headers,omitempty"`  // 自定义请求头
+	Timeout        int                    `json:"timeout,omitempty"`         // 超时时间(秒)
+	RetryConfig    *RetryConfig           `json:"retry_config,omitempty"`    // 重试配置
+	CostTracking   *CostTrackingConfig    `json:"cost_tracking,omitempty"`   // 成本跟踪
+	SecurityConfig *SecurityConfig        `json:"security_config,omitempty"` // 安全配置
+	Extra          map[string]interface{} `json:"extra,omitempty"`           // 其他配置
 }
 
 // RateLimitConfig 速率限制配置
@@ -37,25 +37,25 @@ type RateLimitConfig struct {
 
 // RetryConfig 重试配置
 type RetryConfig struct {
-	MaxRetries      int   `json:"max_retries"`
-	BackoffMs       int   `json:"backoff_ms"`
+	MaxRetries      int     `json:"max_retries"`
+	BackoffMs       int     `json:"backoff_ms"`
 	ExponentialBase float64 `json:"exponential_base"`
 }
 
 // CostTrackingConfig 成本跟踪配置
 type CostTrackingConfig struct {
-	InputTokenCost  float64 `json:"input_token_cost"`   // 每1K输入token成本
-	OutputTokenCost float64 `json:"output_token_cost"`  // 每1K输出token成本
-	Currency        string  `json:"currency"`           // 货币单位
-	MonthlyBudget   float64 `json:"monthly_budget"`     // 月度预算
+	InputTokenCost  float64 `json:"input_token_cost"`  // 每1K输入token成本
+	OutputTokenCost float64 `json:"output_token_cost"` // 每1K输出token成本
+	Currency        string  `json:"currency"`          // 货币单位
+	MonthlyBudget   float64 `json:"monthly_budget"`    // 月度预算
 }
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	AllowedIPs        []string `json:"allowed_ips,omitempty"`        // 允许的IP地址
-	RequireHTTPS      bool     `json:"require_https"`                // 要求HTTPS
-	LogRequests       bool     `json:"log_requests"`                 // 记录请求日志
-	SanitizeResponses bool     `json:"sanitize_responses"`           // 清理响应内容
+	AllowedIPs        []string `json:"allowed_ips,omitempty"` // 允许的IP地址
+	RequireHTTPS      bool     `json:"require_https"`         // 要求HTTPS
+	LogRequests       bool     `json:"log_requests"`          // 记录请求日志
+	SanitizeResponses bool     `json:"sanitize_responses"`    // 清理响应内容
 }
 
 // Scan 实现database/sql Scanner接口
@@ -64,7 +64,7 @@ func (m *AIConfigMetadata) Scan(value interface{}) error {
 		*m = AIConfigMetadata{}
 		return nil
 	}
-	
+
 	switch v := value.(type) {
 	case []byte:
 		return json.Unmarshal(v, m)
@@ -78,8 +78,8 @@ func (m *AIConfigMetadata) Scan(value interface{}) error {
 // Value 实现database/sql/driver Valuer接口
 func (m AIConfigMetadata) Value() (driver.Value, error) {
 	// 检查是否为空结构体
-	if m.Features == nil && m.RateLimit == nil && m.CustomHeaders == nil && 
-		m.RetryConfig == nil && m.CostTracking == nil && m.SecurityConfig == nil && 
+	if m.Features == nil && m.RateLimit == nil && m.CustomHeaders == nil &&
+		m.RetryConfig == nil && m.CostTracking == nil && m.SecurityConfig == nil &&
 		m.Extra == nil && m.Timeout == 0 {
 		return nil, nil
 	}
@@ -90,9 +90,9 @@ func (m AIConfigMetadata) Value() (driver.Value, error) {
 type AIConfig struct {
 	ID               int              `json:"id" db:"id"`
 	Provider         AIProvider       `json:"provider" db:"provider" binding:"required" validate:"required,oneof=openai claude deepseek"`
-	APIKeyEncrypted  string           `json:"-" db:"api_key_encrypted"`                    // 加密的API密钥，不返回给前端
-	APIKeyHash       string           `json:"-" db:"api_key_hash"`                         // API密钥哈希值，不返回给前端
-	APIKeyMasked     string           `json:"api_key_masked" db:"-"`                       // 脱敏显示的API密钥
+	APIKeyEncrypted  string           `json:"-" db:"api_key_encrypted"` // 加密的API密钥，不返回给前端
+	APIKeyHash       string           `json:"-" db:"api_key_hash"`      // API密钥哈希值，不返回给前端
+	APIKeyMasked     string           `json:"api_key_masked" db:"-"`    // 脱敏显示的API密钥
 	Model            string           `json:"model" db:"model" binding:"required" validate:"required"`
 	BaseURL          *string          `json:"base_url" db:"base_url"`
 	Temperature      float64          `json:"temperature" db:"temperature" validate:"min=0,max=2"`
@@ -123,7 +123,7 @@ type AIConfigRequest struct {
 // AIConfigUpdateRequest 更新AI配置的请求模型 (provider可选，从URL获取)
 type AIConfigUpdateRequest struct {
 	Provider    AIProvider       `json:"provider,omitempty" validate:"omitempty,oneof=openai claude deepseek"`
-	APIKey      string           `json:"api_key" validate:"omitempty,min=10"`  // 可选，为空时保持现有密钥
+	APIKey      string           `json:"api_key" validate:"omitempty,min=10"` // 可选，为空时保持现有密钥
 	Model       string           `json:"model" binding:"required" validate:"required"`
 	BaseURL     *string          `json:"base_url"`
 	Temperature float64          `json:"temperature" validate:"min=0,max=2"`
@@ -136,7 +136,7 @@ type AIConfigUpdateRequest struct {
 type AIConfigResponse struct {
 	ID               int              `json:"id"`
 	Provider         AIProvider       `json:"provider"`
-	APIKeyMasked     string           `json:"api_key_masked"`     // 脱敏后的API密钥
+	APIKeyMasked     string           `json:"api_key_masked"` // 脱敏后的API密钥
 	Model            string           `json:"model"`
 	BaseURL          *string          `json:"base_url"`
 	Temperature      float64          `json:"temperature"`
@@ -150,14 +150,14 @@ type AIConfigResponse struct {
 	LastTestedAt     *time.Time       `json:"last_tested_at"`
 	TestSuccessCount int              `json:"test_success_count"`
 	TestFailureCount int              `json:"test_failure_count"`
-	Status           string           `json:"status"`             // active, inactive, error
-	LastError        string           `json:"last_error"`         // 最后的错误信息
+	Status           string           `json:"status"`     // active, inactive, error
+	LastError        string           `json:"last_error"` // 最后的错误信息
 }
 
 // AITestRequest AI连接测试请求
 type AITestRequest struct {
 	Provider AIProvider `json:"provider" binding:"required"`
-	APIKey   string     `json:"api_key"`   // 可选，如果为空则使用已保存的配置
+	APIKey   string     `json:"api_key"` // 可选，如果为空则使用已保存的配置
 	Model    string     `json:"model" binding:"required"`
 	BaseURL  *string    `json:"base_url"`
 	TestText string     `json:"test_text"` // 可选的测试文本
@@ -176,19 +176,19 @@ type AITestResponse struct {
 
 // AIModelInfo AI模型信息
 type AIModelInfo struct {
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	ContextLength   int    `json:"context_length,omitempty"`
-	SupportedTasks  []string `json:"supported_tasks,omitempty"`
-	TokenLimit      int    `json:"token_limit,omitempty"`
+	Name           string   `json:"name"`
+	Version        string   `json:"version"`
+	ContextLength  int      `json:"context_length,omitempty"`
+	SupportedTasks []string `json:"supported_tasks,omitempty"`
+	TokenLimit     int      `json:"token_limit,omitempty"`
 }
 
 // AITestConversation 测试对话
 type AITestConversation struct {
-	Question string               `json:"question"`
-	Answer   string               `json:"answer"`
-	Model    string               `json:"model"`
-	Usage    *AIUsageStatistics   `json:"usage,omitempty"`
+	Question string             `json:"question"`
+	Answer   string             `json:"answer"`
+	Model    string             `json:"model"`
+	Usage    *AIUsageStatistics `json:"usage,omitempty"`
 }
 
 // AIUsageStatistics AI使用统计
@@ -203,7 +203,7 @@ type AIUsageStatistics struct {
 type EncryptionKey struct {
 	ID        int       `json:"id" db:"id"`
 	KeyName   string    `json:"key_name" db:"key_name"`
-	KeyValue  string    `json:"-" db:"key_value"`           // Base64编码的密钥，不返回给前端
+	KeyValue  string    `json:"-" db:"key_value"` // Base64编码的密钥，不返回给前端
 	Algorithm string    `json:"algorithm" db:"algorithm"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	IsActive  bool      `json:"is_active" db:"is_active"`
@@ -214,15 +214,15 @@ func (req *AIConfigRequest) Validate() error {
 	if req.Provider == "" {
 		return errors.New("provider is required")
 	}
-	
+
 	if req.APIKey == "" {
 		return errors.New("api_key is required")
 	}
-	
+
 	if req.Model == "" {
 		return errors.New("model is required")
 	}
-	
+
 	// 验证provider枚举值
 	switch req.Provider {
 	case ProviderOpenAI, ProviderClaude, ProviderDeepSeek:
@@ -230,16 +230,16 @@ func (req *AIConfigRequest) Validate() error {
 	default:
 		return errors.New("invalid provider")
 	}
-	
+
 	// 验证参数范围
 	if req.Temperature < 0 || req.Temperature > 2 {
 		return errors.New("temperature must be between 0 and 2")
 	}
-	
+
 	if req.MaxTokens < 1 || req.MaxTokens > 32000 {
 		return errors.New("max_tokens must be between 1 and 32000")
 	}
-	
+
 	return nil
 }
 
@@ -262,21 +262,21 @@ func (req *AIConfigUpdateRequest) ValidateForUpdate() error {
 	if req.Model == "" {
 		return errors.New("model is required")
 	}
-	
+
 	// API密钥可以为空（保持现有密钥），但如果提供则需要验证格式
 	if req.APIKey != "" && len(req.APIKey) < 10 {
 		return errors.New("api_key must be at least 10 characters if provided")
 	}
-	
+
 	// 验证参数范围
 	if req.Temperature < 0 || req.Temperature > 2 {
 		return errors.New("temperature must be between 0 and 2")
 	}
-	
+
 	if req.MaxTokens < 1 || req.MaxTokens > 32000 {
 		return errors.New("max_tokens must be between 1 and 32000")
 	}
-	
+
 	return nil
 }
 
@@ -300,7 +300,7 @@ func (config *AIConfig) ToResponse(encryptionService interface{}) *AIConfigRespo
 		TestSuccessCount: config.TestSuccessCount,
 		TestFailureCount: config.TestFailureCount,
 	}
-	
+
 	// 设置状态
 	if !config.Enabled {
 		response.Status = "inactive"
@@ -309,7 +309,7 @@ func (config *AIConfig) ToResponse(encryptionService interface{}) *AIConfigRespo
 	} else {
 		response.Status = "active"
 	}
-	
+
 	return response
 }
 
@@ -329,7 +329,7 @@ func DefaultMetadata(provider AIProvider) AIConfigMetadata {
 			SanitizeResponses: true,
 		},
 	}
-	
+
 	switch provider {
 	case ProviderOpenAI:
 		metadata.RateLimit = &RateLimitConfig{
@@ -365,7 +365,7 @@ func DefaultMetadata(provider AIProvider) AIConfigMetadata {
 			Currency:        "USD",
 		}
 	}
-	
+
 	return metadata
 }
 

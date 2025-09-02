@@ -61,7 +61,9 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 	// Parse query parameters
 	search := c.Query("search")
 	q := c.Query("q")
-	if search == "" { search = q }
+	if search == "" {
+		search = q
+	}
 	status := c.Query("status")
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
@@ -73,20 +75,28 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 	var assigneePtr *int
 	if assigneeID != "" {
-		if v, err := strconv.Atoi(assigneeID); err == nil { assigneePtr = &v }
+		if v, err := strconv.Atoi(assigneeID); err == nil {
+			assigneePtr = &v
+		}
 	}
 	var taskIDPtr *int
 	if taskIDParam != "" {
-		if v, err := strconv.Atoi(taskIDParam); err == nil { taskIDPtr = &v }
+		if v, err := strconv.Atoi(taskIDParam); err == nil {
+			taskIDPtr = &v
+		}
 	}
 
-	if page < 1 { page = 1 }
-	if pageSize < 1 || pageSize > 1000 { pageSize = 50 }
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 50
+	}
 
 	offset := (page - 1) * pageSize
 
 	// Delegate to filtered repository with project constraint
-	options := &models.TaskListOptions{ 
+	options := &models.TaskListOptions{
 		Preset:    "", // project内不使用预设
 		Status:    status,
 		Priority:  priority,
@@ -125,13 +135,15 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	userID := c.GetInt("user_id") // For future implementation
 	_ = userID
-	
+
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "50"))
 	// Parse query parameters
 	search := c.Query("search")
-	if search == "" { search = c.Query("q") }
+	if search == "" {
+		search = c.Query("q")
+	}
 	status := c.Query("status")
 	projectID := c.Query("project_id")
 	assigneeID := c.Query("assignee_id")
@@ -145,38 +157,52 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 
 	var assigneePtr *int
 	if assigneeID != "" {
-		if v, err := strconv.Atoi(assigneeID); err == nil { assigneePtr = &v }
+		if v, err := strconv.Atoi(assigneeID); err == nil {
+			assigneePtr = &v
+		}
 	}
 	var projectPtr *int
 	if projectID != "" {
-		if v, err := strconv.Atoi(projectID); err == nil { projectPtr = &v }
+		if v, err := strconv.Atoi(projectID); err == nil {
+			projectPtr = &v
+		}
 	}
 	var taskIDPtr *int
 	if taskIDParam != "" {
-		if v, err := strconv.Atoi(taskIDParam); err == nil { taskIDPtr = &v }
+		if v, err := strconv.Atoi(taskIDParam); err == nil {
+			taskIDPtr = &v
+		}
 	}
 
 	// If preset is overdue and client didn't specify sort, prefer due_date ASC
 	if preset == "overdue" {
-		if c.Query("sort_by") == "" { sortBy = "due_date" }
-		if c.Query("sort_order") == "" { sortOrder = "asc" }
+		if c.Query("sort_by") == "" {
+			sortBy = "due_date"
+		}
+		if c.Query("sort_order") == "" {
+			sortOrder = "asc"
+		}
 	}
 
-	if page < 1 { page = 1 }
-	if pageSize < 1 || pageSize > 1000 { pageSize = 50 }
-	
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 50
+	}
+
 	offset := (page - 1) * pageSize
 
-	options := &models.TaskListOptions{ 
-		Preset: preset, 
-		Status: status, 
-		Priority: priority,
-		Search: search,
-		Assignee: assigneePtr, 
-		ProjectID: projectPtr, 
-		TaskID: taskIDPtr,
+	options := &models.TaskListOptions{
+		Preset:    preset,
+		Status:    status,
+		Priority:  priority,
+		Search:    search,
+		Assignee:  assigneePtr,
+		ProjectID: projectPtr,
+		TaskID:    taskIDPtr,
 		OnlyRoots: onlyRoots,
-		SortBy: sortBy, 
+		SortBy:    sortBy,
 		SortOrder: sortOrder,
 	}
 
@@ -214,24 +240,24 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	_ = userID
 
 	var req struct {
-		Title              string                 `json:"title" binding:"required,min=1,max=255"`
-		Description        string                 `json:"description"`
-		Status             string                 `json:"status"`
-		Priority           string                 `json:"priority"`
-		AssigneeID         *int                   `json:"assignee_id"`
-		ParentID           *int                   `json:"parent_id"`
-		DueDate            *string                `json:"due_date"`
-		Tags               []string               `json:"tags"`
-		CustomFields       map[string]interface{} `json:"custom_fields"`
-		EstimatedTime      *int                   `json:"estimated_time"`
+		Title         string                 `json:"title" binding:"required,min=1,max=255"`
+		Description   string                 `json:"description"`
+		Status        string                 `json:"status"`
+		Priority      string                 `json:"priority"`
+		AssigneeID    *int                   `json:"assignee_id"`
+		ParentID      *int                   `json:"parent_id"`
+		DueDate       *string                `json:"due_date"`
+		Tags          []string               `json:"tags"`
+		CustomFields  map[string]interface{} `json:"custom_fields"`
+		EstimatedTime *int                   `json:"estimated_time"`
 		// Enhanced time management fields
-		StartDatetime      *string                `json:"start_datetime"`
-		DueDatetime        *string                `json:"due_datetime"`
-		EstimatedMinutes   *int                   `json:"estimated_minutes"`
-		ActualMinutes      *int                   `json:"actual_minutes"`
-		TimeUnitPreference *string                `json:"time_unit_preference"`
-		WorkHoursPerDay    *float64               `json:"work_hours_per_day"`
-		TimeTrackingMode   *string                `json:"time_tracking_mode"`
+		StartDatetime      *string  `json:"start_datetime"`
+		DueDatetime        *string  `json:"due_datetime"`
+		EstimatedMinutes   *int     `json:"estimated_minutes"`
+		ActualMinutes      *int     `json:"actual_minutes"`
+		TimeUnitPreference *string  `json:"time_unit_preference"`
+		WorkHoursPerDay    *float64 `json:"work_hours_per_day"`
+		TimeTrackingMode   *string  `json:"time_tracking_mode"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -242,7 +268,7 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	// 默认负责人：使用智能fallback策略
 	if req.AssigneeID == nil {
 		ctx := c.Request.Context()
-		
+
 		// 优先级1: 查找ai-pm用户
 		if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
 			req.AssigneeID = &aiPM.ID
@@ -309,14 +335,14 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	}
 
 	task := &models.Task{
-		Title:              req.Title,
-		Description:        req.Description,
-		Status:             req.Status,
-		Priority:           req.Priority,
-		ProjectID:          projectID,
-		AssigneeID:         req.AssigneeID,
-		ParentID:           req.ParentID,
-		DueDate:            dueDate,
+		Title:       req.Title,
+		Description: req.Description,
+		Status:      req.Status,
+		Priority:    req.Priority,
+		ProjectID:   projectID,
+		AssigneeID:  req.AssigneeID,
+		ParentID:    req.ParentID,
+		DueDate:     dueDate,
 		// Enhanced time management fields
 		StartDatetime:      startDatetime,
 		DueDatetime:        dueDatetime,
@@ -388,7 +414,7 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 	// 预取默认负责人ID，使用智能fallback策略
 	var defaultAssigneeID *int
 	ctx := c.Request.Context()
-	
+
 	// 优先级1: 查找ai-pm用户
 	if aiPM, err := h.db.Users().GetByUsername(ctx, "ai-pm"); err == nil && aiPM != nil {
 		defaultAssigneeID = &aiPM.ID
@@ -497,7 +523,7 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	}
 
 	response := task.ToResponse()
-	
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取任务成功"))
 }
 
@@ -510,24 +536,24 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 
 	var req struct {
-		Title              *string                `json:"title"`
-		Description        *string                `json:"description"`
-		Status             *string                `json:"status"`
-		Priority           *string                `json:"priority"`
-		AssigneeID         *int                   `json:"assignee_id"`
-		ParentID           *int                   `json:"parent_id"`
-		DueDate            *string                `json:"due_date"`
-		CustomFields       map[string]interface{} `json:"custom_fields"`
-		EstimatedTime      *int                   `json:"estimated_time"`
-		ActualTime         *int                   `json:"actual_time"`
+		Title         *string                `json:"title"`
+		Description   *string                `json:"description"`
+		Status        *string                `json:"status"`
+		Priority      *string                `json:"priority"`
+		AssigneeID    *int                   `json:"assignee_id"`
+		ParentID      *int                   `json:"parent_id"`
+		DueDate       *string                `json:"due_date"`
+		CustomFields  map[string]interface{} `json:"custom_fields"`
+		EstimatedTime *int                   `json:"estimated_time"`
+		ActualTime    *int                   `json:"actual_time"`
 		// Enhanced time management fields
-		StartDatetime      *string                `json:"start_datetime"`
-		DueDatetime        *string                `json:"due_datetime"`
-		EstimatedMinutes   *int                   `json:"estimated_minutes"`
-		ActualMinutes      *int                   `json:"actual_minutes"`
-		TimeUnitPreference *string                `json:"time_unit_preference"`
-		WorkHoursPerDay    *float64               `json:"work_hours_per_day"`
-		TimeTrackingMode   *string                `json:"time_tracking_mode"`
+		StartDatetime      *string  `json:"start_datetime"`
+		DueDatetime        *string  `json:"due_datetime"`
+		EstimatedMinutes   *int     `json:"estimated_minutes"`
+		ActualMinutes      *int     `json:"actual_minutes"`
+		TimeUnitPreference *string  `json:"time_unit_preference"`
+		WorkHoursPerDay    *float64 `json:"work_hours_per_day"`
+		TimeTrackingMode   *string  `json:"time_tracking_mode"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -551,12 +577,24 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	originalStatus := task.Status
 
 	// Update fields (apply only if provided)
-	if req.Title != nil { task.Title = *req.Title }
-	if req.Description != nil { task.Description = *req.Description }
-	if req.Status != nil { task.Status = *req.Status }
-	if req.Priority != nil { task.Priority = *req.Priority }
-	if req.AssigneeID != nil { task.AssigneeID = req.AssigneeID }
-	if req.ParentID != nil { task.ParentID = req.ParentID }
+	if req.Title != nil {
+		task.Title = *req.Title
+	}
+	if req.Description != nil {
+		task.Description = *req.Description
+	}
+	if req.Status != nil {
+		task.Status = *req.Status
+	}
+	if req.Priority != nil {
+		task.Priority = *req.Priority
+	}
+	if req.AssigneeID != nil {
+		task.AssigneeID = req.AssigneeID
+	}
+	if req.ParentID != nil {
+		task.ParentID = req.ParentID
+	}
 
 	// Parse due date
 	if req.DueDate != nil && *req.DueDate != "" {
@@ -751,7 +789,8 @@ func (h *TaskHandler) GetTaskUpdates(c *gin.Context) {
 	_ = (page - 1) * pageSize // offset for future implementation
 
 	// TODO: Implement GetUpdates method in TaskRepository
-	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))}
+	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+}
 
 // UpdateTaskUpdate handles PUT /api/v1/projects/:projectId/tasks/:id/updates/:updateId
 func (h *TaskHandler) UpdateTaskUpdate(c *gin.Context) {
@@ -826,7 +865,7 @@ func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
 	// Parse query parameters
 	limitStr := c.DefaultQuery("limit", "20")
 	offsetStr := c.DefaultQuery("offset", "0")
-	
+
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
 		limit = 20
@@ -834,7 +873,7 @@ func (h *TaskHandler) GetTaskTimeline(c *gin.Context) {
 	if limit > 100 {
 		limit = 100 // Maximum limit
 	}
-	
+
 	offset, err := strconv.Atoi(offsetStr)
 	if err != nil || offset < 0 {
 		offset = 0
@@ -964,9 +1003,9 @@ func (h *TaskHandler) stopUnifiedTimersForTask(ctx context.Context, taskID int) 
 // stopCurrentTimerForUser stops the current timer for a specific user and task
 func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.User, taskID int) error {
 	// Verify the user is actually timing this specific task
-	if user.TimingStatus != string(models.TimingStatusRunning) || 
-	   user.CurrentTimingTaskID == nil || 
-	   *user.CurrentTimingTaskID != taskID {
+	if user.TimingStatus != string(models.TimingStatusRunning) ||
+		user.CurrentTimingTaskID == nil ||
+		*user.CurrentTimingTaskID != taskID {
 		return nil // User is not timing this task
 	}
 
@@ -974,7 +1013,7 @@ func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.
 	endTime := time.Now()
 	duration := endTime.Sub(*user.TimingStartTime)
 	durationSeconds := int(duration.Seconds())
-	
+
 	// Ensure duration is not negative
 	if durationSeconds < 0 {
 		durationSeconds = 0
@@ -1016,7 +1055,7 @@ func (h *TaskHandler) stopCurrentTimerForUser(ctx context.Context, user *models.
 		return fmt.Errorf("failed to stop timer for user: %w", err)
 	}
 
-	log.Printf("Auto-stopped timer for user %d on completed task %d (duration: %s)", 
+	log.Printf("Auto-stopped timer for user %d on completed task %d (duration: %s)",
 		user.ID, taskID, models.FormatDuration(durationSeconds))
 
 	return nil
@@ -1035,8 +1074,8 @@ func (h *TaskHandler) autoCreateTaskDescription(ctx context.Context, task *model
 	title := fmt.Sprintf("任务描述 - %s", task.Title)
 	content := h.renderTaskDescriptionTemplate(task, projectName)
 	metadata := models.DocumentMetadata{
-		"doc_kind":        "task_description",
-		"generated_by":    "lifecycle_trigger",
+		"doc_kind":         "task_description",
+		"generated_by":     "lifecycle_trigger",
 		"generated_reason": "task_created",
 	}
 	issues, passed := h.runQualityCheck(content, "task_description")
@@ -1107,8 +1146,8 @@ func (h *TaskHandler) autoCreateTaskMainDoc(ctx context.Context, task *models.Ta
 	title := fmt.Sprintf("任务文档 - %s", task.Title)
 	content := h.renderTaskMainDocTemplate(task, projectName)
 	metadata := models.DocumentMetadata{
-		"doc_kind":        "task_doc",
-		"generated_by":    "lifecycle_trigger",
+		"doc_kind":         "task_doc",
+		"generated_by":     "lifecycle_trigger",
 		"generated_reason": "status_in_progress",
 	}
 	issues, passed := h.runQualityCheck(content, "task_doc")
@@ -1159,9 +1198,13 @@ func (h *TaskHandler) renderTaskDescriptionTemplate(task *models.Task, projectNa
 	fmt.Fprintf(b, "# 任务描述 - %s\n\n", task.Title)
 	fmt.Fprintf(b, "- 任务ID: %d\n", task.ID)
 	fmt.Fprintf(b, "- 项目: %s (#%d)\n", projectName, task.ProjectID)
-	if assignee != "" { fmt.Fprintf(b, "- 负责人: %s\n", assignee) }
+	if assignee != "" {
+		fmt.Fprintf(b, "- 负责人: %s\n", assignee)
+	}
 	fmt.Fprintf(b, "- 状态: %s\n", task.Status)
-	if due != "" { fmt.Fprintf(b, "- 期望截止: %s\n", due) }
+	if due != "" {
+		fmt.Fprintf(b, "- 期望截止: %s\n", due)
+	}
 	b.WriteString("\n## 背景与目标\n- 背景：\n- 业务目标：\n- 技术目标：\n\n")
 	b.WriteString("## 范围定义\n- 在范围：\n- 不在范围：\n\n")
 	b.WriteString("## 验收标准\n- [ ] Given ..., When ..., Then ...\n- [ ] Given ..., When ..., Then ...\n- [ ] Given ..., When ..., Then ...\n\n")
@@ -1284,31 +1327,31 @@ func getFloat64Value(ptr *float64, defaultValue float64) float64 {
 // CreateGlobalTask handles POST /api/v1/tasks
 func (h *TaskHandler) CreateGlobalTask(c *gin.Context) {
 	var req struct {
-		ProjectID      int          `json:"project_id" binding:"required"`
-		Title          string       `json:"title" binding:"required,min=1,max=255"`
-		Description    string       `json:"description"`
-		Status         string       `json:"status"`
-		Priority       string       `json:"priority"`
-		AssigneeID     *int         `json:"assignee_id"`
-		ParentID       *int         `json:"parent_id"`
-		DueDate        *time.Time   `json:"due_date"`
-		EstimatedHours *float64     `json:"estimated_hours"`
+		ProjectID      int        `json:"project_id" binding:"required"`
+		Title          string     `json:"title" binding:"required,min=1,max=255"`
+		Description    string     `json:"description"`
+		Status         string     `json:"status"`
+		Priority       string     `json:"priority"`
+		AssigneeID     *int       `json:"assignee_id"`
+		ParentID       *int       `json:"parent_id"`
+		DueDate        *time.Time `json:"due_date"`
+		EstimatedHours *float64   `json:"estimated_hours"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_REQUEST", "Invalid request payload", err.Error()))
 		return
 	}
 
 	task := &models.Task{
-		ProjectID:     req.ProjectID,
-		Title:         req.Title,
-		Description:   req.Description,
-		Status:        getStringValue(&req.Status, "todo"),
-		Priority:      getStringValue(&req.Priority, "medium"),
-		AssigneeID:    req.AssigneeID,
-		ParentID:      req.ParentID,
-		DueDate:       req.DueDate,
+		ProjectID:      req.ProjectID,
+		Title:          req.Title,
+		Description:    req.Description,
+		Status:         getStringValue(&req.Status, "todo"),
+		Priority:       getStringValue(&req.Priority, "medium"),
+		AssigneeID:     req.AssigneeID,
+		ParentID:       req.ParentID,
+		DueDate:        req.DueDate,
 		EstimatedHours: req.EstimatedHours,
 	}
 

@@ -18,16 +18,16 @@ type CalendarSyncHandler struct {
 
 // EnableTaskSyncRequest represents request to enable calendar sync for a task
 type EnableTaskSyncRequest struct {
-	SyncDirection    string `json:"sync_direction" binding:"required,oneof=task_to_calendar calendar_to_task bidirectional"`
-	ReminderMinutes  int    `json:"reminder_minutes" binding:"min=0,max=10080"` // max 1 week
-	AutoSync         bool   `json:"auto_sync"`                                   // whether to trigger immediate sync
+	SyncDirection   string `json:"sync_direction" binding:"required,oneof=task_to_calendar calendar_to_task bidirectional"`
+	ReminderMinutes int    `json:"reminder_minutes" binding:"min=0,max=10080"` // max 1 week
+	AutoSync        bool   `json:"auto_sync"`                                  // whether to trigger immediate sync
 }
 
 // UpdateTaskSyncRequest represents request to update task sync settings
 type UpdateTaskSyncRequest struct {
-	SyncToCalendar   bool   `json:"sync_to_calendar"`
-	SyncDirection    string `json:"sync_direction,omitempty" binding:"omitempty,oneof=task_to_calendar calendar_to_task bidirectional"`
-	ReminderMinutes  int    `json:"reminder_minutes,omitempty" binding:"min=0,max=10080"`
+	SyncToCalendar  bool   `json:"sync_to_calendar"`
+	SyncDirection   string `json:"sync_direction,omitempty" binding:"omitempty,oneof=task_to_calendar calendar_to_task bidirectional"`
+	ReminderMinutes int    `json:"reminder_minutes,omitempty" binding:"min=0,max=10080"`
 }
 
 // SyncResponse represents the response for sync operations
@@ -40,14 +40,14 @@ type SyncResponse struct {
 
 // TaskSyncStatusResponse represents task sync status information
 type TaskSyncStatusResponse struct {
-	TaskID               int       `json:"task_id"`
-	SyncToCalendar       bool      `json:"sync_to_calendar"`
-	CalendarSyncStatus   string    `json:"calendar_sync_status"`
-	LastCalendarSync     *time.Time `json:"last_calendar_sync,omitempty"`
-	CalendarEventURL     string    `json:"calendar_event_url,omitempty"`
-	SyncDirection        string    `json:"sync_direction"`
-	CalendarReminderMins int       `json:"calendar_reminder_minutes"`
-	GoogleCalendarEventID string   `json:"google_calendar_event_id,omitempty"`
+	TaskID                int        `json:"task_id"`
+	SyncToCalendar        bool       `json:"sync_to_calendar"`
+	CalendarSyncStatus    string     `json:"calendar_sync_status"`
+	LastCalendarSync      *time.Time `json:"last_calendar_sync,omitempty"`
+	CalendarEventURL      string     `json:"calendar_event_url,omitempty"`
+	SyncDirection         string     `json:"sync_direction"`
+	CalendarReminderMins  int        `json:"calendar_reminder_minutes"`
+	GoogleCalendarEventID string     `json:"google_calendar_event_id,omitempty"`
 }
 
 func NewCalendarSyncHandler(calendarSyncService *services.CalendarSyncService, calendarSyncRepo *database.CalendarSyncRepository) *CalendarSyncHandler {

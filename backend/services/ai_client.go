@@ -48,12 +48,12 @@ type Message struct {
 
 // OpenAI API响应结构
 type OpenAIResponse struct {
-	ID      string   `json:"id"`
-	Object  string   `json:"object"`
-	Created int64    `json:"created"`
-	Model   string   `json:"model"`
-	Choices []Choice `json:"choices"`
-	Usage   Usage    `json:"usage"`
+	ID      string    `json:"id"`
+	Object  string    `json:"object"`
+	Created int64     `json:"created"`
+	Model   string    `json:"model"`
+	Choices []Choice  `json:"choices"`
+	Usage   Usage     `json:"usage"`
 	Error   *APIError `json:"error,omitempty"`
 }
 
@@ -85,13 +85,13 @@ type ClaudeRequest struct {
 
 // Claude API响应结构
 type ClaudeResponse struct {
-	ID      string         `json:"id"`
-	Type    string         `json:"type"`
-	Role    string         `json:"role"`
-	Model   string         `json:"model"`
+	ID      string          `json:"id"`
+	Type    string          `json:"type"`
+	Role    string          `json:"role"`
+	Model   string          `json:"model"`
 	Content []ClaudeContent `json:"content"`
-	Usage   Usage          `json:"usage"`
-	Error   *APIError      `json:"error,omitempty"`
+	Usage   Usage           `json:"usage"`
+	Error   *APIError       `json:"error,omitempty"`
 }
 
 type ClaudeContent struct {
@@ -102,7 +102,7 @@ type ClaudeContent struct {
 // TestConnection 测试AI连接并进行问答
 func (c *HTTPAIClient) TestConnection(ctx context.Context, config *models.AIConfig, question string) (*models.AITestResponse, error) {
 	startTime := time.Now()
-	
+
 	// 根据不同的AI提供商调用相应的API
 	switch config.Provider {
 	case models.ProviderOpenAI, models.ProviderDeepSeek:
@@ -176,7 +176,7 @@ func (c *HTTPAIClient) testOpenAICompatible(ctx context.Context, config *models.
 	// 设置请求头
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	
+
 	// DeepSeek 特殊处理
 	if config.Provider == models.ProviderDeepSeek {
 		req.Header.Set("User-Agent", "AI-Project-Backend/1.0")
@@ -523,7 +523,7 @@ func (c *HTTPAIClient) generateOpenAICompatible(ctx context.Context, config *mod
 	// 设置请求头
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	
+
 	// DeepSeek 特殊处理
 	if config.Provider == models.ProviderDeepSeek {
 		req.Header.Set("User-Agent", "AI-Project-Backend/1.0")

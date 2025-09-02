@@ -23,7 +23,7 @@ import (
 // @Param request body models.MoveTaskRequest true "Move task request"
 // @Success 200 {object} models.APIResponse "Task moved successfully"
 // @Failure 400 {object} models.APIResponse "Bad request"
-// @Failure 401 {object} models.APIResponse "Unauthorized"  
+// @Failure 401 {object} models.APIResponse "Unauthorized"
 // @Failure 404 {object} models.APIResponse "Task not found"
 // @Failure 500 {object} models.APIResponse "Internal server error"
 // @Router /projects/{id}/tasks/{taskId}/move [post]
@@ -294,9 +294,9 @@ func (h *TaskHandler) BulkReorderTasks(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(map[string]interface{}{
-		"project_id":     projectID,
-		"parent_id":      request.ParentID,
-		"updated_tasks":  updatedTasks,
-		"total_updated":  len(updatedTasks),
+		"project_id":    projectID,
+		"parent_id":     request.ParentID,
+		"updated_tasks": updatedTasks,
+		"total_updated": len(updatedTasks),
 	}, fmt.Sprintf("成功重排序 %d 个任务", len(updatedTasks))))
 }

@@ -46,7 +46,7 @@ func (m *JWTManager) GenerateToken(userID int, username, role, userType string) 
 		Role:     role,
 		UserType: userType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        jti,                                           // JWT ID
+			ID:        jti, // JWT ID
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.expiration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			NotBefore: jwt.NewNumericDate(time.Now()),
@@ -77,6 +77,7 @@ func (m *JWTManager) GenerateTokenWithJTI(userID int, username, role, userType, 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(m.secretKey))
 }
+
 // ValidateToken validates a JWT token and returns the claims
 func (m *JWTManager) ValidateToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {

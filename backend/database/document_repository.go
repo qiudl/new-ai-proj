@@ -11,7 +11,6 @@ import (
 	"github.com/lib/pq"
 )
 
-
 // DocumentRepositoryNew 新的文档仓库接口
 type DocumentRepositoryNew interface {
 	Create(ctx context.Context, doc *models.Document) (*models.Document, error)
@@ -20,12 +19,12 @@ type DocumentRepositoryNew interface {
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, filter *models.DocumentFilter) ([]*models.Document, int, error)
 	Search(ctx context.Context, req *models.DocumentSearchRequest) ([]*models.Document, int, error)
-	
+
 	// 任务文档关联方法
 	AttachToTask(ctx context.Context, taskID, documentID int, relationshipType string, createdBy int) error
 	DetachFromTask(ctx context.Context, taskID, documentID int) error
 	GetTaskDocuments(ctx context.Context, taskID int) ([]*models.Document, error)
-	
+
 	// 版本控制方法
 	GetVersions(ctx context.Context, documentID int) ([]*models.DocumentVersion, error)
 	CreateVersion(ctx context.Context, documentID int, createdBy int) (*models.DocumentVersion, error)
@@ -179,7 +178,7 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 		WHERE id = $%d AND deleted_at IS NULL 
 		RETURNING version, updated_at`,
 		strings.Join(setParts, ", "), argIndex)
-	
+
 	args = append(args, id)
 
 	var version int
@@ -198,7 +197,7 @@ func (r *documentRepository) Update(ctx context.Context, id int, updates *models
 // Delete 软删除文档
 func (r *documentRepository) Delete(ctx context.Context, id int) error {
 	query := `UPDATE documents SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`
-	
+
 	result, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("删除文档失败: %w", err)
@@ -374,7 +373,7 @@ func (r *documentRepository) AttachToTask(ctx context.Context, taskID, documentI
 // DetachFromTask 将文档从任务中移除
 func (r *documentRepository) DetachFromTask(ctx context.Context, taskID, documentID int) error {
 	query := `DELETE FROM task_documents WHERE task_id = $1 AND document_id = $2`
-	
+
 	_, err := r.db.ExecContext(ctx, query, taskID, documentID)
 	if err != nil {
 		return fmt.Errorf("移除任务文档关联失败: %w", err)

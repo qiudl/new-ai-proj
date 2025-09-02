@@ -38,7 +38,7 @@ func (h *TaskDocumentFileHandler) GetTaskDocument(c *gin.Context) {
 	content, err := h.DocumentService.ReadTaskDocument(taskID, projectID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Document not found",
+			"error":   "Document not found",
 			"details": err.Error(),
 		})
 		return
@@ -75,7 +75,7 @@ func (h *TaskDocumentFileHandler) GetPersonalTaskDocument(c *gin.Context) {
 	content, err := h.DocumentService.ReadPersonalTaskDocument(taskID, uid)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
-			"error": "Personal document not found",
+			"error":   "Personal document not found",
 			"details": err.Error(),
 		})
 		return
@@ -124,11 +124,11 @@ func (h *TaskDocumentFileHandler) UpdateTaskDocument(c *gin.Context) {
 	}
 
 	uid := userID.(int)
-	
+
 	// 更新文档内容
 	if err := h.DocumentService.UpdateDocumentContent(taskID, projectID, req.Content, false, uid); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update document",
+			"error":   "Failed to update document",
 			"details": err.Error(),
 		})
 		return
@@ -165,11 +165,11 @@ func (h *TaskDocumentFileHandler) UpdatePersonalTaskDocument(c *gin.Context) {
 	}
 
 	uid := userID.(int)
-	
+
 	// 更新个人任务文档内容
 	if err := h.DocumentService.UpdateDocumentContent(taskID, 0, req.Content, true, uid); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to update personal document",
+			"error":   "Failed to update personal document",
 			"details": err.Error(),
 		})
 		return
@@ -208,7 +208,7 @@ func (h *TaskDocumentFileHandler) GetDocumentHistory(c *gin.Context) {
 	history, err := h.DocumentService.GetDocumentHistory(taskID, projectID, isPersonal, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to get document history",
+			"error":   "Failed to get document history",
 			"details": err.Error(),
 		})
 		return
@@ -259,7 +259,7 @@ func (h *TaskDocumentFileHandler) CompareDocumentVersions(c *gin.Context) {
 	diff, err := h.DocumentService.CompareDocumentVersions(taskID, projectID, fromHash, toHash, isPersonal, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to compare document versions",
+			"error":   "Failed to compare document versions",
 			"details": err.Error(),
 		})
 		return
@@ -267,7 +267,7 @@ func (h *TaskDocumentFileHandler) CompareDocumentVersions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": diff,
+		"data":    diff,
 	})
 }
 
@@ -299,7 +299,7 @@ func (h *TaskDocumentFileHandler) ArchiveTaskDocument(c *gin.Context) {
 
 	if err := h.DocumentService.ArchiveTaskDocument(taskID, projectID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to archive task document",
+			"error":   "Failed to archive task document",
 			"details": err.Error(),
 		})
 		return

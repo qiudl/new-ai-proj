@@ -31,10 +31,10 @@ func (h *UtilityHandler) CalculateTaskDepth(ctx context.Context, task *models.Ta
 	if task.ParentID == nil {
 		return 0
 	}
-	
+
 	depth := 0
 	currentParentID := *task.ParentID
-	
+
 	// Traverse up the parent chain to calculate depth
 	for currentParentID != 0 && depth < 10 { // Prevent infinite loops
 		parent, err := h.db.Tasks().GetByID(ctx, currentParentID)
@@ -42,14 +42,14 @@ func (h *UtilityHandler) CalculateTaskDepth(ctx context.Context, task *models.Ta
 			h.logger.Printf("Error getting parent task %d: %v", currentParentID, err)
 			break
 		}
-		
+
 		depth++
 		if parent.ParentID == nil {
 			break
 		}
 		currentParentID = *parent.ParentID
 	}
-	
+
 	return depth
 }
 
@@ -61,14 +61,14 @@ func (h *UtilityHandler) CreateProjectCompanyAssociation(ctx context.Context, pr
 		ON CONFLICT (project_id, company_id) 
 		DO UPDATE SET is_primary = $3, updated_at = NOW()
 	`
-	
+
 	db := h.db.GetDB().(*sql.DB)
 	_, err := db.ExecContext(ctx, query, projectID, companyID, isPrimary)
 	if err != nil {
 		h.logger.Printf("Error creating project-company association: %v", err)
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -80,13 +80,13 @@ func (h *UtilityHandler) CreateProjectUserAssignment(ctx context.Context, projec
 		ON CONFLICT (project_id, user_id)
 		DO UPDATE SET role = $3, is_primary = $4, updated_at = NOW()
 	`
-	
+
 	db := h.db.GetDB().(*sql.DB)
 	_, err := db.ExecContext(ctx, query, projectID, userID, role, isPrimary)
 	if err != nil {
 		h.logger.Printf("Error creating project-user assignment: %v", err)
 		return err
 	}
-	
+
 	return nil
 }

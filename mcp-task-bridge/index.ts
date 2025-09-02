@@ -28,8 +28,14 @@ for (const p of envCandidates) {
 }
 
 // 初始化任务服务器 - 从环境变量读取API地址
-// 优先使用 TASK_API_BASE，其次兼容 API_BASE_URL；默认对齐后端 8081 端口（与 index.js 一致）
-const apiBaseUrl = process.env.TASK_API_BASE || process.env.API_BASE_URL || 'http://localhost:8081/api/v1';
+// 优先使用 TASK_API_BASE，其次兼容 API_BASE_URL；若都未设置，基于 BACKEND_PORT/PORT 推断（默认 8080）
+function detectApiBase(): string {
+  const fromEnv = process.env.TASK_API_BASE || process.env.API_BASE_URL;
+  if (fromEnv && fromEnv.trim().length > 0) return fromEnv.trim();
+  const inferredPort = (process.env.BACKEND_PORT || process.env.PORT || '8080').trim();
+  return `http://localhost:${inferredPort}/api/v1`;
+}
+const apiBaseUrl = detectApiBase();
 console.error('[MCP] 初始化 TaskMCPServer（连接后端模式）');
 console.error('[MCP] API基础URL:', apiBaseUrl);
 const taskServer = new TaskMCPServer(apiBaseUrl);
@@ -1369,6 +1375,25 @@ async function main() {
     join(process.cwd(), '.mcp-documents'),
     join(process.cwd(), 'mcp-documents')
   ]);
+
+  // 开发环境自动登录（避免未授权导致的工具失败）
+  try {
+    const env = (process.env.APP_ENV || process.env.NODE_ENV || '').toLowerCase();
+    const shouldAutoLogin = env === 'development' || env === 'dev' || process.env.AUTO_DEV_LOGIN === 'true';
+    if (shouldAutoLogin) {
+      const username = process.env.DEV_LOGIN_USERNAME?.split(',')?.[0]?.trim() || 'admin';
+      console.error(`[MCP] 开发模式自动登录: ${username}`);
+      const loginRes = await taskServer.devQuickLogin(username);
+      if (loginRes?.success && (loginRes as any).token) {
+        taskServer.setAuthToken((loginRes as any).token as string);
+        console.error('[MCP] 开发登录成功，已设置认证令牌');
+      } else if (!loginRes?.success) {
+        console.error('[MCP] 开发登录失败:', (loginRes as any)?.error || 'unknown');
+      }
+    }
+  } catch (e: any) {
+    console.error('[MCP] 自动登录过程发生错误:', e?.message || String(e));
+  }
 
   // Keep the server alive until stdio is closed by the host
   await new Promise(() => {});

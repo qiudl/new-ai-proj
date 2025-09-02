@@ -147,7 +147,7 @@ func (pdb *PostgresDB) NewDocuments() DocumentRepositoryNew {
 // Temporarily disabled due to model conflicts
 /*
 func (pdb *PostgresDB) DocumentFolders() DocumentFolderRepository {
-	// TODO: Fix DocumentFolderRepository implementation issues  
+	// TODO: Fix DocumentFolderRepository implementation issues
 	return nil // 临时注释，避免编译错误
 	// return NewDocumentFolderRepository(pdb.db)
 }
@@ -155,7 +155,7 @@ func (pdb *PostgresDB) DocumentFolders() DocumentFolderRepository {
 
 // DocumentRelations returns the document relation repository
 func (pdb *PostgresDB) DocumentRelations() DocumentRelationRepository {
-	// TODO: Fix DocumentRelationRepository implementation  
+	// TODO: Fix DocumentRelationRepository implementation
 	return nil // 临时注释，避免编译错误
 	// return NewDocumentRelationRepository(pdb.db)
 }
@@ -218,7 +218,6 @@ func (pdb *PostgresDB) BeginTx(ctx context.Context) (Tx, error) {
 	return &PostgresTx{tx: tx}, nil
 }
 
-
 // PostgresTx implements the Tx interface using PostgreSQL transaction
 
 // scan helpers
@@ -230,16 +229,26 @@ func scanRows(dest interface{}, rows *sql.Rows) error {
 	sliceVal := dv.Elem()
 	elemType := sliceVal.Type().Elem()
 	cols, err := rows.Columns()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	for rows.Next() {
 		vals := make([]interface{}, len(cols))
 		scanTargets := make([]interface{}, len(cols))
-		for i := range vals { scanTargets[i] = &vals[i] }
-		if err := rows.Scan(scanTargets...); err != nil { return err }
+		for i := range vals {
+			scanTargets[i] = &vals[i]
+		}
+		if err := rows.Scan(scanTargets...); err != nil {
+			return err
+		}
 		m := make(map[string]interface{}, len(cols))
 		for i, c := range cols {
 			v := vals[i]
-			if b, ok := v.([]byte); ok { m[c] = string(b) } else { m[c] = v }
+			if b, ok := v.([]byte); ok {
+				m[c] = string(b)
+			} else {
+				m[c] = v
+			}
 		}
 		elemPtr := reflect.New(elemType)
 		b, _ := json.Marshal(m)
@@ -257,19 +266,30 @@ func scanRow(dest interface{}, rows *sql.Rows) error {
 		return fmt.Errorf("dest must be pointer")
 	}
 	cols, err := rows.Columns()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	vals := make([]interface{}, len(cols))
 	scanTargets := make([]interface{}, len(cols))
-	for i := range vals { scanTargets[i] = &vals[i] }
-	if err := rows.Scan(scanTargets...); err != nil { return err }
+	for i := range vals {
+		scanTargets[i] = &vals[i]
+	}
+	if err := rows.Scan(scanTargets...); err != nil {
+		return err
+	}
 	m := make(map[string]interface{}, len(cols))
 	for i, c := range cols {
 		v := vals[i]
-		if b, ok := v.([]byte); ok { m[c] = string(b) } else { m[c] = v }
+		if b, ok := v.([]byte); ok {
+			m[c] = string(b)
+		} else {
+			m[c] = v
+		}
 	}
 	b, _ := json.Marshal(m)
 	return json.Unmarshal(b, dest)
 }
+
 type PostgresTx struct {
 	tx *sql.Tx
 }

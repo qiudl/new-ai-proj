@@ -11,8 +11,8 @@ import (
 
 // RedisRateLimiter implements sliding window rate limiting using Redis
 type RedisRateLimiter struct {
-	client       *redis.Client
-	defaultLimit int
+	client        *redis.Client
+	defaultLimit  int
 	defaultWindow time.Duration
 }
 
@@ -31,11 +31,11 @@ func NewRedisRateLimiter(client *redis.Client, defaultLimit int, defaultWindow t
 func (r *RedisRateLimiter) CheckRateLimitByAPIKey(apiKeyID int64, limit int, window RateLimitWindow) RateLimitResult {
 	ctx := context.Background()
 	key := fmt.Sprintf("rate_limit:api_key:%d", apiKeyID)
-	
+
 	if limit == 0 {
 		limit = r.defaultLimit
 	}
-	
+
 	windowDuration := r.getWindowDuration(window)
 	return r.slidingWindowRateLimit(ctx, key, limit, windowDuration, window)
 }
@@ -44,11 +44,11 @@ func (r *RedisRateLimiter) CheckRateLimitByAPIKey(apiKeyID int64, limit int, win
 func (r *RedisRateLimiter) CheckRateLimitByIP(ipAddress string, limit int, window RateLimitWindow) RateLimitResult {
 	ctx := context.Background()
 	key := fmt.Sprintf("rate_limit:ip:%s", ipAddress)
-	
+
 	if limit == 0 {
 		limit = r.defaultLimit
 	}
-	
+
 	windowDuration := r.getWindowDuration(window)
 	return r.slidingWindowRateLimit(ctx, key, limit, windowDuration, window)
 }
@@ -57,11 +57,11 @@ func (r *RedisRateLimiter) CheckRateLimitByIP(ipAddress string, limit int, windo
 func (r *RedisRateLimiter) CheckRateLimitByUser(userID int, limit int, window RateLimitWindow) RateLimitResult {
 	ctx := context.Background()
 	key := fmt.Sprintf("rate_limit:user:%d", userID)
-	
+
 	if limit == 0 {
 		limit = r.defaultLimit
 	}
-	
+
 	windowDuration := r.getWindowDuration(window)
 	return r.slidingWindowRateLimit(ctx, key, limit, windowDuration, window)
 }
@@ -70,25 +70,25 @@ func (r *RedisRateLimiter) CheckRateLimitByUser(userID int, limit int, window Ra
 func (r *RedisRateLimiter) slidingWindowRateLimit(ctx context.Context, key string, limit int, window time.Duration, windowType RateLimitWindow) RateLimitResult {
 	now := time.Now()
 	windowStart := now.Add(-window)
-	
+
 	// Use Redis pipeline for atomic operations
 	pipe := r.client.TxPipeline()
-	
+
 	// Remove expired entries (older than window)
 	pipe.ZRemRangeByScore(ctx, key, "0", strconv.FormatInt(windowStart.UnixNano(), 10))
-	
+
 	// Count current requests in window
 	countCmd := pipe.ZCard(ctx, key)
-	
+
 	// Add current request
 	pipe.ZAdd(ctx, key, &redis.Z{
 		Score:  float64(now.UnixNano()),
 		Member: fmt.Sprintf("%d:%d", now.UnixNano(), r.generateNonce()),
 	})
-	
+
 	// Set expiry for the key
 	pipe.Expire(ctx, key, window+time.Minute) // Extra minute to handle clock skew
-	
+
 	// Execute pipeline
 	_, err := pipe.Exec(ctx)
 	if err != nil {
@@ -103,16 +103,16 @@ func (r *RedisRateLimiter) slidingWindowRateLimit(ctx context.Context, key strin
 			Window:         windowType,
 		}
 	}
-	
+
 	currentCount := int(countCmd.Val())
-	
+
 	// Calculate result
 	allowed := currentCount <= limit
 	remainingCount := limit - currentCount
 	if remainingCount < 0 {
 		remainingCount = 0
 	}
-	
+
 	resetTime := now.Add(window)
 	var retryAfter time.Duration
 	if !allowed {
@@ -129,7 +129,7 @@ func (r *RedisRateLimiter) slidingWindowRateLimit(ctx context.Context, key strin
 			}
 		}
 	}
-	
+
 	return RateLimitResult{
 		Allowed:        allowed,
 		CurrentCount:   currentCount,
@@ -167,18 +167,18 @@ func (r *RedisRateLimiter) GetRateLimitInfo(ctx context.Context, key string, lim
 	windowDuration := r.getWindowDuration(window)
 	now := time.Now()
 	windowStart := now.Add(-windowDuration)
-	
+
 	// Remove expired entries first
 	r.client.ZRemRangeByScore(ctx, key, "0", strconv.FormatInt(windowStart.UnixNano(), 10))
-	
+
 	// Count current requests
 	currentCount := int(r.client.ZCard(ctx, key).Val())
-	
+
 	remainingCount := limit - currentCount
 	if remainingCount < 0 {
 		remainingCount = 0
 	}
-	
+
 	return RateLimitResult{
 		Allowed:        currentCount < limit,
 		CurrentCount:   currentCount,
@@ -206,7 +206,7 @@ func (r *RedisRateLimiter) CleanupExpiredRateLimits(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	
+
 	now := time.Now()
 	for _, key := range keys {
 		// Determine window type from key pattern and clean accordingly
@@ -214,7 +214,7 @@ func (r *RedisRateLimiter) CleanupExpiredRateLimits(ctx context.Context) error {
 		windowStart := now.Add(-time.Hour) // Default to 1 hour cleanup
 		r.client.ZRemRangeByScore(ctx, key, "0", strconv.FormatInt(windowStart.UnixNano(), 10))
 	}
-	
+
 	return nil
 }
 
@@ -224,12 +224,12 @@ func (r *RedisRateLimiter) GetRateLimitStats(ctx context.Context) (map[string]in
 	if err != nil {
 		return nil, err
 	}
-	
+
 	stats := map[string]interface{}{
 		"total_keys": len(keys),
 		"by_type":    make(map[string]int),
 	}
-	
+
 	typeCount := make(map[string]int)
 	for _, key := range keys {
 		if len(key) > 11 { // "rate_limit:" prefix
@@ -248,7 +248,7 @@ func (r *RedisRateLimiter) GetRateLimitStats(ctx context.Context) (map[string]in
 			}
 		}
 	}
-	
+
 	stats["by_type"] = typeCount
 	return stats, nil
 }

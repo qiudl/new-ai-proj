@@ -20,25 +20,25 @@ func NewEnhancedSearchService(db *sql.DB) *EnhancedSearchService {
 
 // SearchFilter represents advanced search filter options
 type SearchFilter struct {
-	Query          string    `json:"query"`
-	Type           string    `json:"type"`           // document, task, project, user
-	Categories     []string  `json:"categories"`
-	Tags           []string  `json:"tags"`
+	Query          string     `json:"query"`
+	Type           string     `json:"type"` // document, task, project, user
+	Categories     []string   `json:"categories"`
+	Tags           []string   `json:"tags"`
 	DateFrom       *time.Time `json:"date_from"`
 	DateTo         *time.Time `json:"date_to"`
-	CreatedBy      []int     `json:"created_by"`
-	AssignedTo     []int     `json:"assigned_to"`
-	ProjectIDs     []int     `json:"project_ids"`
-	Status         []string  `json:"status"`
-	Priority       []string  `json:"priority"`
-	FileTypes      []string  `json:"file_types"`
-	SizeMin        *int64    `json:"size_min"`
-	SizeMax        *int64    `json:"size_max"`
-	IncludeContent bool      `json:"include_content"`
-	SortBy         string    `json:"sort_by"`    // relevance, date, size, title
-	SortOrder      string    `json:"sort_order"` // asc, desc
-	Page           int       `json:"page"`
-	Limit          int       `json:"limit"`
+	CreatedBy      []int      `json:"created_by"`
+	AssignedTo     []int      `json:"assigned_to"`
+	ProjectIDs     []int      `json:"project_ids"`
+	Status         []string   `json:"status"`
+	Priority       []string   `json:"priority"`
+	FileTypes      []string   `json:"file_types"`
+	SizeMin        *int64     `json:"size_min"`
+	SizeMax        *int64     `json:"size_max"`
+	IncludeContent bool       `json:"include_content"`
+	SortBy         string     `json:"sort_by"`    // relevance, date, size, title
+	SortOrder      string     `json:"sort_order"` // asc, desc
+	Page           int        `json:"page"`
+	Limit          int        `json:"limit"`
 }
 
 // PrefixSearchFilter represents search filter for name/path prefix matching
@@ -54,20 +54,20 @@ type PrefixSearchFilter struct {
 
 // PrefixSearchResult represents a prefix search result
 type PrefixSearchResult struct {
-	ID          int       `json:"id"`
-	Type        string    `json:"type"` // document, task, project, user
-	Name        string    `json:"name"` // The actual name (title/filename)
-	Path        string    `json:"path"` // Full path if available
-	URL         string    `json:"url"`  // Access URL
-	MatchType   string    `json:"match_type"` // "name" or "path"
-	Score       float64   `json:"score"`      // Match score
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
-	CreatedBy   int       `json:"created_by"`
-	CreatedByName string  `json:"created_by_name"`
-	ProjectID   *int      `json:"project_id,omitempty"`
-	ProjectName string    `json:"project_name,omitempty"`
-	Status      string    `json:"status,omitempty"`
+	ID            int       `json:"id"`
+	Type          string    `json:"type"`       // document, task, project, user
+	Name          string    `json:"name"`       // The actual name (title/filename)
+	Path          string    `json:"path"`       // Full path if available
+	URL           string    `json:"url"`        // Access URL
+	MatchType     string    `json:"match_type"` // "name" or "path"
+	Score         float64   `json:"score"`      // Match score
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	CreatedBy     int       `json:"created_by"`
+	CreatedByName string    `json:"created_by_name"`
+	ProjectID     *int      `json:"project_id,omitempty"`
+	ProjectName   string    `json:"project_name,omitempty"`
+	Status        string    `json:"status,omitempty"`
 }
 
 // PrefixSearchResponse represents the prefix search response
@@ -81,40 +81,40 @@ type PrefixSearchResponse struct {
 
 // SearchResult represents a unified search result
 type SearchResult struct {
-	ID          int                    `json:"id"`
-	Type        string                 `json:"type"` // document, task, project, user
-	Title       string                 `json:"title"`
-	Description string                 `json:"description"`
-	Content     string                 `json:"content,omitempty"`
-	URL         string                 `json:"url"`
-	Thumbnail   string                 `json:"thumbnail,omitempty"`
-	Score       float64                `json:"score"`
-	Highlights  []string               `json:"highlights"`
-	Metadata    map[string]interface{} `json:"metadata"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
-	CreatedBy   int                    `json:"created_by"`
-	CreatedByName string               `json:"created_by_name"`
-	Tags        []string               `json:"tags"`
-	Category    string                 `json:"category"`
-	Status      string                 `json:"status"`
-	FileSize    *int64                 `json:"file_size,omitempty"`
-	FileType    string                 `json:"file_type,omitempty"`
-	ProjectID   *int                   `json:"project_id,omitempty"`
-	ProjectName string                 `json:"project_name,omitempty"`
+	ID            int                    `json:"id"`
+	Type          string                 `json:"type"` // document, task, project, user
+	Title         string                 `json:"title"`
+	Description   string                 `json:"description"`
+	Content       string                 `json:"content,omitempty"`
+	URL           string                 `json:"url"`
+	Thumbnail     string                 `json:"thumbnail,omitempty"`
+	Score         float64                `json:"score"`
+	Highlights    []string               `json:"highlights"`
+	Metadata      map[string]interface{} `json:"metadata"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+	CreatedBy     int                    `json:"created_by"`
+	CreatedByName string                 `json:"created_by_name"`
+	Tags          []string               `json:"tags"`
+	Category      string                 `json:"category"`
+	Status        string                 `json:"status"`
+	FileSize      *int64                 `json:"file_size,omitempty"`
+	FileType      string                 `json:"file_type,omitempty"`
+	ProjectID     *int                   `json:"project_id,omitempty"`
+	ProjectName   string                 `json:"project_name,omitempty"`
 }
 
 // SearchResponse represents the complete search response
 type SearchResponse struct {
-	Results      []SearchResult         `json:"results"`
-	TotalCount   int                    `json:"total_count"`
-	Page         int                    `json:"page"`
-	Limit        int                    `json:"limit"`
-	HasNext      bool                   `json:"has_next"`
-	HasPrevious  bool                   `json:"has_previous"`
-	SearchTime   time.Duration          `json:"search_time"`
-	Facets       map[string]interface{} `json:"facets"`
-	Suggestions  []string               `json:"suggestions"`
+	Results     []SearchResult         `json:"results"`
+	TotalCount  int                    `json:"total_count"`
+	Page        int                    `json:"page"`
+	Limit       int                    `json:"limit"`
+	HasNext     bool                   `json:"has_next"`
+	HasPrevious bool                   `json:"has_previous"`
+	SearchTime  time.Duration          `json:"search_time"`
+	Facets      map[string]interface{} `json:"facets"`
+	Suggestions []string               `json:"suggestions"`
 }
 
 // Search performs enhanced full-text search across multiple entity types
@@ -1121,7 +1121,7 @@ func (s *EnhancedSearchService) searchAllByPrefix(ctx context.Context, filter *P
 
 	// Sort by score (descending) and then by name
 	// Implementation would sort allResults by Score field and then by Name
-	
+
 	// Apply limit to combined results
 	if len(allResults) > filter.Limit {
 		allResults = allResults[:filter.Limit]

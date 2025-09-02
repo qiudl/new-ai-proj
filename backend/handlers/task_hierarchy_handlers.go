@@ -88,10 +88,10 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 			"next_cursor": nil,
 		},
 		"meta": map[string]interface{}{
-			"requested_depth":    depth,
-			"max_depth_reached":  true,
-			"truncated":          len(nodes) >= limit,
-			"total_returned":     len(nodes),
+			"requested_depth":        depth,
+			"max_depth_reached":      true,
+			"truncated":              len(nodes) >= limit,
+			"total_returned":         len(nodes),
 			"hidden_nodes_truncated": false,
 		},
 	}
@@ -101,7 +101,7 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 
 // GetTaskTree 获取任务树结构
 func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
-	
+
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
@@ -125,7 +125,7 @@ func (h *TaskHierarchyHandler) GetTaskTree(c *gin.Context) {
 
 // GetRootTasks 获取根任务列表（没有父任务的任务）
 func (h *TaskHierarchyHandler) GetRootTasks(c *gin.Context) {
-	
+
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
@@ -184,9 +184,9 @@ func (h *TaskHierarchyHandler) GetRootTasks(c *gin.Context) {
 // SearchParentTasks 搜索可用作父任务的任务列表
 func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 	query := c.Query("query")
-	taskIDStr := c.Query("task_id")  // 新增：支持任务ID精确搜索
-	excludeTaskIDsStr := c.Query("exclude_task_ids")  // 新增：支持批量排除任务
-	
+	taskIDStr := c.Query("task_id")                  // 新增：支持任务ID精确搜索
+	excludeTaskIDsStr := c.Query("exclude_task_ids") // 新增：支持批量排除任务
+
 	// Get project ID from path parameter
 	projectIDStr := c.Param("id")
 	projectID, err := strconv.Atoi(projectIDStr)
@@ -198,7 +198,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 
 	// 处理排除的任务ID列表
 	var excludeTaskIDs []int
-	
+
 	// 从 exclude_task_ids 参数解析
 	if excludeTaskIDsStr != "" {
 		for _, idStr := range strings.Split(excludeTaskIDsStr, ",") {
@@ -207,7 +207,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 保持对旧参数的兼容性
 	currentTaskIDStr := c.Query("current_task_id")
 	if currentTaskIDStr != "" {
@@ -240,7 +240,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 						break
 					}
 				}
-				
+
 				// 检查层级限制 (默认最大层级为3)
 				maxLevel := 3
 				if maxLevelStr := c.Query("max_level"); maxLevelStr != "" {
@@ -248,7 +248,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 						maxLevel = ml
 					}
 				}
-				
+
 				if !isExcluded && task.TaskLevel <= maxLevel {
 					response := models.NewSuccessResponse([]*models.Task{task}, "Task found by ID")
 					c.JSON(http.StatusOK, response)
@@ -257,7 +257,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 解析分页参数
 	page := 1
 	pageSize := 50
@@ -272,7 +272,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 		}
 	}
 	offset := (page - 1) * pageSize
-	
+
 	// 解析最大层级参数
 	maxLevel := 3
 	if maxLevelStr := c.Query("max_level"); maxLevelStr != "" {
@@ -280,7 +280,7 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 			maxLevel = ml
 		}
 	}
-	
+
 	// 使用标题搜索
 	tasks, total, err := h.db.Tasks().SearchParentTasks(c.Request.Context(), projectID, query, excludeTaskIDs, maxLevel, pageSize, offset)
 	if err != nil {
@@ -294,9 +294,9 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 	result := map[string]interface{}{
 		"data": tasks,
 		"pagination": map[string]interface{}{
-			"page":       page,
-			"page_size":  pageSize,
-			"total":      total,
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       total,
 			"total_pages": (total + pageSize - 1) / pageSize,
 		},
 	}
@@ -341,7 +341,7 @@ func (h *TaskHierarchyHandler) GetTaskChildren(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
-	
+
 	// Since GetChildren doesn't support pagination, we'll simulate it
 	total := len(children)
 	start := offset
@@ -352,7 +352,7 @@ func (h *TaskHierarchyHandler) GetTaskChildren(c *gin.Context) {
 	if end > total {
 		end = total
 	}
-	
+
 	paginatedChildren := children[start:end]
 
 	// Create pagination metadata

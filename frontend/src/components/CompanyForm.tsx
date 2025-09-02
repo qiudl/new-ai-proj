@@ -36,11 +36,11 @@ import { AIProvider } from '../types/ai';
 import AICompanySearch from './AICompanySearch';
 import dayjs from 'dayjs';
 
+import type { FormInstance } from 'antd';
+
 const { Option } = Select;
 const { TextArea } = Input;
 const { Title } = Typography;
-
-import type { FormInstance } from 'antd';
 
 interface CompanyFormProps {
   form: FormInstance;

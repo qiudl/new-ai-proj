@@ -18,13 +18,13 @@ type WorkNoteServiceAdapter struct {
 func NewWorkNoteServiceAdapter(db database.DB) *WorkNoteServiceAdapter {
 	// 获取底层的 *sql.DB 实例
 	sqlDB := db.GetDB().(*sql.DB)
-	
+
 	// 直接创建完整的工作笔记服务（DocumentService参数为nil，根据注释不使用）
 	workNoteService := NewWorkNoteService(sqlDB, nil)
-	
+
 	return &WorkNoteServiceAdapter{
 		WorkNoteService: workNoteService,
-		db:             db,
+		db:              db,
 	}
 }
 

@@ -19,11 +19,11 @@ import (
 
 // PermissionCacheMiddleware provides cached permission checking
 type PermissionCacheMiddleware struct {
-	cache         *redis.Client
+	cache          *redis.Client
 	permissionRepo database.PermissionRepository
-	rateLimiter   *security.RateLimiter
-	ttl           time.Duration
-	enabled       bool
+	rateLimiter    *security.RateLimiter
+	ttl            time.Duration
+	enabled        bool
 }
 
 // PermissionCacheConfig configures the permission cache middleware
@@ -56,7 +56,7 @@ func (m *PermissionCacheMiddleware) PermissionCacheKey(companyUserID int, permis
 	if resourceID != nil {
 		key += fmt.Sprintf(":%d", *resourceID)
 	}
-	
+
 	// Create MD5 hash for consistent key length
 	hash := md5.Sum([]byte(key))
 	return fmt.Sprintf("permission_cache:%x", hash)
@@ -69,7 +69,7 @@ func (m *PermissionCacheMiddleware) GetCachedPermission(ctx context.Context, com
 	}
 
 	key := m.PermissionCacheKey(companyUserID, permissionCode, resourceID)
-	
+
 	cachedResult, err := m.cache.Get(ctx, key).Result()
 	if err != nil {
 		if err != redis.Nil {
@@ -94,7 +94,7 @@ func (m *PermissionCacheMiddleware) SetCachedPermission(ctx context.Context, com
 	}
 
 	key := m.PermissionCacheKey(companyUserID, permissionCode, resourceID)
-	
+
 	resultJSON, err := json.Marshal(result)
 	if err != nil {
 		log.Printf("[PERMISSION_CACHE] Failed to marshal permission result: %v", err)
@@ -210,7 +210,7 @@ func (m *PermissionCacheMiddleware) RequireCachedPermission(permissionCode strin
 		// Check permission with caching
 		result, err := m.CheckCachedPermission(ctx, companyUserID, permissionCode, resourceID)
 		if err != nil {
-			log.Printf("[PERMISSION_CACHE] Permission check error for user %d, permission %s: %v", 
+			log.Printf("[PERMISSION_CACHE] Permission check error for user %d, permission %s: %v",
 				companyUserID, permissionCode, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check permission"})
 			c.Abort()
@@ -218,7 +218,7 @@ func (m *PermissionCacheMiddleware) RequireCachedPermission(permissionCode strin
 		}
 
 		if !result.HasPermission {
-			log.Printf("[PERMISSION_CACHE] Permission denied for user %d, permission %s: %s", 
+			log.Printf("[PERMISSION_CACHE] Permission denied for user %d, permission %s: %s",
 				companyUserID, permissionCode, result.Reason)
 			c.JSON(http.StatusForbidden, gin.H{
 				"error":  "Permission denied",
@@ -230,7 +230,7 @@ func (m *PermissionCacheMiddleware) RequireCachedPermission(permissionCode strin
 		}
 
 		// Log successful permission check
-		log.Printf("[PERMISSION_CACHE] Permission granted for user %d, permission %s (source: %s)", 
+		log.Printf("[PERMISSION_CACHE] Permission granted for user %d, permission %s (source: %s)",
 			companyUserID, permissionCode, result.Source)
 
 		// Store permission result in context for potential use in handlers
@@ -267,7 +267,7 @@ func (m *PermissionCacheMiddleware) BatchCheckCachedPermissions(ctx context.Cont
 		}
 	}
 
-	log.Printf("[PERMISSION_CACHE] Batch permission check for user %d: %d cached, %d from DB", 
+	log.Printf("[PERMISSION_CACHE] Batch permission check for user %d: %d cached, %d from DB",
 		companyUserID, len(permissionCodes)-len(uncachedPermissions), len(uncachedPermissions))
 
 	return results, nil
@@ -351,7 +351,7 @@ func (m *PermissionCacheMiddleware) GetCacheStats(ctx context.Context) (map[stri
 
 	// Get cache info
 	info := m.cache.Info(ctx, "memory").Val()
-	
+
 	// Get permission cache key count
 	keys, err := m.cache.Keys(ctx, "permission_cache:*").Result()
 	if err != nil {
@@ -359,9 +359,9 @@ func (m *PermissionCacheMiddleware) GetCacheStats(ctx context.Context) (map[stri
 	}
 
 	return map[string]interface{}{
-		"enabled":           true,
+		"enabled":            true,
 		"cached_permissions": len(keys),
-		"ttl_minutes":       m.ttl.Minutes(),
-		"redis_info":        info,
+		"ttl_minutes":        m.ttl.Minutes(),
+		"redis_info":         info,
 	}, nil
 }

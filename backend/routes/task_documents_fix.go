@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"database/sql"
 	"ai-project-backend/handlers"
+	"database/sql"
 	"github.com/gin-gonic/gin"
 	"log"
 )
@@ -11,7 +11,7 @@ import (
 // 这个函数应该在其他文档路由之后调用，以确保优先级更高
 func RegisterTaskDocumentFixRoutes(authorized *gin.RouterGroup, db *sql.DB) {
 	log.Println("📌 Registering task document fix routes...")
-	
+
 	// 添加修复的路由，优先级更高
 	projects := authorized.Group("/projects")
 	{

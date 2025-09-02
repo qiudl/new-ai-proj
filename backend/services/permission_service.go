@@ -45,42 +45,42 @@ const (
 type PermissionCategory string
 
 const (
-	CategorySystem    PermissionCategory = "system"
-	CategoryCompany   PermissionCategory = "company"
-	CategoryProject   PermissionCategory = "project"
-	CategoryTask      PermissionCategory = "task"
-	CategoryDocument  PermissionCategory = "document"
-	CategoryUser      PermissionCategory = "user"
-	CategoryReport    PermissionCategory = "report"
-	CategoryFinance   PermissionCategory = "finance"
-	CategorySecurity  PermissionCategory = "security"
+	CategorySystem   PermissionCategory = "system"
+	CategoryCompany  PermissionCategory = "company"
+	CategoryProject  PermissionCategory = "project"
+	CategoryTask     PermissionCategory = "task"
+	CategoryDocument PermissionCategory = "document"
+	CategoryUser     PermissionCategory = "user"
+	CategoryReport   PermissionCategory = "report"
+	CategoryFinance  PermissionCategory = "finance"
+	CategorySecurity PermissionCategory = "security"
 )
 
 // Resource types enumeration
 type ResourceType string
 
 const (
-	ResourceSystem    ResourceType = "system"
-	ResourceCompany   ResourceType = "company"
-	ResourceProject   ResourceType = "project"
-	ResourceTask      ResourceType = "task"
-	ResourceDocument  ResourceType = "document"
-	ResourceUser      ResourceType = "user"
-	ResourceTimer     ResourceType = "timer"
-	ResourceReport    ResourceType = "report"
-	ResourceApiKey    ResourceType = "api_key"
+	ResourceSystem   ResourceType = "system"
+	ResourceCompany  ResourceType = "company"
+	ResourceProject  ResourceType = "project"
+	ResourceTask     ResourceType = "task"
+	ResourceDocument ResourceType = "document"
+	ResourceUser     ResourceType = "user"
+	ResourceTimer    ResourceType = "timer"
+	ResourceReport   ResourceType = "report"
+	ResourceApiKey   ResourceType = "api_key"
 )
 
 // Permission actions enumeration
 type PermissionAction string
 
 const (
-	ActionRead   PermissionAction = "read"
-	ActionCreate PermissionAction = "create"
-	ActionUpdate PermissionAction = "update"
-	ActionDelete PermissionAction = "delete"
-	ActionManage PermissionAction = "manage"
-	ActionAssign PermissionAction = "assign"
+	ActionRead    PermissionAction = "read"
+	ActionCreate  PermissionAction = "create"
+	ActionUpdate  PermissionAction = "update"
+	ActionDelete  PermissionAction = "delete"
+	ActionManage  PermissionAction = "manage"
+	ActionAssign  PermissionAction = "assign"
 	ActionExecute PermissionAction = "execute"
 	ActionExport  PermissionAction = "export"
 	ActionImport  PermissionAction = "import"
@@ -294,7 +294,7 @@ func (s *PermissionService) GetSystemPermissions() []PermissionDefinition {
 			Category: CategoryReport, Resource: ResourceReport, Action: ActionExport, Scope: ScopeProject, IsSystem: false,
 		},
 
-		// Finance permissions  
+		// Finance permissions
 		{
 			Code: "finance.read", Name: "查看财务", Description: "查看财务信息",
 			Category: CategoryFinance, Resource: ResourceProject, Action: ActionRead, Scope: ScopeProject, IsSystem: false,
@@ -671,7 +671,7 @@ func (s *PermissionService) GetUserAccessibleProjects(ctx context.Context, userI
 }
 
 // ============================================================================
-// INTERNAL PERMISSION CHECKING IMPLEMENTATIONS  
+// INTERNAL PERMISSION CHECKING IMPLEMENTATIONS
 // ============================================================================
 
 // buildPermissionCode builds a permission code from resource type and action
@@ -714,8 +714,8 @@ func (s *PermissionService) checkProjectPermissions(ctx context.Context, permCtx
 
 	// Get user's company_user_id first
 	var companyUserID int
-	err := s.db.QueryRowContext(ctx, 
-		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1", 
+	err := s.db.QueryRowContext(ctx,
+		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1",
 		permCtx.UserID).Scan(&companyUserID)
 	if err != nil {
 		return false, "", ""
@@ -824,7 +824,7 @@ func (s *PermissionService) checkDynamicPermissions(ctx context.Context, permCtx
 
 	if permCtx.ProjectID != nil {
 		query += " AND (pd.resource_type = 'project' AND pd.resource_id = $3)"
-		
+
 		var delegatorName, reason string
 		err := s.db.QueryRowContext(ctx, query, permCtx.UserID, permissionCode, *permCtx.ProjectID).Scan(&delegatorName, &reason)
 		if err == nil {
@@ -862,11 +862,11 @@ func (s *PermissionService) checkPolicyPermissions(ctx context.Context, permCtx 
 	// This is a placeholder for policy-based permission checking
 	// In a full implementation, this would evaluate complex policies based on:
 	// - Time of day
-	// - User location  
+	// - User location
 	// - Resource sensitivity
 	// - Business rules
 	// - Risk assessment
-	
+
 	return false, "", ""
 }
 
@@ -900,7 +900,7 @@ func (s *PermissionService) InitializeSystemPermissions(ctx context.Context) err
 				is_active = EXCLUDED.is_active
 		`
 
-		_, err := tx.ExecContext(ctx, query, 
+		_, err := tx.ExecContext(ctx, query,
 			perm.Code, perm.Name, perm.Description,
 			string(perm.Category), string(perm.Resource), string(perm.Action), perm.IsActive)
 		if err != nil {
@@ -933,7 +933,7 @@ func (s *PermissionService) CreateRole(ctx context.Context, roleCode, roleName, 
 	// Add permissions to role
 	for _, permCode := range permissionCodes {
 		var permID int
-		err = tx.QueryRowContext(ctx, 
+		err = tx.QueryRowContext(ctx,
 			"SELECT id FROM permission WHERE permission_code = $1", permCode).Scan(&permID)
 		if err != nil {
 			continue // Skip invalid permissions
@@ -987,8 +987,8 @@ func (s *PermissionService) AssignRoleToUser(ctx context.Context, userID int, ro
 func (s *PermissionService) GrantProjectPermission(ctx context.Context, userID int, projectID int, permissions map[string]bool) error {
 	// Get user's company_user_id
 	var companyUserID int
-	err := s.db.QueryRowContext(ctx, 
-		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1", 
+	err := s.db.QueryRowContext(ctx,
+		"SELECT id FROM company_user WHERE user_id = $1 LIMIT 1",
 		userID).Scan(&companyUserID)
 	if err != nil {
 		return fmt.Errorf("failed to get company user ID: %w", err)
@@ -1013,7 +1013,7 @@ func (s *PermissionService) GrantProjectPermission(ctx context.Context, userID i
 
 	_, err = s.db.ExecContext(ctx, query, companyUserID, projectID,
 		permissions["can_view_project"],
-		permissions["can_edit_project"], 
+		permissions["can_edit_project"],
 		permissions["can_delete_project"],
 		permissions["can_manage_tasks"],
 		permissions["can_view_financials"],

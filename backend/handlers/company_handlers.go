@@ -16,24 +16,24 @@ import (
 
 // CompanyHandler handles company-related HTTP requests
 type CompanyHandler struct {
-	db                   database.DB
-	logger               *log.Logger
-	validator            *validator.Validate
+	db        database.DB
+	logger    *log.Logger
+	validator *validator.Validate
 }
 
 // NewCompanyHandler creates a new CompanyHandler instance
 func NewCompanyHandler(db database.DB, logger *log.Logger, validator *validator.Validate) *CompanyHandler {
 	return &CompanyHandler{
-		db:                   db,
-		logger:               logger,
-		validator:            validator,
+		db:        db,
+		logger:    logger,
+		validator: validator,
 	}
 }
 
 // GetCompanies handles GET /api/v1/companies
 func (h *CompanyHandler) GetCompanies(c *gin.Context) {
 	// 添加CORS头部
-	
+
 	// Parse pagination parameters
 	var pagination models.PaginationParams
 	if err := c.ShouldBindQuery(&pagination); err != nil {
@@ -117,7 +117,7 @@ func (h *CompanyHandler) GetCompanies(c *gin.Context) {
 
 // CreateCompany handles POST /api/v1/companies
 func (h *CompanyHandler) CreateCompany(c *gin.Context) {
-	
+
 	var req models.CompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
@@ -134,43 +134,43 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 
 	// Create company model
 	company := &models.Company{
-		CompanyName:          req.CompanyName,
-		CompanyCode:          req.CompanyCode,
-		Industry:             req.Industry,
-		CompanyType:          req.CompanyType,
-		BusinessLicense:      req.BusinessLicense,
-		TaxNumber:            req.TaxNumber,
-		LegalRepresentative:  req.LegalRepresentative,
-		Address:              req.Address,
-		City:                 req.City,
-		Province:             req.Province,
-		PostalCode:           req.PostalCode,
-		Website:              req.Website,
-		MainPhone:            req.MainPhone,
-		MainEmail:            req.MainEmail,
-		Status:               req.Status,
-		Priority:             req.Priority,
-		AnnualContractValue:  req.AnnualContractValue,
-		StartDate:            req.StartDate,
-		EmployeeCount:        req.EmployeeCount,
-		CompanySize:          req.CompanySize,
-		CreatedBy:            intPtr(1), // TODO: Get from authenticated user context
+		CompanyName:         req.CompanyName,
+		CompanyCode:         req.CompanyCode,
+		Industry:            req.Industry,
+		CompanyType:         req.CompanyType,
+		BusinessLicense:     req.BusinessLicense,
+		TaxNumber:           req.TaxNumber,
+		LegalRepresentative: req.LegalRepresentative,
+		Address:             req.Address,
+		City:                req.City,
+		Province:            req.Province,
+		PostalCode:          req.PostalCode,
+		Website:             req.Website,
+		MainPhone:           req.MainPhone,
+		MainEmail:           req.MainEmail,
+		Status:              req.Status,
+		Priority:            req.Priority,
+		AnnualContractValue: req.AnnualContractValue,
+		StartDate:           req.StartDate,
+		EmployeeCount:       req.EmployeeCount,
+		CompanySize:         req.CompanySize,
+		CreatedBy:           intPtr(1), // TODO: Get from authenticated user context
 	}
 
 	// Create company in database
 	createdCompany, err := h.db.Companies().Create(c.Request.Context(), company)
 	if err != nil {
 		h.logger.Printf("Error creating company: %v", err)
-		
+
 		// Check for duplicate company name constraint violation
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") && 
-		   strings.Contains(err.Error(), "customers_company_name_key") {
-			response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") &&
+			strings.Contains(err.Error(), "customers_company_name_key") {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest,
 				"Company name already exists. Please choose a different name.", nil)
 			c.JSON(http.StatusBadRequest, response)
 			return
 		}
-		
+
 		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create company", nil)
 		c.JSON(http.StatusInternalServerError, response)
 		return
@@ -182,7 +182,7 @@ func (h *CompanyHandler) CreateCompany(c *gin.Context) {
 
 // GetCompany handles GET /api/v1/companies/:id
 func (h *CompanyHandler) GetCompany(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -191,34 +191,34 @@ func (h *CompanyHandler) GetCompany(c *gin.Context) {
 		return
 	}
 
-company, err := h.db.Companies().GetByID(c.Request.Context(), companyID)
-if err != nil {
-	if err.Error() == "company not found" {
-		// Try to load including soft-deleted records and return minimal info
-		deletedCompany, derr := h.db.Companies().GetByIDIncludeDeleted(c.Request.Context(), companyID)
-		if derr == nil && deletedCompany != nil && deletedCompany.DeletedAt != nil {
-			resp := deletedCompany.ToResponse()
-			resp.Deleted = true
-			c.JSON(http.StatusOK, models.NewSuccessResponse(resp, "Company retrieved (soft-deleted)"))
+	company, err := h.db.Companies().GetByID(c.Request.Context(), companyID)
+	if err != nil {
+		if err.Error() == "company not found" {
+			// Try to load including soft-deleted records and return minimal info
+			deletedCompany, derr := h.db.Companies().GetByIDIncludeDeleted(c.Request.Context(), companyID)
+			if derr == nil && deletedCompany != nil && deletedCompany.DeletedAt != nil {
+				resp := deletedCompany.ToResponse()
+				resp.Deleted = true
+				c.JSON(http.StatusOK, models.NewSuccessResponse(resp, "Company retrieved (soft-deleted)"))
+				return
+			}
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
+			c.JSON(http.StatusNotFound, response)
 			return
 		}
-		response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
-		c.JSON(http.StatusNotFound, response)
+		h.logger.Printf("Error getting company: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
+		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
-	h.logger.Printf("Error getting company: %v", err)
-	response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
-	c.JSON(http.StatusInternalServerError, response)
-	return
-}
 
-response := models.NewSuccessResponse(company.ToResponse(), "Company retrieved successfully")
-c.JSON(http.StatusOK, response)
+	response := models.NewSuccessResponse(company.ToResponse(), "Company retrieved successfully")
+	c.JSON(http.StatusOK, response)
 }
 
 // UpdateCompany handles PUT /api/v1/companies/:id
 func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -261,7 +261,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 			// Check if any of the found companies has a different ID
 			for _, company := range companies {
 				if company.ID != companyID {
-					response := models.NewErrorResponse(models.ErrCodeBadRequest, 
+					response := models.NewErrorResponse(models.ErrCodeBadRequest,
 						"Company name already exists. Please choose a different name.", nil)
 					c.JSON(http.StatusBadRequest, response)
 					return
@@ -350,7 +350,7 @@ func (h *CompanyHandler) UpdateCompany(c *gin.Context) {
 
 // DeleteCompany handles DELETE /api/v1/companies/:id
 func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -378,7 +378,7 @@ func (h *CompanyHandler) DeleteCompany(c *gin.Context) {
 
 // GetCompanyStats handles GET /api/v1/companies/stats
 func (h *CompanyHandler) GetCompanyStats(c *gin.Context) {
-	
+
 	stats, err := h.db.Companies().GetStats(c.Request.Context())
 	if err != nil {
 		h.logger.Printf("Error getting company stats: %v", err)
@@ -393,7 +393,7 @@ func (h *CompanyHandler) GetCompanyStats(c *gin.Context) {
 
 // GetCompanyUsers handles GET /api/v1/companies/:id/users
 func (h *CompanyHandler) GetCompanyUsers(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -422,7 +422,7 @@ func (h *CompanyHandler) GetCompanyUsers(c *gin.Context) {
 
 // CreateCompanyUser handles POST /api/v1/companies/:id/users
 func (h *CompanyHandler) CreateCompanyUser(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -481,7 +481,7 @@ func (h *CompanyHandler) CreateCompanyUser(c *gin.Context) {
 
 // GetCompanyUser handles GET /api/v1/companies/:id/users/:userId
 func (h *CompanyHandler) GetCompanyUser(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -524,7 +524,7 @@ func (h *CompanyHandler) GetCompanyUser(c *gin.Context) {
 
 	// Get user permissions if available
 	userResponse := targetUser.ToResponse()
-	
+
 	// Try to get user permissions from permission system
 	userPermissions, err := h.db.Permissions().GetUserPermissions(c.Request.Context(), userID)
 	if err == nil {
@@ -538,7 +538,7 @@ func (h *CompanyHandler) GetCompanyUser(c *gin.Context) {
 
 // UpdateCompanyUser handles PUT /api/v1/companies/:id/users/:userId
 func (h *CompanyHandler) UpdateCompanyUser(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -625,7 +625,7 @@ func (h *CompanyHandler) UpdateCompanyUser(c *gin.Context) {
 
 // DeleteCompanyUser handles DELETE /api/v1/companies/:id/users/:userId
 func (h *CompanyHandler) DeleteCompanyUser(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -687,7 +687,7 @@ func (h *CompanyHandler) DeleteCompanyUser(c *gin.Context) {
 
 // AssignUserRole handles POST /api/v1/companies/:id/users/:userId/role
 func (h *CompanyHandler) AssignUserRole(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -762,7 +762,7 @@ func (h *CompanyHandler) AssignUserRole(c *gin.Context) {
 
 // GetUserPermissions handles GET /api/v1/companies/:id/users/:userId/permissions
 func (h *CompanyHandler) GetUserPermissions(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -817,7 +817,7 @@ func (h *CompanyHandler) GetUserPermissions(c *gin.Context) {
 
 // UpdateUserPermissions handles PUT /api/v1/companies/:id/users/:userId/permissions
 func (h *CompanyHandler) UpdateUserPermissions(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -922,7 +922,7 @@ func (h *CompanyHandler) UpdateUserPermissions(c *gin.Context) {
 
 // GetCompanyContacts handles GET /api/v1/companies/:id/contacts
 func (h *CompanyHandler) GetCompanyContacts(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -979,7 +979,7 @@ func (h *CompanyHandler) GetCompanyContacts(c *gin.Context) {
 
 // CreateCompanyContact handles POST /api/v1/companies/:id/contacts
 func (h *CompanyHandler) CreateCompanyContact(c *gin.Context) {
-	
+
 	companyIDStr := c.Param("id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -1077,6 +1077,7 @@ func (h *CompanyHandler) extractValidationErrors(err error) map[string]string {
 func intPtr(i int) *int {
 	return &i
 }
+
 // GetEnterpriseRoles handles GET /api/v1/companies/:id/roles
 func (h *CompanyHandler) GetEnterpriseRoles(c *gin.Context) {
 	response := models.NewErrorResponse(models.ErrCodeInternal, "Enterprise role service not implemented", nil)

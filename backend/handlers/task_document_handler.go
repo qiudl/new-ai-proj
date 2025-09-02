@@ -19,14 +19,14 @@ import (
 // TaskDocumentHandler 任务文档处理器
 type TaskDocumentHandler struct {
 	docsBasePath string
-	db          *gorm.DB
+	db           *gorm.DB
 }
 
 // NewTaskDocumentHandler 创建任务文档处理器实例
 func NewTaskDocumentHandler(docsBasePath string, db *gorm.DB) *TaskDocumentHandler {
 	return &TaskDocumentHandler{
 		docsBasePath: docsBasePath,
-		db:          db,
+		db:           db,
 	}
 }
 

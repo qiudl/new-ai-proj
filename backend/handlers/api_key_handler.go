@@ -21,7 +21,7 @@ type APIKeyHandler struct {
 func NewAPIKeyHandler(db interface{}) *APIKeyHandler {
 	apiKeyRepo := database.NewAPIKeyRepository(db)
 	apiKeyService := services.NewAPIKeyService(apiKeyRepo)
-	
+
 	return &APIKeyHandler{
 		apiKeyService: apiKeyService,
 		validator:     validator.New(),

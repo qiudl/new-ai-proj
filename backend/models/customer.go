@@ -30,62 +30,62 @@ type Customer struct {
 
 // CustomerRequest represents a request to create or update a customer
 type CustomerRequest struct {
-	Name        string       `json:"name" validate:"required,min=1,max=255"`
-	Company     string       `json:"company" validate:"required,min=1,max=255"`
-	Industry    string       `json:"industry" validate:"required,min=1,max=100"`
-	ContactPerson string     `json:"contact_person" validate:"required,min=1,max=255"`
-	Email       string       `json:"email" validate:"required,email"`
-	Phone       string       `json:"phone" validate:"required,max=50"`
-	Address     string       `json:"address" validate:"required"`
-	Website     *string      `json:"website" validate:"omitempty,url"`
-	Status      string       `json:"status" validate:"oneof=active inactive potential closed"`
-	Priority    string       `json:"priority" validate:"oneof=low medium high"`
-	ContractValue *float64   `json:"contract_value" validate:"omitempty,min=0"`
-	StartDate   *string      `json:"start_date"`
-	EndDate     *string      `json:"end_date"`
-	CustomFields CustomFields `json:"custom_fields"`
+	Name          string       `json:"name" validate:"required,min=1,max=255"`
+	Company       string       `json:"company" validate:"required,min=1,max=255"`
+	Industry      string       `json:"industry" validate:"required,min=1,max=100"`
+	ContactPerson string       `json:"contact_person" validate:"required,min=1,max=255"`
+	Email         string       `json:"email" validate:"required,email"`
+	Phone         string       `json:"phone" validate:"required,max=50"`
+	Address       string       `json:"address" validate:"required"`
+	Website       *string      `json:"website" validate:"omitempty,url"`
+	Status        string       `json:"status" validate:"oneof=active inactive potential closed"`
+	Priority      string       `json:"priority" validate:"oneof=low medium high"`
+	ContractValue *float64     `json:"contract_value" validate:"omitempty,min=0"`
+	StartDate     *string      `json:"start_date"`
+	EndDate       *string      `json:"end_date"`
+	CustomFields  CustomFields `json:"custom_fields"`
 }
 
 // CustomerResponse represents the response format for a customer
 type CustomerResponse struct {
-	ID              int                        `json:"id"`
-	Name            string                     `json:"name"`
-	Company         string                     `json:"company"`
-	Industry        string                     `json:"industry"`
-	ContactPerson   string                     `json:"contact_person"`
-	Email           string                     `json:"email"`
-	Phone           string                     `json:"phone"`
-	Address         string                     `json:"address"`
-	Website         *string                    `json:"website"`
-	Status          string                     `json:"status"`
-	StatusText      string                     `json:"status_text"`
-	Priority        string                     `json:"priority"`
-	PriorityText    string                     `json:"priority_text"`
-	ContractValue   *float64                   `json:"contract_value"`
-	StartDate       *string                    `json:"start_date"`
-	EndDate         *string                    `json:"end_date"`
-	CustomFields    CustomFields               `json:"custom_fields"`
-	CreatedBy       int                        `json:"created_by"`
-	CreatedByName   *string                    `json:"created_by_name,omitempty"`
-	UpdatedBy       *int                       `json:"updated_by"`
-	UpdatedByName   *string                    `json:"updated_by_name,omitempty"`
-	CreatedAt       time.Time                  `json:"created_at"`
-	UpdatedAt       time.Time                  `json:"updated_at"`
-	AssociatedUsers []CustomerUserResponse     `json:"associated_users,omitempty"`
-	RecentContacts  []CustomerContactResponse  `json:"recent_contacts,omitempty"`
+	ID              int                       `json:"id"`
+	Name            string                    `json:"name"`
+	Company         string                    `json:"company"`
+	Industry        string                    `json:"industry"`
+	ContactPerson   string                    `json:"contact_person"`
+	Email           string                    `json:"email"`
+	Phone           string                    `json:"phone"`
+	Address         string                    `json:"address"`
+	Website         *string                   `json:"website"`
+	Status          string                    `json:"status"`
+	StatusText      string                    `json:"status_text"`
+	Priority        string                    `json:"priority"`
+	PriorityText    string                    `json:"priority_text"`
+	ContractValue   *float64                  `json:"contract_value"`
+	StartDate       *string                   `json:"start_date"`
+	EndDate         *string                   `json:"end_date"`
+	CustomFields    CustomFields              `json:"custom_fields"`
+	CreatedBy       int                       `json:"created_by"`
+	CreatedByName   *string                   `json:"created_by_name,omitempty"`
+	UpdatedBy       *int                      `json:"updated_by"`
+	UpdatedByName   *string                   `json:"updated_by_name,omitempty"`
+	CreatedAt       time.Time                 `json:"created_at"`
+	UpdatedAt       time.Time                 `json:"updated_at"`
+	AssociatedUsers []CustomerUserResponse    `json:"associated_users,omitempty"`
+	RecentContacts  []CustomerContactResponse `json:"recent_contacts,omitempty"`
 }
 
 // CustomerUser represents the association between customers and users
 type CustomerUser struct {
-	ID           int          `json:"id" db:"id"`
-	CustomerID   int          `json:"customer_id" db:"customer_id"`
-	UserID       int          `json:"user_id" db:"user_id"`
-	Role         string       `json:"role" db:"role" validate:"oneof=contact manager viewer admin"`
-	IsPrimary    bool         `json:"is_primary" db:"is_primary"`
-	Permissions  CustomFields `json:"permissions" db:"permissions"`
-	AccessLevel  int          `json:"access_level" db:"access_level"`
-	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
+	ID          int          `json:"id" db:"id"`
+	CustomerID  int          `json:"customer_id" db:"customer_id"`
+	UserID      int          `json:"user_id" db:"user_id"`
+	Role        string       `json:"role" db:"role" validate:"oneof=contact manager viewer admin"`
+	IsPrimary   bool         `json:"is_primary" db:"is_primary"`
+	Permissions CustomFields `json:"permissions" db:"permissions"`
+	AccessLevel int          `json:"access_level" db:"access_level"`
+	CreatedAt   time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at" db:"updated_at"`
 }
 
 // CustomerUserRequest represents a request to associate a user with a customer
@@ -99,18 +99,18 @@ type CustomerUserRequest struct {
 
 // CustomerUserResponse represents the response format for customer-user association
 type CustomerUserResponse struct {
-	ID           int          `json:"id"`
-	CustomerID   int          `json:"customer_id"`
-	UserID       int          `json:"user_id"`
-	UserName     string       `json:"user_name"`
-	UserEmail    string       `json:"user_email"`
-	Role         string       `json:"role"`
-	RoleText     string       `json:"role_text"`
-	IsPrimary    bool         `json:"is_primary"`
-	Permissions  CustomFields `json:"permissions"`
-	AccessLevel  int          `json:"access_level"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
+	ID          int          `json:"id"`
+	CustomerID  int          `json:"customer_id"`
+	UserID      int          `json:"user_id"`
+	UserName    string       `json:"user_name"`
+	UserEmail   string       `json:"user_email"`
+	Role        string       `json:"role"`
+	RoleText    string       `json:"role_text"`
+	IsPrimary   bool         `json:"is_primary"`
+	Permissions CustomFields `json:"permissions"`
+	AccessLevel int          `json:"access_level"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
 }
 
 // CustomerContact represents a contact record with a customer
@@ -142,21 +142,21 @@ type CustomerContactRequest struct {
 
 // CustomerContactResponse represents the response format for a contact record
 type CustomerContactResponse struct {
-	ID                int       `json:"id"`
-	CustomerID        int       `json:"customer_id"`
-	ContactType       string    `json:"contact_type"`
-	ContactTypeText   string    `json:"contact_type_text"`
-	Subject           *string   `json:"subject"`
-	Content           *string   `json:"content"`
-	ContactDate       time.Time `json:"contact_date"`
-	NextContactDate   *time.Time `json:"next_contact_date"`
-	Status            string    `json:"status"`
-	StatusText        string    `json:"status_text"`
-	Result            *string   `json:"result"`
-	ContactedBy       *int      `json:"contacted_by"`
-	ContactedByName   *string   `json:"contacted_by_name,omitempty"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID              int        `json:"id"`
+	CustomerID      int        `json:"customer_id"`
+	ContactType     string     `json:"contact_type"`
+	ContactTypeText string     `json:"contact_type_text"`
+	Subject         *string    `json:"subject"`
+	Content         *string    `json:"content"`
+	ContactDate     time.Time  `json:"contact_date"`
+	NextContactDate *time.Time `json:"next_contact_date"`
+	Status          string     `json:"status"`
+	StatusText      string     `json:"status_text"`
+	Result          *string    `json:"result"`
+	ContactedBy     *int       `json:"contacted_by"`
+	ContactedByName *string    `json:"contacted_by_name,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // ToResponse converts Customer to CustomerResponse
@@ -291,50 +291,49 @@ func getContactStatusText(status string) string {
 
 // CustomerFilter represents filter options for customer queries
 type CustomerFilter struct {
-	Status     *string `json:"status" form:"status"`
-	Priority   *string `json:"priority" form:"priority"`
-	Industry   *string `json:"industry" form:"industry"`
-	Search     *string `json:"search" form:"search"`
-	CreatedBy  *int    `json:"created_by" form:"created_by"`
-	DateFrom   *string `json:"date_from" form:"date_from"`
-	DateTo     *string `json:"date_to" form:"date_to"`
+	Status    *string `json:"status" form:"status"`
+	Priority  *string `json:"priority" form:"priority"`
+	Industry  *string `json:"industry" form:"industry"`
+	Search    *string `json:"search" form:"search"`
+	CreatedBy *int    `json:"created_by" form:"created_by"`
+	DateFrom  *string `json:"date_from" form:"date_from"`
+	DateTo    *string `json:"date_to" form:"date_to"`
 }
 
 // CustomerStats represents customer statistics
 type CustomerStats struct {
-	TotalCustomers          int                   `json:"total_customers"`
-	ActiveCustomers         int                   `json:"active_customers"`
-	InactiveCustomers       int                   `json:"inactive_customers"`
-	PotentialCustomers      int                   `json:"potential_customers"`
-	ClosedCustomers         int                   `json:"closed_customers"`
-	HighPriorityCustomers   int                   `json:"high_priority_customers"`
-	MediumPriorityCustomers int                   `json:"medium_priority_customers"`
-	LowPriorityCustomers    int                   `json:"low_priority_customers"`
-	TotalContractValue      float64               `json:"total_contract_value"`
-	AverageContractValue    float64               `json:"average_contract_value"`
-	ByIndustry              []IndustryStats       `json:"by_industry"`
-	ByStatus                []StatusStats         `json:"by_status"`
-	ByPriority              []PriorityStats       `json:"by_priority"`
+	TotalCustomers          int             `json:"total_customers"`
+	ActiveCustomers         int             `json:"active_customers"`
+	InactiveCustomers       int             `json:"inactive_customers"`
+	PotentialCustomers      int             `json:"potential_customers"`
+	ClosedCustomers         int             `json:"closed_customers"`
+	HighPriorityCustomers   int             `json:"high_priority_customers"`
+	MediumPriorityCustomers int             `json:"medium_priority_customers"`
+	LowPriorityCustomers    int             `json:"low_priority_customers"`
+	TotalContractValue      float64         `json:"total_contract_value"`
+	AverageContractValue    float64         `json:"average_contract_value"`
+	ByIndustry              []IndustryStats `json:"by_industry"`
+	ByStatus                []StatusStats   `json:"by_status"`
+	ByPriority              []PriorityStats `json:"by_priority"`
 }
-
 
 // CustomerAnalytics represents comprehensive customer analytics
 type CustomerAnalytics struct {
-	Stats              CustomerStats       `json:"stats"`
-	ConversionRate     float64             `json:"conversion_rate"`
-	AverageLifetime    float64             `json:"average_lifetime"`
-	TopIndustries      []IndustryStats     `json:"top_industries"`
-	RecentTrends       *CustomerTrends     `json:"recent_trends"`
-	UpcomingRenewals   []CustomerRenewal   `json:"upcoming_renewals"`
-	RiskCustomers      []RiskCustomer      `json:"risk_customers"`
+	Stats            CustomerStats     `json:"stats"`
+	ConversionRate   float64           `json:"conversion_rate"`
+	AverageLifetime  float64           `json:"average_lifetime"`
+	TopIndustries    []IndustryStats   `json:"top_industries"`
+	RecentTrends     *CustomerTrends   `json:"recent_trends"`
+	UpcomingRenewals []CustomerRenewal `json:"upcoming_renewals"`
+	RiskCustomers    []RiskCustomer    `json:"risk_customers"`
 }
 
 // CustomerTrends represents customer growth and trend data
 type CustomerTrends struct {
-	MonthlyGrowth      []TrendPoint `json:"monthly_growth"`
-	StatusTrends       []TrendPoint `json:"status_trends"`
-	RevenueTrends      []TrendPoint `json:"revenue_trends"`
-	ConversionTrends   []TrendPoint `json:"conversion_trends"`
+	MonthlyGrowth    []TrendPoint `json:"monthly_growth"`
+	StatusTrends     []TrendPoint `json:"status_trends"`
+	RevenueTrends    []TrendPoint `json:"revenue_trends"`
+	ConversionTrends []TrendPoint `json:"conversion_trends"`
 }
 
 // TrendPoint represents a single data point in trend analysis
@@ -346,25 +345,25 @@ type TrendPoint struct {
 
 // CustomerRenewal represents upcoming contract renewals
 type CustomerRenewal struct {
-	CustomerID      int       `json:"customer_id"`
-	CustomerName    string    `json:"customer_name"`
-	Company         string    `json:"company"`
-	ContractValue   float64   `json:"contract_value"`
-	RenewalDate     time.Time `json:"renewal_date"`
-	DaysToRenewal   int       `json:"days_to_renewal"`
-	RenewalProbability float64 `json:"renewal_probability"`
-	Priority        string    `json:"priority"`
+	CustomerID         int       `json:"customer_id"`
+	CustomerName       string    `json:"customer_name"`
+	Company            string    `json:"company"`
+	ContractValue      float64   `json:"contract_value"`
+	RenewalDate        time.Time `json:"renewal_date"`
+	DaysToRenewal      int       `json:"days_to_renewal"`
+	RenewalProbability float64   `json:"renewal_probability"`
+	Priority           string    `json:"priority"`
 }
 
 // RiskCustomer represents customers at risk of churning
 type RiskCustomer struct {
-	CustomerID       int     `json:"customer_id"`
-	CustomerName     string  `json:"customer_name"`
-	Company          string  `json:"company"`
-	RiskScore        float64 `json:"risk_score"`
-	RiskFactors      []string `json:"risk_factors"`
-	LastContactDate  *time.Time `json:"last_contact_date"`
-	DaysSinceContact int     `json:"days_since_contact"`
-	ContractValue    float64 `json:"contract_value"`
-	RecommendedAction string `json:"recommended_action"`
+	CustomerID        int        `json:"customer_id"`
+	CustomerName      string     `json:"customer_name"`
+	Company           string     `json:"company"`
+	RiskScore         float64    `json:"risk_score"`
+	RiskFactors       []string   `json:"risk_factors"`
+	LastContactDate   *time.Time `json:"last_contact_date"`
+	DaysSinceContact  int        `json:"days_since_contact"`
+	ContractValue     float64    `json:"contract_value"`
+	RecommendedAction string     `json:"recommended_action"`
 }

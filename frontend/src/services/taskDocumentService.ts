@@ -991,7 +991,7 @@ export const taskDocumentService = {
    * 增强错误信息
    */
   _enhanceError(error: any, operation: string): Error {
-    let message = `${operation}失败`;
+    const message = `${operation}失败`;
     let details = '';
 
     if (error.response) {

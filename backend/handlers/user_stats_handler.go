@@ -233,9 +233,9 @@ func (h *UserStatsHandler) GetDashboardStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"basic_stats":     basicStats,
-			"top_performers":  topPerformers,
-			"recent_trends":   trends,
+			"basic_stats":    basicStats,
+			"top_performers": topPerformers,
+			"recent_trends":  trends,
 		},
 	})
 }

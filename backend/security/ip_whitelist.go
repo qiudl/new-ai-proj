@@ -11,7 +11,7 @@ import (
 type IPWhitelistValidator struct {
 	// Global whitelist that applies to all requests
 	GlobalWhitelist []net.IPNet
-	
+
 	// Configuration
 	TrustedProxyHeaders []string // Headers to check for real IP (e.g., X-Forwarded-For)
 	AllowLocalhost      bool     // Whether to allow localhost connections
@@ -57,20 +57,20 @@ func (ipv *IPWhitelistValidator) addToWhitelist(whitelist *[]net.IPNet, ipOrCIDR
 			ipOrCIDR += "/128" // IPv6
 		}
 	}
-	
+
 	// Parse CIDR
 	_, ipNet, err := net.ParseCIDR(ipOrCIDR)
 	if err != nil {
 		return fmt.Errorf("invalid CIDR: %s - %w", ipOrCIDR, err)
 	}
-	
+
 	// Check if already exists
 	for _, existing := range *whitelist {
 		if existing.String() == ipNet.String() {
 			return fmt.Errorf("IP/CIDR already exists in whitelist: %s", ipOrCIDR)
 		}
 	}
-	
+
 	*whitelist = append(*whitelist, *ipNet)
 	return nil
 }
@@ -89,13 +89,13 @@ func (ipv *IPWhitelistValidator) removeFromWhitelist(whitelist *[]net.IPNet, ipO
 			ipOrCIDR += "/128" // IPv6
 		}
 	}
-	
+
 	// Parse CIDR
 	_, ipNet, err := net.ParseCIDR(ipOrCIDR)
 	if err != nil {
 		return fmt.Errorf("invalid CIDR: %s - %w", ipOrCIDR, err)
 	}
-	
+
 	// Find and remove
 	for i, existing := range *whitelist {
 		if existing.String() == ipNet.String() {
@@ -103,7 +103,7 @@ func (ipv *IPWhitelistValidator) removeFromWhitelist(whitelist *[]net.IPNet, ipO
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("IP/CIDR not found in whitelist: %s", ipOrCIDR)
 }
 
@@ -113,7 +113,7 @@ func (ipv *IPWhitelistValidator) ValidateRequest(r *http.Request, apiKeyWhitelis
 	if err != nil {
 		return fmt.Errorf("failed to get client IP: %w", err)
 	}
-	
+
 	return ipv.ValidateIP(clientIP, apiKeyWhitelist)
 }
 
@@ -123,12 +123,12 @@ func (ipv *IPWhitelistValidator) ValidateIP(ip net.IP, apiKeyWhitelist []net.IP)
 	if ipv.isSpecialIPAllowed(ip) {
 		return nil
 	}
-	
+
 	// Check global whitelist
 	if ipv.isIPInWhitelist(ip, ipv.GlobalWhitelist) {
 		return nil
 	}
-	
+
 	// Check API key specific whitelist
 	if len(apiKeyWhitelist) > 0 {
 		for _, allowedIP := range apiKeyWhitelist {
@@ -138,12 +138,12 @@ func (ipv *IPWhitelistValidator) ValidateIP(ip net.IP, apiKeyWhitelist []net.IP)
 		}
 		return fmt.Errorf("IP address %s is not in API key whitelist", ip.String())
 	}
-	
+
 	// If no specific whitelist and not in global whitelist
 	if len(ipv.GlobalWhitelist) > 0 {
 		return fmt.Errorf("IP address %s is not in global whitelist", ip.String())
 	}
-	
+
 	// No whitelists configured, allow all
 	return nil
 }
@@ -167,19 +167,19 @@ func (ipv *IPWhitelistValidator) GetClientIP(r *http.Request) (net.IP, error) {
 			}
 		}
 	}
-	
+
 	// Fall back to RemoteAddr
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
 		// RemoteAddr might not have port
 		host = r.RemoteAddr
 	}
-	
+
 	ip := net.ParseIP(host)
 	if ip == nil {
 		return nil, fmt.Errorf("unable to parse IP from RemoteAddr: %s", r.RemoteAddr)
 	}
-	
+
 	return ip, nil
 }
 
@@ -189,12 +189,12 @@ func (ipv *IPWhitelistValidator) isSpecialIPAllowed(ip net.IP) bool {
 	if ipv.AllowLocalhost && (ip.IsLoopback() || ip.Equal(net.IPv4(127, 0, 0, 1)) || ip.Equal(net.IPv6loopback)) {
 		return true
 	}
-	
+
 	// Check private IP ranges
 	if ipv.AllowPrivateIPs && ipv.isPrivateIP(ip) {
 		return true
 	}
-	
+
 	return false
 }
 
@@ -208,7 +208,7 @@ func (ipv *IPWhitelistValidator) isPrivateIP(ip net.IP) bool {
 		"fc00::/7",       // RFC 4193 (IPv6 unique local)
 		"fe80::/10",      // RFC 4291 (IPv6 link-local)
 	}
-	
+
 	for _, rangeStr := range privateRanges {
 		_, network, err := net.ParseCIDR(rangeStr)
 		if err != nil {
@@ -218,7 +218,7 @@ func (ipv *IPWhitelistValidator) isPrivateIP(ip net.IP) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -251,7 +251,7 @@ func (ipv *IPWhitelistValidator) GetWhitelistInfo() WhitelistInfo {
 	for i, network := range ipv.GlobalWhitelist {
 		globalWhitelist[i] = network.String()
 	}
-	
+
 	return WhitelistInfo{
 		GlobalWhitelist:     globalWhitelist,
 		AllowLocalhost:      ipv.AllowLocalhost,
@@ -281,7 +281,7 @@ func (ipv *IPWhitelistValidator) ValidateIPString(ipStr string, apiKeyWhitelist 
 	if ip == nil {
 		return fmt.Errorf("invalid IP address: %s", ipStr)
 	}
-	
+
 	return ipv.ValidateIP(ip, apiKeyWhitelist)
 }
 
@@ -297,17 +297,17 @@ func (ipv *IPWhitelistValidator) GetGlobalWhitelistCount() int {
 
 // AnalyzeIP provides detailed analysis of an IP address
 type IPAnalysis struct {
-	IP                  string   `json:"ip"`
-	IsValid             bool     `json:"is_valid"`
-	IsIPv4              bool     `json:"is_ipv4"`
-	IsIPv6              bool     `json:"is_ipv6"`
-	IsLoopback          bool     `json:"is_loopback"`
-	IsPrivate           bool     `json:"is_private"`
-	IsGloballyAllowed   bool     `json:"is_globally_allowed"`
-	InGlobalWhitelist   bool     `json:"in_global_whitelist"`
-	MatchingCIDRs       []string `json:"matching_cidrs"`
-	ReasonAllowed       string   `json:"reason_allowed,omitempty"`
-	ReasonDenied        string   `json:"reason_denied,omitempty"`
+	IP                string   `json:"ip"`
+	IsValid           bool     `json:"is_valid"`
+	IsIPv4            bool     `json:"is_ipv4"`
+	IsIPv6            bool     `json:"is_ipv6"`
+	IsLoopback        bool     `json:"is_loopback"`
+	IsPrivate         bool     `json:"is_private"`
+	IsGloballyAllowed bool     `json:"is_globally_allowed"`
+	InGlobalWhitelist bool     `json:"in_global_whitelist"`
+	MatchingCIDRs     []string `json:"matching_cidrs"`
+	ReasonAllowed     string   `json:"reason_allowed,omitempty"`
+	ReasonDenied      string   `json:"reason_denied,omitempty"`
 }
 
 // AnalyzeIP provides detailed analysis of an IP address
@@ -316,19 +316,19 @@ func (ipv *IPWhitelistValidator) AnalyzeIP(ipStr string, apiKeyWhitelist []net.I
 		IP:            ipStr,
 		MatchingCIDRs: []string{},
 	}
-	
+
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
 		analysis.ReasonDenied = "Invalid IP address format"
 		return analysis
 	}
-	
+
 	analysis.IsValid = true
 	analysis.IsIPv4 = ip.To4() != nil
 	analysis.IsIPv6 = !analysis.IsIPv4
 	analysis.IsLoopback = ip.IsLoopback()
 	analysis.IsPrivate = ipv.isPrivateIP(ip)
-	
+
 	// Check what CIDRs match
 	for _, network := range ipv.GlobalWhitelist {
 		if network.Contains(ip) {
@@ -336,7 +336,7 @@ func (ipv *IPWhitelistValidator) AnalyzeIP(ipStr string, apiKeyWhitelist []net.I
 		}
 	}
 	analysis.InGlobalWhitelist = len(analysis.MatchingCIDRs) > 0
-	
+
 	// Check if allowed and why
 	if err := ipv.ValidateIP(ip, apiKeyWhitelist); err != nil {
 		analysis.ReasonDenied = err.Error()
@@ -359,6 +359,6 @@ func (ipv *IPWhitelistValidator) AnalyzeIP(ipStr string, apiKeyWhitelist []net.I
 			analysis.ReasonAllowed = "No restrictions configured"
 		}
 	}
-	
+
 	return analysis
 }

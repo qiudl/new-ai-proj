@@ -16,7 +16,7 @@ import (
 // TestWorkNoteFolderHandler_ResponseStructures 测试响应结构
 func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	// 测试 StandardResponse 结构
 	t.Run("StandardResponse_Structure", func(t *testing.T) {
 		response := StandardResponse{
@@ -25,7 +25,7 @@ func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 			Data:      map[string]string{"key": "value"},
 			Timestamp: 1234567890,
 		}
-		
+
 		// 序列化为JSON验证结构
 		jsonData, err := json.Marshal(response)
 		assert.NoError(t, err)
@@ -33,7 +33,7 @@ func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 		assert.Contains(t, string(jsonData), "message")
 		assert.Contains(t, string(jsonData), "data")
 		assert.Contains(t, string(jsonData), "timestamp")
-		
+
 		// 反序列化验证
 		var decoded StandardResponse
 		err = json.Unmarshal(jsonData, &decoded)
@@ -42,7 +42,7 @@ func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 		assert.Equal(t, response.Message, decoded.Message)
 		assert.Equal(t, response.Timestamp, decoded.Timestamp)
 	})
-	
+
 	// 测试 ErrorInfo 结构
 	t.Run("ErrorInfo_Structure", func(t *testing.T) {
 		errorInfo := &ErrorInfo{
@@ -52,19 +52,19 @@ func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 				"value": "test",
 			},
 		}
-		
+
 		response := StandardResponse{
 			Success: false,
 			Message: "Validation error",
 			Error:   errorInfo,
 		}
-		
+
 		jsonData, err := json.Marshal(response)
 		assert.NoError(t, err)
 		assert.Contains(t, string(jsonData), ErrCodeValidationFailed)
 		assert.Contains(t, string(jsonData), "field")
 	})
-	
+
 	// 测试 PaginatedResponse 结构
 	t.Run("PaginatedResponse_Structure", func(t *testing.T) {
 		pagination := PaginationInfo{
@@ -73,12 +73,12 @@ func TestWorkNoteFolderHandler_ResponseStructures(t *testing.T) {
 			Total:      25,
 			TotalPages: 3,
 		}
-		
+
 		paginatedResp := PaginatedResponse{
 			Items:      []string{"item1", "item2"},
 			Pagination: pagination,
 		}
-		
+
 		jsonData, err := json.Marshal(paginatedResp)
 		assert.NoError(t, err)
 		assert.Contains(t, string(jsonData), "items")
@@ -96,7 +96,7 @@ func TestWorkNoteFolderHandler_ErrorCodes(t *testing.T) {
 	assert.Equal(t, "CONFLICT", ErrCodeConflict)
 	assert.Equal(t, "INTERNAL_ERROR", ErrCodeInternalError)
 	assert.Equal(t, "VALIDATION_FAILED", ErrCodeValidationFailed)
-	
+
 	// 测试特定错误码
 	assert.Equal(t, "FOLDER_NOT_FOUND", ErrCodeFolderNotFound)
 	assert.Equal(t, "FOLDER_NAME_EXISTS", ErrCodeFolderNameExists)
@@ -110,14 +110,14 @@ func TestWorkNoteFolderHandler_ErrorCodes(t *testing.T) {
 // TestWorkNoteFolderHandler_ValidationErrors 测试验证错误
 func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	
+
 	// 设置路由和中间件
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
 		c.Set("user_id", 1)
 		c.Next()
 	})
-	
+
 	// 由于无法完全mock数据库，我们只测试请求解析和基本验证
 	router.POST("/test", func(c *gin.Context) {
 		var req models.CreateWorkNoteFolderRequest
@@ -134,7 +134,7 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 			})
 			return
 		}
-		
+
 		// 基本验证测试
 		if req.Name == "" {
 			c.JSON(http.StatusBadRequest, StandardResponse{
@@ -147,7 +147,7 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 			})
 			return
 		}
-		
+
 		if len(req.Name) > 255 {
 			c.JSON(http.StatusBadRequest, StandardResponse{
 				Success: false,
@@ -159,13 +159,13 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 			})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, StandardResponse{
 			Success: true,
 			Message: "Validation passed",
 		})
 	})
-	
+
 	tests := []struct {
 		name           string
 		requestBody    interface{}
@@ -199,7 +199,7 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 			expectedError:  ErrCodeInvalidRequest,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var body bytes.Buffer
@@ -209,15 +209,15 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 				err := json.NewEncoder(&body).Encode(tt.requestBody)
 				assert.NoError(t, err)
 			}
-			
+
 			req, _ := http.NewRequest("POST", "/test", &body)
 			req.Header.Set("Content-Type", "application/json")
-			
+
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
-			
+
 			assert.Equal(t, tt.expectedStatus, w.Code)
-			
+
 			if tt.expectedError != "" {
 				var response StandardResponse
 				err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -233,16 +233,16 @@ func TestWorkNoteFolderHandler_ValidationErrors(t *testing.T) {
 func TestWorkNoteFolderHandler_ResponseHelpers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler := &WorkNoteFolderHandler{}
-	
+
 	t.Run("successResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		testData := map[string]string{"key": "value"}
 		handler.successResponse(c, "Test success", testData)
-		
+
 		assert.Equal(t, http.StatusOK, w.Code)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -251,19 +251,19 @@ func TestWorkNoteFolderHandler_ResponseHelpers(t *testing.T) {
 		assert.NotNil(t, response.Data)
 		assert.Greater(t, response.Timestamp, int64(0))
 	})
-	
+
 	t.Run("errorResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		details := map[string]interface{}{
 			"field": "name",
 			"value": "invalid",
 		}
 		handler.errorResponse(c, http.StatusBadRequest, ErrCodeValidationFailed, "Validation failed", details)
-		
+
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -273,15 +273,15 @@ func TestWorkNoteFolderHandler_ResponseHelpers(t *testing.T) {
 		assert.Equal(t, ErrCodeValidationFailed, response.Error.Code)
 		assert.Equal(t, "name", response.Error.Details["field"])
 	})
-	
+
 	t.Run("validationErrorResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		handler.validationErrorResponse(c, "email", "Email is required")
-		
+
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -290,11 +290,11 @@ func TestWorkNoteFolderHandler_ResponseHelpers(t *testing.T) {
 		assert.Equal(t, ErrCodeValidationFailed, response.Error.Code)
 		assert.Equal(t, "email", response.Error.Details["field"])
 	})
-	
+
 	t.Run("paginatedResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		items := []map[string]string{
 			{"name": "item1"},
 			{"name": "item2"},
@@ -305,22 +305,22 @@ func TestWorkNoteFolderHandler_ResponseHelpers(t *testing.T) {
 			Total:      25,
 			TotalPages: 3,
 		}
-		
+
 		handler.paginatedResponse(c, "Retrieved items", items, pagination)
-		
+
 		assert.Equal(t, http.StatusOK, w.Code)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.True(t, response.Success)
 		assert.Equal(t, "Retrieved items", response.Message)
-		
+
 		// 验证分页数据结构
 		paginatedData := response.Data.(map[string]interface{})
 		assert.Contains(t, paginatedData, "items")
 		assert.Contains(t, paginatedData, "pagination")
-		
+
 		paginationData := paginatedData["pagination"].(map[string]interface{})
 		assert.Equal(t, float64(1), paginationData["page"])
 		assert.Equal(t, float64(10), paginationData["size"])
@@ -362,7 +362,7 @@ func TestWorkNoteFolderHandler_RequestParsing(t *testing.T) {
 			expectError: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// 测试 CreateWorkNoteFolderRequest
@@ -381,7 +381,7 @@ func TestWorkNoteFolderHandler_RequestParsing(t *testing.T) {
 					}
 				}
 			}
-			
+
 			// 测试 UpdateWorkNoteFolderRequest
 			if tt.name == "Valid UpdateWorkNoteFolderRequest" {
 				var req models.UpdateWorkNoteFolderRequest
@@ -400,7 +400,7 @@ func TestWorkNoteFolderHandler_HelperLogic(t *testing.T) {
 	t.Run("wouldCreateCycle_DirectCycle", func(t *testing.T) {
 		// 测试直接循环检查逻辑
 		handler := &WorkNoteFolderHandler{}
-		
+
 		// 直接循环：父ID和文件夹ID相同
 		result := handler.wouldCreateCycle(1, 1)
 		assert.True(t, result, "Same parent and folder ID should create cycle")
@@ -411,10 +411,10 @@ func TestWorkNoteFolderHandler_HelperLogic(t *testing.T) {
 func BenchmarkWorkNoteFolderHandler_ResponseCreation(b *testing.B) {
 	gin.SetMode(gin.TestMode)
 	handler := &WorkNoteFolderHandler{}
-	
+
 	b.Run("StandardResponse_Creation", func(b *testing.B) {
 		testData := map[string]string{"key": "value"}
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := httptest.NewRecorder()
@@ -422,13 +422,13 @@ func BenchmarkWorkNoteFolderHandler_ResponseCreation(b *testing.B) {
 			handler.successResponse(c, "Test message", testData)
 		}
 	})
-	
+
 	b.Run("ErrorResponse_Creation", func(b *testing.B) {
 		details := map[string]interface{}{
 			"field": "name",
 			"error": "validation failed",
 		}
-		
+
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			w := httptest.NewRecorder()
@@ -442,28 +442,28 @@ func BenchmarkWorkNoteFolderHandler_ResponseCreation(b *testing.B) {
 func TestWorkNoteFolderHandler_EdgeCases(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	handler := &WorkNoteFolderHandler{}
-	
+
 	t.Run("EmptyDetails_ErrorResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		// 测试空的详情映射
 		handler.errorResponse(c, http.StatusBadRequest, ErrCodeInternalError, "Error", nil)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
 		assert.False(t, response.Success)
 		assert.Nil(t, response.Error.Details)
 	})
-	
+
 	t.Run("NilData_SuccessResponse", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
-		
+
 		// 测试空数据
 		handler.successResponse(c, "Success", nil)
-		
+
 		var response StandardResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)

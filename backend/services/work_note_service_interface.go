@@ -19,7 +19,7 @@ type WorkNoteServiceInterface interface {
 	GetPinnedNotes(ctx context.Context, userID int) ([]models.WorkNote, error)
 	GetBookmarkedNotes(ctx context.Context, userID int) ([]models.WorkNote, error)
 	GetRelatedNotes(ctx context.Context, noteID, userID int) ([]models.WorkNote, error)
-	
+
 	// 任务关联功能
 	CreateAndAttachToTask(ctx context.Context, req models.CreateWorkNoteRequest, taskID int, userID int) (*models.WorkNote, error)
 	GetWorkNotesByTask(ctx context.Context, taskID int, userID int) ([]models.WorkNote, error)

@@ -1,10 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
-// 类型定义
-interface StatItem {
-  label: string;
-  value: string | number;
-}
 import {
   Modal,
   Form,
@@ -45,6 +39,12 @@ import {
 import { Task } from '../types/task';
 import { Project } from '../types/project';
 import { Company } from '../types/company';
+
+// 类型定义
+interface StatItem {
+  label: string;
+  value: string | number;
+}
 
 const { Title, Text } = Typography;
 const { Option } = Select;

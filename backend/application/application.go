@@ -19,34 +19,34 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"github.com/go-redis/redis/v8"
 )
 
 // Application holds the application dependencies
 type Application struct {
-	config         *config.Config
-	db             database.DB
-	logger         *log.Logger
-	validator      *validator.Validate
-	jwtManager     *utils.JWTManager
-	handlers       *factories.AllHandlers // Re-enabled
+	config     *config.Config
+	db         database.DB
+	logger     *log.Logger
+	validator  *validator.Validate
+	jwtManager *utils.JWTManager
+	handlers   *factories.AllHandlers // Re-enabled
 	// WebSocket components (temporarily disabled)
 	// wsHub          *ws.Hub
 	// wsHandler      *handlers.WebSocketHandler
 	// progressPusher *services.ProgressPusher
-	redisClient    *redis.Client
+	redisClient *redis.Client
 	// Legacy individual handlers for compatibility
-	authHandler     *handlers.AuthHandler     // Auth handler instance
-	documentHandler *handlers.DocumentHandler // Document handler instance (legacy)
+	authHandler           *handlers.AuthHandler           // Auth handler instance
+	documentHandler       *handlers.DocumentHandler       // Document handler instance (legacy)
 	routerDocumentHandler *handlers.RouterDocumentHandler // Router-based document handler
-	userProfileHandler *handlers.UserProfileHandler // User profile handler instance
-	companyHandler  *handlers.CompanyHandler  // Company handler instance
-	projectHandler  *handlers.ProjectHandler  // Project handler instance
-	taskHandler     *handlers.TaskHandler     // Task handler instance
-	taskHierarchyHandler *handlers.TaskHierarchyHandler // Task hierarchy handler instance
-	mirrorWritable bool
+	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
+	companyHandler        *handlers.CompanyHandler        // Company handler instance
+	projectHandler        *handlers.ProjectHandler        // Project handler instance
+	taskHandler           *handlers.TaskHandler           // Task handler instance
+	taskHierarchyHandler  *handlers.TaskHierarchyHandler  // Task hierarchy handler instance
+	mirrorWritable        bool
 }
 
 // NewApplication creates a new application instance
@@ -114,7 +114,7 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Document Handler
 	documentHandler := handlers.NewDocumentHandler(db)
-	
+
 	// Initialize Router Document Handler with DocumentRouter
 	services.InitDocumentRouterFactory(db)
 	documentRouterFactory := services.GetDocumentRouterFactory()
@@ -155,26 +155,26 @@ func NewApplication() (*Application, error) {
 	// }
 
 	app := &Application{
-		config:      cfg,
-		db:          db,
-		logger:      logger,
-		validator:   validate,
-		jwtManager:  jwtManager,
-		handlers:    allHandlers, // Re-enabled
+		config:     cfg,
+		db:         db,
+		logger:     logger,
+		validator:  validate,
+		jwtManager: jwtManager,
+		handlers:   allHandlers, // Re-enabled
 		// WebSocket components (temporarily disabled)
 		// wsHub:          wsHub,
-		// wsHandler:      wsHandler,  
+		// wsHandler:      wsHandler,
 		// progressPusher: progressPusher,
-		redisClient:    redisClient,
+		redisClient: redisClient,
 		// Legacy individual handlers for compatibility
-		authHandler: authHandler,
-		documentHandler: documentHandler,
+		authHandler:           authHandler,
+		documentHandler:       documentHandler,
 		routerDocumentHandler: routerDocumentHandler,
-		userProfileHandler: userProfileHandler,
-		companyHandler: companyHandler,
-		projectHandler: projectHandler,
-		taskHandler: taskHandler,
-		taskHierarchyHandler: taskHierarchyHandler,
+		userProfileHandler:    userProfileHandler,
+		companyHandler:        companyHandler,
+		projectHandler:        projectHandler,
+		taskHandler:           taskHandler,
+		taskHierarchyHandler:  taskHierarchyHandler,
 	}
 
 	// Perform startup permission/volume checks
@@ -185,13 +185,13 @@ func NewApplication() (*Application, error) {
 
 	// Initialize permission framework - temporarily disabled
 	/*
-	if err := app.initializePermissionFramework(); err != nil {
-		logger.Printf("Warning: Permission framework initialization failed: %v", err)
-		// In production, we should fail here
-		if cfg.IsProduction() {
-			return nil, fmt.Errorf("permission framework is required in production: %v", err)
+		if err := app.initializePermissionFramework(); err != nil {
+			logger.Printf("Warning: Permission framework initialization failed: %v", err)
+			// In production, we should fail here
+			if cfg.IsProduction() {
+				return nil, fmt.Errorf("permission framework is required in production: %v", err)
+			}
 		}
-	}
 	*/
 
 	return app, nil
@@ -221,7 +221,7 @@ func initDB(cfg *config.Config) (database.DB, error) {
 // Run starts the HTTP server
 func (app *Application) Run() error {
 	router := gin.Default()
-	
+
 	// Setup routes
 	if err := app.setupRoutes(router); err != nil {
 		return fmt.Errorf("failed to setup routes: %v", err)
@@ -232,22 +232,22 @@ func (app *Application) Run() error {
 		port = app.config.Server.Port
 	}
 	app.logger.Printf("Server starting on port %s", port)
-	
+
 	return http.ListenAndServe(":"+port, router)
 }
 
 // Close closes database connections and permission framework
 func (app *Application) Close() error {
 	var err error
-	
+
 	// Close permission framework - temporarily disabled
 	/*
-	if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
-		app.logger.Printf("Error closing permission framework: %v", frameworkErr)
-		err = frameworkErr
-	}
+		if frameworkErr := app.closePermissionFramework(); frameworkErr != nil {
+			app.logger.Printf("Error closing permission framework: %v", frameworkErr)
+			err = frameworkErr
+		}
 	*/
-	
+
 	// Close database
 	if app.db != nil {
 		if dbErr := app.db.Close(); dbErr != nil {
@@ -257,7 +257,7 @@ func (app *Application) Close() error {
 			}
 		}
 	}
-	
+
 	return err
 }
 
@@ -307,7 +307,7 @@ func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
 func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
 	// Use the adapter to connect complete WorkNoteService with database.DB interface
 	workNoteService := services.NewWorkNoteServiceAdapter(app.db)
-	
+
 	return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager, app.db)
 }
 
@@ -316,29 +316,29 @@ func (app *Application) GetHybridDocumentFolderHandler() *handlers.HybridDocumen
 	// Debug: Log the actual type of the database
 	dbInstance := app.db.GetDB()
 	app.logger.Printf("DEBUG: DB type is %T", dbInstance)
-	
+
 	// Try to obtain a *gorm.DB from the underlying DB for folder features
 	if gdb, ok := dbInstance.(*gorm.DB); ok && gdb != nil {
 		app.logger.Printf("DEBUG: Found *gorm.DB, creating handler")
 		return handlers.NewHybridDocumentFolderHandler(gdb)
 	}
-	
+
 	// If we have a *sql.DB, create a GORM instance from it
 	if sqlDB, ok := dbInstance.(*sql.DB); ok && sqlDB != nil {
 		app.logger.Printf("DEBUG: Found *sql.DB, creating GORM instance")
 		gormDB, err := gorm.Open(postgres.New(postgres.Config{
 			Conn: sqlDB,
 		}), &gorm.Config{})
-		
+
 		if err != nil {
 			app.logger.Printf("Failed to create GORM instance from sql.DB: %v", err)
 			return nil
 		}
-		
+
 		app.logger.Printf("DEBUG: Successfully created GORM instance from *sql.DB")
 		return handlers.NewHybridDocumentFolderHandler(gormDB)
 	}
-	
+
 	app.logger.Printf("DocumentFolderHandler unavailable: underlying DB is not *gorm.DB or *sql.DB (got %T); skipping folder APIs", dbInstance)
 	return nil
 }
@@ -466,7 +466,7 @@ func (app *Application) GetArchiveHandler() *handlers.ArchiveHandler {
 	return nil // 需要通过工厂创建
 }
 
-// GetCalendarSyncHandler returns the calendar sync handler  
+// GetCalendarSyncHandler returns the calendar sync handler
 func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
 	if app.handlers != nil && app.handlers.CalendarSyncHandler != nil {
 		return app.handlers.CalendarSyncHandler

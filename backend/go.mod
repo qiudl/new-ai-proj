@@ -1,6 +1,8 @@
 module ai-project-backend
 
-go 1.24.4
+go 1.23.0
+
+toolchain go1.24.4
 
 require (
 	github.com/gin-gonic/gin v1.10.1
@@ -8,7 +10,6 @@ require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v5 v5.2.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.10.9
@@ -19,6 +20,7 @@ require (
 	golang.org/x/oauth2 v0.23.0
 	google.golang.org/api v0.203.0
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.30.2
 )
 
@@ -56,7 +58,6 @@ require (
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -84,5 +85,4 @@ require (
 	google.golang.org/grpc v1.67.1 // indirect
 	google.golang.org/protobuf v1.35.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/postgres v1.6.0 // indirect
 )

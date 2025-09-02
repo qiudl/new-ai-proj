@@ -10,8 +10,8 @@ import (
 	"os"
 	"testing"
 
-	apphandlers "ai-project-backend/handlers"
 	"ai-project-backend/database"
+	apphandlers "ai-project-backend/handlers"
 	"github.com/gin-gonic/gin"
 )
 
@@ -64,7 +64,7 @@ func TestCreateAndAttachDocument_Success(t *testing.T) {
 	})
 
 	body := map[string]interface{}{
-		"title": "Test Doc",
+		"title":   "Test Doc",
 		"content": "hello",
 	}
 	b, _ := json.Marshal(body)
@@ -96,7 +96,7 @@ func TestCreateAndAttachDocument_RollbackOnAttachError(t *testing.T) {
 	// use a non-existing task id to trigger FK error on attach
 	nonExistingTaskID := 99999999
 	body := map[string]interface{}{
-		"title": "Doc Should Rollback",
+		"title":   "Doc Should Rollback",
 		"content": "x",
 	}
 	b, _ := json.Marshal(body)

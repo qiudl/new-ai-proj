@@ -149,14 +149,14 @@ func (h *UserManagementHandler) CreateUser(c *gin.Context) {
 
 	// Create user
 	user := &models.User{
-		Username:  req.Username,
-		Email:     req.Email,
+		Username:     req.Username,
+		Email:        req.Email,
 		PasswordHash: string(passwordHash),
-		UserType:  req.UserType,
-		CompanyID: req.CompanyID,
-		Role:      req.Role,
-		Status:    "active", // Default status
-		Profile:   req.Profile,
+		UserType:     req.UserType,
+		CompanyID:    req.CompanyID,
+		Role:         req.Role,
+		Status:       "active", // Default status
+		Profile:      req.Profile,
 	}
 
 	createdUser, err := h.userRepo.CreateUser(c.Request.Context(), user)
@@ -213,17 +213,17 @@ func (h *UserManagementHandler) UpdateUser(c *gin.Context) {
 			c.JSON(models.GetStatusCode(models.ErrCodeNotFound), response)
 			return
 		}
-		
+
 		userType := currentUser.UserType
 		role := currentUser.Role
-		
+
 		if req.UserType != nil {
 			userType = *req.UserType
 		}
 		if req.Role != nil {
 			role = *req.Role
 		}
-		
+
 		if err := models.ValidateUserRole(userType, role); err != nil {
 			response := models.NewErrorResponse(models.ErrCodeValidation, "Invalid role for user type", err.Error())
 			c.JSON(models.GetStatusCode(models.ErrCodeValidation), response)
@@ -471,7 +471,7 @@ func (h *UserManagementHandler) ExportUsers(c *gin.Context) {
 		name := ""
 		department := ""
 		phone := ""
-		
+
 		if user.Profile.Name != nil {
 			name = *user.Profile.Name
 		}

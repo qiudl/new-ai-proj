@@ -6,15 +6,15 @@ import (
 
 // CompanyUserCreateRequest represents a request to create a company user
 type CompanyUserCreateRequest struct {
-	CompanyID           int        `json:"company_id" validate:"required"`
-	Username            string     `json:"username" validate:"required,min=3,max=50"`
-	Email               string     `json:"email" validate:"required,email"`
-	ContactPersonName   string     `json:"contact_person_name" validate:"required,max=100"`
-	ContactPhone        string     `json:"contact_phone" validate:"required,max=50"`
-	DepartmentTitle     string     `json:"department_title" validate:"required,max=100"`
-	IsPrimaryContact    bool       `json:"is_primary_contact"`
-	AccountExpiresAt    *time.Time `json:"account_expires_at,omitempty"`
-	Notes               string     `json:"notes,omitempty"`
+	CompanyID         int        `json:"company_id" validate:"required"`
+	Username          string     `json:"username" validate:"required,min=3,max=50"`
+	Email             string     `json:"email" validate:"required,email"`
+	ContactPersonName string     `json:"contact_person_name" validate:"required,max=100"`
+	ContactPhone      string     `json:"contact_phone" validate:"required,max=50"`
+	DepartmentTitle   string     `json:"department_title" validate:"required,max=100"`
+	IsPrimaryContact  bool       `json:"is_primary_contact"`
+	AccountExpiresAt  *time.Time `json:"account_expires_at,omitempty"`
+	Notes             string     `json:"notes,omitempty"`
 }
 
 // CompanyUserUpdateRequest represents a request to update a company user
@@ -65,19 +65,19 @@ type EnterpriseUserResponse struct {
 // CompanyUserListResponse represents a paginated list of company users
 type CompanyUserListResponse struct {
 	Data     []EnterpriseUserResponse `json:"data"`
-	Total    int                   `json:"total"`
-	Page     int                   `json:"page"`
-	PageSize int                   `json:"page_size"`
+	Total    int                      `json:"total"`
+	Page     int                      `json:"page"`
+	PageSize int                      `json:"page_size"`
 }
 
 // CompanyUserStats represents company user statistics
 type CompanyUserStats struct {
-	Total              int            `json:"total"`
-	ByStatus           map[string]int `json:"by_status"`
-	ByCompany          map[string]int `json:"by_company"`
-	PrimaryContacts    int            `json:"primary_contacts"`
-	ExpiringAccounts   int            `json:"expiring_accounts"`
-	RecentRegistrations int           `json:"recent_registrations"`
+	Total               int            `json:"total"`
+	ByStatus            map[string]int `json:"by_status"`
+	ByCompany           map[string]int `json:"by_company"`
+	PrimaryContacts     int            `json:"primary_contacts"`
+	ExpiringAccounts    int            `json:"expiring_accounts"`
+	RecentRegistrations int            `json:"recent_registrations"`
 }
 
 // BatchCompanyUserRequest represents a batch operation request for company users

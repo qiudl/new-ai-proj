@@ -2,7 +2,7 @@ package routes
 
 import (
 	"database/sql"
-	
+
 	"ai-project-backend/handlers"
 	"ai-project-backend/services"
 	"github.com/gin-gonic/gin"
@@ -14,7 +14,7 @@ func RegisterEnhancedPermissionRoutes(authorized *gin.RouterGroup, app Applicati
 	dbConn := app.GetDB().GetDB().(*sql.DB)
 	permissionService := services.NewEnhancedPermissionService(dbConn)
 	permissionHandler := handlers.NewEnhancedPermissionHandler(permissionService)
-	
+
 	// 增强权限路由组
 	permissions := authorized.Group("/enhanced-permissions")
 	{

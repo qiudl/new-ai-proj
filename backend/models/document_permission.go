@@ -6,15 +6,15 @@ import (
 
 // DocumentPermission represents a permission granted to a user for a document
 type DocumentPermission struct {
-	ID           int       `json:"id" db:"id"`
-	DocumentID   int       `json:"document_id" db:"document_id"`
-	UserID       int       `json:"user_id" db:"user_id"`
-	PermissionType string  `json:"permission_type" db:"permission_type"` // read, write, admin, comment
-	GrantedBy    int       `json:"granted_by" db:"granted_by"`
-	GrantedAt    time.Time `json:"granted_at" db:"granted_at"`
-	ExpiresAt    *time.Time `json:"expires_at,omitempty" db:"expires_at"`
-	IsActive     bool      `json:"is_active" db:"is_active"`
-	
+	ID             int        `json:"id" db:"id"`
+	DocumentID     int        `json:"document_id" db:"document_id"`
+	UserID         int        `json:"user_id" db:"user_id"`
+	PermissionType string     `json:"permission_type" db:"permission_type"` // read, write, admin, comment
+	GrantedBy      int        `json:"granted_by" db:"granted_by"`
+	GrantedAt      time.Time  `json:"granted_at" db:"granted_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+	IsActive       bool       `json:"is_active" db:"is_active"`
+
 	// Related fields (populated by joins)
 	DocumentTitle string `json:"document_title,omitempty" db:"document_title"`
 	Username      string `json:"username,omitempty" db:"username"`
@@ -24,21 +24,21 @@ type DocumentPermission struct {
 
 // DocumentShare represents a shareable link for a document
 type DocumentShare struct {
-	ID           int       `json:"id" db:"id"`
-	DocumentID   int       `json:"document_id" db:"document_id"`
-	ShareToken   string    `json:"share_token" db:"share_token"`
-	ShareType    string    `json:"share_type" db:"share_type"` // link, email, team
-	PermissionType string  `json:"permission_type" db:"permission_type"` // read, comment
-	CreatedBy    int       `json:"created_by" db:"created_by"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	ExpiresAt    *time.Time `json:"expires_at,omitempty" db:"expires_at"`
-	IsActive     bool      `json:"is_active" db:"is_active"`
-	AccessCount  int       `json:"access_count" db:"access_count"`
-	
+	ID             int        `json:"id" db:"id"`
+	DocumentID     int        `json:"document_id" db:"document_id"`
+	ShareToken     string     `json:"share_token" db:"share_token"`
+	ShareType      string     `json:"share_type" db:"share_type"`           // link, email, team
+	PermissionType string     `json:"permission_type" db:"permission_type"` // read, comment
+	CreatedBy      int        `json:"created_by" db:"created_by"`
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	ExpiresAt      *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+	IsActive       bool       `json:"is_active" db:"is_active"`
+	AccessCount    int        `json:"access_count" db:"access_count"`
+
 	// Settings
-	RequireAuth  bool `json:"require_auth" db:"require_auth"`
+	RequireAuth   bool `json:"require_auth" db:"require_auth"`
 	AllowDownload bool `json:"allow_download" db:"allow_download"`
-	
+
 	// Related fields
 	DocumentTitle string `json:"document_title,omitempty" db:"document_title"`
 	CreatorName   string `json:"creator_name,omitempty" db:"creator_name"`
@@ -55,19 +55,19 @@ type DocumentComment struct {
 	IsResolved bool      `json:"is_resolved" db:"is_resolved"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
-	
+
 	// Related fields
-	Username      string               `json:"username,omitempty" db:"username"`
-	UserAvatar    string               `json:"user_avatar,omitempty" db:"user_avatar"`
-	Replies       []*DocumentComment   `json:"replies,omitempty"`
-	ReplyCount    int                  `json:"reply_count,omitempty" db:"reply_count"`
+	Username   string             `json:"username,omitempty" db:"username"`
+	UserAvatar string             `json:"user_avatar,omitempty" db:"user_avatar"`
+	Replies    []*DocumentComment `json:"replies,omitempty"`
+	ReplyCount int                `json:"reply_count,omitempty" db:"reply_count"`
 }
 
 // Request/Response models for permissions
 type GrantDocumentPermissionRequest struct {
-	DocumentID     int    `json:"document_id" binding:"required"`
-	UserID         int    `json:"user_id" binding:"required"`
-	PermissionType string `json:"permission_type" binding:"required,oneof=read write admin comment"`
+	DocumentID     int        `json:"document_id" binding:"required"`
+	UserID         int        `json:"user_id" binding:"required"`
+	PermissionType string     `json:"permission_type" binding:"required,oneof=read write admin comment"`
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
 }
 
@@ -78,12 +78,12 @@ type UpdateDocumentPermissionRequest struct {
 }
 
 type CreateDocumentShareRequest struct {
-	DocumentID     int    `json:"document_id" binding:"required"`
-	ShareType      string `json:"share_type" binding:"required,oneof=link email team"`
-	PermissionType string `json:"permission_type" binding:"required,oneof=read comment"`
+	DocumentID     int        `json:"document_id" binding:"required"`
+	ShareType      string     `json:"share_type" binding:"required,oneof=link email team"`
+	PermissionType string     `json:"permission_type" binding:"required,oneof=read comment"`
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`
-	RequireAuth    bool   `json:"require_auth"`
-	AllowDownload  bool   `json:"allow_download"`
+	RequireAuth    bool       `json:"require_auth"`
+	AllowDownload  bool       `json:"allow_download"`
 }
 
 type UpdateDocumentShareRequest struct {
@@ -156,11 +156,11 @@ func (dp *DocumentPermission) HasPermission(permissionType string) bool {
 	if !dp.IsActive {
 		return false
 	}
-	
+
 	if dp.ExpiresAt != nil && dp.ExpiresAt.Before(time.Now()) {
 		return false
 	}
-	
+
 	switch dp.PermissionType {
 	case "admin":
 		return true // Admin has all permissions
@@ -178,12 +178,12 @@ func (dp *DocumentPermission) HasPermission(permissionType string) bool {
 // Get effective permissions for user
 func GetEffectivePermission(permissions []*DocumentPermission) *UserDocumentPermission {
 	result := &UserDocumentPermission{}
-	
+
 	for _, perm := range permissions {
 		if !perm.IsActive || (perm.ExpiresAt != nil && perm.ExpiresAt.Before(time.Now())) {
 			continue
 		}
-		
+
 		switch perm.PermissionType {
 		case "admin":
 			result.CanRead = true
@@ -202,6 +202,6 @@ func GetEffectivePermission(permissions []*DocumentPermission) *UserDocumentPerm
 			result.CanRead = true
 		}
 	}
-	
+
 	return result
 }

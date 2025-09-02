@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 // PostgresCompanyRepository implements CompanyRepository for PostgreSQL
 type PostgresCompanyRepository struct {
 	db interface{}
@@ -88,7 +87,7 @@ func (r *PostgresCompanyRepository) GetByID(ctx context.Context, id int) (*model
 		return nil, fmt.Errorf("failed to get company: %w", err)
 	}
 
-return company, nil
+	return company, nil
 }
 
 // GetByIDIncludeDeleted retrieves a company by ID including soft-deleted rows
@@ -129,11 +128,11 @@ func (r *PostgresCompanyRepository) GetByIDIncludeDeleted(ctx context.Context, i
 // List retrieves companies with pagination and filtering
 func (r *PostgresCompanyRepository) List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Company, int, error) {
 	whereClause, args := r.buildWhereClause(filters)
-	
+
 	// Count query
 	countQuery := "SELECT COUNT(*) FROM customers WHERE deleted_at IS NULL" + whereClause
 	exec := r.getExecer()
-	
+
 	var total int
 	err := exec.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
@@ -217,7 +216,7 @@ func (r *PostgresCompanyRepository) Update(ctx context.Context, company *models.
 // Delete soft deletes a company
 func (r *PostgresCompanyRepository) Delete(ctx context.Context, id int) error {
 	query := `UPDATE customers SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`
-	
+
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
@@ -363,7 +362,7 @@ func (r *PostgresCompanyRepository) UpdateUser(ctx context.Context, user *models
 // DeleteUser deletes a company user
 func (r *PostgresCompanyRepository) DeleteUser(ctx context.Context, userID int) error {
 	query := `DELETE FROM company_users WHERE id = $1`
-	
+
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, userID)
 	if err != nil {
@@ -414,7 +413,7 @@ func (r *PostgresCompanyRepository) GetContacts(ctx context.Context, companyID i
 	// Count query
 	countQuery := `SELECT COUNT(*) FROM company_contacts WHERE customer_id = $1`
 	exec := r.getExecer()
-	
+
 	var total int
 	err := exec.QueryRowContext(ctx, countQuery, companyID).Scan(&total)
 	if err != nil {
@@ -444,7 +443,7 @@ func (r *PostgresCompanyRepository) GetContacts(ctx context.Context, companyID i
 	for rows.Next() {
 		contact := &models.CompanyContact{}
 		var companyUserName sql.NullString
-		
+
 		err := rows.Scan(
 			&contact.ID, &contact.CustomerID, &contact.CompanyUserID,
 			&contact.ContactType, &contact.Subject, &contact.Content,
@@ -460,7 +459,7 @@ func (r *PostgresCompanyRepository) GetContacts(ctx context.Context, companyID i
 		if companyUserName.Valid {
 			contact.CompanyUserName = &companyUserName.String
 		}
-		
+
 		contacts = append(contacts, contact)
 	}
 

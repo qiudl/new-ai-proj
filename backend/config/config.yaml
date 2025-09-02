@@ -9,7 +9,7 @@ server:
   idle_timeout: 120s
 
 database:
-  host: "localhost"
+  host: "postgres-master"
   port: 5432
   user: "user"
   password: "password"

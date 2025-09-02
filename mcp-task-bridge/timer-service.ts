@@ -5,7 +5,7 @@ import { TimerData, ApiResponse } from './types.js';
 export class TimerService extends BaseClient {
 
   // 开始计时
-  @requiresPermission('start_timer')
+  // @requiresPermission('start_timer')
   async startTimer(taskId: number, description?: string): Promise<ApiResponse<TimerData>> {
     try {
       const payload: any = { taskId: taskId };
@@ -55,7 +55,7 @@ export class TimerService extends BaseClient {
   }
 
   // 停止计时
-  @requiresPermission('stop_timer')
+  // @requiresPermission('stop_timer')
   async stopTimer(taskId?: number): Promise<ApiResponse<TimerData>> {
     try {
       const payload: any = {};
@@ -223,7 +223,7 @@ export class TimerService extends BaseClient {
   }
 
   // 暂停计时器
-  @requiresPermission('pause_timer')
+  // @requiresPermission('pause_timer')
   async pauseTimer(timerId: number): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('PUT', `/timers/${timerId}/pause`);
@@ -247,7 +247,7 @@ export class TimerService extends BaseClient {
   }
 
   // 恢复计时器
-  @requiresPermission('resume_timer')
+  // @requiresPermission('resume_timer')
   async resumeTimer(timerId: number): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('PUT', `/timers/${timerId}/resume`);
@@ -271,7 +271,7 @@ export class TimerService extends BaseClient {
   }
 
   // 删除计时记录
-  @requiresPermission('delete_timer')
+  // @requiresPermission('delete_timer')
   async deleteTimer(timerId: number): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('DELETE', `/timers/${timerId}`);
@@ -294,7 +294,7 @@ export class TimerService extends BaseClient {
   }
 
   // 更新计时器描述
-  @requiresPermission('update_timer')
+  // @requiresPermission('update_timer')
   async updateTimerDescription(timerId: number, description: string): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('PUT', `/timers/${timerId}`, {
@@ -346,7 +346,7 @@ export class TimerService extends BaseClient {
   }
 
   // 批量停止计时器
-  @requiresPermission('stop_timer')
+  // @requiresPermission('stop_timer')
   async batchStopTimers(taskIds?: number[]): Promise<ApiResponse> {
     try {
       // 先获取当前活跃计时器

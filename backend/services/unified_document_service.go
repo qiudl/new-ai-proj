@@ -51,7 +51,7 @@ func NewUnifiedDocumentService(config *interfaces.DocumentConfig) *UnifiedDocume
 			basePath:  filepath.Join(config.BasePath, "templates"),
 		},
 	}
-	
+
 	// 初始化缓存
 	if config.CacheEnabled {
 		service.cache = &DocumentCache{
@@ -60,13 +60,13 @@ func NewUnifiedDocumentService(config *interfaces.DocumentConfig) *UnifiedDocume
 			ttl:     config.Cache.TTL,
 		}
 	}
-	
+
 	// 确保目录存在
 	service.ensureDirectories()
-	
+
 	// 加载模板
 	service.loadTemplates()
-	
+
 	return service
 }
 
@@ -74,25 +74,25 @@ func NewUnifiedDocumentService(config *interfaces.DocumentConfig) *UnifiedDocume
 func (s *UnifiedDocumentService) CreateDocument(ctx context.Context, req *interfaces.CreateDocumentRequest) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	
+
 	// 验证请求
 	if err := s.validateCreateRequest(req); err != nil {
 		return fmt.Errorf("invalid create request: %w", err)
 	}
-	
+
 	// 生成文档路径
 	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
-	
+
 	// 检查文档是否已存在
 	if _, err := os.Stat(docPath); err == nil {
 		return fmt.Errorf("document already exists for task %d in project %d", req.TaskID, req.ProjectID)
 	}
-	
+
 	// 确保目录存在
 	if err := os.MkdirAll(filepath.Dir(docPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// 生成内容（如果指定了模板）
 	content := req.Content
 	if req.TemplateID != "" {
@@ -102,12 +102,12 @@ func (s *UnifiedDocumentService) CreateDocument(ctx context.Context, req *interf
 			return fmt.Errorf("failed to generate content from template: %w", err)
 		}
 	}
-	
+
 	// 写入文件
 	if err := ioutil.WriteFile(docPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.config.GitEnabled {
 		if err := s.gitCommit(docPath, fmt.Sprintf("Create document for task %d", req.TaskID)); err != nil {
@@ -115,10 +115,10 @@ func (s *UnifiedDocumentService) CreateDocument(ctx context.Context, req *interf
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	// 清除缓存
 	s.clearCache(s.getCacheKey(req.ProjectID, req.TaskID))
-	
+
 	return nil
 }
 
@@ -128,7 +128,7 @@ func (s *UnifiedDocumentService) ReadDocument(ctx context.Context, req *interfac
 	if err := s.validateReadRequest(req); err != nil {
 		return nil, fmt.Errorf("invalid read request: %w", err)
 	}
-	
+
 	// 检查缓存
 	cacheKey := s.getCacheKey(req.ProjectID, req.TaskID)
 	if s.cache != nil {
@@ -136,7 +136,7 @@ func (s *UnifiedDocumentService) ReadDocument(ctx context.Context, req *interfac
 			return s.buildDocumentResponse(req.ProjectID, req.TaskID, cached.Content), nil
 		}
 	}
-	
+
 	// 读取文件
 	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
 	content, err := ioutil.ReadFile(docPath)
@@ -146,14 +146,14 @@ func (s *UnifiedDocumentService) ReadDocument(ctx context.Context, req *interfac
 		}
 		return nil, fmt.Errorf("failed to read document: %w", err)
 	}
-	
+
 	contentStr := string(content)
-	
+
 	// 添加到缓存
 	if s.cache != nil {
 		s.addToCache(cacheKey, contentStr, int64(len(content)))
 	}
-	
+
 	return s.buildDocumentResponse(req.ProjectID, req.TaskID, contentStr), nil
 }
 
@@ -161,25 +161,25 @@ func (s *UnifiedDocumentService) ReadDocument(ctx context.Context, req *interfac
 func (s *UnifiedDocumentService) UpdateDocument(ctx context.Context, req *interfaces.UpdateDocumentRequest) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	
+
 	// 验证请求
 	if err := s.validateUpdateRequest(req); err != nil {
 		return fmt.Errorf("invalid update request: %w", err)
 	}
-	
+
 	// 生成文档路径
 	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
-	
+
 	// 检查文档是否存在
 	if _, err := os.Stat(docPath); os.IsNotExist(err) {
 		return fmt.Errorf("document not found for task %d in project %d", req.TaskID, req.ProjectID)
 	}
-	
+
 	// 写入文件
 	if err := ioutil.WriteFile(docPath, []byte(req.Content), 0644); err != nil {
 		return fmt.Errorf("failed to update document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.config.GitEnabled {
 		message := req.Message
@@ -190,10 +190,10 @@ func (s *UnifiedDocumentService) UpdateDocument(ctx context.Context, req *interf
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	// 清除缓存
 	s.clearCache(s.getCacheKey(req.ProjectID, req.TaskID))
-	
+
 	return nil
 }
 
@@ -201,31 +201,31 @@ func (s *UnifiedDocumentService) UpdateDocument(ctx context.Context, req *interf
 func (s *UnifiedDocumentService) DeleteDocument(ctx context.Context, req *interfaces.DeleteDocumentRequest) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	
+
 	// 验证请求
 	if err := s.validateDeleteRequest(req); err != nil {
 		return fmt.Errorf("invalid delete request: %w", err)
 	}
-	
+
 	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
-	
+
 	// 检查文档是否存在
 	if _, err := os.Stat(docPath); os.IsNotExist(err) {
 		return fmt.Errorf("document not found for task %d in project %d", req.TaskID, req.ProjectID)
 	}
-	
+
 	// 如果启用备份，先备份文件
 	if s.config.BackupEnabled {
 		if err := s.backupDocument(docPath); err != nil {
 			return fmt.Errorf("failed to backup document: %w", err)
 		}
 	}
-	
+
 	// 删除文件
 	if err := os.Remove(docPath); err != nil {
 		return fmt.Errorf("failed to delete document: %w", err)
 	}
-	
+
 	// Git提交
 	if s.config.GitEnabled {
 		message := fmt.Sprintf("Delete document for task %d", req.TaskID)
@@ -236,10 +236,10 @@ func (s *UnifiedDocumentService) DeleteDocument(ctx context.Context, req *interf
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	// 清除缓存
 	s.clearCache(s.getCacheKey(req.ProjectID, req.TaskID))
-	
+
 	return nil
 }
 
@@ -248,13 +248,13 @@ func (s *UnifiedDocumentService) GetDocumentHistory(ctx context.Context, req *in
 	if !s.config.GitEnabled {
 		return nil, fmt.Errorf("git is not enabled")
 	}
-	
+
 	docPath := s.getDocumentPath(req.ProjectID, req.TaskID)
 	relPath, err := filepath.Rel(s.getRepoRoot(), docPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get relative path: %w", err)
 	}
-	
+
 	// 构建git log命令
 	args := []string{"log", "--pretty=format:%H|%an|%ad|%s", "--date=iso"}
 	if req.Limit > 0 {
@@ -264,12 +264,12 @@ func (s *UnifiedDocumentService) GetDocumentHistory(ctx context.Context, req *in
 		args = append(args, fmt.Sprintf("--skip=%d", req.Offset))
 	}
 	args = append(args, "--", relPath)
-	
+
 	output, err := s.execGitCommandWithOutput(args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get git log: %w", err)
 	}
-	
+
 	return s.parseGitLog(output), nil
 }
 
@@ -277,27 +277,27 @@ func (s *UnifiedDocumentService) GetDocumentHistory(ctx context.Context, req *in
 func (s *UnifiedDocumentService) ArchiveDocument(ctx context.Context, req *interfaces.ArchiveRequest) error {
 	sourcePath := s.getDocumentPath(req.ProjectID, req.TaskID)
 	archivePath := s.getArchivedDocumentPath(req.TaskID)
-	
+
 	// 检查源文件是否存在
 	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
 		return fmt.Errorf("document not found for task %d in project %d", req.TaskID, req.ProjectID)
 	}
-	
+
 	// 确保归档目录存在
 	if err := os.MkdirAll(filepath.Dir(archivePath), 0755); err != nil {
 		return fmt.Errorf("failed to create archive directory: %w", err)
 	}
-	
+
 	// 复制文件到归档目录
 	content, err := ioutil.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	
+
 	if err := ioutil.WriteFile(archivePath, content, 0644); err != nil {
 		return fmt.Errorf("failed to write archive file: %w", err)
 	}
-	
+
 	// Git提交归档
 	if s.config.GitEnabled {
 		message := fmt.Sprintf("Archive document for task %d", req.TaskID)
@@ -308,7 +308,7 @@ func (s *UnifiedDocumentService) ArchiveDocument(ctx context.Context, req *inter
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -318,35 +318,35 @@ func (s *UnifiedDocumentService) MigrateDocument(ctx context.Context, req *inter
 	if _, err := os.Stat(req.SourcePath); os.IsNotExist(err) {
 		return fmt.Errorf("source document not found: %s", req.SourcePath)
 	}
-	
+
 	// 如果是试运行，只验证不实际操作
 	if req.DryRun {
 		fmt.Printf("DRY RUN: Would migrate %s to %s\n", req.SourcePath, req.TargetPath)
 		return nil
 	}
-	
+
 	// 确保目标目录存在
 	if err := os.MkdirAll(filepath.Dir(req.TargetPath), 0755); err != nil {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
-	
+
 	// 复制文件
 	content, err := ioutil.ReadFile(req.SourcePath)
 	if err != nil {
 		return fmt.Errorf("failed to read source file: %w", err)
 	}
-	
+
 	if err := ioutil.WriteFile(req.TargetPath, content, 0644); err != nil {
 		return fmt.Errorf("failed to write target file: %w", err)
 	}
-	
+
 	// Git提交
 	if s.config.GitEnabled {
 		if err := s.gitCommit(req.TargetPath, fmt.Sprintf("Migrate document from %s to %s", req.SourcePath, req.TargetPath)); err != nil {
 			fmt.Printf("Git commit failed: %v\n", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -356,14 +356,14 @@ func (s *UnifiedDocumentService) HealthCheck(ctx context.Context) error {
 	if _, err := os.Stat(s.config.BasePath); os.IsNotExist(err) {
 		return fmt.Errorf("base path does not exist: %s", s.config.BasePath)
 	}
-	
+
 	// 检查Git是否可用（如果启用）
 	if s.config.GitEnabled {
 		if _, err := exec.LookPath("git"); err != nil {
 			return fmt.Errorf("git is not available: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -388,7 +388,7 @@ func (s *UnifiedDocumentService) ensureDirectories() {
 		filepath.Join(s.config.BasePath, "templates"),
 		filepath.Join(s.config.BasePath, "backups"),
 	}
-	
+
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0755)
 	}
@@ -438,21 +438,21 @@ func (s *UnifiedDocumentService) getFromCache(key string) *CacheEntry {
 	if s.cache == nil {
 		return nil
 	}
-	
+
 	s.cache.mutex.RLock()
 	defer s.cache.mutex.RUnlock()
-	
+
 	entry, exists := s.cache.cache[key]
 	if !exists {
 		return nil
 	}
-	
+
 	// 检查是否过期
 	if time.Since(entry.Timestamp) > s.cache.ttl {
 		delete(s.cache.cache, key)
 		return nil
 	}
-	
+
 	return entry
 }
 
@@ -460,16 +460,16 @@ func (s *UnifiedDocumentService) addToCache(key, content string, size int64) {
 	if s.cache == nil {
 		return
 	}
-	
+
 	s.cache.mutex.Lock()
 	defer s.cache.mutex.Unlock()
-	
+
 	// 检查缓存大小限制
 	if len(s.cache.cache) >= s.cache.maxSize {
 		// 清理最旧的条目
 		s.evictOldestEntry()
 	}
-	
+
 	s.cache.cache[key] = &CacheEntry{
 		Content:   content,
 		Timestamp: time.Now(),
@@ -481,24 +481,24 @@ func (s *UnifiedDocumentService) clearCache(key string) {
 	if s.cache == nil {
 		return
 	}
-	
+
 	s.cache.mutex.Lock()
 	defer s.cache.mutex.Unlock()
-	
+
 	delete(s.cache.cache, key)
 }
 
 func (s *UnifiedDocumentService) evictOldestEntry() {
 	var oldestKey string
 	var oldestTime time.Time
-	
+
 	for key, entry := range s.cache.cache {
 		if oldestKey == "" || entry.Timestamp.Before(oldestTime) {
 			oldestKey = key
 			oldestTime = entry.Timestamp
 		}
 	}
-	
+
 	if oldestKey != "" {
 		delete(s.cache.cache, oldestKey)
 	}
@@ -508,7 +508,7 @@ func (s *UnifiedDocumentService) evictOldestEntry() {
 func (s *UnifiedDocumentService) buildDocumentResponse(projectID, taskID int, content string) *interfaces.DocumentResponse {
 	docPath := s.getDocumentPath(projectID, taskID)
 	stat, _ := os.Stat(docPath)
-	
+
 	response := &interfaces.DocumentResponse{
 		TaskID:    taskID,
 		ProjectID: projectID,
@@ -517,12 +517,12 @@ func (s *UnifiedDocumentService) buildDocumentResponse(projectID, taskID int, co
 		Size:      int64(len(content)),
 		Path:      docPath,
 	}
-	
+
 	if stat != nil {
 		response.LastUpdated = stat.ModTime()
 		response.CreatedAt = stat.ModTime() // 简化处理
 	}
-	
+
 	return response
 }
 
@@ -533,12 +533,12 @@ func (s *UnifiedDocumentService) getRepoRoot() string {
 
 func (s *UnifiedDocumentService) gitCommit(filePath, message string) error {
 	repoRoot := s.getRepoRoot()
-	
+
 	// 添加文件到暂存区
 	if err := s.execGitCommand(repoRoot, "add", filePath); err != nil {
 		return fmt.Errorf("git add failed: %w", err)
 	}
-	
+
 	// 提交更改
 	if err := s.execGitCommand(repoRoot, "commit", "-m", message); err != nil {
 		if strings.Contains(err.Error(), "nothing to commit") {
@@ -546,7 +546,7 @@ func (s *UnifiedDocumentService) gitCommit(filePath, message string) error {
 		}
 		return fmt.Errorf("git commit failed: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -573,12 +573,12 @@ func (s *UnifiedDocumentService) execGitCommandWithOutput(args ...string) (strin
 func (s *UnifiedDocumentService) parseGitLog(output string) []interfaces.GitCommit {
 	var commits []interfaces.GitCommit
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	
+
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Split(line, "|")
 		if len(parts) >= 4 {
 			date, _ := time.Parse("2006-01-02 15:04:05 -0700", parts[2])
@@ -590,7 +590,7 @@ func (s *UnifiedDocumentService) parseGitLog(output string) []interfaces.GitComm
 			})
 		}
 	}
-	
+
 	return commits
 }
 
@@ -608,7 +608,7 @@ func (s *UnifiedDocumentService) generateContentFromTemplate(templateID string, 
 	if !exists {
 		return "", fmt.Errorf("template not found: %s", templateID)
 	}
-	
+
 	// 简单的模板变量替换
 	content := strings.ReplaceAll(template, "{TASK_ID}", fmt.Sprintf("%d", req.TaskID))
 	content = strings.ReplaceAll(content, "{PROJECT_ID}", fmt.Sprintf("%d", req.ProjectID))
@@ -616,7 +616,7 @@ func (s *UnifiedDocumentService) generateContentFromTemplate(templateID string, 
 	content = strings.ReplaceAll(content, "{CONTENT}", req.Content)
 	content = strings.ReplaceAll(content, "{DATE}", time.Now().Format("2006-01-02"))
 	content = strings.ReplaceAll(content, "{DATETIME}", time.Now().Format("2006-01-02 15:04:05"))
-	
+
 	return content, nil
 }
 
@@ -625,14 +625,14 @@ func (s *UnifiedDocumentService) backupDocument(docPath string) error {
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		return err
 	}
-	
+
 	backupPath := filepath.Join(backupDir, fmt.Sprintf("%s.%d.bak", filepath.Base(docPath), time.Now().Unix()))
-	
+
 	content, err := ioutil.ReadFile(docPath)
 	if err != nil {
 		return err
 	}
-	
+
 	return ioutil.WriteFile(backupPath, content, 0644)
 }
 
@@ -663,7 +663,7 @@ func (s *UnifiedDocumentService) CompareVersions(ctx context.Context, req *inter
 
 	// 比较内容生成变更
 	changes := s.compareContent(fromContent, toContent)
-	
+
 	// 计算统计信息
 	stats := s.calculateStats(changes)
 
@@ -722,12 +722,12 @@ func (s *UnifiedDocumentService) ResolveConflict(ctx context.Context, req *inter
 // SearchDocuments 搜索文档
 func (s *UnifiedDocumentService) SearchDocuments(ctx context.Context, req *interfaces.SearchRequest) (*interfaces.SearchResponse, error) {
 	startTime := time.Now()
-	
+
 	// 获取搜索路径
 	searchPaths := s.getSearchPaths(req.ProjectIDs, req.TaskIDs)
-	
+
 	var results []interfaces.SearchResult
-	
+
 	// 遍历搜索路径
 	for _, path := range searchPaths {
 		if match, score := s.matchDocument(path, req.Query, req.Filters); match {
@@ -738,10 +738,10 @@ func (s *UnifiedDocumentService) SearchDocuments(ctx context.Context, req *inter
 			results = append(results, result)
 		}
 	}
-	
+
 	// 排序结果
 	s.sortSearchResults(results, req.SortBy, req.SortOrder)
-	
+
 	// 分页
 	total := len(results)
 	start := req.Offset
@@ -752,15 +752,15 @@ func (s *UnifiedDocumentService) SearchDocuments(ctx context.Context, req *inter
 	if end > total {
 		end = total
 	}
-	
+
 	if start < end {
 		results = results[start:end]
 	} else {
 		results = []interfaces.SearchResult{}
 	}
-	
+
 	queryTime := float64(time.Since(startTime).Nanoseconds()) / 1000000.0 // 转换为毫秒
-	
+
 	response := &interfaces.SearchResponse{
 		Results:   results,
 		Total:     total,
@@ -768,7 +768,7 @@ func (s *UnifiedDocumentService) SearchDocuments(ctx context.Context, req *inter
 		PageSize:  req.Limit,
 		QueryTime: queryTime,
 	}
-	
+
 	return response, nil
 }
 
@@ -779,7 +779,7 @@ func (s *UnifiedDocumentService) IndexDocument(ctx context.Context, req *interfa
 	if _, err := os.Stat(docPath); os.IsNotExist(err) {
 		return fmt.Errorf("document does not exist")
 	}
-	
+
 	// 这里可以实现实际的索引逻辑，比如更新Elasticsearch或其他搜索引擎
 	return nil
 }
@@ -790,13 +790,13 @@ func (s *UnifiedDocumentService) IndexDocument(ctx context.Context, req *interfa
 func (s *UnifiedDocumentService) BatchCreateDocuments(ctx context.Context, req *interfaces.BatchCreateRequest) (*interfaces.BatchOperationResponse, error) {
 	var results []interfaces.BatchOperationResult
 	successCount := 0
-	
+
 	for _, docReq := range req.Documents {
 		result := interfaces.BatchOperationResult{
 			ProjectID: docReq.ProjectID,
 			TaskID:    docReq.TaskID,
 		}
-		
+
 		if err := s.CreateDocument(ctx, &docReq); err != nil {
 			result.Success = false
 			result.Error = err.Error()
@@ -804,17 +804,17 @@ func (s *UnifiedDocumentService) BatchCreateDocuments(ctx context.Context, req *
 			result.Success = true
 			successCount++
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	response := &interfaces.BatchOperationResponse{
 		Total:   len(req.Documents),
 		Success: successCount,
 		Failed:  len(req.Documents) - successCount,
 		Results: results,
 	}
-	
+
 	return response, nil
 }
 
@@ -822,13 +822,13 @@ func (s *UnifiedDocumentService) BatchCreateDocuments(ctx context.Context, req *
 func (s *UnifiedDocumentService) BatchUpdateDocuments(ctx context.Context, req *interfaces.BatchUpdateRequest) (*interfaces.BatchOperationResponse, error) {
 	var results []interfaces.BatchOperationResult
 	successCount := 0
-	
+
 	for _, docReq := range req.Documents {
 		result := interfaces.BatchOperationResult{
 			ProjectID: docReq.ProjectID,
 			TaskID:    docReq.TaskID,
 		}
-		
+
 		if err := s.UpdateDocument(ctx, &docReq); err != nil {
 			result.Success = false
 			result.Error = err.Error()
@@ -836,17 +836,17 @@ func (s *UnifiedDocumentService) BatchUpdateDocuments(ctx context.Context, req *
 			result.Success = true
 			successCount++
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	response := &interfaces.BatchOperationResponse{
 		Total:   len(req.Documents),
 		Success: successCount,
 		Failed:  len(req.Documents) - successCount,
 		Results: results,
 	}
-	
+
 	return response, nil
 }
 
@@ -854,13 +854,13 @@ func (s *UnifiedDocumentService) BatchUpdateDocuments(ctx context.Context, req *
 func (s *UnifiedDocumentService) BatchDeleteDocuments(ctx context.Context, req *interfaces.BatchDeleteRequest) (*interfaces.BatchOperationResponse, error) {
 	var results []interfaces.BatchOperationResult
 	successCount := 0
-	
+
 	for _, docReq := range req.Documents {
 		result := interfaces.BatchOperationResult{
 			ProjectID: docReq.ProjectID,
 			TaskID:    docReq.TaskID,
 		}
-		
+
 		if err := s.DeleteDocument(ctx, &docReq); err != nil {
 			result.Success = false
 			result.Error = err.Error()
@@ -868,17 +868,17 @@ func (s *UnifiedDocumentService) BatchDeleteDocuments(ctx context.Context, req *
 			result.Success = true
 			successCount++
 		}
-		
+
 		results = append(results, result)
 	}
-	
+
 	response := &interfaces.BatchOperationResponse{
 		Total:   len(req.Documents),
 		Success: successCount,
 		Failed:  len(req.Documents) - successCount,
 		Results: results,
 	}
-	
+
 	return response, nil
 }
 
@@ -888,18 +888,18 @@ func (s *UnifiedDocumentService) BatchDeleteDocuments(ctx context.Context, req *
 func (s *UnifiedDocumentService) ExportDocuments(ctx context.Context, req *interfaces.ExportRequest) (*interfaces.ExportResponse, error) {
 	// 简化实现，实际应该根据格式生成相应的导出文件
 	fileName := fmt.Sprintf("documents-export-%s.%s", time.Now().Format("20060102-150405"), req.Format)
-	
+
 	// 这里应该实现实际的导出逻辑
 	content := "# 文档导出\n\n导出功能暂未完全实现"
 	data := []byte(content)
-	
+
 	response := &interfaces.ExportResponse{
 		FileName: fileName,
 		Size:     int64(len(data)),
 		Data:     data,
 		Format:   req.Format,
 	}
-	
+
 	return response, nil
 }
 
@@ -914,14 +914,14 @@ func (s *UnifiedDocumentService) ImportDocuments(ctx context.Context, req *inter
 			Success:   true,
 		},
 	}
-	
+
 	response := &interfaces.ImportResponse{
 		Total:   1,
 		Success: 1,
 		Failed:  0,
 		Results: results,
 	}
-	
+
 	return response, nil
 }
 
@@ -941,72 +941,72 @@ type DocumentLock struct {
 // LockDocument 锁定文档
 func (s *UnifiedDocumentService) LockDocument(ctx context.Context, req *interfaces.DocumentLockRequest) error {
 	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
-	
+
 	locksMutex.Lock()
 	defer locksMutex.Unlock()
-	
+
 	// 检查是否已经被锁定
 	if lock, exists := documentLocks[lockKey]; exists {
 		if time.Now().Before(lock.ExpiresAt) && lock.UserID != req.UserID {
 			return fmt.Errorf("document is already locked by user %d", lock.UserID)
 		}
 	}
-	
+
 	// 创建新锁
 	ttl := time.Duration(req.TTL) * time.Second
 	if ttl == 0 {
 		ttl = 5 * time.Minute // 默认5分钟
 	}
-	
+
 	documentLocks[lockKey] = &DocumentLock{
 		UserID:    req.UserID,
 		LockType:  req.LockType,
 		LockedAt:  time.Now(),
 		ExpiresAt: time.Now().Add(ttl),
 	}
-	
+
 	return nil
 }
 
 // UnlockDocument 解锁文档
 func (s *UnifiedDocumentService) UnlockDocument(ctx context.Context, req *interfaces.DocumentLockRequest) error {
 	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
-	
+
 	locksMutex.Lock()
 	defer locksMutex.Unlock()
-	
+
 	if lock, exists := documentLocks[lockKey]; exists {
 		if lock.UserID != req.UserID {
 			return fmt.Errorf("document is locked by another user")
 		}
 		delete(documentLocks, lockKey)
 	}
-	
+
 	return nil
 }
 
 // GetDocumentLockStatus 获取文档锁定状态
 func (s *UnifiedDocumentService) GetDocumentLockStatus(ctx context.Context, req *interfaces.LockStatusRequest) (*interfaces.LockStatusResponse, error) {
 	lockKey := fmt.Sprintf("%d-%d", req.ProjectID, req.TaskID)
-	
+
 	locksMutex.RLock()
 	defer locksMutex.RUnlock()
-	
+
 	lock, exists := documentLocks[lockKey]
 	if !exists || time.Now().After(lock.ExpiresAt) {
 		// 清理过期锁
 		if exists {
 			delete(documentLocks, lockKey)
 		}
-		
+
 		return &interfaces.LockStatusResponse{
 			IsLocked: false,
 			CanEdit:  true,
 		}, nil
 	}
-	
+
 	canEdit := lock.UserID == req.UserID
-	
+
 	response := &interfaces.LockStatusResponse{
 		IsLocked:  true,
 		LockType:  lock.LockType,
@@ -1015,7 +1015,7 @@ func (s *UnifiedDocumentService) GetDocumentLockStatus(ctx context.Context, req 
 		ExpiresAt: lock.ExpiresAt,
 		CanEdit:   canEdit,
 	}
-	
+
 	return response, nil
 }
 
@@ -1026,12 +1026,12 @@ func (s *UnifiedDocumentService) getContentAtVersion(filePath, version string) (
 	repoRoot := s.getRepoRoot()
 	cmd := exec.Command("git", "show", fmt.Sprintf("%s:%s", version, filePath))
 	cmd.Dir = repoRoot
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get file at version %s: %w", version, err)
 	}
-	
+
 	return string(output), nil
 }
 
@@ -1039,15 +1039,15 @@ func (s *UnifiedDocumentService) getContentAtVersion(filePath, version string) (
 func (s *UnifiedDocumentService) compareContent(fromContent, toContent string) []interfaces.ChangeItem {
 	fromLines := strings.Split(fromContent, "\n")
 	toLines := strings.Split(toContent, "\n")
-	
+
 	var changes []interfaces.ChangeItem
-	
+
 	// 简化的差异算法
 	maxLen := len(fromLines)
 	if len(toLines) > maxLen {
 		maxLen = len(toLines)
 	}
-	
+
 	for i := 0; i < maxLen; i++ {
 		var fromLine, toLine string
 		if i < len(fromLines) {
@@ -1056,7 +1056,7 @@ func (s *UnifiedDocumentService) compareContent(fromContent, toContent string) [
 		if i < len(toLines) {
 			toLine = toLines[i]
 		}
-		
+
 		if fromLine != toLine {
 			if fromLine == "" {
 				changes = append(changes, interfaces.ChangeItem{
@@ -1080,14 +1080,14 @@ func (s *UnifiedDocumentService) compareContent(fromContent, toContent string) [
 			}
 		}
 	}
-	
+
 	return changes
 }
 
 // calculateStats 计算比较统计信息
 func (s *UnifiedDocumentService) calculateStats(changes []interfaces.ChangeItem) interfaces.ComparisonStats {
 	stats := interfaces.ComparisonStats{}
-	
+
 	for _, change := range changes {
 		switch change.Type {
 		case "added":
@@ -1102,14 +1102,14 @@ func (s *UnifiedDocumentService) calculateStats(changes []interfaces.ChangeItem)
 			stats.WordsDeleted += len(strings.Fields(change.OldText))
 		}
 	}
-	
+
 	return stats
 }
 
 // getSearchPaths 获取搜索路径列表
 func (s *UnifiedDocumentService) getSearchPaths(projectIDs, taskIDs []int) []string {
 	var paths []string
-	
+
 	if len(projectIDs) > 0 {
 		for _, projectID := range projectIDs {
 			projectDir := filepath.Join(s.config.BasePath, "projects", fmt.Sprintf("project-%d", projectID))
@@ -1123,7 +1123,7 @@ func (s *UnifiedDocumentService) getSearchPaths(projectIDs, taskIDs []int) []str
 			paths = append(paths, files...)
 		}
 	}
-	
+
 	return paths
 }
 
@@ -1133,22 +1133,22 @@ func (s *UnifiedDocumentService) matchDocument(path, query string, filters map[s
 	if err != nil {
 		return false, 0
 	}
-	
+
 	contentStr := string(content)
 	lowerContent := strings.ToLower(contentStr)
 	lowerQuery := strings.ToLower(query)
-	
+
 	// 简单的文本匹配
 	if !strings.Contains(lowerContent, lowerQuery) {
 		return false, 0
 	}
-	
+
 	// 计算简单的相关性分数
 	score := float64(strings.Count(lowerContent, lowerQuery))
 	if strings.Contains(strings.ToLower(filepath.Base(path)), lowerQuery) {
 		score += 10 // 文件名匹配加分
 	}
-	
+
 	return true, score
 }
 
@@ -1158,22 +1158,22 @@ func (s *UnifiedDocumentService) buildSearchResult(path, query string, score flo
 	if err != nil {
 		return interfaces.SearchResult{}, err
 	}
-	
+
 	contentStr := string(content)
-	
+
 	// 提取项目ID和任务ID
 	projectID, taskID := s.extractIDsFromPath(path)
-	
+
 	// 生成摘要片段
 	snippet := s.generateSnippet(contentStr, query, 200)
-	
+
 	// 获取文件信息
 	stat, _ := os.Stat(path)
 	lastUpdated := time.Now()
 	if stat != nil {
 		lastUpdated = stat.ModTime()
 	}
-	
+
 	result := interfaces.SearchResult{
 		ProjectID:   projectID,
 		TaskID:      taskID,
@@ -1184,7 +1184,7 @@ func (s *UnifiedDocumentService) buildSearchResult(path, query string, score flo
 		LastUpdated: lastUpdated,
 		Path:        path,
 	}
-	
+
 	return result, nil
 }
 
@@ -1218,20 +1218,20 @@ func (s *UnifiedDocumentService) extractIDsFromPath(path string) (int, int) {
 	// 例如: /docs/projects/project-1/task-5.md
 	baseName := filepath.Base(path)
 	dirName := filepath.Base(filepath.Dir(path))
-	
+
 	projectID := 1 // 默认值
 	taskID := 1    // 默认值
-	
+
 	// 解析项目ID
 	if strings.HasPrefix(dirName, "project-") {
 		fmt.Sscanf(dirName, "project-%d", &projectID)
 	}
-	
+
 	// 解析任务ID
 	if strings.HasPrefix(baseName, "task-") {
 		fmt.Sscanf(baseName, "task-%d.md", &taskID)
 	}
-	
+
 	return projectID, taskID
 }
 
@@ -1239,7 +1239,7 @@ func (s *UnifiedDocumentService) extractIDsFromPath(path string) (int, int) {
 func (s *UnifiedDocumentService) generateSnippet(content, query string, maxLength int) string {
 	lowerContent := strings.ToLower(content)
 	lowerQuery := strings.ToLower(query)
-	
+
 	index := strings.Index(lowerContent, lowerQuery)
 	if index == -1 {
 		// 如果没有找到查询词，返回开头部分
@@ -1248,18 +1248,18 @@ func (s *UnifiedDocumentService) generateSnippet(content, query string, maxLengt
 		}
 		return content
 	}
-	
+
 	// 计算摘要片段的起始和结束位置
 	start := index - maxLength/4
 	if start < 0 {
 		start = 0
 	}
-	
+
 	end := start + maxLength
 	if end > len(content) {
 		end = len(content)
 	}
-	
+
 	snippet := content[start:end]
 	if start > 0 {
 		snippet = "..." + snippet
@@ -1267,7 +1267,7 @@ func (s *UnifiedDocumentService) generateSnippet(content, query string, maxLengt
 	if end < len(content) {
 		snippet = snippet + "..."
 	}
-	
+
 	return snippet
 }
 
@@ -1280,7 +1280,7 @@ func (s *UnifiedDocumentService) extractTitle(content string) string {
 			return strings.TrimSpace(line[2:])
 		}
 	}
-	
+
 	// 如果没有找到标题，返回第一行或默认标题
 	if len(lines) > 0 && lines[0] != "" {
 		title := strings.TrimSpace(lines[0])
@@ -1289,6 +1289,6 @@ func (s *UnifiedDocumentService) extractTitle(content string) string {
 		}
 		return title
 	}
-	
+
 	return "无标题文档"
 }

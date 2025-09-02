@@ -33,10 +33,10 @@ func NewTaskQueryCache(defaultTTL time.Duration) *TaskQueryCache {
 		cache:      make(map[string]*CacheEntry),
 		DefaultTTL: defaultTTL,
 	}
-	
+
 	// Start cleanup goroutine
 	go cache.cleanupExpiredEntries()
-	
+
 	return cache
 }
 
@@ -44,17 +44,17 @@ func NewTaskQueryCache(defaultTTL time.Duration) *TaskQueryCache {
 func (c *TaskQueryCache) Get(key string) (interface{}, bool) {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	entry, exists := c.cache[key]
 	if !exists {
 		return nil, false
 	}
-	
+
 	if entry.IsExpired() {
 		// Don't delete here to avoid write lock in read operation
 		return nil, false
 	}
-	
+
 	return entry.Data, true
 }
 
@@ -67,7 +67,7 @@ func (c *TaskQueryCache) Set(key string, data interface{}) {
 func (c *TaskQueryCache) SetWithTTL(key string, data interface{}, ttl time.Duration) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	c.cache[key] = &CacheEntry{
 		Data:      data,
 		ExpiresAt: time.Now().Add(ttl),
@@ -78,7 +78,7 @@ func (c *TaskQueryCache) SetWithTTL(key string, data interface{}, ttl time.Durat
 func (c *TaskQueryCache) Delete(key string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	delete(c.cache, key)
 }
 
@@ -86,7 +86,7 @@ func (c *TaskQueryCache) Delete(key string) {
 func (c *TaskQueryCache) InvalidatePattern(pattern string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	for key := range c.cache {
 		if matchesPattern(key, pattern) {
 			delete(c.cache, key)
@@ -98,7 +98,7 @@ func (c *TaskQueryCache) InvalidatePattern(pattern string) {
 func (c *TaskQueryCache) Clear() {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
-	
+
 	c.cache = make(map[string]*CacheEntry)
 }
 
@@ -106,16 +106,16 @@ func (c *TaskQueryCache) Clear() {
 func (c *TaskQueryCache) GetStats() map[string]interface{} {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
-	
+
 	totalEntries := len(c.cache)
 	expiredEntries := 0
-	
+
 	for _, entry := range c.cache {
 		if entry.IsExpired() {
 			expiredEntries++
 		}
 	}
-	
+
 	return map[string]interface{}{
 		"total_entries":   totalEntries,
 		"active_entries":  totalEntries - expiredEntries,
@@ -127,7 +127,7 @@ func (c *TaskQueryCache) GetStats() map[string]interface{} {
 func (c *TaskQueryCache) cleanupExpiredEntries() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		c.mutex.Lock()
 		for key, entry := range c.cache {
@@ -213,29 +213,29 @@ func (r *CacheableTaskRepository) GetAllCached(ctx context.Context, limit, offse
 	if !enableCache {
 		return r.repo.GetAll(ctx, limit, offset)
 	}
-	
+
 	// Generate cache key
 	cacheKey := r.keys.GlobalTasksKey(limit, offset, "")
-	
+
 	// Try to get from cache
 	if cachedData, found := r.cache.Get(cacheKey); found {
 		if result, ok := cachedData.(CachedTaskResult); ok {
 			return result.Tasks, result.Total, nil
 		}
 	}
-	
+
 	// Fetch from database
 	tasks, total, err := r.repo.GetAll(ctx, limit, offset)
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// Store in cache
 	r.cache.Set(cacheKey, CachedTaskResult{
 		Tasks: tasks,
 		Total: total,
 	})
-	
+
 	return tasks, total, nil
 }
 
@@ -249,18 +249,18 @@ type CachedTaskResult struct {
 func (r *CacheableTaskRepository) InvalidateTaskCaches(taskID, projectID int) {
 	// Invalidate global task caches
 	r.cache.InvalidatePattern("global_tasks:")
-	
+
 	// Invalidate project-specific caches
 	if projectID > 0 {
 		r.cache.InvalidatePattern(fmt.Sprintf("project_tasks:project=%d:", projectID))
 		r.cache.InvalidatePattern(fmt.Sprintf("task_hierarchy:project=%d", projectID))
 	}
-	
+
 	// Invalidate specific task cache
 	if taskID > 0 {
 		r.cache.Delete(r.keys.TaskDetailKey(taskID))
 	}
-	
+
 	// Invalidate count caches
 	r.cache.InvalidatePattern("task_count:")
 }
@@ -280,7 +280,7 @@ func RecordCacheHit() {
 	GlobalCacheMetrics.Hits++
 }
 
-// RecordCacheMiss increments cache miss counter  
+// RecordCacheMiss increments cache miss counter
 func RecordCacheMiss() {
 	GlobalCacheMetrics.Misses++
 }

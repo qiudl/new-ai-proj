@@ -32,21 +32,21 @@ type DashboardWeeklyStatsRequest struct {
 
 // DashboardWeeklyStatsResponse represents the weekly dashboard statistics
 type DashboardWeeklyStatsResponse struct {
-	DateRange    DateRange            `json:"date_range"`
-	Summary      WeeklySummary        `json:"summary"`
-	TaskStats    TaskStatsByStatus    `json:"task_stats"`
-	ProjectStats []ProjectStatsItem   `json:"project_stats"`
-	DailyStats   []DailyStatsItem     `json:"daily_stats"`
-	TopTasks     []TaskSummaryItem    `json:"top_tasks"`
-	Trends       WeeklyTrends         `json:"trends"`
+	DateRange    DateRange          `json:"date_range"`
+	Summary      WeeklySummary      `json:"summary"`
+	TaskStats    TaskStatsByStatus  `json:"task_stats"`
+	ProjectStats []ProjectStatsItem `json:"project_stats"`
+	DailyStats   []DailyStatsItem   `json:"daily_stats"`
+	TopTasks     []TaskSummaryItem  `json:"top_tasks"`
+	Trends       WeeklyTrends       `json:"trends"`
 }
 
 // DateRange represents a date period
 type DateRange struct {
-	StartDate string `json:"start_date"`
-	EndDate   string `json:"end_date"`
-	WeekNumber int   `json:"week_number"`
-	Year      int    `json:"year"`
+	StartDate  string `json:"start_date"`
+	EndDate    string `json:"end_date"`
+	WeekNumber int    `json:"week_number"`
+	Year       int    `json:"year"`
 }
 
 // WeeklySummary represents overall weekly statistics
@@ -70,10 +70,10 @@ type TaskStatsByStatus struct {
 
 // ProjectStatsItem represents statistics for a single project
 type ProjectStatsItem struct {
-	ProjectID    int     `json:"project_id"`
-	ProjectName  string  `json:"project_name"`
-	TaskCount    int     `json:"task_count"`
-	CompletedCount int   `json:"completed_count"`
+	ProjectID      int     `json:"project_id"`
+	ProjectName    string  `json:"project_name"`
+	TaskCount      int     `json:"task_count"`
+	CompletedCount int     `json:"completed_count"`
 	CompletionRate float64 `json:"completion_rate"`
 }
 
@@ -87,21 +87,21 @@ type DailyStatsItem struct {
 
 // TaskSummaryItem represents a summary of an important task
 type TaskSummaryItem struct {
-	ID          int    `json:"id"`
-	ProjectID   int    `json:"project_id"`
-	ProjectName string `json:"project_name"`
-	Title       string `json:"title"`
-	Status      string `json:"status"`
-	Priority    string `json:"priority"`
+	ID          int     `json:"id"`
+	ProjectID   int     `json:"project_id"`
+	ProjectName string  `json:"project_name"`
+	Title       string  `json:"title"`
+	Status      string  `json:"status"`
+	Priority    string  `json:"priority"`
 	DueDate     *string `json:"due_date"`
-	UpdatedAt   string `json:"updated_at"`
+	UpdatedAt   string  `json:"updated_at"`
 }
 
 // WeeklyTrends represents trend data compared to previous periods
 type WeeklyTrends struct {
-	TaskCreationTrend    float64 `json:"task_creation_trend"`    // % change from last week
-	CompletionRateTrend  float64 `json:"completion_rate_trend"`  // % change from last week
-	ProductivityTrend    string  `json:"productivity_trend"`     // "improving", "stable", "declining"
+	TaskCreationTrend   float64 `json:"task_creation_trend"`   // % change from last week
+	CompletionRateTrend float64 `json:"completion_rate_trend"` // % change from last week
+	ProductivityTrend   string  `json:"productivity_trend"`    // "improving", "stable", "declining"
 }
 
 // GetWeeklyStats handles GET /api/v1/dashboard/weekly-stats
@@ -123,9 +123,9 @@ func (h *DashboardHandler) GetWeeklyStats(c *gin.Context) {
 		if weekday == 0 { // Sunday
 			weekday = 7
 		}
-		startOfWeek := now.AddDate(0, 0, -(weekday-1))
+		startOfWeek := now.AddDate(0, 0, -(weekday - 1))
 		endOfWeek := startOfWeek.AddDate(0, 0, 6)
-		
+
 		req.StartDate = startOfWeek.Format("2006-01-02")
 		req.EndDate = endOfWeek.Format("2006-01-02")
 	}
@@ -258,7 +258,7 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		Cancelled:  stats.Summary.TotalTasks - stats.Summary.PendingTasks - stats.Summary.InProgressTasks - stats.Summary.CompletedTasks,
 	}
 
-	// 3. Get project statistics  
+	// 3. Get project statistics
 	projectStatsQuery := `
 		SELECT 
 			p.id,
@@ -288,11 +288,11 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if item.TaskCount > 0 {
 			item.CompletionRate = float64(item.CompletedCount) / float64(item.TaskCount) * 100
 		}
-		
+
 		stats.ProjectStats = append(stats.ProjectStats, item)
 	}
 
@@ -302,12 +302,12 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 	if projectID != nil {
 		dailyArgs = append(dailyArgs, *projectID, *projectID, *projectID)
 	}
-	
+
 	dailyProjectFilter := ""
 	if projectID != nil {
 		dailyProjectFilter = " AND t.project_id = $3"
 	}
-	
+
 	dailyStatsQuery := `
 		SELECT 
 			DATE(day_series.day) as date,
@@ -340,11 +340,11 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			AND t.status = 'completed'
 			AND DATE(t.updated_at) >= $1 
 			AND DATE(t.updated_at) <= $2`
-	
+
 	if projectID != nil {
 		dailyStatsQuery += " AND t.project_id = $3"
 	}
-	
+
 	dailyStatsQuery += `
 			GROUP BY DATE(t.updated_at)
 		) completed_stats ON day_series.day = completed_stats.date
@@ -358,11 +358,11 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 			AND p.deleted_at IS NULL
 			AND DATE(t.updated_at) >= $1 
 			AND DATE(t.updated_at) <= $2`
-	
+
 	if projectID != nil {
 		dailyStatsQuery += " AND t.project_id = $3"
 	}
-	
+
 	dailyStatsQuery += `
 			GROUP BY DATE(t.updated_at)
 		) updated_stats ON day_series.day = updated_stats.date
@@ -417,28 +417,28 @@ func (h *DashboardHandler) getDashboardWeeklyStats(userID int, startDate, endDat
 		var item TaskSummaryItem
 		var dueDate *time.Time
 		var updatedAt time.Time
-		
+
 		err := topTasksRows.Scan(
-			&item.ID, &item.ProjectID, &item.ProjectName, &item.Title, 
+			&item.ID, &item.ProjectID, &item.ProjectName, &item.Title,
 			&item.Status, &item.Priority, &dueDate, &updatedAt,
 		)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if dueDate != nil {
 			dueDateStr := dueDate.Format("2006-01-02")
 			item.DueDate = &dueDateStr
 		}
 		item.UpdatedAt = updatedAt.Format("2006-01-02T15:04:05Z")
-		
+
 		stats.TopTasks = append(stats.TopTasks, item)
 	}
 
 	// 6. Calculate trends (simplified for now)
 	stats.Trends = WeeklyTrends{
-		TaskCreationTrend:   0, // TODO: Calculate compared to previous week
-		CompletionRateTrend: 0, // TODO: Calculate compared to previous week
+		TaskCreationTrend:   0,        // TODO: Calculate compared to previous week
+		CompletionRateTrend: 0,        // TODO: Calculate compared to previous week
 		ProductivityTrend:   "stable", // TODO: Determine based on metrics
 	}
 

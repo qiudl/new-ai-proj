@@ -50,6 +50,7 @@ import ModernWorkNoteEditor from '../components/ModernWorkNoteEditor';
 import ModernWorkNoteViewer from '../components/ModernWorkNoteViewer';
 import WorkNoteConversionModal from '../components/conversion/WorkNoteConversionModal';
 import FolderTree from '../components/FolderTree';
+import { useRef } from 'react';
 import '../styles/ModernDocumentManager.css';
 import { useSearchParams } from 'react-router-dom';
 import type { MenuProps } from 'antd';
@@ -96,6 +97,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [folderPath, setFolderPath] = useState<string>('全部笔记');
   const [showFolderTree, setShowFolderTree] = useState(true);
+  const folderTreeRef = useRef<any>(null);
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -362,6 +364,16 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
   const handleFolderChange = () => {
     // 刷新工作笔记列表
     loadWorkNotes();
+  };
+
+  // 处理新建文件夹
+  const handleCreateFolder = () => {
+    // 触发FolderTree组件中的新建文件夹功能
+    if (folderTreeRef.current && folderTreeRef.current.triggerCreateFolder) {
+      folderTreeRef.current.triggerCreateFolder();
+    } else {
+      message.info('请先选择一个位置创建文件夹');
+    }
   };
 
   const handleDeleteNote = async (note: WorkNote) => {
@@ -769,10 +781,12 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   type="text"
                   size="small"
                   icon={<PlusOutlined />}
-                  onClick={() => message.info('创建文件夹功能开发中')}
+                  onClick={handleCreateFolder}
+                  title="新建文件夹"
                 />
               </div>
               <FolderTree
+                ref={folderTreeRef}
                 projectId={1}
                 selectedFolderId={selectedFolderId || undefined}
                 onFolderSelect={handleFolderSelect}

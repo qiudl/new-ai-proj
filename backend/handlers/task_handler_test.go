@@ -32,7 +32,7 @@ func getTestDB(t *testing.T) *database.PostgresDB {
 func TestStopUnifiedTimersOnTaskCompletion(t *testing.T) {
 	pdb := getTestDB(t)
 	defer pdb.Close()
-	
+
 	// Create handler under test
 	h := NewTaskHandler(pdb, nil, nil)
 	gin.SetMode(gin.TestMode)

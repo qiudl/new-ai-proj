@@ -18,34 +18,34 @@ type OAuthState struct {
 
 // GoogleToken Google访问令牌信息
 type GoogleToken struct {
-	ID                     int       `json:"id" db:"id"`
-	UserID                 int       `json:"user_id" db:"user_id"`
-	AccessTokenEncrypted   string    `json:"-" db:"access_token_encrypted"`   // 不在JSON中暴露
-	RefreshTokenEncrypted  string    `json:"-" db:"refresh_token_encrypted"`  // 不在JSON中暴露
-	TokenType              string    `json:"token_type" db:"token_type"`
-	ExpiresAt              time.Time `json:"expires_at" db:"expires_at"`
-	Scopes                 Scopes    `json:"scopes" db:"scopes"`
-	CreatedAt              time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt              time.Time `json:"updated_at" db:"updated_at"`
-	LastRefreshAt          *time.Time `json:"last_refresh_at" db:"last_refresh_at"`
-	
+	ID                    int        `json:"id" db:"id"`
+	UserID                int        `json:"user_id" db:"user_id"`
+	AccessTokenEncrypted  string     `json:"-" db:"access_token_encrypted"`  // 不在JSON中暴露
+	RefreshTokenEncrypted string     `json:"-" db:"refresh_token_encrypted"` // 不在JSON中暴露
+	TokenType             string     `json:"token_type" db:"token_type"`
+	ExpiresAt             time.Time  `json:"expires_at" db:"expires_at"`
+	Scopes                Scopes     `json:"scopes" db:"scopes"`
+	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
+	LastRefreshAt         *time.Time `json:"last_refresh_at" db:"last_refresh_at"`
+
 	// 运行时字段，不存储在数据库中
-	AccessToken            string    `json:"access_token,omitempty" db:"-"`
-	RefreshToken           string    `json:"refresh_token,omitempty" db:"-"`
+	AccessToken  string `json:"access_token,omitempty" db:"-"`
+	RefreshToken string `json:"refresh_token,omitempty" db:"-"`
 }
 
 // GoogleCalendarSync Google日历同步配置
 type GoogleCalendarSync struct {
-	ID            int       `json:"id" db:"id"`
-	UserID        int       `json:"user_id" db:"user_id"`
-	CalendarID    string    `json:"calendar_id" db:"calendar_id"`
-	CalendarName  string    `json:"calendar_name" db:"calendar_name"`
-	IsPrimary     bool      `json:"is_primary" db:"is_primary"`
-	SyncEnabled   bool      `json:"sync_enabled" db:"sync_enabled"`
+	ID            int        `json:"id" db:"id"`
+	UserID        int        `json:"user_id" db:"user_id"`
+	CalendarID    string     `json:"calendar_id" db:"calendar_id"`
+	CalendarName  string     `json:"calendar_name" db:"calendar_name"`
+	IsPrimary     bool       `json:"is_primary" db:"is_primary"`
+	SyncEnabled   bool       `json:"sync_enabled" db:"sync_enabled"`
 	LastSyncAt    *time.Time `json:"last_sync_at" db:"last_sync_at"`
-	SyncDirection string    `json:"sync_direction" db:"sync_direction"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	SyncDirection string     `json:"sync_direction" db:"sync_direction"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // GoogleEventMapping 任务与Google事件的映射关系
@@ -93,7 +93,7 @@ func (s *Scopes) Scan(value interface{}) error {
 		*s = []string{}
 		return nil
 	}
-	
+
 	var bytes []byte
 	switch v := value.(type) {
 	case []byte:
@@ -103,21 +103,21 @@ func (s *Scopes) Scan(value interface{}) error {
 	default:
 		return fmt.Errorf("cannot scan %T into Scopes", value)
 	}
-	
+
 	return json.Unmarshal(bytes, s)
 }
 
 // GoogleSyncPreferences Google同步偏好设置
 type GoogleSyncPreferences struct {
-	AutoSync              bool   `json:"auto_sync"`
-	SyncTasksToCalendar   bool   `json:"sync_tasks_to_calendar"`
-	SyncEventsToTasks     bool   `json:"sync_events_to_tasks"`
-	DefaultCalendarID     string `json:"default_calendar_id"`
-	SyncCompletedTasks    bool   `json:"sync_completed_tasks"`
-	EventVisibility       string `json:"event_visibility"` // default, public, private
-	EventColorID          string `json:"event_color_id"`
-	NotificationMinutes   int    `json:"notification_minutes"`
-	IncludeTaskDescription bool  `json:"include_task_description"`
+	AutoSync               bool   `json:"auto_sync"`
+	SyncTasksToCalendar    bool   `json:"sync_tasks_to_calendar"`
+	SyncEventsToTasks      bool   `json:"sync_events_to_tasks"`
+	DefaultCalendarID      string `json:"default_calendar_id"`
+	SyncCompletedTasks     bool   `json:"sync_completed_tasks"`
+	EventVisibility        string `json:"event_visibility"` // default, public, private
+	EventColorID           string `json:"event_color_id"`
+	NotificationMinutes    int    `json:"notification_minutes"`
+	IncludeTaskDescription bool   `json:"include_task_description"`
 }
 
 // Value 实现 driver.Valuer 接口
@@ -129,17 +129,17 @@ func (gsp GoogleSyncPreferences) Value() (driver.Value, error) {
 func (gsp *GoogleSyncPreferences) Scan(value interface{}) error {
 	if value == nil {
 		*gsp = GoogleSyncPreferences{
-			AutoSync:              true,
-			SyncTasksToCalendar:   true,
-			SyncEventsToTasks:     false,
-			SyncCompletedTasks:    false,
-			EventVisibility:       "default",
-			NotificationMinutes:   15,
+			AutoSync:               true,
+			SyncTasksToCalendar:    true,
+			SyncEventsToTasks:      false,
+			SyncCompletedTasks:     false,
+			EventVisibility:        "default",
+			NotificationMinutes:    15,
 			IncludeTaskDescription: true,
 		}
 		return nil
 	}
-	
+
 	var bytes []byte
 	switch v := value.(type) {
 	case []byte:
@@ -149,38 +149,38 @@ func (gsp *GoogleSyncPreferences) Scan(value interface{}) error {
 	default:
 		return fmt.Errorf("cannot scan %T into GoogleSyncPreferences", value)
 	}
-	
+
 	return json.Unmarshal(bytes, gsp)
 }
 
 // Constants for sync operations
 const (
 	// Sync directions
-	SyncDirectionToGoogle     = "to_google"
-	SyncDirectionFromGoogle   = "from_google"
+	SyncDirectionToGoogle      = "to_google"
+	SyncDirectionFromGoogle    = "from_google"
 	SyncDirectionBidirectional = "bidirectional"
-	
+
 	// Sync statuses
 	SyncStatusSynced  = "synced"
 	SyncStatusPending = "pending"
 	SyncStatusError   = "error"
-	
+
 	// Operations
 	OperationSyncToGoogle   = "sync_to_google"
 	OperationSyncFromGoogle = "sync_from_google"
 	OperationCreateEvent    = "create_event"
 	OperationUpdateEvent    = "update_event"
 	OperationDeleteEvent    = "delete_event"
-	
+
 	// Resource types for Google sync
 	GoogleResourceTypeTask  = "task"
 	GoogleResourceTypeEvent = "event"
-	
+
 	// Log statuses
 	LogStatusSuccess = "success"
 	LogStatusError   = "error"
 	LogStatusWarning = "warning"
-	
+
 	// OAuth state expiration (15 minutes)
 	OAuthStateExpirationMinutes = 15
 )
@@ -201,7 +201,7 @@ func (gt *GoogleToken) NeedsRefresh() bool {
 	if gt.IsTokenExpired() {
 		return true
 	}
-	
+
 	// 如果距离过期时间不到10分钟，建议刷新
 	return time.Until(gt.ExpiresAt) < 10*time.Minute
 }

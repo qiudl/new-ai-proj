@@ -25,12 +25,12 @@ func (j *JSONB) Scan(value interface{}) error {
 		*j = nil
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("cannot scan %T into JSONB", value)
 	}
-	
+
 	result := make(map[string]interface{})
 	err := json.Unmarshal(bytes, &result)
 	*j = result
@@ -45,12 +45,12 @@ func (s StringArray) Value() (driver.Value, error) {
 	if s == nil {
 		return nil, nil
 	}
-	
+
 	// PostgreSQL array format: {value1,value2,value3}
 	if len(s) == 0 {
 		return "{}", nil
 	}
-	
+
 	result := "{"
 	for i, v := range s {
 		if i > 0 {
@@ -61,7 +61,7 @@ func (s StringArray) Value() (driver.Value, error) {
 		result += escaped
 	}
 	result += "}"
-	
+
 	return result, nil
 }
 
@@ -71,7 +71,7 @@ func (s *StringArray) Scan(value interface{}) error {
 		*s = nil
 		return nil
 	}
-	
+
 	switch v := value.(type) {
 	case []byte:
 		return s.scanFromBytes(v)
@@ -84,23 +84,23 @@ func (s *StringArray) Scan(value interface{}) error {
 
 func (s *StringArray) scanFromBytes(data []byte) error {
 	str := string(data)
-	
+
 	// Handle empty array
 	if str == "{}" {
 		*s = []string{}
 		return nil
 	}
-	
+
 	// Remove braces
 	if len(str) >= 2 && str[0] == '{' && str[len(str)-1] == '}' {
 		str = str[1 : len(str)-1]
 	}
-	
+
 	if str == "" {
 		*s = []string{}
 		return nil
 	}
-	
+
 	// Simple parsing - split by comma and remove quotes
 	var result []string
 	parts := strings.Split(str, ",")
@@ -114,24 +114,24 @@ func (s *StringArray) scanFromBytes(data []byte) error {
 			result = append(result, part)
 		}
 	}
-	
+
 	*s = result
 	return nil
 }
 
 // AuditLog represents an audit log entry
 type AuditLog struct {
-	ID           int64     `json:"id" db:"id"`
-	EventID      string    `json:"event_id" db:"event_id"`
-	Timestamp    time.Time `json:"timestamp,omitempty" db:"timestamp"`
-	CreatedAt    time.Time `json:"created_at" db:"timestamp"` // 前端兼容字段
-	
+	ID        int64     `json:"id" db:"id"`
+	EventID   string    `json:"event_id" db:"event_id"`
+	Timestamp time.Time `json:"timestamp,omitempty" db:"timestamp"`
+	CreatedAt time.Time `json:"created_at" db:"timestamp"` // 前端兼容字段
+
 	// User information
 	UserID    *int   `json:"user_id" db:"user_id"`
 	UserEmail string `json:"user_email" db:"user_email"`
 	UserName  string `json:"user_name" db:"user_name"`
 	UserRole  string `json:"user_role" db:"user_role"`
-	
+
 	// Operation information
 	Action       string `json:"action" db:"action"`
 	ResourceType string `json:"resource_type,omitempty" db:"resource_type"`
@@ -139,29 +139,29 @@ type AuditLog struct {
 	ResourceID   string `json:"resource_id,omitempty" db:"resource_id"`
 	EntityID     string `json:"entity_id" db:"resource_id"` // 前端兼容字段（注意：前端期望number但后端是string）
 	ResourceName string `json:"resource_name" db:"resource_name"`
-	
+
 	// Request information
 	IPAddress string `json:"ip_address" db:"ip_address"`
 	UserAgent string `json:"user_agent" db:"user_agent"`
 	SessionID string `json:"session_id" db:"session_id"`
 	RequestID string `json:"request_id" db:"request_id"`
-	
+
 	// Operation details
 	Description string `json:"description" db:"description"`
 	BeforeData  JSONB  `json:"before_data" db:"before_data"`
 	AfterData   JSONB  `json:"after_data" db:"after_data"`
 	EntityData  JSONB  `json:"entity_data" db:"after_data"` // 前端兼容字段，映射到after_data
 	Changes     JSONB  `json:"changes" db:"changes"`
-	
+
 	// Status information
 	Status       string `json:"status" db:"status"`
 	ErrorMessage string `json:"error_message" db:"error_message"`
-	
+
 	// Context information
-	ProjectID       *int   `json:"project_id" db:"project_id"`
-	ParentEventID   string `json:"parent_event_id" db:"parent_event_id"`
-	CorrelationID   string `json:"correlation_id" db:"correlation_id"`
-	
+	ProjectID     *int   `json:"project_id" db:"project_id"`
+	ParentEventID string `json:"parent_event_id" db:"parent_event_id"`
+	CorrelationID string `json:"correlation_id" db:"correlation_id"`
+
 	// Metadata
 	Metadata JSONB       `json:"metadata" db:"metadata"`
 	Tags     StringArray `json:"tags" db:"tags"`
@@ -184,28 +184,28 @@ type AuditConfig struct {
 
 // AuditEventData represents data for creating an audit log entry
 type AuditEventData struct {
-	UserID       *int
-	UserEmail    string
-	UserName     string
-	UserRole     string
-	Action       string
-	ResourceType string
-	ResourceID   string
-	ResourceName string
-	IPAddress    string
-	UserAgent    string
-	SessionID    string
-	RequestID    string
-	Description  string
-	BeforeData   interface{}
-	AfterData    interface{}
-	ProjectID    *int
-	Status       string
-	ErrorMessage string
-	Metadata     map[string]interface{}
-	Tags         []string
-	ParentEventID   string
-	CorrelationID   string
+	UserID        *int
+	UserEmail     string
+	UserName      string
+	UserRole      string
+	Action        string
+	ResourceType  string
+	ResourceID    string
+	ResourceName  string
+	IPAddress     string
+	UserAgent     string
+	SessionID     string
+	RequestID     string
+	Description   string
+	BeforeData    interface{}
+	AfterData     interface{}
+	ProjectID     *int
+	Status        string
+	ErrorMessage  string
+	Metadata      map[string]interface{}
+	Tags          []string
+	ParentEventID string
+	CorrelationID string
 }
 
 // AuditLogFilter represents filter criteria for querying audit logs
@@ -244,41 +244,41 @@ type AuditStats struct {
 // Action constants for different operations
 const (
 	// User actions
-	ActionUserLogin         = "user.login"
-	ActionUserLogout        = "user.logout"
-	ActionUserRegister      = "user.register"
-	ActionUserUpdateProfile = "user.update_profile"
+	ActionUserLogin          = "user.login"
+	ActionUserLogout         = "user.logout"
+	ActionUserRegister       = "user.register"
+	ActionUserUpdateProfile  = "user.update_profile"
 	ActionUserChangePassword = "user.change_password"
-	ActionUserResetPassword = "user.reset_password"
-	
+	ActionUserResetPassword  = "user.reset_password"
+
 	// Project actions
-	ActionProjectCreate          = "project.create"
-	ActionProjectUpdate          = "project.update"
-	ActionProjectDelete          = "project.delete"
-	ActionProjectArchive         = "project.archive"
-	ActionProjectRestore         = "project.restore"
-	ActionProjectAddMember       = "project.add_member"
-	ActionProjectRemoveMember    = "project.remove_member"
+	ActionProjectCreate            = "project.create"
+	ActionProjectUpdate            = "project.update"
+	ActionProjectDelete            = "project.delete"
+	ActionProjectArchive           = "project.archive"
+	ActionProjectRestore           = "project.restore"
+	ActionProjectAddMember         = "project.add_member"
+	ActionProjectRemoveMember      = "project.remove_member"
 	ActionProjectUpdatePermissions = "project.update_permissions"
-	
+
 	// Task actions
-	ActionTaskCreate      = "task.create"
-	ActionTaskUpdate      = "task.update"
-	ActionTaskDelete      = "task.delete"
+	ActionTaskCreate       = "task.create"
+	ActionTaskUpdate       = "task.update"
+	ActionTaskDelete       = "task.delete"
 	ActionTaskStatusChange = "task.status_change"
-	ActionTaskAssign      = "task.assign"
-	ActionTaskUnassign    = "task.unassign"
-	ActionTaskMove        = "task.move"
-	ActionTaskDuplicate   = "task.duplicate"
-	ActionTaskBulkUpdate  = "task.bulk_update"
-	ActionTaskBulkDelete  = "task.bulk_delete"
-	ActionTaskRestore     = "task.restore"
-	
+	ActionTaskAssign       = "task.assign"
+	ActionTaskUnassign     = "task.unassign"
+	ActionTaskMove         = "task.move"
+	ActionTaskDuplicate    = "task.duplicate"
+	ActionTaskBulkUpdate   = "task.bulk_update"
+	ActionTaskBulkDelete   = "task.bulk_delete"
+	ActionTaskRestore      = "task.restore"
+
 	// System actions
-	ActionSystemBackup      = "system.backup"
-	ActionSystemRestore     = "system.restore"
+	ActionSystemBackup       = "system.backup"
+	ActionSystemRestore      = "system.restore"
 	ActionSystemConfigChange = "system.config_change"
-	ActionSystemMaintenance = "system.maintenance"
+	ActionSystemMaintenance  = "system.maintenance"
 )
 
 // Resource type constants
@@ -299,26 +299,26 @@ const (
 // ToAuditEventData converts AuditLog to AuditEventData
 func (a *AuditLog) ToAuditEventData() *AuditEventData {
 	return &AuditEventData{
-		UserID:       a.UserID,
-		UserEmail:    a.UserEmail,
-		UserName:     a.UserName,
-		UserRole:     a.UserRole,
-		Action:       a.Action,
-		ResourceType: a.ResourceType,
-		ResourceID:   a.ResourceID,
-		ResourceName: a.ResourceName,
-		IPAddress:    a.IPAddress,
-		UserAgent:    a.UserAgent,
-		SessionID:    a.SessionID,
-		RequestID:    a.RequestID,
-		Description:  a.Description,
-		BeforeData:   a.BeforeData,
-		AfterData:    a.AfterData,
-		ProjectID:    a.ProjectID,
-		Status:       a.Status,
-		ErrorMessage: a.ErrorMessage,
-		Metadata:     a.Metadata,
-		Tags:         []string(a.Tags),
+		UserID:        a.UserID,
+		UserEmail:     a.UserEmail,
+		UserName:      a.UserName,
+		UserRole:      a.UserRole,
+		Action:        a.Action,
+		ResourceType:  a.ResourceType,
+		ResourceID:    a.ResourceID,
+		ResourceName:  a.ResourceName,
+		IPAddress:     a.IPAddress,
+		UserAgent:     a.UserAgent,
+		SessionID:     a.SessionID,
+		RequestID:     a.RequestID,
+		Description:   a.Description,
+		BeforeData:    a.BeforeData,
+		AfterData:     a.AfterData,
+		ProjectID:     a.ProjectID,
+		Status:        a.Status,
+		ErrorMessage:  a.ErrorMessage,
+		Metadata:      a.Metadata,
+		Tags:          []string(a.Tags),
 		ParentEventID: a.ParentEventID,
 		CorrelationID: a.CorrelationID,
 	}
@@ -335,20 +335,20 @@ func DefaultAuditConfigs() []*AuditConfig {
 		{ResourceType: ResourceTypeTask, Action: ActionTaskAssign, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 365},
 		{ResourceType: ResourceTypeTask, Action: ActionTaskBulkUpdate, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: true, RetentionDays: 365},
 		{ResourceType: ResourceTypeTask, Action: ActionTaskBulkDelete, Enabled: true, LogBeforeData: true, LogAfterData: false, LogChanges: false, RetentionDays: 2555},
-		
+
 		// Project operations
 		{ResourceType: ResourceTypeProject, Action: ActionProjectCreate, Enabled: true, LogBeforeData: false, LogAfterData: true, LogChanges: true, RetentionDays: 365},
 		{ResourceType: ResourceTypeProject, Action: ActionProjectUpdate, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 365},
 		{ResourceType: ResourceTypeProject, Action: ActionProjectDelete, Enabled: true, LogBeforeData: true, LogAfterData: false, LogChanges: false, RetentionDays: 2555},
 		{ResourceType: ResourceTypeProject, Action: ActionProjectArchive, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 365},
-		
+
 		// User operations
 		{ResourceType: ResourceTypeUser, Action: ActionUserLogin, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 90, SensitiveFields: StringArray{"password", "token"}},
 		{ResourceType: ResourceTypeUser, Action: ActionUserLogout, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 90},
 		{ResourceType: ResourceTypeUser, Action: ActionUserRegister, Enabled: true, LogBeforeData: false, LogAfterData: true, LogChanges: false, RetentionDays: 2555, SensitiveFields: StringArray{"password", "password_hash"}},
 		{ResourceType: ResourceTypeUser, Action: ActionUserUpdateProfile, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 365},
 		{ResourceType: ResourceTypeUser, Action: ActionUserChangePassword, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 365, SensitiveFields: StringArray{"password", "password_hash", "current_password", "new_password"}},
-		
+
 		// System operations
 		{ResourceType: ResourceTypeSystem, Action: ActionSystemConfigChange, Enabled: true, LogBeforeData: true, LogAfterData: true, LogChanges: true, RetentionDays: 2555},
 		{ResourceType: ResourceTypeSystem, Action: ActionSystemBackup, Enabled: true, LogBeforeData: false, LogAfterData: false, LogChanges: false, RetentionDays: 365},

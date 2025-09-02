@@ -4,11 +4,11 @@ package models
 type AICompletionRequest struct {
 	Provider     AIProvider             `json:"provider" binding:"required" validate:"required,oneof=openai claude deepseek"`
 	Prompt       string                 `json:"prompt" binding:"required" validate:"required"`
-	Model        string                 `json:"model,omitempty"`        // 可选，覆盖默认模型
-	Temperature  *float64               `json:"temperature,omitempty"`  // 可选，覆盖默认温度
-	MaxTokens    *int                   `json:"max_tokens,omitempty"`   // 可选，覆盖默认最大token
+	Model        string                 `json:"model,omitempty"`         // 可选，覆盖默认模型
+	Temperature  *float64               `json:"temperature,omitempty"`   // 可选，覆盖默认温度
+	MaxTokens    *int                   `json:"max_tokens,omitempty"`    // 可选，覆盖默认最大token
 	SystemPrompt string                 `json:"system_prompt,omitempty"` // 可选，系统提示词
-	Context      map[string]interface{} `json:"context,omitempty"`      // 可选，上下文信息
+	Context      map[string]interface{} `json:"context,omitempty"`       // 可选，上下文信息
 }
 
 // AICompletionResponse AI完成响应

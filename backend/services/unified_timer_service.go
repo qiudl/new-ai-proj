@@ -24,13 +24,13 @@ type UnifiedTimerService interface {
 	PauseTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error)
 	ResumeTimerByID(ctx context.Context, userID int, timerID int) (*UnifiedTimerResponse, error)
 	StopTimerByID(ctx context.Context, userID int, timerID int, notes string) (*UnifiedTimerResponse, error)
-	
+
 	// 状态查询
 	GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error)
 	GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error)
 	GetTimerHistory(ctx context.Context, userID int, filter *HistoryFilter) (*TimerHistory, error)
 	GetUserTimerHistory(ctx context.Context, userID int, limit, offset int) ([]interface{}, error)
-	
+
 	// 智能功能
 	GetSmartSuggestions(ctx context.Context, userID int, context string) ([]*TimerSuggestion, error)
 	ProvideInferenceFeedback(ctx context.Context, timerID int, userID int, rating int) error
@@ -43,7 +43,7 @@ type UnifiedStartTimerRequest struct {
 	Title            string                 `json:"title"`
 	Category         string                 `json:"category,omitempty"`
 	EstimatedMinutes int                    `json:"estimated_minutes,omitempty"`
-	Context          string                 `json:"context"` // dashboard, task_detail, quick_start
+	Context          string                 `json:"context"`             // dashboard, task_detail, quick_start
 	TaskType         string                 `json:"task_type,omitempty"` // optional hint: personal | project | pomodoro | quick_timer
 	Metadata         map[string]interface{} `json:"metadata,omitempty"`
 	AutoStopOthers   *bool                  `json:"auto_stop_others,omitempty"`
@@ -52,12 +52,12 @@ type UnifiedStartTimerRequest struct {
 
 // UnifiedTimerResponse 统一计时器操作响应
 type UnifiedTimerResponse struct {
-	Success    bool        `json:"success"`
-	TimerID    int         `json:"timer_id,omitempty"`
-	TimerType  string      `json:"timer_type"` // project_task, personal_task, quick_timer, pomodoro
-	Message    string      `json:"message"`
-	StartedAt  time.Time   `json:"started_at,omitempty"`
-	Data       interface{} `json:"data,omitempty"`
+	Success   bool        `json:"success"`
+	TimerID   int         `json:"timer_id,omitempty"`
+	TimerType string      `json:"timer_type"` // project_task, personal_task, quick_timer, pomodoro
+	Message   string      `json:"message"`
+	StartedAt time.Time   `json:"started_at,omitempty"`
+	Data      interface{} `json:"data,omitempty"`
 }
 
 // TimerStatus 计时器状态
@@ -82,58 +82,58 @@ type TimerStatus struct {
 
 // HistoryFilter 历史记录过滤器
 type HistoryFilter struct {
-	StartDate    *time.Time `json:"start_date,omitempty"`
-	EndDate      *time.Time `json:"end_date,omitempty"`
-	TargetType   string     `json:"target_type,omitempty"`
-	Category     string     `json:"category,omitempty"`
-	Status       string     `json:"status,omitempty"`
-	ProjectID    *int       `json:"project_id,omitempty"`
-	Page         int        `json:"page"`
-	PageSize     int        `json:"page_size"`
-	OrderBy      string     `json:"order_by"`
-	SearchQuery  string     `json:"search_query,omitempty"`
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
+	TargetType  string     `json:"target_type,omitempty"`
+	Category    string     `json:"category,omitempty"`
+	Status      string     `json:"status,omitempty"`
+	ProjectID   *int       `json:"project_id,omitempty"`
+	Page        int        `json:"page"`
+	PageSize    int        `json:"page_size"`
+	OrderBy     string     `json:"order_by"`
+	SearchQuery string     `json:"search_query,omitempty"`
 }
 
 // TimerHistory 计时历史
 type TimerHistory struct {
-	Records    []*TimerRecord `json:"records"`
-	Total      int            `json:"total"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"page_size"`
-	HasMore    bool           `json:"has_more"`
+	Records  []*TimerRecord `json:"records"`
+	Total    int            `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+	HasMore  bool           `json:"has_more"`
 }
 
 // TimerRecord 计时记录
 type TimerRecord struct {
-	ID                  int                    `json:"id"`
-	TargetType          string                 `json:"target_type"`
-	TargetID            *int                   `json:"target_id"`
-	TargetTitle         string                 `json:"target_title"`
-	StartTime           time.Time              `json:"start_time"`
-	EndTime             *time.Time             `json:"end_time"`
-	DurationSeconds     int                    `json:"duration_seconds"`
-	ActualWorkSeconds   int                    `json:"actual_work_seconds"`
-	Status              string                 `json:"status"`
-	Category            string                 `json:"category"`
-	Description         string                 `json:"description"`
-	ProjectID           *int                   `json:"project_id"`
-	ProjectName         string                 `json:"project_name,omitempty"`
-	InferenceConfidence float64                `json:"inference_confidence"`
-	UserFeedback        *int                   `json:"user_feedback"`
-	CreatedAt           time.Time              `json:"created_at"`
+	ID                  int        `json:"id"`
+	TargetType          string     `json:"target_type"`
+	TargetID            *int       `json:"target_id"`
+	TargetTitle         string     `json:"target_title"`
+	StartTime           time.Time  `json:"start_time"`
+	EndTime             *time.Time `json:"end_time"`
+	DurationSeconds     int        `json:"duration_seconds"`
+	ActualWorkSeconds   int        `json:"actual_work_seconds"`
+	Status              string     `json:"status"`
+	Category            string     `json:"category"`
+	Description         string     `json:"description"`
+	ProjectID           *int       `json:"project_id"`
+	ProjectName         string     `json:"project_name,omitempty"`
+	InferenceConfidence float64    `json:"inference_confidence"`
+	UserFeedback        *int       `json:"user_feedback"`
+	CreatedAt           time.Time  `json:"created_at"`
 }
 
 // TimerSuggestion 智能建议
 type TimerSuggestion struct {
-	Type              string    `json:"type"`
-	Title             string    `json:"title"`
-	Category          string    `json:"category"`
-	EstimatedDuration int       `json:"estimated_duration"` // 分钟
-	Confidence        float64   `json:"confidence"`
-	Reason            string    `json:"reason"`
-	TaskID            *int      `json:"task_id,omitempty"`
-	ProjectID         *int      `json:"project_id,omitempty"`
-	TemplateID        *int      `json:"template_id,omitempty"`
+	Type              string     `json:"type"`
+	Title             string     `json:"title"`
+	Category          string     `json:"category"`
+	EstimatedDuration int        `json:"estimated_duration"` // 分钟
+	Confidence        float64    `json:"confidence"`
+	Reason            string     `json:"reason"`
+	TaskID            *int       `json:"task_id,omitempty"`
+	ProjectID         *int       `json:"project_id,omitempty"`
+	TemplateID        *int       `json:"template_id,omitempty"`
 	LastUsedAt        *time.Time `json:"last_used_at,omitempty"`
 }
 
@@ -165,11 +165,11 @@ func (s *unifiedTimerServiceImpl) StartTimer(ctx context.Context, req *UnifiedSt
 
 	// 2. 智能类型推断
 	inferenceResult, err := s.inferenceEngine.InferTimerType(ctx, &InferenceContext{
-		UserID:    req.UserID,
-		TaskID:    req.TaskID,
-		Title:     req.Title,
-		Context:   req.Context,
-		Metadata:  req.Metadata,
+		UserID:   req.UserID,
+		TaskID:   req.TaskID,
+		Title:    req.Title,
+		Context:  req.Context,
+		Metadata: req.Metadata,
 	})
 	if err != nil {
 		return &UnifiedTimerResponse{
@@ -381,7 +381,7 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 
 	// 计算暂停时长并更新状态
 	now := time.Now()
-	
+
 	// 从最后一个暂停事件计算暂停时长
 	var lastPauseTime time.Time
 	if err := s.db.QueryRowContext(ctx, `
@@ -397,7 +397,7 @@ func (s *unifiedTimerServiceImpl) ResumeTimer(ctx context.Context, userID int) (
 	}
 
 	pauseDuration := int(now.Sub(lastPauseTime).Seconds())
-	
+
 	// Ensure pause duration is non-negative (protect against clock issues)
 	if pauseDuration < 0 {
 		pauseDuration = 0
@@ -478,7 +478,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 			SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
 			FROM unified_timer_logs WHERE id = $1
 		`, currentTimer.ID).Scan(&lastPauseTime)
-		
+
 		if !lastPauseTime.IsZero() {
 			finalPauseDuration := int(now.Sub(lastPauseTime).Seconds())
 			// Ensure pause duration is non-negative (protect against clock issues)
@@ -557,7 +557,7 @@ func (s *unifiedTimerServiceImpl) StopTimer(ctx context.Context, userID int, not
 
 // GetCurrentTimer 获取当前计时器状态（保留向后兼容：返回最近启动的一个活动计时器）
 func (s *unifiedTimerServiceImpl) GetCurrentTimer(ctx context.Context, userID int) (*TimerStatus, error) {
-query := `
+	query := `
 		SELECT 
 			utl.id, utl.user_id, utl.target_type, utl.target_id, utl.target_title,
 			utl.status, utl.start_time, utl.pause_count, utl.pause_total_seconds,
@@ -576,7 +576,7 @@ query := `
 	var timer TimerStatus
 	var metadataJSON string
 	var projectID sql.NullInt64
-	
+
 	err := row.Scan(
 		&timer.ID, &timer.UserID, &timer.TargetType, &timer.TargetID, &timer.TargetTitle,
 		&timer.Status, &timer.StartTime, &timer.PauseCount, &timer.PauseTotalSeconds,
@@ -631,7 +631,7 @@ query := `
 			SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
 			FROM unified_timer_logs WHERE id = $1
 		`, timer.ID).Scan(&lastPauseTime)
-		
+
 		if !lastPauseTime.IsZero() {
 			timer.ElapsedSeconds = int(lastPauseTime.Sub(timer.StartTime).Seconds()) - timer.PauseTotalSeconds
 		} else {
@@ -643,12 +643,12 @@ query := `
 		timer.ElapsedSeconds = 0
 	}
 
-return &timer, nil
+	return &timer, nil
 }
 
 // GetActiveTimers 获取所有活动（running/paused）的计时器列表
 func (s *unifiedTimerServiceImpl) GetActiveTimers(ctx context.Context, userID int) ([]*TimerStatus, error) {
-query := `
+	query := `
 		SELECT 
 			utl.id, utl.user_id, utl.target_type, utl.target_id, utl.target_title,
 			utl.status, utl.start_time, utl.pause_count, utl.pause_total_seconds,
@@ -666,7 +666,7 @@ query := `
 		return nil, fmt.Errorf("查询活动计时器失败: %v", err)
 	}
 	defer rows.Close()
-	
+
 	var timers []*TimerStatus
 	for rows.Next() {
 		var t TimerStatus
@@ -721,7 +721,7 @@ query := `
 		}
 		timers = append(timers, &t)
 	}
-	
+
 	return timers, nil
 }
 
@@ -773,7 +773,9 @@ func (s *unifiedTimerServiceImpl) ResumeTimerByID(ctx context.Context, userID in
 		FROM unified_timer_logs WHERE id = $1
 	`, timerID).Scan(&lastPauseTime)
 	pauseDuration := int(now.Sub(lastPauseTime).Seconds())
-	if pauseDuration < 0 { pauseDuration = 0 }
+	if pauseDuration < 0 {
+		pauseDuration = 0
+	}
 	resumeEventData := map[string]interface{}{"resumed_at": now, "pause_duration": pauseDuration}
 	resumeEventJSON, _ := json.Marshal(resumeEventData)
 
@@ -830,13 +832,19 @@ func (s *unifiedTimerServiceImpl) StopTimerByID(ctx context.Context, userID int,
 		`, t.ID).Scan(&lastPauseTime)
 		if !lastPauseTime.IsZero() {
 			finalPauseDuration := int(now.Sub(lastPauseTime).Seconds())
-			if finalPauseDuration < 0 { finalPauseDuration = 0 }
+			if finalPauseDuration < 0 {
+				finalPauseDuration = 0
+			}
 			t.PauseTotalSeconds += finalPauseDuration
 		}
 		actualWorkDuration = totalDuration - t.PauseTotalSeconds
 	}
-	if actualWorkDuration < 0 { actualWorkDuration = 0 }
-	if actualWorkDuration > totalDuration { actualWorkDuration = totalDuration }
+	if actualWorkDuration < 0 {
+		actualWorkDuration = 0
+	}
+	if actualWorkDuration > totalDuration {
+		actualWorkDuration = totalDuration
+	}
 
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE unified_timer_logs 
@@ -892,7 +900,7 @@ func (s *unifiedTimerServiceImpl) validateStartRequest(req *UnifiedStartTimerReq
 
 func (s *unifiedTimerServiceImpl) stopActiveTimersInTx(ctx context.Context, tx *sql.Tx, userID int) error {
 	now := time.Now()
-	
+
 	// 查询活动的计时器
 	rows, err := tx.QueryContext(ctx, `
 		SELECT id, start_time, pause_total_seconds, status
@@ -924,7 +932,7 @@ func (s *unifiedTimerServiceImpl) stopActiveTimersInTx(ctx context.Context, tx *
 				SELECT COALESCE((pause_events->-1->>'paused_at')::timestamp, updated_at)
 				FROM unified_timer_logs WHERE id = $1
 			`, timerID).Scan(&lastPauseTime)
-			
+
 			if !lastPauseTime.IsZero() {
 				finalPauseDuration := int(now.Sub(lastPauseTime).Seconds())
 				totalDuration += finalPauseDuration
@@ -1045,7 +1053,7 @@ func (s *unifiedTimerServiceImpl) updateTaskStatusToInProgressInTx(ctx context.C
 		FROM tasks 
 		WHERE id = $1 AND deleted_at IS NULL
 	`
-	
+
 	var currentStatus string
 	err := tx.QueryRowContext(ctx, checkQuery, taskID).Scan(&currentStatus)
 	if err != nil {
@@ -1062,22 +1070,22 @@ func (s *unifiedTimerServiceImpl) updateTaskStatusToInProgressInTx(ctx context.C
 			SET status = 'in_progress', updated_at = NOW() 
 			WHERE id = $1 AND deleted_at IS NULL
 		`
-		
+
 		result, err := tx.ExecContext(ctx, updateQuery, taskID)
 		if err != nil {
 			return fmt.Errorf("failed to update task status: %w", err)
 		}
-		
+
 		rowsAffected, err := result.RowsAffected()
 		if err != nil {
 			return fmt.Errorf("failed to get rows affected: %w", err)
 		}
-		
+
 		if rowsAffected == 0 {
 			return fmt.Errorf("no task was updated, task ID %d may not exist", taskID)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1100,7 +1108,7 @@ func (s *unifiedTimerServiceImpl) formatDuration(seconds int) string {
 	if seconds < 60 {
 		return fmt.Sprintf("%d秒", seconds)
 	}
-	
+
 	minutes := seconds / 60
 	if minutes < 60 {
 		remainingSeconds := seconds % 60
@@ -1109,7 +1117,7 @@ func (s *unifiedTimerServiceImpl) formatDuration(seconds int) string {
 		}
 		return fmt.Sprintf("%d分%d秒", minutes, remainingSeconds)
 	}
-	
+
 	hours := minutes / 60
 	remainingMinutes := minutes % 60
 	if remainingMinutes == 0 {
@@ -1235,9 +1243,13 @@ func extractProjectIDFromMetadata(meta map[string]interface{}) (int, bool) {
 			case int64:
 				return int(vv), true
 			case json.Number:
-				if n, err := vv.Int64(); err == nil { return int(n), true }
+				if n, err := vv.Int64(); err == nil {
+					return int(n), true
+				}
 			case string:
-				if i, err := strconv.Atoi(vv); err == nil { return i, true }
+				if i, err := strconv.Atoi(vv); err == nil {
+					return i, true
+				}
 			}
 		}
 	}
@@ -1248,54 +1260,54 @@ func extractProjectIDFromMetadata(meta map[string]interface{}) (int, bool) {
 func (s *unifiedTimerServiceImpl) notifyTimerStarted(userID, timerID int, timerType, title string) {
 	// Temporarily disabled notification service
 	/*
-	if s.notificationSvc != nil {
-		s.notificationSvc.SendTimerNotification(userID, "timer_started", map[string]interface{}{
-			"timer_id":   timerID,
-			"timer_type": timerType,
-			"title":      title,
-			"message":    fmt.Sprintf("%s计时已开始: %s", s.getTimerTypeDisplayName(timerType), title),
-		})
-	}
+		if s.notificationSvc != nil {
+			s.notificationSvc.SendTimerNotification(userID, "timer_started", map[string]interface{}{
+				"timer_id":   timerID,
+				"timer_type": timerType,
+				"title":      title,
+				"message":    fmt.Sprintf("%s计时已开始: %s", s.getTimerTypeDisplayName(timerType), title),
+			})
+		}
 	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerPaused(userID, timerID int, title string) {
 	// Temporarily disabled notification service
 	/*
-	if s.notificationSvc != nil {
-		s.notificationSvc.SendTimerNotification(userID, "timer_paused", map[string]interface{}{
-			"timer_id": timerID,
-			"title":    title,
-			"message":  fmt.Sprintf("计时器已暂停: %s", title),
-		})
-	}
+		if s.notificationSvc != nil {
+			s.notificationSvc.SendTimerNotification(userID, "timer_paused", map[string]interface{}{
+				"timer_id": timerID,
+				"title":    title,
+				"message":  fmt.Sprintf("计时器已暂停: %s", title),
+			})
+		}
 	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerResumed(userID, timerID int, title string) {
 	// Temporarily disabled notification service
 	/*
-	if s.notificationSvc != nil {
-		s.notificationSvc.SendTimerNotification(userID, "timer_resumed", map[string]interface{}{
-			"timer_id": timerID,
-			"title":    title,
-			"message":  fmt.Sprintf("计时器已恢复: %s", title),
-		})
-	}
+		if s.notificationSvc != nil {
+			s.notificationSvc.SendTimerNotification(userID, "timer_resumed", map[string]interface{}{
+				"timer_id": timerID,
+				"title":    title,
+				"message":  fmt.Sprintf("计时器已恢复: %s", title),
+			})
+		}
 	*/
 }
 
 func (s *unifiedTimerServiceImpl) notifyTimerStopped(userID, timerID int, title string, duration int) {
-	// Temporarily disabled notification service  
+	// Temporarily disabled notification service
 	/*
-	if s.notificationSvc != nil {
-		s.notificationSvc.SendTimerNotification(userID, "timer_stopped", map[string]interface{}{
-			"timer_id": timerID,
-			"title":    title,
-			"duration": duration,
-			"message":  fmt.Sprintf("计时完成: %s，用时 %s", title, s.formatDuration(duration)),
-		})
-	}
+		if s.notificationSvc != nil {
+			s.notificationSvc.SendTimerNotification(userID, "timer_stopped", map[string]interface{}{
+				"timer_id": timerID,
+				"title":    title,
+				"duration": duration,
+				"message":  fmt.Sprintf("计时完成: %s，用时 %s", title, s.formatDuration(duration)),
+			})
+		}
 	*/
 }
 
@@ -1580,7 +1592,7 @@ func (s *unifiedTimerServiceImpl) ProvideInferenceFeedback(ctx context.Context, 
 		SET user_feedback = $1, updated_at = NOW()
 		WHERE id = $2 AND user_id = $3
 	`
-	
+
 	_, err := s.db.ExecContext(ctx, query, rating, timerID, userID)
 	return err
 }

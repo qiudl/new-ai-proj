@@ -15,8 +15,8 @@ import (
 
 // GoogleAuthHandler Google认证处理器
 type GoogleAuthHandler struct {
-	googleService *services.GoogleCalendarService
-	userRepo      database.UserRepository
+	googleService  *services.GoogleCalendarService
+	userRepo       database.UserRepository
 	googleAuthRepo database.GoogleAuthRepository
 }
 
@@ -200,11 +200,11 @@ func (h *GoogleAuthHandler) HandleGoogleCallback(c *gin.Context) {
 	// 保存日历同步配置
 	for _, calendar := range calendars {
 		calendarSync := &models.GoogleCalendarSync{
-			UserID:       oauthState.UserID,
-			CalendarID:   calendar.Id,
-			CalendarName: calendar.Summary,
-			IsPrimary:    calendar.Primary,
-			SyncEnabled:  calendar.Primary, // 默认只同步主日历
+			UserID:        oauthState.UserID,
+			CalendarID:    calendar.Id,
+			CalendarName:  calendar.Summary,
+			IsPrimary:     calendar.Primary,
+			SyncEnabled:   calendar.Primary, // 默认只同步主日历
 			SyncDirection: models.SyncDirectionBidirectional,
 		}
 
@@ -231,14 +231,14 @@ func (h *GoogleAuthHandler) HandleGoogleCallback(c *gin.Context) {
 
 	// 创建同步日志
 	syncLog := &models.GoogleSyncLog{
-		UserID:          oauthState.UserID,
-		Operation:       "google_auth_success",
-		ResourceType:    "token",
-		ResourceID:      fmt.Sprintf("user_%d", oauthState.UserID),
-		Status:          models.LogStatusSuccess,
-		Message:         StringPtr("Google Calendar connection established successfully"),
+		UserID:       oauthState.UserID,
+		Operation:    "google_auth_success",
+		ResourceType: "token",
+		ResourceID:   fmt.Sprintf("user_%d", oauthState.UserID),
+		Status:       models.LogStatusSuccess,
+		Message:      StringPtr("Google Calendar connection established successfully"),
 		Details: map[string]interface{}{
-			"calendar_count": len(calendars),
+			"calendar_count":   len(calendars),
 			"token_expires_at": token.ExpiresAt,
 		},
 		ExecutionTimeMs: nil,
@@ -433,9 +433,9 @@ func (h *GoogleAuthHandler) DisconnectGoogle(c *gin.Context) {
 		Status:       models.LogStatusSuccess,
 		Message:      StringPtr("Google Calendar connection disconnected successfully"),
 		Details: map[string]interface{}{
-			"token_revoked":      token.AccessToken != "",
-			"calendars_removed":  len(calendarSyncs),
-			"mappings_removed":   len(eventMappings),
+			"token_revoked":     token.AccessToken != "",
+			"calendars_removed": len(calendarSyncs),
+			"mappings_removed":  len(eventMappings),
 		},
 		ExecutionTimeMs: nil,
 	}

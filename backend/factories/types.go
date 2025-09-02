@@ -5,33 +5,33 @@ import "ai-project-backend/handlers"
 // AllHandlers 包含所有处理器的结构（简化版，移除缺失的handler）
 type AllHandlers struct {
 	// 认证处理器
-	AuthHandler               *handlers.AuthHandler
+	AuthHandler *handlers.AuthHandler
 	// JWTTokenHandler           *handlers.JWTTokenHandler // 暂时注释掉，handler缺失
 
 	// 分析埋点处理器
-	AnalyticsHandler         *handlers.AnalyticsHandler
+	AnalyticsHandler *handlers.AnalyticsHandler
 
 	// 基础业务处理器
-	CustomerHandler           *handlers.CustomerHandler
-	CompanyHandler            *handlers.CompanyHandler
-	ProjectHandler            *handlers.ProjectHandler
-	PermissionHandler         *handlers.PermissionHandler
+	CustomerHandler   *handlers.CustomerHandler
+	CompanyHandler    *handlers.CompanyHandler
+	ProjectHandler    *handlers.ProjectHandler
+	PermissionHandler *handlers.PermissionHandler
 	// PermissionSystemHandler   *handlers.PermissionSystemHandler // 暂时注释掉，handler缺失
-	RoleManagementHandler     *handlers.RoleManagementHandler
-	UserManagementHandler     *handlers.UserManagementHandler
-	CompanyUserHandler        *handlers.CompanyUserHandler
-	UserStatsHandler          *handlers.UserStatsHandler
+	RoleManagementHandler *handlers.RoleManagementHandler
+	UserManagementHandler *handlers.UserManagementHandler
+	CompanyUserHandler    *handlers.CompanyUserHandler
+	UserStatsHandler      *handlers.UserStatsHandler
 
 	// 文档管理处理器
-	DocumentHandler             *handlers.DocumentHandler
-	HybridDocumentHandler       *handlers.HybridDocumentHandler
+	DocumentHandler       *handlers.DocumentHandler
+	HybridDocumentHandler *handlers.HybridDocumentHandler
 	// HybridDocumentFolderHandler *handlers.HybridDocumentFolderHandler // Temporarily disabled
 	// SimpleDocumentHandler       *handlers.SimpleDocumentHandler // 暂时注释掉，handler缺失
-	UnifiedDocumentHandler      *handlers.UnifiedDocumentHandler
-	
+	UnifiedDocumentHandler *handlers.UnifiedDocumentHandler
+
 	// 工作笔记处理器
-	WorkNoteHandler            *handlers.WorkNoteHandler
-	WorkNoteFolderHandler      *handlers.WorkNoteFolderHandler
+	WorkNoteHandler       *handlers.WorkNoteHandler
+	WorkNoteFolderHandler *handlers.WorkNoteFolderHandler
 
 	// 计时器处理器
 	TimerHandler        *handlers.TimerHandler
@@ -39,40 +39,40 @@ type AllHandlers struct {
 	UnifiedTimerHandler *handlers.UnifiedTimerHandler
 
 	// 任务管理处理器
-	TaskHandler                *handlers.TaskHandler
-	TaskHierarchyHandler       *handlers.TaskHierarchyHandler
+	TaskHandler          *handlers.TaskHandler
+	TaskHierarchyHandler *handlers.TaskHierarchyHandler
 	// TaskLTreeHierarchyHandler  *handlers.TaskLTreeHierarchyHandler // 暂时注释掉，handler缺失
 
 	// 用户管理处理器
-	UserProfileHandler         *handlers.UserProfileHandler
+	UserProfileHandler *handlers.UserProfileHandler
 
 	// AI配置处理器 (占位)
 	AIConfigPlaceholderHandler *handlers.AIConfigPlaceholderHandler
 
 	// 通用工具处理器
-	UtilityHandler             *handlers.UtilityHandler
+	UtilityHandler *handlers.UtilityHandler
 
 	// 其他业务处理器
-	ArchiveHandler             *handlers.ArchiveHandler
-	RecycleBinHandler          *handlers.RecycleBinHandler
-	AuditEnhancedHandler       *handlers.AuditEnhancedHandler
-	TaskUpdateHandler          *handlers.TaskUpdateHandler
-	TodayTasksHandler          *handlers.TodayTasksHandler
-	DocumentUtilityHandler     *handlers.DocumentUtilityHandler
-	BulkOperationHandler       *handlers.BulkOperationHandler
-	ValidationHandler          *handlers.ValidationHandler
-	TaskDocumentFileHandler    *handlers.TaskDocumentFileHandler
-	GoogleAuthHandler          *handlers.GoogleAuthHandler
-	CalendarSyncHandler        *handlers.CalendarSyncHandler
-	SmartTemplateHandler       *handlers.SmartTemplateHandler
-	CollaborationHandler       *handlers.DocumentCollaborationHandler
-	StatisticsHandler          *handlers.StatisticsHandlers
-	AuditHandler               *handlers.AuditHandler
-	AIConfigHandler            *handlers.AIConfigHandler
-	AITaskGeneratorHandler     *handlers.AITaskGeneratorHandler
-	DashboardHandler           *handlers.DashboardHandler
-	TaskAnalysisHandler        *handlers.TaskAnalysisHandler
-	APIKeyHandler              *handlers.APIKeyHandler
-	ProgressHandler            *handlers.ProgressHandler
-	TaskRelationshipHandler    *handlers.TaskRelationshipHandler
+	ArchiveHandler          *handlers.ArchiveHandler
+	RecycleBinHandler       *handlers.RecycleBinHandler
+	AuditEnhancedHandler    *handlers.AuditEnhancedHandler
+	TaskUpdateHandler       *handlers.TaskUpdateHandler
+	TodayTasksHandler       *handlers.TodayTasksHandler
+	DocumentUtilityHandler  *handlers.DocumentUtilityHandler
+	BulkOperationHandler    *handlers.BulkOperationHandler
+	ValidationHandler       *handlers.ValidationHandler
+	TaskDocumentFileHandler *handlers.TaskDocumentFileHandler
+	GoogleAuthHandler       *handlers.GoogleAuthHandler
+	CalendarSyncHandler     *handlers.CalendarSyncHandler
+	SmartTemplateHandler    *handlers.SmartTemplateHandler
+	CollaborationHandler    *handlers.DocumentCollaborationHandler
+	StatisticsHandler       *handlers.StatisticsHandlers
+	AuditHandler            *handlers.AuditHandler
+	AIConfigHandler         *handlers.AIConfigHandler
+	AITaskGeneratorHandler  *handlers.AITaskGeneratorHandler
+	DashboardHandler        *handlers.DashboardHandler
+	TaskAnalysisHandler     *handlers.TaskAnalysisHandler
+	APIKeyHandler           *handlers.APIKeyHandler
+	ProgressHandler         *handlers.ProgressHandler
+	TaskRelationshipHandler *handlers.TaskRelationshipHandler
 }

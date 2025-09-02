@@ -642,13 +642,13 @@ class SchedulingService {
           id: `alloc_${task.id}_${selectedResource?.id || 'unassigned'}`,
           taskId: task.id,
           resourceId: selectedResource?.id || '',
+          projectId: (task as any).projectId || 0,
           allocatedHours: requiredHours,
+          utilizationRate: selectedResource ? Math.min(1.0, requiredHours / 8) : 0,
           startDate: task.earliestStart || new Date(),
           endDate: task.earliestFinish || new Date(),
           status: 'confirmed' as any,
-          priority: (this as any).getTaskPriority(task),
-          createdAt: new Date(),
-          updatedAt: new Date()
+          priority: (this as any).getTaskPriority(task)
         };
 
         allocations.push(allocation);

@@ -114,23 +114,23 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
 };
 
 // Axios拦截器（如果使用Axios）
-export const setupAxiosInterceptors = (axiosInstance: React.FormEvent | React.ChangeEvent<HTMLInputElement>) => {
+export const setupAxiosInterceptors = (axiosInstance: any) => {
   // 请求拦截器
   axiosInstance.interceptors.request.use(
     (config: unknown) => {
-      const url = config.url || '';
-      const method = config.method?.toUpperCase() || 'GET';
+      const url = (config as any).url || '';
+      const method = (config as any).method?.toUpperCase() || 'GET';
       
       // 开始追踪
       const trackingId = performanceMonitor.startApiCall(url, method, {
-        baseURL: config.baseURL,
-        headers: config.headers,
-        params: config.params,
+        baseURL: (config as any).baseURL,
+        headers: (config as any).headers,
+        params: (config as any).params,
       });
       
       // 将追踪ID附加到请求配置
-      config._performanceTrackingId = trackingId;
-      config._performanceStartTime = Date.now();
+      (config as any)._performanceTrackingId = trackingId;
+      (config as any)._performanceStartTime = Date.now();
       
       return config;
     },
@@ -190,26 +190,26 @@ export const createPerformanceQueryClient = () => {
       queries: {
         onSuccess: (data: Record<string, unknown>, query: unknown) => {
           // 追踪成功的查询
-          performanceMonitor.trackUserAction('query-success', query.queryKey.join('/'), {
+          performanceMonitor.trackUserAction('query-success', (query as any).queryKey.join('/'), {
             dataSize: JSON.stringify(data).length,
-            fromCache: query._isCached,
+            fromCache: (query as any)._isCached,
           });
         },
         onError: (error: Error | unknown, query: unknown) => {
           // 追踪失败的查询
-          performanceMonitor.trackUserAction('query-error', query.queryKey.join('/'), {
-            error: error.message,
+          performanceMonitor.trackUserAction('query-error', (query as any).queryKey.join('/'), {
+            error: (error as any).message,
           });
         },
       },
       mutations: {
         onSuccess: (data: Record<string, unknown>, variables: unknown, context: unknown, mutation: unknown) => {
-          performanceMonitor.trackUserAction('mutation-success', mutation.mutationKey?.join('/') || 'unknown', {
+          performanceMonitor.trackUserAction('mutation-success', (mutation as any).mutationKey?.join('/') || 'unknown', {
             dataSize: JSON.stringify(data).length,
           });
         },
         onError: (error: Error | unknown, variables: unknown, context: unknown, mutation: unknown) => {
-          performanceMonitor.trackUserAction('mutation-error', mutation.mutationKey?.join('/') || 'unknown', {
+          performanceMonitor.trackUserAction('mutation-error', (mutation as any).mutationKey?.join('/') || 'unknown', {
             error: error instanceof Error ? error.message : 'Mutation failed',
           });
         },
@@ -262,7 +262,7 @@ export const withPerformanceTracking = <P extends object>(
 export const useComponentPerformance = (componentName: string) => {
   const React = require('react');
   const [renderCount, setRenderCount] = React.useState(0);
-  const renderStartTime = React.useRef<number>(0);
+  const renderStartTime = React.useRef(0);
   
   React.useEffect(() => {
     renderStartTime.current = performance.now();

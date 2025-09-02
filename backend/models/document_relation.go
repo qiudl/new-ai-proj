@@ -50,7 +50,7 @@ const (
 type DocumentRelation struct {
 	ID           int       `json:"id"`
 	DocumentID   int       `json:"document_id"`
-	EntityType   string    `json:"entity_type"`   // customer, project, task
+	EntityType   string    `json:"entity_type"` // customer, project, task
 	EntityID     int       `json:"entity_id"`
 	EntityName   string    `json:"entity_name"`
 	RelationType string    `json:"relation_type"`
@@ -148,7 +148,7 @@ type DocumentCollaborator struct {
 	GrantedBy       int             `json:"granted_by" db:"granted_by"`
 	GrantedAt       time.Time       `json:"granted_at" db:"granted_at"`
 	ExpiresAt       *time.Time      `json:"expires_at" db:"expires_at"`
-	
+
 	// 关联字段
 	UserName      *string `json:"user_name,omitempty" db:"user_name"`
 	GrantedByName *string `json:"granted_by_name,omitempty" db:"granted_by_name"`
@@ -163,7 +163,7 @@ type FolderCollaborator struct {
 	GrantedBy       int             `json:"granted_by" db:"granted_by"`
 	GrantedAt       time.Time       `json:"granted_at" db:"granted_at"`
 	ExpiresAt       *time.Time      `json:"expires_at" db:"expires_at"`
-	
+
 	// 关联字段
 	UserName      *string `json:"user_name,omitempty" db:"user_name"`
 	GrantedByName *string `json:"granted_by_name,omitempty" db:"granted_by_name"`
@@ -353,7 +353,7 @@ type AddDocumentTaskRelationRequest struct {
 
 // DocumentRelationsResponse 文档关联响应
 type DocumentRelationsResponse struct {
-	DocumentID      int                `json:"document_id"`
+	DocumentID        int                `json:"document_id"`
 	CustomerRelations []DocumentRelation `json:"customer_relations"`
 	ProjectRelations  []DocumentRelation `json:"project_relations"`
 	TaskRelations     []DocumentRelation `json:"task_relations"`
@@ -413,11 +413,11 @@ func ValidateTaskRelationType(relationType RelationType) bool {
 
 // EntityRelationsResponse 实体关联响应
 type EntityRelationsResponse struct {
-	EntityType  string             `json:"entity_type"`
-	EntityID    int                `json:"entity_id"`
-	EntityName  string             `json:"entity_name"`
-	Relations   []DocumentRelation `json:"relations"`
-	TotalCount  int                `json:"total_count"`
+	EntityType string             `json:"entity_type"`
+	EntityID   int                `json:"entity_id"`
+	EntityName string             `json:"entity_name"`
+	Relations  []DocumentRelation `json:"relations"`
+	TotalCount int                `json:"total_count"`
 }
 
 // RelationStatsResponse 关联统计响应

@@ -24,9 +24,9 @@ func NewProjectHandler(db database.DB, logger *log.Logger, validate interface{})
 
 // GetProjects handles GET /api/v1/projects
 func (h *ProjectHandler) GetProjects(c *gin.Context) {
-	
+
 	userID := c.GetInt("user_id")
-	
+
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "10"))
@@ -57,30 +57,30 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 		responses = append(responses, pwc.ToResponse())
 	}
 
-    totalPages := (total + pageSize - 1) / pageSize
+	totalPages := (total + pageSize - 1) / pageSize
 
-    // 计算分页辅助字段
-    hasNext := page < totalPages
-    hasPrev := page > 1 && totalPages > 0
+	// 计算分页辅助字段
+	hasNext := page < totalPages
+	hasPrev := page > 1 && totalPages > 0
 
-    responseData := map[string]interface{}{
-        "data": responses,
-        "pagination": map[string]interface{}{
-            "page":        page,
-            "page_size":   pageSize,
-            "total":       total,
-            "total_pages": totalPages,
-            "has_next":    hasNext,
-            "has_prev":    hasPrev,
-        },
-    }
+	responseData := map[string]interface{}{
+		"data": responses,
+		"pagination": map[string]interface{}{
+			"page":        page,
+			"page_size":   pageSize,
+			"total":       total,
+			"total_pages": totalPages,
+			"has_next":    hasNext,
+			"has_prev":    hasPrev,
+		},
+	}
 
-    c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取项目列表成功"))
+	c.JSON(http.StatusOK, models.NewSuccessResponse(responseData, "获取项目列表成功"))
 }
 
 // CreateProject handles POST /api/v1/projects
 func (h *ProjectHandler) CreateProject(c *gin.Context) {
-	
+
 	userID := c.GetInt("user_id")
 
 	var req struct {
@@ -140,7 +140,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 // GetProject handles GET /api/v1/projects/:id
 func (h *ProjectHandler) GetProject(c *gin.Context) {
-	
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
@@ -163,7 +163,7 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 
 // UpdateProject handles PUT /api/v1/projects/:id
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
-	
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的项目ID", nil))
@@ -213,7 +213,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	}
 	project.Name = req.Name
 	project.Description = req.Description
-	
+
 	// Update company_id if provided
 	if req.CompanyID != nil {
 		project.CompanyID = req.CompanyID
@@ -221,7 +221,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		// If company_ids array is provided, use the first one as the primary company
 		project.CompanyID = &req.CompanyIDs[0]
 	}
-	
+
 	project.Status = req.Status
 	project.Priority = req.Priority
 	project.Progress = req.Progress
@@ -240,7 +240,6 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		}
 	}
 
-
 	updatedProject, err := h.db.Projects().Update(c.Request.Context(), project)
 	if err != nil {
 		log.Printf("Error updating project: %v", err)
@@ -254,7 +253,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 // DeleteProject handles DELETE /api/v1/projects/:id
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	log.Printf("🔴 NEW DELETE PROJECT CODE IS RUNNING!")
-	
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		log.Printf("Invalid project ID: %s", c.Param("id"))
@@ -313,7 +312,7 @@ func (h *ProjectHandler) GetProjectUsers(c *gin.Context) {
 		"users": users,
 		"total": 0,
 	}
-	
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取项目用户列表成功"))
 }
 
@@ -329,7 +328,7 @@ func (h *ProjectHandler) RemoveProjectUser(c *gin.Context) {
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "移除项目用户成功"))
 }
 
-// GetProjectTimeline handles GET /api/v1/projects/:id/timeline  
+// GetProjectTimeline handles GET /api/v1/projects/:id/timeline
 func (h *ProjectHandler) GetProjectTimeline(c *gin.Context) {
 	// TODO: Implement GetTimeline method in ProjectRepository
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
@@ -419,9 +418,9 @@ func (h *ProjectHandler) GetProjectStats(c *gin.Context) {
 
 // GetDocumentProjects handles GET /api/v1/projects/options
 func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
-	
+
 	userID := c.GetInt("user_id")
-	
+
 	// 获取当前用户可访问的项目（包含拥有者或成员身份）
 	projectsWithCompany, _, err := h.db.Projects().GetPaginatedWithCompany(
 		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc",
@@ -431,7 +430,7 @@ func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目选项失败", nil))
 		return
 	}
-	
+
 	// 转为精简选项格式，仅返回 id 和 name
 	var options []map[string]interface{}
 	for _, pwc := range projectsWithCompany {
@@ -440,7 +439,7 @@ func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
 			"name": pwc.Name,
 		})
 	}
-	
+
 	c.JSON(http.StatusOK, models.NewSuccessResponse(options, "获取项目选项成功"))
 }
 

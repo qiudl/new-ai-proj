@@ -8,22 +8,22 @@ import (
 
 // ServiceManager manages all application services
 type ServiceManager struct {
-	db                 database.DB
-	auditService       *AuditService
-	asyncLogger        *AsyncAuditLogger
+	db                  database.DB
+	auditService        *AuditService
+	asyncLogger         *AsyncAuditLogger
 	taskProgressService *TaskProgressService
 }
 
 // NewServiceManager creates a new service manager
 func NewServiceManager(db database.DB) *ServiceManager {
 	auditService := NewAuditService(db)
-	
+
 	// Create async logger with default settings
 	asyncLogger := NewAsyncAuditLogger(auditService, 50, 5*time.Second)
-	
+
 	// Initialize task progress service
 	taskProgress := NewTaskProgressService(db)
-	
+
 	return &ServiceManager{
 		db:                  db,
 		auditService:        auditService,
@@ -74,8 +74,8 @@ func (sm *ServiceManager) PerformMaintenance(ctx context.Context) error {
 
 	// Log maintenance activity
 	if deleted > 0 {
-		sm.auditService.LogSimpleEvent(ctx, nil, "system", "", 
-			"system.maintenance", "system", "audit_cleanup", 
+		sm.auditService.LogSimpleEvent(ctx, nil, "system", "",
+			"system.maintenance", "system", "audit_cleanup",
 			"Cleaned up expired audit logs", "")
 	}
 

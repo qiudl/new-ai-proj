@@ -23,12 +23,12 @@ func (t *TagsJSON) Scan(value interface{}) error {
 		*t = TagsJSON{}
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("TagsJSON: cannot scan non-byte value")
 	}
-	
+
 	return json.Unmarshal(bytes, t)
 }
 
@@ -46,38 +46,38 @@ func (m *MetadataJSON) Scan(value interface{}) error {
 		*m = MetadataJSON{}
 		return nil
 	}
-	
+
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New("MetadataJSON: cannot scan non-byte value")
 	}
-	
+
 	return json.Unmarshal(bytes, m)
 }
 
 // DocumentVersion represents a version of a document
 type DocumentVersion struct {
-	ID            int       `json:"id" db:"id"`
-	DocumentID    int       `json:"document_id" db:"document_id"`
-	VersionNumber int       `json:"version_number" db:"version_number"`
-	Title         string    `json:"title" db:"title"`
-	Content       *string   `json:"content,omitempty" db:"content"`
-	FileURL       *string   `json:"file_url,omitempty" db:"file_url"`
-	FileSize      int64     `json:"file_size" db:"file_size"`
-	MimeType      *string   `json:"mime_type,omitempty" db:"mime_type"`
-	ChangeSummary *string   `json:"change_summary,omitempty" db:"change_summary"`
-	CreatedBy     int       `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	IsMajorVersion bool     `json:"is_major_version" db:"is_major_version"`
-	Tags          TagsJSON  `json:"tags" db:"tags"`
-	Metadata      MetadataJSON `json:"metadata" db:"metadata"`
+	ID             int          `json:"id" db:"id"`
+	DocumentID     int          `json:"document_id" db:"document_id"`
+	VersionNumber  int          `json:"version_number" db:"version_number"`
+	Title          string       `json:"title" db:"title"`
+	Content        *string      `json:"content,omitempty" db:"content"`
+	FileURL        *string      `json:"file_url,omitempty" db:"file_url"`
+	FileSize       int64        `json:"file_size" db:"file_size"`
+	MimeType       *string      `json:"mime_type,omitempty" db:"mime_type"`
+	ChangeSummary  *string      `json:"change_summary,omitempty" db:"change_summary"`
+	CreatedBy      int          `json:"created_by" db:"created_by"`
+	CreatedAt      time.Time    `json:"created_at" db:"created_at"`
+	IsMajorVersion bool         `json:"is_major_version" db:"is_major_version"`
+	Tags           TagsJSON     `json:"tags" db:"tags"`
+	Metadata       MetadataJSON `json:"metadata" db:"metadata"`
 
 	// Related fields
-	DocumentTitle   *string `json:"document_title,omitempty" db:"document_title"`
-	CreatedByName   *string `json:"created_by_name,omitempty" db:"created_by_name"`
-	CreatedByEmail  *string `json:"created_by_email,omitempty" db:"created_by_email"`
-	LabelCount      int     `json:"label_count" db:"label_count"`
-	CommentCount    int     `json:"comment_count" db:"comment_count"`
+	DocumentTitle  *string `json:"document_title,omitempty" db:"document_title"`
+	CreatedByName  *string `json:"created_by_name,omitempty" db:"created_by_name"`
+	CreatedByEmail *string `json:"created_by_email,omitempty" db:"created_by_email"`
+	LabelCount     int     `json:"label_count" db:"label_count"`
+	CommentCount   int     `json:"comment_count" db:"comment_count"`
 }
 
 // DocumentVersionComparison represents a comparison between two document versions
@@ -130,50 +130,50 @@ type DocumentVersionLabel struct {
 
 // DocumentVersionComment represents a comment on a specific document version
 type DocumentVersionComment struct {
-	ID            int        `json:"id" db:"id"`
-	DocumentID    int        `json:"document_id" db:"document_id"`
-	VersionNumber int        `json:"version_number" db:"version_number"`
-	UserID        int        `json:"user_id" db:"user_id"`
-	Content       string     `json:"content" db:"content"`
-	LineNumber    *int       `json:"line_number,omitempty" db:"line_number"`
-	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
-	IsResolved    bool       `json:"is_resolved" db:"is_resolved"`
-	ParentID      *int       `json:"parent_id,omitempty" db:"parent_id"`
+	ID            int       `json:"id" db:"id"`
+	DocumentID    int       `json:"document_id" db:"document_id"`
+	VersionNumber int       `json:"version_number" db:"version_number"`
+	UserID        int       `json:"user_id" db:"user_id"`
+	Content       string    `json:"content" db:"content"`
+	LineNumber    *int      `json:"line_number,omitempty" db:"line_number"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	IsResolved    bool      `json:"is_resolved" db:"is_resolved"`
+	ParentID      *int      `json:"parent_id,omitempty" db:"parent_id"`
 
 	// Related fields
-	Username   *string                    `json:"username,omitempty" db:"username"`
-	UserAvatar *string                    `json:"user_avatar,omitempty" db:"user_avatar"`
-	Replies    []*DocumentVersionComment  `json:"replies,omitempty"`
+	Username   *string                   `json:"username,omitempty" db:"username"`
+	UserAvatar *string                   `json:"user_avatar,omitempty" db:"user_avatar"`
+	Replies    []*DocumentVersionComment `json:"replies,omitempty"`
 }
 
 // DocumentVersionStats represents statistics about document versions
 type DocumentVersionStats struct {
-	DocumentID              int        `json:"document_id" db:"document_id"`
-	DocumentTitle           string     `json:"document_title" db:"document_title"`
-	TotalVersions           int        `json:"total_versions" db:"total_versions"`
-	MajorVersions           int        `json:"major_versions" db:"major_versions"`
-	FirstVersionDate        time.Time  `json:"first_version_date" db:"first_version_date"`
-	LatestVersionDate       time.Time  `json:"latest_version_date" db:"latest_version_date"`
-	CurrentVersion          int        `json:"current_version" db:"current_version"`
-	TotalSizeAllVersions    int64      `json:"total_size_all_versions" db:"total_size_all_versions"`
-	ContributorsCount       int        `json:"contributors_count" db:"contributors_count"`
+	DocumentID           int       `json:"document_id" db:"document_id"`
+	DocumentTitle        string    `json:"document_title" db:"document_title"`
+	TotalVersions        int       `json:"total_versions" db:"total_versions"`
+	MajorVersions        int       `json:"major_versions" db:"major_versions"`
+	FirstVersionDate     time.Time `json:"first_version_date" db:"first_version_date"`
+	LatestVersionDate    time.Time `json:"latest_version_date" db:"latest_version_date"`
+	CurrentVersion       int       `json:"current_version" db:"current_version"`
+	TotalSizeAllVersions int64     `json:"total_size_all_versions" db:"total_size_all_versions"`
+	ContributorsCount    int       `json:"contributors_count" db:"contributors_count"`
 }
 
 // Request/Response models for version management
 
 // CreateDocumentVersionRequest represents the request to create a new document version
 type CreateDocumentVersionRequest struct {
-	DocumentID      int          `json:"document_id" validate:"required"`
-	Title           string       `json:"title" validate:"required,max=255"`
-	Content         *string      `json:"content,omitempty"`
-	FileURL         *string      `json:"file_url,omitempty"`
-	FileSize        int64        `json:"file_size"`
-	MimeType        *string      `json:"mime_type,omitempty"`
-	ChangeSummary   *string      `json:"change_summary,omitempty"`
-	IsMajorVersion  bool         `json:"is_major_version"`
-	Tags            []string     `json:"tags"`
-	Metadata        MetadataJSON `json:"metadata"`
+	DocumentID     int          `json:"document_id" validate:"required"`
+	Title          string       `json:"title" validate:"required,max=255"`
+	Content        *string      `json:"content,omitempty"`
+	FileURL        *string      `json:"file_url,omitempty"`
+	FileSize       int64        `json:"file_size"`
+	MimeType       *string      `json:"mime_type,omitempty"`
+	ChangeSummary  *string      `json:"change_summary,omitempty"`
+	IsMajorVersion bool         `json:"is_major_version"`
+	Tags           []string     `json:"tags"`
+	Metadata       MetadataJSON `json:"metadata"`
 }
 
 // UpdateDocumentVersionRequest represents the request to update a document version
@@ -208,11 +208,11 @@ type CreateVersionLabelRequest struct {
 
 // CreateVersionCommentRequest represents the request to create a version comment
 type CreateVersionCommentRequest struct {
-	DocumentID    int     `json:"document_id" validate:"required"`
-	VersionNumber int     `json:"version_number" validate:"required,min=1"`
-	Content       string  `json:"content" validate:"required,max=1000"`
-	LineNumber    *int    `json:"line_number,omitempty"`
-	ParentID      *int    `json:"parent_id,omitempty"`
+	DocumentID    int    `json:"document_id" validate:"required"`
+	VersionNumber int    `json:"version_number" validate:"required,min=1"`
+	Content       string `json:"content" validate:"required,max=1000"`
+	LineNumber    *int   `json:"line_number,omitempty"`
+	ParentID      *int   `json:"parent_id,omitempty"`
 }
 
 // CreateVersionBranchRequest represents the request to create a version branch
@@ -227,21 +227,21 @@ type CreateVersionBranchRequest struct {
 
 // DocumentVersionResponse represents the API response for document versions
 type DocumentVersionResponse struct {
-	Versions     []*DocumentVersion `json:"versions"`
-	TotalCount   int                `json:"total_count"`
-	CurrentPage  int                `json:"current_page"`
-	PageSize     int                `json:"page_size"`
-	HasMore      bool               `json:"has_more"`
+	Versions    []*DocumentVersion `json:"versions"`
+	TotalCount  int                `json:"total_count"`
+	CurrentPage int                `json:"current_page"`
+	PageSize    int                `json:"page_size"`
+	HasMore     bool               `json:"has_more"`
 }
 
 // DocumentVersionHistoryResponse represents the API response for version history
 type DocumentVersionHistoryResponse struct {
-	DocumentID   int                `json:"document_id"`
-	DocumentTitle string            `json:"document_title"`
-	Versions     []*DocumentVersion `json:"versions"`
-	Stats        DocumentVersionStats `json:"stats"`
-	Labels       []*DocumentVersionLabel `json:"labels"`
-	Branches     []*DocumentVersionBranch `json:"branches"`
+	DocumentID    int                      `json:"document_id"`
+	DocumentTitle string                   `json:"document_title"`
+	Versions      []*DocumentVersion       `json:"versions"`
+	Stats         DocumentVersionStats     `json:"stats"`
+	Labels        []*DocumentVersionLabel  `json:"labels"`
+	Branches      []*DocumentVersionBranch `json:"branches"`
 }
 
 // VersionComparisonResponse represents the API response for version comparison
@@ -282,7 +282,7 @@ func (dv *DocumentVersion) GetChangeType() string {
 	if dv.ChangeSummary == nil {
 		return "unknown"
 	}
-	
+
 	summary := strings.ToLower(*dv.ChangeSummary)
 	if strings.Contains(summary, "initial") || strings.Contains(summary, "created") {
 		return "created"
@@ -335,18 +335,18 @@ func formatFileSize(bytes int64) string {
 	if bytes == 0 {
 		return "0 B"
 	}
-	
+
 	const unit = 1024
 	if bytes < unit {
 		return fmt.Sprintf("%d B", bytes)
 	}
-	
+
 	div, exp := int64(unit), 0
 	for n := bytes / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
 	}
-	
+
 	sizes := []string{"B", "KB", "MB", "GB", "TB"}
 	return fmt.Sprintf("%.1f %s", float64(bytes)/float64(div), sizes[exp])
 }

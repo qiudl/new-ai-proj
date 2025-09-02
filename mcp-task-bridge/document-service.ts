@@ -5,7 +5,7 @@ import { Document, DocumentOptions, ApiResponse, BatchOptions } from './types.js
 export class DocumentService extends BaseClient {
 
   // 创建或更新任务文档
-  @requiresPermission('create_document')
+  // // @requiresPermission('create_document')
   async createOrUpdateTaskDocument(taskId: number, content: string, projectId: number = 1): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('POST', `/projects/${projectId}/tasks/${taskId}/documents`, {
@@ -33,7 +33,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 创建并关联任务文档
-  @requiresPermission('create_document')
+  // @requiresPermission('create_document')
   async createAndAttachTaskDocument(taskId: number, content: string, projectId: number = 1, title?: string): Promise<ApiResponse> {
     try {
       const payload: any = {
@@ -73,7 +73,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 创建并关联工作笔记
-  @requiresPermission('create_work_note')
+  // @requiresPermission('create_work_note')
   async createAndAttachWorkNote(taskId: number, content: string, title?: string): Promise<ApiResponse> {
     try {
       const payload: any = {
@@ -158,7 +158,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 删除任务文档
-  @requiresPermission('delete_document')
+  // @requiresPermission('delete_document')
   async deleteTaskDocument(taskId: number, projectId: number = 1): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('DELETE', `/mcp/delete-task-document`, undefined, {
@@ -185,7 +185,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 批量创建文档
-  @requiresPermission('create_document')
+  // @requiresPermission('create_document')
   async createBatchDocuments(documents: Array<any>): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('POST', '/mcp/create-batch-documents', {
@@ -211,7 +211,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 从模板生成文档
-  @requiresPermission('create_document')
+  // @requiresPermission('create_document')
   async generateDocumentFromTemplate(templateType: string, context: any, autoCreate: boolean = false): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('POST', '/mcp/generate-document-from-template', {
@@ -285,7 +285,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 批量创建任务文档
-  @requiresPermission('create_document')
+  // @requiresPermission('create_document')
   async createTaskDocs(options: { 
     task_ids?: number[]; 
     date_filter?: string; 
@@ -351,7 +351,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 更新文档
-  @requiresPermission('update_document')
+  // @requiresPermission('update_document')
   async updateDocument(documentId: number, updates: Partial<Document>): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('PUT', `/documents/${documentId}`, updates);
@@ -376,7 +376,7 @@ export class DocumentService extends BaseClient {
   }
 
   // 删除文档
-  @requiresPermission('delete_document')
+  // @requiresPermission('delete_document')
   async deleteDocument(documentId: number): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('DELETE', `/documents/${documentId}`);

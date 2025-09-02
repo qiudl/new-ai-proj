@@ -29,12 +29,12 @@ func NewHybridDocumentHandler(db database.DB) *HybridDocumentHandler {
 func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 	// 获取查询参数
 	folderIDStr := c.Query("folder_id")
-	
+
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	var query string
 	var args []interface{}
-	
+
 	if folderIDStr != "" {
 		folderID, err := strconv.Atoi(folderIDStr)
 		if err != nil {
@@ -44,7 +44,7 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		// 根据文件夹ID查询，包括NULL (根目录)
 		if folderID == 0 {
 			query = `
@@ -90,7 +90,7 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 		`
 		args = []interface{}{}
 	}
-	
+
 	rows, err := sqlDB.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -101,14 +101,14 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var documents []map[string]interface{}
-	
+
 	for rows.Next() {
 		var doc models.Document
 		var ownerName, folderName sql.NullString
 		var tags string
-		
+
 		err := rows.Scan(
 			&doc.ID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 			&doc.Description, &tags, &doc.OwnerID, &doc.Visibility, &doc.Version,
@@ -123,7 +123,7 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		// 构建响应对象
 		docResponse := map[string]interface{}{
 			"id":          doc.ID,
@@ -143,14 +143,14 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 			"created_by":  doc.CreatedBy,
 			"project_id":  doc.ProjectID,
 		}
-		
+
 		if ownerName.Valid {
 			docResponse["owner_name"] = ownerName.String
 		}
 		if folderName.Valid {
 			docResponse["folder_name"] = folderName.String
 		}
-		
+
 		// 解析标签
 		if tags != "" && tags != "{}" {
 			// 简化的标签解析，假设格式为 {tag1,tag2}
@@ -159,10 +159,10 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 				docResponse["tags"] = strings.Split(tags, ",")
 			}
 		}
-		
+
 		documents = append(documents, docResponse)
 	}
-	
+
 	if err = rows.Err(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -171,7 +171,7 @@ func (h *HybridDocumentHandler) GetDocuments(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Documents retrieved successfully",
@@ -202,7 +202,7 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 设置默认值
 	if req.Status == "" {
 		req.Status = models.DocumentStatusDraft
@@ -215,7 +215,7 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 	}
 
 	now := time.Now()
-	
+
 	query := `
 		INSERT INTO documents (
 			folder_id, title, content, type, status, description,
@@ -224,7 +224,7 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
-	
+
 	var newID int
 	err := sqlDB.QueryRow(
 		query,
@@ -232,7 +232,7 @@ func (h *HybridDocumentHandler) CreateDocument(c *gin.Context) {
 		userID.(int), req.Visibility, 1, req.IsTemplate,
 		now, now, userID.(int),
 	).Scan(&newID)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -282,7 +282,7 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	query := `
 		SELECT d.id, d.folder_id, d.title, d.content, d.type, d.status, d.description, 
 			   COALESCE(d.tags, '{}') as tags, d.owner_id, d.visibility, d.version, 
@@ -294,18 +294,18 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 		LEFT JOIN document_folders df ON d.folder_id = df.id
 		WHERE d.id = $1
 	`
-	
+
 	var doc models.Document
 	var ownerName, folderName sql.NullString
 	var tags string
-	
+
 	err = sqlDB.QueryRow(query, id).Scan(
 		&doc.ID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 		&doc.Description, &tags, &doc.OwnerID, &doc.Visibility, &doc.Version,
 		&doc.IsTemplate, &doc.CreatedAt, &doc.UpdatedAt, &doc.CreatedBy,
 		&ownerName, &folderName, &doc.ProjectID,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -321,7 +321,7 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// 构建响应对象
 	docResponse := map[string]interface{}{
 		"id":          doc.ID,
@@ -341,7 +341,7 @@ func (h *HybridDocumentHandler) GetDocument(c *gin.Context) {
 		"created_by":  doc.CreatedBy,
 		"project_id":  doc.ProjectID,
 	}
-	
+
 	if ownerName.Valid {
 		docResponse["owner_name"] = ownerName.String
 	}
@@ -379,76 +379,76 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 构建动态更新查询
 	setParts := []string{}
 	args := []interface{}{}
 	argIndex := 1
-	
+
 	if req.Title != nil && *req.Title != "" {
-		setParts = append(setParts, "title = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "title = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Title)
 		argIndex++
 	}
 	if req.Content != nil {
-		setParts = append(setParts, "content = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "content = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Content)
 		argIndex++
 	}
 	if req.Description != nil {
-		setParts = append(setParts, "description = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "description = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Description)
 		argIndex++
 	}
 	if req.Type != nil {
-		setParts = append(setParts, "type = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "type = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Type)
 		argIndex++
 	}
 	if req.Status != nil {
-		setParts = append(setParts, "status = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "status = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Status)
 		argIndex++
 	}
 	if req.Visibility != nil {
-		setParts = append(setParts, "visibility = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "visibility = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.Visibility)
 		argIndex++
 	}
 	if req.FolderID != nil {
-		setParts = append(setParts, "folder_id = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "folder_id = $"+strconv.Itoa(argIndex))
 		args = append(args, req.FolderID)
 		argIndex++
 	}
 	if req.ProjectID != nil {
-		setParts = append(setParts, "project_id = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "project_id = $"+strconv.Itoa(argIndex))
 		args = append(args, req.ProjectID)
 		argIndex++
 	}
 	if req.IsTemplate != nil {
-		setParts = append(setParts, "is_template = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "is_template = $"+strconv.Itoa(argIndex))
 		args = append(args, *req.IsTemplate)
 		argIndex++
 	}
-	
+
 	// 如果没有字段需要更新，但这是一个有效的更新请求，只更新时间戳
 	if len(setParts) == 0 {
 		// 允许空更新（比如只是触发时间戳更新）
-		setParts = append(setParts, "updated_at = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "updated_at = $"+strconv.Itoa(argIndex))
 		args = append(args, time.Now())
 		argIndex++
 	} else {
 		// 添加updated_at
-		setParts = append(setParts, "updated_at = $" + strconv.Itoa(argIndex))
+		setParts = append(setParts, "updated_at = $"+strconv.Itoa(argIndex))
 		args = append(args, time.Now())
 		argIndex++
 	}
-	
+
 	// 添加WHERE条件
 	args = append(args, id)
-	
+
 	query := "UPDATE documents SET " + strings.Join(setParts, ", ") + " WHERE id = $" + strconv.Itoa(argIndex)
-	
+
 	result, err := sqlDB.Exec(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -458,7 +458,7 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -481,18 +481,18 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 		LEFT JOIN document_folders df ON d.folder_id = df.id
 		WHERE d.id = $1
 	`
-	
+
 	var doc models.Document
 	var ownerName, folderName sql.NullString
 	var tags string
-	
+
 	err = sqlDB.QueryRow(getQuery, id).Scan(
 		&doc.ID, &doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 		&doc.Description, &tags, &doc.OwnerID, &doc.Visibility, &doc.Version,
 		&doc.IsTemplate, &doc.CreatedAt, &doc.UpdatedAt, &doc.CreatedBy,
 		&ownerName, &folderName, &doc.ProjectID,
 	)
-	
+
 	if err == nil {
 		updatedDoc = map[string]interface{}{
 			"id":          doc.ID,
@@ -512,7 +512,7 @@ func (h *HybridDocumentHandler) UpdateDocument(c *gin.Context) {
 			"created_by":  doc.CreatedBy,
 			"project_id":  doc.ProjectID,
 		}
-		
+
 		if ownerName.Valid {
 			updatedDoc["owner_name"] = ownerName.String
 		}
@@ -541,7 +541,7 @@ func (h *HybridDocumentHandler) DeleteDocument(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	query := "DELETE FROM documents WHERE id = $1"
 	result, err := sqlDB.Exec(query, id)
 	if err != nil {
@@ -552,7 +552,7 @@ func (h *HybridDocumentHandler) DeleteDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -591,19 +591,19 @@ func (h *HybridDocumentHandler) CopyDocument(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 获取原文档
 	getQuery := `
 		SELECT folder_id, title, content, type, description, visibility
 		FROM documents WHERE id = $1
 	`
-	
+
 	var doc models.Document
 	err = sqlDB.QueryRow(getQuery, id).Scan(
 		&doc.FolderID, &doc.Title, &doc.Content, &doc.Type, &doc.Description,
 		&doc.Visibility,
 	)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -619,7 +619,7 @@ func (h *HybridDocumentHandler) CopyDocument(c *gin.Context) {
 		}
 		return
 	}
-	
+
 	// 创建副本
 	now := time.Now()
 	createQuery := `
@@ -630,15 +630,15 @@ func (h *HybridDocumentHandler) CopyDocument(c *gin.Context) {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
-	
+
 	var newID int
 	err = sqlDB.QueryRow(
 		createQuery,
-		doc.FolderID, doc.Title + " (副本)", doc.Content, doc.Type, "draft", doc.Description,
+		doc.FolderID, doc.Title+" (副本)", doc.Content, doc.Type, "draft", doc.Description,
 		userID.(int), doc.Visibility, 1, false,
 		now, now, userID.(int),
 	).Scan(&newID)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -670,7 +670,7 @@ func (h *HybridDocumentHandler) ToggleTemplate(c *gin.Context) {
 	}
 
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 切换模板状态
 	query := `
 		UPDATE documents 
@@ -678,10 +678,10 @@ func (h *HybridDocumentHandler) ToggleTemplate(c *gin.Context) {
 		WHERE id = $2
 		RETURNING is_template
 	`
-	
+
 	var newTemplateStatus bool
 	err = sqlDB.QueryRow(query, time.Now(), id).Scan(&newTemplateStatus)
-	
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -706,12 +706,13 @@ func (h *HybridDocumentHandler) ToggleTemplate(c *gin.Context) {
 		},
 	})
 }
+
 // CreateAndAttachDocument 创建文档并关联到任务（原子操作）
 func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 	// 获取路径参数
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -720,7 +721,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -729,7 +730,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 获取当前用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
@@ -739,7 +740,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 解析请求体
 	var req struct {
 		Title       string `json:"title" binding:"required"`
@@ -748,7 +749,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		Type        string `json:"type"`
 		Status      string `json:"status"`
 	}
-	
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -756,7 +757,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 设置默认值
 	if req.Type == "" {
 		req.Type = "markdown"
@@ -764,7 +765,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 	if req.Status == "" {
 		req.Status = "draft"
 	}
-	
+
 	// 开始事务
 	sqlDB := h.db.GetDB().(*sql.DB)
 	tx, err := sqlDB.Begin()
@@ -776,7 +777,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		return
 	}
 	defer tx.Rollback()
-	
+
 	// 首先验证任务和项目是否存在
 	var taskExists bool
 	err = tx.QueryRow(`
@@ -785,7 +786,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 			WHERE id = $1 AND project_id = $2 AND deleted_at IS NULL
 		)
 	`, taskID, projectID).Scan(&taskExists)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -793,7 +794,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	if !taskExists {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -801,7 +802,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 创建文档
 	var documentID int
 	now := time.Now().UTC()
@@ -813,7 +814,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		RETURNING id
 	`, projectID, req.Title, req.Content, req.Description, req.Type, req.Status,
 		userID, userID, now, now).Scan(&documentID)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -821,14 +822,14 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 创建任务文档关联
 	_, err = tx.Exec(`
 		INSERT INTO task_documents (task_id, document_id, relationship_type, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (task_id, document_id) DO NOTHING
 	`, taskID, documentID, "attachment", userID, now, now)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -836,7 +837,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 提交事务
 	if err := tx.Commit(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -845,7 +846,7 @@ func (h *HybridDocumentHandler) CreateAndAttachDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// 返回成功响应
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
@@ -867,7 +868,7 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 	// 获取路径参数
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -876,7 +877,7 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -885,9 +886,9 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 查询任务关联的文档
 	query := `
 		SELECT d.id, d.project_id, d.title, d.content, d.type, d.status,
@@ -900,7 +901,7 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		LEFT JOIN users u ON d.owner_id = u.id
 		WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL
 		ORDER BY td.sort_order, td.created_at`
-	
+
 	rows, err := sqlDB.Query(query, taskID, projectID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -911,15 +912,15 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	documents := []map[string]interface{}{}
-	
+
 	for rows.Next() {
 		var doc models.Document
 		var ownerName sql.NullString
 		var relationshipType sql.NullString
 		var tagsJSON sql.NullString // 使用 sql.NullString 来处理可能的 NULL 值
-		
+
 		err := rows.Scan(
 			&doc.ID, &doc.ProjectID, &doc.Title, &doc.Content, &doc.Type, &doc.Status,
 			&doc.FileURL, &doc.FileSize, &doc.MimeType, &doc.Description, &tagsJSON,
@@ -935,7 +936,7 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 			})
 			return
 		}
-		
+
 		// 处理 tags 字段
 		var tags []string
 		if tagsJSON.Valid && tagsJSON.String != "" {
@@ -946,38 +947,38 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		} else {
 			tags = []string{} // 如果为 NULL 或空，使用空数组
 		}
-		
+
 		docData := map[string]interface{}{
-			"id":           doc.ID,
-			"project_id":   doc.ProjectID,
-			"title":        doc.Title,
-			"content":      doc.Content,
-			"type":         doc.Type,
-			"status":       doc.Status,
-			"file_url":     doc.FileURL,
-			"file_size":    doc.FileSize,
-			"mime_type":    doc.MimeType,
-			"description":  doc.Description,
-			"tags":         tags,
-			"owner_id":     doc.OwnerID,
-			"visibility":   doc.Visibility,
-			"version":      doc.Version,
-			"is_template":  doc.IsTemplate,
-			"created_by":   doc.CreatedBy,
-			"created_at":   doc.CreatedAt,
-			"updated_at":   doc.UpdatedAt,
+			"id":          doc.ID,
+			"project_id":  doc.ProjectID,
+			"title":       doc.Title,
+			"content":     doc.Content,
+			"type":        doc.Type,
+			"status":      doc.Status,
+			"file_url":    doc.FileURL,
+			"file_size":   doc.FileSize,
+			"mime_type":   doc.MimeType,
+			"description": doc.Description,
+			"tags":        tags,
+			"owner_id":    doc.OwnerID,
+			"visibility":  doc.Visibility,
+			"version":     doc.Version,
+			"is_template": doc.IsTemplate,
+			"created_by":  doc.CreatedBy,
+			"created_at":  doc.CreatedAt,
+			"updated_at":  doc.UpdatedAt,
 		}
-		
+
 		if ownerName.Valid {
 			docData["owner_name"] = ownerName.String
 		}
 		if relationshipType.Valid {
 			docData["relationship_type"] = relationshipType.String
 		}
-		
+
 		documents = append(documents, docData)
 	}
-	
+
 	if err := rows.Err(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -986,7 +987,7 @@ func (h *HybridDocumentHandler) GetTaskDocuments(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    documents,
@@ -1000,7 +1001,7 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 	// 获取路径参数
 	projectIDStr := c.Param("id")
 	taskIDStr := c.Param("taskId")
-	
+
 	projectID, err := strconv.Atoi(projectIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1009,7 +1010,7 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -1018,16 +1019,16 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	// 查询任务是否有关联文档
 	query := `
 		SELECT COUNT(*) 
 		FROM documents d
 		INNER JOIN task_documents td ON d.id = td.document_id
 		WHERE td.task_id = $1 AND d.project_id = $2 AND d.deleted_at IS NULL AND td.deleted_at IS NULL`
-	
+
 	var count int
 	err = sqlDB.QueryRow(query, taskID, projectID).Scan(&count)
 	if err != nil {
@@ -1038,9 +1039,9 @@ func (h *HybridDocumentHandler) HasTaskDocument(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	hasDocument := count > 0
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"has_document": hasDocument,

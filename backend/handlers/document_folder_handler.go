@@ -109,6 +109,7 @@ func (h *HybridDocumentFolderHandler) GetFolderTree(c *gin.Context) {
 		},
 	})
 }
+
 // GetFolder 获取单个文件夹
 func (h *HybridDocumentFolderHandler) GetFolder(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -141,6 +142,7 @@ func (h *HybridDocumentFolderHandler) GetFolder(c *gin.Context) {
 		"data":    folder,
 	})
 }
+
 // UpdateFolder 更新文件夹
 func (h *HybridDocumentFolderHandler) UpdateFolder(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -207,6 +209,7 @@ func (h *HybridDocumentFolderHandler) UpdateFolder(c *gin.Context) {
 		"data":    folder,
 	})
 }
+
 // DeleteFolder 删除文件夹
 func (h *HybridDocumentFolderHandler) DeleteFolder(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -283,6 +286,7 @@ func (h *HybridDocumentFolderHandler) MoveFolder(c *gin.Context) {
 		"message": "Folder moved successfully",
 	})
 }
+
 // BatchUpdateFolders 批量更新文件夹
 func (h *HybridDocumentFolderHandler) BatchUpdateFolders(c *gin.Context) {
 	// 兼容两种请求格式：

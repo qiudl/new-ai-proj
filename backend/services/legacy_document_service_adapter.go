@@ -11,14 +11,14 @@ import (
 // 将现有的DocumentService包装成DocumentServiceInterface
 type LegacyDocumentServiceAdapter struct {
 	legacyService *DocumentService
-	db           *gorm.DB
+	db            *gorm.DB
 }
 
 // NewLegacyDocumentServiceAdapter 创建传统文档服务适配器
 func NewLegacyDocumentServiceAdapter(db *gorm.DB, storagePath string) *LegacyDocumentServiceAdapter {
 	return &LegacyDocumentServiceAdapter{
 		legacyService: NewDocumentService(db, storagePath),
-		db:           db,
+		db:            db,
 	}
 }
 
@@ -36,20 +36,20 @@ func (a *LegacyDocumentServiceAdapter) ReadDocument(ctx context.Context, req *in
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task documents: %w", err)
 	}
-	
+
 	if len(documents) == 0 {
 		return nil, fmt.Errorf("document not found")
 	}
-	
+
 	// 取第一个文档
 	doc := documents[0]
-	
+
 	// 读取文件内容
 	content, err := a.legacyService.GetFileContent(doc.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file content: %w", err)
 	}
-	
+
 	response := &interfaces.DocumentResponse{
 		TaskID:      req.TaskID,
 		ProjectID:   req.ProjectID,
@@ -60,7 +60,7 @@ func (a *LegacyDocumentServiceAdapter) ReadDocument(ctx context.Context, req *in
 		CreatedAt:   doc.UploadedAt,
 		Path:        doc.FilePath,
 	}
-	
+
 	return response, nil
 }
 
@@ -77,11 +77,11 @@ func (a *LegacyDocumentServiceAdapter) DeleteDocument(ctx context.Context, req *
 	if err != nil {
 		return fmt.Errorf("failed to get task documents: %w", err)
 	}
-	
+
 	if len(documents) == 0 {
 		return fmt.Errorf("document not found")
 	}
-	
+
 	// 删除第一个文档
 	return a.legacyService.DeleteDocument(documents[0].ID, uint(req.UserID))
 }
@@ -132,7 +132,7 @@ func (a *LegacyDocumentServiceAdapter) SearchDocuments(ctx context.Context, req 
 		PageSize:  req.Limit,
 		QueryTime: 0.0,
 	}
-	
+
 	return response, nil
 }
 
@@ -151,7 +151,7 @@ func (a *LegacyDocumentServiceAdapter) BatchCreateDocuments(ctx context.Context,
 		Failed:  len(req.Documents),
 		Results: make([]interfaces.BatchOperationResult, len(req.Documents)),
 	}
-	
+
 	for i, doc := range req.Documents {
 		response.Results[i] = interfaces.BatchOperationResult{
 			ProjectID: doc.ProjectID,
@@ -160,7 +160,7 @@ func (a *LegacyDocumentServiceAdapter) BatchCreateDocuments(ctx context.Context,
 			Error:     "Legacy service does not support batch create",
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -173,7 +173,7 @@ func (a *LegacyDocumentServiceAdapter) BatchUpdateDocuments(ctx context.Context,
 		Failed:  len(req.Documents),
 		Results: make([]interfaces.BatchOperationResult, len(req.Documents)),
 	}
-	
+
 	for i, doc := range req.Documents {
 		response.Results[i] = interfaces.BatchOperationResult{
 			ProjectID: doc.ProjectID,
@@ -182,7 +182,7 @@ func (a *LegacyDocumentServiceAdapter) BatchUpdateDocuments(ctx context.Context,
 			Error:     "Legacy service does not support batch update",
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -195,7 +195,7 @@ func (a *LegacyDocumentServiceAdapter) BatchDeleteDocuments(ctx context.Context,
 		Failed:  len(req.Documents),
 		Results: make([]interfaces.BatchOperationResult, len(req.Documents)),
 	}
-	
+
 	for i, doc := range req.Documents {
 		response.Results[i] = interfaces.BatchOperationResult{
 			ProjectID: doc.ProjectID,
@@ -204,7 +204,7 @@ func (a *LegacyDocumentServiceAdapter) BatchDeleteDocuments(ctx context.Context,
 			Error:     "Legacy service does not support batch delete",
 		}
 	}
-	
+
 	return response, nil
 }
 
@@ -239,7 +239,7 @@ func (a *LegacyDocumentServiceAdapter) GetDocumentLockStatus(ctx context.Context
 		IsLocked: false,
 		CanEdit:  true,
 	}
-	
+
 	return response, nil
 }
 
@@ -251,7 +251,7 @@ func (a *LegacyDocumentServiceAdapter) HealthCheck(ctx context.Context) error {
 			return sqlDB.Ping()
 		}
 	}
-	
+
 	return fmt.Errorf("database connection not available")
 }
 

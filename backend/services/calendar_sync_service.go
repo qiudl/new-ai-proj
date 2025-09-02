@@ -11,28 +11,28 @@ import (
 
 type CalendarSyncService struct {
 	googleCalendarService *GoogleCalendarService
-	calendarSyncRepo     *database.CalendarSyncRepository
-	googleAuthRepo       database.GoogleAuthRepository
+	calendarSyncRepo      *database.CalendarSyncRepository
+	googleAuthRepo        database.GoogleAuthRepository
 }
 
 // SyncDirection represents the direction of synchronization
 type SyncDirection string
 
 const (
-	SyncDirectionTaskToCalendar  SyncDirection = "task_to_calendar"
-	SyncDirectionCalendarToTask  SyncDirection = "calendar_to_task" 
-	SyncDirectionBidirectional   SyncDirection = "bidirectional"
+	SyncDirectionTaskToCalendar SyncDirection = "task_to_calendar"
+	SyncDirectionCalendarToTask SyncDirection = "calendar_to_task"
+	SyncDirectionBidirectional  SyncDirection = "bidirectional"
 )
 
 // CalendarSyncStatus represents the current sync status
 type CalendarSyncStatus string
 
 const (
-	SyncStatusPending   CalendarSyncStatus = "pending"
-	SyncStatusSynced    CalendarSyncStatus = "synced"
-	SyncStatusFailed    CalendarSyncStatus = "failed"
-	SyncStatusDisabled  CalendarSyncStatus = "disabled"
-	SyncStatusSyncing   CalendarSyncStatus = "syncing"
+	SyncStatusPending  CalendarSyncStatus = "pending"
+	SyncStatusSynced   CalendarSyncStatus = "synced"
+	SyncStatusFailed   CalendarSyncStatus = "failed"
+	SyncStatusDisabled CalendarSyncStatus = "disabled"
+	SyncStatusSyncing  CalendarSyncStatus = "syncing"
 )
 
 // SyncQueueItem represents an item in the sync queue
@@ -68,28 +68,28 @@ type SyncLog struct {
 
 // TaskSyncData represents task data for calendar synchronization
 type TaskSyncData struct {
-	ID                   int                `json:"id"`
-	Title                string             `json:"title"`
-	Description          string             `json:"description"`
-	DueDate             *time.Time         `json:"due_date"`
-	Status               string             `json:"status"`
-	Priority             string             `json:"priority"`
-	SyncToCalendar       bool               `json:"sync_to_calendar"`
-	CalendarSyncStatus   CalendarSyncStatus `json:"calendar_sync_status"`
-	LastCalendarSync     *time.Time         `json:"last_calendar_sync"`
-	CalendarEventURL     string             `json:"calendar_event_url"`
-	SyncDirection        SyncDirection      `json:"sync_direction"`
-	CalendarReminderMins int                `json:"calendar_reminder_minutes"`
-	GoogleCalendarEventID string            `json:"google_calendar_event_id"`
-	ProjectID            int                `json:"project_id"`
-	UserID               int                `json:"user_id"`
+	ID                    int                `json:"id"`
+	Title                 string             `json:"title"`
+	Description           string             `json:"description"`
+	DueDate               *time.Time         `json:"due_date"`
+	Status                string             `json:"status"`
+	Priority              string             `json:"priority"`
+	SyncToCalendar        bool               `json:"sync_to_calendar"`
+	CalendarSyncStatus    CalendarSyncStatus `json:"calendar_sync_status"`
+	LastCalendarSync      *time.Time         `json:"last_calendar_sync"`
+	CalendarEventURL      string             `json:"calendar_event_url"`
+	SyncDirection         SyncDirection      `json:"sync_direction"`
+	CalendarReminderMins  int                `json:"calendar_reminder_minutes"`
+	GoogleCalendarEventID string             `json:"google_calendar_event_id"`
+	ProjectID             int                `json:"project_id"`
+	UserID                int                `json:"user_id"`
 }
 
 func NewCalendarSyncService(googleCalendarService *GoogleCalendarService, calendarSyncRepo *database.CalendarSyncRepository, googleAuthRepo database.GoogleAuthRepository) *CalendarSyncService {
 	return &CalendarSyncService{
 		googleCalendarService: googleCalendarService,
-		calendarSyncRepo:     calendarSyncRepo,
-		googleAuthRepo:       googleAuthRepo,
+		calendarSyncRepo:      calendarSyncRepo,
+		googleAuthRepo:        googleAuthRepo,
 	}
 }
 
@@ -99,8 +99,8 @@ func (s *CalendarSyncService) SyncTaskToCalendar(ctx context.Context, taskID int
 
 	// Add to sync queue for async processing
 	return s.addToSyncQueue("sync_task_to_calendar", taskID, 1, map[string]interface{}{
-		"task_id": taskID,
-		"user_id": userID,
+		"task_id":   taskID,
+		"user_id":   userID,
 		"timestamp": time.Now().Unix(),
 	})
 }
@@ -117,8 +117,8 @@ func (s *CalendarSyncService) SyncCalendarToTask(ctx context.Context, eventID st
 
 	return s.addToSyncQueue("sync_calendar_to_task", taskID, 1, map[string]interface{}{
 		"google_event_id": eventID,
-		"user_id": userID,
-		"timestamp": time.Now().Unix(),
+		"user_id":         userID,
+		"timestamp":       time.Now().Unix(),
 	})
 }
 
@@ -265,7 +265,7 @@ func (s *CalendarSyncService) createGoogleCalendarEvent(ctx context.Context, use
 	if err != nil {
 		return "", fmt.Errorf("获取用户访问令牌失败: %v", err)
 	}
-	
+
 	// Create event via Google Calendar service
 	createdEvent, err := s.googleCalendarService.CreateEvent(ctx, accessToken, "primary", event)
 	if err != nil {
@@ -319,7 +319,7 @@ func (s *CalendarSyncService) getPendingSyncItems(limit int) ([]*SyncQueueItem, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert repository types to service types
 	var items []*SyncQueueItem
 	for _, repoItem := range repoItems {
@@ -335,7 +335,7 @@ func (s *CalendarSyncService) getPendingSyncItems(limit int) ([]*SyncQueueItem, 
 			CreatedAt:     repoItem.CreatedAt,
 			ScheduledAt:   repoItem.ScheduledAt,
 		}
-		
+
 		if repoItem.ErrorMessage.Valid {
 			item.ErrorMessage = repoItem.ErrorMessage.String
 		}
@@ -345,10 +345,10 @@ func (s *CalendarSyncService) getPendingSyncItems(limit int) ([]*SyncQueueItem, 
 		if repoItem.CompletedAt.Valid {
 			item.CompletedAt = &repoItem.CompletedAt.Time
 		}
-		
+
 		items = append(items, item)
 	}
-	
+
 	return items, nil
 }
 
@@ -369,7 +369,7 @@ func (s *CalendarSyncService) getTaskSyncData(taskID int) (*TaskSyncData, error)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert repository type to service type
 	syncData := &TaskSyncData{
 		ID:                   taskInfo.ID,
@@ -382,7 +382,7 @@ func (s *CalendarSyncService) getTaskSyncData(taskID int) (*TaskSyncData, error)
 		ProjectID:            taskInfo.ProjectID,
 		UserID:               taskInfo.UserID,
 	}
-	
+
 	if taskInfo.Description.Valid {
 		syncData.Description = taskInfo.Description.String
 	}
@@ -401,7 +401,7 @@ func (s *CalendarSyncService) getTaskSyncData(taskID int) (*TaskSyncData, error)
 	if taskInfo.GoogleCalendarEventID.Valid {
 		syncData.GoogleCalendarEventID = taskInfo.GoogleCalendarEventID.String
 	}
-	
+
 	return syncData, nil
 }
 
@@ -427,34 +427,34 @@ func (s *CalendarSyncService) getGoogleCalendarEvent(ctx context.Context, userID
 	if err != nil {
 		return nil, fmt.Errorf("获取用户访问令牌失败: %v", err)
 	}
-	
+
 	return s.googleCalendarService.GetEvent(ctx, accessToken, "primary", eventID)
 }
 
 func (s *CalendarSyncService) updateTaskFromCalendarEvent(taskID int, event *GoogleCalendarEvent) error {
 	log.Printf("从日历事件更新任务 %d: %s", taskID, event.Summary)
-	
+
 	// Get current task data
 	taskData, err := s.getTaskSyncData(taskID)
 	if err != nil {
 		return fmt.Errorf("获取任务数据失败: %v", err)
 	}
-	
+
 	// Prepare update fields based on calendar event changes
 	updateFields := make(map[string]interface{})
-	
+
 	// Update title if different
 	if event.Summary != "" && event.Summary != taskData.Title {
 		updateFields["title"] = event.Summary
 		log.Printf("更新任务标题: %s -> %s", taskData.Title, event.Summary)
 	}
-	
+
 	// Update description if different
 	if event.Description != "" && event.Description != taskData.Description {
 		updateFields["description"] = event.Description
 		log.Printf("更新任务描述")
 	}
-	
+
 	// Update due date based on event start time
 	if !event.StartTime.IsZero() {
 		newDueDate := event.StartTime
@@ -463,7 +463,7 @@ func (s *CalendarSyncService) updateTaskFromCalendarEvent(taskID int, event *Goo
 			log.Printf("更新任务截止时间: %v", newDueDate)
 		}
 	}
-	
+
 	// Update task status based on event status
 	if event.Status != "" {
 		var newStatus string
@@ -482,28 +482,28 @@ func (s *CalendarSyncService) updateTaskFromCalendarEvent(taskID int, event *Goo
 		default:
 			newStatus = taskData.Status // Keep current status
 		}
-		
+
 		if newStatus != taskData.Status {
 			updateFields["status"] = newStatus
 			log.Printf("更新任务状态: %s -> %s", taskData.Status, newStatus)
 		}
 	}
-	
+
 	// Only update if there are changes
 	if len(updateFields) == 0 {
 		log.Printf("任务 %d 无需更新", taskID)
 		return nil
 	}
-	
+
 	// Update last calendar sync timestamp
 	updateFields["last_calendar_sync"] = time.Now()
-	
+
 	// Perform the database update
 	err = s.calendarSyncRepo.UpdateTaskFromCalendarSync(taskID, updateFields)
 	if err != nil {
 		return fmt.Errorf("更新任务失败: %v", err)
 	}
-	
+
 	log.Printf("任务 %d 已根据日历事件成功更新", taskID)
 	return nil
 }
@@ -546,7 +546,7 @@ func (s *CalendarSyncService) getUserAccessToken(ctx context.Context, userID int
 	if err != nil {
 		return "", fmt.Errorf("failed to get google token: %v", err)
 	}
-	
+
 	// The GoogleAuthRepository.GetGoogleToken method already decrypts the token
 	// and populates the AccessToken field, so we can directly return it
 	return token.AccessToken, nil

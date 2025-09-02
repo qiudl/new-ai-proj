@@ -5,7 +5,7 @@ import { WorkNote, WorkNoteOptions, ApiResponse, SearchOptions } from './types.j
 export class WorkNoteService extends BaseClient {
 
   // 创建工作笔记
-  @requiresPermission('create_work_note')
+  // @requiresPermission('create_work_note')
   async createWorkNote(
     title: string, 
     content: string, 
@@ -141,7 +141,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 更新工作笔记
-  @requiresPermission('update_work_note')
+  // @requiresPermission('update_work_note')
   async updateWorkNote(id: number, updates: {
     title?: string;
     content?: string;
@@ -173,7 +173,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 删除工作笔记
-  @requiresPermission('delete_work_note')
+  // @requiresPermission('delete_work_note')
   async deleteWorkNote(id: number): Promise<ApiResponse> {
     try {
       const response = await this.makeRequest('DELETE', `/mcp/delete-work-note/${id}`);
@@ -196,7 +196,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 发布工作笔记
-  @requiresPermission('update_work_note')
+  // @requiresPermission('update_work_note')
   async publishWorkNote(id: number): Promise<ApiResponse> {
     try {
       return await this.updateWorkNote(id, { status: 'published' });
@@ -209,7 +209,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 归档工作笔记
-  @requiresPermission('update_work_note')
+  // @requiresPermission('update_work_note')
   async archiveWorkNote(id: number): Promise<ApiResponse> {
     try {
       return await this.updateWorkNote(id, { status: 'archived' });
@@ -257,7 +257,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 复制工作笔记
-  @requiresPermission('create_work_note')
+  // @requiresPermission('create_work_note')
   async duplicateWorkNote(id: number, newTitle?: string): Promise<ApiResponse> {
     try {
       // 1. 获取原工作笔记
@@ -298,7 +298,7 @@ export class WorkNoteService extends BaseClient {
   }
 
   // 批量更新工作笔记标签
-  @requiresPermission('update_work_note')
+  // @requiresPermission('update_work_note')
   async batchUpdateTags(workNoteIds: number[], tags: string[]): Promise<ApiResponse> {
     try {
       if (!workNoteIds || workNoteIds.length === 0) {

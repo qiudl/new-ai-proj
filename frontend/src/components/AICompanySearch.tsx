@@ -14,14 +14,12 @@ import {
   Spin,
   List,
   Badge,
-  Tooltip,
   Collapse
 } from 'antd';
 import {
   RobotOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
-  WarningOutlined,
   ThunderboltOutlined,
   EyeOutlined,
   SelectOutlined,

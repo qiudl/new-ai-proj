@@ -20,7 +20,7 @@ type OpenAPIValidationSuite struct {
 // SetupSuite 设置测试套件
 func (suite *OpenAPIValidationSuite) SetupSuite() {
 	suite.ContractTestSuite.SetupSuite()
-	
+
 	// 加载OpenAPI规范
 	err := suite.loadOpenAPISpec()
 	if err != nil {
@@ -36,7 +36,7 @@ func TestOpenAPIValidation(t *testing.T) {
 // loadOpenAPISpec 加载OpenAPI规范文件
 func (suite *OpenAPIValidationSuite) loadOpenAPISpec() error {
 	specPath := "/Users/johnqiu/coding/www/projects/new-ai-proj/docs/api/openapi.yaml"
-	
+
 	data, err := ioutil.ReadFile(specPath)
 	if err != nil {
 		return fmt.Errorf("failed to read OpenAPI spec file: %v", err)
@@ -332,7 +332,7 @@ func (suite *OpenAPIValidationSuite) validatePaginationResponse(pagination inter
 	// 验证布尔字段
 	hasNext, ok := paginationObj["has_next"].(bool)
 	suite.True(ok, "Has next should be boolean")
-	
+
 	hasPrev, ok := paginationObj["has_prev"].(bool)
 	suite.True(ok, "Has prev should be boolean")
 

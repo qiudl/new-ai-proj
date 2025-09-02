@@ -95,7 +95,7 @@ func (s *DocumentCollaborationService) GetComments(ctx context.Context, document
 	for rows.Next() {
 		var comment models.DocumentCommentExt
 		var resolvedByName sql.NullString
-		
+
 		err := rows.Scan(
 			&comment.ID, &comment.DocumentID, &comment.UserID, &comment.Content,
 			&comment.CommentType, &comment.PositionInfo, &comment.ParentCommentID,
@@ -373,7 +373,7 @@ func (s *DocumentCollaborationService) GetCollaborators(ctx context.Context, doc
 	for rows.Next() {
 		var collaborator models.DocumentCollaboratorExt
 		var userName, grantedByName string
-		
+
 		err := rows.Scan(
 			&collaborator.ID, &collaborator.DocumentID, &collaborator.UserID,
 			&collaborator.PermissionLevel, &collaborator.GrantedBy,
@@ -518,7 +518,7 @@ func (s *DocumentCollaborationService) GetChangeHistory(ctx context.Context, doc
 	var changes []models.DocumentChangeRecord
 	for rows.Next() {
 		var change models.DocumentChangeRecord
-		
+
 		err := rows.Scan(
 			&change.ID, &change.DocumentID, &change.UserID, &change.ChangeType,
 			&change.FieldName, &change.OldValue, &change.NewValue, &change.ChangeSummary,
@@ -624,7 +624,7 @@ func (s *DocumentCollaborationService) GetActiveCollaborators(ctx context.Contex
 	var activeUsers []models.ActiveCollaborator
 	for rows.Next() {
 		var user models.ActiveCollaborator
-		
+
 		err := rows.Scan(
 			&user.UserID, &user.Username, &user.PermissionLevel, &user.LastActiveAt,
 		)
@@ -654,7 +654,7 @@ func (s *DocumentCollaborationService) GetCollaborationStats(ctx context.Context
 	}
 
 	var stats models.DocumentCollaborationStats
-	
+
 	// 获取基础统计信息
 	err = s.db.QueryRowContext(ctx, `
 		SELECT 
@@ -677,7 +677,7 @@ func (s *DocumentCollaborationService) GetCollaborationStats(ctx context.Context
 // GetUserCollaborationDashboard 获取用户协作仪表板
 func (s *DocumentCollaborationService) GetUserCollaborationDashboard(ctx context.Context, userID int) (*models.UserCollaborationDashboard, error) {
 	var dashboard models.UserCollaborationDashboard
-	
+
 	// 获取用户参与的文档数量
 	err := s.db.QueryRowContext(ctx, `
 		SELECT 
@@ -690,7 +690,7 @@ func (s *DocumentCollaborationService) GetUserCollaborationDashboard(ctx context
 		LEFT JOIN document_change_history ch ON dc.document_id = ch.document_id AND ch.user_id = $1
 		WHERE dc.user_id = $1
 	`, userID).Scan(
-		&dashboard.CollaboratedDocuments, &dashboard.CommentsMade, 
+		&dashboard.CollaboratedDocuments, &dashboard.CommentsMade,
 		&dashboard.CommentsResolved, &dashboard.DocumentsEdited,
 	)
 	if err != nil {
@@ -731,7 +731,7 @@ func (s *DocumentCollaborationService) checkDocumentPermission(ctx context.Conte
 		WHERE document_id = $1 AND user_id = $2 
 		  AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
 	`, documentID, userID).Scan(&permissionLevel)
-	
+
 	if err == nil {
 		return s.checkActionPermission(permissionLevel, action), nil
 	}

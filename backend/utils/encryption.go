@@ -17,8 +17,8 @@ import (
 
 // EncryptionService 提供API密钥加密解密服务
 type EncryptionService struct {
-	gcm    cipher.AEAD
-	keyID  string
+	gcm   cipher.AEAD
+	keyID string
 }
 
 // NewEncryptionService 创建加密服务实例
@@ -53,10 +53,10 @@ func (es *EncryptionService) EncryptAPIKey(plaintext string) (string, error) {
 
 	// 加密数据
 	ciphertext := es.gcm.Seal(nonce, nonce, []byte(plaintext), nil)
-	
+
 	// 添加密钥ID前缀，格式: keyID:base64(ciphertext)
 	encrypted := fmt.Sprintf("%s:%s", es.keyID, base64.StdEncoding.EncodeToString(ciphertext))
-	
+
 	return encrypted, nil
 }
 
@@ -91,7 +91,7 @@ func (es *EncryptionService) DecryptAPIKey(encrypted string) (string, error) {
 
 	// 提取nonce和密文
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
-	
+
 	// 解密
 	plaintext, err := es.gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
@@ -112,12 +112,12 @@ func (es *EncryptionService) MaskAPIKey(apiKey string) string {
 	if len(apiKey) <= 8 {
 		return "••••••••"
 	}
-	
+
 	// 显示前4位和后4位
 	prefix := apiKey[:4]
 	suffix := apiKey[len(apiKey)-4:]
 	middle := "••••••••••••••••" // 16个点
-	
+
 	return fmt.Sprintf("%s%s%s", prefix, middle, suffix)
 }
 
@@ -162,13 +162,13 @@ func RotateEncryption(oldService, newService *EncryptionService, encryptedData s
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt with old key: %w", err)
 	}
-	
+
 	// 用新密钥加密
 	newEncrypted, err := newService.EncryptAPIKey(plaintext)
 	if err != nil {
 		return "", fmt.Errorf("failed to encrypt with new key: %w", err)
 	}
-	
+
 	return newEncrypted, nil
 }
 
@@ -334,16 +334,16 @@ func Decrypt(ciphertext string) (string, error) {
 // GenerateRandomString 生成指定长度的随机字符串
 func GenerateRandomString(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
-	
+
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 	}
-	
+
 	for i, b := range bytes {
 		bytes[i] = charset[b%byte(len(charset))]
 	}
-	
+
 	return string(bytes), nil
 }
 
@@ -353,6 +353,6 @@ func GenerateSecureRandomString(length int) (string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", fmt.Errorf("failed to generate secure random bytes: %w", err)
 	}
-	
+
 	return base64.URLEncoding.EncodeToString(bytes), nil
 }

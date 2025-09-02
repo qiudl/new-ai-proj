@@ -63,6 +63,7 @@ func (s *DocumentFolderService) GetFolderTree() (interface{}, error) {
 
 	return rootFolders, nil
 }
+
 // GetFolder 获取单个文件夹
 func (s *DocumentFolderService) GetFolder(id uint) (*models.DocumentFolder, error) {
 	var folder models.DocumentFolder
@@ -126,6 +127,7 @@ func (s *DocumentFolderService) MoveFolder(id uint, newParentID *uint) error {
 
 	return s.db.Model(&models.DocumentFolder{}).Where("id = ?", id).Update("parent_id", newParentID).Error
 }
+
 // isDescendant 检查 childID 是否是 parentID 的后代
 func (s *DocumentFolderService) isDescendant(parentID, childID uint) bool {
 	var folder models.DocumentFolder

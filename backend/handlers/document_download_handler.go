@@ -63,7 +63,7 @@ func (h *DocumentDownloadHandler) DownloadDocument(c *gin.Context) {
 
 	// 查询文档信息
 	var document Document
-	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL", 
+	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL",
 		documentID, projectID, taskID).First(&document).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -184,7 +184,7 @@ func (h *DocumentDownloadHandler) DownloadDocumentVersion(c *gin.Context) {
 
 	// 查询主文档以检查权限
 	var document Document
-	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ?", 
+	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ?",
 		documentID, projectID, taskID).First(&document).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -288,7 +288,7 @@ func (h *DocumentDownloadHandler) BatchDownloadDocuments(c *gin.Context) {
 
 	// 查询文档列表
 	var documents []Document
-	if err := h.db.Where("id IN ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL", 
+	if err := h.db.Where("id IN ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL",
 		request.DocumentIDs, projectID, taskID).Find(&documents).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -307,9 +307,9 @@ func (h *DocumentDownloadHandler) BatchDownloadDocuments(c *gin.Context) {
 	}
 
 	// 创建ZIP压缩包
-	zipFileName := fmt.Sprintf("documents_project_%d_task_%d_%s.zip", 
+	zipFileName := fmt.Sprintf("documents_project_%d_task_%d_%s.zip",
 		projectID, taskID, time.Now().Format("20060102_150405"))
-	
+
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", zipFileName))
 	c.Header("Content-Type", "application/zip")
 
@@ -358,7 +358,7 @@ func (h *DocumentDownloadHandler) ConvertToPDF(c *gin.Context) {
 
 	// 查询文档信息
 	var document Document
-	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL", 
+	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL",
 		documentID, projectID, taskID).First(&document).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -456,7 +456,7 @@ func (h *DocumentDownloadHandler) PreviewDocument(c *gin.Context) {
 
 	// 查询文档信息
 	var document Document
-	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL", 
+	if err := h.db.Where("id = ? AND project_id = ? AND task_id = ? AND deleted_at IS NULL",
 		documentID, projectID, taskID).First(&document).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -500,7 +500,7 @@ func (h *DocumentDownloadHandler) PreviewDocument(c *gin.Context) {
 	// 设置响应头为在线查看
 	c.Header("Content-Type", h.getContentType(document.FileType))
 	c.Header("Cache-Control", "public, max-age=3600") // 缓存1小时
-	
+
 	// 对于可预览的文件类型，设置inline；否则强制下载
 	if h.supportsInlinePreview(document.FileType) {
 		c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", document.FileName))
@@ -577,12 +577,12 @@ func (h *DocumentDownloadHandler) batchUpdateDownloadCount(documentIDs []int64) 
 func (h *DocumentDownloadHandler) recordVersionDownload(versionID int64) {
 	// 这里可以记录版本下载日志到document_operations表
 	operation := DocumentOperation{
-		DocumentID:  versionID, // 这里应该是document_id，需要查询获取
+		DocumentID:    versionID, // 这里应该是document_id，需要查询获取
 		OperationType: "version_download",
-		IPAddress:   "system", // 实际应从请求中获取
-		UserAgent:   "system",
-		IsSuccess:   true,
-		CreatedAt:   time.Now(),
+		IPAddress:     "system", // 实际应从请求中获取
+		UserAgent:     "system",
+		IsSuccess:     true,
+		CreatedAt:     time.Now(),
 	}
 	h.db.Create(&operation)
 }
@@ -593,7 +593,7 @@ func (h *DocumentDownloadHandler) recordDocumentPreview(documentID int64) {
 		DocumentID:    documentID,
 		OperationType: "preview",
 		IPAddress:     "system",
-		UserAgent:     "system", 
+		UserAgent:     "system",
 		IsSuccess:     true,
 		CreatedAt:     time.Now(),
 	}
@@ -714,25 +714,25 @@ type StorageAdapter interface {
 
 // Document 文档模型 (DocumentDownloadHandler specific)
 type Document struct {
-	ID             int64     `gorm:"primaryKey" json:"id"`
-	Title          string    `gorm:"not null" json:"title"`
-	Description    string    `json:"description"`
-	FileName       string    `gorm:"not null" json:"file_name"`
-	FileType       string    `gorm:"not null" json:"file_type"`
-	FileSize       int64     `gorm:"not null" json:"file_size"`
-	StoragePath    string    `gorm:"not null" json:"storage_path"`
-	Status         string    `gorm:"default:'draft'" json:"status"`
-	Visibility     string    `gorm:"default:'private'" json:"visibility"`
-	ProjectID      int64     `gorm:"not null;index" json:"project_id"`
-	TaskID         int64     `gorm:"not null;index" json:"task_id"`
-	CurrentVersion int       `gorm:"default:1" json:"current_version"`
-	TotalVersions  int       `gorm:"default:1" json:"total_versions"`
-	DownloadCount  int       `gorm:"default:0" json:"download_count"`
-	Checksum       string    `json:"checksum"`
-	UploadedBy     int64     `gorm:"not null;index" json:"uploaded_by"`
-	UpdatedBy      *int64    `gorm:"index" json:"updated_by"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             int64      `gorm:"primaryKey" json:"id"`
+	Title          string     `gorm:"not null" json:"title"`
+	Description    string     `json:"description"`
+	FileName       string     `gorm:"not null" json:"file_name"`
+	FileType       string     `gorm:"not null" json:"file_type"`
+	FileSize       int64      `gorm:"not null" json:"file_size"`
+	StoragePath    string     `gorm:"not null" json:"storage_path"`
+	Status         string     `gorm:"default:'draft'" json:"status"`
+	Visibility     string     `gorm:"default:'private'" json:"visibility"`
+	ProjectID      int64      `gorm:"not null;index" json:"project_id"`
+	TaskID         int64      `gorm:"not null;index" json:"task_id"`
+	CurrentVersion int        `gorm:"default:1" json:"current_version"`
+	TotalVersions  int        `gorm:"default:1" json:"total_versions"`
+	DownloadCount  int        `gorm:"default:0" json:"download_count"`
+	Checksum       string     `json:"checksum"`
+	UploadedBy     int64      `gorm:"not null;index" json:"uploaded_by"`
+	UpdatedBy      *int64     `gorm:"index" json:"updated_by"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 	PublishedAt    *time.Time `json:"published_at"`
 	DeletedAt      *time.Time `gorm:"index" json:"deleted_at"`
 }
@@ -765,4 +765,3 @@ type DocumentOperation struct {
 	ErrorMessage  string    `json:"error_message"`
 	CreatedAt     time.Time `json:"created_at"`
 }
-

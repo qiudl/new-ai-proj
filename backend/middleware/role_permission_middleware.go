@@ -38,16 +38,16 @@ type RolePermissionStats struct {
 
 // RoleContext 角色上下文信息
 type RoleContext struct {
-	UserID          int                    `json:"user_id"`
-	CompanyUserID   int                    `json:"company_user_id"`
-	RoleCode        string                 `json:"role_code"`
-	RoleName        string                 `json:"role_name"`
-	RoleLevel       int                    `json:"role_level"`
-	IsSystemRole    bool                   `json:"is_system_role"`
-	Permissions     []string               `json:"permissions"`
-	CustomFields    map[string]interface{} `json:"custom_fields,omitempty"`
-	CacheHit        bool                   `json:"cache_hit,omitempty"`
-	CheckTime       time.Duration          `json:"check_time,omitempty"`
+	UserID        int                    `json:"user_id"`
+	CompanyUserID int                    `json:"company_user_id"`
+	RoleCode      string                 `json:"role_code"`
+	RoleName      string                 `json:"role_name"`
+	RoleLevel     int                    `json:"role_level"`
+	IsSystemRole  bool                   `json:"is_system_role"`
+	Permissions   []string               `json:"permissions"`
+	CustomFields  map[string]interface{} `json:"custom_fields,omitempty"`
+	CacheHit      bool                   `json:"cache_hit,omitempty"`
+	CheckTime     time.Duration          `json:"check_time,omitempty"`
 }
 
 // RolePermissionConfig 角色权限配置
@@ -134,29 +134,29 @@ func (m *RolePermissionMiddleware) RequireRoleWithPermissions(roleCode string, p
 type RoleRequirement struct {
 	// 单个角色
 	RoleCode string `json:"role_code"`
-	
+
 	// 多个角色（任选一）
 	RoleCodes []string `json:"role_codes"`
-	
+
 	// 角色级别要求
 	MinimumLevel    int  `json:"minimum_level"`
 	MaximumLevel    int  `json:"maximum_level"`
 	UseHierarchy    bool `json:"use_hierarchy"`
 	AllowHigherRole bool `json:"allow_higher_role"`
-	
+
 	// 权限验证
 	RequiredPermissions  []string `json:"required_permissions"`
 	ValidatePermissions  bool     `json:"validate_permissions"`
 	StrictPermissionMode bool     `json:"strict_permission_mode"`
-	
+
 	// 匹配模式
 	MatchAny     bool `json:"match_any"`
 	StrictMatch  bool `json:"strict_match"`
 	IsSystemRole bool `json:"is_system_role"`
-	
+
 	// 自定义验证
 	CustomValidator func(ctx *RoleContext) bool `json:"-"`
-	
+
 	// 错误响应自定义
 	ErrorMessage    string `json:"error_message"`
 	ErrorStatusCode int    `json:"error_status_code"`
@@ -167,7 +167,7 @@ func (m *RolePermissionMiddleware) RequireRoleWithConfig(req RoleRequirement) gi
 	return func(c *gin.Context) {
 		startTime := time.Now()
 		ctx := c.Request.Context()
-		
+
 		// 更新统计
 		m.updateStats(func(stats *RolePermissionStats) {
 			stats.TotalChecks++
@@ -176,13 +176,13 @@ func (m *RolePermissionMiddleware) RequireRoleWithConfig(req RoleRequirement) gi
 		// 超级管理员检查
 		if req.IsSystemRole && isSuperAdminCtx(c) {
 			roleCtx := &RoleContext{
-				RoleCode:      models.RoleCodeSuperAdmin,
-				RoleName:      "超级管理员",
-				RoleLevel:     1,
-				IsSystemRole:  true,
-				Permissions:   []string{"ALL_PERMISSIONS"},
-				CustomFields:  map[string]interface{}{"superadmin_bypass": true},
-				CheckTime:     time.Since(startTime),
+				RoleCode:     models.RoleCodeSuperAdmin,
+				RoleName:     "超级管理员",
+				RoleLevel:    1,
+				IsSystemRole: true,
+				Permissions:  []string{"ALL_PERMISSIONS"},
+				CustomFields: map[string]interface{}{"superadmin_bypass": true},
+				CheckTime:    time.Since(startTime),
 			}
 			c.Set("role_context", roleCtx)
 			c.Next()
@@ -215,6 +215,7 @@ func (m *RolePermissionMiddleware) RequireRoleWithConfig(req RoleRequirement) gi
 		c.Next()
 	}
 }
+
 // getRoleContext 获取用户角色上下文
 func (m *RolePermissionMiddleware) getRoleContext(ctx context.Context, c *gin.Context) (*RoleContext, error) {
 	// 获取company_user_id
@@ -374,7 +375,7 @@ func (m *RolePermissionMiddleware) validateAdditionalRequirements(roleCtx *RoleC
 
 		for _, requiredPerm := range req.RequiredPermissions {
 			hasPermission := false
-			
+
 			// 检查精确匹配
 			if contains(roleCtx.Permissions, requiredPerm) {
 				hasPermission = true
@@ -468,17 +469,17 @@ func matchesWildcard(pattern, text string) bool {
 	if pattern == "*" {
 		return true
 	}
-	
+
 	if strings.HasSuffix(pattern, "*") {
 		prefix := strings.TrimSuffix(pattern, "*")
 		return strings.HasPrefix(text, prefix)
 	}
-	
+
 	if strings.HasPrefix(pattern, "*") {
 		suffix := strings.TrimPrefix(pattern, "*")
 		return strings.HasSuffix(text, suffix)
 	}
-	
+
 	// 中间通配符处理
 	if strings.Contains(pattern, "*") {
 		parts := strings.Split(pattern, "*")
@@ -486,9 +487,10 @@ func matchesWildcard(pattern, text string) bool {
 			return strings.HasPrefix(text, parts[0]) && strings.HasSuffix(text, parts[1])
 		}
 	}
-	
+
 	return pattern == text
 }
+
 // ==================== 便捷的角色验证方法 ====================
 
 // RequireCompanyAdmin 要求公司管理员角色
@@ -522,7 +524,7 @@ func (m *RolePermissionMiddleware) RequireFinanceAccess() gin.HandlerFunc {
 		RequiredPermissions:  []string{"finance.contracts.read"},
 		ValidatePermissions:  true,
 		StrictPermissionMode: false,
-		ErrorMessage:        "Access to financial data requires proper authorization",
+		ErrorMessage:         "Access to financial data requires proper authorization",
 	})
 }
 
@@ -596,7 +598,7 @@ func (m *RolePermissionMiddleware) RequireResourceOwnershipOrRole(
 					return true
 				}
 			}
-			
+
 			// 这里可以扩展实现资源所有权检查
 			// 例如：检查用户是否是项目的创建者或分配人
 			return false
@@ -645,7 +647,7 @@ func (m *RolePermissionMiddleware) WarmUpCache(ctx context.Context, companyUserI
 
 	for _, id := range companyUserIDs {
 		cacheKey := fmt.Sprintf("role_context_%d", id)
-		
+
 		// 检查是否已缓存
 		if _, found := m.cache.Get(cacheKey); found {
 			continue
@@ -685,15 +687,15 @@ func (m *RolePermissionMiddleware) WarmUpCache(ctx context.Context, companyUserI
 // HealthCheck 健康检查
 func (m *RolePermissionMiddleware) HealthCheck() map[string]interface{} {
 	stats := m.GetStats()
-	
+
 	health := map[string]interface{}{
-		"status":           "healthy",
-		"cache_enabled":    m.cache != nil,
-		"total_checks":     stats.TotalChecks,
-		"success_rate":     float64(stats.SuccessCount) / float64(max(stats.TotalChecks, 1)) * 100,
-		"cache_hit_rate":   float64(stats.CacheHits) / float64(max(stats.CacheHits+stats.CacheMisses, 1)) * 100,
-		"avg_check_time":   stats.AvgCheckTime,
-		"last_reset":       stats.LastReset,
+		"status":         "healthy",
+		"cache_enabled":  m.cache != nil,
+		"total_checks":   stats.TotalChecks,
+		"success_rate":   float64(stats.SuccessCount) / float64(max(stats.TotalChecks, 1)) * 100,
+		"cache_hit_rate": float64(stats.CacheHits) / float64(max(stats.CacheHits+stats.CacheMisses, 1)) * 100,
+		"avg_check_time": stats.AvgCheckTime,
+		"last_reset":     stats.LastReset,
 	}
 
 	if m.cache != nil {

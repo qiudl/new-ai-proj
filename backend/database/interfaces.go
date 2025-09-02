@@ -29,17 +29,17 @@ type UserRepository interface {
 	HardDelete(ctx context.Context, id int) error
 	IsDeleted(ctx context.Context, id int) (bool, error)
 	List(ctx context.Context, limit, offset int) ([]*models.User, int, error)
-	
+
 	// User profile management
 	UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int, passwordHash string) error
-	
+
 	// Enterprise user management
 	ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error)
 	GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error)
 	GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error)
 	GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error)
-	
+
 	// Timer management
 	GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error)
 }
@@ -56,7 +56,7 @@ type ProjectRepository interface {
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)
 	ListWithCompanyInfo(ctx context.Context, limit, offset int) ([]*models.ProjectWithCompany, int, error)
-	
+
 	// Recycle bin operations
 	GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error)
 	RestoreProject(ctx context.Context, id int) error
@@ -77,8 +77,8 @@ type TaskRepository interface {
 	BulkCreate(ctx context.Context, tasks []*models.Task) ([]*models.Task, error)
 	UpdateStatus(ctx context.Context, id int, status string) error
 	GetByStatus(ctx context.Context, status string, limit, offset int) ([]*models.Task, int, error)
-	
-// Hierarchical task operations
+
+	// Hierarchical task operations
 	GetChildren(ctx context.Context, parentID int) ([]*models.Task, error)
 	GetTaskTree(ctx context.Context, projectID int) ([]*models.HierarchicalTask, error)
 	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
@@ -86,13 +86,13 @@ type TaskRepository interface {
 	GetDescendants(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.TaskDescendantNode, error)
 	SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error)
 	CheckCircularDependency(ctx context.Context, taskID int, potentialParentID int) (bool, error)
-	
+
 	// Task update history
 	CreateTaskUpdate(ctx context.Context, update *models.TaskUpdate) error
 	GetTaskUpdates(ctx context.Context, taskID int, limit, offset int) ([]*models.TaskUpdate, int, error)
 	UpdateTaskUpdateNotes(ctx context.Context, updateID int, notes string) error
 	DeleteTaskUpdate(ctx context.Context, updateID int) error
-	
+
 	// Timeline events
 	CreateTimelineEvent(ctx context.Context, event *models.TimelineEvent) error
 	GetTaskTimeline(ctx context.Context, taskID int, limit, offset int) ([]*models.TimelineEvent, int, error)
@@ -106,20 +106,20 @@ type CustomerRepository interface {
 	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Customer, int, error)
 	Update(ctx context.Context, customer *models.Customer) (*models.Customer, error)
 	Delete(ctx context.Context, id int) error
-	
+
 	// Customer user associations
 	AssociateUser(ctx context.Context, customerUser *models.CustomerUser) (*models.CustomerUser, error)
 	DisassociateUser(ctx context.Context, customerID, userID int) error
 	GetCustomerUsers(ctx context.Context, customerID int) ([]*models.CustomerUser, error)
 	GetUserCustomers(ctx context.Context, userID int) ([]*models.Customer, error)
 	UpdateUserRole(ctx context.Context, customerID, userID int, role string, permissions models.CustomFields) error
-	
+
 	// Customer contacts
 	CreateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
 	GetContacts(ctx context.Context, customerID int, limit, offset int) ([]*models.CustomerContact, int, error)
 	UpdateContact(ctx context.Context, contact *models.CustomerContact) (*models.CustomerContact, error)
 	DeleteContact(ctx context.Context, id int) error
-	
+
 	// Statistics and reports
 	GetCustomerStats(ctx context.Context) (map[string]interface{}, error)
 	GetCustomersByStatus(ctx context.Context, status string) ([]*models.Customer, error)
@@ -135,19 +135,19 @@ type APIKeyRepository interface {
 	GetAPIKeyByPrefix(ctx context.Context, keyPrefix string) (*models.APIKey, error)
 	UpdateAPIKey(ctx context.Context, id int64, updates *models.APIKeyUpdateRequest, updatedBy int) (*models.APIKey, error)
 	DeleteAPIKey(ctx context.Context, id int64, deletedBy int) error
-	
+
 	// Listing and querying
 	ListAPIKeys(ctx context.Context, params *models.APIKeyListParams) ([]models.APIKey, int, error)
 	GetActiveAPIKeys(ctx context.Context) ([]models.APIKey, error)
-	
+
 	// Usage tracking
 	UpdateLastUsed(ctx context.Context, id int64) error
 	UpdateAPIKeyUsage(ctx context.Context, apiKeyID int64) error
-	
+
 	// Usage logging
 	CreateUsageLog(ctx context.Context, log *models.APIUsageLog) error
 	CreateAPIUsageLog(ctx context.Context, log *models.APIUsageLog) error
-	
+
 	// Statistics and analytics
 	GetUsageStats(ctx context.Context, apiKeyID int64, days int) (*models.APIQuotaStats, error)
 	CheckRateLimit(ctx context.Context, apiKeyID int64, window models.RateLimitType, limit int) (bool, error)
@@ -160,17 +160,17 @@ type AuditRepository interface {
 	GetAuditLogs(ctx context.Context, filter *models.AuditLogFilter) ([]*models.AuditLog, int64, error)
 	GetAuditLogByID(ctx context.Context, id int64) (*models.AuditLog, error)
 	GetAuditLogByEventID(ctx context.Context, eventID string) (*models.AuditLog, error)
-	
+
 	// Audit configuration operations
 	GetAuditConfig(ctx context.Context, resourceType, action string) (*models.AuditConfig, error)
 	GetAllAuditConfigs(ctx context.Context) ([]*models.AuditConfig, error)
 	CreateAuditConfig(ctx context.Context, config *models.AuditConfig) error
 	UpdateAuditConfig(ctx context.Context, config *models.AuditConfig) error
 	DeleteAuditConfig(ctx context.Context, id int) error
-	
+
 	// Audit statistics
 	GetAuditStats(ctx context.Context, req *models.AuditStatsRequest) ([]*models.AuditStats, error)
-	
+
 	// Data cleanup
 	CleanupExpiredAuditLogs(ctx context.Context) (int64, error)
 }
@@ -181,20 +181,19 @@ type SystemRepository interface {
 	GetRecycledProjects(ctx context.Context, limit, offset int) ([]*models.RecycledProject, int, error)
 	RestoreProject(ctx context.Context, id int) error
 	HardDeleteProject(ctx context.Context, id int) error
-	
+
 	GetRecycledTasks(ctx context.Context, limit, offset int) ([]*models.RecycledTask, int, error)
 	RestoreTask(ctx context.Context, id int) error
 	HardDeleteTask(ctx context.Context, id int) error
-	
+
 	// Enhanced audit log operations
 	GetAuditLogsWithFilter(ctx context.Context, filter *models.AuditLogFilter) ([]interface{}, int, error)
 	GetAuditLogByID(ctx context.Context, id int64) (*models.AuditLog, error)
 	GetAuditStats(ctx context.Context, filter *models.AuditLogFilter, groupBy string) (interface{}, error)
-	
+
 	// Legacy audit log operations (deprecated - use enhanced methods above)
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*models.AuditLog, int, error)
 	LogAction(ctx context.Context, userID *int, action, entityType string, entityID int, entityData interface{}, ipAddress, userAgent string) error
-	
 }
 
 // CompanyRepository defines the interface for company operations (new enterprise model)
@@ -240,7 +239,7 @@ type PermissionRepository interface {
 	GetUserPermissions(ctx context.Context, companyUserID int) (*models.UserPermissionSummary, error)
 	UpdateUserRole(ctx context.Context, companyUserID int, roleID *int) error
 	UpdateUserCustomPermissions(ctx context.Context, companyUserID int, permissions map[string]bool) error
-	
+
 	// Project permissions
 	GetUserProjectPermissions(ctx context.Context, companyUserID int, projectID int) (*models.CompanyUserProjectPermission, error)
 	SetUserProjectPermissions(ctx context.Context, permission *models.CompanyUserProjectPermission) error
@@ -269,7 +268,7 @@ type DocumentRepository interface {
 	GetByProjectID(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.Document, int, error)
 	Update(ctx context.Context, document *models.Document) (*models.Document, error)
 	Delete(ctx context.Context, id int) error
-	
+
 	// Additional query methods
 	GetWithRelations(ctx context.Context, id int) (*models.DocumentResponse, error)
 	GetListWithRelations(ctx context.Context, projectID int, filter *models.DocumentFilter) ([]*models.DocumentListResponse, int, error)
@@ -288,26 +287,26 @@ type DocumentFolderRepository interface {
 	GetByID(ctx context.Context, id int) (*models.DocumentFolder, error)
 	Update(ctx context.Context, id int, req *models.UpdateDocumentFolderRequest, userID int) (*models.DocumentFolder, error)
 	Delete(ctx context.Context, id int, userID int) error
-	
+
 	// Listing and querying
 	List(ctx context.Context, req *models.ListFoldersRequest, userID int) (*models.ListFoldersResponse, error)
 	GetTree(ctx context.Context, userID int, visibility string) (*models.FolderTreeResponse, error)
 	GetByParent(ctx context.Context, parentID *int, userID int) ([]*models.DocumentFolder, error)
 	GetStats(ctx context.Context, folderID int) (*models.DocumentFolderStats, error)
-	
+
 	// Folder operations
 	Move(ctx context.Context, folderID int, req *models.MoveFolderRequest, userID int) error
 	GetChildren(ctx context.Context, folderID int, userID int) ([]*models.DocumentFolder, error)
 	GetPath(ctx context.Context, folderID int) (string, error)
-	
+
 	// Permission and ownership
 	CanAccess(ctx context.Context, folderID int, userID int, action string) (bool, error)
 	GetUserFolders(ctx context.Context, userID int, visibility string) ([]*models.DocumentFolder, error)
-	
+
 	// Document operations within folders
 	GetDocumentsByFolder(ctx context.Context, folderID *int, userID int, limit, offset int) ([]*models.Document, int, error)
 	MoveDocument(ctx context.Context, documentID int, targetFolderID *int, userID int) error
-	
+
 	// Statistics and analytics
 	GetFolderStats(ctx context.Context, userID int) (map[string]interface{}, error)
 	GetRecentlyUpdatedFolders(ctx context.Context, userID int, limit int) ([]*models.DocumentFolder, error)
@@ -320,22 +319,22 @@ type DocumentRelationRepository interface {
 	CreateCustomerRelation(ctx context.Context, req *models.AddDocumentCustomerRelationRequest, userID int) (*models.DocumentCustomerRelation, error)
 	CreateProjectRelation(ctx context.Context, req *models.AddDocumentProjectRelationRequest, userID int) (*models.DocumentProjectRelation, error)
 	CreateTaskRelation(ctx context.Context, req *models.AddDocumentTaskRelationRequest, userID int) (*models.DocumentTaskRelation, error)
-	
+
 	// Get relations
 	GetDocumentRelations(ctx context.Context, documentID, userID int) (*models.DocumentRelationsResponse, error)
 	GetEntityRelations(ctx context.Context, entityType string, entityID int, req *models.ListDocumentRelationsRequest) (*models.EntityRelationsResponse, error)
-	
+
 	// Update relations
 	UpdateCustomerRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentCustomerRelation, error)
 	UpdateProjectRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentProjectRelation, error)
 	UpdateTaskRelation(ctx context.Context, id int, req *models.UpdateDocumentRelationRequest, userID int) (*models.DocumentTaskRelation, error)
-	
+
 	// Delete relations
 	DeleteRelation(ctx context.Context, entityType string, id, userID int) error
-	
+
 	// Statistics
 	GetRelationStats(ctx context.Context, documentID *int, userID int) (*models.RelationStatsResponse, error)
-	
+
 	// Bulk operations
 	BulkCreateRelations(ctx context.Context, relations []models.AddDocumentRelationRequest, userID int) error
 }
@@ -349,7 +348,7 @@ type DocumentPermissionRepository interface {
 	CheckUserPermission(ctx context.Context, documentID, userID int, permissionType string) (bool, error)
 	UpdatePermission(ctx context.Context, permissionID int, req *models.UpdateDocumentPermissionRequest, userID int) (*models.DocumentPermission, error)
 	RevokePermission(ctx context.Context, permissionID, userID int) error
-	
+
 	// Sharing management
 	CreateShare(ctx context.Context, req *models.CreateDocumentShareRequest, userID int) (*models.DocumentShare, error)
 	GetDocumentShares(ctx context.Context, documentID int) (*models.DocumentShareResponse, error)
@@ -368,13 +367,13 @@ type DocumentVersionRepository interface {
 	GetByDocumentIDPaginated(documentID, page, pageSize int) ([]*models.DocumentVersion, int, error)
 	Update(version *models.DocumentVersion) (*models.DocumentVersion, error)
 	Delete(versionID int) error
-	
+
 	// Version statistics
 	GetStats(documentID int) (*models.DocumentVersionStats, error)
-	
+
 	// Version comparison
 	CompareVersions(documentID, fromVersion, toVersion int) (*models.DocumentVersionComparison, error)
-	
+
 	// Version labels
 	CreateLabel(label *models.DocumentVersionLabel) (*models.DocumentVersionLabel, error)
 	GetLabelByID(labelID int) (*models.DocumentVersionLabel, error)
@@ -384,7 +383,7 @@ type DocumentVersionRepository interface {
 	SearchLabels(query string, page, pageSize int) ([]*models.DocumentVersionLabel, int, error)
 	UpdateLabel(label *models.DocumentVersionLabel) (*models.DocumentVersionLabel, error)
 	DeleteLabel(labelID int) error
-	
+
 	// Version comments
 	CreateComment(comment *models.DocumentVersionComment) (*models.DocumentVersionComment, error)
 	GetCommentByID(commentID int) (*models.DocumentVersionComment, error)
@@ -394,7 +393,7 @@ type DocumentVersionRepository interface {
 	GetCommentReplies(parentCommentID int) ([]*models.DocumentVersionComment, error)
 	UpdateComment(comment *models.DocumentVersionComment) (*models.DocumentVersionComment, error)
 	DeleteComment(commentID int) error
-	
+
 	// Version branches
 	CreateBranch(branch *models.DocumentVersionBranch) (*models.DocumentVersionBranch, error)
 	GetBranches(documentID int) ([]*models.DocumentVersionBranch, error)
@@ -422,7 +421,7 @@ type TimerRepository interface {
 	// Timer statistics
 	GetUserTimerStats(ctx context.Context, userID int) (*models.TimerStatsResponse, error)
 	GetTaskTimeBreakdown(ctx context.Context, userID int, limit int) ([]models.TaskTimeBreakdown, error)
-	
+
 	// Weekly report
 	GetWeeklyReport(ctx context.Context, userID int, startDate, endDate string) (*models.WeeklyReportResponse, error)
 }
@@ -436,20 +435,20 @@ type UserTimerRepository interface {
 	Update(ctx context.Context, task *models.UserTimerTask) (*models.UserTimerTask, error)
 	Delete(ctx context.Context, id int) error
 	SoftDelete(ctx context.Context, id int) error
-	
+
 	// Personal timer operations
 	ToggleFavorite(ctx context.Context, id int, isFavorite bool) error
 	UpdateStatus(ctx context.Context, id int, status string) error
 	GetFavoritesByUserID(ctx context.Context, userID int, limit int) ([]*models.UserTimerTask, error)
 	GetActiveByUserID(ctx context.Context, userID int, limit int) ([]*models.UserTimerTask, error)
-	
+
 	// Statistics and analytics
 	GetUserTimerStats(ctx context.Context, userID int) (*models.PersonalTimerSummary, error)
 	GetDashboardData(ctx context.Context, userID int, tz string) (*models.PersonalTimerDashboard, error)
 	GetTimerSessions(ctx context.Context, userID int, limit, offset int) (*[]models.PersonalTimerSession, error)
 	GetTodayStats(ctx context.Context, userID int) (*models.PersonalTimerTodayStats, error)
 	GetAnalytics(ctx context.Context, userID int, dateRange string, tz string) (*models.PersonalTimerAnalytics, error)
-	
+
 	// Task validation
 	CheckUserOwnership(ctx context.Context, taskID, userID int) (bool, error)
 	CheckTitleExists(ctx context.Context, userID int, title string, excludeID *int) (bool, error)
@@ -460,8 +459,8 @@ type DB interface {
 	Users() UserRepository
 	Projects() ProjectRepository
 	Tasks() TaskRepository
-	Customers() CustomerRepository // Deprecated, use Companies instead
-	Companies() CompanyRepository  // New enterprise customer model
+	Customers() CustomerRepository     // Deprecated, use Companies instead
+	Companies() CompanyRepository      // New enterprise customer model
 	Permissions() PermissionRepository // Enterprise permission management
 	System() SystemRepository
 	Audit() AuditRepository
@@ -473,9 +472,9 @@ type DB interface {
 	DocumentVersions() DocumentVersionRepository
 	// DocumentRegistry() DocumentRegistryRepository // Disabled - conflicting models
 	Timer() TimerRepository
-	UserTimer() UserTimerRepository // Personal timer tasks
+	UserTimer() UserTimerRepository   // Personal timer tasks
 	GoogleAuth() GoogleAuthRepository // Google Calendar integration
-	GetDB() interface{} // Access to underlying database connection
+	GetDB() interface{}               // Access to underlying database connection
 	Close() error
 	Ping() error
 

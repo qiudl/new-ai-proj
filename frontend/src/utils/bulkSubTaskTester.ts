@@ -122,7 +122,7 @@ export class BulkSubTaskTester {
       });
     }
 
-    const passed = results.every(r => r.passed);
+    const passed = results.every(r => (r as any).passed);
     return { passed, results };
   }
 
@@ -195,7 +195,7 @@ export class BulkSubTaskTester {
       });
     });
 
-    const passed = results.every(r => r.passed);
+    const passed = results.every(r => (r as any).passed);
     return { passed, results };
   }
 
@@ -291,7 +291,7 @@ export class BulkSubTaskTester {
       });
     }
 
-    const passed = results.every(r => r.passed);
+    const passed = results.every(r => (r as any).passed);
     return { passed, results };
   }
 
@@ -358,7 +358,7 @@ export class BulkSubTaskTester {
       });
     }
 
-    const passed = results.every(r => r.passed);
+    const passed = results.every(r => (r as any).passed);
     return { passed, results };
   }
 
@@ -380,8 +380,8 @@ export class BulkSubTaskTester {
     const allResults = Object.values(categories).flatMap(cat => cat.results);
     const summary = {
       total: allResults.length,
-      passed: allResults.filter(r => r.passed).length,
-      failed: allResults.filter(r => !r.passed).length
+      passed: allResults.filter(r => (r as any).passed).length,
+      failed: allResults.filter(r => !(r as any).passed).length
     };
 
     const overall = Object.values(categories).every(cat => cat.passed);

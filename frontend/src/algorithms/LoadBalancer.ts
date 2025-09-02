@@ -6,9 +6,6 @@ import {
   ResourceConflict,
   LoadBalancingResult,
   ResourceOptimizationConfig,
-  AllocationStatus,
-  AllocationPriority,
-  ResourceConflictType,
   SuggestionType,
   LoadBalancingSuggestion
 } from '../services/resourceManagementService';
@@ -524,8 +521,8 @@ class LoadBalancer {
    */
   private generateBalancingSuggestions(
     metrics: LoadBalancingMetrics,
-    allocations: ResourceAllocation[],
-    resources: Resource[]
+    _allocations: ResourceAllocation[],
+    _resources: Resource[]
   ): LoadBalancingSuggestion[] {
     const suggestions: LoadBalancingSuggestion[] = [];
 

@@ -72,9 +72,9 @@ func (h *EnhancedPermissionHandler) GetPermissionTemplates(c *gin.Context) {
 // @Router /api/v1/permissions/roles/from-template [post]
 func (h *EnhancedPermissionHandler) CreateRoleFromTemplate(c *gin.Context) {
 	var request struct {
-		TemplateID      int            `json:"template_id" binding:"required"`
-		RoleName        string         `json:"role_name" binding:"required"`
-		Customizations  map[string]bool `json:"customizations"`
+		TemplateID     int             `json:"template_id" binding:"required"`
+		RoleName       string          `json:"role_name" binding:"required"`
+		Customizations map[string]bool `json:"customizations"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -121,11 +121,11 @@ func (h *EnhancedPermissionHandler) CreateRoleFromTemplate(c *gin.Context) {
 // @Router /api/v1/permissions/request [post]
 func (h *EnhancedPermissionHandler) RequestPermission(c *gin.Context) {
 	var request struct {
-		PermissionCode  string `json:"permission_code" binding:"required"`
-		ResourceType    string `json:"resource_type" binding:"required"`
-		ResourceID      *int   `json:"resource_id"`
-		Justification   string `json:"justification" binding:"required"`
-		DurationHours   int    `json:"duration_hours" binding:"required"`
+		PermissionCode string `json:"permission_code" binding:"required"`
+		ResourceType   string `json:"resource_type" binding:"required"`
+		ResourceID     *int   `json:"resource_id"`
+		Justification  string `json:"justification" binding:"required"`
+		DurationHours  int    `json:"duration_hours" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -188,11 +188,11 @@ func (h *EnhancedPermissionHandler) RequestPermission(c *gin.Context) {
 // @Router /api/v1/permissions/requests [get]
 func (h *EnhancedPermissionHandler) GetPermissionRequests(c *gin.Context) {
 	filter := make(map[string]interface{})
-	
+
 	if status := c.Query("status"); status != "" {
 		filter["status"] = status
 	}
-	
+
 	if userIDStr := c.Query("user_id"); userIDStr != "" {
 		if userID, err := strconv.Atoi(userIDStr); err == nil {
 			filter["user_id"] = userID
@@ -542,7 +542,7 @@ func (h *EnhancedPermissionHandler) AnalyzePermissionUsage(c *gin.Context) {
 	}
 
 	timeRange := c.DefaultQuery("time_range", "30d")
-	
+
 	analysis, err := h.permissionService.AnalyzePermissionUsage(c.Request.Context(), userID, timeRange)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

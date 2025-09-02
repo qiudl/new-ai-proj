@@ -229,12 +229,12 @@ func (s *TaskValidationService) ValidateProjectConsistency(taskIDs []int, projec
 
 // GetTaskHierarchyInfo returns hierarchy information for a task
 type TaskHierarchyInfo struct {
-	TaskID       int    `json:"task_id"`
-	CurrentDepth int    `json:"current_depth"`
-	ParentID     *int   `json:"parent_id"`
-	ParentTitle  string `json:"parent_title,omitempty"`
-	ChildrenCount int   `json:"children_count"`
-	MaxChildDepth int   `json:"max_child_depth"`
+	TaskID        int    `json:"task_id"`
+	CurrentDepth  int    `json:"current_depth"`
+	ParentID      *int   `json:"parent_id"`
+	ParentTitle   string `json:"parent_title,omitempty"`
+	ChildrenCount int    `json:"children_count"`
+	MaxChildDepth int    `json:"max_child_depth"`
 }
 
 // DetectCircularDependency checks if setting a new parent would create a circular dependency
@@ -379,17 +379,17 @@ func (s *TaskValidationService) ValidateCompleteHierarchy(taskIDs []int, newPare
 
 // GetBatchUpdatePreview provides a preview of what would happen in a batch update
 type BatchUpdatePreview struct {
-	TotalTasks    int                    `json:"total_tasks"`
-	ValidTasks    []int                  `json:"valid_tasks"`
-	InvalidTasks  []TaskValidationIssue  `json:"invalid_tasks"`
-	Warnings      []string               `json:"warnings"`
-	NewParentInfo *TaskHierarchyInfo     `json:"new_parent_info,omitempty"`
+	TotalTasks    int                   `json:"total_tasks"`
+	ValidTasks    []int                 `json:"valid_tasks"`
+	InvalidTasks  []TaskValidationIssue `json:"invalid_tasks"`
+	Warnings      []string              `json:"warnings"`
+	NewParentInfo *TaskHierarchyInfo    `json:"new_parent_info,omitempty"`
 }
 
 type TaskValidationIssue struct {
-	TaskID  int    `json:"task_id"`
-	Error   string `json:"error"`
-	Code    string `json:"code"`
+	TaskID int    `json:"task_id"`
+	Error  string `json:"error"`
+	Code   string `json:"code"`
 }
 
 // GetBatchUpdatePreview analyzes a batch update and returns detailed information
@@ -447,16 +447,16 @@ func (s *TaskValidationService) GetBatchUpdatePreview(taskIDs []int, newParentID
 				depthChange := newDepth - taskInfo.CurrentDepth
 
 				if depthChange > 2 {
-					preview.Warnings = append(preview.Warnings, 
-						fmt.Sprintf("任务%d的层级将从第%d级变更到第%d级，层级变化较大", 
+					preview.Warnings = append(preview.Warnings,
+						fmt.Sprintf("任务%d的层级将从第%d级变更到第%d级，层级变化较大",
 							taskID, taskInfo.CurrentDepth+1, newDepth+1))
 				}
 
 				if taskInfo.ChildrenCount > 0 {
 					maxChildDepthAfter := newDepth + taskInfo.MaxChildDepth + 1
 					if maxChildDepthAfter >= 3 { // Approaching max depth
-						preview.Warnings = append(preview.Warnings, 
-							fmt.Sprintf("任务%d的子任务在变更后将达到第%d级，接近最大层级限制", 
+						preview.Warnings = append(preview.Warnings,
+							fmt.Sprintf("任务%d的子任务在变更后将达到第%d级，接近最大层级限制",
 								taskID, maxChildDepthAfter+1))
 					}
 				}

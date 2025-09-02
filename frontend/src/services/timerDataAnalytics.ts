@@ -111,7 +111,7 @@ class TimerDataAnalyticsService {
     const interruptions = session.interruption_count || 0;
     
     // 基础评分：连续工作时长贡献
-    let baseScore = Math.min(duration / 3600, 2) * 50; // 最多2小时贡献100分
+    const baseScore = Math.min(duration / 3600, 2) * 50; // 最多2小时贡献100分
     
     // 中断惩罚：每次中断扣5分
     const interruptionPenalty = interruptions * 5;

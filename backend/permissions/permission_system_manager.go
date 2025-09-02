@@ -13,8 +13,8 @@ import (
 
 // PermissionSystemManager provides utilities for managing the permission system
 type PermissionSystemManager struct {
-	unifiedManager *middleware.UnifiedPermissionManager
-	predictor      *middleware.PermissionPredictor
+	unifiedManager  *middleware.UnifiedPermissionManager
+	predictor       *middleware.PermissionPredictor
 	cacheMiddleware *middleware.PermissionCacheMiddleware
 }
 
@@ -26,7 +26,7 @@ func NewPermissionSystemManager(
 ) *PermissionSystemManager {
 	return &PermissionSystemManager{
 		unifiedManager:  unifiedManager,
-		predictor:      predictor,
+		predictor:       predictor,
 		cacheMiddleware: cacheMiddleware,
 	}
 }
@@ -34,8 +34,8 @@ func NewPermissionSystemManager(
 // PermissionSystemHealthCheck performs comprehensive health check
 func (m *PermissionSystemManager) PermissionSystemHealthCheck(ctx context.Context) (*PermissionSystemHealth, error) {
 	health := &PermissionSystemHealth{
-		Timestamp: time.Now(),
-		Status:    "healthy",
+		Timestamp:  time.Now(),
+		Status:     "healthy",
 		Components: make(map[string]ComponentHealth),
 	}
 
@@ -94,7 +94,7 @@ func (m *PermissionSystemManager) OptimizePermissionSystem(ctx context.Context) 
 
 	// Get cache optimization recommendations
 	cacheOptimization := m.predictor.OptimizeCacheStrategy(ctx)
-	
+
 	// Cache optimization recommendations
 	if cacheData, ok := cacheOptimization["high_priority_cache"].([]string); ok && len(cacheData) > 0 {
 		report.Recommendations = append(report.Recommendations, OptimizationRecommendation{
@@ -183,7 +183,7 @@ func (m *PermissionSystemManager) GeneratePermissionReport(ctx context.Context) 
 	// Get system statistics
 	managerStats, _ := m.unifiedManager.GetManagerStats(ctx)
 	predictorStats := m.predictor.GetPredictorStats()
-	
+
 	report.Statistics = PermissionSystemStatistics{
 		ManagerStats:   managerStats,
 		PredictorStats: predictorStats,
@@ -250,7 +250,7 @@ func (m *PermissionSystemManager) RunPermissionSystemMaintenance(ctx context.Con
 		// Cache cleanup would happen automatically in Redis, but we can log it
 		result.Tasks = append(result.Tasks, MaintenanceTask{
 			Name:        "Cache Cleanup",
-			Status:      "completed", 
+			Status:      "completed",
 			Duration:    time.Since(start),
 			Description: "Cleaned up expired permission cache entries",
 		})
@@ -294,7 +294,7 @@ type ComponentHealth struct {
 }
 
 type PermissionOptimizationReport struct {
-	Timestamp       time.Time                     `json:"timestamp"`
+	Timestamp       time.Time                    `json:"timestamp"`
 	Recommendations []OptimizationRecommendation `json:"recommendations"`
 }
 
@@ -309,11 +309,11 @@ type OptimizationRecommendation struct {
 }
 
 type PermissionSystemReport struct {
-	Timestamp           time.Time                       `json:"timestamp"`
-	Health              *PermissionSystemHealth         `json:"health"`
-	Optimization        *PermissionOptimizationReport   `json:"optimization"`
-	Statistics          PermissionSystemStatistics      `json:"statistics"`
-	MostUsedPermissions []middleware.PermissionPattern  `json:"most_used_permissions"`
+	Timestamp           time.Time                      `json:"timestamp"`
+	Health              *PermissionSystemHealth        `json:"health"`
+	Optimization        *PermissionOptimizationReport  `json:"optimization"`
+	Statistics          PermissionSystemStatistics     `json:"statistics"`
+	MostUsedPermissions []middleware.PermissionPattern `json:"most_used_permissions"`
 }
 
 type PermissionSystemStatistics struct {

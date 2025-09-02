@@ -12,33 +12,33 @@ type DocumentServiceInterface interface {
 	ReadDocument(ctx context.Context, req *ReadDocumentRequest) (*DocumentResponse, error)
 	UpdateDocument(ctx context.Context, req *UpdateDocumentRequest) error
 	DeleteDocument(ctx context.Context, req *DeleteDocumentRequest) error
-	
+
 	// 高级功能
 	GetDocumentHistory(ctx context.Context, req *HistoryRequest) ([]GitCommit, error)
 	ArchiveDocument(ctx context.Context, req *ArchiveRequest) error
 	MigrateDocument(ctx context.Context, req *MigrateRequest) error
-	
+
 	// Phase 2: 版本管理功能
 	CompareVersions(ctx context.Context, req *CompareVersionsRequest) (*VersionComparisonResponse, error)
 	GetDocumentAtVersion(ctx context.Context, req *VersionRequest) (*DocumentResponse, error)
 	ResolveConflict(ctx context.Context, req *ConflictResolutionRequest) error
-	
+
 	// Phase 2: 高级搜索功能
 	SearchDocuments(ctx context.Context, req *SearchRequest) (*SearchResponse, error)
 	IndexDocument(ctx context.Context, req *IndexRequest) error
-	
+
 	// Phase 2: 批量操作功能
 	BatchCreateDocuments(ctx context.Context, req *BatchCreateRequest) (*BatchOperationResponse, error)
 	BatchUpdateDocuments(ctx context.Context, req *BatchUpdateRequest) (*BatchOperationResponse, error)
 	BatchDeleteDocuments(ctx context.Context, req *BatchDeleteRequest) (*BatchOperationResponse, error)
 	ExportDocuments(ctx context.Context, req *ExportRequest) (*ExportResponse, error)
 	ImportDocuments(ctx context.Context, req *ImportRequest) (*ImportResponse, error)
-	
+
 	// Phase 2: 协作功能
 	LockDocument(ctx context.Context, req *DocumentLockRequest) error
 	UnlockDocument(ctx context.Context, req *DocumentLockRequest) error
 	GetDocumentLockStatus(ctx context.Context, req *LockStatusRequest) (*LockStatusResponse, error)
-	
+
 	// 健康检查
 	HealthCheck(ctx context.Context) error
 }
@@ -47,13 +47,13 @@ type DocumentServiceInterface interface {
 
 // CreateDocumentRequest 创建文档请求
 type CreateDocumentRequest struct {
-	ProjectID   int    `json:"project_id" validate:"required,min=1"`
-	TaskID      int    `json:"task_id" validate:"required,min=1"`
-	Content     string `json:"content" validate:"required"`
-	Format      string `json:"format" validate:"oneof=markdown text"`
-	UserID      int    `json:"user_id" validate:"required,min=1"`
-	TemplateID  string `json:"template_id,omitempty"`
-	Title       string `json:"title,omitempty"` // 支持前端传入的title字段
+	ProjectID  int    `json:"project_id" validate:"required,min=1"`
+	TaskID     int    `json:"task_id" validate:"required,min=1"`
+	Content    string `json:"content" validate:"required"`
+	Format     string `json:"format" validate:"oneof=markdown text"`
+	UserID     int    `json:"user_id" validate:"required,min=1"`
+	TemplateID string `json:"template_id,omitempty"`
+	Title      string `json:"title,omitempty"` // 支持前端传入的title字段
 }
 
 // ReadDocumentRequest 读取文档请求
@@ -74,19 +74,19 @@ type UpdateDocumentRequest struct {
 
 // DeleteDocumentRequest 删除文档请求
 type DeleteDocumentRequest struct {
-	ProjectID int `json:"project_id" validate:"required,min=1"`
-	TaskID    int `json:"task_id" validate:"required,min=1"`
-	UserID    int `json:"user_id" validate:"required,min=1"`
+	ProjectID int    `json:"project_id" validate:"required,min=1"`
+	TaskID    int    `json:"task_id" validate:"required,min=1"`
+	UserID    int    `json:"user_id" validate:"required,min=1"`
 	Reason    string `json:"reason,omitempty"`
 }
 
 // HistoryRequest 历史记录请求
 type HistoryRequest struct {
-	ProjectID int    `json:"project_id" validate:"required,min=1"`
-	TaskID    int    `json:"task_id" validate:"required,min=1"`
-	UserID    int    `json:"user_id" validate:"required,min=1"`
-	Limit     int    `json:"limit,omitempty" validate:"min=1,max=100"`
-	Offset    int    `json:"offset,omitempty" validate:"min=0"`
+	ProjectID int `json:"project_id" validate:"required,min=1"`
+	TaskID    int `json:"task_id" validate:"required,min=1"`
+	UserID    int `json:"user_id" validate:"required,min=1"`
+	Limit     int `json:"limit,omitempty" validate:"min=1,max=100"`
+	Offset    int `json:"offset,omitempty" validate:"min=0"`
 }
 
 // ArchiveRequest 归档请求
@@ -122,19 +122,19 @@ type DocumentResponse struct {
 
 // GitCommit Git提交信息
 type GitCommit struct {
-	Hash      string    `json:"hash"`
-	Author    string    `json:"author"`
-	Date      time.Time `json:"date"`
-	Message   string    `json:"message"`
-	Changes   int       `json:"changes,omitempty"`
+	Hash    string    `json:"hash"`
+	Author  string    `json:"author"`
+	Date    time.Time `json:"date"`
+	Message string    `json:"message"`
+	Changes int       `json:"changes,omitempty"`
 }
 
 // DocumentError 文档错误
 type DocumentError struct {
-	Code     string    `json:"code"`
-	Message  string    `json:"message"`
-	Details  string    `json:"details,omitempty"`
-	Severity string    `json:"severity"` // error, warning, info
+	Code     string `json:"code"`
+	Message  string `json:"message"`
+	Details  string `json:"details,omitempty"`
+	Severity string `json:"severity"` // error, warning, info
 }
 
 // 配置结构
@@ -148,10 +148,10 @@ type DocumentConfig struct {
 	AllowedExtensions []string          `yaml:"allowed_extensions" json:"allowed_extensions"`
 	BackupEnabled     bool              `yaml:"backup_enabled" json:"backup_enabled"`
 	Templates         map[string]string `yaml:"templates" json:"templates"`
-	
+
 	// 缓存配置
 	Cache CacheConfig `yaml:"cache" json:"cache"`
-	
+
 	// Git配置
 	Git GitConfig `yaml:"git" json:"git"`
 }
@@ -204,15 +204,15 @@ type ConflictResolutionRequest struct {
 
 // SearchRequest 搜索请求
 type SearchRequest struct {
-	UserID      int               `json:"user_id" validate:"required,min=1"`
-	Query       string            `json:"query" validate:"required"`
-	ProjectIDs  []int             `json:"project_ids,omitempty"`
-	TaskIDs     []int             `json:"task_ids,omitempty"`
-	Filters     map[string]string `json:"filters,omitempty"`
-	SortBy      string            `json:"sort_by,omitempty"`
-	SortOrder   string            `json:"sort_order,omitempty"`
-	Limit       int               `json:"limit,omitempty" validate:"min=1,max=100"`
-	Offset      int               `json:"offset,omitempty" validate:"min=0"`
+	UserID     int               `json:"user_id" validate:"required,min=1"`
+	Query      string            `json:"query" validate:"required"`
+	ProjectIDs []int             `json:"project_ids,omitempty"`
+	TaskIDs    []int             `json:"task_ids,omitempty"`
+	Filters    map[string]string `json:"filters,omitempty"`
+	SortBy     string            `json:"sort_by,omitempty"`
+	SortOrder  string            `json:"sort_order,omitempty"`
+	Limit      int               `json:"limit,omitempty" validate:"min=1,max=100"`
+	Offset     int               `json:"offset,omitempty" validate:"min=0"`
 }
 
 // IndexRequest 索引请求
@@ -224,37 +224,37 @@ type IndexRequest struct {
 
 // BatchCreateRequest 批量创建请求
 type BatchCreateRequest struct {
-	UserID    int                      `json:"user_id" validate:"required,min=1"`
-	Documents []CreateDocumentRequest  `json:"documents" validate:"required,min=1"`
+	UserID    int                     `json:"user_id" validate:"required,min=1"`
+	Documents []CreateDocumentRequest `json:"documents" validate:"required,min=1"`
 }
 
 // BatchUpdateRequest 批量更新请求
 type BatchUpdateRequest struct {
-	UserID    int                      `json:"user_id" validate:"required,min=1"`
-	Documents []UpdateDocumentRequest  `json:"documents" validate:"required,min=1"`
+	UserID    int                     `json:"user_id" validate:"required,min=1"`
+	Documents []UpdateDocumentRequest `json:"documents" validate:"required,min=1"`
 }
 
 // BatchDeleteRequest 批量删除请求
 type BatchDeleteRequest struct {
-	UserID      int                      `json:"user_id" validate:"required,min=1"`
-	Documents   []DeleteDocumentRequest  `json:"documents" validate:"required,min=1"`
+	UserID    int                     `json:"user_id" validate:"required,min=1"`
+	Documents []DeleteDocumentRequest `json:"documents" validate:"required,min=1"`
 }
 
 // ExportRequest 导出请求
 type ExportRequest struct {
-	UserID     int      `json:"user_id" validate:"required,min=1"`
-	ProjectIDs []int    `json:"project_ids,omitempty"`
-	TaskIDs    []int    `json:"task_ids,omitempty"`
-	Format     string   `json:"format" validate:"oneof=zip tar json markdown"`
-	IncludeMeta bool    `json:"include_meta,omitempty"`
+	UserID      int    `json:"user_id" validate:"required,min=1"`
+	ProjectIDs  []int  `json:"project_ids,omitempty"`
+	TaskIDs     []int  `json:"task_ids,omitempty"`
+	Format      string `json:"format" validate:"oneof=zip tar json markdown"`
+	IncludeMeta bool   `json:"include_meta,omitempty"`
 }
 
 // ImportRequest 导入请求
 type ImportRequest struct {
-	UserID    int    `json:"user_id" validate:"required,min=1"`
-	ProjectID int    `json:"project_id" validate:"required,min=1"`
-	Data      []byte `json:"data" validate:"required"`
-	Format    string `json:"format" validate:"oneof=zip tar json"`
+	UserID    int           `json:"user_id" validate:"required,min=1"`
+	ProjectID int           `json:"project_id" validate:"required,min=1"`
+	Data      []byte        `json:"data" validate:"required"`
+	Format    string        `json:"format" validate:"oneof=zip tar json"`
 	Options   ImportOptions `json:"options,omitempty"`
 }
 
@@ -278,29 +278,29 @@ type LockStatusRequest struct {
 
 // VersionComparisonResponse 版本比较响应
 type VersionComparisonResponse struct {
-	FromVersion string       `json:"from_version"`
-	ToVersion   string       `json:"to_version"`
-	Changes     []ChangeItem `json:"changes"`
-	HasConflict bool         `json:"has_conflict"`
+	FromVersion string          `json:"from_version"`
+	ToVersion   string          `json:"to_version"`
+	Changes     []ChangeItem    `json:"changes"`
+	HasConflict bool            `json:"has_conflict"`
 	Conflicts   []ConflictBlock `json:"conflicts,omitempty"`
 	Stats       ComparisonStats `json:"stats"`
 }
 
 // SearchResponse 搜索响应
 type SearchResponse struct {
-	Results    []SearchResult `json:"results"`
-	Total      int            `json:"total"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"page_size"`
-	QueryTime  float64        `json:"query_time"` // 毫秒
+	Results   []SearchResult `json:"results"`
+	Total     int            `json:"total"`
+	Page      int            `json:"page"`
+	PageSize  int            `json:"page_size"`
+	QueryTime float64        `json:"query_time"` // 毫秒
 }
 
 // BatchOperationResponse 批量操作响应
 type BatchOperationResponse struct {
-	Total     int                    `json:"total"`
-	Success   int                    `json:"success"`
-	Failed    int                    `json:"failed"`
-	Results   []BatchOperationResult `json:"results"`
+	Total   int                    `json:"total"`
+	Success int                    `json:"success"`
+	Failed  int                    `json:"failed"`
+	Results []BatchOperationResult `json:"results"`
 }
 
 // ExportResponse 导出响应
@@ -313,20 +313,20 @@ type ExportResponse struct {
 
 // ImportResponse 导入响应
 type ImportResponse struct {
-	Total     int                    `json:"total"`
-	Success   int                    `json:"success"`
-	Failed    int                    `json:"failed"`
-	Results   []ImportResult         `json:"results"`
+	Total   int            `json:"total"`
+	Success int            `json:"success"`
+	Failed  int            `json:"failed"`
+	Results []ImportResult `json:"results"`
 }
 
 // LockStatusResponse 锁定状态响应
 type LockStatusResponse struct {
-	IsLocked    bool      `json:"is_locked"`
-	LockType    string    `json:"lock_type,omitempty"`
-	LockedBy    int       `json:"locked_by,omitempty"`
-	LockedAt    time.Time `json:"locked_at,omitempty"`
-	ExpiresAt   time.Time `json:"expires_at,omitempty"`
-	CanEdit     bool      `json:"can_edit"`
+	IsLocked  bool      `json:"is_locked"`
+	LockType  string    `json:"lock_type,omitempty"`
+	LockedBy  int       `json:"locked_by,omitempty"`
+	LockedAt  time.Time `json:"locked_at,omitempty"`
+	ExpiresAt time.Time `json:"expires_at,omitempty"`
+	CanEdit   bool      `json:"can_edit"`
 }
 
 // ===== 辅助结构定义 =====
@@ -353,10 +353,10 @@ const (
 
 // ChangeItem 变更项
 type ChangeItem struct {
-	Type     string `json:"type"` // added, deleted, modified
-	LineNum  int    `json:"line_num"`
-	OldText  string `json:"old_text,omitempty"`
-	NewText  string `json:"new_text,omitempty"`
+	Type    string `json:"type"` // added, deleted, modified
+	LineNum int    `json:"line_num"`
+	OldText string `json:"old_text,omitempty"`
+	NewText string `json:"new_text,omitempty"`
 }
 
 // ComparisonStats 比较统计

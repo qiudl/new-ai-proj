@@ -162,7 +162,7 @@ func TestPermissionCacheMiddleware(t *testing.T) {
 
 	t.Run("Batch Permission Check", func(t *testing.T) {
 		permissions := []string{"project.write", "task.create"}
-		
+
 		// Mock expectations for uncached permissions
 		writeResult := &models.PermissionResult{
 			HasPermission: true,
@@ -174,12 +174,12 @@ func TestPermissionCacheMiddleware(t *testing.T) {
 			Source:        "denied",
 			Reason:        "Permission denied",
 		}
-		
+
 		expectedResults := map[string]*models.PermissionResult{
 			"project.write": writeResult,
 			"task.create":   createResult,
 		}
-		
+
 		mockPermRepo.On("CheckMultiplePermissions", ctx, 1, permissions, (*int)(nil)).Return(expectedResults, nil)
 
 		// Check batch permissions
@@ -229,7 +229,7 @@ func TestUnifiedPermissionManager(t *testing.T) {
 			Reason:        "Permission granted through role",
 		}
 		mockPermRepo.On("CheckUserPermission", ctx, 1, "project.read", (*int)(nil)).Return(expectedResult, nil)
-		
+
 		// Expect audit log creation
 		mockAuditRepo.On("CreateAuditEntry", ctx, mock.AnythingOfType("*models.AuditEntry")).Return(nil)
 
@@ -393,7 +393,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 	t.Run("Gin Middleware Integration", func(t *testing.T) {
 		// Create Gin router
 		router := gin.New()
-		
+
 		// Setup test route with permission middleware
 		expectedResult := &models.PermissionResult{
 			HasPermission: true,
@@ -428,7 +428,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 	t.Run("Permission Denied Integration", func(t *testing.T) {
 		// Create new router for permission denied test
 		router := gin.New()
-		
+
 		// Setup test route with permission middleware that denies access
 		deniedResult := &models.PermissionResult{
 			HasPermission: false,
@@ -457,7 +457,7 @@ func TestMiddlewareIntegration(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusForbidden, w.Code)
-		
+
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		assert.NoError(t, err)
@@ -482,7 +482,7 @@ func BenchmarkPermissionCache(b *testing.B) {
 	})
 
 	ctx := context.Background()
-	
+
 	// Setup mock to always return permission granted
 	mockPermRepo.On("CheckUserPermission", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&models.PermissionResult{
 		HasPermission: true,
@@ -495,9 +495,9 @@ func BenchmarkPermissionCache(b *testing.B) {
 	// Benchmark cache performance
 	b.Run("CachedPermissionCheck", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			userID := i % 100 // Simulate 100 different users
+			userID := i % 100                                    // Simulate 100 different users
 			permissionCode := fmt.Sprintf("permission.%d", i%10) // 10 different permissions
-			
+
 			_, err := cacheMiddleware.CheckCachedPermission(ctx, userID, permissionCode, nil)
 			if err != nil {
 				b.Errorf("Permission check failed: %v", err)
@@ -517,7 +517,7 @@ func BenchmarkPermissionCache(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			userID := i % 50 // Simulate 50 different users
-			
+
 			_, err := cacheMiddleware.BatchCheckCachedPermissions(ctx, userID, permissions, nil)
 			if err != nil {
 				b.Errorf("Batch permission check failed: %v", err)
@@ -570,10 +570,10 @@ func TestPermissionSystemLoad(t *testing.T) {
 		for i := 0; i < numGoroutines; i++ {
 			go func(goroutineID int) {
 				defer func() { done <- true }()
-				
+
 				for j := 0; j < checksPerGoroutine; j++ {
 					request := &PermissionCheckRequest{
-						CompanyUserID:   goroutineID%10 + 1, // Simulate 10 users
+						CompanyUserID:   goroutineID%10 + 1,                // Simulate 10 users
 						PermissionCode:  fmt.Sprintf("permission.%d", j%5), // 5 permissions
 						EnableOverrides: true,
 					}

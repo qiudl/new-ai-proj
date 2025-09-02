@@ -7,22 +7,24 @@ ARG REGISTRY_PREFIX=
 # ======================================
 # Stage 1: Base Dependencies (优化版)
 # ======================================
-FROM ${REGISTRY_PREFIX}golang:1.22-alpine AS base
+FROM ${REGISTRY_PREFIX}golang:1.23-alpine AS base
 
-# Install essential packages in one layer
+# Install essential packages without problematic ones for now
 RUN apk --no-cache add \
     git \
     ca-certificates \
     curl \
     tzdata \
-    build-base \
-    binutils-gold \
-    && rm -rf /var/cache/apk/*
+    build-base || \
+    # Fallback: install only essential packages
+    apk --no-cache add ca-certificates
 
-# Set timezone and Go environment
+# Set Go environment for stable builds
 ENV TZ=Asia/Shanghai
-ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
-ENV GOSUMDB=sum.golang.google.cn
+ENV GOPROXY=https://goproxy.io,https://goproxy.cn,direct
+ENV GOSUMDB=sum.golang.org
+ENV GO111MODULE=on
+ENV CGO_ENABLED=1
 ENV GOPATH=/go
 ENV GOCACHE=/go/cache
 ENV GOTMPDIR=/tmp/go

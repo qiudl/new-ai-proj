@@ -159,7 +159,7 @@ func (suite *ContractTestSuite) TestLoginEndpointContract() {
 			// 验证登录响应数据结构
 			loginData, ok := response.Data.(map[string]interface{})
 			suite.True(ok, "login data should be an object")
-			
+
 			// 验证必需的登录响应字段
 			suite.Contains(loginData, "access_token")
 			suite.Contains(loginData, "token_type")
@@ -248,7 +248,7 @@ func (suite *ContractTestSuite) TestProjectsEndpointContract() {
 			// 验证分页结构
 			data, ok := response.Data.(map[string]interface{})
 			suite.True(ok)
-			
+
 			if pagination, exists := data["pagination"]; exists {
 				paginationObj, ok := pagination.(map[string]interface{})
 				suite.True(ok)

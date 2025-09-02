@@ -122,10 +122,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to create folder');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error creating folder:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to create folder');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to create folder');
     }
   }
 
@@ -141,10 +141,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to get folder');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get folder');
     }
   }
 
@@ -161,10 +161,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to update folder');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error updating folder:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to update folder');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to update folder');
     }
   }
 
@@ -181,7 +181,7 @@ class WorkNoteFolderService {
       }
     } catch (error: Error | unknown) {
       console.error('Error deleting folder:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to delete folder');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to delete folder');
     }
   }
 
@@ -217,10 +217,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to list folders');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error listing folders:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to list folders');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to list folders');
     }
   }
 
@@ -241,10 +241,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to get folder tree');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder tree:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder tree');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get folder tree');
     }
   }
 
@@ -260,10 +260,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to get folder stats');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder stats:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder stats');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get folder stats');
     }
   }
 
@@ -281,7 +281,7 @@ class WorkNoteFolderService {
       }
     } catch (error: Error | unknown) {
       console.error('Error moving folder:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to move folder');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to move folder');
     }
   }
 
@@ -297,10 +297,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to get folder children');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder children:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder children');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get folder children');
     }
   }
 
@@ -324,10 +324,10 @@ class WorkNoteFolderService {
         throw new Error(response.data.message || 'Failed to get folder documents');
       }
       
-      return response.data;
+      return response.data.data;
     } catch (error: Error | unknown) {
       console.error('Error getting folder documents:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get folder documents');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get folder documents');
     }
   }
 
@@ -345,7 +345,7 @@ class WorkNoteFolderService {
       }
     } catch (error: Error | unknown) {
       console.error('Error moving document:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to move document');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to move document');
     }
   }
 
@@ -390,7 +390,7 @@ class WorkNoteFolderService {
       return response.data;
     } catch (error: Error | unknown) {
       console.error('Error getting user folder stats:', error);
-      throw new Error(error.response?.data?.message || error.message || 'Failed to get user folder stats');
+      throw new Error((error as any).response?.data?.message || (error as any).message || 'Failed to get user folder stats');
     }
   }
 }

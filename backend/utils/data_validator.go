@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	
+
 	"ai-project-backend/models"
 )
 
@@ -18,12 +18,12 @@ func ValidateAndCleanCustomFields(input interface{}) (models.CustomFields, error
 	case models.CustomFields:
 		// Already correct type, validate content
 		return validateCustomFieldsContent(v)
-		
+
 	case map[string]interface{}:
 		// Convert to CustomFields and validate
 		cf := models.CustomFields(v)
 		return validateCustomFieldsContent(cf)
-		
+
 	case string:
 		// Parse JSON string
 		var cf models.CustomFields
@@ -31,18 +31,18 @@ func ValidateAndCleanCustomFields(input interface{}) (models.CustomFields, error
 			return models.CustomFields{}, fmt.Errorf("invalid JSON in custom_fields: %v", err)
 		}
 		return validateCustomFieldsContent(cf)
-		
+
 	case []interface{}:
 		// Handle array format - convert to object
 		return convertArrayToCustomFields(v)
-		
+
 	default:
 		// Try to marshal and unmarshal to clean the data
 		jsonBytes, err := json.Marshal(v)
 		if err != nil {
 			return models.CustomFields{}, fmt.Errorf("cannot marshal custom_fields: %v", err)
 		}
-		
+
 		var cf models.CustomFields
 		if err := json.Unmarshal(jsonBytes, &cf); err != nil {
 			// If unmarshaling to map fails, try to handle as array
@@ -52,7 +52,7 @@ func ValidateAndCleanCustomFields(input interface{}) (models.CustomFields, error
 			}
 			return models.CustomFields{}, fmt.Errorf("invalid custom_fields format: %v", err)
 		}
-		
+
 		return validateCustomFieldsContent(cf)
 	}
 }
@@ -65,18 +65,18 @@ func validateCustomFieldsContent(cf models.CustomFields) (models.CustomFields, e
 
 	// Validate each field
 	cleaned := make(models.CustomFields)
-	
+
 	for key, value := range cf {
 		// Skip null values
 		if value == nil {
 			continue
 		}
-		
+
 		// Validate key format
 		if key == "" {
 			continue // Skip empty keys
 		}
-		
+
 		// Clean and validate common fields
 		switch key {
 		case "priority":
@@ -104,19 +104,19 @@ func validateCustomFieldsContent(cf models.CustomFields) (models.CustomFields, e
 			}
 		}
 	}
-	
+
 	return cleaned, nil
 }
 
 // convertArrayToCustomFields converts array format to proper CustomFields
 func convertArrayToCustomFields(arr []interface{}) (models.CustomFields, error) {
 	result := make(models.CustomFields)
-	
+
 	for _, item := range arr {
 		if item == nil {
 			continue
 		}
-		
+
 		// If item is a map, merge it into result
 		if itemMap, ok := item.(map[string]interface{}); ok {
 			for k, v := range itemMap {
@@ -126,7 +126,7 @@ func convertArrayToCustomFields(arr []interface{}) (models.CustomFields, error) 
 			}
 		}
 	}
-	
+
 	return validateCustomFieldsContent(result)
 }
 
@@ -190,14 +190,14 @@ func ValidateTaskRequest(req *models.TaskRequest) error {
 	if req == nil {
 		return fmt.Errorf("task request cannot be nil")
 	}
-	
+
 	// Clean CustomFields
 	cleanedFields, err := ValidateAndCleanCustomFields(req.CustomFields)
 	if err != nil {
 		return fmt.Errorf("invalid custom_fields: %v", err)
 	}
 	req.CustomFields = cleanedFields
-	
+
 	return nil
 }
 
@@ -210,12 +210,12 @@ func (dhc *DatabaseHealthCheck) CheckCustomFieldsIntegrity() ([]string, error) {
 	// This would contain SQL queries to check for problematic data
 	// For now, return a placeholder
 	var issues []string
-	
+
 	// Query to find array-format custom_fields
 	// SELECT id, title, custom_fields FROM tasks WHERE custom_fields::text LIKE '[%'
-	
+
 	// Query to find null custom_fields
 	// SELECT id, title FROM tasks WHERE custom_fields IS NULL
-	
+
 	return issues, nil
 }

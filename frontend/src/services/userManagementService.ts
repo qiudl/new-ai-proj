@@ -23,7 +23,12 @@ export class UserManagementService {
       if (params.search) queryParams.append('search', params.search);
       
       const response = await api.get(`/admin/users?${queryParams.toString()}`);
-      return response;
+      return {
+        data: (response as any).data || [],
+        total: (response as any).total || 0,
+        page: (response as any).page || params.page || 1,
+        page_size: (response as any).page_size || params.page_size || 10
+      };
     } catch (error) {
       console.error('Error fetching user list:', error);
       throw new Error('Failed to fetch user list');

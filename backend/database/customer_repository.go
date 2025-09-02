@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-
 // PostgresCustomerRepository implements CustomerRepository for PostgreSQL
 type PostgresCustomerRepository struct {
 	db interface{}

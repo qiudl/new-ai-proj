@@ -523,8 +523,24 @@ export const MCP_COMMAND_PERMISSIONS: Record<string, {
  * 用于为方法添加权限检查
  */
 export function requiresPermission(commandName: string) {
-  return function(target: any, propertyName: string, descriptor: PropertyDescriptor) {
+  return function(target: any, propertyName: string, descriptor: PropertyDescriptor | undefined) {
+    // 安全检查：如果descriptor不存在，创建一个
+    if (!descriptor) {
+      console.error(`[MCP_PERM] No descriptor for ${propertyName}, creating default`);
+      descriptor = {
+        value: target[propertyName],
+        writable: true,
+        enumerable: true,
+        configurable: true
+      };
+    }
+    
     const originalMethod = descriptor.value;
+    
+    if (!originalMethod || typeof originalMethod !== 'function') {
+      console.error(`[MCP_PERM] No method found for ${propertyName}, descriptor:`, descriptor);
+      return descriptor;
+    }
     
     descriptor.value = async function(this: any, ...args: any[]) {
       // 获取权限管理器实例

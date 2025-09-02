@@ -256,7 +256,7 @@ func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Handle potentially null values for deleted tasks
 		task.TaskTitle = taskTitle.String
 		task.ProjectName = projectName.String
@@ -264,7 +264,7 @@ func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context
 		task.LastTimedAt = lastTimedAt
 		task.FormattedTime = models.FormatDuration(task.TotalSeconds)
 		task.IsDeleted = isDeleted
-		
+
 		// Set default values for deleted tasks
 		if isDeleted {
 			if task.TaskTitle == "" {
@@ -277,7 +277,7 @@ func (r *PostgresTimerRepository) GetRecentTasksByUserWithPagination(ctx context
 				task.Status = "deleted"
 			}
 		}
-		
+
 		tasks = append(tasks, task)
 	}
 
@@ -293,7 +293,7 @@ func (r *PostgresTimerRepository) Update(ctx context.Context, log *models.TaskTi
 		WHERE id = $1
 		RETURNING updated_at`
 
-	row := r.getExecer().QueryRowContext(ctx, query, log.ID, log.TaskID, log.UserID, 
+	row := r.getExecer().QueryRowContext(ctx, query, log.ID, log.TaskID, log.UserID,
 		log.StartTime, log.EndTime, log.DurationSeconds)
 	return row.Scan(&log.UpdatedAt)
 }
@@ -348,7 +348,7 @@ func (r *PostgresTimerRepository) GetUserTimerStats(ctx context.Context, userID 
 		AND ttl.start_time >= CURRENT_DATE 
 		AND ttl.start_time < CURRENT_DATE + INTERVAL '1 day'
 		AND t.status = 'completed'`
-	
+
 	row := r.getExecer().QueryRowContext(ctx, completedQuery, userID)
 	if err := row.Scan(&completedToday); err != nil {
 		completedToday = 0
@@ -360,7 +360,7 @@ func (r *PostgresTimerRepository) GetUserTimerStats(ctx context.Context, userID 
 		SELECT COUNT(DISTINCT t.id)
 		FROM tasks t
 		WHERE t.assignee_id = $1 AND t.status = 'in_progress'`
-	
+
 	row = r.getExecer().QueryRowContext(ctx, inProgressQuery, userID)
 	if err := row.Scan(&inProgress); err != nil {
 		inProgress = 0
@@ -408,7 +408,7 @@ func (r *PostgresTimerRepository) GetTaskTimeBreakdown(ctx context.Context, user
 		if err != nil {
 			return nil, err
 		}
-		
+
 		item.FormattedTime = models.FormatDuration(item.TotalSeconds)
 		breakdown = append(breakdown, item)
 	}
@@ -427,31 +427,31 @@ func (r *PostgresTimerRepository) GetWeeklyReport(ctx context.Context, userID in
 	if err != nil {
 		return nil, fmt.Errorf("invalid end date format: %w", err)
 	}
-	
+
 	// Get weekly stats
 	weeklyStats, err := r.getWeeklyStats(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get daily stats
 	dailyStats, err := r.getDailyStats(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get task time entries
 	taskEntries, err := r.getTaskTimeEntries(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get project stats
 	projectStats, err := r.getProjectStats(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &models.WeeklyReportResponse{
 		WeeklyStats:     *weeklyStats,
 		DailyStats:      dailyStats,
@@ -472,20 +472,20 @@ func (r *PostgresTimerRepository) getWeeklyStats(ctx context.Context, userID int
 		WHERE ttl.user_id = $1 
 		AND ttl.start_time >= $2 
 		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'`
-	
+
 	var totalSeconds, completedTasks, totalTasks int
 	row := r.getExecer().QueryRowContext(ctx, query, userID, start, end)
 	err := row.Scan(&totalSeconds, &completedTasks, &totalTasks)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	totalHours := float64(totalSeconds) / 3600.0
 	efficiency := float64(0)
 	if totalTasks > 0 {
 		efficiency = (float64(completedTasks) / float64(totalTasks)) * 100
 	}
-	
+
 	return &models.WeeklyStatsData{
 		TotalHours:     totalHours,
 		CompletedTasks: completedTasks,
@@ -612,27 +612,27 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
 		ORDER BY ttl.start_time DESC
 		LIMIT 50`
-	
+
 	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var entries []models.TaskTimeEntryData
 	for rows.Next() {
 		var id int
 		var taskTitle, projectName, status, priority string
 		var durationSeconds int
 		var date time.Time
-		
+
 		err := rows.Scan(&id, &taskTitle, &projectName, &durationSeconds, &date, &status, &priority)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		duration := float64(durationSeconds) / 3600.0
-		
+
 		entries = append(entries, models.TaskTimeEntryData{
 			ID:          fmt.Sprintf("%d", id),
 			TaskTitle:   taskTitle,
@@ -643,7 +643,7 @@ func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID
 			Priority:    priority,
 		})
 	}
-	
+
 	return entries, nil
 }
 
@@ -663,35 +663,35 @@ func (r *PostgresTimerRepository) getProjectStats(ctx context.Context, userID in
 		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
 		GROUP BY p.id, p.name
 		ORDER BY total_seconds DESC`
-	
+
 	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	colors := []string{"#1890ff", "#52c41a", "#fa8c16", "#722ed1", "#eb2f96", "#13c2c2"}
 	colorIndex := 0
-	
+
 	var projectStats []models.ProjectStatsData
 	for rows.Next() {
 		var projectName string
 		var totalSeconds, tasksCount, completedTasks int
-		
+
 		err := rows.Scan(&projectName, &totalSeconds, &tasksCount, &completedTasks)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		totalHours := float64(totalSeconds) / 3600.0
 		completionRate := float64(0)
 		if tasksCount > 0 {
 			completionRate = (float64(completedTasks) / float64(tasksCount)) * 100
 		}
-		
+
 		color := colors[colorIndex%len(colors)]
 		colorIndex++
-		
+
 		projectStats = append(projectStats, models.ProjectStatsData{
 			ProjectName:    projectName,
 			TotalHours:     totalHours,
@@ -700,6 +700,6 @@ func (r *PostgresTimerRepository) getProjectStats(ctx context.Context, userID in
 			Color:          color,
 		})
 	}
-	
+
 	return projectStats, nil
 }

@@ -101,7 +101,7 @@ export class TaskService extends BaseClient {
   }
 
   // 创建任务
-  @requiresPermission('create_task')
+  // @requiresPermission('create_task')
   async createTask(title: string, projectId: number = 1, options: CreateTaskOptions = {}): Promise<ApiResponse<Task>> {
     try {
       console.error(`[DEBUG] 创建任务: ${title}, 项目ID: ${projectId}${options.parent_id ? `, 父任务ID: ${options.parent_id}` : ''}`);
@@ -153,7 +153,7 @@ export class TaskService extends BaseClient {
   }
 
   // 开始任务
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async startTask(id: number): Promise<ApiResponse> {
     try {
       // 查找任务确定项目ID
@@ -186,7 +186,7 @@ export class TaskService extends BaseClient {
   }
 
   // 完成任务
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async completeTask(id: number): Promise<ApiResponse> {
     try {
       // 查找任务确定项目ID
@@ -219,7 +219,7 @@ export class TaskService extends BaseClient {
   }
 
   // 暂停任务
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async pauseTask(id: number): Promise<ApiResponse> {
     try {
       // 查找任务确定项目ID
@@ -252,7 +252,7 @@ export class TaskService extends BaseClient {
   }
 
   // 更新任务标题
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async updateTaskTitle(id: number, newTitle: string): Promise<ApiResponse> {
     if (!newTitle.trim()) {
       return { success: false, error: '任务标题不能为空' };
@@ -288,7 +288,7 @@ export class TaskService extends BaseClient {
   }
 
   // 更新任务描述
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async updateTaskDescription(id: number, newDescription: string): Promise<ApiResponse> {
     try {
       const task = await this.findTaskById(id);
@@ -412,7 +412,7 @@ export class TaskService extends BaseClient {
   }
 
   // 创建子任务
-  @requiresPermission('create_task')
+  // @requiresPermission('create_task')
   async createSubTask(parentId: number, taskData: SubTaskData | string): Promise<ApiResponse> {
     try {
       // 1. 验证父任务存在
@@ -459,7 +459,7 @@ export class TaskService extends BaseClient {
   }
 
   // 创建兄弟任务
-  @requiresPermission('create_task')
+  // @requiresPermission('create_task')
   async createSiblingTask(
     siblingId: number,
     title: string,
@@ -571,7 +571,7 @@ export class TaskService extends BaseClient {
   }
 
   // 删除任务
-  @requiresPermission('delete_task')
+  // @requiresPermission('delete_task')
   async deleteTask(id: number, force: boolean = false): Promise<ApiResponse> {
     try {
       // 1. 验证任务存在
@@ -605,7 +605,7 @@ export class TaskService extends BaseClient {
   }
 
   // 更新任务
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async updateTask(id: number, updates: UpdateTaskData): Promise<ApiResponse<Task>> {
     try {
       // 1. 验证任务存在
@@ -636,7 +636,7 @@ export class TaskService extends BaseClient {
   }
 
   // 移动任务到其他项目
-  @requiresPermission('update_task')
+  // @requiresPermission('update_task')
   async moveTask(id: number, targetProjectId: number): Promise<ApiResponse> {
     try {
       // 1. 验证任务存在

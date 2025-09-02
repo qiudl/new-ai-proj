@@ -41,7 +41,7 @@ func registerGlobalTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 	// 注意：/tasks路由已在RegisterTaskRoutes中注册，避免重复注册
 	// Global tasks routes (all projects) - for compatibility
 	// authorized.GET("/tasks", app.GetAllTasksHandler()) // 重复路由，已在task_routes.go中注册
-	
+
 	// TODO: 以下handler方法需要实现
 	// authorized.GET("/tasks/today", app.GetTodayTasksHandler())
 	// authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
@@ -64,8 +64,8 @@ func registerFileRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 	// File download routes
 	// files := authorized.Group("/files")
 	// {
-		// TODO: FileDownloadHandler方法需要实现
-		// files.GET("/download", app.FileDownloadHandler())
+	// TODO: FileDownloadHandler方法需要实现
+	// files.GET("/download", app.FileDownloadHandler())
 	// }
 }
 
@@ -74,12 +74,12 @@ func registerTemplateRoutes(authorized *gin.RouterGroup, app ApplicationInterfac
 	// 全局模板管理路由
 	// templates := authorized.Group("/templates")
 	// {
-		// TODO: GetSmartTemplateHandler方法需要实现
-		// templates.GET("", app.GetSmartTemplateHandler().GetTemplates)
-		// templates.POST("", app.GetSmartTemplateHandler().CreateTemplate)
-		// templates.GET("/stats", app.GetSmartTemplateHandler().GetTemplateStats)
-		// templates.GET("/:id", app.GetSmartTemplateHandler().GetTemplateByID)
-		// templates.POST("/:id/generate", app.GetSmartTemplateHandler().GenerateFromTemplate)
+	// TODO: GetSmartTemplateHandler方法需要实现
+	// templates.GET("", app.GetSmartTemplateHandler().GetTemplates)
+	// templates.POST("", app.GetSmartTemplateHandler().CreateTemplate)
+	// templates.GET("/stats", app.GetSmartTemplateHandler().GetTemplateStats)
+	// templates.GET("/:id", app.GetSmartTemplateHandler().GetTemplateByID)
+	// templates.POST("/:id/generate", app.GetSmartTemplateHandler().GenerateFromTemplate)
 	// }
 }
 
@@ -88,8 +88,8 @@ func registerCollaborationRoutes(authorized *gin.RouterGroup, app ApplicationInt
 	// 全局文档协作路由
 	// collaboration := authorized.Group("/collaboration")
 	// {
-		// TODO: GetCollaborationHandler方法需要实现
-		// collaboration.GET("/dashboard", app.GetCollaborationHandler().GetUserCollaborationDashboard)
+	// TODO: GetCollaborationHandler方法需要实现
+	// collaboration.GET("/dashboard", app.GetCollaborationHandler().GetUserCollaborationDashboard)
 	// }
 }
 
@@ -98,10 +98,10 @@ func registerCommentRoutes(authorized *gin.RouterGroup, app ApplicationInterface
 	// 评论管理路由
 	// comments := authorized.Group("/comments")
 	// {
-		// TODO: GetCollaborationHandler方法需要实现
-		// comments.PUT("/:id", app.GetCollaborationHandler().UpdateComment)
-		// comments.DELETE("/:id", app.GetCollaborationHandler().DeleteComment)
-		// comments.PATCH("/:id/resolve", app.GetCollaborationHandler().ResolveComment)
+	// TODO: GetCollaborationHandler方法需要实现
+	// comments.PUT("/:id", app.GetCollaborationHandler().UpdateComment)
+	// comments.DELETE("/:id", app.GetCollaborationHandler().DeleteComment)
+	// comments.PATCH("/:id/resolve", app.GetCollaborationHandler().ResolveComment)
 	// }
 }
 
@@ -116,10 +116,10 @@ func registerAdminRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 		// 暂时注释掉有编译问题的路由，优先修复工作笔记功能
 		// User management (admin only)
 		// registerAdminUserManagementRoutes(admin, app)
-		
+
 		// Company user management (admin only)
 		// registerAdminCompanyUserRoutes(admin, app)
-		
+
 		// Calendar sync management (admin only)
 		// registerAdminCalendarSyncRoutes(admin, app)
 	}
@@ -181,7 +181,7 @@ func registerProgressRoutesHere(authorized *gin.RouterGroup, app ApplicationInte
 	if app.GetProgressHandler() == nil {
 		return
 	}
-	
+
 	// Progress routes group
 	progress := authorized.Group("/progress")
 	{
@@ -189,7 +189,7 @@ func registerProgressRoutesHere(authorized *gin.RouterGroup, app ApplicationInte
 		progress.GET("/config", app.GetProgressHandler().GetProgressConfig)
 		// Calculate progress for an entity
 		progress.GET("/:entityType/:id", app.GetProgressHandler().GetProgress)
-		// Get historical snapshots  
+		// Get historical snapshots
 		progress.GET("/:entityType/:id/snapshots", app.GetProgressHandler().GetProgressSnapshots)
 		// Force recalculation
 		progress.POST("/recompute", app.GetProgressHandler().RecomputeProgress)

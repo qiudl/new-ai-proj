@@ -71,7 +71,7 @@ func IsGoogleConfigured() bool {
 	if err != nil {
 		return false
 	}
-	
+
 	return ValidateGoogleConfig(config) == nil
 }
 

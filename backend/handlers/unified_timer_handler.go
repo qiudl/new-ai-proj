@@ -20,25 +20,25 @@ type UnifiedTimerHandler struct {
 
 // UserTimerPreferences minimal struct for response
 type UserTimerPreferences struct {
-	DefaultCategory        string  `json:"default_category"`
-	AutoPauseOnIdle        *bool   `json:"auto_pause_on_idle,omitempty"`
-	PomodoroWorkMinutes    *int    `json:"pomodoro_work_minutes,omitempty"`
-	NotificationEnabled    *bool   `json:"notification_enabled,omitempty"`
-	PreferredTimerView     *string `json:"preferred_timer_view,omitempty"`
-	ShowProgressBar        *bool   `json:"show_progress_bar,omitempty"`
-	EnableAutoInference    *bool   `json:"enable_auto_inference,omitempty"`
-	AutoStopOthersDefault  *bool   `json:"auto_stop_others_default,omitempty"`
+	DefaultCategory       string  `json:"default_category"`
+	AutoPauseOnIdle       *bool   `json:"auto_pause_on_idle,omitempty"`
+	PomodoroWorkMinutes   *int    `json:"pomodoro_work_minutes,omitempty"`
+	NotificationEnabled   *bool   `json:"notification_enabled,omitempty"`
+	PreferredTimerView    *string `json:"preferred_timer_view,omitempty"`
+	ShowProgressBar       *bool   `json:"show_progress_bar,omitempty"`
+	EnableAutoInference   *bool   `json:"enable_auto_inference,omitempty"`
+	AutoStopOthersDefault *bool   `json:"auto_stop_others_default,omitempty"`
 }
 
 // NewUnifiedTimerHandler creates a new UnifiedTimerHandler
 func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 	// Get database connection
 	sqlDB := db.GetDB().(*sql.DB)
-	
+
 	// Create dependencies
 	typeInferenceEngine := services.NewTypeInferenceEngine(sqlDB)
 	// notificationService := services.NewNotificationService() // Temporarily disabled
-	
+
 	return &UnifiedTimerHandler{
 		db:           db,
 		timerService: services.NewUnifiedTimerService(sqlDB, typeInferenceEngine),
@@ -48,7 +48,7 @@ func NewUnifiedTimerHandler(db database.DB) *UnifiedTimerHandler {
 // StartTimer handles POST /api/v1/user/timer/start
 // Unified endpoint for starting both personal and project timers
 func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -66,7 +66,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 
 	// Set user ID in request
 	req.UserID = userID.(int)
-	
+
 	// Validate task ID if provided
 	if req.TaskID != nil && *req.TaskID <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -97,7 +97,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 		}
 		if err.Error() == "another timer is already running" {
 			c.JSON(http.StatusConflict, gin.H{
-				"error":   "Timer conflict", 
+				"error":   "Timer conflict",
 				"message": err.Error(),
 			})
 			return
@@ -116,7 +116,7 @@ func (h *UnifiedTimerHandler) StartTimer(c *gin.Context) {
 // StopTimer handles POST /api/v1/user/timer/stop
 // Unified endpoint for stopping any running timer
 func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -150,7 +150,7 @@ func (h *UnifiedTimerHandler) StopTimer(c *gin.Context) {
 // Returns current timer status
 func (h *UnifiedTimerHandler) GetCurrentTimer(c *gin.Context) {
 	// 添加CORS头部
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -262,7 +262,7 @@ func (h *UnifiedTimerHandler) StopTimerByID(c *gin.Context) {
 // PauseTimer handles POST /api/v1/user/timer/pause
 // Pauses the current running timer
 func (h *UnifiedTimerHandler) PauseTimer(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -292,10 +292,10 @@ func (h *UnifiedTimerHandler) PauseTimer(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// ResumeTimer handles POST /api/v1/user/timer/resume  
+// ResumeTimer handles POST /api/v1/user/timer/resume
 // Resumes a paused timer
 func (h *UnifiedTimerHandler) ResumeTimer(c *gin.Context) {
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -355,13 +355,30 @@ func (h *UnifiedTimerHandler) GetUserTimerPreferences(c *gin.Context) {
 	var pomodoro sql.NullInt64
 	var autoStopVal sql.NullBool
 	if err := row.Scan(&prefs.DefaultCategory, &autoPause, &pomodoro, &notif, &preferredView, &showBar, &autoInfer, &autoStopVal); err == nil {
-		if autoPause.Valid { prefs.AutoPauseOnIdle = &autoPause.Bool }
-		if pomodoro.Valid { v := int(pomodoro.Int64); prefs.PomodoroWorkMinutes = &v }
-		if notif.Valid { prefs.NotificationEnabled = &notif.Bool }
-		if preferredView.Valid { v := preferredView.String; prefs.PreferredTimerView = &v }
-		if showBar.Valid { prefs.ShowProgressBar = &showBar.Bool }
-		if autoInfer.Valid { prefs.EnableAutoInference = &autoInfer.Bool }
-		if autoStopVal.Valid { v := autoStopVal.Bool; autoStop = &v }
+		if autoPause.Valid {
+			prefs.AutoPauseOnIdle = &autoPause.Bool
+		}
+		if pomodoro.Valid {
+			v := int(pomodoro.Int64)
+			prefs.PomodoroWorkMinutes = &v
+		}
+		if notif.Valid {
+			prefs.NotificationEnabled = &notif.Bool
+		}
+		if preferredView.Valid {
+			v := preferredView.String
+			prefs.PreferredTimerView = &v
+		}
+		if showBar.Valid {
+			prefs.ShowProgressBar = &showBar.Bool
+		}
+		if autoInfer.Valid {
+			prefs.EnableAutoInference = &autoInfer.Bool
+		}
+		if autoStopVal.Valid {
+			v := autoStopVal.Bool
+			autoStop = &v
+		}
 	} else {
 		// No row, use defaults
 		defaultFalse := false
@@ -437,7 +454,7 @@ func (h *UnifiedTimerHandler) getAutoStopOthersDefault(ctx context.Context, user
 
 // Health check endpoint
 func (h *UnifiedTimerHandler) HealthCheck(c *gin.Context) {
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "healthy",
 		"service": "unified_timer",
@@ -499,7 +516,7 @@ func (h *UnifiedTimerHandler) GetUserTimerHistory(c *gin.Context) {
 	})
 }
 
-// GetRecentTasks handles GET /api/v1/timer/recent-tasks with pagination  
+// GetRecentTasks handles GET /api/v1/timer/recent-tasks with pagination
 // Compatible with the existing UniversalTimerWidget frontend expectations
 func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 	userID, exists := c.Get("user_id")
@@ -514,21 +531,21 @@ func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 	// Parse pagination parameters
 	limit := 8 // Default page size
 	offset := 0
-	
+
 	if limitStr := c.Query("limit"); limitStr != "" {
 		var parsedLimit int
 		if _, err := fmt.Sscanf(limitStr, "%d", &parsedLimit); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
 			limit = parsedLimit
 		}
 	}
-	
+
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		var parsedOffset int
 		if _, err := fmt.Sscanf(offsetStr, "%d", &parsedOffset); err == nil && parsedOffset >= 0 {
 			offset = parsedOffset
 		}
 	}
-	
+
 	// Add a short timeout to avoid hanging requests (server-side protection)
 	ctx, cancel := context.WithTimeout(baseCtx, 2*time.Second)
 	defer cancel()
@@ -549,13 +566,13 @@ func (h *UnifiedTimerHandler) GetRecentTasks(c *gin.Context) {
 	var tasks []map[string]interface{}
 	for _, task := range recentTasks {
 		taskMap := map[string]interface{}{
-			"id":           task.TaskID,
-			"title":        task.TaskTitle,
-			"project_name": task.ProjectName,
-			"status":       task.Status,
+			"id":            task.TaskID,
+			"title":         task.TaskTitle,
+			"project_name":  task.ProjectName,
+			"status":        task.Status,
 			"total_seconds": task.TotalSeconds,
 			"last_timed_at": task.LastTimedAt,
-			"is_deleted":   task.IsDeleted,
+			"is_deleted":    task.IsDeleted,
 		}
 		tasks = append(tasks, taskMap)
 	}

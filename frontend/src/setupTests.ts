@@ -23,11 +23,15 @@ global.ResizeObserver = global.ResizeObserver || class ResizeObserver {
 };
 
 // Mock IntersectionObserver
-global.IntersectionObserver = global.IntersectionObserver || class IntersectionObserver {
-  constructor() {}
+(global as any).IntersectionObserver = (global as any).IntersectionObserver || class IntersectionObserver {
+  root = null;
+  rootMargin = '';
+  thresholds = [];
+  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {}
   observe() {}
   unobserve() {}
   disconnect() {}
+  takeRecords() { return []; }
 };
 
 // Mock requestAnimationFrame
@@ -63,14 +67,16 @@ global.URL.createObjectURL = jest.fn(() => 'mocked-url');
 global.URL.revokeObjectURL = jest.fn();
 
 // Mock file API
-global.File = class File extends Blob {
+(global as any).File = class File extends Blob {
   constructor(chunks: any[], filename: string, options?: any) {
     super(chunks, options);
     this.name = filename;
     this.lastModified = Date.now();
+    this.webkitRelativePath = '';
   }
   name: string;
   lastModified: number;
+  webkitRelativePath: string;
 };
 
 // Mock clipboard API
@@ -101,7 +107,7 @@ Object.defineProperty(window, 'speechSynthesis', {
 
 // Mock performance API
 if (!global.performance) {
-  global.performance = {
+  (global as any).performance = {
     now: jest.fn(() => Date.now()),
     mark: jest.fn(),
     measure: jest.fn(),
@@ -114,8 +120,14 @@ if (!global.performance) {
     onresourcetimingbufferfull: null,
     clearResourceTimings: jest.fn(),
     setResourceTimingBufferSize: jest.fn(),
-    toJSON: jest.fn()
-  } as Performance;
+    toJSON: jest.fn(),
+    eventCounts: new Map(),
+    timeOrigin: 0,
+    getEntries: jest.fn(() => []),
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    dispatchEvent: jest.fn()
+  } as any;
 }
 
 // Mock localStorage
@@ -204,9 +216,9 @@ if (!global.DragEvent) {
 }
 
 // Mock DataTransfer
-if (!global.DataTransfer) {
-  global.DataTransfer = class DataTransfer {
-    dropEffect: string = 'none';
+if (!(global as any).DataTransfer) {
+  (global as any).DataTransfer = class DataTransfer {
+    dropEffect: 'none' | 'copy' | 'move' | 'link' = 'none';
     effectAllowed: string = 'uninitialized';
     files: FileList = [] as any;
     items: DataTransferItemList = [] as any;
@@ -228,7 +240,7 @@ if (!global.crypto) {
 }
 
 // Mock Worker for tests that might use web workers
-global.Worker = class Worker extends EventTarget {
+(global as any).Worker = class Worker extends EventTarget {
   constructor(scriptURL: string | URL, options?: WorkerOptions) {
     super();
     this.onmessage = null;
@@ -240,7 +252,9 @@ global.Worker = class Worker extends EventTarget {
   onerror: ((this: AbstractWorker, ev: ErrorEvent) => any) | null;
   onmessageerror: ((this: Worker, ev: MessageEvent) => any) | null;
   
-  postMessage(message: any, transfer?: Transferable[]): void {}
+  postMessage(message: any, transfer: Transferable[]): void;
+  postMessage(message: any, options?: StructuredSerializeOptions): void;
+  postMessage(message: any, transferOrOptions?: Transferable[] | StructuredSerializeOptions): void {}
   terminate(): void {}
   addEventListener(type: string, listener: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions): void {
     super.addEventListener(type, listener, options);

@@ -30,14 +30,14 @@ func NewDocumentUtilityHandler(db database.DB, logger *log.Logger, validator *va
 // GetDocumentCustomers 获取文档可关联的客户列表
 func (h *DocumentUtilityHandler) GetDocumentCustomers(c *gin.Context) {
 	sqlDB := h.db.GetDB().(*sql.DB)
-	
+
 	query := `
 		SELECT id, name, company_name, type, industry, description 
 		FROM customers 
 		WHERE deleted_at IS NULL 
 		ORDER BY name ASC
 	`
-	
+
 	rows, err := sqlDB.Query(query)
 	if err != nil {
 		h.logger.Printf("Error querying customers: %v", err)
@@ -46,24 +46,24 @@ func (h *DocumentUtilityHandler) GetDocumentCustomers(c *gin.Context) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var customers []map[string]interface{}
-	
+
 	for rows.Next() {
 		var id int
 		var name, companyName, customerType, industry, description sql.NullString
-		
+
 		err := rows.Scan(&id, &name, &companyName, &customerType, &industry, &description)
 		if err != nil {
 			h.logger.Printf("Error scanning customer row: %v", err)
 			continue
 		}
-		
+
 		customer := map[string]interface{}{
 			"id":   id,
 			"name": name.String,
 		}
-		
+
 		if companyName.Valid {
 			customer["company_name"] = companyName.String
 		}
@@ -76,10 +76,10 @@ func (h *DocumentUtilityHandler) GetDocumentCustomers(c *gin.Context) {
 		if description.Valid {
 			customer["description"] = description.String
 		}
-		
+
 		customers = append(customers, customer)
 	}
-	
+
 	response := models.NewSuccessResponse(customers, "Document customers retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
@@ -144,7 +144,7 @@ func (h *DocumentUtilityHandler) GetDocumentCategories(c *gin.Context) {
 			"color":       "#AED6F1",
 		},
 	}
-	
+
 	response := models.NewSuccessResponse(categories, "Document categories retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
@@ -186,8 +186,8 @@ func (h *DocumentUtilityHandler) ValidateDocumentAssociation(c *gin.Context) {
 	}
 
 	validationResult := map[string]interface{}{
-		"valid":       true,
-		"document_id": req.DocumentID,
+		"valid":        true,
+		"document_id":  req.DocumentID,
 		"associations": map[string]interface{}{},
 	}
 

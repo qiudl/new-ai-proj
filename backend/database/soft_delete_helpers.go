@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	
+
 	"ai-project-backend/interfaces"
 )
 
@@ -90,7 +90,7 @@ func (r *BaseSoftDeleteRepository) BulkDelete(ctx context.Context, ids []int) er
 		args[i] = id
 	}
 
-	query := fmt.Sprintf(`UPDATE %s SET deleted_at = NOW() WHERE id IN (%s) AND deleted_at IS NULL`, 
+	query := fmt.Sprintf(`UPDATE %s SET deleted_at = NOW() WHERE id IN (%s) AND deleted_at IS NULL`,
 		r.tableName, strings.Join(placeholders, ","))
 
 	_, err := r.execer.ExecContext(ctx, query, args...)
@@ -114,7 +114,7 @@ func (r *BaseSoftDeleteRepository) BulkRestore(ctx context.Context, ids []int) e
 		args[i] = id
 	}
 
-	query := fmt.Sprintf(`UPDATE %s SET deleted_at = NULL WHERE id IN (%s) AND deleted_at IS NOT NULL`, 
+	query := fmt.Sprintf(`UPDATE %s SET deleted_at = NULL WHERE id IN (%s) AND deleted_at IS NOT NULL`,
 		r.tableName, strings.Join(placeholders, ","))
 
 	_, err := r.execer.ExecContext(ctx, query, args...)
@@ -138,7 +138,7 @@ func (r *BaseSoftDeleteRepository) BulkHardDelete(ctx context.Context, ids []int
 		args[i] = id
 	}
 
-	query := fmt.Sprintf(`DELETE FROM %s WHERE id IN (%s) AND deleted_at IS NOT NULL`, 
+	query := fmt.Sprintf(`DELETE FROM %s WHERE id IN (%s) AND deleted_at IS NOT NULL`,
 		r.tableName, strings.Join(placeholders, ","))
 
 	_, err := r.execer.ExecContext(ctx, query, args...)
@@ -152,12 +152,12 @@ func (r *BaseSoftDeleteRepository) BulkHardDelete(ctx context.Context, ids []int
 // BuildSoftDeleteWhereClause builds WHERE clause with soft delete filtering
 func BuildSoftDeleteWhereClause(baseWhere string, filter *interfaces.SoftDeleteFilter, tableAlias string) string {
 	var conditions []string
-	
+
 	// Add base conditions
 	if baseWhere != "" {
 		conditions = append(conditions, baseWhere)
 	}
-	
+
 	// Add soft delete filtering
 	if filter != nil {
 		softDeleteClause := filter.GetWhereClause(tableAlias)
@@ -172,10 +172,10 @@ func BuildSoftDeleteWhereClause(baseWhere string, filter *interfaces.SoftDeleteF
 		}
 		conditions = append(conditions, prefix+"deleted_at IS NULL")
 	}
-	
+
 	if len(conditions) == 0 {
 		return ""
 	}
-	
+
 	return "WHERE " + strings.Join(conditions, " AND ")
 }

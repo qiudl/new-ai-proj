@@ -84,7 +84,7 @@ func LoadConfig() (*Config, error) {
 			IdleTimeout:  getDurationEnv("SERVER_IDLE_TIMEOUT", 120*time.Second),
 		},
 		Database: DatabaseConfig{
-			Host:            getEnv("DB_HOST", "localhost"),
+			Host:            getEnv("DB_HOST", "postgres-master"),
 			Port:            getEnv("DB_PORT", "5432"),
 			User:            getEnv("DB_USER", "user"),
 			Password:        getEnv("DB_PASSWORD", "password"),
@@ -98,7 +98,7 @@ func LoadConfig() (*Config, error) {
 			Secret:     getEnv("JWT_SECRET", "dev-secret-key"),
 			Expiration: getDurationEnv("JWT_EXPIRATION", 24*time.Hour),
 		},
-App: AppConfig{
+		App: AppConfig{
 			Name:           getEnv("APP_NAME", "AI Context Task System Backend"),
 			Version:        getEnv("APP_VERSION", "1.0.0"),
 			Environment:    getEnv("APP_ENV", "test"),

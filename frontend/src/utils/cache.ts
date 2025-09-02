@@ -466,8 +466,8 @@ export const memoryMonitor = {
   }),
   
   getMemoryUsage: () => {
-    if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as unknown)) {
-      const memory = (window.performance as unknown).memory;
+    if (typeof window !== 'undefined' && 'performance' in window && 'memory' in (window.performance as any)) {
+      const memory = (window.performance as any).memory;
       return {
         used: Math.round(memory.usedJSHeapSize / 1024 / 1024),
         total: Math.round(memory.totalJSHeapSize / 1024 / 1024),

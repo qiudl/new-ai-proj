@@ -1,0 +1,165 @@
+# 临时使用已有镜像的 Docker Compose 配置
+# 解决网络连接问题的临时方案
+
+services:
+  # PostgreSQL 主数据库 
+  postgres-master:
+    image: postgres:16  # 使用已有镜像
+    container_name: ai_postgres_master
+    environment:
+      POSTGRES_USER: dev_user
+      POSTGRES_PASSWORD: dev_password_2024
+      POSTGRES_DB: ai_project_db
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+      # 复制相关环境变量
+      POSTGRES_REPLICATION_USER: repl_user
+      POSTGRES_REPLICATION_PASSWORD: repl_password_2024
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_master_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init-master.sql:/docker-entrypoint-initdb.d/01-init-master.sql
+      - ./infrastructure/docker/postgres/init-migrations.sql:/docker-entrypoint-initdb.d/02-init-migrations.sql
+    command: ["postgres"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev_user -d ai_project_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # Go 后端服务 - 使用已有镜像
+  backend:
+    image: new-ai-proj-backend:dev  # 使用已构建的镜像
+    container_name: ai_backend
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres-master
+      DB_PORT: 5432
+      DB_SOURCE: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
+      DATABASE_URL: postgresql://dev_user:dev_password_2024@postgres-master:5432/ai_project_db?sslmode=disable
+      # 解决Go代理问题
+      GOPROXY: direct
+      GOSUMDB: "off"
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      NO_PROXY: "*"
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./backend:/app:cached
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/go/cache
+      - ./backend/logs:/app/logs
+      - ./backend/docs:/app/docs:rw
+      - ./docs/api:/app/docs/api:ro
+    working_dir: /app
+    command: ["go", "run", "main.go"]  # 使用直接运行的方式
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # React 前端服务 - 使用已有镜像
+  frontend:
+    image: new-ai-proj-frontend:latest  # 使用已构建的镜像
+    container_name: ai_frontend
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      REACT_APP_API_URL: /api/v1
+      REACT_APP_API_BASE_URL: /api/v1
+      HOST: 0.0.0.0
+      GENERATE_SOURCEMAP: false
+      TSC_COMPILE_ON_ERROR: true
+      DISABLE_ESLINT_PLUGIN: true
+      FAST_REFRESH: false
+      SKIP_PREFLIGHT_CHECK: true
+      DISABLE_NEW_JSX_TRANSFORM: false
+      TYPESCRIPT_HEAP_SIZE: 4096
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app:cached
+    stdin_open: true
+    tty: true
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 3000 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # MCP服务器 - 使用已有镜像
+  mcp-server:
+    image: new-ai-proj-mcp-server:latest  # 使用已构建的镜像
+    container_name: ai_mcp_server
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    environment:
+      API_BASE_URL: http://backend:8080/api/v1
+      TASK_API_BASE: http://backend:8080/api/v1
+    ports:
+       - "3100:3100"
+    volumes:
+      - ./mcp-task-bridge:/app:cached
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+  # Redis
+  redis:
+    image: redis:7-alpine  # 使用已有镜像
+    container_name: ai_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai_dev_network
+
+# 网络配置
+networks:
+  ai_dev_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.0.0/16
+
+# 数据卷
+volumes:
+  postgres_master_data:
+    driver: local
+  go_mod_cache:
+    driver: local
+  go_build_cache:
+    driver: local
+  redis_data:
+    driver: local

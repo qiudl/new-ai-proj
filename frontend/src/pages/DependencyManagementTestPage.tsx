@@ -27,15 +27,6 @@ import {
   InfoCircleOutlined
 } from '@ant-design/icons';
 import { Task } from '../types/task';
-
-// 本地Project接口定义
-interface Project {
-  id: number;
-  name: string;
-  owner_id: number;
-  created_at: string;
-  updated_at: string;
-}
 import {
   TaskDependency,
   CreateDependencyRequest,
@@ -47,6 +38,15 @@ import { TaskService } from '../services/taskService';
 import DependencyService from '../services/dependencyService';
 import DependencyManager from '../components/dependency/DependencyManager';
 import EnhancedDependencyGraph from '../components/dependency/EnhancedDependencyGraph';
+
+// 本地Project接口定义
+interface Project {
+  id: number;
+  name: string;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;

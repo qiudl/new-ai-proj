@@ -9,13 +9,13 @@ import (
 
 // TaskProgress 表示任务进度的标准输出
 type TaskProgress struct {
-	PercentRaw      float64                   `json:"percent_raw"`
-	PercentDisplay  int                       `json:"percent_display"`
-	EstimateMinutes *int                      `json:"estimate_minutes"`
-	ActualMinutes   int                       `json:"actual_minutes"`
-	OverrunPercent  int                       `json:"overrun_percent"`
-	Completed       bool                      `json:"completed"`
-	Breakdown       []TaskProgressBreakdown   `json:"breakdown,omitempty"`
+	PercentRaw      float64                 `json:"percent_raw"`
+	PercentDisplay  int                     `json:"percent_display"`
+	EstimateMinutes *int                    `json:"estimate_minutes"`
+	ActualMinutes   int                     `json:"actual_minutes"`
+	OverrunPercent  int                     `json:"overrun_percent"`
+	Completed       bool                    `json:"completed"`
+	Breakdown       []TaskProgressBreakdown `json:"breakdown,omitempty"`
 }
 
 // TaskProgressBreakdown 子任务进度明细
@@ -65,8 +65,12 @@ func (s *TaskProgressService) ComputeForTask(ctx context.Context, taskID int) (*
 func (s *TaskProgressService) computeFromData(task *models.Task, children []*models.Task) TaskProgress {
 	// 工具函数
 	clamp := func(x, lo, hi float64) float64 {
-		if x < lo { return lo }
-		if x > hi { return hi }
+		if x < lo {
+			return lo
+		}
+		if x > hi {
+			return hi
+		}
 		return x
 	}
 	stateMap := func(status string) float64 {
@@ -84,11 +88,11 @@ func (s *TaskProgressService) computeFromData(task *models.Task, children []*mod
 
 	completed := task.Status == "completed"
 
-var (
-		pRaw         float64
-		Etotal       int
-		Atotal       int
-		breakdown    []TaskProgressBreakdown
+	var (
+		pRaw      float64
+		Etotal    int
+		Atotal    int
+		breakdown []TaskProgressBreakdown
 	)
 
 	if len(children) > 0 {
@@ -114,14 +118,14 @@ var (
 			wSum += weight
 			Etotal += maxInt(0, Ei)
 			Atotal += maxInt(0, Ai)
-breakdown = append(breakdown, TaskProgressBreakdown{
-				TaskID: c.ID,
-				Title: c.Title,
-				Weight: weight,
-				Progress: pi,
-				Status: c.Status,
+			breakdown = append(breakdown, TaskProgressBreakdown{
+				TaskID:           c.ID,
+				Title:            c.Title,
+				Weight:           weight,
+				Progress:         pi,
+				Status:           c.Status,
 				EstimatedMinutes: Ei,
-				ActualMinutes: Ai,
+				ActualMinutes:    Ai,
 			})
 		}
 		if wSum > 0 {
@@ -163,7 +167,10 @@ breakdown = append(breakdown, TaskProgressBreakdown{
 	if len(children) > 0 {
 		anyEi := false
 		for _, c := range children {
-			if c.EstimatedMinutes > 0 { anyEi = true; break }
+			if c.EstimatedMinutes > 0 {
+				anyEi = true
+				break
+			}
 		}
 		if anyEi {
 			E := Etotal
@@ -178,15 +185,19 @@ breakdown = append(breakdown, TaskProgressBreakdown{
 	}
 
 	return TaskProgress{
-		PercentRaw:     pRaw,
-		PercentDisplay: int(math.Round(pRaw * 100)),
+		PercentRaw:      pRaw,
+		PercentDisplay:  int(math.Round(pRaw * 100)),
 		EstimateMinutes: estimatePtr,
-		ActualMinutes:  Atotal,
-		OverrunPercent: overrun,
-		Completed:      completed,
-		Breakdown:      breakdown,
+		ActualMinutes:   Atotal,
+		OverrunPercent:  overrun,
+		Completed:       completed,
+		Breakdown:       breakdown,
 	}
 }
 
-func maxInt(a, b int) int { if a > b { return a }; return b }
-
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

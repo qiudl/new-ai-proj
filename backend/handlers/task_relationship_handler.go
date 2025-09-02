@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"github.com/gin-gonic/gin"
 )
 
 // TaskRelationshipHandler handles task relationship API requests
@@ -96,7 +96,7 @@ func (h *TaskRelationshipHandler) GetTaskRelationships(c *gin.Context) {
 	}
 
 	relationshipType := c.Query("type")
-	
+
 	relationships, err := h.service.GetTaskRelationships(taskID, relationshipType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, *models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve relationships", err.Error()))
@@ -318,9 +318,9 @@ func (h *TaskRelationshipHandler) BulkCreateRelationships(c *gin.Context) {
 
 	response := map[string]interface{}{
 		"created_relationships": relationships,
-		"total_created":        len(relationships),
-		"total_requested":      len(requests),
-		"errors":              errors,
+		"total_created":         len(relationships),
+		"total_requested":       len(requests),
+		"errors":                errors,
 	}
 
 	statusCode := http.StatusCreated

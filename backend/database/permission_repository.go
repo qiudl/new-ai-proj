@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-
 // PostgresPermissionRepository implements PermissionRepository for PostgreSQL
 type PostgresPermissionRepository struct {
 	db interface{}
@@ -309,7 +308,7 @@ func (r *PostgresPermissionRepository) SetRolePermissions(ctx context.Context, r
 	if len(permissionIDs) > 0 {
 		valueStrings := make([]string, 0, len(permissionIDs))
 		valueArgs := make([]interface{}, 0, len(permissionIDs)*2)
-		
+
 		for i, permissionID := range permissionIDs {
 			valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d, true)", i*2+1, i*2+2))
 			valueArgs = append(valueArgs, roleID, permissionID)
@@ -343,7 +342,7 @@ func (r *PostgresPermissionRepository) checkUserPermissionWithInheritance(ctx co
 	}
 
 	exec := r.getExecer()
-	
+
 	// Get user status first
 	var userStatus string
 	statusQuery := `SELECT status FROM company_users WHERE id = $1`
@@ -352,7 +351,7 @@ func (r *PostgresPermissionRepository) checkUserPermissionWithInheritance(ctx co
 		result.Reason = "User not found"
 		return result, nil
 	}
-	
+
 	if userStatus != "active" {
 		result.Reason = "User is not active"
 		return result, nil
@@ -421,13 +420,13 @@ func (r *PostgresPermissionRepository) checkCustomPermissions(ctx context.Contex
 
 	var customPermValue sql.NullString
 	err := exec.QueryRowContext(ctx, customPermQuery, companyUserID, permissionCode).Scan(&customPermValue)
-	
+
 	if err != nil || !customPermValue.Valid {
 		return nil // No custom permission set
 	}
 
 	result := &models.PermissionResult{}
-	
+
 	switch customPermValue.String {
 	case "true":
 		result.HasPermission = true
@@ -438,7 +437,7 @@ func (r *PostgresPermissionRepository) checkCustomPermissions(ctx context.Contex
 	default:
 		return nil // No explicit permission set
 	}
-	
+
 	result.Source = "custom"
 	return result
 }
@@ -456,13 +455,13 @@ func (r *PostgresPermissionRepository) checkProjectPermissions(ctx context.Conte
 	err := exec.QueryRowContext(ctx, projectPermQuery, companyUserID, projectID).Scan(
 		&canView, &canEdit, &canDelete, &canManageTasks, &canViewFinancials, &canManageMembers,
 	)
-	
+
 	if err != nil {
 		return nil // No project permissions found
 	}
 
 	result := &models.PermissionResult{Source: "project"}
-	
+
 	// Map permission codes to project capabilities
 	switch permissionCode {
 	case "project.detail.read", "project.read":
@@ -484,7 +483,7 @@ func (r *PostgresPermissionRepository) checkProjectPermissions(ctx context.Conte
 	if result.HasPermission {
 		result.Reason = "Permission granted through project assignment"
 	}
-	
+
 	return result
 }
 
@@ -501,7 +500,7 @@ func (r *PostgresPermissionRepository) checkRolePermissions(ctx context.Context,
 
 	var foundPermission, roleName, roleCode string
 	err := exec.QueryRowContext(ctx, roleQuery, companyUserID, permissionCode).Scan(&foundPermission, &roleName, &roleCode)
-	
+
 	if err != nil {
 		return nil // No role permission found
 	}
@@ -572,7 +571,7 @@ func (r *PostgresPermissionRepository) CheckMultiplePermissions(ctx context.Cont
 // GetUserPermissions retrieves comprehensive permission summary for a user
 func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, companyUserID int) (*models.UserPermissionSummary, error) {
 	exec := r.getExecer()
-	
+
 	summary := &models.UserPermissionSummary{
 		CompanyUserID:        companyUserID,
 		CustomPermissions:    make(map[string]bool),
@@ -587,13 +586,13 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 		FROM company_users cu
 		LEFT JOIN company_roles r ON cu.role_id = r.id
 		WHERE cu.id = $1`
-	
+
 	var roleID sql.NullInt32
 	var customPermissionsJSON sql.NullString
 	var roleCode, roleName sql.NullString
 	var roleDescription sql.NullString
 	var isSystemRole, isActive sql.NullBool
-	
+
 	err := exec.QueryRowContext(ctx, userQuery, companyUserID).Scan(
 		&summary.UserName, &roleID, &customPermissionsJSON, &summary.LastUpdated,
 		&roleCode, &roleName, &roleDescription, &isSystemRole, &isActive,
@@ -635,7 +634,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 		WHERE company_user_id = $1 
 		  AND (permission_end_date IS NULL OR permission_end_date > CURRENT_TIMESTAMP)
 		ORDER BY project_id`
-	
+
 	projectRows, err := exec.QueryContext(ctx, projectPermQuery, companyUserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project permissions: %w", err)
@@ -682,7 +681,7 @@ func (r *PostgresPermissionRepository) GetUserPermissions(ctx context.Context, c
 			if customGranted, exists := summary.CustomPermissions[perm.PermissionCode]; exists {
 				permResponse := perm.ToResponse()
 				permResponse.IsGranted = customGranted
-				
+
 				// Check if this permission is already in effective permissions (from role)
 				found := false
 				for i, existing := range effectivePermissions {
@@ -912,7 +911,7 @@ func (r *PostgresPermissionRepository) GetPermissionAuditLogs(ctx context.Contex
 // GetPermissionInheritanceTrace returns detailed trace of how a permission is resolved
 func (r *PostgresPermissionRepository) GetPermissionInheritanceTrace(ctx context.Context, companyUserID int, permissionCode string, resourceID *int) (*models.PermissionInheritanceTrace, error) {
 	exec := r.getExecer()
-	
+
 	trace := &models.PermissionInheritanceTrace{
 		CompanyUserID:  companyUserID,
 		PermissionCode: permissionCode,
@@ -945,7 +944,7 @@ func (r *PostgresPermissionRepository) GetPermissionInheritanceTrace(ctx context
 			Reason:        "Checked project-specific permissions",
 			IsOverride:    false,
 		})
-		
+
 		if projectResult != nil && projectResult.HasPermission {
 			trace.FinalResult = true
 			trace.FinalSource = "project"
@@ -1015,7 +1014,7 @@ func (r *PostgresPermissionRepository) SetUserPermissionOverride(ctx context.Con
 	// Create pointers for audit log
 	targetUserID := companyUserID
 	performedBy := companyUserID
-	
+
 	// Log the permission change
 	auditLog := &models.PermissionAuditLog{
 		CompanyUserID:  &companyUserID,

@@ -39,7 +39,7 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.Username, user.Email, user.PasswordHash, user.UserType, 
+		user.Username, user.Email, user.PasswordHash, user.UserType,
 		user.CompanyID, user.CompanyUserID, user.Role,
 		user.ContactPersonName, user.ContactPhone, user.DepartmentTitle, user.IsPrimaryContact,
 		user.AccountExpiresAt, user.Notes, user.Status)
@@ -154,7 +154,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query,
-		user.ID, user.Username, user.Email, user.PasswordHash, 
+		user.ID, user.Username, user.Email, user.PasswordHash,
 		user.UserType, user.CompanyID, user.CompanyUserID, user.Role, user.Status,
 		user.CurrentTimingTaskID, user.TimingStartTime, user.TimingStatus)
 
@@ -316,7 +316,7 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int, 
 
 	user := &models.User{}
 	err := row.Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash, 
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 		&user.UserType, &user.CompanyID, &user.CompanyUserID,
 		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
 		&user.CreatedAt, &user.UpdatedAt)

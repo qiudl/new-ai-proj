@@ -79,8 +79,8 @@ func NewDocumentService(db *gorm.DB, storagePath string) *DocumentService {
 
 // UploadConfig defines upload configuration
 type UploadConfig struct {
-	MaxFileSize      int64    // Maximum file size in bytes
-	AllowedMimeTypes []string // Allowed MIME types
+	MaxFileSize       int64    // Maximum file size in bytes
+	AllowedMimeTypes  []string // Allowed MIME types
 	AllowedExtensions []string // Allowed file extensions
 }
 
@@ -126,7 +126,7 @@ func (ds *DocumentService) GenerateFilePath(taskID uint, originalName string) st
 	timestamp := time.Now().Format("20060102_150405")
 	uniqueID := fmt.Sprintf("%d_%s_%d", taskID, timestamp, time.Now().UnixNano()%10000)
 	fileName := fmt.Sprintf("task_%d_%s%s", taskID, uniqueID, ext)
-	
+
 	// Create directory structure: storage/documents/tasks/YYYY/MM/DD/
 	now := time.Now()
 	datePath := filepath.Join(
@@ -135,7 +135,7 @@ func (ds *DocumentService) GenerateFilePath(taskID uint, originalName string) st
 		fmt.Sprintf("%02d", now.Month()),
 		fmt.Sprintf("%02d", now.Day()),
 	)
-	
+
 	return filepath.Join(datePath, fileName)
 }
 
@@ -145,37 +145,37 @@ func (ds *DocumentService) CalculateChecksum(file multipart.File) (string, error
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err
 	}
-	
+
 	// Reset file pointer to beginning
 	if _, err := file.Seek(0, 0); err != nil {
 		return "", err
 	}
-	
+
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // SaveFile saves uploaded file to storage
 func (ds *DocumentService) SaveFile(file multipart.File, filePath string) error {
 	fullPath := filepath.Join(ds.storagePath, filePath)
-	
+
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
-	
+
 	// Create destination file
 	dst, err := os.Create(fullPath)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer dst.Close()
-	
+
 	// Copy file content
 	if _, err := io.Copy(dst, file); err != nil {
 		return fmt.Errorf("failed to save file: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -186,34 +186,34 @@ func (ds *DocumentService) UploadDocument(c *gin.Context, taskID uint, userID ui
 	if err != nil {
 		return nil, fmt.Errorf("failed to get uploaded file: %w", err)
 	}
-	
+
 	// Open file
 	file, err := fileHeader.Open()
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
-	
+
 	// Validate file
 	config := DefaultUploadConfig()
 	if err := ds.ValidateFile(fileHeader, config); err != nil {
 		return nil, err
 	}
-	
+
 	// Calculate checksum
 	checksum, err := ds.CalculateChecksum(file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate checksum: %w", err)
 	}
-	
+
 	// Generate file path
 	filePath := ds.GenerateFilePath(taskID, fileHeader.Filename)
-	
+
 	// Save file to storage
 	if err := ds.SaveFile(file, filePath); err != nil {
 		return nil, fmt.Errorf("failed to save file: %w", err)
 	}
-	
+
 	// Determine MIME type
 	mimeType := fileHeader.Header.Get("Content-Type")
 	if mimeType == "" {
@@ -230,7 +230,7 @@ func (ds *DocumentService) UploadDocument(c *gin.Context, taskID uint, userID ui
 			mimeType = "application/octet-stream"
 		}
 	}
-	
+
 	// Create database record
 	document := &TaskDocument{
 		TaskID:       taskID,
@@ -245,17 +245,17 @@ func (ds *DocumentService) UploadDocument(c *gin.Context, taskID uint, userID ui
 		Version:      1,
 		IsActive:     true,
 	}
-	
+
 	// Save to database
 	if err := ds.db.Create(document).Error; err != nil {
 		// If database save fails, try to remove the file
 		os.Remove(filepath.Join(ds.storagePath, filePath))
 		return nil, fmt.Errorf("failed to save document record: %w", err)
 	}
-	
+
 	// Log the operation
 	ds.LogOperation(document.ID, "upload", userID, c.ClientIP(), c.GetHeader("User-Agent"), true, "")
-	
+
 	return document, nil
 }
 
@@ -284,12 +284,12 @@ func (ds *DocumentService) DeleteDocument(documentID uint, userID uint) error {
 	err := ds.db.Model(&TaskDocument{}).
 		Where("id = ?", documentID).
 		Update("is_active", false).Error
-	
+
 	if err != nil {
 		ds.LogOperation(documentID, "delete", userID, "", "", false, err.Error())
 		return err
 	}
-	
+
 	ds.LogOperation(documentID, "delete", userID, "", "", true, "")
 	return nil
 }
@@ -314,7 +314,7 @@ func (ds *DocumentService) LogOperation(documentID uint, operation string, userI
 		Success:      success,
 		ErrorMessage: errorMessage,
 	}
-	
+
 	// Don't fail the main operation if logging fails
 	ds.db.Create(&log)
 }

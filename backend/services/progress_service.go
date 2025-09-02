@@ -1,4 +1,3 @@
-
 package services
 
 import (
@@ -18,15 +17,15 @@ type ProgressService struct {
 
 // ProgressConfig represents the configuration for progress calculation
 type ProgressConfig struct {
-	ID                 int                    `json:"id" db:"id"`
-	ConfigName         string                 `json:"config_name" db:"config_name"`
-	StatusProgressMap  map[string]float64     `json:"status_progress_map" db:"status_progress_map"`
-	IncludeCancelled   bool                   `json:"include_cancelled" db:"include_cancelled"`
-	IncludeArchived    bool                   `json:"include_archived" db:"include_archived"`
-	BlockedPolicy      string                 `json:"blocked_policy" db:"blocked_policy"`
-	DefaultWeightField string                 `json:"default_weight_field" db:"default_weight_field"`
-	EnableCaching      bool                   `json:"enable_caching" db:"enable_caching"`
-	CacheTTLSeconds    int                    `json:"cache_ttl_seconds" db:"cache_ttl_seconds"`
+	ID                 int                `json:"id" db:"id"`
+	ConfigName         string             `json:"config_name" db:"config_name"`
+	StatusProgressMap  map[string]float64 `json:"status_progress_map" db:"status_progress_map"`
+	IncludeCancelled   bool               `json:"include_cancelled" db:"include_cancelled"`
+	IncludeArchived    bool               `json:"include_archived" db:"include_archived"`
+	BlockedPolicy      string             `json:"blocked_policy" db:"blocked_policy"`
+	DefaultWeightField string             `json:"default_weight_field" db:"default_weight_field"`
+	EnableCaching      bool               `json:"enable_caching" db:"enable_caching"`
+	CacheTTLSeconds    int                `json:"cache_ttl_seconds" db:"cache_ttl_seconds"`
 }
 
 // ProgressResult represents the result of a progress calculation
@@ -67,14 +66,14 @@ func NewProgressService(db database.DB) (*ProgressService, error) {
 	service := &ProgressService{
 		db: db,
 	}
-	
+
 	// Load default configuration
 	config, err := service.loadConfig("default")
 	if err != nil {
 		return nil, fmt.Errorf("failed to load progress config: %v", err)
 	}
 	service.config = config
-	
+
 	return service, nil
 }
 
@@ -87,11 +86,11 @@ func (s *ProgressService) CalculateProgress(entityType string, entityID int, use
 			return cached, nil
 		}
 	}
-	
+
 	// Calculate based on entity type
 	var result *ProgressResult
 	var err error
-	
+
 	switch entityType {
 	case "task":
 		result, err = s.calculateTaskProgress(entityID)
@@ -100,16 +99,16 @@ func (s *ProgressService) CalculateProgress(entityType string, entityID int, use
 	default:
 		return nil, fmt.Errorf("unsupported entity type: %s", entityType)
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Store in cache if enabled
 	if s.config.EnableCaching && result != nil {
 		_ = s.storeInCache(result)
 	}
-	
+
 	return result, nil
 }
 
@@ -120,17 +119,17 @@ func (s *ProgressService) calculateTaskProgress(taskID int) (*ProgressResult, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get task: %v", err)
 	}
-	
+
 	// Check if task has children
 	hasChildren, err := s.taskHasChildren(taskID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var progress float64
 	var method string
 	var breakdown []ProgressBreakdown
-	
+
 	if hasChildren {
 		// Calculate parent progress based on children
 		progress, breakdown, err = s.calculateParentProgress(taskID)
@@ -142,10 +141,10 @@ func (s *ProgressService) calculateTaskProgress(taskID int) (*ProgressResult, er
 		// Calculate leaf task progress
 		progress, method = s.calculateLeafProgress(task)
 	}
-	
+
 	// Round to 1 decimal place
 	progress = math.Round(progress*10) / 10
-	
+
 	result := &ProgressResult{
 		EntityType:    "task",
 		EntityID:      taskID,
@@ -155,12 +154,12 @@ func (s *ProgressService) calculateTaskProgress(taskID int) (*ProgressResult, er
 		Breakdown:     breakdown,
 		ConfigVersion: s.config.ID,
 		Inputs: map[string]interface{}{
-			"status_map":       s.config.StatusProgressMap,
-			"weight_by":        s.config.DefaultWeightField,
-			"excluded_status":  s.getExcludedStatuses(),
+			"status_map":      s.config.StatusProgressMap,
+			"weight_by":       s.config.DefaultWeightField,
+			"excluded_status": s.getExcludedStatuses(),
 		},
 	}
-	
+
 	return result, nil
 }
 
@@ -170,32 +169,32 @@ func (s *ProgressService) calculateLeafProgress(task *TaskWithProgress) (float64
 	if task.ManualProgressOverride && task.ManualProgressValue != nil {
 		return s.clampProgress(*task.ManualProgressValue), "manual_override"
 	}
-	
+
 	// Priority 2: Checklist completion
 	if task.ChecklistTotal > 0 {
 		progress := (float64(task.ChecklistDone) / float64(task.ChecklistTotal)) * 100
 		return s.clampProgress(progress), "checklist"
 	}
-	
+
 	// Priority 3: Time-based progress (actual vs estimated)
 	if task.EstimatedHours != nil && *task.EstimatedHours > 0 && task.ActualSpentSeconds > 0 {
 		actualHours := float64(task.ActualSpentSeconds) / 3600.0
 		progress := (actualHours / *task.EstimatedHours) * 100
 		return s.clampProgress(progress), "time_tracking"
 	}
-	
+
 	// Priority 4: Time-based progress using EstimatedMinutes
 	if task.EstimatedMinutes > 0 && task.ActualSpentSeconds > 0 {
 		actualMinutes := float64(task.ActualSpentSeconds) / 60.0
 		progress := (actualMinutes / float64(task.EstimatedMinutes)) * 100
 		return s.clampProgress(progress), "time_tracking_minutes"
 	}
-	
+
 	// Priority 5: Status mapping
 	if progress, exists := s.config.StatusProgressMap[task.Status]; exists {
 		return progress, "status_mapping"
 	}
-	
+
 	// Default to 0
 	return 0, "default"
 }
@@ -207,7 +206,7 @@ func (s *ProgressService) calculateParentProgress(parentID int) (float64, []Prog
 	if err != nil {
 		return 0, nil, err
 	}
-	
+
 	if len(children) == 0 {
 		// No children, treat as leaf
 		parent, err := s.getTaskWithProgress(parentID)
@@ -223,26 +222,26 @@ func (s *ProgressService) calculateParentProgress(parentID int) (float64, []Prog
 			Method:   method,
 		}}, nil
 	}
-	
+
 	var totalWeight float64
 	var weightedSum float64
 	breakdown := make([]ProgressBreakdown, 0, len(children))
-	
+
 	for _, child := range children {
 		// Skip excluded statuses
 		if s.shouldExcludeTask(&child) {
 			continue
 		}
-		
+
 		// Calculate child progress (recursive)
 		childResult, err := s.calculateTaskProgress(child.ID)
 		if err != nil {
 			return 0, nil, err
 		}
-		
+
 		// Determine weight
 		weight := s.getTaskWeight(&child)
-		
+
 		// Handle blocked tasks based on policy
 		childProgress := childResult.Progress
 		if child.Status == "blocked" {
@@ -255,10 +254,10 @@ func (s *ProgressService) calculateParentProgress(parentID int) (float64, []Prog
 				// Keep the calculated progress
 			}
 		}
-		
+
 		totalWeight += weight
 		weightedSum += childProgress * weight
-		
+
 		breakdown = append(breakdown, ProgressBreakdown{
 			ID:       child.ID,
 			Title:    child.Title,
@@ -268,11 +267,11 @@ func (s *ProgressService) calculateParentProgress(parentID int) (float64, []Prog
 			Method:   childResult.MethodUsed,
 		})
 	}
-	
+
 	if totalWeight == 0 {
 		return 0, breakdown, nil
 	}
-	
+
 	progress := weightedSum / totalWeight
 	return s.clampProgress(progress), breakdown, nil
 }
@@ -293,13 +292,13 @@ func (s *ProgressService) calculateProjectProgress(projectID int) (*ProgressResu
 		  AND t.parent_id IS NULL
 		  AND t.deleted_at IS NULL
 		ORDER BY t.sort_order, t.id`
-	
+
 	var tasks []TaskWithProgress
 	err := s.db.Select(&tasks, query, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get project tasks: %v", err)
 	}
-	
+
 	if len(tasks) == 0 {
 		return &ProgressResult{
 			EntityType: "project",
@@ -309,29 +308,29 @@ func (s *ProgressService) calculateProjectProgress(projectID int) (*ProgressResu
 			UpdatedAt:  time.Now(),
 		}, nil
 	}
-	
+
 	var totalWeight float64
 	var weightedSum float64
 	breakdown := make([]ProgressBreakdown, 0, len(tasks))
-	
+
 	for _, task := range tasks {
 		// Skip excluded statuses
 		if s.shouldExcludeTask(&task) {
 			continue
 		}
-		
+
 		// Calculate task progress (recursive if has children)
 		taskResult, err := s.calculateTaskProgress(task.ID)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Determine weight
 		weight := s.getTaskWeight(&task)
-		
+
 		totalWeight += weight
 		weightedSum += taskResult.Progress * weight
-		
+
 		breakdown = append(breakdown, ProgressBreakdown{
 			ID:       task.ID,
 			Title:    task.Title,
@@ -341,7 +340,7 @@ func (s *ProgressService) calculateProjectProgress(projectID int) (*ProgressResu
 			Method:   taskResult.MethodUsed,
 		})
 	}
-	
+
 	if totalWeight == 0 {
 		return &ProgressResult{
 			EntityType: "project",
@@ -352,9 +351,9 @@ func (s *ProgressService) calculateProjectProgress(projectID int) (*ProgressResu
 			Breakdown:  breakdown,
 		}, nil
 	}
-	
+
 	progress := s.clampProgress(weightedSum / totalWeight)
-	
+
 	return &ProgressResult{
 		EntityType:    "project",
 		EntityID:      projectID,
@@ -384,13 +383,13 @@ func (s *ProgressService) getTaskWithProgress(taskID int) (*TaskWithProgress, er
 		       t.story_points
 		FROM tasks t
 		WHERE t.id = $1 AND t.deleted_at IS NULL`
-	
+
 	var task TaskWithProgress
 	err := s.db.Get(&task, query, taskID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &task, nil
 }
 
@@ -406,13 +405,13 @@ func (s *ProgressService) getChildrenTasks(parentID int) ([]TaskWithProgress, er
 		FROM tasks t
 		WHERE t.parent_id = $1 AND t.deleted_at IS NULL
 		ORDER BY t.sort_order, t.id`
-	
+
 	var tasks []TaskWithProgress
 	err := s.db.Select(&tasks, query, parentID)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return tasks, nil
 }
 
@@ -480,10 +479,10 @@ func (s *ProgressService) loadConfig(configName string) (*ProgressConfig, error)
 		       enable_caching, cache_ttl_seconds
 		FROM progress_config
 		WHERE config_name = $1`
-	
+
 	var config ProgressConfig
 	var statusMapJSON []byte
-	
+
 	row := s.db.QueryRow(query, configName)
 	err := row.Scan(
 		&config.ID,
@@ -496,16 +495,16 @@ func (s *ProgressService) loadConfig(configName string) (*ProgressConfig, error)
 		&config.EnableCaching,
 		&config.CacheTTLSeconds,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Parse status progress map
 	if err := json.Unmarshal(statusMapJSON, &config.StatusProgressMap); err != nil {
 		return nil, fmt.Errorf("failed to parse status_progress_map: %v", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -517,20 +516,20 @@ func (s *ProgressService) getFromCache(entityType string, entityID int) (*Progre
 		FROM progress_cache
 		WHERE entity_type = $1 AND entity_id = $2 
 		  AND is_stale = false AND expires_at > NOW()`
-	
+
 	var progress float64
 	var methodUsed string
 	var computedAt time.Time
 	var breakdownJSON, inputsJSON []byte
-	
+
 	err := s.db.QueryRow(query, entityType, entityID).Scan(
 		&progress, &methodUsed, &computedAt, &breakdownJSON, &inputsJSON,
 	)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	result := &ProgressResult{
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -538,26 +537,26 @@ func (s *ProgressService) getFromCache(entityType string, entityID int) (*Progre
 		MethodUsed: methodUsed,
 		UpdatedAt:  computedAt,
 	}
-	
+
 	// Parse breakdown if present
 	if len(breakdownJSON) > 0 {
 		_ = json.Unmarshal(breakdownJSON, &result.Breakdown)
 	}
-	
+
 	// Parse inputs if present
 	if len(inputsJSON) > 0 {
 		_ = json.Unmarshal(inputsJSON, &result.Inputs)
 	}
-	
+
 	return result, nil
 }
 
 func (s *ProgressService) storeInCache(result *ProgressResult) error {
 	breakdownJSON, _ := json.Marshal(result.Breakdown)
 	inputsJSON, _ := json.Marshal(result.Inputs)
-	
+
 	expiresAt := time.Now().Add(time.Duration(s.config.CacheTTLSeconds) * time.Second)
-	
+
 	query := `
 		INSERT INTO progress_cache 
 		(entity_type, entity_id, progress, method_used, computed_at, expires_at, breakdown, inputs, is_stale)
@@ -571,7 +570,7 @@ func (s *ProgressService) storeInCache(result *ProgressResult) error {
 			breakdown = EXCLUDED.breakdown,
 			inputs = EXCLUDED.inputs,
 			is_stale = false`
-	
+
 	_, err := s.db.Exec(query,
 		result.EntityType,
 		result.EntityID,
@@ -582,7 +581,7 @@ func (s *ProgressService) storeInCache(result *ProgressResult) error {
 		breakdownJSON,
 		inputsJSON,
 	)
-	
+
 	return err
 }
 
@@ -590,12 +589,12 @@ func (s *ProgressService) storeInCache(result *ProgressResult) error {
 func (s *ProgressService) SaveSnapshot(result *ProgressResult) error {
 	breakdownJSON, _ := json.Marshal(result.Breakdown)
 	inputsJSON, _ := json.Marshal(result.Inputs)
-	
+
 	query := `
 		INSERT INTO progress_snapshots 
 		(entity_type, entity_id, progress, method_used, computed_at, inputs, breakdown, config_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	
+
 	_, err := s.db.Exec(query,
 		result.EntityType,
 		result.EntityID,
@@ -606,7 +605,7 @@ func (s *ProgressService) SaveSnapshot(result *ProgressResult) error {
 		breakdownJSON,
 		s.config.ID,
 	)
-	
+
 	return err
 }
 
@@ -618,18 +617,18 @@ func (s *ProgressService) GetSnapshots(entityType string, entityID int, from, to
 		WHERE entity_type = $1 AND entity_id = $2 
 		  AND computed_at >= $3 AND computed_at <= $4
 		ORDER BY computed_at DESC`
-	
+
 	rows, err := s.db.Query(query, entityType, entityID, from, to)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var snapshots []ProgressResult
 	for rows.Next() {
 		var result ProgressResult
 		var breakdownJSON, inputsJSON []byte
-		
+
 		err := rows.Scan(
 			&result.EntityType,
 			&result.EntityID,
@@ -639,11 +638,11 @@ func (s *ProgressService) GetSnapshots(entityType string, entityID int, from, to
 			&breakdownJSON,
 			&inputsJSON,
 		)
-		
+
 		if err != nil {
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if len(breakdownJSON) > 0 {
 			_ = json.Unmarshal(breakdownJSON, &result.Breakdown)
@@ -651,9 +650,9 @@ func (s *ProgressService) GetSnapshots(entityType string, entityID int, from, to
 		if len(inputsJSON) > 0 {
 			_ = json.Unmarshal(inputsJSON, &result.Inputs)
 		}
-		
+
 		snapshots = append(snapshots, result)
 	}
-	
+
 	return snapshots, nil
 }

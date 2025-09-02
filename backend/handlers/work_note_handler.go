@@ -72,20 +72,20 @@ func (h *WorkNoteHandler) CreateWorkNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	// 获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	workNote, err := h.workNoteService.CreateWorkNote(c.Request.Context(), req, userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to create work note", err.Error()))
 		return
 	}
-	
+
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "Work note created successfully",
@@ -123,48 +123,48 @@ func (h *WorkNoteHandler) ListWorkNotes(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 解析查询参数
 	filter := models.WorkNoteFilter{}
-	
+
 	if folderIDStr := c.Query("folder_id"); folderIDStr != "" {
 		if folderID, err := strconv.Atoi(folderIDStr); err == nil {
 			filter.WorkNoteFolderID = &folderID
 		}
 	}
-	
+
 	if workNoteTypeStr := c.Query("work_note_type"); workNoteTypeStr != "" {
 		workNoteType := models.WorkNoteType(workNoteTypeStr)
 		filter.WorkNoteType = &workNoteType
 	}
-	
+
 	if priorityStr := c.Query("priority"); priorityStr != "" {
 		priority := models.WorkNotePriority(priorityStr)
 		filter.Priority = &priority
 	}
-	
+
 	if visibilityStr := c.Query("visibility"); visibilityStr != "" {
 		visibility := models.Visibility(visibilityStr)
 		filter.Visibility = &visibility
 	}
-	
+
 	if statusStr := c.Query("status"); statusStr != "" {
 		status := models.DocumentStatus(statusStr)
 		filter.Status = &status
 	}
-	
+
 	if isPinnedStr := c.Query("is_pinned"); isPinnedStr != "" {
 		if isPinned, err := strconv.ParseBool(isPinnedStr); err == nil {
 			filter.IsPinned = &isPinned
 		}
 	}
-	
+
 	if isBookmarkedStr := c.Query("is_bookmarked"); isBookmarkedStr != "" {
 		if isBookmarked, err := strconv.ParseBool(isBookmarkedStr); err == nil {
 			filter.IsBookmarked = &isBookmarked
 		}
 	}
-	
+
 	if tagsStr := c.Query("tags"); tagsStr != "" {
 		// 标签以逗号分隔
 		tags := []string{}
@@ -175,11 +175,11 @@ func (h *WorkNoteHandler) ListWorkNotes(c *gin.Context) {
 		}
 		filter.Tags = tags
 	}
-	
+
 	filter.Search = c.Query("search")
 	filter.SortBy = c.DefaultQuery("sort_by", "updated_at")
 	filter.Order = c.DefaultQuery("order", "desc")
-	
+
 	if pageStr := c.Query("page"); pageStr != "" {
 		if page, err := strconv.Atoi(pageStr); err == nil && page > 0 {
 			filter.Page = page
@@ -189,7 +189,7 @@ func (h *WorkNoteHandler) ListWorkNotes(c *gin.Context) {
 	} else {
 		filter.Page = 1
 	}
-	
+
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if limit, err := strconv.Atoi(limitStr); err == nil && limit > 0 && limit <= 100 {
 			filter.Limit = limit
@@ -199,17 +199,17 @@ func (h *WorkNoteHandler) ListWorkNotes(c *gin.Context) {
 	} else {
 		filter.Limit = 20
 	}
-	
+
 	// 设置用户ID
 	uid := userID.(int)
 	filter.OwnerID = &uid
-	
+
 	response, err := h.workNoteService.ListWorkNotes(c.Request.Context(), filter, uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to list work notes", err.Error()))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    response,
@@ -236,13 +236,13 @@ func (h *WorkNoteHandler) SearchWorkNotes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Missing search query", "Search query parameter 'q' is required"))
 		return
 	}
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 解析标签过滤
 	var tags []string
 	if tagsStr := c.Query("tags"); tagsStr != "" {
@@ -252,7 +252,7 @@ func (h *WorkNoteHandler) SearchWorkNotes(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 解析限制数量
 	limit := 10
 	if limitStr := c.Query("limit"); limitStr != "" {
@@ -260,13 +260,13 @@ func (h *WorkNoteHandler) SearchWorkNotes(c *gin.Context) {
 			limit = l
 		}
 	}
-	
+
 	results, err := h.workNoteService.SearchWorkNotes(c.Request.Context(), query, tags, userID.(int), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to search work notes", err.Error()))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    results,
@@ -293,24 +293,24 @@ func (h *WorkNoteHandler) GetWorkNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid note ID", "Note ID must be a valid integer"))
 		return
 	}
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	workNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), noteID, userID.(int))
 	if err != nil {
 		if err.Error() == "document not found" || strings.Contains(err.Error(), "not found") {
 			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", "The requested work note does not exist or you don't have permission to access it"))
 			return
 		}
-		
+
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    workNote,
@@ -337,30 +337,30 @@ func (h *WorkNoteHandler) UpdateWorkNote(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid note ID", "Note ID must be a valid integer"))
 		return
 	}
-	
+
 	var req models.UpdateWorkNoteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	workNote, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, req, userID.(int))
 	if err != nil {
 		if err.Error() == "document not found" || strings.Contains(err.Error(), "not found") {
 			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "Work note not found", "The requested work note does not exist or you don't have permission to access it"))
 			return
 		}
-		
+
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to update work note", err.Error()))
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Work note updated successfully",
@@ -384,7 +384,7 @@ func (h *WorkNoteHandler) DeleteWorkNote(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete work note", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true })
+	c.JSON(http.StatusOK, gin.H{"success": true})
 }
 
 // BatchUpdateWorkNotes 批量更新工作笔记
@@ -403,7 +403,7 @@ func (h *WorkNoteHandler) BatchUpdateWorkNotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to batch update work notes", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "message": "Batch update completed" })
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Batch update completed"})
 }
 
 // GetWorkNoteStats 获取工作笔记统计
@@ -418,7 +418,7 @@ func (h *WorkNoteHandler) GetWorkNoteStats(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note stats", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": stats })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": stats})
 }
 
 // GetRecentNotes 获取最近笔记
@@ -439,7 +439,7 @@ func (h *WorkNoteHandler) GetRecentNotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get recent notes", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": notes })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": notes})
 }
 
 // GetPinnedNotes 获取置顶笔记
@@ -454,7 +454,7 @@ func (h *WorkNoteHandler) GetPinnedNotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get pinned notes", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": notes })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": notes})
 }
 
 // GetBookmarkedNotes 获取收藏笔记
@@ -469,7 +469,7 @@ func (h *WorkNoteHandler) GetBookmarkedNotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get bookmarked notes", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": notes })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": notes})
 }
 
 // PinWorkNote 置顶/取消置顶
@@ -484,17 +484,21 @@ func (h *WorkNoteHandler) PinWorkNote(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	var body struct { Pinned *bool `json:"pinned"` }
+	var body struct {
+		Pinned *bool `json:"pinned"`
+	}
 	_ = c.ShouldBindJSON(&body)
 	pinned := true
-	if body.Pinned != nil { pinned = *body.Pinned }
-	req := models.UpdateWorkNoteRequest{ IsPinned: &pinned }
+	if body.Pinned != nil {
+		pinned = *body.Pinned
+	}
+	req := models.UpdateWorkNoteRequest{IsPinned: &pinned}
 	updated, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, req, userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to update pin state", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": updated })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": updated})
 }
 
 // BookmarkWorkNote 收藏/取消收藏
@@ -509,17 +513,21 @@ func (h *WorkNoteHandler) BookmarkWorkNote(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	var body struct { Bookmarked *bool `json:"bookmarked"` }
+	var body struct {
+		Bookmarked *bool `json:"bookmarked"`
+	}
 	_ = c.ShouldBindJSON(&body)
 	bookmarked := true
-	if body.Bookmarked != nil { bookmarked = *body.Bookmarked }
-	req := models.UpdateWorkNoteRequest{ IsBookmarked: &bookmarked }
+	if body.Bookmarked != nil {
+		bookmarked = *body.Bookmarked
+	}
+	req := models.UpdateWorkNoteRequest{IsBookmarked: &bookmarked}
 	updated, err := h.workNoteService.UpdateWorkNote(c.Request.Context(), noteID, req, userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to update bookmark state", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": updated })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": updated})
 }
 
 // GetRelatedNotes 获取相关笔记
@@ -539,7 +547,7 @@ func (h *WorkNoteHandler) GetRelatedNotes(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get related notes", err.Error()))
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{ "success": true, "data": related })
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": related})
 }
 
 // =====================
@@ -574,14 +582,14 @@ func (h *WorkNoteHandler) CreateAndAttachWorkNoteToTask(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	// 3. 获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 4. 调用服务方法创建并关联工作笔记
 	workNote, err := h.workNoteService.CreateAndAttachToTask(c.Request.Context(), req, taskID, userID.(int))
 	if err != nil {
@@ -596,7 +604,7 @@ func (h *WorkNoteHandler) CreateAndAttachWorkNoteToTask(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to create and attach work note", err.Error()))
 		return
 	}
-	
+
 	// 5. 返回成功响应
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
@@ -633,21 +641,21 @@ func (h *WorkNoteHandler) GetWorkNotesByTask(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 3. 调用服务方法获取任务关联的工作笔记
 	workNotes, err := h.workNoteService.GetWorkNotesByTask(c.Request.Context(), taskID, userID.(int))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work notes by task", err.Error()))
 		return
 	}
-	
+
 	// 4. 返回响应
 	c.JSON(http.StatusOK, gin.H{
-		"success":  true,
-		"message":  fmt.Sprintf("Found %d work note(s) for task #%d", len(workNotes), taskID),
-		"data":     workNotes,
-		"task_id":  taskID,
-		"count":    len(workNotes),
+		"success": true,
+		"message": fmt.Sprintf("Found %d work note(s) for task #%d", len(workNotes), taskID),
+		"data":    workNotes,
+		"task_id": taskID,
+		"count":   len(workNotes),
 	})
 }
 
@@ -683,14 +691,14 @@ func (h *WorkNoteHandler) GetConversionPreview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	// 3. 获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 4. 获取工作笔记信息
 	workNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), workNoteID, userID.(int))
 	if err != nil {
@@ -701,12 +709,12 @@ func (h *WorkNoteHandler) GetConversionPreview(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
 		return
 	}
-	
+
 	// 5. 生成转换预览（目前返回模拟数据）
 	var contentSize int64
 	var previewContent string
 	var warningMessages []string
-	
+
 	if workNote.Content != nil {
 		content := *workNote.Content
 		contentSize = int64(len(content))
@@ -715,13 +723,13 @@ func (h *WorkNoteHandler) GetConversionPreview(c *gin.Context) {
 		} else {
 			previewContent = content
 		}
-		
+
 		// 添加一些警告信息
 		if len(content) > 10000 {
 			warningMessages = append(warningMessages, "内容较长，转换可能需要更多时间")
 		}
 	}
-	
+
 	preview := models.ConversionPreview{
 		SourceDocument: models.WorkNoteSummary{
 			ID:    workNote.ID,
@@ -735,7 +743,7 @@ func (h *WorkNoteHandler) GetConversionPreview(c *gin.Context) {
 		EstimatedSize:      contentSize,
 		WarningMessages:    warningMessages,
 	}
-	
+
 	// 6. 返回预览结果
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -772,14 +780,14 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	// 3. 获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 4. 验证工作笔记是否存在且用户有权限访问
 	workNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), workNoteID, userID.(int))
 	if err != nil {
@@ -790,13 +798,13 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to get work note", err.Error()))
 		return
 	}
-	
+
 	// 5. 执行转换 - 调用文档创建服务
 	var content string
 	if workNote.Content != nil {
 		content = *workNote.Content
 	}
-	
+
 	// 获取项目ID
 	var projectID int
 	if workNote.ProjectID != nil {
@@ -806,7 +814,7 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		// 这里暂时使用默认值1，实际实现中应该查询任务获取项目ID
 		projectID = 1
 	}
-	
+
 	// 创建文档请求
 	docReq := &interfaces.CreateDocumentRequest{
 		ProjectID: projectID,
@@ -816,11 +824,11 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		UserID:    userID.(int),
 		Title:     workNote.Title + " (转换自工作笔记)",
 	}
-	
+
 	// 创建上下文
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
-	
+
 	// 调用文档创建服务（MCP文件存储）
 	if h.documentRouter != nil {
 		err := h.documentRouter.CreateDocument(ctx, docReq)
@@ -829,11 +837,11 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// 同时在数据库中创建文档记录，以便任务详情页能够显示
 	sqlDB := h.db.GetDB().(*sql.DB)
 	now := time.Now()
-	
+
 	// 创建数据库记录
 	insertDocQuery := `
 		INSERT INTO documents (
@@ -843,7 +851,7 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
-	
+
 	var newDocID int
 	err = sqlDB.QueryRow(
 		insertDocQuery,
@@ -851,37 +859,37 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 		userID.(int), "team", 1, false,
 		now, now, userID.(int),
 	).Scan(&newDocID)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to create document record", err.Error()))
 		return
 	}
-	
+
 	// 创建任务文档关联记录
 	insertTaskDocQuery := `
 		INSERT INTO task_documents (task_id, document_id, relationship_type, created_by, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	
+
 	_, err = sqlDB.Exec(
 		insertTaskDocQuery,
 		req.TargetTaskID, newDocID, "main", userID.(int), now, now,
 	)
-	
+
 	if err != nil {
 		// 如果关联失败，删除刚创建的文档记录
 		sqlDB.Exec("DELETE FROM documents WHERE id = $1", newDocID)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "Failed to associate document with task", err.Error()))
 		return
 	}
-	
+
 	// 更新工作笔记的关联任务列表
 	// 获取当前的关联任务列表（WorkNote结构直接包含RelatedTasks字段）
 	relatedTasks := workNote.RelatedTasks
 	if relatedTasks == nil {
 		relatedTasks = []int{}
 	}
-	
+
 	// 检查是否已经存在关联，避免重复
 	taskExists := false
 	for _, taskID := range relatedTasks {
@@ -890,22 +898,22 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !taskExists {
 		relatedTasks = append(relatedTasks, req.TargetTaskID)
 	}
-	
+
 	// 更新工作笔记
 	updateReq := models.UpdateWorkNoteRequest{
 		RelatedTasks: relatedTasks,
 	}
-	
+
 	_, err = h.workNoteService.UpdateWorkNote(ctx, workNoteID, updateReq, userID.(int))
 	if err != nil {
 		// 即使更新元数据失败，转换仍然成功，只是记录一个警告
 		c.Header("X-Warning", fmt.Sprintf("Task document created successfully, but failed to update work note relations: %v", err))
 	}
-	
+
 	// 构建转换结果
 	result := models.ConversionResult{
 		OriginalWorkNoteID: workNoteID,
@@ -922,13 +930,13 @@ func (h *WorkNoteHandler) ConvertToTaskDocument(c *gin.Context) {
 			AttachmentsMoved: 0,
 		},
 	}
-	
+
 	// 6. 如果不保留原工作笔记，可以选择删除或标记
 	if !req.ConversionOptions.PreserveOriginal {
 		// TODO: 实现删除或归档逻辑
 		// 目前暂时跳过
 	}
-	
+
 	// 7. 返回转换结果
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
@@ -956,14 +964,14 @@ func (h *WorkNoteHandler) BatchConvertToTaskDocuments(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request format", err.Error()))
 		return
 	}
-	
+
 	// 2. 获取用户ID
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.NewErrorResponse(models.ErrCodeUnauthorized, "Unauthorized", "User ID not found in context"))
 		return
 	}
-	
+
 	// 3. 初始化批量转换结果
 	batchResult := models.BatchConversionResult{
 		TotalRequested: len(req.Conversions),
@@ -972,18 +980,18 @@ func (h *WorkNoteHandler) BatchConvertToTaskDocuments(c *gin.Context) {
 		Results:        []models.ConversionResult{},
 		Errors:         []string{},
 	}
-	
+
 	// 4. 逐个处理转换请求
 	for i, conversion := range req.Conversions {
 		// 验证工作笔记是否存在
 		workNote, err := h.workNoteService.GetWorkNote(c.Request.Context(), conversion.WorkNoteID, userID.(int))
 		if err != nil {
 			batchResult.TotalFailed++
-			batchResult.Errors = append(batchResult.Errors, 
+			batchResult.Errors = append(batchResult.Errors,
 				fmt.Sprintf("Conversion %d failed: work note %d not found or access denied", i+1, conversion.WorkNoteID))
 			continue
 		}
-		
+
 		// 执行转换（模拟）
 		result := models.ConversionResult{
 			OriginalWorkNoteID: conversion.WorkNoteID,
@@ -1000,17 +1008,16 @@ func (h *WorkNoteHandler) BatchConvertToTaskDocuments(c *gin.Context) {
 				AttachmentsMoved: 0,
 			},
 		}
-		
+
 		batchResult.Results = append(batchResult.Results, result)
 		batchResult.TotalSucceeded++
 	}
-	
+
 	// 5. 返回批量转换结果
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": fmt.Sprintf("Batch conversion completed: %d succeeded, %d failed", 
+		"message": fmt.Sprintf("Batch conversion completed: %d succeeded, %d failed",
 			batchResult.TotalSucceeded, batchResult.TotalFailed),
 		"data": batchResult,
 	})
 }
-

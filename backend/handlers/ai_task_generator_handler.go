@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"github.com/gin-gonic/gin"
 )
 
 // AITaskGeneratorHandler AI任务生成处理器
@@ -294,13 +294,13 @@ func (h *AITaskGeneratorHandler) generateTasksWithAI(
 ) (*models.AITaskGenerationResponse, error) {
 	// 构建AI提示词
 	prompt := h.buildTaskGenerationPrompt(req, projectContext)
-	
+
 	// 解密API密钥
 	decryptedAPIKey, err := h.aiConfigRepo.DecryptAPIKey(req.Provider)
 	if err != nil {
 		return nil, fmt.Errorf("解密API密钥失败: %w", err)
 	}
-	
+
 	// 准备AI配置用于测试，使用解密的明文密钥
 	testConfig := *aiConfig
 	testConfig.APIKeyEncrypted = decryptedAPIKey // 使用解密的明文密钥
@@ -317,13 +317,13 @@ func (h *AITaskGeneratorHandler) generateTasksWithAI(
 		log.Printf("AI服务返回失败: %s", aiResponse.Error)
 		return nil, fmt.Errorf("AI服务返回错误: %s", aiResponse.Error)
 	}
-	
+
 	// 检查AI响应内容
 	if aiResponse.Content == "" {
 		log.Printf("AI响应为空")
 		return nil, fmt.Errorf("AI服务返回空响应")
 	}
-	
+
 	log.Printf("AI响应长度: %d", len(aiResponse.Content))
 
 	// 解析AI响应为任务列表
@@ -353,7 +353,7 @@ func (h *AITaskGeneratorHandler) generateTasksWithAI(
 			Name:    aiResponse.Model,
 			Version: "1.0.0",
 		},
-		Suggestions:    h.generateSuggestions(generatedTasks, qualityMetrics),
+		Suggestions: h.generateSuggestions(generatedTasks, qualityMetrics),
 	}
 
 	return response, nil
@@ -365,27 +365,27 @@ func (h *AITaskGeneratorHandler) buildTaskGenerationPrompt(
 	projectContext *models.ProjectContext,
 ) string {
 	var prompt strings.Builder
-	
+
 	prompt.WriteString("你是一个专业的项目管理助手，擅长将复杂需求分解为具体的可执行任务。\n\n")
-	
+
 	if projectContext != nil {
 		prompt.WriteString(fmt.Sprintf("项目背景：\n"))
 		prompt.WriteString(fmt.Sprintf("- 项目名称：%s\n", projectContext.ProjectName))
 		if projectContext.ProjectDesc != "" {
 			prompt.WriteString(fmt.Sprintf("- 项目描述：%s\n", projectContext.ProjectDesc))
 		}
-		
+
 		if len(projectContext.ExistingTasks) > 0 {
 			prompt.WriteString(fmt.Sprintf("- 现有任务数量：%d个\n", len(projectContext.ExistingTasks)))
 		}
 		prompt.WriteString("\n")
 	}
-	
+
 	prompt.WriteString("请将以下需求分解为具体任务，返回JSON格式：\n\n")
 	prompt.WriteString("需求描述：\n")
 	prompt.WriteString(req.InputText)
 	prompt.WriteString("\n\n")
-	
+
 	prompt.WriteString("请返回JSON格式，包含以下字段：\n")
 	prompt.WriteString("{\n")
 	prompt.WriteString("  \"tasks\": [\n")
@@ -400,21 +400,21 @@ func (h *AITaskGeneratorHandler) buildTaskGenerationPrompt(
 	prompt.WriteString("    }\n")
 	prompt.WriteString("  ]\n")
 	prompt.WriteString("}\n\n")
-	
+
 	prompt.WriteString(fmt.Sprintf("要求：\n"))
 	prompt.WriteString(fmt.Sprintf("- 生成不超过%d个任务\n", req.Options.MaxTasks))
 	prompt.WriteString("- 任务标题要具体明确\n")
 	prompt.WriteString("- 描述要详细可执行\n")
 	prompt.WriteString("- 工作量估算要合理（以小时为单位）\n")
-	
+
 	if req.Options.EnableDuplicateCheck {
 		prompt.WriteString("- 避免重复任务\n")
 	}
-	
+
 	if req.Options.EnableDependencyAnalysis {
 		prompt.WriteString("- 分析任务间的依赖关系\n")
 	}
-	
+
 	if req.Options.EnableSkillTagging {
 		prompt.WriteString("- 为任务添加合适的技能标签\n")
 	}
@@ -444,16 +444,16 @@ func (h *AITaskGeneratorHandler) parseAIResponseToTasks(aiResponse string) ([]mo
 	// 为每个任务分配唯一ID
 	for i := range taskData.Tasks {
 		taskData.Tasks[i].AIGeneratedID = fmt.Sprintf("ai_%d_%d", time.Now().Unix(), i)
-		
+
 		// 验证和默认值设置
 		if taskData.Tasks[i].Priority == "" {
 			taskData.Tasks[i].Priority = "medium"
 		}
-		
+
 		if taskData.Tasks[i].Confidence == 0 {
 			taskData.Tasks[i].Confidence = 0.8
 		}
-		
+
 		if taskData.Tasks[i].EstimatedHours == 0 {
 			taskData.Tasks[i].EstimatedHours = 4.0 // 默认4小时
 		}
@@ -466,20 +466,20 @@ func (h *AITaskGeneratorHandler) parseAIResponseToTasks(aiResponse string) ([]mo
 func (h *AITaskGeneratorHandler) extractJSONFromResponse(response string) string {
 	log.Printf("=== 开始提取JSON ===")
 	log.Printf("原始AI响应长度: %d", len(response))
-	
+
 	// 如果响应太长，只记录前500个字符
 	if len(response) > 500 {
 		log.Printf("原始AI响应内容(前500字符): %s...", response[:500])
 	} else {
 		log.Printf("原始AI响应内容: %s", response)
 	}
-	
+
 	// 如果响应为空
 	if strings.TrimSpace(response) == "" {
 		log.Printf("错误: AI响应为空")
 		return ""
 	}
-	
+
 	// 1. 尝试提取markdown代码块中的JSON（最常见的情况）
 	// 支持 ```json 或 ``` 格式
 	codeBlockRegex := regexp.MustCompile("(?s)```(?:json)?\\s*\\n?([^`]+)\\n?```")
@@ -491,7 +491,7 @@ func (h *AITaskGeneratorHandler) extractJSONFromResponse(response string) string
 			return jsonStr
 		}
 	}
-	
+
 	// 2. 查找完整的JSON对象（从第一个{到最后一个}）
 	firstBrace := strings.Index(response, "{")
 	lastBrace := strings.LastIndex(response, "}")
@@ -503,14 +503,14 @@ func (h *AITaskGeneratorHandler) extractJSONFromResponse(response string) string
 			return jsonCandidate
 		}
 	}
-	
+
 	// 3. 尝试匹配包含tasks数组的JSON片段
 	tasksRegex := regexp.MustCompile(`(?s)\{\s*"tasks"\s*:\s*\[[^\]]*\]\s*\}`)
 	if match := tasksRegex.FindString(response); match != "" {
 		log.Printf("从tasks数组匹配的JSON长度: %d", len(match))
 		return match
 	}
-	
+
 	// 4. 如果整个响应是纯JSON（去除首尾空白后）
 	trimmed := strings.TrimSpace(response)
 	if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
@@ -523,7 +523,7 @@ func (h *AITaskGeneratorHandler) extractJSONFromResponse(response string) string
 			}
 		}
 	}
-	
+
 	// 5. 特殊处理：有时AI会在JSON前后加上额外的文字
 	// 尝试更宽松的正则匹配
 	looseRegex := regexp.MustCompile(`(?s)\{[^{}]*"tasks"[^{}]*:\s*\[[^\[\]]*\][^{}]*\}`)
@@ -531,7 +531,7 @@ func (h *AITaskGeneratorHandler) extractJSONFromResponse(response string) string
 		log.Printf("使用宽松正则提取的JSON长度: %d", len(match))
 		return match
 	}
-	
+
 	log.Printf("错误: 无法从响应中提取JSON格式数据")
 	if len(response) > 200 {
 		log.Printf("响应前200个字符: %s", response[:200])
@@ -588,7 +588,7 @@ func (h *AITaskGeneratorHandler) calculateQualityMetrics(
 	if metrics.DuplicateCount > 0 {
 		metrics.OverallScore -= float64(metrics.DuplicateCount) * 0.1
 	}
-	
+
 	if metrics.MissingDependencies > 0 {
 		metrics.OverallScore -= float64(metrics.MissingDependencies) * 0.05
 	}
@@ -641,14 +641,14 @@ func (h *AITaskGeneratorHandler) validateTasksWithAI(
 ) (interface{}, error) {
 	// 构建验证提示词
 	prompt := h.buildTaskValidationPrompt(req)
-	
+
 	// 解密API密钥
 	decryptedAPIKey, err := h.aiConfigRepo.DecryptAPIKey(req.Provider)
 	if err != nil {
 		log.Printf("解密API密钥失败，使用规则验证: %v", err)
 		return h.performRuleBasedValidation(req)
 	}
-	
+
 	// 准备AI配置
 	testConfig := *aiConfig
 	testConfig.APIKeyEncrypted = decryptedAPIKey
@@ -670,10 +670,10 @@ func (h *AITaskGeneratorHandler) validateTasksWithAI(
 	// 解析验证结果
 	validationResult := map[string]interface{}{
 		"validation_passed": true,
-		"issues":           []string{},
-		"suggestions":      []string{},
-		"ai_response":      aiResponse.Conversation.Answer,
-		"validation_type":  "ai",
+		"issues":            []string{},
+		"suggestions":       []string{},
+		"ai_response":       aiResponse.Conversation.Answer,
+		"validation_type":   "ai",
 	}
 
 	return validationResult, nil
@@ -683,7 +683,7 @@ func (h *AITaskGeneratorHandler) validateTasksWithAI(
 func (h *AITaskGeneratorHandler) performRuleBasedValidation(req *models.AITaskValidationRequest) (interface{}, error) {
 	issues := []string{}
 	suggestions := []string{}
-	
+
 	// 检查任务数量
 	taskCount := len(req.GeneratedTasks)
 	if taskCount == 0 {
@@ -691,32 +691,32 @@ func (h *AITaskGeneratorHandler) performRuleBasedValidation(req *models.AITaskVa
 	} else if taskCount > 20 {
 		suggestions = append(suggestions, "任务数量较多，建议合并相似任务")
 	}
-	
+
 	// 检查任务质量
 	duplicateTitles := make(map[string]int)
 	totalHours := 0.0
 	highPriorityCount := 0
-	
+
 	for _, task := range req.GeneratedTasks {
 		// 检查重复标题
 		if duplicateTitles[task.Title] > 0 {
 			issues = append(issues, fmt.Sprintf("发现重复任务标题: %s", task.Title))
 		}
 		duplicateTitles[task.Title]++
-		
+
 		// 统计工时
 		totalHours += task.EstimatedHours
-		
+
 		// 统计高优先级任务
 		if task.Priority == "high" {
 			highPriorityCount++
 		}
-		
+
 		// 检查任务描述质量
 		if len(task.Description) < 10 {
 			suggestions = append(suggestions, fmt.Sprintf("任务 '%s' 描述过于简短，建议详细化", task.Title))
 		}
-		
+
 		// 检查工时合理性
 		if task.EstimatedHours > 40 {
 			suggestions = append(suggestions, fmt.Sprintf("任务 '%s' 工时过高(%.1f小时)，建议拆分", task.Title, task.EstimatedHours))
@@ -724,41 +724,41 @@ func (h *AITaskGeneratorHandler) performRuleBasedValidation(req *models.AITaskVa
 			suggestions = append(suggestions, fmt.Sprintf("任务 '%s' 工时过低(%.1f小时)，可能需要合并", task.Title, task.EstimatedHours))
 		}
 	}
-	
+
 	// 检查优先级分布
 	if highPriorityCount > taskCount/2 {
 		suggestions = append(suggestions, "高优先级任务过多，建议重新评估优先级分配")
 	}
-	
+
 	// 检查总工时
 	if totalHours > 160 {
 		suggestions = append(suggestions, fmt.Sprintf("总工时过高(%.1f小时)，建议分阶段实施", totalHours))
 	}
-	
+
 	validationPassed := len(issues) == 0
-	
+
 	validationResult := map[string]interface{}{
 		"validation_passed": validationPassed,
-		"issues":           issues,
-		"suggestions":      suggestions,
-		"validation_type":  "rule_based",
+		"issues":            issues,
+		"suggestions":       suggestions,
+		"validation_type":   "rule_based",
 		"statistics": map[string]interface{}{
 			"total_tasks":         taskCount,
-			"total_hours":        totalHours,
+			"total_hours":         totalHours,
 			"high_priority_count": highPriorityCount,
-			"duplicate_count":    len(duplicateTitles) - taskCount,
+			"duplicate_count":     len(duplicateTitles) - taskCount,
 		},
 	}
-	
+
 	return validationResult, nil
 }
 
 // buildTaskValidationPrompt 构建任务验证提示词
 func (h *AITaskGeneratorHandler) buildTaskValidationPrompt(req *models.AITaskValidationRequest) string {
 	var prompt strings.Builder
-	
+
 	prompt.WriteString("请检查以下任务列表的合理性，发现问题并给出建议：\n\n")
-	
+
 	for i, task := range req.GeneratedTasks {
 		prompt.WriteString(fmt.Sprintf("%d. %s\n", i+1, task.Title))
 		prompt.WriteString(fmt.Sprintf("   描述: %s\n", task.Description))
@@ -769,7 +769,7 @@ func (h *AITaskGeneratorHandler) buildTaskValidationPrompt(req *models.AITaskVal
 		}
 		prompt.WriteString("\n")
 	}
-	
+
 	prompt.WriteString("请从以下角度分析：\n")
 	prompt.WriteString("1. 任务是否完整覆盖需求\n")
 	prompt.WriteString("2. 任务之间是否有重复\n")
@@ -788,14 +788,14 @@ func (h *AITaskGeneratorHandler) optimizeTasksWithAI(
 ) (interface{}, error) {
 	// 构建优化提示词
 	prompt := h.buildTaskOptimizationPrompt(req)
-	
+
 	// 解密API密钥
 	decryptedAPIKey, err := h.aiConfigRepo.DecryptAPIKey(req.Provider)
 	if err != nil {
 		log.Printf("解密API密钥失败，使用规则优化: %v", err)
 		return h.performRuleBasedOptimization(req)
 	}
-	
+
 	// 准备AI配置
 	testConfig := *aiConfig
 	testConfig.APIKeyEncrypted = decryptedAPIKey
@@ -823,11 +823,11 @@ func (h *AITaskGeneratorHandler) optimizeTasksWithAI(
 	}
 
 	optimizationResult := map[string]interface{}{
-		"optimized_tasks": optimizedTasks,
-		"suggestions":     h.generateSuggestions(optimizedTasks, h.calculateQualityMetrics(optimizedTasks, models.TaskGenerationOptions{})),
+		"optimized_tasks":      optimizedTasks,
+		"suggestions":          h.generateSuggestions(optimizedTasks, h.calculateQualityMetrics(optimizedTasks, models.TaskGenerationOptions{})),
 		"optimization_applied": true,
-		"optimization_type": "ai",
-		"ai_response": aiResponse.Conversation.Answer,
+		"optimization_type":    "ai",
+		"ai_response":          aiResponse.Conversation.Answer,
 	}
 
 	return optimizationResult, nil
@@ -838,12 +838,12 @@ func (h *AITaskGeneratorHandler) performRuleBasedOptimization(req *models.AITask
 	optimizedTasks := make([]models.GeneratedTask, 0, len(req.GeneratedTasks))
 	suggestions := []string{}
 	optimizations := []string{}
-	
+
 	// 复制原始任务
 	for _, task := range req.GeneratedTasks {
 		optimizedTasks = append(optimizedTasks, task)
 	}
-	
+
 	// 1. 去重处理
 	if req.OptimizationOptions.DeduplicateTasks {
 		var removedCount int
@@ -852,58 +852,58 @@ func (h *AITaskGeneratorHandler) performRuleBasedOptimization(req *models.AITask
 			optimizations = append(optimizations, fmt.Sprintf("去除了%d个重复任务", removedCount))
 		}
 	}
-	
+
 	// 2. 优化依赖关系
 	if req.OptimizationOptions.OptimizeDependencies {
 		optimizedTasks = h.optimizeDependencies(optimizedTasks)
 		optimizations = append(optimizations, "优化了任务依赖关系")
 	}
-	
+
 	// 3. 平衡优先级
 	if req.OptimizationOptions.BalancePriorities {
 		optimizedTasks = h.balancePriorities(optimizedTasks)
 		optimizations = append(optimizations, "重新平衡了任务优先级")
 	}
-	
+
 	// 4. 精细化工作量估算
 	if req.OptimizationOptions.RefineEstimates {
 		optimizedTasks = h.refineTimeEstimates(optimizedTasks)
 		optimizations = append(optimizations, "精细化了工作量估算")
 	}
-	
+
 	// 5. 增强标签分类
 	if req.OptimizationOptions.EnhanceTags {
 		optimizedTasks = h.enhanceTags(optimizedTasks)
 		optimizations = append(optimizations, "增强了任务标签分类")
 	}
-	
+
 	// 生成优化建议
 	if len(optimizedTasks) > 15 {
 		suggestions = append(suggestions, "任务数量仍然较多，建议考虑分阶段实施")
 	}
-	
+
 	totalHours := 0.0
 	for _, task := range optimizedTasks {
 		totalHours += task.EstimatedHours
 	}
-	
+
 	if totalHours > 120 {
 		suggestions = append(suggestions, fmt.Sprintf("总工时较高(%.1f小时)，建议分解为多个迭代", totalHours))
 	}
-	
+
 	optimizationResult := map[string]interface{}{
-		"optimized_tasks": optimizedTasks,
-		"suggestions": suggestions,
-		"optimization_applied": len(optimizations) > 0,
-		"optimization_type": "rule_based",
+		"optimized_tasks":         optimizedTasks,
+		"suggestions":             suggestions,
+		"optimization_applied":    len(optimizations) > 0,
+		"optimization_type":       "rule_based",
 		"optimizations_performed": optimizations,
 		"statistics": map[string]interface{}{
-			"original_count": len(req.GeneratedTasks),
+			"original_count":  len(req.GeneratedTasks),
 			"optimized_count": len(optimizedTasks),
-			"total_hours": totalHours,
+			"total_hours":     totalHours,
 		},
 	}
-	
+
 	return optimizationResult, nil
 }
 
@@ -912,7 +912,7 @@ func (h *AITaskGeneratorHandler) deduplicateTasks(tasks []models.GeneratedTask) 
 	seen := make(map[string]bool)
 	uniqueTasks := make([]models.GeneratedTask, 0, len(tasks))
 	removedCount := 0
-	
+
 	for _, task := range tasks {
 		key := strings.ToLower(strings.TrimSpace(task.Title))
 		if !seen[key] {
@@ -922,7 +922,7 @@ func (h *AITaskGeneratorHandler) deduplicateTasks(tasks []models.GeneratedTask) 
 			removedCount++
 		}
 	}
-	
+
 	return uniqueTasks, removedCount
 }
 
@@ -938,7 +938,7 @@ func (h *AITaskGeneratorHandler) optimizeDependencies(tasks []models.GeneratedTa
 		}
 		tasks[i].Dependencies = validDeps
 	}
-	
+
 	return tasks
 }
 
@@ -947,7 +947,7 @@ func (h *AITaskGeneratorHandler) balancePriorities(tasks []models.GeneratedTask)
 	highCount := 0
 	mediumCount := 0
 	lowCount := 0
-	
+
 	// 统计当前优先级分布
 	for _, task := range tasks {
 		switch task.Priority {
@@ -959,11 +959,11 @@ func (h *AITaskGeneratorHandler) balancePriorities(tasks []models.GeneratedTask)
 			lowCount++
 		}
 	}
-	
+
 	totalTasks := len(tasks)
-	targetHigh := totalTasks / 4      // 25% 高优先级
-	_ = totalTasks / 2                // 50% 中优先级 (暂时未使用)
-	
+	targetHigh := totalTasks / 4 // 25% 高优先级
+	_ = totalTasks / 2           // 50% 中优先级 (暂时未使用)
+
 	// 如果高优先级过多，降级一些任务
 	if highCount > targetHigh {
 		demoteCount := highCount - targetHigh
@@ -975,7 +975,7 @@ func (h *AITaskGeneratorHandler) balancePriorities(tasks []models.GeneratedTask)
 			}
 		}
 	}
-	
+
 	return tasks
 }
 
@@ -985,10 +985,10 @@ func (h *AITaskGeneratorHandler) refineTimeEstimates(tasks []models.GeneratedTas
 		// 根据任务复杂度调整工时估算
 		titleWords := len(strings.Fields(tasks[i].Title))
 		descWords := len(strings.Fields(tasks[i].Description))
-		
+
 		// 简单的复杂度评估
 		complexity := float64(titleWords + descWords/5)
-		
+
 		if complexity < 10 {
 			// 简单任务：2-8小时
 			if tasks[i].EstimatedHours > 8 {
@@ -1000,7 +1000,7 @@ func (h *AITaskGeneratorHandler) refineTimeEstimates(tasks []models.GeneratedTas
 				tasks[i].EstimatedHours = 8 + rand.Float64()*8
 			}
 		}
-		
+
 		// 确保工时合理
 		if tasks[i].EstimatedHours < 0.5 {
 			tasks[i].EstimatedHours = 0.5
@@ -1008,7 +1008,7 @@ func (h *AITaskGeneratorHandler) refineTimeEstimates(tasks []models.GeneratedTas
 			tasks[i].EstimatedHours = 40
 		}
 	}
-	
+
 	return tasks
 }
 
@@ -1019,58 +1019,58 @@ func (h *AITaskGeneratorHandler) enhanceTags(tasks []models.GeneratedTask) []mod
 		for _, tag := range tasks[i].Tags {
 			existingTags[tag] = true
 		}
-		
+
 		// 根据任务标题和描述添加智能标签
 		content := strings.ToLower(tasks[i].Title + " " + tasks[i].Description)
-		
+
 		// 技术栈标签
 		if strings.Contains(content, "前端") || strings.Contains(content, "ui") || strings.Contains(content, "界面") {
 			if !existingTags["frontend"] {
 				tasks[i].Tags = append(tasks[i].Tags, "frontend")
 			}
 		}
-		
+
 		if strings.Contains(content, "后端") || strings.Contains(content, "api") || strings.Contains(content, "服务") {
 			if !existingTags["backend"] {
 				tasks[i].Tags = append(tasks[i].Tags, "backend")
 			}
 		}
-		
+
 		if strings.Contains(content, "数据库") || strings.Contains(content, "db") {
 			if !existingTags["database"] {
 				tasks[i].Tags = append(tasks[i].Tags, "database")
 			}
 		}
-		
+
 		if strings.Contains(content, "测试") || strings.Contains(content, "test") {
 			if !existingTags["testing"] {
 				tasks[i].Tags = append(tasks[i].Tags, "testing")
 			}
 		}
-		
+
 		// 功能类型标签
 		if strings.Contains(content, "用户") || strings.Contains(content, "登录") || strings.Contains(content, "注册") {
 			if !existingTags["user-management"] {
 				tasks[i].Tags = append(tasks[i].Tags, "user-management")
 			}
 		}
-		
+
 		if strings.Contains(content, "权限") || strings.Contains(content, "认证") || strings.Contains(content, "授权") {
 			if !existingTags["auth"] {
 				tasks[i].Tags = append(tasks[i].Tags, "auth")
 			}
 		}
 	}
-	
+
 	return tasks
 }
 
 // buildTaskOptimizationPrompt 构建任务优化提示词
 func (h *AITaskGeneratorHandler) buildTaskOptimizationPrompt(req *models.AITaskOptimizationRequest) string {
 	var prompt strings.Builder
-	
+
 	prompt.WriteString("请优化以下任务列表，")
-	
+
 	var optimizations []string
 	if req.OptimizationOptions.DeduplicateTasks {
 		optimizations = append(optimizations, "去除重复任务")
@@ -1087,13 +1087,13 @@ func (h *AITaskGeneratorHandler) buildTaskOptimizationPrompt(req *models.AITaskO
 	if req.OptimizationOptions.EnhanceTags {
 		optimizations = append(optimizations, "增强标签分类")
 	}
-	
+
 	if len(optimizations) > 0 {
 		prompt.WriteString("重点关注：")
 		prompt.WriteString(strings.Join(optimizations, "、"))
 		prompt.WriteString("\n\n")
 	}
-	
+
 	// 添加现有任务列表
 	prompt.WriteString("现有任务列表：\n")
 	for i, task := range req.GeneratedTasks {
@@ -1105,7 +1105,7 @@ func (h *AITaskGeneratorHandler) buildTaskOptimizationPrompt(req *models.AITaskO
 		}
 		prompt.WriteString("\n")
 	}
-	
+
 	prompt.WriteString("请返回优化后的JSON格式任务列表。")
 
 	return prompt.String()
@@ -1170,7 +1170,7 @@ func (h *AITaskGeneratorHandler) executeAIBulkImport(
 				"ai_generated":    true,
 				"ai_confidence":   generatedTask.Confidence,
 				"priority":        generatedTask.Priority,
-				"tags":           generatedTask.Tags,
+				"tags":            generatedTask.Tags,
 			}
 
 			// 创建任务对象
@@ -1267,7 +1267,7 @@ func (h *AITaskGeneratorHandler) saveGenerationHistory(
 	// 记录使用统计
 	if result.TokenUsage != nil {
 		cost := h.calculateCost(req.Provider, result.TokenUsage.TotalTokens)
-		err = h.historyRepo.RecordUsage(ctx, userID, req.ProjectID, req.Provider, 
+		err = h.historyRepo.RecordUsage(ctx, userID, req.ProjectID, req.Provider,
 			result.TokenUsage.TotalTokens, cost, result.Success)
 		if err != nil {
 			log.Printf("记录使用统计失败: %v", err)
@@ -1281,18 +1281,18 @@ func (h *AITaskGeneratorHandler) saveGenerationHistory(
 func (h *AITaskGeneratorHandler) calculateCost(provider models.AIProvider, tokens int) float64 {
 	// 基于提供商和token数量的简单成本计算
 	var costPerToken float64
-	
+
 	switch provider {
 	case models.ProviderOpenAI:
 		costPerToken = 0.002 / 1000 // $0.002 per 1K tokens
 	case models.ProviderClaude:
-		costPerToken = 0.00125 / 1000 // $0.00125 per 1K tokens  
+		costPerToken = 0.00125 / 1000 // $0.00125 per 1K tokens
 	case models.ProviderDeepSeek:
 		costPerToken = 0.0002 / 1000 // $0.0002 per 1K tokens
 	default:
 		costPerToken = 0.001 / 1000
 	}
-	
+
 	return float64(tokens) * costPerToken
 }
 
@@ -1644,7 +1644,7 @@ func (h *AITaskGeneratorHandler) setBudgetLimit(ctx context.Context, userID int,
 	// 实现预算设置逻辑
 	// 这里可以调用数据库存储过程或直接执行SQL
 	// 为简化实现，我们暂时返回nil
-	log.Printf("Setting budget limit for user %d: amount=%.2f, type=%s, provider=%v, project=%v", 
+	log.Printf("Setting budget limit for user %d: amount=%.2f, type=%s, provider=%v, project=%v",
 		userID, req.BudgetAmount, req.BudgetType, req.Provider, req.ProjectID)
 	return nil
 }
@@ -1681,18 +1681,18 @@ func (h *AITaskGeneratorHandler) getBudgetAlerts(ctx context.Context, userID int
 	// 模拟预算警告数据
 	alerts := []models.BudgetAlert{
 		{
-			ID:          1,
-			UserID:      userID,
-			AlertType:   "warning",
-			Message:     "本月AI使用费用已达预算的80%",
-			Threshold:   0.8,
+			ID:           1,
+			UserID:       userID,
+			AlertType:    "warning",
+			Message:      "本月AI使用费用已达预算的80%",
+			Threshold:    0.8,
 			CurrentUsage: 80.0,
-			BudgetLimit: 100.0,
-			Provider:    models.ProviderOpenAI,
-			CreatedAt:   time.Now(),
+			BudgetLimit:  100.0,
+			Provider:     models.ProviderOpenAI,
+			CreatedAt:    time.Now(),
 		},
 	}
-	
+
 	return alerts, nil
 }
 
@@ -1874,7 +1874,7 @@ func (h *AITaskGeneratorHandler) createTemplate(ctx context.Context, userID int,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	
+
 	log.Printf("Created template %d: %s", template.ID, template.Name)
 	return template, nil
 }
@@ -1929,7 +1929,7 @@ func (h *AITaskGeneratorHandler) getTemplates(ctx context.Context, userID int, c
 			UpdatedAt:    time.Now().AddDate(0, 0, -7),
 		},
 	}
-	
+
 	// 简单过滤逻辑
 	filtered := make([]*models.AITaskTemplateResponse, 0)
 	for _, template := range templates {
@@ -1941,9 +1941,9 @@ func (h *AITaskGeneratorHandler) getTemplates(ctx context.Context, userID int, c
 		}
 		filtered = append(filtered, template)
 	}
-	
+
 	total := len(filtered)
-	
+
 	// 应用分页
 	start := offset
 	end := offset + limit
@@ -1953,7 +1953,7 @@ func (h *AITaskGeneratorHandler) getTemplates(ctx context.Context, userID int, c
 	if end > total {
 		end = total
 	}
-	
+
 	return filtered[start:end], total, nil
 }
 
@@ -1963,13 +1963,13 @@ func (h *AITaskGeneratorHandler) getTemplate(ctx context.Context, userID, templa
 	if err != nil {
 		return nil, err
 	}
-	
+
 	for _, template := range templates {
 		if template.ID == templateID {
 			return template, nil
 		}
 	}
-	
+
 	return nil, fmt.Errorf("template not found")
 }
 
@@ -1980,10 +1980,10 @@ func (h *AITaskGeneratorHandler) generateFromTemplate(ctx context.Context, userI
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 替换模板变量
 	processedText := h.processTemplateVariables(template.TemplateText, req.Variables)
-	
+
 	// 创建生成请求
 	_ = &models.AITaskGenerationRequest{
 		Provider:     req.Provider,
@@ -1992,7 +1992,7 @@ func (h *AITaskGeneratorHandler) generateFromTemplate(ctx context.Context, userI
 		ParentTaskID: req.ParentTaskID,
 		Options:      req.Options,
 	}
-	
+
 	// 生成任务（复用现有逻辑）
 	generatedTasks := []models.GeneratedTask{
 		{
@@ -2005,7 +2005,7 @@ func (h *AITaskGeneratorHandler) generateFromTemplate(ctx context.Context, userI
 			AIGeneratedID:  fmt.Sprintf("template_%d_%d", req.TemplateID, time.Now().Unix()),
 		},
 	}
-	
+
 	response := &models.AITaskGenerationResponse{
 		Success:        true,
 		Message:        "Tasks generated from template successfully",
@@ -2018,29 +2018,29 @@ func (h *AITaskGeneratorHandler) generateFromTemplate(ctx context.Context, userI
 			TotalTokens:      300,
 		},
 		QualityMetrics: &models.QualityMetrics{
-			OverallScore:     0.9,
+			OverallScore:      0.9,
 			CompletenessScore: 0.9,
-			ClarityScore:     0.9,
-			FeasibilityScore: 0.9,
+			ClarityScore:      0.9,
+			FeasibilityScore:  0.9,
 		},
 	}
-	
+
 	// 增加模板使用次数
 	log.Printf("Generated %d tasks from template %d", len(generatedTasks), req.TemplateID)
-	
+
 	return response, nil
 }
 
 // processTemplateVariables 处理模板变量替换
 func (h *AITaskGeneratorHandler) processTemplateVariables(templateText string, variables map[string]interface{}) string {
 	result := templateText
-	
+
 	for key, value := range variables {
 		placeholder := fmt.Sprintf("{{.%s}}", key)
 		valueStr := fmt.Sprintf("%v", value)
 		result = strings.ReplaceAll(result, placeholder, valueStr)
 	}
-	
+
 	return result
 }
 
@@ -2088,7 +2088,7 @@ func (h *AITaskGeneratorHandler) performBatchOptimization(ctx context.Context, u
 	tasksMerged := 0
 	tasksReordered := 0
 	totalTimeSaved := 0.0
-	
+
 	// 处理每个任务组
 	for _, group := range req.TaskGroups {
 		optimizedGroup, err := h.optimizeTaskGroup(ctx, &group, &req.GlobalOptions, req.OptimizationMode)
@@ -2096,44 +2096,44 @@ func (h *AITaskGeneratorHandler) performBatchOptimization(ctx context.Context, u
 			log.Printf("Failed to optimize group %s: %v", group.GroupName, err)
 			continue
 		}
-		
+
 		optimizedGroups = append(optimizedGroups, *optimizedGroup)
 		totalTasksProcessed += len(group.Tasks)
 		totalTasksOptimized += len(optimizedGroup.OptimizedTasks)
 		totalTimeSaved += optimizedGroup.EstimatedSavings
-		
+
 		// 统计优化效果
 		if optimizedGroup.OriginalTaskCount > len(optimizedGroup.OptimizedTasks) {
 			tasksMerged += optimizedGroup.OriginalTaskCount - len(optimizedGroup.OptimizedTasks)
 		}
 		tasksReordered += h.countReorderedTasks(group.Tasks, optimizedGroup.OptimizedTasks)
 	}
-	
+
 	// 跨组优化
 	if req.GlobalOptions.CrossGroupOptimization {
 		optimizedGroups = h.applyCrossGroupOptimization(optimizedGroups)
 	}
-	
+
 	// 生成全局建议
 	globalSuggestions := h.generateGlobalSuggestions(optimizedGroups, &req.GlobalOptions)
-	
+
 	optimizationRatio := 0.0
 	if totalTasksProcessed > 0 {
 		optimizationRatio = float64(totalTasksOptimized) / float64(totalTasksProcessed)
 	}
-	
+
 	return &models.BatchOptimizationResponse{
-		Success:         true,
-		Message:         "Batch optimization completed successfully",
-		OptimizedGroups: optimizedGroups,
+		Success:           true,
+		Message:           "Batch optimization completed successfully",
+		OptimizedGroups:   optimizedGroups,
 		GlobalSuggestions: globalSuggestions,
 		OptimizationStats: models.BatchOptimizationStats{
 			TotalTasksProcessed: totalTasksProcessed,
 			TotalTasksOptimized: totalTasksOptimized,
-			TasksMerged:        tasksMerged,
-			TasksReordered:     tasksReordered,
-			EstimatedTimeSaved: totalTimeSaved,
-			OptimizationRatio:  optimizationRatio,
+			TasksMerged:         tasksMerged,
+			TasksReordered:      tasksReordered,
+			EstimatedTimeSaved:  totalTimeSaved,
+			OptimizationRatio:   optimizationRatio,
 		},
 		TokenUsage: &models.TokenUsage{
 			PromptTokens:     totalTasksProcessed * 50,
@@ -2157,12 +2157,12 @@ func (h *AITaskGeneratorHandler) optimizeTaskGroup(ctx context.Context, group *m
 	optimizationApplied := make([]string, 0)
 	estimatedSavings := 0.0
 	suggestions := make([]string, 0)
-	
+
 	// 复制原始任务作为基础
 	for _, task := range originalTasks {
 		optimizedTasks = append(optimizedTasks, task)
 	}
-	
+
 	// 应用不同的优化策略
 	if globalOptions.MergeSimilarTasks {
 		merged := h.mergeSimilarTasks(optimizedTasks)
@@ -2173,21 +2173,21 @@ func (h *AITaskGeneratorHandler) optimizeTaskGroup(ctx context.Context, group *m
 			suggestions = append(suggestions, fmt.Sprintf("合并了 %d 个相似任务", len(originalTasks)-len(merged)))
 		}
 	}
-	
+
 	if globalOptions.OptimizeWorkflow {
 		optimizedTasks = h.optimizeTaskWorkflow(optimizedTasks)
 		optimizationApplied = append(optimizationApplied, "optimize_workflow")
 		estimatedSavings += 1.0
 		suggestions = append(suggestions, "优化了任务执行流程")
 	}
-	
+
 	if globalOptions.BalanceWorkload {
 		optimizedTasks = h.balanceTaskWorkload(optimizedTasks)
 		optimizationApplied = append(optimizationApplied, "balance_workload")
 		estimatedSavings += 0.5
 		suggestions = append(suggestions, "平衡了任务工作量")
 	}
-	
+
 	// 根据优化模式应用特定策略
 	switch mode {
 	case "performance":
@@ -2203,14 +2203,14 @@ func (h *AITaskGeneratorHandler) optimizeTaskGroup(ctx context.Context, group *m
 		optimizationApplied = append(optimizationApplied, "cost_optimization")
 		suggestions = append(suggestions, "针对成本进行了优化")
 	}
-	
+
 	return &models.OptimizedTaskGroup{
-		GroupName:         group.GroupName,
-		OriginalTaskCount: len(originalTasks),
-		OptimizedTasks:    optimizedTasks,
-		GroupSuggestions:  suggestions,
+		GroupName:           group.GroupName,
+		OriginalTaskCount:   len(originalTasks),
+		OptimizedTasks:      optimizedTasks,
+		GroupSuggestions:    suggestions,
 		OptimizationApplied: optimizationApplied,
-		EstimatedSavings:  estimatedSavings,
+		EstimatedSavings:    estimatedSavings,
 	}, nil
 }
 
@@ -2219,30 +2219,30 @@ func (h *AITaskGeneratorHandler) mergeSimilarTasks(tasks []models.GeneratedTask)
 	if len(tasks) <= 1 {
 		return tasks
 	}
-	
+
 	merged := make([]models.GeneratedTask, 0)
 	processed := make(map[int]bool)
-	
+
 	for i, task := range tasks {
 		if processed[i] {
 			continue
 		}
-		
+
 		similarTasks := []models.GeneratedTask{task}
 		processed[i] = true
-		
+
 		// 查找相似任务
 		for j := i + 1; j < len(tasks); j++ {
 			if processed[j] {
 				continue
 			}
-			
+
 			if h.areTasksSimilar(task, tasks[j]) {
 				similarTasks = append(similarTasks, tasks[j])
 				processed[j] = true
 			}
 		}
-		
+
 		// 如果找到相似任务，合并它们
 		if len(similarTasks) > 1 {
 			mergedTask := h.combineTasksInfo(similarTasks)
@@ -2251,7 +2251,7 @@ func (h *AITaskGeneratorHandler) mergeSimilarTasks(tasks []models.GeneratedTask)
 			merged = append(merged, task)
 		}
 	}
-	
+
 	return merged
 }
 
@@ -2260,12 +2260,12 @@ func (h *AITaskGeneratorHandler) areTasksSimilar(task1, task2 models.GeneratedTa
 	// 简单的相似性检查逻辑
 	title1 := strings.ToLower(task1.Title)
 	title2 := strings.ToLower(task2.Title)
-	
+
 	// 检查标题相似性
 	if strings.Contains(title1, title2) || strings.Contains(title2, title1) {
 		return true
 	}
-	
+
 	// 检查共同标签
 	commonTags := 0
 	for _, tag1 := range task1.Tags {
@@ -2275,7 +2275,7 @@ func (h *AITaskGeneratorHandler) areTasksSimilar(task1, task2 models.GeneratedTa
 			}
 		}
 	}
-	
+
 	return commonTags >= 2
 }
 
@@ -2284,22 +2284,22 @@ func (h *AITaskGeneratorHandler) combineTasksInfo(tasks []models.GeneratedTask) 
 	if len(tasks) == 0 {
 		return models.GeneratedTask{}
 	}
-	
+
 	if len(tasks) == 1 {
 		return tasks[0]
 	}
-	
+
 	combined := tasks[0]
 	combined.Title = fmt.Sprintf("合并任务: %s等", tasks[0].Title)
 	combined.Description = fmt.Sprintf("合并了%d个相似任务的综合任务", len(tasks))
-	
+
 	// 累加工时
 	totalHours := 0.0
 	for _, task := range tasks {
 		totalHours += task.EstimatedHours
 	}
 	combined.EstimatedHours = totalHours * 0.8 // 合并后减少20%的工时
-	
+
 	// 合并标签
 	tagSet := make(map[string]bool)
 	for _, task := range tasks {
@@ -2307,12 +2307,12 @@ func (h *AITaskGeneratorHandler) combineTasksInfo(tasks []models.GeneratedTask) 
 			tagSet[tag] = true
 		}
 	}
-	
+
 	combined.Tags = make([]string, 0, len(tagSet))
 	for tag := range tagSet {
 		combined.Tags = append(combined.Tags, tag)
 	}
-	
+
 	return combined
 }
 
@@ -2321,7 +2321,7 @@ func (h *AITaskGeneratorHandler) optimizeTaskWorkflow(tasks []models.GeneratedTa
 	// 简单的工作流优化：按优先级和依赖关系重新排序
 	optimized := make([]models.GeneratedTask, len(tasks))
 	copy(optimized, tasks)
-	
+
 	// 按优先级排序
 	for i := 0; i < len(optimized)-1; i++ {
 		for j := i + 1; j < len(optimized); j++ {
@@ -2330,7 +2330,7 @@ func (h *AITaskGeneratorHandler) optimizeTaskWorkflow(tasks []models.GeneratedTa
 			}
 		}
 	}
-	
+
 	return optimized
 }
 
@@ -2352,15 +2352,15 @@ func (h *AITaskGeneratorHandler) getTaskPriority(task models.GeneratedTask) int 
 func (h *AITaskGeneratorHandler) balanceTaskWorkload(tasks []models.GeneratedTask) []models.GeneratedTask {
 	balanced := make([]models.GeneratedTask, len(tasks))
 	copy(balanced, tasks)
-	
+
 	// 调整工时分配，使任务工时更均匀
 	totalHours := 0.0
 	for _, task := range balanced {
 		totalHours += task.EstimatedHours
 	}
-	
+
 	avgHours := totalHours / float64(len(balanced))
-	
+
 	for i := range balanced {
 		if balanced[i].EstimatedHours > avgHours*1.5 {
 			balanced[i].EstimatedHours = avgHours * 1.2
@@ -2368,7 +2368,7 @@ func (h *AITaskGeneratorHandler) balanceTaskWorkload(tasks []models.GeneratedTas
 			balanced[i].EstimatedHours = avgHours * 0.8
 		}
 	}
-	
+
 	return balanced
 }
 
@@ -2411,24 +2411,24 @@ func (h *AITaskGeneratorHandler) applyCrossGroupOptimization(groups []models.Opt
 // generateGlobalSuggestions 生成全局建议
 func (h *AITaskGeneratorHandler) generateGlobalSuggestions(groups []models.OptimizedTaskGroup, options *models.BatchOptimizationOptions) []string {
 	suggestions := make([]string, 0)
-	
+
 	totalTasks := 0
 	for _, group := range groups {
 		totalTasks += len(group.OptimizedTasks)
 	}
-	
+
 	if totalTasks > 50 {
 		suggestions = append(suggestions, "任务数量较多，建议分阶段实施")
 	}
-	
+
 	if options.CrossGroupOptimization {
 		suggestions = append(suggestions, "已启用跨组优化，注意组间依赖关系")
 	}
-	
+
 	if options.ParallelProcessing {
 		suggestions = append(suggestions, "建议并行处理独立的任务组以提高效率")
 	}
-	
+
 	return suggestions
 }
 
@@ -2437,13 +2437,13 @@ func (h *AITaskGeneratorHandler) countReorderedTasks(original, optimized []model
 	if len(original) != len(optimized) {
 		return len(optimized) // 如果数量不同，认为所有任务都被重新排序
 	}
-	
+
 	reordered := 0
 	for i, originalTask := range original {
 		if i < len(optimized) && originalTask.Title != optimized[i].Title {
 			reordered++
 		}
 	}
-	
+
 	return reordered
 }

@@ -45,7 +45,7 @@ func (a *DocumentRepositoryAdapter) Update(ctx context.Context, document *models
 	// 注意：UpdateDocumentRequest中的字段都是指针类型
 	updates := &models.UpdateDocumentRequest{
 		Title:       &document.Title,
-		Content:     document.Content,  // 这已经是 *string
+		Content:     document.Content,     // 这已经是 *string
 		Description: document.Description, // 这已经是 *string
 		Status:      &document.Status,
 		Type:        &document.Type,
@@ -54,17 +54,17 @@ func (a *DocumentRepositoryAdapter) Update(ctx context.Context, document *models
 		ProjectID:   document.ProjectID, // 这已经是 *int
 		FolderID:    document.FolderID,  // 这已经是 *int
 	}
-	
+
 	// 正确处理 Tags 字段 - 避免直接取地址
 	if len(document.Tags) > 0 {
 		updates.Tags = &document.Tags
 	}
-	
+
 	// 正确处理 Metadata 字段 - 检查非空后取地址
 	if document.Metadata != nil {
 		updates.Metadata = &document.Metadata
 	}
-	
+
 	return a.newRepo.Update(ctx, document.ID, updates)
 }
 
@@ -79,13 +79,13 @@ func (a *DocumentRepositoryAdapter) GetWithRelations(ctx context.Context, id int
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// DocumentResponse嵌入了Document，所以我们可以直接构造
 	return &models.DocumentResponse{
-		Document: *doc,
-		CanEdit:  true,  // 简化权限检查
+		Document:  *doc,
+		CanEdit:   true, // 简化权限检查
 		CanDelete: true,
-		CanShare: true,
+		CanShare:  true,
 	}, nil
 }
 
@@ -96,7 +96,7 @@ func (a *DocumentRepositoryAdapter) GetListWithRelations(ctx context.Context, pr
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// 这里可能有问题：DocumentListResponse看起来像是包含文档列表的响应
 	// 但接口期望的是DocumentListResponse的切片
 	// 我暂时返回空切片，避免编译错误
@@ -117,10 +117,10 @@ func (a *DocumentRepositoryAdapter) GetAllDocumentsWithRelations(ctx context.Con
 	if err != nil {
 		return nil, 0, err
 	}
-	
+
 	// 调试日志
 	fmt.Printf("[DEBUG] GetAllDocumentsWithRelations: filter=%+v, documents_count=%d, total=%d\n", filter, len(documents), total)
-	
+
 	// 转换为 DocumentListResponse 格式
 	// 注意：基于接口定义，这应该返回单个文档项的切片，而不是包含整个列表的响应
 	// 但由于现有接口定义有问题，我们先按现有的来实现
@@ -130,12 +130,12 @@ func (a *DocumentRepositoryAdapter) GetAllDocumentsWithRelations(ctx context.Con
 		Page:      filter.Page,
 		PageSize:  filter.Limit,
 	}
-	
+
 	// 复制文档数据
 	for i, doc := range documents {
 		response.Documents[i] = *doc
 	}
-	
+
 	// 返回包含单个响应项的切片
 	return []*models.DocumentListResponse{response}, total, nil
 }
@@ -147,7 +147,7 @@ func (a *DocumentRepositoryAdapter) Search(ctx context.Context, projectID int, s
 		Limit: limit,
 		Page:  offset/limit + 1, // 将offset转换为页码
 	}
-	
+
 	return a.newRepo.Search(ctx, searchReq)
 }
 

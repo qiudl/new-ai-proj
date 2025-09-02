@@ -35,7 +35,7 @@ func (r *PostgresTaskRepository) Create(ctx context.Context, task *models.Task) 
 	var existingTaskID int
 	checkQuery := `SELECT id FROM tasks WHERE title = $1 AND project_id = $2 AND deleted_at IS NULL LIMIT 1`
 	err := exec.QueryRowContext(ctx, checkQuery, task.Title, task.ProjectID).Scan(&existingTaskID)
-	
+
 	if err != sql.ErrNoRows {
 		if err != nil {
 			return nil, fmt.Errorf("failed to check task title duplication: %w", err)
@@ -137,7 +137,7 @@ func (r *PostgresTaskRepository) GetByID(ctx context.Context, id int) (*models.T
 	} else {
 		task.UpdatedAt = task.CreatedAt
 	}
-	
+
 	// Handle new time management fields
 	if startDatetime.Valid {
 		task.StartDatetime = &startDatetime.Time
@@ -224,7 +224,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 		var workHoursPerDay sql.NullFloat64
 		var timeTrackingMode sql.NullString
 		var childrenCount int
-		
+
 		err := rows.Scan(
 			&task.ID, &task.ProjectID, &task.Title, &task.Description,
 			&task.Status, &assigneeID, &dueDate, &customFieldsJSON,
@@ -248,7 +248,7 @@ func (r *PostgresTaskRepository) GetByProjectID(ctx context.Context, projectID i
 			intVal := int(parentID.Int64)
 			task.ParentID = &intVal
 		}
-		
+
 		// Handle new time management fields
 		if startDatetime.Valid {
 			task.StartDatetime = &startDatetime.Time
@@ -377,7 +377,7 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		} else {
 			task.UpdatedAt = task.CreatedAt
 		}
-		
+
 		// Handle new time management fields
 		if startDatetime.Valid {
 			task.StartDatetime = &startDatetime.Time
@@ -426,7 +426,7 @@ func (r *PostgresTaskRepository) GetAll(ctx context.Context, limit, offset int) 
 		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
-return tasks, total, nil
+	return tasks, total, nil
 }
 
 // GetAllFiltered gets all tasks with server-side filtering and sorting (status-driven presets)
@@ -516,7 +516,7 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 	sortBy := "t.updated_at"
 	sortOrder := "DESC"
 	useRootTaskOrder := false // 是否使用根任务优先排序
-	
+
 	if opts != nil {
 		if opts.SortBy != "" {
 			switch opts.SortBy {
@@ -543,7 +543,7 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			sortOrder = "ASC"
 		}
 	}
-	
+
 	// 构建ORDER BY子句
 	var orderByClause string
 	if useRootTaskOrder {
@@ -633,11 +633,27 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			task.UpdatedAt = task.CreatedAt
 		}
 
-		if startDatetime.Valid { task.StartDatetime = &startDatetime.Time }
-		if dueDatetime.Valid { task.DueDatetime = &dueDatetime.Time }
-		if timeUnitPreference.Valid { task.TimeUnitPreference = timeUnitPreference.String } else { task.TimeUnitPreference = "auto" }
-		if workHoursPerDay.Valid { task.WorkHoursPerDay = workHoursPerDay.Float64 } else { task.WorkHoursPerDay = 8.0 }
-		if timeTrackingMode.Valid { task.TimeTrackingMode = timeTrackingMode.String } else { task.TimeTrackingMode = "manual" }
+		if startDatetime.Valid {
+			task.StartDatetime = &startDatetime.Time
+		}
+		if dueDatetime.Valid {
+			task.DueDatetime = &dueDatetime.Time
+		}
+		if timeUnitPreference.Valid {
+			task.TimeUnitPreference = timeUnitPreference.String
+		} else {
+			task.TimeUnitPreference = "auto"
+		}
+		if workHoursPerDay.Valid {
+			task.WorkHoursPerDay = workHoursPerDay.Float64
+		} else {
+			task.WorkHoursPerDay = 8.0
+		}
+		if timeTrackingMode.Valid {
+			task.TimeTrackingMode = timeTrackingMode.String
+		} else {
+			task.TimeTrackingMode = "manual"
+		}
 
 		if len(customFieldsJSON) > 0 {
 			if err := task.CustomFields.Scan(customFieldsJSON); err != nil {
@@ -646,9 +662,15 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		}
 
 		// Add project_name, assignee_name and children_count to custom fields for frontend display
-		if task.CustomFields == nil { task.CustomFields = make(models.CustomFields) }
-		if projectName.Valid { task.CustomFields["project_name"] = projectName.String }
-		if assigneeName.Valid { task.CustomFields["assignee_name"] = assigneeName.String }
+		if task.CustomFields == nil {
+			task.CustomFields = make(models.CustomFields)
+		}
+		if projectName.Valid {
+			task.CustomFields["project_name"] = projectName.String
+		}
+		if assigneeName.Valid {
+			task.CustomFields["assignee_name"] = assigneeName.String
+		}
 		task.CustomFields["children_count"] = childrenCount
 
 		tasks = append(tasks, task)
@@ -797,7 +819,7 @@ func (r *PostgresTaskRepository) BulkCreate(ctx context.Context, tasks []*models
 		var existingTaskID int
 		checkQuery := `SELECT id FROM tasks WHERE title = $1 AND project_id = $2 AND deleted_at IS NULL LIMIT 1`
 		err := exec.QueryRowContext(ctx, checkQuery, task.Title, task.ProjectID).Scan(&existingTaskID)
-		
+
 		if err != sql.ErrNoRows {
 			if err != nil {
 				return nil, fmt.Errorf("failed to check task title duplication for task %d: %w", i, err)
@@ -927,6 +949,7 @@ func (r *PostgresTaskRepository) GetByStatus(ctx context.Context, status string,
 
 	return tasks, total, nil
 }
+
 // SearchParentTasks searches for potential parent tasks with filtering
 func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error) {
 	// Build the WHERE clause conditions
@@ -1028,7 +1051,7 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 			return nil, 0, fmt.Errorf("failed to scan task: %w", err)
 		}
 
-		// Handle nullable fields  
+		// Handle nullable fields
 		if assigneeID.Valid {
 			intVal := int(assigneeID.Int64)
 			task.AssigneeID = &intVal
@@ -1046,7 +1069,7 @@ func (r *PostgresTaskRepository) SearchParentTasks(ctx context.Context, projectI
 		if sortOrder.Valid {
 			task.SortOrder = int(sortOrder.Int64)
 		}
-		
+
 		// Handle new time management fields
 		if startDatetime.Valid {
 			task.StartDatetime = &startDatetime.Time
@@ -1093,12 +1116,12 @@ func (r *PostgresTaskRepository) CheckCircularDependency(ctx context.Context, ta
 	if potentialParentID == 0 {
 		return false, nil
 	}
-	
+
 	// If taskID equals potentialParentID, it's self-reference (circular)
 	if taskID == potentialParentID {
 		return true, nil
 	}
-	
+
 	// Use recursive CTE to check if potentialParentID is a descendant of taskID
 	// If it is, then making taskID a child of potentialParentID would create a cycle
 	query := `
@@ -1114,13 +1137,13 @@ func (r *PostgresTaskRepository) CheckCircularDependency(ctx context.Context, ta
 			WHERE t.deleted_at IS NULL
 		)
 		SELECT EXISTS(SELECT 1 FROM task_hierarchy WHERE id = $2) as has_circular_dependency`
-	
+
 	exec := r.getExecer()
 	var hasCircularDependency bool
 	err := exec.QueryRowContext(ctx, query, taskID, potentialParentID).Scan(&hasCircularDependency)
 	if err != nil {
 		return false, fmt.Errorf("failed to check circular dependency: %w", err)
 	}
-	
+
 	return hasCircularDependency, nil
 }

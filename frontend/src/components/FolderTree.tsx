@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { 
   Tree, 
   Button, 
@@ -42,6 +42,10 @@ interface FolderTreeProps {
   height?: number;
 }
 
+interface FolderTreeRef {
+  triggerCreateFolder: (parentId?: number) => void;
+}
+
 interface TreeNodeData extends DataNode {
   id: number;
   parentId?: number;
@@ -50,14 +54,14 @@ interface TreeNodeData extends DataNode {
   isLeaf?: boolean;
 }
 
-const FolderTree: React.FC<FolderTreeProps> = ({
+const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
   projectId,
   selectedFolderId,
   onFolderSelect,
   onFolderChange,
   className,
   height = 400
-}) => {
+}, ref) => {
   const [folders, setFolders] = useState<FolderWithExtras[]>([]);
   const [treeData, setTreeData] = useState<TreeNodeData[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
@@ -71,6 +75,13 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const [parentFolderId, setParentFolderId] = useState<number | undefined>();
   
   const [form] = Form.useForm();
+
+  // 暴露给父组件的方法
+  useImperativeHandle(ref, () => ({
+    triggerCreateFolder: (parentId?: number) => {
+      handleCreateFolder(parentId);
+    }
+  }));
 
   // 加载文件夹数据
   const loadFolders = useCallback(async () => {
@@ -413,6 +424,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       </Modal>
     </div>
   );
-};
+});
+
+FolderTree.displayName = 'FolderTree';
 
 export default FolderTree;

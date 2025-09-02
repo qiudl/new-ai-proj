@@ -18,16 +18,16 @@ type CompanyRole struct {
 
 // Permission represents a system permission
 type Permission struct {
-	ID                   int       `json:"id" db:"id"`
-	PermissionCode       string    `json:"permission_code" db:"permission_code" validate:"required,min=1,max=100"`
-	PermissionName       string    `json:"permission_name" db:"permission_name" validate:"required,min=1,max=100"`
+	ID                    int       `json:"id" db:"id"`
+	PermissionCode        string    `json:"permission_code" db:"permission_code" validate:"required,min=1,max=100"`
+	PermissionName        string    `json:"permission_name" db:"permission_name" validate:"required,min=1,max=100"`
 	PermissionDescription *string   `json:"permission_description" db:"permission_description"`
-	Module               string    `json:"module" db:"module" validate:"required"`
-	Resource             string    `json:"resource" db:"resource" validate:"required"`
-	Action               string    `json:"action" db:"action" validate:"required"`
-	IsActive             bool      `json:"is_active" db:"is_active"`
-	IsGranted            bool      `json:"is_granted,omitempty" db:"-"`  // Used for permission context
-	CreatedAt            time.Time `json:"created_at" db:"created_at"`
+	Module                string    `json:"module" db:"module" validate:"required"`
+	Resource              string    `json:"resource" db:"resource" validate:"required"`
+	Action                string    `json:"action" db:"action" validate:"required"`
+	IsActive              bool      `json:"is_active" db:"is_active"`
+	IsGranted             bool      `json:"is_granted,omitempty" db:"-"` // Used for permission context
+	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 }
 
 // RolePermission represents the association between roles and permissions
@@ -41,38 +41,38 @@ type RolePermission struct {
 
 // CompanyUserProjectPermission represents project-specific permissions for a company user
 type CompanyUserProjectPermission struct {
-	ID                    int        `json:"id" db:"id"`
-	CompanyUserID         int        `json:"company_user_id" db:"company_user_id"`
-	ProjectID             int        `json:"project_id" db:"project_id"`
-	CanViewProject        bool       `json:"can_view_project" db:"can_view_project"`
-	CanEditProject        bool       `json:"can_edit_project" db:"can_edit_project"`
-	CanDeleteProject      bool       `json:"can_delete_project" db:"can_delete_project"`
-	CanManageTasks        bool       `json:"can_manage_tasks" db:"can_manage_tasks"`
-	CanViewFinancials     bool       `json:"can_view_financials" db:"can_view_financials"`
-	CanManageMembers      bool       `json:"can_manage_members" db:"can_manage_members"`
-	PermissionStartDate   time.Time  `json:"permission_start_date" db:"permission_start_date"`
-	PermissionEndDate     *time.Time `json:"permission_end_date" db:"permission_end_date"`
-	CreatedBy             *int       `json:"created_by" db:"created_by"`
-	CreatedAt             time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt             time.Time  `json:"updated_at" db:"updated_at"`
+	ID                  int        `json:"id" db:"id"`
+	CompanyUserID       int        `json:"company_user_id" db:"company_user_id"`
+	ProjectID           int        `json:"project_id" db:"project_id"`
+	CanViewProject      bool       `json:"can_view_project" db:"can_view_project"`
+	CanEditProject      bool       `json:"can_edit_project" db:"can_edit_project"`
+	CanDeleteProject    bool       `json:"can_delete_project" db:"can_delete_project"`
+	CanManageTasks      bool       `json:"can_manage_tasks" db:"can_manage_tasks"`
+	CanViewFinancials   bool       `json:"can_view_financials" db:"can_view_financials"`
+	CanManageMembers    bool       `json:"can_manage_members" db:"can_manage_members"`
+	PermissionStartDate time.Time  `json:"permission_start_date" db:"permission_start_date"`
+	PermissionEndDate   *time.Time `json:"permission_end_date" db:"permission_end_date"`
+	CreatedBy           *int       `json:"created_by" db:"created_by"`
+	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // PermissionAuditLog represents permission change audit logs
 type PermissionAuditLog struct {
-	ID             int            `json:"id" db:"id"`
-	CompanyUserID  *int           `json:"company_user_id" db:"company_user_id"`
-	TargetUserID   *int           `json:"target_user_id" db:"target_user_id"`
-	ActionType     string         `json:"action_type" db:"action_type"`
-	PermissionCode *string        `json:"permission_code" db:"permission_code"`
-	ResourceType   *string        `json:"resource_type" db:"resource_type"`
-	ResourceID     *int           `json:"resource_id" db:"resource_id"`
-	OldValue       CustomFields   `json:"old_value" db:"old_value"`
-	NewValue       CustomFields   `json:"new_value" db:"new_value"`
-	Reason         *string        `json:"reason" db:"reason"`
-	PerformedBy    *int           `json:"performed_by" db:"performed_by"`
-	PerformedAt    time.Time      `json:"performed_at" db:"performed_at"`
-	IPAddress      *string        `json:"ip_address" db:"ip_address"`
-	UserAgent      *string        `json:"user_agent" db:"user_agent"`
+	ID             int          `json:"id" db:"id"`
+	CompanyUserID  *int         `json:"company_user_id" db:"company_user_id"`
+	TargetUserID   *int         `json:"target_user_id" db:"target_user_id"`
+	ActionType     string       `json:"action_type" db:"action_type"`
+	PermissionCode *string      `json:"permission_code" db:"permission_code"`
+	ResourceType   *string      `json:"resource_type" db:"resource_type"`
+	ResourceID     *int         `json:"resource_id" db:"resource_id"`
+	OldValue       CustomFields `json:"old_value" db:"old_value"`
+	NewValue       CustomFields `json:"new_value" db:"new_value"`
+	Reason         *string      `json:"reason" db:"reason"`
+	PerformedBy    *int         `json:"performed_by" db:"performed_by"`
+	PerformedAt    time.Time    `json:"performed_at" db:"performed_at"`
+	IPAddress      *string      `json:"ip_address" db:"ip_address"`
+	UserAgent      *string      `json:"user_agent" db:"user_agent"`
 }
 
 // Permission context for checking user permissions
@@ -104,37 +104,37 @@ type CompanyRoleRequest struct {
 
 // CompanyRoleResponse represents a company role with permissions
 type CompanyRoleResponse struct {
-	ID              int                        `json:"id"`
-	RoleCode        string                     `json:"role_code"`
-	RoleName        string                     `json:"role_name"`
-	RoleDescription *string                    `json:"role_description"`
-	IsSystemRole    bool                       `json:"is_system_role"`
-	IsActive        bool                       `json:"is_active"`
-	Permissions     []PermissionResponse       `json:"permissions"`
-	UserCount       int                        `json:"user_count"` // Number of users with this role
-	CreatedAt       time.Time                  `json:"created_at"`
-	UpdatedAt       time.Time                  `json:"updated_at"`
+	ID              int                  `json:"id"`
+	RoleCode        string               `json:"role_code"`
+	RoleName        string               `json:"role_name"`
+	RoleDescription *string              `json:"role_description"`
+	IsSystemRole    bool                 `json:"is_system_role"`
+	IsActive        bool                 `json:"is_active"`
+	Permissions     []PermissionResponse `json:"permissions"`
+	UserCount       int                  `json:"user_count"` // Number of users with this role
+	CreatedAt       time.Time            `json:"created_at"`
+	UpdatedAt       time.Time            `json:"updated_at"`
 }
 
 // PermissionResponse represents a permission with additional context
 type PermissionResponse struct {
-	ID                   int     `json:"id"`
-	PermissionCode       string  `json:"permission_code"`
-	PermissionName       string  `json:"permission_name"`
+	ID                    int     `json:"id"`
+	PermissionCode        string  `json:"permission_code"`
+	PermissionName        string  `json:"permission_name"`
 	PermissionDescription *string `json:"permission_description"`
-	Module               string  `json:"module"`
-	ModuleName           string  `json:"module_name"` // Localized module name
-	Resource             string  `json:"resource"`
-	Action               string  `json:"action"`
-	ActionName           string  `json:"action_name"` // Localized action name
-	IsActive             bool    `json:"is_active"`
-	IsGranted            bool    `json:"is_granted"` // Whether this permission is granted in current context
+	Module                string  `json:"module"`
+	ModuleName            string  `json:"module_name"` // Localized module name
+	Resource              string  `json:"resource"`
+	Action                string  `json:"action"`
+	ActionName            string  `json:"action_name"` // Localized action name
+	IsActive              bool    `json:"is_active"`
+	IsGranted             bool    `json:"is_granted"` // Whether this permission is granted in current context
 }
 
 // UserPermissionRequest represents a request to update user permissions
 type UserPermissionRequest struct {
-	RoleID            *int                    `json:"role_id"`
-	CustomPermissions map[string]bool         `json:"custom_permissions"` // permission_code -> granted
+	RoleID             *int                    `json:"role_id"`
+	CustomPermissions  map[string]bool         `json:"custom_permissions"` // permission_code -> granted
 	ProjectPermissions []ProjectPermissionItem `json:"project_permissions"`
 }
 
@@ -153,13 +153,13 @@ type ProjectPermissionItem struct {
 
 // UserPermissionSummary represents a comprehensive view of user permissions
 type UserPermissionSummary struct {
-	CompanyUserID     int                              `json:"company_user_id"`
-	UserName          string                           `json:"user_name"`
-	Role              *CompanyRoleResponse             `json:"role"`
-	CustomPermissions map[string]bool                  `json:"custom_permissions"`
-	ProjectPermissions []CompanyUserProjectPermission   `json:"project_permissions"`
+	CompanyUserID        int                            `json:"company_user_id"`
+	UserName             string                         `json:"user_name"`
+	Role                 *CompanyRoleResponse           `json:"role"`
+	CustomPermissions    map[string]bool                `json:"custom_permissions"`
+	ProjectPermissions   []CompanyUserProjectPermission `json:"project_permissions"`
 	EffectivePermissions []PermissionResponse           `json:"effective_permissions"`
-	LastUpdated       time.Time                        `json:"last_updated"`
+	LastUpdated          time.Time                      `json:"last_updated"`
 }
 
 // PermissionCheckRequest represents a request to check permissions
@@ -172,7 +172,7 @@ type PermissionCheckRequest struct {
 func GetModuleName(module string) string {
 	moduleNames := map[string]string{
 		"company": "企业管理",
-		"project": "项目管理", 
+		"project": "项目管理",
 		"task":    "任务管理",
 		"finance": "财务管理",
 		"system":  "系统管理",
@@ -216,17 +216,17 @@ func (cr *CompanyRole) ToResponse() CompanyRoleResponse {
 // ToResponse converts Permission to PermissionResponse
 func (p *Permission) ToResponse() PermissionResponse {
 	return PermissionResponse{
-		ID:                   p.ID,
-		PermissionCode:       p.PermissionCode,
-		PermissionName:       p.PermissionName,
+		ID:                    p.ID,
+		PermissionCode:        p.PermissionCode,
+		PermissionName:        p.PermissionName,
 		PermissionDescription: p.PermissionDescription,
-		Module:               p.Module,
-		ModuleName:           GetModuleName(p.Module),
-		Resource:             p.Resource,
-		Action:               p.Action,
-		ActionName:           GetActionName(p.Action),
-		IsActive:             p.IsActive,
-		IsGranted:            false, // Will be set based on context
+		Module:                p.Module,
+		ModuleName:            GetModuleName(p.Module),
+		Resource:              p.Resource,
+		Action:                p.Action,
+		ActionName:            GetActionName(p.Action),
+		IsActive:              p.IsActive,
+		IsGranted:             false, // Will be set based on context
 	}
 }
 
@@ -293,31 +293,31 @@ type UpdateUserPermissionsRequest struct {
 
 // UserPermissionsSummary represents a summary of user permissions with expanded data
 type UserPermissionsSummary struct {
-	Role               *CompanyRole                       `json:"role"`
-	RolePermissions    []Permission                       `json:"role_permissions"`
-	ProjectPermissions []CompanyUserProjectPermission     `json:"project_permissions"`
-	EffectivePermissions []Permission                     `json:"effective_permissions"`
+	Role                 *CompanyRole                   `json:"role"`
+	RolePermissions      []Permission                   `json:"role_permissions"`
+	ProjectPermissions   []CompanyUserProjectPermission `json:"project_permissions"`
+	EffectivePermissions []Permission                   `json:"effective_permissions"`
 }
 
 // Permission inheritance and override models
 
 // PermissionInheritanceTrace represents the detailed trace of permission resolution
 type PermissionInheritanceTrace struct {
-	CompanyUserID  int               `json:"company_user_id"`
-	PermissionCode string            `json:"permission_code"`
-	ResourceID     *int              `json:"resource_id,omitempty"`
-	Steps          []PermissionStep  `json:"steps"`
-	FinalResult    bool              `json:"final_result"`
-	FinalSource    string            `json:"final_source"`
+	CompanyUserID  int              `json:"company_user_id"`
+	PermissionCode string           `json:"permission_code"`
+	ResourceID     *int             `json:"resource_id,omitempty"`
+	Steps          []PermissionStep `json:"steps"`
+	FinalResult    bool             `json:"final_result"`
+	FinalSource    string           `json:"final_source"`
 }
 
 // PermissionStep represents a step in permission resolution
 type PermissionStep struct {
-	Level         string `json:"level"`         // "custom", "project", "role"
-	Source        string `json:"source"`        // Detailed source description
+	Level         string `json:"level"`  // "custom", "project", "role"
+	Source        string `json:"source"` // Detailed source description
 	HasPermission bool   `json:"has_permission"`
 	Reason        string `json:"reason"`
-	IsOverride    bool   `json:"is_override"`   // Whether this step overrides others
+	IsOverride    bool   `json:"is_override"` // Whether this step overrides others
 }
 
 // PermissionOverrideRequest represents a request to set permission override
@@ -329,10 +329,10 @@ type PermissionOverrideRequest struct {
 
 // PermissionAnalysis represents analysis of user permission conflicts and issues
 type PermissionAnalysis struct {
-	CompanyUserID int                      `json:"company_user_id"`
-	Conflicts     []PermissionConflict     `json:"conflicts"`
-	Redundancies  []PermissionRedundancy   `json:"redundancies"`
-	Gaps          []PermissionGap          `json:"gaps"`
+	CompanyUserID int                    `json:"company_user_id"`
+	Conflicts     []PermissionConflict   `json:"conflicts"`
+	Redundancies  []PermissionRedundancy `json:"redundancies"`
+	Gaps          []PermissionGap        `json:"gaps"`
 }
 
 // PermissionConflict represents a conflict between different permission sources

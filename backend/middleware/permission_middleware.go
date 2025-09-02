@@ -35,12 +35,16 @@ func featureEnabled(key string) bool {
 
 func parseCSV(key string) []string {
 	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" { return nil }
+	if v == "" {
+		return nil
+	}
 	parts := strings.Split(v, ",")
 	out := make([]string, 0, len(parts))
 	for _, p := range parts {
 		p = strings.ToLower(strings.TrimSpace(p))
-		if p != "" { out = append(out, p) }
+		if p != "" {
+			out = append(out, p)
+		}
 	}
 	return out
 }
@@ -50,7 +54,9 @@ func isSuperAdminCtx(c *gin.Context) bool {
 		return false
 	}
 	username := ""
-	if v, ok := c.Get("username"); ok { username = strings.ToLower(strings.TrimSpace(v.(string))) }
+	if v, ok := c.Get("username"); ok {
+		username = strings.ToLower(strings.TrimSpace(v.(string)))
+	}
 	var uid int
 	if v, ok := c.Get("user_id"); ok {
 		switch t := v.(type) {
@@ -61,22 +67,43 @@ func isSuperAdminCtx(c *gin.Context) bool {
 		case float64:
 			uid = int(t)
 		case string:
-			if parsed, err := strconv.Atoi(t); err == nil { uid = parsed }
+			if parsed, err := strconv.Atoi(t); err == nil {
+				uid = parsed
+			}
 		}
 	}
 	usernames := map[string]struct{}{}
 	ids := map[int]struct{}{}
-	for _, u := range parseCSV("SUPER_ADMIN_USERNAMES") { usernames[u] = struct{}{} }
+	for _, u := range parseCSV("SUPER_ADMIN_USERNAMES") {
+		usernames[u] = struct{}{}
+	}
 	for _, tok := range parseCSV("SUPER_ADMINS") {
-		if id, err := strconv.Atoi(tok); err == nil { ids[id] = struct{}{}; continue }
-		if !strings.Contains(tok, "@") { usernames[tok] = struct{}{} }
+		if id, err := strconv.Atoi(tok); err == nil {
+			ids[id] = struct{}{}
+			continue
+		}
+		if !strings.Contains(tok, "@") {
+			usernames[tok] = struct{}{}
+		}
 	}
 	for _, idStr := range parseCSV("SUPER_ADMIN_IDS") {
-		if id, err := strconv.Atoi(idStr); err == nil { ids[id] = struct{}{} }
+		if id, err := strconv.Atoi(idStr); err == nil {
+			ids[id] = struct{}{}
+		}
 	}
-	if len(usernames) == 0 && len(ids) == 0 && username == "admin" { return true }
-	if username != "" { if _, ok := usernames[username]; ok { return true } }
-	if uid != 0 { if _, ok := ids[uid]; ok { return true } }
+	if len(usernames) == 0 && len(ids) == 0 && username == "admin" {
+		return true
+	}
+	if username != "" {
+		if _, ok := usernames[username]; ok {
+			return true
+		}
+	}
+	if uid != 0 {
+		if _, ok := ids[uid]; ok {
+			return true
+		}
+	}
 	return false
 }
 
@@ -89,8 +116,8 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 		if isSuperAdminCtx(c) {
 			c.Set("permission_result", map[string]interface{}{
 				"has_permission": true,
-				"source": "admin_override",
-				"reason": "Superadmin bypass",
+				"source":         "admin_override",
+				"reason":         "Superadmin bypass",
 			})
 			c.Next()
 			return
@@ -285,9 +312,9 @@ func (m *PermissionMiddleware) RequireAllPermissions(permissionCodes ...string) 
 
 		if len(deniedPermissions) > 0 {
 			c.JSON(http.StatusForbidden, gin.H{
-				"error":               "Permission denied",
-				"reason":              "User does not have all required permissions",
-				"denied_permissions":  deniedPermissions,
+				"error":              "Permission denied",
+				"reason":             "User does not have all required permissions",
+				"denied_permissions": deniedPermissions,
 			})
 			c.Abort()
 			return

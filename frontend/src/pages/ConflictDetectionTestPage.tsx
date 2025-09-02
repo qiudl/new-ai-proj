@@ -41,14 +41,6 @@ import {
 } from '@ant-design/icons';
 import { ColumnsType } from 'antd/es/table';
 import { Task } from '../types/task';
-
-interface Project {
-  id: number;
-  name: string;
-  owner_id: number;
-  created_at: string;
-  updated_at: string;
-}
 import { TaskDependency, DependencyType, DependencyStrength } from '../types/dependency';
 import { TaskService } from '../services/taskService';
 import DependencyService from '../services/dependencyService';
@@ -64,6 +56,14 @@ import ConflictDetectionService, {
 } from '../services/conflictDetectionService';
 import AutoSchedulingManager from '../components/scheduling/AutoSchedulingManager';
 import DependencyGraphVisualization from '../components/dependency/DependencyGraphVisualization';
+
+interface Project {
+  id: number;
+  name: string;
+  owner_id: number;
+  created_at: string;
+  updated_at: string;
+}
 
 const { Option } = Select;
 const { Title, Text, Paragraph } = Typography;

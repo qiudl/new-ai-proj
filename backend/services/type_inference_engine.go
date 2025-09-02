@@ -16,11 +16,11 @@ import (
 type TypeInferenceEngine interface {
 	// 核心推断方法
 	InferTimerType(ctx context.Context, context *InferenceContext) (*InferenceResult, error)
-	
+
 	// 学习和优化
 	LearnFromFeedback(ctx context.Context, timerID int, userFeedback int) error
 	UpdateUserBehaviorModel(ctx context.Context, userID int) error
-	
+
 	// 建议生成
 	GenerateSmartSuggestions(ctx context.Context, userID int, context string) ([]*TimerSuggestion, error)
 }
@@ -33,25 +33,25 @@ type InferenceContext struct {
 	Context   string                 `json:"context"` // dashboard, task_detail, quick_start
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 	ProjectID *int                   `json:"project_id,omitempty"`
-	
+
 	// 时间上下文
 	CurrentTime time.Time `json:"current_time"`
-	TimeOfDay   int       `json:"time_of_day"`   // 0-23
-	DayOfWeek   int       `json:"day_of_week"`   // 0-6 (Sunday=0)
+	TimeOfDay   int       `json:"time_of_day"` // 0-23
+	DayOfWeek   int       `json:"day_of_week"` // 0-6 (Sunday=0)
 	IsWorkday   bool      `json:"is_workday"`
-	
+
 	// 用户历史
 	RecentHistory []*TimerRecord `json:"recent_history,omitempty"`
 }
 
 // InferenceResult 推断结果
 type InferenceResult struct {
-	Type              string    `json:"type"`               // project_task, personal_task, quick_timer, pomodoro
-	Confidence        float64   `json:"confidence"`         // 0.0-1.0
-	Reasoning         []string  `json:"reasoning"`          // 推断依据
-	SuggestedCategory string    `json:"suggested_category"` // 建议分类
-	ProjectID         *int      `json:"project_id,omitempty"`
-	EstimatedDuration int       `json:"estimated_duration,omitempty"` // 预估时长(分钟)
+	Type              string                 `json:"type"`               // project_task, personal_task, quick_timer, pomodoro
+	Confidence        float64                `json:"confidence"`         // 0.0-1.0
+	Reasoning         []string               `json:"reasoning"`          // 推断依据
+	SuggestedCategory string                 `json:"suggested_category"` // 建议分类
+	ProjectID         *int                   `json:"project_id,omitempty"`
+	EstimatedDuration int                    `json:"estimated_duration,omitempty"` // 预估时长(分钟)
 	Metadata          map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -62,35 +62,35 @@ type FeatureVector struct {
 	HasProjectID  bool     `json:"has_project_id"`
 	TitleKeywords []string `json:"title_keywords"`
 	TitleLength   int      `json:"title_length"`
-	
+
 	// 时间特征
-	TimeOfDay       int  `json:"time_of_day"`
-	DayOfWeek       int  `json:"day_of_week"`
-	IsWorkingHours  bool `json:"is_working_hours"`
-	IsWeekend       bool `json:"is_weekend"`
-	
+	TimeOfDay      int  `json:"time_of_day"`
+	DayOfWeek      int  `json:"day_of_week"`
+	IsWorkingHours bool `json:"is_working_hours"`
+	IsWeekend      bool `json:"is_weekend"`
+
 	// 上下文特征
 	ContextType        string  `json:"context_type"`
 	UserActivityScore  float64 `json:"user_activity_score"`
 	RecentPatternScore float64 `json:"recent_pattern_score"`
-	
+
 	// 用户行为特征
-	UserPreferenceScore  float64 `json:"user_preference_score"`
-	HistoricalAccuracy   float64 `json:"historical_accuracy"`
-	CategoryFrequency    map[string]float64 `json:"category_frequency"`
+	UserPreferenceScore float64            `json:"user_preference_score"`
+	HistoricalAccuracy  float64            `json:"historical_accuracy"`
+	CategoryFrequency   map[string]float64 `json:"category_frequency"`
 }
 
 // UserBehaviorModel 用户行为模型
 type UserBehaviorModel struct {
-	UserID                int                            `json:"user_id"`
-	PreferredTimerTypes   map[string]float64             `json:"preferred_timer_types"`
-	CategoryPreferences   map[string]float64             `json:"category_preferences"`
-	TimePatterns          map[string]map[string]float64  `json:"time_patterns"` // hour -> type -> probability
-	ContextPatterns       map[string]map[string]float64  `json:"context_patterns"` // context -> type -> probability
-	AccuracyByFeature     map[string]float64             `json:"accuracy_by_feature"`
-	AvgDuration           map[string]float64             `json:"avg_duration"` // 各类型平均时长(秒)
-	LastUpdated           time.Time                      `json:"last_updated"`
-	SampleSize            int                            `json:"sample_size"`
+	UserID              int                           `json:"user_id"`
+	PreferredTimerTypes map[string]float64            `json:"preferred_timer_types"`
+	CategoryPreferences map[string]float64            `json:"category_preferences"`
+	TimePatterns        map[string]map[string]float64 `json:"time_patterns"`    // hour -> type -> probability
+	ContextPatterns     map[string]map[string]float64 `json:"context_patterns"` // context -> type -> probability
+	AccuracyByFeature   map[string]float64            `json:"accuracy_by_feature"`
+	AvgDuration         map[string]float64            `json:"avg_duration"` // 各类型平均时长(秒)
+	LastUpdated         time.Time                     `json:"last_updated"`
+	SampleSize          int                           `json:"sample_size"`
 }
 
 // typeInferenceEngineImpl 智能类型推断引擎实现
@@ -106,18 +106,18 @@ func NewTypeInferenceEngine(db *sql.DB) TypeInferenceEngine {
 		db:             db,
 		behaviorModels: make(map[int]*UserBehaviorModel),
 		keywordCategories: map[string][]string{
-			"开发": {"代码", "编程", "开发", "bug", "调试", "前端", "后端", "API", "数据库", "测试", "review", "commit", "deploy"},
-			"会议": {"会议", "讨论", "沟通", "汇报", "评审", "站会", "scrum", "meeting", "call", "视频", "电话"},
-			"学习": {"学习", "研究", "阅读", "文档", "教程", "培训", "课程", "知识", "技能", "学习笔记"},
-			"设计": {"设计", "UI", "UX", "原型", "界面", "交互", "视觉", "排版", "色彩", "图标"},
-			"测试": {"测试", "验证", "QA", "质量", "自动化", "单元测试", "集成测试", "性能测试"},
-			"写作": {"写作", "文档", "文章", "博客", "总结", "报告", "方案", "说明", "记录"},
-			"管理": {"管理", "规划", "计划", "协调", "安排", "组织", "领导", "决策", "策略"},
-			"休息": {"休息", "放松", "娱乐", "游戏", "音乐", "电影", "运动", "散步", "咖啡"},
+			"开发":  {"代码", "编程", "开发", "bug", "调试", "前端", "后端", "API", "数据库", "测试", "review", "commit", "deploy"},
+			"会议":  {"会议", "讨论", "沟通", "汇报", "评审", "站会", "scrum", "meeting", "call", "视频", "电话"},
+			"学习":  {"学习", "研究", "阅读", "文档", "教程", "培训", "课程", "知识", "技能", "学习笔记"},
+			"设计":  {"设计", "UI", "UX", "原型", "界面", "交互", "视觉", "排版", "色彩", "图标"},
+			"测试":  {"测试", "验证", "QA", "质量", "自动化", "单元测试", "集成测试", "性能测试"},
+			"写作":  {"写作", "文档", "文章", "博客", "总结", "报告", "方案", "说明", "记录"},
+			"管理":  {"管理", "规划", "计划", "协调", "安排", "组织", "领导", "决策", "策略"},
+			"休息":  {"休息", "放松", "娱乐", "游戏", "音乐", "电影", "运动", "散步", "咖啡"},
 			"番茄钟": {"番茄", "pomodoro", "专注", "集中", "25分钟", "专注时间", "深度工作"},
 		},
 	}
-	
+
 	return engine
 }
 
@@ -177,10 +177,10 @@ func (e *typeInferenceEngineImpl) extractFeatures(ctx context.Context, inference
 
 	// 计算用户活动度分数
 	features.UserActivityScore = e.calculateUserActivityScore(ctx, inferenceCtx.UserID)
-	
+
 	// 计算最近模式分数
 	features.RecentPatternScore = e.calculateRecentPatternScore(inferenceCtx.RecentHistory)
-	
+
 	// 计算分类频率
 	features.CategoryFrequency = e.calculateCategoryFrequency(ctx, inferenceCtx.UserID)
 
@@ -277,7 +277,7 @@ func (e *typeInferenceEngineImpl) applyMLBasedInference(features *FeatureVector,
 	}
 
 	scores := make(map[string]float64)
-	
+
 	// 基于时间模式
 	hourKey := fmt.Sprintf("%d", features.TimeOfDay)
 	if timePatterns, exists := model.TimePatterns[hourKey]; exists {
@@ -340,7 +340,7 @@ func (e *typeInferenceEngineImpl) applyContextBasedInference(ctx *InferenceConte
 		timerType = "project_task"
 		confidence = 0.75
 		reasoning = append(reasoning, "从任务详情页启动，高概率为项目任务")
-		
+
 		// 如果有TaskID，进一步提升置信度
 		if ctx.TaskID != nil {
 			confidence = 0.90
@@ -445,7 +445,7 @@ func (e *typeInferenceEngineImpl) combineInferenceResults(results []InferenceRes
 // inferCategory 推断分类
 func (e *typeInferenceEngineImpl) inferCategory(title string, model *UserBehaviorModel) string {
 	title = strings.ToLower(title)
-	
+
 	// 基于关键词匹配
 	for category, keywords := range e.keywordCategories {
 		for _, keyword := range keywords {
@@ -513,7 +513,7 @@ func (e *typeInferenceEngineImpl) extractKeywords(title string) []string {
 	// 移除标点符号
 	reg := regexp.MustCompile(`[^\p{L}\p{N}\s]+`)
 	title = reg.ReplaceAllString(title, " ")
-	
+
 	words := strings.Fields(title)
 	var keywords []string
 	for _, word := range words {
@@ -573,10 +573,10 @@ func (e *typeInferenceEngineImpl) calculateUserActivityScore(ctx context.Context
 			AND created_at >= NOW() - INTERVAL '7 days'
 			AND status IN ('completed', 'cancelled')
 	`
-	
+
 	var dailyTimers int
 	e.db.QueryRowContext(ctx, query, userID).Scan(&dailyTimers)
-	
+
 	// 简单的活动度评分：每天平均计时次数 / 10 (最高1.0)
 	return math.Min(float64(dailyTimers)/7.0/10.0, 1.0)
 }
@@ -585,13 +585,13 @@ func (e *typeInferenceEngineImpl) calculateRecentPatternScore(recentHistory []*T
 	if len(recentHistory) == 0 {
 		return 0.0
 	}
-	
+
 	// 分析最近的计时模式
 	typeCount := make(map[string]int)
 	for _, record := range recentHistory {
 		typeCount[record.TargetType]++
 	}
-	
+
 	// 返回最常用类型的比例
 	var maxCount int
 	for _, count := range typeCount {
@@ -599,7 +599,7 @@ func (e *typeInferenceEngineImpl) calculateRecentPatternScore(recentHistory []*T
 			maxCount = count
 		}
 	}
-	
+
 	return float64(maxCount) / float64(len(recentHistory))
 }
 
@@ -612,16 +612,16 @@ func (e *typeInferenceEngineImpl) calculateCategoryFrequency(ctx context.Context
 			AND category IS NOT NULL
 		GROUP BY category
 	`
-	
+
 	rows, err := e.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return make(map[string]float64)
 	}
 	defer rows.Close()
-	
+
 	frequency := make(map[string]float64)
 	var total int
-	
+
 	for rows.Next() {
 		var category string
 		var count int
@@ -630,12 +630,12 @@ func (e *typeInferenceEngineImpl) calculateCategoryFrequency(ctx context.Context
 			total += count
 		}
 	}
-	
+
 	// 转换为频率
 	for category, count := range frequency {
 		frequency[category] = count / float64(total)
 	}
-	
+
 	return frequency
 }
 
@@ -646,7 +646,7 @@ func (e *typeInferenceEngineImpl) getEstimatedDuration(timerType string, model *
 			return int(avgSeconds / 60) // 转换为分钟
 		}
 	}
-	
+
 	// 使用默认时长
 	defaultDurations := map[string]int{
 		"pomodoro":      25,
@@ -654,11 +654,11 @@ func (e *typeInferenceEngineImpl) getEstimatedDuration(timerType string, model *
 		"personal_task": 60,
 		"project_task":  90,
 	}
-	
+
 	if duration, exists := defaultDurations[timerType]; exists {
 		return duration
 	}
-	
+
 	return 60 // 默认1小时
 }
 
@@ -730,7 +730,7 @@ func (e *typeInferenceEngineImpl) getUserBehaviorModel(ctx context.Context, user
 
 		sampleSize++
 		typeCount[targetType]++
-		
+
 		if category != "" {
 			categoryCount[category]++
 		}
@@ -903,7 +903,7 @@ func (e *typeInferenceEngineImpl) LearnFromFeedback(ctx context.Context, timerID
 		SET user_feedback = $1, updated_at = NOW()
 		WHERE id = $2
 	`
-	
+
 	_, err := e.db.ExecContext(ctx, query, userFeedback, timerID)
 	if err != nil {
 		return fmt.Errorf("更新用户反馈失败: %v", err)
@@ -911,8 +911,8 @@ func (e *typeInferenceEngineImpl) LearnFromFeedback(ctx context.Context, timerID
 
 	// 获取计时器记录的用户ID以更新行为模型
 	var userID int
-	err = e.db.QueryRowContext(ctx, 
-		"SELECT user_id FROM unified_timer_logs WHERE id = $1", 
+	err = e.db.QueryRowContext(ctx,
+		"SELECT user_id FROM unified_timer_logs WHERE id = $1",
 		timerID).Scan(&userID)
 	if err != nil {
 		return fmt.Errorf("获取用户ID失败: %v", err)
@@ -931,7 +931,7 @@ func (e *typeInferenceEngineImpl) LearnFromFeedback(ctx context.Context, timerID
 func (e *typeInferenceEngineImpl) UpdateUserBehaviorModel(ctx context.Context, userID int) error {
 	// 清除缓存，强制重新构建模型
 	delete(e.behaviorModels, userID)
-	
+
 	// 重新构建用户行为模型
 	_, err := e.getUserBehaviorModel(ctx, userID)
 	if err != nil {

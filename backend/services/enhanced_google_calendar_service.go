@@ -77,9 +77,9 @@ func (g *EnhancedGoogleCalendarService) logAPICall(apiLog *APICallLog) {
 		if !apiLog.Success {
 			status = "FAILED"
 		}
-		g.logger.Printf("%s %s [%s] %v (attempts: %d)", 
+		g.logger.Printf("%s %s [%s] %v (attempts: %d)",
 			apiLog.Method, apiLog.Endpoint, status, apiLog.Duration, apiLog.RetryAttempts)
-		
+
 		if apiLog.Error != "" {
 			g.logger.Printf("Error: %s", apiLog.Error)
 		}
@@ -89,7 +89,7 @@ func (g *EnhancedGoogleCalendarService) logAPICall(apiLog *APICallLog) {
 // GetAuthURL 获取Google OAuth授权URL（带重试和日志）
 func (g *EnhancedGoogleCalendarService) GetAuthURL(state string) string {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "GET",
@@ -99,19 +99,19 @@ func (g *EnhancedGoogleCalendarService) GetAuthURL(state string) string {
 		},
 		Success: true,
 	}
-	
+
 	authURL := g.config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
-	
+
 	apiLog.Duration = time.Since(startTime)
 	g.logAPICall(apiLog)
-	
+
 	return authURL
 }
 
 // ExchangeCodeForToken 将授权码交换为访问令牌（带重试和日志）
 func (g *EnhancedGoogleCalendarService) ExchangeCodeForToken(ctx context.Context, code string) (*GoogleToken, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "POST",
@@ -120,209 +120,209 @@ func (g *EnhancedGoogleCalendarService) ExchangeCodeForToken(ctx context.Context
 			"code_length": len(code),
 		},
 	}
-	
+
 	var token *oauth2.Token
 	var err error
-	
+
 	// 使用重试机制执行令牌交换
 	_, retryErr := utils.ExecuteWithResult[*oauth2.Token](ctx, g.retryExecutor, func() (*oauth2.Token, error) {
 		token, err = g.config.Exchange(ctx, code)
 		return token, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to exchange code for token: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	googleToken := &GoogleToken{
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		TokenType:    token.TokenType,
 		ExpiresAt:    token.Expiry,
 	}
-	
+
 	return googleToken, nil
 }
 
 // RefreshToken 刷新访问令牌（带重试和日志）
 func (g *EnhancedGoogleCalendarService) RefreshToken(ctx context.Context, refreshToken string) (*GoogleToken, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "POST",
 		Endpoint:  "oauth2/token/refresh",
 	}
-	
+
 	token := &oauth2.Token{
 		RefreshToken: refreshToken,
 	}
-	
+
 	tokenSource := g.config.TokenSource(ctx, token)
 	var newToken *oauth2.Token
 	var err error
-	
+
 	// 使用重试机制刷新令牌
 	_, retryErr := utils.ExecuteWithResult[*oauth2.Token](ctx, g.retryExecutor, func() (*oauth2.Token, error) {
 		newToken, err = tokenSource.Token()
 		return newToken, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to refresh token: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	googleToken := &GoogleToken{
 		AccessToken:  newToken.AccessToken,
 		RefreshToken: newToken.RefreshToken,
 		TokenType:    newToken.TokenType,
 		ExpiresAt:    newToken.Expiry,
 	}
-	
+
 	return googleToken, nil
 }
 
 // GetCalendarService 获取Google Calendar服务客户端（带重试和日志）
 func (g *EnhancedGoogleCalendarService) GetCalendarService(ctx context.Context, accessToken string) (*calendar.Service, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "INIT",
 		Endpoint:  "calendar/service",
 	}
-	
+
 	token := &oauth2.Token{
 		AccessToken: accessToken,
 	}
-	
+
 	client := g.config.Client(ctx, token)
-	
+
 	var service *calendar.Service
 	var err error
-	
+
 	// 使用重试机制创建服务
 	_, retryErr := utils.ExecuteWithResult[*calendar.Service](ctx, g.retryExecutor, func() (*calendar.Service, error) {
 		service, err = calendar.NewService(ctx, option.WithHTTPClient(client))
 		return service, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to create calendar service: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return service, nil
 }
 
 // ValidateToken 验证访问令牌是否有效（带重试和日志）
 func (g *EnhancedGoogleCalendarService) ValidateToken(ctx context.Context, accessToken string) error {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "GET",
 		Endpoint:  "calendar/validate",
 	}
-	
+
 	var err error
-	
+
 	// 使用重试机制验证令牌
 	retryErr := g.retryExecutor.Execute(ctx, func() error {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return serviceErr
 		}
-		
+
 		// 尝试获取用户的日历列表来验证令牌
 		_, err = service.CalendarList.List().Do()
 		return err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return fmt.Errorf("token validation failed: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return nil
 }
 
 // GetUserCalendars 获取用户的日历列表（带重试和日志）
 func (g *EnhancedGoogleCalendarService) GetUserCalendars(ctx context.Context, accessToken string) ([]*calendar.CalendarListEntry, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "GET",
 		Endpoint:  "calendar/calendarList",
 	}
-	
+
 	var calendarList *calendar.CalendarList
 	var err error
-	
+
 	// 使用重试机制获取日历列表
 	_, retryErr := utils.ExecuteWithResult[*calendar.CalendarList](ctx, g.retryExecutor, func() (*calendar.CalendarList, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
 		}
-		
+
 		calendarList, err = service.CalendarList.List().Do()
 		return calendarList, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to get calendar list: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	apiLog.Parameters = map[string]interface{}{
 		"calendar_count": len(calendarList.Items),
 	}
 	g.logAPICall(apiLog)
-	
+
 	return calendarList.Items, nil
 }
 
 // CreateEvent 在指定日历中创建事件（带重试和日志）
 func (g *EnhancedGoogleCalendarService) CreateEvent(ctx context.Context, accessToken, calendarID string, event *GoogleCalendarEvent) (*GoogleCalendarEvent, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "POST",
@@ -332,42 +332,42 @@ func (g *EnhancedGoogleCalendarService) CreateEvent(ctx context.Context, accessT
 			"is_all_day":    event.IsAllDay,
 		},
 	}
-	
+
 	var createdEvent *calendar.Event
 	var err error
-	
+
 	// 使用重试机制创建事件
 	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
 		}
-		
+
 		googleEvent := g.convertOurEventToGoogle(event)
 		createdEvent, err = service.Events.Insert(calendarID, googleEvent).Do()
 		return createdEvent, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to create event: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	apiLog.Parameters["event_id"] = createdEvent.Id
 	g.logAPICall(apiLog)
-	
+
 	return g.convertGoogleEventToOur(createdEvent), nil
 }
 
 // UpdateEvent 更新Google日历事件（带重试和日志）
 func (g *EnhancedGoogleCalendarService) UpdateEvent(ctx context.Context, accessToken, calendarID, eventID string, event *GoogleCalendarEvent) (*GoogleCalendarEvent, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "PUT",
@@ -377,41 +377,41 @@ func (g *EnhancedGoogleCalendarService) UpdateEvent(ctx context.Context, accessT
 			"event_summary": event.Summary,
 		},
 	}
-	
+
 	var updatedEvent *calendar.Event
 	var err error
-	
+
 	// 使用重试机制更新事件
 	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
 		}
-		
+
 		googleEvent := g.convertOurEventToGoogle(event)
 		updatedEvent, err = service.Events.Update(calendarID, eventID, googleEvent).Do()
 		return updatedEvent, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to update event: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return g.convertGoogleEventToOur(updatedEvent), nil
 }
 
 // DeleteEvent 删除Google日历事件（带重试和日志）
 func (g *EnhancedGoogleCalendarService) DeleteEvent(ctx context.Context, accessToken, calendarID, eventID string) error {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "DELETE",
@@ -420,39 +420,39 @@ func (g *EnhancedGoogleCalendarService) DeleteEvent(ctx context.Context, accessT
 			"event_id": eventID,
 		},
 	}
-	
+
 	var err error
-	
+
 	// 使用重试机制删除事件
 	retryErr := g.retryExecutor.Execute(ctx, func() error {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return serviceErr
 		}
-		
+
 		err = service.Events.Delete(calendarID, eventID).Do()
 		return err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return fmt.Errorf("failed to delete event: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return nil
 }
 
 // GetEvent 获取Google日历事件（带重试和日志）
 func (g *EnhancedGoogleCalendarService) GetEvent(ctx context.Context, accessToken, calendarID, eventID string) (*GoogleCalendarEvent, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "GET",
@@ -461,40 +461,40 @@ func (g *EnhancedGoogleCalendarService) GetEvent(ctx context.Context, accessToke
 			"event_id": eventID,
 		},
 	}
-	
+
 	var event *calendar.Event
 	var err error
-	
+
 	// 使用重试机制获取事件
 	_, retryErr := utils.ExecuteWithResult[*calendar.Event](ctx, g.retryExecutor, func() (*calendar.Event, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
 		}
-		
+
 		event, err = service.Events.Get(calendarID, eventID).Do()
 		return event, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to get event: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return g.convertGoogleEventToOur(event), nil
 }
 
 // ListEvents 获取日历事件列表（带重试和日志）
 func (g *EnhancedGoogleCalendarService) ListEvents(ctx context.Context, accessToken, calendarID string, timeMin, timeMax time.Time, maxResults int64) ([]*GoogleCalendarEvent, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "GET",
@@ -505,96 +505,96 @@ func (g *EnhancedGoogleCalendarService) ListEvents(ctx context.Context, accessTo
 			"max_results": maxResults,
 		},
 	}
-	
+
 	var events *calendar.Events
 	var err error
-	
+
 	// 使用重试机制获取事件列表
 	_, retryErr := utils.ExecuteWithResult[*calendar.Events](ctx, g.retryExecutor, func() (*calendar.Events, error) {
 		service, serviceErr := g.GetCalendarService(ctx, accessToken)
 		if serviceErr != nil {
 			return nil, serviceErr
 		}
-		
+
 		call := service.Events.List(calendarID).
 			TimeMin(timeMin.Format(time.RFC3339)).
 			TimeMax(timeMax.Format(time.RFC3339)).
 			MaxResults(maxResults).
 			SingleEvents(true).
 			OrderBy("startTime")
-		
+
 		events, err = call.Do()
 		return events, err
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return nil, fmt.Errorf("failed to list events: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	apiLog.Parameters["events_count"] = len(events.Items)
 	g.logAPICall(apiLog)
-	
+
 	ourEvents := make([]*GoogleCalendarEvent, len(events.Items))
 	for i, event := range events.Items {
 		ourEvents[i] = g.convertGoogleEventToOur(event)
 	}
-	
+
 	return ourEvents, nil
 }
 
 // RevokeToken 撤销Google访问令牌（带重试和日志）
 func (g *EnhancedGoogleCalendarService) RevokeToken(ctx context.Context, accessToken string) error {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "POST",
 		Endpoint:  "oauth2/revoke",
 	}
-	
+
 	// 使用重试机制撤销令牌
 	retryErr := g.retryExecutor.Execute(ctx, func() error {
 		revokeURL := fmt.Sprintf("https://oauth2.googleapis.com/revoke?token=%s", accessToken)
-		
+
 		client := &http.Client{Timeout: 10 * time.Second}
 		resp, reqErr := client.Post(revokeURL, "application/x-www-form-urlencoded", nil)
 		if reqErr != nil {
 			return fmt.Errorf("failed to make revoke request: %w", reqErr)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to revoke token, status: %d", resp.StatusCode)
 		}
-		
+
 		return nil
 	})
-	
+
 	apiLog.Duration = time.Since(startTime)
-	
+
 	if retryErr != nil {
 		apiLog.Success = false
 		apiLog.Error = retryErr.Error()
 		g.logAPICall(apiLog)
 		return fmt.Errorf("failed to revoke token: %w", retryErr)
 	}
-	
+
 	apiLog.Success = true
 	g.logAPICall(apiLog)
-	
+
 	return nil
 }
 
 // BatchCreateEvents 批量创建事件（带重试和日志）
 func (g *EnhancedGoogleCalendarService) BatchCreateEvents(ctx context.Context, accessToken, calendarID string, events []*GoogleCalendarEvent) ([]*GoogleCalendarEvent, error) {
 	startTime := time.Now()
-	
+
 	apiLog := &APICallLog{
 		Timestamp: startTime,
 		Method:    "POST",
@@ -603,7 +603,7 @@ func (g *EnhancedGoogleCalendarService) BatchCreateEvents(ctx context.Context, a
 			"batch_size": len(events),
 		},
 	}
-	
+
 	// 验证accessToken有效性
 	if err := g.ValidateToken(ctx, accessToken); err != nil {
 		apiLog.Success = false
@@ -612,10 +612,10 @@ func (g *EnhancedGoogleCalendarService) BatchCreateEvents(ctx context.Context, a
 		g.logAPICall(apiLog)
 		return nil, err
 	}
-	
+
 	createdEvents := make([]*GoogleCalendarEvent, 0, len(events))
 	var errors []string
-	
+
 	// Google Calendar API 不直接支持批量操作，所以我们逐个创建
 	for i, event := range events {
 		createdEvent, err := g.CreateEvent(ctx, accessToken, calendarID, event)
@@ -627,20 +627,20 @@ func (g *EnhancedGoogleCalendarService) BatchCreateEvents(ctx context.Context, a
 		}
 		createdEvents = append(createdEvents, createdEvent)
 	}
-	
+
 	apiLog.Duration = time.Since(startTime)
 	apiLog.Parameters["created_count"] = len(createdEvents)
 	apiLog.Parameters["failed_count"] = len(errors)
-	
+
 	if len(errors) > 0 {
 		apiLog.Success = false
 		apiLog.Error = strings.Join(errors, "; ")
 	} else {
 		apiLog.Success = true
 	}
-	
+
 	g.logAPICall(apiLog)
-	
+
 	return createdEvents, nil
 }
 
@@ -677,7 +677,7 @@ func (g *EnhancedGoogleCalendarService) convertOurEventToGoogle(event *GoogleCal
 		Status:      event.Status,
 		Visibility:  event.Visibility,
 	}
-	
+
 	// 设置时间
 	if event.IsAllDay {
 		googleEvent.Start = &calendar.EventDateTime{
@@ -696,7 +696,7 @@ func (g *EnhancedGoogleCalendarService) convertOurEventToGoogle(event *GoogleCal
 			TimeZone: "Asia/Shanghai",
 		}
 	}
-	
+
 	// 添加参与者
 	if len(event.Attendees) > 0 {
 		googleEvent.Attendees = make([]*calendar.EventAttendee, len(event.Attendees))
@@ -706,7 +706,7 @@ func (g *EnhancedGoogleCalendarService) convertOurEventToGoogle(event *GoogleCal
 			}
 		}
 	}
-	
+
 	return googleEvent
 }
 
@@ -720,7 +720,7 @@ func (g *EnhancedGoogleCalendarService) convertGoogleEventToOur(event *calendar.
 		Status:      event.Status,
 		Visibility:  event.Visibility,
 	}
-	
+
 	// 处理时间
 	if event.Start != nil {
 		if event.Start.Date != "" {
@@ -737,7 +737,7 @@ func (g *EnhancedGoogleCalendarService) convertGoogleEventToOur(event *calendar.
 			}
 		}
 	}
-	
+
 	if event.End != nil {
 		if event.End.Date != "" {
 			if endTime, err := time.Parse("2006-01-02", event.End.Date); err == nil {
@@ -749,7 +749,7 @@ func (g *EnhancedGoogleCalendarService) convertGoogleEventToOur(event *calendar.
 			}
 		}
 	}
-	
+
 	// 处理参与者
 	if len(event.Attendees) > 0 {
 		ourEvent.Attendees = make([]string, len(event.Attendees))
@@ -757,7 +757,7 @@ func (g *EnhancedGoogleCalendarService) convertGoogleEventToOur(event *calendar.
 			ourEvent.Attendees[i] = attendee.Email
 		}
 	}
-	
+
 	return ourEvent
 }
 

@@ -66,8 +66,8 @@ func (h *ValidationHandler) ValidateParent(c *gin.Context) {
 	result := map[string]interface{}{
 		"valid": true,
 		"parent_task": map[string]interface{}{
-			"id":    parentTask.ID,
-			"title": parentTask.Title,
+			"id":     parentTask.ID,
+			"title":  parentTask.Title,
 			"status": parentTask.Status,
 		},
 	}
@@ -248,13 +248,13 @@ func (h *ValidationHandler) validateNoCircularReference(ctx context.Context, par
 // validateHierarchyStructure validates the entire hierarchy structure
 func (h *ValidationHandler) validateHierarchyStructure(ctx context.Context, tasks []*models.Task) map[string]interface{} {
 	result := map[string]interface{}{
-		"valid":             true,
-		"total_tasks":       len(tasks),
-		"root_tasks":        0,
-		"max_depth":         0,
-		"orphaned_tasks":    []int{},
-		"circular_refs":     []int{},
-		"depth_violations":  []int{},
+		"valid":            true,
+		"total_tasks":      len(tasks),
+		"root_tasks":       0,
+		"max_depth":        0,
+		"orphaned_tasks":   []int{},
+		"circular_refs":    []int{},
+		"depth_violations": []int{},
 	}
 
 	var orphanedTasks []int

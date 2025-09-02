@@ -56,7 +56,7 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 	// Parse path parameters
 	entityType := c.Param("entityType")
 	idStr := c.Param("id")
-	
+
 	// Validate entity type
 	if entityType != "task" && entityType != "project" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -64,7 +64,7 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse entity ID
 	entityID, err := strconv.Atoi(idStr)
 	if err != nil || entityID <= 0 {
@@ -73,11 +73,11 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse query parameters
 	includeStr := c.DefaultQuery("include", "")
 	useCache := c.DefaultQuery("useCache", "true") == "true"
-	
+
 	// Get user context
 	userContext := middleware.GetUserContext(c)
 	if userContext == nil {
@@ -86,7 +86,7 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Check permissions based on entity type
 	if entityType == "task" {
 		// Verify task exists and user has access
@@ -116,7 +116,7 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Calculate progress
 	result, err := h.progressService.CalculateProgress(entityType, entityID, useCache)
 	if err != nil {
@@ -126,14 +126,14 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Process include parameters
 	includes := strings.Split(includeStr, ",")
 	includeMap := make(map[string]bool)
 	for _, inc := range includes {
 		includeMap[strings.TrimSpace(inc)] = true
 	}
-	
+
 	// Remove data based on include parameters
 	if !includeMap["children"] && !includeMap["breakdown"] {
 		result.Breakdown = nil
@@ -141,12 +141,12 @@ func (h *ProgressHandler) GetProgress(c *gin.Context) {
 	if !includeMap["formula"] && !includeMap["inputs"] {
 		result.Inputs = nil
 	}
-	
+
 	// Save snapshot if requested
 	if includeMap["snapshots"] {
 		_ = h.progressService.SaveSnapshot(result)
 	}
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -170,7 +170,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 	// Parse path parameters
 	entityType := c.Param("entityType")
 	idStr := c.Param("id")
-	
+
 	// Validate entity type
 	if entityType != "task" && entityType != "project" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -178,7 +178,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse entity ID
 	entityID, err := strconv.Atoi(idStr)
 	if err != nil || entityID <= 0 {
@@ -187,13 +187,13 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Parse time range
 	fromStr := c.DefaultQuery("from", "")
 	toStr := c.DefaultQuery("to", "")
-	
+
 	var from, to time.Time
-	
+
 	// Default to last 7 days if not specified
 	if fromStr == "" {
 		from = time.Now().AddDate(0, 0, -7)
@@ -206,7 +206,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	if toStr == "" {
 		to = time.Now()
 	} else {
@@ -218,7 +218,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 			return
 		}
 	}
-	
+
 	// Validate time range
 	if to.Before(from) {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -226,7 +226,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get user context
 	userContext := middleware.GetUserContext(c)
 	if userContext == nil {
@@ -235,7 +235,7 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get snapshots
 	snapshots, err := h.progressService.GetSnapshots(entityType, entityID, from, to)
 	if err != nil {
@@ -245,12 +245,12 @@ func (h *ProgressHandler) GetProgressSnapshots(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Return empty array if no snapshots
 	if snapshots == nil {
 		snapshots = []services.ProgressResult{}
 	}
-	
+
 	c.JSON(http.StatusOK, snapshots)
 }
 
@@ -273,7 +273,7 @@ func (h *ProgressHandler) RecomputeProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Validate request
 	if err := h.validator.Struct(req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -281,7 +281,7 @@ func (h *ProgressHandler) RecomputeProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Get user context
 	userContext := middleware.GetUserContext(c)
 	if userContext == nil {
@@ -290,7 +290,7 @@ func (h *ProgressHandler) RecomputeProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Force recalculation (bypass cache)
 	result, err := h.progressService.CalculateProgress(req.EntityType, req.EntityID, false)
 	if err != nil {
@@ -300,17 +300,17 @@ func (h *ProgressHandler) RecomputeProgress(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	// Save snapshot if requested
 	if req.PersistSnapshot {
 		_ = h.progressService.SaveSnapshot(result)
 	}
-	
+
 	// Invalidate cache for recursive updates
 	if req.Recursive {
 		h.invalidateProgressCache(req.EntityType, req.EntityID)
 	}
-	
+
 	c.JSON(http.StatusOK, result)
 }
 
@@ -346,10 +346,10 @@ func (h *ProgressHandler) GetProgressConfig(c *gin.Context) {
 		       enable_caching, cache_ttl_seconds
 		FROM progress_config
 		WHERE config_name = 'default'`
-	
+
 	var config services.ProgressConfig
 	var statusMapJSON []byte
-	
+
 	row := h.db.QueryRow(query)
 	err := row.Scan(
 		&config.ID,
@@ -362,7 +362,7 @@ func (h *ProgressHandler) GetProgressConfig(c *gin.Context) {
 		&config.EnableCaching,
 		&config.CacheTTLSeconds,
 	)
-	
+
 	if err != nil {
 		h.logger.Printf("Failed to get progress config: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -370,6 +370,6 @@ func (h *ProgressHandler) GetProgressConfig(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	c.JSON(http.StatusOK, config)
 }

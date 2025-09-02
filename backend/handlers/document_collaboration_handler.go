@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"github.com/gin-gonic/gin"
 )
 
 // DocumentCollaborationHandler 文档协作处理器
@@ -462,8 +462,8 @@ func (h *DocumentCollaborationHandler) GetActiveCollaborators(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"active_collaborators": activeUsers,
-		"count":               len(activeUsers),
-		"timestamp":           time.Now(),
+		"count":                len(activeUsers),
+		"timestamp":            time.Now(),
 	})
 }
 
