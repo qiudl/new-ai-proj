@@ -12,15 +12,16 @@ type AllHandlers struct {
 	AnalyticsHandler *handlers.AnalyticsHandler
 
 	// 基础业务处理器
-	CustomerHandler   *handlers.CustomerHandler
-	CompanyHandler    *handlers.CompanyHandler
-	ProjectHandler    *handlers.ProjectHandler
-	PermissionHandler *handlers.PermissionHandler
+	CustomerHandler            *handlers.CustomerHandler
+	CompanyHandler             *handlers.CompanyHandler
+	ProjectHandler             *handlers.ProjectHandler
+	PermissionHandler          *handlers.PermissionHandler
+	UnifiedPermissionHandler   *handlers.UnifiedPermissionHandler
 	// PermissionSystemHandler   *handlers.PermissionSystemHandler // 暂时注释掉，handler缺失
-	RoleManagementHandler *handlers.RoleManagementHandler
-	UserManagementHandler *handlers.UserManagementHandler
-	CompanyUserHandler    *handlers.CompanyUserHandler
-	UserStatsHandler      *handlers.UserStatsHandler
+	RoleManagementHandler      *handlers.RoleManagementHandler
+	UserManagementHandler      *handlers.UserManagementHandler
+	CompanyUserHandler         *handlers.CompanyUserHandler
+	UserStatsHandler           *handlers.UserStatsHandler
 
 	// 文档管理处理器
 	DocumentHandler       *handlers.DocumentHandler

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -248,6 +249,8 @@ func (s *WorkNoteService) DeleteWorkNote(ctx context.Context, noteID, userID int
 // =====================
 
 func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkNoteFilter, userID int) (*models.WorkNoteListResponse, error) {
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: userID=%d, filter=%+v", userID, filter)
+	
 	where := []string{"d.deleted_at IS NULL", "d.owner_id = $1", "(d.metadata->>'work_note_type') IS NOT NULL"}
 	args := []interface{}{userID}
 	arg := 2
@@ -302,10 +305,14 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 
 	// 计数
 	countSQL := fmt.Sprintf("SELECT COUNT(*) FROM documents d WHERE %s", whereClause)
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: countSQL=%s, args=%+v", countSQL, args)
+	
 	var total int
 	if err := s.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
+		log.Printf("[ERROR] WorkNoteService.ListWorkNotes: count query failed: %v", err)
 		return nil, fmt.Errorf("failed to count work notes: %w", err)
 	}
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: found %d total work notes", total)
 
 	// 排序
 	orderBy := "d.updated_at DESC"
@@ -341,14 +348,22 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 		LIMIT $%d OFFSET $%d`, whereClause, orderBy, arg, arg+1)
 
 	args = append(args, limit, offset)
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: selectSQL=%s", selectSQL)
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: final args=%+v, limit=%d, offset=%d", args, limit, offset)
+	
 	rows, err := s.db.QueryContext(ctx, selectSQL, args...)
 	if err != nil {
+		log.Printf("[ERROR] WorkNoteService.ListWorkNotes: select query failed: %v", err)
 		return nil, fmt.Errorf("failed to list work notes: %w", err)
 	}
 	defer rows.Close()
 
 	notes := []models.WorkNote{}
+	rowCount := 0
 	for rows.Next() {
+		rowCount++
+		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: scanning row %d", rowCount)
+		
 		var doc models.Document
 		var tags pq.StringArray
 		var ownerName sql.NullString
@@ -360,21 +375,33 @@ func (s *WorkNoteService) ListWorkNotes(ctx context.Context, filter models.WorkN
 			&doc.Archived, &doc.ArchivedAt, &doc.ArchivedBy, &doc.UnarchivedAt, &doc.UnarchivedBy,
 			&ownerName,
 		); err != nil {
+			log.Printf("[ERROR] WorkNoteService.ListWorkNotes: failed to scan row %d: %v", rowCount, err)
 			return nil, fmt.Errorf("failed to scan work note: %w", err)
 		}
+		
 		doc.Tags = []string(tags)
 		if ownerName.Valid {
 			doc.OwnerName = &ownerName.String
 		}
-		if !models.IsWorkNote(doc) {
+		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: scanned document ID=%d, title=%s, metadata=%+v", doc.ID, doc.Title, doc.Metadata)
+		
+		isWorkNote := models.IsWorkNote(doc)
+		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: IsWorkNote(doc ID=%d) = %v", doc.ID, isWorkNote)
+		if !isWorkNote {
+			log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: skipping doc ID=%d (not a work note)", doc.ID)
 			continue
 		}
+		
 		var wn models.WorkNote
 		if err := wn.FromDocument(doc); err != nil {
+			log.Printf("[ERROR] WorkNoteService.ListWorkNotes: FromDocument failed for doc ID=%d: %v", doc.ID, err)
 			continue
 		}
+		log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: successfully converted doc ID=%d to WorkNote", doc.ID)
 		notes = append(notes, wn)
 	}
+	
+	log.Printf("[DEBUG] WorkNoteService.ListWorkNotes: processed %d rows, returning %d work notes (total=%d)", rowCount, len(notes), total)
 
 	return &models.WorkNoteListResponse{
 		Notes: notes,

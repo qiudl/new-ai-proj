@@ -37,6 +37,7 @@ type ApplicationInterface interface {
 	// 权限相关处理器
 	GetPermissionHandler() *handlers.PermissionHandler
 	GetEnhancedPermissionHandler() *handlers.EnhancedPermissionHandler
+	GetUnifiedPermissionHandler() *handlers.UnifiedPermissionHandler
 
 	// 项目相关处理器
 	GetProjectsHandler() gin.HandlerFunc

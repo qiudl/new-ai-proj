@@ -7,7 +7,9 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -224,10 +226,24 @@ func (h *WorkNoteHandler) ListWorkNotes(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	log.Printf("[DEBUG] WorkNoteHandler.ListWorkNotes: service returned %d work notes (total=%d)", len(response.Notes), response.Total)
+	for i, note := range response.Notes {
+		log.Printf("[DEBUG] WorkNoteHandler.ListWorkNotes: note[%d] ID=%d, title=%s", i, note.ID, note.Title)
+	}
+
+	// 调试JSON序列化结果
+	finalResponse := gin.H{
 		"success": true,
 		"data":    response,
-	})
+	}
+	jsonBytes, err := json.Marshal(finalResponse)
+	if err != nil {
+		log.Printf("[ERROR] WorkNoteHandler.ListWorkNotes: JSON marshal failed: %v", err)
+	} else {
+		log.Printf("[DEBUG] WorkNoteHandler.ListWorkNotes: JSON response: %s", string(jsonBytes))
+	}
+
+	c.JSON(http.StatusOK, finalResponse)
 }
 
 // SearchWorkNotes 搜索工作笔记

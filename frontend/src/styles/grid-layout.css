@@ -185,7 +185,7 @@
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 14px;
-  z-index: 2000;
+  z-index: 999;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.3s ease;

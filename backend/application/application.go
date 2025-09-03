@@ -457,6 +457,14 @@ func (app *Application) GetEnhancedPermissionHandler() *handlers.EnhancedPermiss
 	return nil
 }
 
+// GetUnifiedPermissionHandler returns the unified permission handler
+func (app *Application) GetUnifiedPermissionHandler() *handlers.UnifiedPermissionHandler {
+	if app.handlers != nil && app.handlers.UnifiedPermissionHandler != nil {
+		return app.handlers.UnifiedPermissionHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetRoleManagementHandler returns the role management handler
 func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandler {
 	if app.handlers != nil && app.handlers.RoleManagementHandler != nil {

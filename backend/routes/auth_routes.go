@@ -23,21 +23,30 @@ func RegisterAuthRoutes(api *gin.RouterGroup, app ApplicationInterface) *gin.Rou
 		auth.POST("/dev/quick-login", authHandler.DevQuickLogin) // 兼容两种路径
 		auth.GET("/dev/accounts", authHandler.GetDevAccounts)
 
-		// 兼容性权限检查路由 - 需要认证但在auth组下
+		// 统一权限检查路由 - 需要认证但在auth组下
 		authProtected := auth.Group("")
 		authProtected.Use(middleware.AuthMiddleware(app.GetJWTManager()))
-		authProtected.POST("/check-permission", func(c *gin.Context) {
-			fmt.Printf("🔧 [COMPAT] Handling auth/check-permission request\n")
-
-			// 直接返回admin用户有权限的响应，避免调用复杂的权限处理器
-			c.JSON(200, gin.H{
-				"result": gin.H{
-					"has_permission": true,
-					"reason":         "Admin override (compatibility route)",
-					"source":         "auth_compat",
-				},
+		
+		// 获取统一权限处理器
+		unifiedPermissionHandler := app.GetUnifiedPermissionHandler()
+		if unifiedPermissionHandler != nil {
+			authProtected.POST("/check-permission", unifiedPermissionHandler.CheckPermission)
+			authProtected.POST("/check-batch-permissions", unifiedPermissionHandler.CheckBatchPermissions)
+			authProtected.GET("/user-permissions", unifiedPermissionHandler.GetUserPermissions)
+		} else {
+			// 回退到兼容性处理器
+			fmt.Printf("⚠️  [WARNING] No unified permission handler available, using compatibility route\n")
+			authProtected.POST("/check-permission", func(c *gin.Context) {
+				fmt.Printf("🔧 [COMPAT] Handling auth/check-permission request with fallback\n")
+				c.JSON(200, gin.H{
+					"data": gin.H{
+						"has_permission": true,
+						"reason":         "Fallback compatibility handler",
+						"source":         "auth_fallback",
+					},
+				})
 			})
-		})
+		}
 	}
 
 	// 创建需要认证的路由组 - 使用JWT认证中间件

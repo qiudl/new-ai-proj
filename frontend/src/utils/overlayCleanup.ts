@@ -35,3 +35,35 @@ export function cleanupGlobalOverlays(): void {
     console.warn('[overlayCleanup] cleanup skipped due to error:', e);
   }
 }
+
+// Utility to cleanup leftover modal elements (ant-modal-wrap, ant-modal-mask)
+// This fixes issues where modal wrappers persist after Modal.confirm() and block page interaction
+export function cleanupModalOverlays(): void {
+  if (typeof document === 'undefined') return;
+
+  try {
+    // Remove any leftover modal masks and wrappers
+    const masks = document.querySelectorAll('.ant-modal-mask, .ant-modal-wrap');
+    masks.forEach(mask => {
+      if (mask && mask.parentNode) {
+        mask.parentNode.removeChild(mask);
+      }
+    });
+
+    // Reset body styles that might be affected by modals
+    if (document.body) {
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+    }
+  } catch (e) {
+    // Swallow errors to avoid interfering with app flow
+    // eslint-disable-next-line no-console
+    console.warn('[overlayCleanup] modal cleanup skipped due to error:', e);
+  }
+}
+
+// Combined cleanup function for all overlay types
+export function cleanupAllOverlays(): void {
+  cleanupGlobalOverlays();
+  cleanupModalOverlays();
+}

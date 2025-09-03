@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Row, Col, Tag, message, Modal, Spin, Table, Space, Typography, Radio, Progress, Tooltip } from 'antd';
+import { cleanupModalOverlays } from '../utils/overlayCleanup';
 import type { ColumnsType } from 'antd/es/table';
 import { 
   PlusOutlined, 
@@ -150,7 +151,14 @@ const ProjectsPage: React.FC = () => {
         } catch (error) {
           message.error('删除项目失败');
           console.error('Error deleting project:', error);
+        } finally {
+          // Ensure modal cleanup after operation
+          setTimeout(cleanupModalOverlays, 100);
         }
+      },
+      onCancel: () => {
+        // Ensure cleanup on cancel as well
+        setTimeout(cleanupModalOverlays, 100);
       },
     });
   };

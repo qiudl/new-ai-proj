@@ -181,6 +181,20 @@ input, textarea, select {
   background-color: #fafafa !important;
 }
 
+/* Fix for modal wrapper z-index issues - ensure proper cleanup */
+.ant-modal-wrap {
+  z-index: 1000 !important;
+}
+
+.ant-modal-mask {
+  z-index: 1000 !important;
+}
+
+/* Ensure higher z-index elements don't interfere with modals */
+.drag-mode-indicator {
+  z-index: 999 !important;
+}
+
 /* Tag enhancements */
 .ant-tag {
   border-radius: 4px !important;
