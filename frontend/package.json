@@ -63,9 +63,9 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "craco start",
-    "build": "craco build",
-    "test": "craco test",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
     "start:legacy": "react-scripts start",
     "build:legacy": "react-scripts build",
     "eject": "react-scripts eject",
@@ -113,6 +113,7 @@
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-webpack-plugin": "^5.0.2",
+    "http-proxy": "^1.18.1",
     "identity-obj-proxy": "^3.0.0",
     "jest-transform-stub": "^2.0.0",
     "prettier": "^2.8.8",

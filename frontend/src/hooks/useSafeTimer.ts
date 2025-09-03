@@ -40,7 +40,7 @@ export const useSafeTimer = () => {
       },
       isTaskTiming: () => false,
       getDebugInfo: () => ({ error: 'TimerProvider not available' }),
-      onTimerUpdate: undefined
+      onTimerUpdate: () => { console.warn('Timer not available'); }
     };
   }
   

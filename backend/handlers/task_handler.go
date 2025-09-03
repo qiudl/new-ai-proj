@@ -596,6 +596,7 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		Priority      *string                `json:"priority"`
 		AssigneeID    *int                   `json:"assignee_id"`
 		ParentID      *int                   `json:"parent_id"`
+		ProjectID     *int                   `json:"project_id"`
 		DueDate       *string                `json:"due_date"`
 		CustomFields  map[string]interface{} `json:"custom_fields"`
 		EstimatedTime *int                   `json:"estimated_time"`
@@ -648,6 +649,9 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 	}
 	if req.ParentID != nil {
 		task.ParentID = req.ParentID
+	}
+	if req.ProjectID != nil {
+		task.ProjectID = *req.ProjectID
 	}
 
 	// Parse due date

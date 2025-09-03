@@ -62,7 +62,7 @@ module.exports = {
   },
   devServer: {
     host: process.env.HOST || '0.0.0.0',
-    port: process.env.PORT || 3002,
+    port: process.env.PORT || 3001,
     allowedHosts: 'all',
     headers: {
       'Access-Control-Allow-Origin': '*',
