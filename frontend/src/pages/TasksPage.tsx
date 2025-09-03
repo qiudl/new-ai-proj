@@ -104,10 +104,17 @@ const TasksPage: React.FC = () => {
   
   // 项目筛选相关状态
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>();
-  const projectIdNum = parseInt(projectId || '0');
+  const projectIdNum = projectId ? parseInt(projectId) : 0;
   
   // 使用URL中的项目ID（必需）；在全局页选择了项目时也视为有效项目
-  const effectiveProjectId = projectIdNum || selectedProjectId || 0;
+  const effectiveProjectId = projectIdNum > 0 ? projectIdNum : (selectedProjectId || 0);
+  
+  // Debug logging for swimlane view issues
+  useEffect(() => {
+    if (isSwimlaneView) {
+      console.log('Swimlane view - projectId:', projectId, 'projectIdNum:', projectIdNum, 'selectedProjectId:', selectedProjectId, 'effectiveProjectId:', effectiveProjectId);
+    }
+  }, [isSwimlaneView, projectId, projectIdNum, selectedProjectId, effectiveProjectId]);
   
   // 列自定义配置状态 - 使用useMemo创建默认配置
   const defaultColumnConfigs = useMemo((): ColumnConfig[] => [
@@ -373,6 +380,7 @@ const TasksPage: React.FC = () => {
     pageSize = 20,
     sortOverride?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }
   ) => {
+    console.log('loadTasks called with effectiveProjectId:', effectiveProjectId, 'page:', page, 'pageSize:', pageSize);
     setLoading(true);
     try {
       let response: any;
@@ -481,6 +489,10 @@ const TasksPage: React.FC = () => {
       // 直接使用服务端排序结果，不再在前端强制改为按更新时间排序
       const finalTasks = Array.isArray(validTasks) ? validTasks : [];
 
+      console.log('Setting tasks data:', finalTasks.length, 'tasks for project:', effectiveProjectId);
+      if (isSwimlaneView) {
+        console.log('Swimlane view - tasks loaded:', finalTasks.length);
+      }
       setTasks(finalTasks as any);
 
       // 修复分页计算，确保total不会超过实际需要的页数
@@ -2396,6 +2408,33 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             >返回列表视图</Button>
           </Space>
         </Card>
+        
+        {/* 项目选择器 - 泳道视图专用 */}
+        {!projectId && (
+          <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ color: '#666', fontSize: '14px', whiteSpace: 'nowrap' }}>选择项目:</span>
+            <ProjectSelector
+              value={selectedProjectId}
+              onChange={(projectId, project) => {
+                if (projectId) {
+                  console.log('Project selected in swimlane:', projectId, project?.name);
+                  handleProjectChange(projectId, project);
+                  // 不跳转路由，仅更新内容
+                  console.log('Project changed, staying on swimlane view with projectId:', projectId);
+                } else {
+                  console.log('Project cleared in swimlane');
+                  handleProjectChange(0);
+                }
+              }}
+              placeholder="请选择项目"
+              style={{ 
+                width: '280px'
+              }}
+              allowClear={false}
+            />
+          </div>
+        )}
+
         {effectiveProjectId ? (
           <SwimlaneBoard
             projectId={effectiveProjectId}
@@ -2404,11 +2443,16 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             initialGroupBy="status"
             onUpdated={() => {
               // 更新后刷新一次任务数据
+              console.log('SwimlaneBoard updated, reloading tasks...');
               loadTasks(pagination.current, pagination.pageSize);
             }}
           />
+        ) : projectId ? (
+          <Alert type="info" message="正在加载项目数据..." />
         ) : (
-          <Alert type="info" message="泳道视图仅支持在具体项目内使用，请先选择项目。" />
+          <div style={{ textAlign: 'center', padding: '20px 0', color: '#999', fontSize: '14px' }}>
+            请选择项目查看泳道视图
+          </div>
         )}
       </div>
     );

@@ -70,8 +70,8 @@ export const RefreshWithCountdown: React.FC<RefreshWithCountdownProps> = ({
     timerRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          // 倒计时结束，执行刷新
-          onRefresh();
+          // 倒计时结束，异步执行刷新避免在render时更新state
+          setTimeout(() => onRefresh(), 0);
           return effectiveInterval; // 重新开始倒计时
         }
         return prev - 1;
