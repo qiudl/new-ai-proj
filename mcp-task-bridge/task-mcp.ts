@@ -259,29 +259,24 @@ export class TaskMCPServer {
 
   async devQuickLogin(username?: string): Promise<ApiResponse<{ token?: string }>> {
     try {
-      const response = await this.taskService.makeRequest<{ token: string; username: string }>('POST', '/auth/dev/quick-login', {
-        username: username || 'admin'
-      });
-
-      if (response.success && response.data) {
-        // 更新所有服务的认证令牌（兼容多种返回格式）
-        const token = (response.data as any).access_token || (response.data as any).token;
-        if (token) {
-          this.setAuthToken(token);
-          console.error('[AUTH] Dev quick login: token set in services');
-        } else {
-          console.error('[AUTH] Dev quick login: no token found in response');
-        }
+      // 直接使用BaseClient的统一登录方法
+      const result = await this.taskService.devQuickLogin(username || 'admin');
+      
+      if (result.success && (result as any).token) {
+        // 更新所有服务的认证令牌
+        const token = (result as any).token;
+        this.setAuthToken(token);
+        console.error('[AUTH] Dev quick login: token set in all services via unified context');
 
         return {
           success: true,
           data: { token: token },
           token: token,
-          username: (response.data as any).user?.username || (response.data as any).username,
-          message: token ? '开发环境快速登录成功，已更新内存中的 Authorization 令牌' : '开发环境快速登录成功，但未返回访问令牌'
+          username: (result.data as any)?.context?.username || username || 'admin',
+          message: '开发环境快速登录成功，已通过统一上下文更新 Authorization 令牌'
         };
       } else {
-        return response as ApiResponse<{ token?: string }>;
+        return result as ApiResponse<{ token?: string }>;
       }
     } catch (error: any) {
       return {

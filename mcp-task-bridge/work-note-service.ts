@@ -58,8 +58,30 @@ export class WorkNoteService extends BaseClient {
 
       const response = await this.makeRequest('GET', '/mcp/list-work-notes', undefined, params);
 
+      // 调试信息
+      console.error('[DEBUG] listWorkNotes raw response:', JSON.stringify(response, null, 2));
+      console.error('[DEBUG] listWorkNotes response structure:', JSON.stringify({
+        success: response.success,
+        hasData: !!response.data,
+        dataKeys: response.data ? Object.keys(response.data) : 'no data',
+        dataType: typeof response.data,
+        notesExists: response.data?.notes !== undefined,
+        notesType: typeof response.data?.notes,
+        notesLength: response.data?.notes?.length || 0,
+        total: response.data?.total || 0
+      }, null, 2));
+
       if (response.success) {
-        const workNotes = response.data?.work_notes || [];
+        // 后端返回的是 response.data.notes，不是 response.data.work_notes
+        const workNotes = response.data?.notes || [];
+        
+        console.error('[DEBUG] Extracted workNotes:', {
+          length: workNotes.length,
+          total: response.data?.total,
+          firstNote: workNotes.length > 0 ? workNotes[0].title : 'no notes',
+          rawWorkNotes: workNotes.slice(0, 2) // Show first 2 items for debugging
+        });
+        
         return {
           success: true,
           work_notes: workNotes,
@@ -98,7 +120,8 @@ export class WorkNoteService extends BaseClient {
       const response = await this.makeRequest('POST', '/mcp/search-work-notes', params);
 
       if (response.success) {
-        const workNotes = response.data?.work_notes || [];
+        // 搜索功能直接返回数组，不是包装在对象中的notes字段
+        const workNotes = response.data || [];
         return {
           success: true,
           query: query.trim(),
@@ -237,7 +260,8 @@ export class WorkNoteService extends BaseClient {
       const response = await this.makeRequest('GET', '/mcp/work-notes-by-tags', undefined, params);
 
       if (response.success) {
-        const workNotes = response.data?.work_notes || [];
+        // 修复字段名匹配问题，使用统一的notes字段
+        const workNotes = response.data?.notes || [];
         return {
           success: true,
           tags: tags,

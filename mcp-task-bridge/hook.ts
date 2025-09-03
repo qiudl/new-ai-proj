@@ -326,6 +326,119 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     handler: async (args) => await taskServer.moveTask(args.id, args.targetProjectId)
   },
   {
+    name: 'create_work_note',
+    description: '创建工作笔记',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: '工作笔记标题' },
+        content: { type: 'string', description: '工作笔记内容（Markdown格式）' },
+        type: { type: 'string', enum: ['markdown', 'text', 'html'], description: '笔记类型', default: 'markdown' },
+        status: { type: 'string', enum: ['draft', 'published', 'archived'], description: '状态', default: 'draft' },
+        visibility: { type: 'string', enum: ['private', 'team', 'public'], description: '可见性', default: 'private' },
+        tags: { type: 'array', items: { type: 'string' }, description: '标签列表' }
+      },
+      required: ['title', 'content']
+    },
+    handler: async (args) => await taskServer.createWorkNote(args.title, args.content, { 
+      type: args.type, 
+      status: args.status, 
+      visibility: args.visibility, 
+      tags: args.tags 
+    })
+  },
+  {
+    name: 'list_work_notes',
+    description: '列出工作笔记',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page: { type: 'number', description: '页码（从1开始）', default: 1 },
+        limit: { type: 'number', description: '每页数量', default: 10 },
+        status: { type: 'string', enum: ['draft', 'published', 'archived'], description: '按状态筛选' },
+        type: { type: 'string', enum: ['markdown', 'text', 'html'], description: '按类型筛选' }
+      }
+    },
+    handler: async (args) => {
+      console.error('[DEBUG] hook.ts list_work_notes args:', JSON.stringify(args, null, 2));
+      const result = await taskServer.listWorkNotes({
+        page: args.page,
+        limit: args.limit,
+        status: args.status,
+        type: args.type
+      });
+      console.error('[DEBUG] hook.ts list_work_notes result:', JSON.stringify(result, null, 2));
+      return result;
+    }
+  },
+  {
+    name: 'search_work_notes',
+    description: '搜索工作笔记',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '搜索关键词' },
+        tags: { type: 'array', items: { type: 'string' }, description: '标签过滤' },
+        limit: { type: 'number', description: '返回结果数量限制', default: 10 }
+      },
+      required: ['query']
+    },
+    handler: async (args) => await taskServer.searchWorkNotes(args.query, {
+      tags: args.tags,
+      limit: args.limit
+    })
+  },
+  {
+    name: 'get_work_note',
+    description: '获取工作笔记详情',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: '工作笔记ID' }
+      },
+      required: ['id']
+    },
+    handler: async (args) => await taskServer.getWorkNote(args.id)
+  },
+  {
+    name: 'update_work_note',
+    description: '更新工作笔记',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: '工作笔记ID' },
+        updates: {
+          type: 'object',
+          description: '更新字段对象',
+          properties: {
+            title: { type: 'string', description: '新标题' },
+            content: { type: 'string', description: '新内容' },
+            status: { type: 'string', enum: ['draft', 'published', 'archived'], description: '新状态' },
+            type: { type: 'string', enum: ['markdown', 'text', 'html'], description: '新类型' },
+            visibility: { type: 'string', enum: ['private', 'team', 'public'], description: '新可见性' },
+            tags: { type: 'array', items: { type: 'string' }, description: '新标签列表' }
+          }
+        }
+      },
+      required: ['id', 'updates']
+    },
+    handler: async (args) => await taskServer.updateWorkNote(args.id, args.updates)
+  },
+  {
+    name: 'create-and-attach-work-note',
+    description: '创建工作笔记并关联到指定任务（专用于知识管理内容）',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: { type: 'number', description: '任务ID' },
+        content: { type: 'string', description: '工作笔记内容（Markdown格式）' },
+        title: { type: 'string', description: '工作笔记标题（可选，默认根据任务标题生成）' }
+      },
+      required: ['taskId', 'content']
+    },
+    handler: async (args) => await taskServer.createAndAttachWorkNote(args.taskId, args.content, args.title)
+  },
+  {
     name: 'dev_quick_login',
     description: '开发环境快速登录，自动获取 JWT（仅 APP_ENV=development/dev 有效）',
     inputSchema: {
