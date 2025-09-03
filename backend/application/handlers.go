@@ -519,6 +519,13 @@ func (app *Application) GetTaskByIdHandler() gin.HandlerFunc {
 	return app.taskHandler.GetTask
 }
 
+func (app *Application) GetTaskDetailedInfoHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.GetTaskDetailedInfo
+	}
+	return app.taskHandler.GetTaskDetailedInfo
+}
+
 func (app *Application) UpdateTaskByIdHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.UpdateTask

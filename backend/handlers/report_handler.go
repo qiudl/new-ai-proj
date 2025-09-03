@@ -9,16 +9,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"ai-project-backend/database"
-	"ai-project-backend/models"
 )
 
 // ReportHandler 处理报告相关的请求
 type ReportHandler struct {
-	db database.DatabaseInterface
+	db database.DB
 }
 
 // NewReportHandler 创建新的报告处理器
-func NewReportHandler(db database.DatabaseInterface) *ReportHandler {
+func NewReportHandler(db database.DB) *ReportHandler {
 	return &ReportHandler{
 		db: db,
 	}
@@ -155,7 +154,7 @@ func (h *ReportHandler) getTodayTaskStats(ctx context.Context, userID, projectID
 	var total, completed, inProgress, todo, other int
 	var highPri, mediumPri, lowPri int
 	
-	err := h.db.QueryRowContext(ctx, query, userID, projectID, startTime, endTime).Scan(
+	err := h.db.QueryRow(query, userID, projectID, startTime, endTime).Scan(
 		&total, &completed, &inProgress, &todo, &other,
 		&highPri, &mediumPri, &lowPri,
 	)
@@ -200,7 +199,7 @@ func (h *ReportHandler) getTodayTimeStats(ctx context.Context, userID int, start
 		AND start_time < $3`
 
 	var totalSeconds, sessionCount, avgSession, maxSession, minSession int
-	err := h.db.QueryRowContext(ctx, query, userID, startTime, endTime).Scan(
+	err := h.db.QueryRow(query, userID, startTime, endTime).Scan(
 		&totalSeconds, &sessionCount, &avgSession, &maxSession, &minSession,
 	)
 	if err != nil {
@@ -237,7 +236,7 @@ func (h *ReportHandler) getCompletedTasks(ctx context.Context, userID, projectID
 		GROUP BY t.id, t.title, t.priority, t.updated_at
 		ORDER BY t.updated_at DESC`
 
-	rows, err := h.db.QueryContext(ctx, query, userID, projectID, startTime, endTime)
+	rows, err := h.db.Query(query, userID, projectID, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +286,7 @@ func (h *ReportHandler) getActiveTasks(ctx context.Context, userID, projectID in
 			t.updated_at DESC
 		LIMIT 10`
 
-	rows, err := h.db.QueryContext(ctx, query, userID, projectID)
+	rows, err := h.db.Query(query, userID, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -334,7 +333,7 @@ func (h *ReportHandler) getTimeDistribution(ctx context.Context, userID int, sta
 		ORDER BY total_time_seconds DESC
 		LIMIT 15`
 
-	rows, err := h.db.QueryContext(ctx, query, userID, startTime, endTime)
+	rows, err := h.db.Query(query, userID, startTime, endTime)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +391,6 @@ func (h *ReportHandler) calculateDailyEfficiency(taskStats, timeStats map[string
 	efficiency := make(map[string]interface{})
 	
 	completedTasks := taskStats["completed_tasks"].(int)
-	totalTasks := taskStats["total_tasks"].(int)
 	totalHours := timeStats["total_hours"].(float64)
 	sessionCount := timeStats["session_count"].(int)
 

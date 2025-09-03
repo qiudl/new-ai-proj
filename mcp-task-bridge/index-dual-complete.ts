@@ -9,6 +9,9 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
+import express from 'express';
+import cors from 'cors';
+import http from 'http';
 
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -36,7 +39,7 @@ function detectApiBase(): string {
   return `http://localhost:${inferredPort}/api/v1`;
 }
 const apiBaseUrl = detectApiBase();
-console.error('[MCP] 初始化 TaskMCPServer（连接后端模式）');
+console.error('[MCP] 初始化 TaskMCPServer（双协议模式）');
 console.error('[MCP] API基础URL:', apiBaseUrl);
 const taskServer = new TaskMCPServer(apiBaseUrl);
 
@@ -1365,6 +1368,113 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
+// HTTP服务器支持
+function createHttpServer() {
+  const app = express();
+  
+  // 中间件
+  app.use(cors());
+  app.use(express.json());
+
+  // 健康检查端点
+  app.get('/health', (req, res) => {
+    res.json({ 
+      status: 'ok', 
+      mode: 'dual-protocol',
+      protocols: ['stdio', 'http'],
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  // 直接API代理端点（简化访问）
+  app.post('/api/find_task', async (req, res) => {
+    try {
+      const result = await taskServer.findTask(req.body);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  app.get('/api/list_tasks', async (req, res) => {
+    try {
+      const result = await taskServer.listTasks(req.query as any);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false, 
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  app.post('/api/create_task', async (req, res) => {
+    try {
+      const { title, projectId = 1 } = req.body;
+      const result = await taskServer.createTask(title, projectId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  app.post('/api/start_task', async (req, res) => {
+    try {
+      const { id } = req.body;
+      const result = await taskServer.startTask(id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  app.post('/api/complete_task', async (req, res) => {
+    try {
+      const { id } = req.body;
+      const result = await taskServer.completeTask(id);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  app.post('/api/dev_quick_login', async (req, res) => {
+    try {
+      const { username } = req.body;
+      const result = await taskServer.devQuickLogin(username);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        error: error?.message || String(error)
+      });
+    }
+  });
+
+  const httpPort = process.env.HTTP_PORT || process.env.PORT || 3100;
+  const httpServer = http.createServer(app);
+  
+  httpServer.listen(httpPort, () => {
+    console.error(`[MCP] HTTP服务器启动在端口 ${httpPort}`);
+    console.error(`[MCP] 健康检查: http://localhost:${httpPort}/health`);
+    console.error(`[MCP] API端点: http://localhost:${httpPort}/api/*`);
+  });
+
+  return httpServer;
+}
+
 // 启动服务器
 async function main() {
   const transport = new StdioServerTransport();
@@ -1417,7 +1527,6 @@ async function main() {
         console.error('[MCP] stdin closed, shutting down...');
         resolve();
       });
-      
       
       // Optional heartbeat - reduced frequency
       const heartbeat = setInterval(() => {

@@ -33,68 +33,15 @@ export class TaskService extends BaseClient {
   // 通过ID查找任务
   async findTaskById(id: number): Promise<Task> {
     try {
-      // 1) 优先使用全局任务列表端点带精确过滤，避免分页导致的遗漏
-      //    支持查询参数 task_id，且可显式限制 page_size=1 以提升效率
-      try {
-        const response = await this.makeRequest<{ data: Task[] }>('GET', '/tasks', undefined, {
-          task_id: id,
-          page: 1,
-          page_size: 1
-        });
-        
-        if (response.success && response.data?.data && Array.isArray(response.data.data)) {
-          const list: Task[] = response.data.data;
-          if (list.length > 0) {
-            return list[0];
-          }
-        }
-      } catch (e: any) {
-        // 记录但不直接失败，进入回退逻辑
-        console.error(`[WARNING] 通过 /tasks?task_id= 查询任务失败，尝试回退查找: ${e?.message || e}`);
+      // 直接使用单个任务API端点
+      const response = await this.makeRequest('GET', `/tasks/${id}`);
+      
+      if (response.success && response.data) {
+        return response.data as Task;
       }
-
-      // 2) 回退方案：遍历项目，但带 task_id 过滤并使用较大 page_size，避免遗漏
-      //    先尝试项目 1（常见默认项目），再遍历其它项目
-      const tryFetchFromProject = async (projectId: number): Promise<Task | null> => {
-        try {
-          const response = await this.makeRequest<{ data: Task[] }>('GET', `/projects/${projectId}/tasks`, undefined, {
-            task_id: id,
-            page: 1,
-            page_size: 1000
-          });
-          
-          if (response.success && response.data?.data && Array.isArray(response.data.data)) {
-            const arr: Task[] = response.data.data;
-            if (arr.length > 0) {
-              return arr[0];
-            }
-          }
-          return null;
-        } catch (err: any) {
-          console.error(`[WARNING] 获取项目 ${projectId} 的任务失败: ${err?.message || err}`);
-          return null;
-        }
-      };
-
-      const fromProject1 = await tryFetchFromProject(1);
-      if (fromProject1) return fromProject1;
-
-      // 获取项目列表并遍历（排除项目1）
-      try {
-        const projectsResponse = await this.makeRequest<{ data: any[] }>('GET', '/projects');
-        if (projectsResponse.success && projectsResponse.data?.data) {
-          const projects = projectsResponse.data.data;
-          for (const project of projects) {
-            if (!project || typeof project.id !== 'number' || project.id === 1) continue;
-            const found = await tryFetchFromProject(project.id);
-            if (found) return found;
-          }
-        }
-      } catch (pe: any) {
-        console.error(`[WARNING] 获取项目列表失败: ${pe?.message || pe}`);
-      }
-
-      throw new Error(`任务 ID ${id} 不存在`);
+      
+      // 包含响应详情的错误信息
+      throw new Error(`任务 ID ${id} 不存在，响应: ${JSON.stringify({success: response.success, hasData: !!response.data, error: response.error})}`);
     } catch (error: any) {
       throw new Error(`查找任务失败: ${error?.message || String(error)}`);
     }
@@ -514,7 +461,7 @@ export class TaskService extends BaseClient {
         'GET',
         '/tasks',
         undefined,
-        { title_pattern: titlePattern.trim(), page: 1, page_size: 100 }
+        { search: titlePattern.trim(), page: 1, page_size: 100 }
       );
 
       if (response.success && response.data) {
@@ -542,20 +489,32 @@ export class TaskService extends BaseClient {
 
   // 通用查找任务方法
   async findTask(params: { id?: number; titlePattern?: string }): Promise<ApiResponse<{ tasks: Task[] }>> {
+    console.error(`[DEBUG] findTask called with params:`, JSON.stringify(params));
     if (!params.id && !params.titlePattern) {
       return { success: false, error: '必须提供任务ID或标题搜索关键词' };
     }
 
     try {
       if (params.id) {
+        console.error(`[DEBUG] 按ID查找任务: ${params.id}`);
         // 按ID精确查找
-        const task = await this.findTaskById(params.id);
-        return {
-          success: true,
-          data: { tasks: [task] },
-          total: 1,
-          message: `🔍 通过ID找到 1 个任务`
-        };
+        try {
+          const task = await this.findTaskById(params.id);
+          console.error(`[DEBUG] findTaskById成功，任务标题: ${task.title}`);
+          return {
+            success: true,
+            data: { tasks: [task] },
+            total: 1,
+            message: `🔍 通过ID找到 1 个任务`
+          };
+        } catch (error: any) {
+          console.error(`[DEBUG] findTaskById失败:`, error.message || error);
+          // 直接返回 findTaskById 的错误信息，不再包装
+          return {
+            success: false,
+            error: error.message || error
+          };
+        }
       } else if (params.titlePattern) {
         // 按标题模糊查找
         return await this.findTaskByName(params.titlePattern);

@@ -307,7 +307,11 @@ func (h *TaskHierarchyHandler) SearchParentTasks(c *gin.Context) {
 
 // GetTaskChildren 获取任务的子任务列表
 func (h *TaskHierarchyHandler) GetTaskChildren(c *gin.Context) {
+	// Support both "id" (from /tasks/:id) and "taskId" (from /projects/:id/tasks/:taskId) parameter names
 	taskIDStr := c.Param("taskId")
+	if taskIDStr == "" {
+		taskIDStr = c.Param("id")
+	}
 	taskID, err := strconv.Atoi(taskIDStr)
 	if err != nil {
 		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid task ID", nil)

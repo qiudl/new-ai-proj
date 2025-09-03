@@ -11,21 +11,21 @@ WORKDIR /app
 # Copy package manifests first for dependency caching
 COPY package*.json ./
 
-# Install dependencies with cache optimization
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund && \
-    npm cache clean --force
-
-# Copy source (for initial image; in compose we will mount volume)
+# Copy source first
 COPY . .
+
+# Install typescript globally and local dependencies
+RUN npm install -g typescript tsx && \
+    npm install --include=dev && \
+    npm run build
 
 # Ensure permissions
 RUN chown -R nodeuser:nodegroup /app
 
 USER nodeuser
 
-ENV NODE_ENV=development
+ENV NODE_ENV=production
 
-# Default command: tsx watch (package.json)
-CMD ["npm", "run", "dev"]
+# Use compiled JS instead of tsx
+CMD ["npm", "run", "start"]
 

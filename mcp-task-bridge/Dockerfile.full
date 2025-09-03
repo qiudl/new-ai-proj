@@ -1,0 +1,14 @@
+FROM node:20
+
+WORKDIR /app
+
+# Copy everything including built files and node_modules from local
+COPY . .
+
+# 设置Docker环境变量
+ENV DOCKER=true
+ENV FORCE_HTTP=true
+ENV ENABLE_HTTP=true
+
+# Use the compiled hook.js for dual protocol support  
+CMD ["node", "dist/hook.js"]

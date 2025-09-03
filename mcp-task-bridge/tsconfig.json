@@ -18,6 +18,8 @@
   },
   "include": [
     "index.ts",
+    "hook.ts",
+    "http-adapter.ts", 
     "task-mcp.ts",
     "permission-manager.ts",
     "task-service.ts"

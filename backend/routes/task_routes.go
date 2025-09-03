@@ -18,6 +18,12 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		// 获取特定任务
 		tasks.GET("/:id", app.GetTaskByIdHandler())
 
+		// 获取任务详细信息（包含层级结构）
+		tasks.GET("/:id/details", app.GetTaskDetailedInfoHandler())
+
+		// 获取任务子任务
+		tasks.GET("/:id/children", app.GetTaskChildrenHandler())
+
 		// 更新任务
 		tasks.PUT("/:id", app.UpdateTaskByIdHandler())
 

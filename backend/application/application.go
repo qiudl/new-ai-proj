@@ -46,6 +46,7 @@ type Application struct {
 	projectHandler        *handlers.ProjectHandler        // Project handler instance
 	taskHandler           *handlers.TaskHandler           // Task handler instance
 	taskHierarchyHandler  *handlers.TaskHierarchyHandler  // Task hierarchy handler instance
+	reportHandler         *handlers.ReportHandler         // Report handler instance
 	mirrorWritable        bool
 }
 
@@ -115,6 +116,9 @@ func NewApplication() (*Application, error) {
 	// Initialize Document Handler
 	documentHandler := handlers.NewDocumentHandler(db)
 
+	// Initialize Report Handler
+	reportHandler := handlers.NewReportHandler(db)
+
 	// Initialize Router Document Handler with DocumentRouter
 	services.InitDocumentRouterFactory(db)
 	documentRouterFactory := services.GetDocumentRouterFactory()
@@ -175,6 +179,7 @@ func NewApplication() (*Application, error) {
 		projectHandler:        projectHandler,
 		taskHandler:           taskHandler,
 		taskHierarchyHandler:  taskHierarchyHandler,
+		reportHandler:         reportHandler,
 	}
 
 	// Perform startup permission/volume checks
@@ -309,6 +314,11 @@ func (app *Application) GetWorkNoteHandler() *handlers.WorkNoteHandler {
 	workNoteService := services.NewWorkNoteServiceAdapter(app.db)
 
 	return handlers.NewWorkNoteHandler(workNoteService, app.jwtManager, app.db)
+}
+
+// GetReportHandler returns the report handler
+func (app *Application) GetReportHandler() *handlers.ReportHandler {
+	return app.reportHandler
 }
 
 // GetHybridDocumentFolderHandler returns the document folder handler

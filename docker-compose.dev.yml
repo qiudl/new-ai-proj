@@ -145,7 +145,7 @@ services:
   mcp-server:
     build:
       context: ./mcp-task-bridge
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.full
     container_name: ai_mcp_server
     dns:
       - 8.8.8.8
@@ -158,13 +158,19 @@ services:
       # Docker内部网络配置覆盖
       API_BASE_URL: http://backend:8080/api/v1
       TASK_API_BASE: http://backend:8080/api/v1
+      NODE_ENV: development
+      HTTP_PORT: 3100
+      PORT: 3100
+      # 清除代理设置以避免网络问题
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      http_proxy: ""
+      https_proxy: ""
+      ALL_PROXY: ""
+      all_proxy: ""
     ports:
        - "3100:3100"
-    volumes:
-      # 代码挂载（支持热重载）- 排除node_modules以避免平台兼容性问题  
-      - ./mcp-task-bridge:/app:cached
-      - /app/node_modules  # 排除node_modules，使用容器内安装的版本
-    command: ["sh", "-c", "npm ci && node dist/index.js"]
+    # 去除所有volume挂载，使用镜像内的代码
     restart: unless-stopped
     networks:
       - ai_dev_network

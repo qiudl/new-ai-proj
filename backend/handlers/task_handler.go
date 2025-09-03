@@ -363,7 +363,12 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 	createdTask, err := h.db.Tasks().Create(c.Request.Context(), task)
 	if err != nil {
 		log.Printf("Error creating task: %v", err)
-		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建任务失败", nil))
+		// Check if it's a duplicate title error
+		if strings.Contains(err.Error(), "任务标题重复") {
+			c.JSON(http.StatusConflict, models.NewErrorResponse("DUPLICATE_TITLE", err.Error(), nil))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "创建任务失败", nil))
+		}
 		return
 	}
 
@@ -505,8 +510,14 @@ func (h *TaskHandler) BulkImportTasks(c *gin.Context) {
 
 // GetTask handles GET /api/v1/projects/:projectId/tasks/:taskId
 func (h *TaskHandler) GetTask(c *gin.Context) {
-	taskID, err := strconv.Atoi(c.Param("taskId"))
-	if err != nil {
+	// Support both "id" (from /tasks/:id) and "taskId" (from /projects/:id/tasks/:taskId) parameter names
+	taskIDStr := c.Param("taskId")
+	if taskIDStr == "" {
+		taskIDStr = c.Param("id")
+	}
+	
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil || taskIDStr == "" {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
 		return
 	}
@@ -525,6 +536,49 @@ func (h *TaskHandler) GetTask(c *gin.Context) {
 	response := task.ToResponse()
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "获取任务成功"))
+}
+
+// GetTaskDetailedInfo handles GET /api/v1/tasks/:id/details
+func (h *TaskHandler) GetTaskDetailedInfo(c *gin.Context) {
+	// Support both "id" (from /tasks/:id/details) and "taskId" parameter names
+	taskIDStr := c.Param("taskId")
+	if taskIDStr == "" {
+		taskIDStr = c.Param("id")
+	}
+	
+	taskID, err := strconv.Atoi(taskIDStr)
+	if err != nil || taskIDStr == "" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
+		return
+	}
+
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeInternal, "任务不存在", nil))
+		} else {
+			log.Printf("Error getting task details: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务详情失败", nil))
+		}
+		return
+	}
+
+	// Build detailed response with hierarchical information
+	response := task.ToResponse()
+	
+	// TODO: Add parent task info, sibling tasks, and child tasks
+	// For now, return the basic task information
+	detailedInfo := map[string]interface{}{
+		"task":        response,
+		"parent":      nil,
+		"siblings":    []interface{}{},
+		"children":    []interface{}{},
+		"path":        nil,
+		"level":       task.TaskLevel,
+		"depth":       task.Depth,
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(detailedInfo, "获取任务详情成功"))
 }
 
 // UpdateTask handles PUT /api/v1/projects/:projectId/tasks/:taskId
