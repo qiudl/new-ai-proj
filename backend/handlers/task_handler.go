@@ -133,8 +133,26 @@ func (h *TaskHandler) GetTasks(c *gin.Context) {
 
 // GetAllTasks handles GET /api/v1/tasks
 func (h *TaskHandler) GetAllTasks(c *gin.Context) {
-	userID := c.GetInt("user_id") // For future implementation
-	_ = userID
+	userID := c.GetInt("user_id")
+	userRole, _ := c.Get("user_role")
+	
+	// 获取当前用户的企业ID（用于企业数据隔离）
+	var companyIDPtr *int
+	if userRole != nil {
+		roleStr := userRole.(string)
+		if roleStr == "company_admin" || roleStr == "company_user" {
+			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
+			if err != nil {
+				log.Printf("Error getting user company ID: %v", err)
+				c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户企业信息失败", nil))
+				return
+			}
+			if companyID > 0 {
+				companyIDInt := int(companyID)
+				companyIDPtr = &companyIDInt
+			}
+		}
+	}
 
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -201,6 +219,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 		Assignee:  assigneePtr,
 		ProjectID: projectPtr,
 		TaskID:    taskIDPtr,
+		CompanyID: companyIDPtr, // 企业数据隔离
 		OnlyRoots: onlyRoots,
 		SortBy:    sortBy,
 		SortOrder: sortOrder,
@@ -1631,4 +1650,32 @@ func (h *TaskHandler) ReorderTaskById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask, "任务重排序成功"))
+}
+
+// getUserCompanyID 获取用户关联的企业ID
+func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
+	if role == "company_admin" {
+		// 企业管理员：从 users 表直接获取 company_id
+		user, err := h.db.Users().GetByID(context.Background(), int(userID))
+		if err != nil {
+			return 0, err
+		}
+		if user.CompanyID != nil {
+			return uint(*user.CompanyID), nil
+		}
+	}
+	
+	if role == "company_user" {
+		// 企业普通用户：从 company_users 表获取 customer_id
+		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
+		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
+		var customerID int
+		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
+		if err != nil {
+			return 0, err
+		}
+		return uint(customerID), nil
+	}
+	
+	return 0, nil
 }

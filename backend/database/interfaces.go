@@ -51,7 +51,7 @@ type ProjectRepository interface {
 	GetByUserID(ctx context.Context, userID int, limit, offset int) ([]*models.Project, int, error)
 	GetPaginated(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.Project, int, error)
 	// New: same as GetPaginated but includes company name via LEFT JOIN
-	GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.ProjectWithCompany, int, error)
+	GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string, companyID *int) ([]*models.ProjectWithCompany, int, error)
 	Update(ctx context.Context, project *models.Project) (*models.Project, error)
 	Delete(ctx context.Context, id int) error
 	List(ctx context.Context, limit, offset int) ([]*models.Project, int, error)

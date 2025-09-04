@@ -221,15 +221,20 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 }
 
 // GetPaginatedWithCompany gets projects with pagination and joins company info (company_name)
-func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.ProjectWithCompany, int, error) {
+// If companyID is provided and > 0, filters projects to only that company (for enterprise user isolation)
+func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string, companyID *int) ([]*models.ProjectWithCompany, int, error) {
 	// Build WHERE clause with conditions
 	whereConditions := []string{"p.deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
 
-	// Filter by ownership or membership if user ID provided
-	if userID > 0 {
-		// Include projects owned by the user OR where the user is a member in project_users
+	// Enterprise data isolation: filter by company_id if provided
+	if companyID != nil && *companyID > 0 {
+		whereConditions = append(whereConditions, fmt.Sprintf("p.company_id = $%d", argIndex))
+		args = append(args, *companyID)
+		argIndex++
+	} else if userID > 0 {
+		// Filter by ownership or membership if user ID provided (for non-enterprise users)
 		whereConditions = append(whereConditions, fmt.Sprintf("(p.owner_id = $%d OR EXISTS (SELECT 1 FROM project_users pu WHERE pu.project_id = p.id AND pu.user_id = $%d))", argIndex, argIndex+1))
 		args = append(args, userID, userID)
 		argIndex += 2

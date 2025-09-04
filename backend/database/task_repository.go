@@ -449,6 +449,12 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			args = append(args, *opts.ProjectID)
 			argIdx++
 		}
+		// 企业数据隔离：通过项目的company_id过滤任务
+		if opts.CompanyID != nil {
+			conditions = append(conditions, fmt.Sprintf("p.company_id = $%d", argIdx))
+			args = append(args, *opts.CompanyID)
+			argIdx++
+		}
 		if opts.Status != "" {
 			conditions = append(conditions, fmt.Sprintf("t.status = $%d", argIdx))
 			args = append(args, opts.Status)
@@ -497,8 +503,8 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 		where = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
-	// Count first
-	countQuery := "SELECT COUNT(*) FROM tasks t " + where
+	// Count first - Join projects table to support company_id filtering
+	countQuery := "SELECT COUNT(*) FROM tasks t LEFT JOIN projects p ON t.project_id = p.id " + where
 	exec := r.getExecer()
 	var total int
 	if len(args) > 0 {

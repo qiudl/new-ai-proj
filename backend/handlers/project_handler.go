@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
@@ -26,6 +27,25 @@ func NewProjectHandler(db database.DB, logger *log.Logger, validate interface{})
 func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	userID := c.GetInt("user_id")
+	userRole, _ := c.Get("user_role")
+	
+	// 获取当前用户的企业ID（用于企业数据隔离）
+	var companyIDPtr *int
+	if userRole != nil {
+		roleStr := userRole.(string)
+		if roleStr == "company_admin" || roleStr == "company_user" {
+			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
+			if err != nil {
+				log.Printf("Error getting user company ID: %v", err)
+				c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取用户企业信息失败", nil))
+				return
+			}
+			if companyID > 0 {
+				companyIDInt := int(companyID)
+				companyIDPtr = &companyIDInt
+			}
+		}
+	}
 
 	// Parse pagination parameters
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -44,7 +64,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder)
+	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
@@ -423,7 +443,7 @@ func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
 
 	// 获取当前用户可访问的项目（包含拥有者或成员身份）
 	projectsWithCompany, _, err := h.db.Projects().GetPaginatedWithCompany(
-		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc",
+		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc", nil,
 	)
 	if err != nil {
 		log.Printf("Error getting document projects: %v", err)
@@ -453,4 +473,32 @@ func (h *ProjectHandler) GetRecycledProjects(c *gin.Context) {
 func (h *ProjectHandler) RestoreProject(c *gin.Context) {
 	// TODO: Implement RestoreProject method in ProjectRepository
 	c.JSON(http.StatusNotImplemented, models.NewErrorResponse("NOT_IMPLEMENTED", "功能暂未实现", nil))
+}
+
+// getUserCompanyID 获取用户关联的企业ID
+func (h *ProjectHandler) getUserCompanyID(userID uint, role string) (uint, error) {
+	if role == "company_admin" {
+		// 企业管理员：从 users 表直接获取 company_id
+		user, err := h.db.Users().GetByID(context.Background(), int(userID))
+		if err != nil {
+			return 0, err
+		}
+		if user.CompanyID != nil {
+			return uint(*user.CompanyID), nil
+		}
+	}
+	
+	if role == "company_user" {
+		// 企业普通用户：从 company_users 表获取 customer_id
+		// 这需要通过数据库原生查询实现，因为repository可能没有对应方法
+		exec := h.db.(*database.PostgresDB).GetDB().(*sql.DB)
+		var customerID int
+		err := exec.QueryRow("SELECT customer_id FROM company_users WHERE user_id = $1", userID).Scan(&customerID)
+		if err != nil {
+			return 0, err
+		}
+		return uint(customerID), nil
+	}
+	
+	return 0, nil
 }
