@@ -371,32 +371,39 @@ func (r *UserManagementRepository) BatchUpdateUsers(ctx context.Context, userIDs
 
 // GetUserStats gets user statistics
 func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.UserStats, error) {
-	query := `
-		SELECT 
-			total_users,
-			active_users,
-			admin_count,
-			project_manager_count,
-			developer_count,
-			client_count,
-			recent_registrations
-		FROM user_stats`
-
 	exec := r.getExecer()
-	row := exec.QueryRowContext(ctx, query)
-
-	var total, active, adminCount, pmCount, devCount, clientCount, recent int
-	err := row.Scan(&total, &active, &adminCount, &pmCount, &devCount, &clientCount, &recent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user stats: %w", err)
+	
+	// Get total count
+	var total int
+	totalQuery := `SELECT COUNT(*) FROM users`
+	row := exec.QueryRowContext(ctx, totalQuery)
+	if err := row.Scan(&total); err != nil {
+		return nil, fmt.Errorf("failed to get total user count: %w", err)
 	}
 
-	// Get status breakdown
+	// Get role counts using simple CASE statements instead of FILTER
+	roleQuery := `
+		SELECT 
+			SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_count,
+			SUM(CASE WHEN role = 'project_manager' THEN 1 ELSE 0 END) as pm_count,
+			SUM(CASE WHEN role = 'developer' THEN 1 ELSE 0 END) as dev_count,
+			SUM(CASE WHEN role = 'company_admin' THEN 1 ELSE 0 END) as company_admin_count,
+			SUM(CASE WHEN role = 'company_user' THEN 1 ELSE 0 END) as company_user_count
+		FROM users`
+
+	var adminCount, pmCount, devCount, companyAdminCount, companyUserCount int
+	roleRow := exec.QueryRowContext(ctx, roleQuery)
+	err := roleRow.Scan(&adminCount, &pmCount, &devCount, &companyAdminCount, &companyUserCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role stats: %w", err)
+	}
+
+	// Get status breakdown using simple CASE statements
 	statusQuery := `
 		SELECT 
-			COUNT(*) FILTER (WHERE status = 'active') as active,
-			COUNT(*) FILTER (WHERE status = 'inactive') as inactive,
-			COUNT(*) FILTER (WHERE status = 'suspended') as suspended
+			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+			SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
+			SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended
 		FROM users`
 
 	var activeStatus, inactiveStatus, suspendedStatus int
@@ -406,14 +413,27 @@ func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.Us
 		return nil, fmt.Errorf("failed to get status stats: %w", err)
 	}
 
+	// Get recent registrations (last 7 days)
+	recentQuery := `
+		SELECT COUNT(*) 
+		FROM users 
+		WHERE created_at >= NOW() - INTERVAL '7 days'`
+
+	var recent int
+	recentRow := exec.QueryRowContext(ctx, recentQuery)
+	err = recentRow.Scan(&recent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent registrations: %w", err)
+	}
+
 	return &models.UserStats{
 		Total: total,
 		ByRole: map[string]int{
 			"admin":           adminCount,
 			"project_manager": pmCount,
 			"developer":       devCount,
-			"company_admin":   0, // TODO: Add company_admin count from view
-			"company_user":    0, // TODO: Add company_user count from view
+			"company_admin":   companyAdminCount,
+			"company_user":    companyUserCount,
 		},
 		ByStatus: map[string]int{
 			"active":    activeStatus,

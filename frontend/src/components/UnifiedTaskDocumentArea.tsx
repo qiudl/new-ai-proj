@@ -51,6 +51,7 @@ import {
 import TaskDocumentEditor from './TaskDocumentEditor';
 import TaskDocumentManager from './TaskDocumentManager';
 import { documentService, UnifiedDocument } from '../services/documentService';
+import { taskDocumentService } from '../services/taskDocumentService';
 import { TaskService } from '../services/taskService';
 import api from '../services/api';
 
@@ -101,20 +102,32 @@ const DocumentListItem: React.FC<{
   onEdit?: (doc: DocumentItem) => void;
   onDelete?: (doc: DocumentItem) => void;
   onDownload?: (doc: DocumentItem) => void;
+  onView?: (doc: DocumentItem) => void;
   draggableProps?: any;
   isDragOver?: boolean;
   isDraggedItem?: boolean;
   currentTaskId?: number;
-}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, draggableProps, isDragOver, isDraggedItem, currentTaskId }) => {
+}> = ({ document, selected, onSelect, onEdit, onDelete, onDownload, onView, draggableProps, isDragOver, isDraggedItem, currentTaskId }) => {
   
   // 右键菜单
   const contextMenuItems: MenuProps['items'] = [
-    {
-      key: 'edit',
-      label: '编辑文档',
-      icon: <EditOutlined />,
-      onClick: () => onEdit?.(document)
-    },
+    // 根据文档类型显示不同的操作
+    ...(document.type === 'image' || document.type === 'pdf' || document.type === 'file' ? [
+      {
+        key: 'view',
+        label: document.type === 'image' ? '查看图片' : document.type === 'pdf' ? '查看PDF' : '打开文件',
+        icon: <EyeOutlined />,
+        onClick: () => onView?.(document)
+      }
+    ] : []),
+    ...(document.type !== 'image' && document.type !== 'file' ? [
+      {
+        key: 'edit',
+        label: '编辑文档',
+        icon: <EditOutlined />,
+        onClick: () => onEdit?.(document)
+      }
+    ] : []),
     {
       key: 'copy',
       label: '复制链接',
@@ -146,6 +159,8 @@ const DocumentListItem: React.FC<{
       case 'markdown': return <FileTextOutlined style={{ color: '#1890ff' }} />;
       case 'pdf': return <FileTextOutlined style={{ color: '#ff4d4f' }} />;
       case 'txt': return <FileTextOutlined style={{ color: '#52c41a' }} />;
+      case 'image': return <EyeOutlined style={{ color: '#722ed1' }} />;
+      case 'file': return <FolderOutlined style={{ color: '#fa8c16' }} />;
       default: return <FileTextOutlined />;
     }
   };
@@ -167,17 +182,33 @@ const DocumentListItem: React.FC<{
         }}
         onClick={() => onSelect?.(document)}
         actions={[
-          <Tooltip title="编辑">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit?.(document);
-              }}
-            />
-          </Tooltip>,
+          // 根据文档类型显示不同的操作按钮
+          ...(document.type === 'image' || document.type === 'pdf' || document.type === 'file' ? [
+            <Tooltip title={document.type === 'image' ? '查看图片' : document.type === 'pdf' ? '查看PDF' : '打开文件'}>
+              <Button
+                type="text"
+                icon={<EyeOutlined />}
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onView?.(document);
+                }}
+              />
+            </Tooltip>
+          ] : []),
+          ...(document.type !== 'image' && document.type !== 'file' ? [
+            <Tooltip title="编辑">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit?.(document);
+                }}
+              />
+            </Tooltip>
+          ] : []),
           <Tooltip title="下载">
             <Button
               type="text"
@@ -280,6 +311,40 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
       // 获取当前任务文档
       const response = await documentService.getTaskDocuments(projectId, taskId);
       let docs: DocumentItem[] = response.documents.map((doc: UnifiedDocument) => ({ ...doc, selected: false, sourceTaskId: taskId }));
+      
+      // 也获取上传的文档（通过TaskDocumentHandler）
+      try {
+        const uploadedResponse = await taskDocumentService.getTaskDocuments(projectId, taskId);
+        const uploadedDocs: DocumentItem[] = uploadedResponse.documents.map((doc: any) => ({
+          id: doc.id,
+          title: doc.original_name || doc.file_name,
+          content: '', // 上传的文件内容需要单独获取
+          description: `上传的文件 (${Math.round(doc.file_size / 1024)}KB)`,
+          type: doc.mime_type?.startsWith('image/') ? 'image' : 
+                doc.mime_type === 'application/pdf' ? 'pdf' : 
+                doc.mime_type === 'text/markdown' ? 'markdown' : 'file',
+          mime_type: doc.mime_type,
+          file_size: doc.file_size,
+          version: 1,
+          status: 'published',
+          visibility: 'team',
+          is_template: false,
+          project_id: projectId,
+          task_id: taskId,
+          owner_id: 0,
+          created_by: 0,
+          created_at: doc.uploaded_at,
+          updated_at: doc.uploaded_at,
+          tags: ['uploaded'],
+          selected: false,
+          sourceTaskId: taskId,
+          file_path: doc.file_path // 保存文件路径用于下载/查看
+        }));
+        docs = [...docs, ...uploadedDocs];
+      } catch (uploadError) {
+        console.warn('获取上传文档失败:', uploadError);
+        // 继续处理，不影响原有文档加载
+      }
 
       // 可选：合并所有下级任务文档（递归）
       if (includeDescendants) {
@@ -465,16 +530,23 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   const dragDropConfig = useMemo(() => ({
     enableFileDrop: true,
     enableItemReorder: true,
-    acceptedFileTypes: ['.pdf', '.md', '.txt', '.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg'],
+    acceptedFileTypes: ['.pdf', '.md', '.txt', '.docx', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg', '.svg', '.gif', '.bmp', '.webp'],
     maxFileSize: 50 * 1024 * 1024, // 50MB
     maxFiles: 10,
     onFilesDrop: async (files: FileList, dropZone?: string) => {
       setUploading(true);
       try {
+        // 批量上传文件到 TaskDocumentHandler
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
-          // 这里应该调用实际的文件上传API
-          await new Promise(resolve => setTimeout(resolve, 1000)); // 模拟上传延迟
+          await taskDocumentService.uploadDocument(
+            projectId,
+            taskId,
+            file,
+            (progress) => {
+              console.log(`文件 ${file.name} 上传进度:`, progress);
+            }
+          );
         }
         message.success(`成功上传 ${files.length} 个文件`);
         loadDocuments(); // 重新加载文档列表
@@ -549,17 +621,20 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     setDocuments(prev => prev.map(d => ({ ...d, selected: d.id === doc.id })));
   }, []);
 
-  // 文档上传
+  // 文档上传 - 使用专门的任务文档上传接口
   const handleFileUpload = useCallback(async (file: File) => {
     setUploading(true);
     try {
-      await documentService.uploadFile(file, {
-        task_id: taskId,
-        project_id: projectId,
-        onProgress: (progress) => {
+      // 使用 taskDocumentService.uploadDocument 连接到后端 TaskDocumentHandler
+      await taskDocumentService.uploadDocument(
+        projectId,
+        taskId,
+        file,
+        (progress) => {
           // 可以添加进度显示
+          console.log('Upload progress:', progress);
         }
-      });
+      );
       message.success('文档上传成功');
       await loadDocuments();
       return false; // 阻止默认上传行为
@@ -594,19 +669,75 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
   const handleDocumentDownload = useCallback(async (doc: DocumentItem) => {
     try {
-      const blob = new Blob([doc.content], { type: doc.mime_type });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${doc.title}.${doc.type === 'markdown' ? 'md' : 'txt'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      message.success('文档下载成功');
+      // 如果是上传的文件，使用文件路径下载
+      if (doc.file_path && doc.tags?.includes('uploaded')) {
+        await taskDocumentService.downloadFile(doc.file_path, doc.title);
+        message.success('文档下载成功');
+      } else {
+        // 原有的文本文档下载逻辑
+        const blob = new Blob([doc.content], { type: doc.mime_type });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${doc.title}.${doc.type === 'markdown' ? 'md' : 'txt'}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        message.success('文档下载成功');
+      }
     } catch (error) {
       console.error('下载失败:', error);
       message.error('文档下载失败');
+    }
+  }, []);
+
+  const handleDocumentView = useCallback(async (doc: DocumentItem) => {
+    try {
+      if (doc.file_path && doc.tags?.includes('uploaded')) {
+        // 对于上传的文件，根据类型不同处理
+        if (doc.type === 'image') {
+          // 图片：在新窗口中显示
+          const imageUrl = `/api/v1/files/view?path=${encodeURIComponent(doc.file_path)}`;
+          const newWindow = window.open('', '_blank');
+          if (newWindow) {
+            newWindow.document.write(`
+              <html>
+                <head><title>${doc.title}</title></head>
+                <body style="margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5;">
+                  <img src="${imageUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;" alt="${doc.title}" />
+                </body>
+              </html>
+            `);
+            newWindow.document.close();
+          }
+        } else if (doc.type === 'pdf') {
+          // PDF：在新窗口中显示
+          const pdfUrl = `/api/v1/files/view?path=${encodeURIComponent(doc.file_path)}`;
+          window.open(pdfUrl, '_blank');
+        } else {
+          // 其他文件：尝试在新窗口中打开
+          const fileUrl = `/api/v1/files/view?path=${encodeURIComponent(doc.file_path)}`;
+          window.open(fileUrl, '_blank');
+        }
+        message.success('文件打开成功');
+      } else {
+        // 对于文本文档，显示在模态框中
+        Modal.info({
+          title: doc.title,
+          content: (
+            <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {doc.content}
+              </pre>
+            </div>
+          ),
+          width: 800
+        });
+      }
+    } catch (error) {
+      console.error('查看失败:', error);
+      message.error('文件查看失败');
     }
   }, []);
 
@@ -922,12 +1053,13 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 onEdit={handleDocumentEdit}
                 onDelete={handleDocumentDelete}
                 onDownload={handleDocumentDownload}
+                onView={handleDocumentView}
               />
             )}
           />
         );
     }
-  }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleQuickCreateDocument]);
+  }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleDocumentView, handleQuickCreateDocument]);
 
   // 工具栏按钮
   const toolbarItems: MenuProps['items'] = [
@@ -1211,7 +1343,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
               </Tooltip>
               
               <Upload
-                accept=".md,.pdf,.txt"
+                accept=".md,.pdf,.txt,.jpg,.jpeg,.png,.svg,.gif,.bmp,.webp"
                 showUploadList={false}
                 beforeUpload={handleFileUpload}
                 disabled={uploading}

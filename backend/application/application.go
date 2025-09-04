@@ -294,7 +294,7 @@ func (app *Application) GetUserProfileHandler() *handlers.UserProfileHandler {
 // GetUserManagementHandler returns the user management handler
 func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandler {
 	// Initialize UserManagementRepository and UserManagementHandler
-	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB))
+	userRepo := database.NewUserManagementRepository(app.db.(*database.PostgresDB).DB())
 	return handlers.NewUserManagementHandler(userRepo)
 }
 

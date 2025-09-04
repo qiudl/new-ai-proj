@@ -229,33 +229,39 @@ export const taskDocumentService = {
       // 验证文件
       this.validateFile(file);
 
-      // 读取文件内容
-      const fileContent = await this.fileToText(file);
+      // 使用 FormData 准备文件上传到 TaskDocumentHandler
+      const formData = new FormData();
+      formData.append('document', file); // 后端期望的字段名是 'document'
+      formData.append('title', file.name.replace(/\.[^/.]+$/, '')); // 可选标题
+
+      // 模拟进度 - 上传到专门的任务文档上传接口
+      onProgress?.(25, file.size / 4, file.size);
+
+      // 上传到 TaskDocumentHandler 的专门接口 - 使用配置好的api实例
+      const uploadResponse = await api.post(
+        `/projects/${projectId}/tasks/${taskId}/upload`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total && onProgress) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              onProgress(percentCompleted, progressEvent.loaded, progressEvent.total);
+            }
+          }
+        }
+      );
+
+      // uploadResponse.data 已经被 api interceptor 自动解包，直接是内层数据
       
-      // 模拟进度 - 50% 读取文件，50% 上传
-      onProgress?.(50, file.size / 2, file.size);
-
-      // 首先创建文档
-      const createResponse = await api.post('/documents', {
-        title: file.name.replace(/\.[^/.]+$/, ''), // 移除文件扩展名作为标题
-        content: fileContent,
-        type: this.getDocumentTypeFromMimeType(file.type),
-        status: 'published',
-        visibility: 'team',
-        description: `文档从文件 ${file.name} 上传`,
-        tags: ['文件上传']
-      });
-
-      if (!createResponse.data || !createResponse.data.success) {
-        throw new Error(createResponse.data?.message || 'Failed to create document');
+      // 检查响应格式，uploadResponse.data 就是后端返回的数据
+      const documentData = uploadResponse.data;
+      
+      if (!documentData) {
+        throw new Error('Failed to upload document - no data returned');
       }
-
-      const documentData = createResponse.data;
-      
-      // 然后将文档关联到任务
-      await api.post(`/projects/${projectId}/tasks/${taskId}/documents/${documentData.id}/attach`, {
-        relationship_type: 'attachment'
-      });
 
       // 完成进度
       onProgress?.(100, file.size, file.size);
@@ -266,16 +272,17 @@ export const taskDocumentService = {
       
       performanceMonitor.endMeasure('upload_document');
       
-      // 返回符合接口规范的结果
+      // 返回 TaskDocumentHandler 提供的上传信息
+      // documentData 直接就是后端返回的数据结构
       return {
         id: documentData.id,
-        file_name: file.name,
-        original_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
+        file_name: documentData.file_name || file.name,
+        original_name: documentData.original_name || file.name,
+        file_size: documentData.file_size || file.size,
+        mime_type: documentData.mime_type || file.type,
         upload_type: 'manual' as const,
-        uploaded_at: new Date().toISOString(),
-        file_path: `/documents/${documentData.id}`
+        uploaded_at: documentData.uploaded_at || new Date().toISOString(),
+        file_path: documentData.file_path
       };
     } catch (error) {
       performanceMonitor.endMeasure('upload_document');
@@ -577,7 +584,11 @@ export const taskDocumentService = {
    * 验证文件名
    */
   validateFileName(fileName: string): void {
-    const allowedExtensions = ['.md', '.pdf', '.txt'];
+    // 支持文档、PDF和常见图片格式
+    const allowedExtensions = [
+      '.md', '.pdf', '.txt',                             // 文档类型
+      '.jpg', '.jpeg', '.png', '.svg', '.gif', '.bmp', '.webp'  // 图片类型
+    ];
     const extension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
 
     if (!allowedExtensions.includes(extension)) {

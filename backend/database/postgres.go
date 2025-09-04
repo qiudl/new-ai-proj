@@ -117,6 +117,11 @@ func (pdb *PostgresDB) Permissions() PermissionRepository {
 	return NewPermissionRepository(pdb.db)
 }
 
+// DB returns the underlying *sql.DB instance
+func (pdb *PostgresDB) DB() *sql.DB {
+	return pdb.db
+}
+
 // System returns the system repository
 func (pdb *PostgresDB) System() SystemRepository {
 	return &PostgresSystemRepository{db: pdb.db}
