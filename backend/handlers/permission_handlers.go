@@ -12,12 +12,14 @@ import (
 // PermissionHandler handles permission-related HTTP requests
 type PermissionHandler struct {
 	permissionRepo database.PermissionRepository
+	db             database.DB
 }
 
 // NewPermissionHandler creates a new permission handler
-func NewPermissionHandler(permissionRepo database.PermissionRepository) *PermissionHandler {
+func NewPermissionHandler(permissionRepo database.PermissionRepository, db database.DB) *PermissionHandler {
 	return &PermissionHandler{
 		permissionRepo: permissionRepo,
+		db:             db,
 	}
 }
 
@@ -390,6 +392,40 @@ func (h *PermissionHandler) GetUserPermissions(c *gin.Context) {
 		return
 	}
 
+	// First get user info to determine if this is a system user or company user
+	user, err := h.db.Users().GetByID(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Handle enterprise administrators (company_admin role) differently
+	if user.Role == "company_admin" {
+		// For enterprise administrators, return a special permission summary
+		roleDescription := "企业管理员拥有企业内所有权限"
+		summary := &models.UserPermissionSummary{
+			CompanyUserID:        userID, // Use system user ID as fallback
+			UserName:             user.Username,
+			CustomPermissions:    make(map[string]bool),
+			ProjectPermissions:   []models.CompanyUserProjectPermission{},
+			EffectivePermissions: []models.PermissionResponse{},
+		}
+		
+		// Set role information for company admin
+		summary.Role = &models.CompanyRoleResponse{
+			ID:              0, // Special ID for system company_admin
+			RoleCode:        "company_admin",
+			RoleName:        "企业管理员",
+			RoleDescription: &roleDescription,
+			IsSystemRole:    true,
+			IsActive:        true,
+		}
+		
+		c.JSON(http.StatusOK, gin.H{"permissions": summary})
+		return
+	}
+
+	// For regular company users, use the normal permission repository
 	permissions, err := h.permissionRepo.GetUserPermissions(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user permissions"})

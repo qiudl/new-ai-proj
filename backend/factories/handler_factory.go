@@ -67,7 +67,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.CustomerHandler = handlers.NewCustomerHandler(f.db, f.logger, f.validate)
 	allHandlers.CompanyHandler = handlers.NewCompanyHandler(f.db, f.logger, f.validate)
 	allHandlers.ProjectHandler = handlers.NewProjectHandler(f.db, f.logger, f.validate)
-	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions())
+	allHandlers.PermissionHandler = handlers.NewPermissionHandler(f.db.Permissions(), f.db)
 	
 	// 创建统一权限管理器和处理器
 	// TODO: 这里需要正确初始化UnifiedPermissionManager及其依赖
