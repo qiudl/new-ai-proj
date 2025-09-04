@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Layout as AntLayout, Menu, Avatar, Dropdown, Space, Button, Tooltip, Input, message } from 'antd';
 import { cleanupGlobalOverlays } from '../utils/overlayCleanup';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
+import { filterMenuItems, getUserTypeFromRole } from '../config/menuVisibility';
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -276,7 +277,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
   ];
 
-  const sidebarItems = [
+  const baseSidebarItems = [
     {
       key: '/workspace-management',
       icon: <DashboardOutlined />,
@@ -408,6 +409,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       ],
     },
   ];
+
+  // 根据用户角色过滤菜单项
+  const sidebarItems = useMemo(() => {
+    if (!currentUser || !currentUser.role) {
+      // 如果用户信息未加载，显示基础菜单
+      return baseSidebarItems;
+    }
+
+    const userType = getUserTypeFromRole(currentUser.role);
+    const filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role);
+    
+    // 开发环境下打印菜单过滤结果
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG Layout] Menu filtering:', {
+        userRole: currentUser.role,
+        userType: userType,
+        originalMenuCount: baseSidebarItems.length,
+        filteredMenuCount: filteredItems.length,
+        filteredItems: filteredItems.map(item => ({
+          key: item.key,
+          label: item.label,
+          childrenCount: item.children?.length || 0
+        }))
+      });
+    }
+    
+    return filteredItems;
+  }, [currentUser]);
 
   return (
     <AntLayout>
