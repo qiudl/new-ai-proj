@@ -38,9 +38,20 @@ const LoginPage: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
+        console.log('[DEBUG LoginPage] Login response:', data);
+        
         if (data.success && data.data) {
-          // Store token and user info
-          localStorage.setItem('token', data.data.token);
+          // Store JWT token - 注意：API返回的是access_token，不是token
+          const token = data.data.access_token || data.data.token; // 兼容两种格式
+          
+          console.log('[DEBUG LoginPage] Storing token and user info:', {
+            tokenExists: !!token,
+            userId: data.data.user?.id,
+            username: data.data.user?.username,
+            role: data.data.user?.role
+          });
+          
+          localStorage.setItem('token', token);
           localStorage.setItem('currentUser', JSON.stringify({
             id: data.data.user.id,
             username: data.data.user.username,
@@ -92,8 +103,20 @@ const LoginPage: React.FC = () => {
         throw new Error(text || `HTTP ${resp.status}`);
       }
       const data = await resp.json();
+      console.log('[DEBUG LoginPage] Quick login response:', data);
+      
       if (data.success && data.data) {
-        localStorage.setItem('token', data.data.token);
+        // Store JWT token - 注意：API返回的是access_token，不是token
+        const token = data.data.access_token || data.data.token; // 兼容两种格式
+        
+        console.log('[DEBUG LoginPage] Quick login - storing token and user info:', {
+          tokenExists: !!token,
+          userId: data.data.user?.id,
+          username: data.data.user?.username,
+          role: data.data.user?.role
+        });
+        
+        localStorage.setItem('token', token);
         localStorage.setItem('currentUser', JSON.stringify({
           id: data.data.user.id,
           username: data.data.user.username,

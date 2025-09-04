@@ -140,6 +140,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token');
+        console.log('[DEBUG Layout] Token from localStorage exists:', !!token);
         if (!token) {
           console.error('No token found, redirecting to login');
           navigate('/login');
@@ -147,9 +148,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         const response = await userService.getProfile();
+        console.log('[DEBUG Layout] Profile API response:', response);
+        
         if (response.success && response.data) {
+          console.log('[DEBUG Layout] Setting currentUser:', {
+            id: response.data.id,
+            username: response.data.username,
+            role: response.data.role,
+            email: response.data.email,
+            userType: response.data.user_type
+          });
           setCurrentUser(response.data);
-          } else {
+          
+          // 存储到localStorage以便调试
+          localStorage.setItem('currentUser', JSON.stringify(response.data));
+          console.log('[DEBUG Layout] User stored in localStorage');
+        } else {
           console.error('Failed to load user profile:', response.message);
           // Don't redirect to login for profile fetch failure, user might still be authenticated
         }
@@ -158,6 +172,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         // Check if it's an authentication error
         if (hasTypeField(error) && error.type === 'AUTHENTICATION') {
+          console.log('[DEBUG Layout] Authentication error, clearing storage and redirecting');
           localStorage.removeItem('token');
           localStorage.removeItem('currentUser');
           navigate('/login');
@@ -166,9 +181,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         // For other errors, don't redirect but show a fallback
         const storedUser = localStorage.getItem('currentUser');
+        console.log('[DEBUG Layout] Attempting to use stored user, exists:', !!storedUser);
         if (storedUser) {
           try {
-            setCurrentUser(JSON.parse(storedUser));
+            const parsedUser = JSON.parse(storedUser);
+            console.log('[DEBUG Layout] Using fallback stored user:', {
+              id: parsedUser.id,
+              username: parsedUser.username,
+              role: parsedUser.role
+            });
+            setCurrentUser(parsedUser);
           } catch (parseError) {
             console.error('Failed to parse stored user data:', parseError);
           }
@@ -488,7 +510,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space>
                 <Avatar icon={<UserOutlined />} />
-                <span>{currentUser?.username || '加载中...'}</span>
+                <span>
+                  {(() => {
+                    const displayText = currentUser?.username || '加载中...';
+                    console.log('[DEBUG Layout] Rendering user display:', {
+                      currentUser: currentUser,
+                      username: currentUser?.username,
+                      role: currentUser?.role,
+                      displayText: displayText
+                    });
+                    return displayText;
+                  })()}
+                </span>
               </Space>
             </Dropdown>
           </div>
