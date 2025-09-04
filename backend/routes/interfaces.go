@@ -78,6 +78,7 @@ type ApplicationInterface interface {
 	GetArchiveHandler() *handlers.ArchiveHandler
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
 	GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler
+	GetUserTimerHandler() *handlers.UserTimerHandler
 	GetUserProfileHandler() *handlers.UserProfileHandler
 	GetUserManagementHandler() *handlers.UserManagementHandler
 
@@ -105,6 +106,7 @@ type ApplicationInterface interface {
 
 	// 任务文档文件处理器
 	GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler
+	GetTaskDocumentHandler() *handlers.TaskDocumentHandler
 
 	// 文档元数据处理器
 	GetDocumentProjectsHandler() gin.HandlerFunc

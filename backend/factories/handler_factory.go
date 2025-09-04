@@ -153,6 +153,9 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 基于文件的任务文档处理器 (向后兼容)
 	taskDocumentFileService := services.NewTaskDocumentFileService(docsBasePath)
 	allHandlers.TaskDocumentFileHandler = handlers.NewTaskDocumentFileHandler(taskDocumentFileService)
+	
+	// 任务文档处理器（支持文件上传）
+	allHandlers.TaskDocumentHandler = handlers.NewTaskDocumentHandler(docsBasePath)
 
 	allHandlers.UserTimerHandler = handlers.NewUserTimerHandler(f.db, taskDocumentFileService)
 	allHandlers.UnifiedTimerHandler = handlers.NewUnifiedTimerHandler(f.db)

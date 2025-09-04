@@ -13,20 +13,17 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // TaskDocumentHandler 任务文档处理器
 type TaskDocumentHandler struct {
 	docsBasePath string
-	db           *gorm.DB
 }
 
 // NewTaskDocumentHandler 创建任务文档处理器实例
-func NewTaskDocumentHandler(docsBasePath string, db *gorm.DB) *TaskDocumentHandler {
+func NewTaskDocumentHandler(docsBasePath string) *TaskDocumentHandler {
 	return &TaskDocumentHandler{
 		docsBasePath: docsBasePath,
-		db:           db,
 	}
 }
 
@@ -244,7 +241,7 @@ func (h *TaskDocumentHandler) ManualUploadDocument(c *gin.Context) {
 	}
 
 	// 保存文件
-	docInfo, err := h.saveUploadedFile(fileHeader, projectID, taskID, userID.(uint), "manual")
+	docInfo, err := h.saveUploadedFile(fileHeader, projectID, taskID, uint(userID.(int)), "manual")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
 		return
@@ -426,7 +423,11 @@ func (h *TaskDocumentHandler) validateUploadedFile(fileHeader *multipart.FileHea
 // validateFileExtension 验证文件扩展名
 func (h *TaskDocumentHandler) validateFileExtension(fileName string) error {
 	ext := strings.ToLower(filepath.Ext(fileName))
-	allowedExts := []string{".md", ".pdf", ".txt"}
+	// 支持文档、PDF和常见图片格式
+	allowedExts := []string{
+		".md", ".pdf", ".txt",                           // 文档类型
+		".jpg", ".jpeg", ".png", ".svg", ".gif", ".bmp", ".webp", // 图片类型
+	}
 
 	for _, allowedExt := range allowedExts {
 		if ext == allowedExt {
@@ -636,6 +637,19 @@ func (h *TaskDocumentHandler) getMimeType(fileName string) string {
 		return "application/pdf"
 	case ".txt":
 		return "text/plain"
+	// 图片类型
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".bmp":
+		return "image/bmp"
+	case ".webp":
+		return "image/webp"
+	case ".svg":
+		return "image/svg+xml"
 	default:
 		return "application/octet-stream"
 	}
@@ -647,4 +661,102 @@ func (h *TaskDocumentHandler) normalizeMimeType(mimeType, fileName string) strin
 		return mimeType
 	}
 	return h.getMimeType(fileName)
+}
+
+// ViewFile 查看文件内容
+func (h *TaskDocumentHandler) ViewFile(c *gin.Context) {
+	filePath := c.Query("path")
+	if filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File path is required",
+		})
+		return
+	}
+
+	// 安全检查：确保文件路径在允许的目录内
+	if !strings.HasPrefix(filePath, h.docsBasePath) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "Access denied",
+		})
+		return
+	}
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "File not found",
+		})
+		return
+	}
+
+	// 读取文件内容
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to read file",
+		})
+		return
+	}
+
+	// 获取文件MIME类型
+	mimeType := h.getMimeType(filePath)
+	fileName := filepath.Base(filePath)
+
+	// 设置响应头
+	c.Header("Content-Type", mimeType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=\"%s\"", fileName))
+	c.Data(http.StatusOK, mimeType, fileData)
+}
+
+// DownloadFile 下载文件
+func (h *TaskDocumentHandler) DownloadFile(c *gin.Context) {
+	filePath := c.Query("path")
+	if filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File path is required",
+		})
+		return
+	}
+
+	// 安全检查：确保文件路径在允许的目录内
+	if !strings.HasPrefix(filePath, h.docsBasePath) {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "Access denied",
+		})
+		return
+	}
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "File not found",
+		})
+		return
+	}
+
+	// 读取文件内容
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to read file",
+		})
+		return
+	}
+
+	// 获取文件MIME类型
+	mimeType := h.getMimeType(filePath)
+	fileName := filepath.Base(filePath)
+
+	// 设置下载响应头
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
+	c.Data(http.StatusOK, mimeType, fileData)
 }

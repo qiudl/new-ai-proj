@@ -59,7 +59,6 @@ const PermissionManagementPage = React.lazy(() => import('./pages/PermissionMana
 const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
 const RoleManagementPage = React.lazy(() => import('./pages/RoleManagementPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
-const CompanyUserManagementPage = React.lazy(() => import('./pages/CompanyUserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
@@ -347,11 +346,6 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
-                <Route path="/company-user-management" element={
-                  <PermissionRoute permission={COMPANY_PERMISSIONS.USER_ADMIN}>
-                    <CompanyUserManagementPage />
-                  </PermissionRoute>
-                } />
 
                 {/* AI configuration routes */}
                 <Route path="/ai-config" element={

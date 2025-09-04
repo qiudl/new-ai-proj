@@ -51,6 +51,9 @@ func registerSimpleTaskRoutes(projects *gin.RouterGroup, app ApplicationInterfac
 	projects.POST("/:id/tasks/:taskId/move", app.MoveTaskHandler())
 	projects.POST("/:id/tasks/:taskId/reorder", app.ReorderTaskHandler())
 	projects.POST("/:id/tasks/bulk-reorder", app.BulkReorderTasksHandler())
+
+	// Task document upload routes
+	registerTaskDocumentRoutes(projects, app)
 }
 
 // registerTaskHierarchyRoutes 注册任务层级路由
@@ -63,4 +66,23 @@ func registerTaskHierarchyRoutes(projects *gin.RouterGroup, app ApplicationInter
 	projects.GET("/:id/tasks/tree", hierarchyHandler.GetTaskTree)
 	projects.GET("/:id/tasks/:taskId/descendants", hierarchyHandler.GetTaskDescendants)
 	projects.GET("/:id/tasks/:taskId/children", hierarchyHandler.GetTaskChildren)
+}
+
+// registerTaskDocumentRoutes 注册任务文档上传路由
+func registerTaskDocumentRoutes(projects *gin.RouterGroup, app ApplicationInterface) {
+	// 获取任务文档处理器
+	taskDocHandler := app.GetTaskDocumentHandler()
+	if taskDocHandler == nil {
+		fmt.Println("WARNING: TaskDocumentHandler is not available, skipping document upload routes")
+		return
+	}
+
+	// 任务文档上传相关路由
+	projects.POST("/:id/tasks/:taskId/upload", taskDocHandler.ManualUploadDocument)           // 手动文件上传
+	projects.POST("/:id/tasks/:taskId/upload-api", taskDocHandler.APIUploadDocument)         // API上传
+	// 注意：GET documents 路由在 document_routes.go 中已定义，避免重复注册
+	
+	// 文件查看和下载路由
+	projects.GET("/files/view", taskDocHandler.ViewFile)                                     // 查看文件
+	projects.GET("/files/download", taskDocHandler.DownloadFile)                             // 下载文件
 }

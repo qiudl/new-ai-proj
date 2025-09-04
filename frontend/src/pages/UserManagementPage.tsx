@@ -686,17 +686,16 @@ const UserManagementPage: React.FC = () => {
       <Breadcrumb style={{ marginBottom: '16px' }}>
         <Breadcrumb.Item>系统管理</Breadcrumb.Item>
         <Breadcrumb.Item>用户管理</Breadcrumb.Item>
-        <Breadcrumb.Item>系统用户</Breadcrumb.Item>
       </Breadcrumb>
 
       <div className="page-header">
         <Title level={2}>
           <Space>
             <TeamOutlined />
-            系统用户
+            用户管理
           </Space>
         </Title>
-        <Text type="secondary">管理系统管理员、项目经理和开发人员账户</Text>
+        <Text type="secondary">统一管理系统用户和企业用户账户</Text>
         
         {/* 调试信息 - 临时显示 */}
         {process.env.NODE_ENV === 'development' && (

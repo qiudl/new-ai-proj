@@ -383,8 +383,18 @@ func (app *Application) GetCollaborationHandler() *handlers.DocumentCollaboratio
 
 // GetTaskDocumentFileHandler returns the task document file handler
 func (app *Application) GetTaskDocumentFileHandler() *handlers.TaskDocumentFileHandler {
-	// TODO: Initialize task document file service properly
-	return handlers.NewTaskDocumentFileHandler(nil)
+	if app.handlers != nil && app.handlers.TaskDocumentFileHandler != nil {
+		return app.handlers.TaskDocumentFileHandler
+	}
+	return nil
+}
+
+// GetTaskDocumentHandler returns the task document handler with upload support
+func (app *Application) GetTaskDocumentHandler() *handlers.TaskDocumentHandler {
+	if app.handlers != nil && app.handlers.TaskDocumentHandler != nil {
+		return app.handlers.TaskDocumentHandler
+	}
+	return nil
 }
 
 // GetDocumentProjectsHandler returns the document projects handler
@@ -477,6 +487,14 @@ func (app *Application) GetRoleManagementHandler() *handlers.RoleManagementHandl
 func (app *Application) GetUnifiedTimerHandler() *handlers.UnifiedTimerHandler {
 	if app.handlers != nil && app.handlers.UnifiedTimerHandler != nil {
 		return app.handlers.UnifiedTimerHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
+// GetUserTimerHandler returns the user timer handler
+func (app *Application) GetUserTimerHandler() *handlers.UserTimerHandler {
+	if app.handlers != nil && app.handlers.UserTimerHandler != nil {
+		return app.handlers.UserTimerHandler
 	}
 	return nil // 需要通过工厂创建
 }

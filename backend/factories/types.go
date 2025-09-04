@@ -63,6 +63,7 @@ type AllHandlers struct {
 	BulkOperationHandler    *handlers.BulkOperationHandler
 	ValidationHandler       *handlers.ValidationHandler
 	TaskDocumentFileHandler *handlers.TaskDocumentFileHandler
+	TaskDocumentHandler     *handlers.TaskDocumentHandler
 	GoogleAuthHandler       *handlers.GoogleAuthHandler
 	CalendarSyncHandler     *handlers.CalendarSyncHandler
 	SmartTemplateHandler    *handlers.SmartTemplateHandler

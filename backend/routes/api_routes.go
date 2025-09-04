@@ -113,20 +113,17 @@ func registerAdminRoutes(authorized *gin.RouterGroup, app ApplicationInterface) 
 	admin.Use(middleware.SystemUserOnlyMiddleware())
 	admin.Use(middleware.AdminOnlyMiddleware())
 	{
-		// 暂时注释掉有编译问题的路由，优先修复工作笔记功能
 		// User management (admin only)
-		// registerAdminUserManagementRoutes(admin, app)
+		registerAdminUserManagementRoutes(admin, app)
 
-		// Company user management (admin only)
+		// Company user management (admin only) - temporarily disabled due to missing interface
 		// registerAdminCompanyUserRoutes(admin, app)
 
-		// Calendar sync management (admin only)
+		// Calendar sync management (admin only) - keeping commented for now
 		// registerAdminCalendarSyncRoutes(admin, app)
 	}
 }
 
-// 暂时注释掉有编译问题的函数，优先修复工作笔记功能
-/*
 // registerAdminUserManagementRoutes 注册管理员用户管理路由
 func registerAdminUserManagementRoutes(admin *gin.RouterGroup, app ApplicationInterface) {
 	adminUsers := admin.Group("/users")
@@ -145,10 +142,8 @@ func registerAdminUserManagementRoutes(admin *gin.RouterGroup, app ApplicationIn
 		adminUsers.PUT("/:id/status", app.GetUserManagementHandler().UpdateUserStatus)
 	}
 }
-*/
 
-// 暂时注释掉所有有编译问题的函数
-/*
+/* Temporarily disabled due to missing interface
 // registerAdminCompanyUserRoutes 注册管理员公司用户管理路由
 func registerAdminCompanyUserRoutes(admin *gin.RouterGroup, app ApplicationInterface) {
 	companyUsers := admin.Group("/company-users")
@@ -164,6 +159,10 @@ func registerAdminCompanyUserRoutes(admin *gin.RouterGroup, app ApplicationInter
 		companyUsers.DELETE("/:id", app.GetCompanyUserHandler().DeleteCompanyUser)
 	}
 }
+*/
+
+// Temporarily commenting out calendar sync routes that might have compilation issues
+/*
 
 // registerAdminCalendarSyncRoutes 注册管理员日历同步管理路由
 func registerAdminCalendarSyncRoutes(admin *gin.RouterGroup, app ApplicationInterface) {
