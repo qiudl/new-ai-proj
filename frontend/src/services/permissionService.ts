@@ -163,14 +163,14 @@ export const permissionService = {
   // Utility functions for permission checking
   async hasPermission(permissionCode: string, resourceId?: number): Promise<boolean> {
     try {
-      // Dev fallback: if current JWT indicates admin, grant access
+      // Dev fallback: if current JWT indicates admin or company_admin, grant access
       // This unblocks development when backend RBAC endpoints are not available
       if (process.env.NODE_ENV === 'development') {
         const token = localStorage.getItem('token');
         if (token) {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload && payload.role === 'admin') {
+            if (payload && (payload.role === 'admin' || payload.role === 'company_admin')) {
               return true;
             }
           } catch {}
