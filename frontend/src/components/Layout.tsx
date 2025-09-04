@@ -6,6 +6,13 @@ import { userService } from '../services/userService';
 import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserTypeFromRole } from '../config/menuVisibility';
+
+// 开发环境下加载菜单测试工具
+if (process.env.NODE_ENV === 'development') {
+  import('../utils/testMenuVisibility').catch(error => {
+    console.warn('Failed to load menu visibility test tool:', error);
+  });
+}
 import {
   DashboardOutlined,
   ProjectOutlined,
