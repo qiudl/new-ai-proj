@@ -123,6 +123,18 @@ func (m *PermissionMiddleware) RequirePermission(permissionCode string) gin.Hand
 			return
 		}
 
+		// Check if user is company_admin (they have full access to their company)
+		userRole, _ := c.Get("user_role")
+		if userRole == "company_admin" {
+			c.Set("permission_result", map[string]interface{}{
+				"has_permission": true,
+				"source":         "company_admin_bypass",
+				"reason":         "Company admin has full access to company resources",
+			})
+			c.Next()
+			return
+		}
+
 		// Get company user ID from context (should be set by authentication middleware)
 		companyUserIDInterface, exists := c.Get("company_user_id")
 		if !exists {
