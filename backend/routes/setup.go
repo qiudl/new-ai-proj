@@ -69,6 +69,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册公司管理路由
 	RegisterCompanyRoutes(authorized, app)
 
+	// 注册组织管理路由
+	RegisterOrganizationRoutes(authorized, app)
+
 	// 注册项目和任务管理路由
 	fmt.Println("DEBUG: About to call RegisterProjectRoutes")
 	RegisterProjectRoutes(authorized, app)
@@ -81,6 +84,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册简化的系统路由（主要是权限相关）
 	RegisterSystemRoutes(authorized, app)
+
+	// 注册回收站路由
+	RegisterRecycleBinRoutes(authorized, app)
 
 	// 注册计时器路由
 	RegisterTimerRoutes(authorized, app)

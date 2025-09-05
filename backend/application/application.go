@@ -303,6 +303,11 @@ func (app *Application) GetCompanyHandler() *handlers.CompanyHandler {
 	return app.companyHandler
 }
 
+// GetOrganizationHandler returns the organization handler
+func (app *Application) GetOrganizationHandler() *handlers.OrganizationHandler {
+	return handlers.NewOrganizationHandler(app.db)
+}
+
 // GetDocumentHandler returns the document handler
 func (app *Application) GetDocumentHandler() *handlers.DocumentHandler {
 	return app.documentHandler

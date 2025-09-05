@@ -26,13 +26,17 @@ const RecycleBinPage: React.FC = () => {
 
   // Load recycled projects
   const loadRecycledProjects = async (page = 1) => {
+    console.log('🚀 [RecycleBinPage] Starting loadRecycledProjects, page:', page);
     setProjectsLoading(true);
     try {
+      console.log('🔄 [RecycleBinPage] Calling SystemService.getRecycledProjects...');
       const response: PaginatedResponse<RecycledProject> = await SystemService.getRecycledProjects(page, projectsPageSize);
+
+      console.log('📨 [RecycleBinPage] Received projects response from SystemService:', response);
 
       // Validate response structure and provide safe defaults
       if (!response) {
-        console.warn('Invalid recycled projects response: no response');
+        console.warn('❌ [RecycleBinPage] Invalid recycled projects response: no response');
         setRecycledProjects([]);
         setProjectsTotal(0);
         return;
@@ -40,17 +44,22 @@ const RecycleBinPage: React.FC = () => {
 
       // Ensure data is an array
       const projectsData = Array.isArray(response.data) ? response.data : [];
+      console.log('📁 [RecycleBinPage] Processing projects data:', projectsData.length, 'items');
       
       // Safely extract pagination data with fallbacks
       const paginationData = response.pagination || {};
       const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
       
+      console.log('📄 [RecycleBinPage] Projects pagination data - total:', total, 'current page:', page);
+      
       setRecycledProjects(projectsData);
       setProjectsTotal(total);
       setProjectsCurrentPage(page);
+      
+      console.log('✅ [RecycleBinPage] Projects state updated successfully - projects:', projectsData.length, 'total:', total);
     } catch (error) {
+      console.error('💥 [RecycleBinPage] Error loading recycled projects:', error);
       message.error('加载回收站项目失败');
-      console.error('Error loading recycled projects:', error);
       // Set empty array on error to prevent undefined state
       setRecycledProjects([]);
       setProjectsTotal(0);
@@ -61,13 +70,17 @@ const RecycleBinPage: React.FC = () => {
 
   // Load recycled tasks
   const loadRecycledTasks = async (page = 1) => {
+    console.log('🚀 [RecycleBinPage] Starting loadRecycledTasks, page:', page);
     setTasksLoading(true);
     try {
+      console.log('🔄 [RecycleBinPage] Calling SystemService.getRecycledTasks...');
       const response: PaginatedResponse<RecycledTask> = await SystemService.getRecycledTasks(page, tasksPageSize);
+
+      console.log('📨 [RecycleBinPage] Received response from SystemService:', response);
 
       // Validate response structure and provide safe defaults
       if (!response) {
-        console.warn('Invalid recycled tasks response: no response');
+        console.warn('❌ [RecycleBinPage] Invalid recycled tasks response: no response');
         setRecycledTasks([]);
         setTasksTotal(0);
         return;
@@ -75,17 +88,22 @@ const RecycleBinPage: React.FC = () => {
 
       // Ensure data is an array
       const tasksData = Array.isArray(response.data) ? response.data : [];
+      console.log('📋 [RecycleBinPage] Processing tasks data:', tasksData.length, 'items');
       
       // Safely extract pagination data with fallbacks
       const paginationData = response.pagination || {};
       const total = typeof (paginationData as any).total === 'number' ? (paginationData as any).total : 0;
       
+      console.log('📄 [RecycleBinPage] Pagination data - total:', total, 'current page:', page);
+      
       setRecycledTasks(tasksData);
       setTasksTotal(total);
       setTasksCurrentPage(page);
+      
+      console.log('✅ [RecycleBinPage] State updated successfully - tasks:', tasksData.length, 'total:', total);
     } catch (error) {
+      console.error('💥 [RecycleBinPage] Error loading recycled tasks:', error);
       message.error('加载回收站任务失败');
-      console.error('Error loading recycled tasks:', error);
       // Set empty array on error to prevent undefined state
       setRecycledTasks([]);
       setTasksTotal(0);

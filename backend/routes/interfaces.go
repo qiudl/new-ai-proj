@@ -85,6 +85,9 @@ type ApplicationInterface interface {
 	// 公司管理处理器
 	GetCompanyHandler() *handlers.CompanyHandler
 
+	// 组织管理处理器
+	GetOrganizationHandler() *handlers.OrganizationHandler
+
 	// 工作笔记处理器
 	GetWorkNoteHandler() *handlers.WorkNoteHandler
 
@@ -116,4 +119,13 @@ type ApplicationInterface interface {
 	// 任务层级处理器
 	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	GetTaskTimelineHandler() gin.HandlerFunc
+
+	// 回收站处理器
+	GetRecycledTasksHandler() gin.HandlerFunc
+	RestoreTaskHandler() gin.HandlerFunc
+	HardDeleteTaskHandler() gin.HandlerFunc
+	GetRecycledProjectsHandler() gin.HandlerFunc
+	RestoreProjectHandler() gin.HandlerFunc
+	HardDeleteProjectHandler() gin.HandlerFunc
+	EmptyRecycleBinHandler() gin.HandlerFunc
 }

@@ -63,6 +63,9 @@ api.interceptors.response.use(
                           !url.includes('/export') &&
                           method === 'get'; // 只有GET请求才是列表API
     
+    // 回收站API需要保留完整的响应结构（包含pagination）
+    const isRecycleBinAPI = url.includes('/system/recycle/') && method === 'get';
+    
     if (isUserListAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
       // 企业用户列表API：后端返回 {success: true, data: {data: [], total, page}}
       // 需要返回 {data: [], total, page} 格式给前端使用
@@ -70,9 +73,18 @@ api.interceptors.response.use(
       return body.data;
     }
     
+    if (isRecycleBinAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      // 回收站API：保留完整响应结构 {data: [...], pagination: {...}}
+      console.log('🗑️ API Interceptor - Recycle Bin API detected, returning full body:', body);
+      return body;
+    }
+    
     if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
+      console.log('🔧 API Interceptor - 标准响应格式检测到，返回 body.data:', body.data);
+      console.log('🔧 URL:', url, 'Method:', method);
       return body.data;
     }
+    console.log('🔧 API Interceptor - 直接返回原始 body:', body);
     return body;
   },
   async (error) => {

@@ -487,6 +487,34 @@ func (app *Application) EmptyRecycleBinHandler() gin.HandlerFunc {
 	}
 }
 
+// Project recycle bin handlers
+func (app *Application) GetRecycledProjectsHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.GetRecycledProjects
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "GetRecycledProjectsHandler not implemented"})
+	}
+}
+
+func (app *Application) RestoreProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.RestoreProject
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "RestoreProjectHandler not implemented"})
+	}
+}
+
+func (app *Application) HardDeleteProjectHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.RecycleBinHandler != nil {
+		return app.handlers.RecycleBinHandler.HardDeleteProject
+	}
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "HardDeleteProjectHandler not implemented"})
+	}
+}
+
 // Additional methods
 func (app *Application) FileDownloadHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
