@@ -5,7 +5,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { userService } from '../services/userService';
 import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
-import { filterMenuItems, getUserTypeFromRole } from '../config/menuVisibility';
+import { filterMenuItems, getUserType } from '../config/menuVisibility';
 
 // 开发环境下加载菜单测试工具
 if (process.env.NODE_ENV === 'development') {
@@ -424,7 +424,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       return baseSidebarItems;
     }
 
-    const userType = getUserTypeFromRole(currentUser.role);
+    const userType = getUserType(currentUser.user_type);
     const filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role);
     
     // 开发环境下打印菜单过滤结果

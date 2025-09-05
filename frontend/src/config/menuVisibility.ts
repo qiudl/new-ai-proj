@@ -2,9 +2,9 @@
 // 定义菜单对不同用户类型的可见性规则
 
 export enum UserType {
-  SYSTEM_USER = 'system_user',    // 系统用户 (admin, project_manager, developer)
-  COMPANY_USER = 'company_user',  // 企业用户 (company_admin, company_user)
-  BOTH = 'both'                   // 两种用户都可见
+  SYSTEM_USER = 'system',    // 系统用户 (admin, project_manager, developer) - 匹配JWT中的user_type
+  COMPANY_USER = 'company',  // 企业用户 (company_admin, company_user) - 匹配JWT中的user_type
+  BOTH = 'both'              // 两种用户都可见
 }
 
 export interface MenuVisibilityConfig {
@@ -175,8 +175,8 @@ export function isMenuVisible(
     return true;
   }
 
-  // 确定当前用户的用户类型
-  const currentUserType = getUserTypeFromRole(userRole);
+  // 使用传入的用户类型参数
+  const currentUserType = getUserType(userType);
   
   // 检查用户类型是否匹配
   if (config.userType !== currentUserType) {
@@ -192,7 +192,26 @@ export function isMenuVisible(
 }
 
 /**
- * 根据角色确定用户类型
+ * 根据用户类型字符串转换为UserType枚举
+ * @param userType JWT中的user_type字段值 ('system' | 'company')
+ * @returns UserType枚举值
+ */
+export function getUserType(userType: string): UserType {
+  switch (userType) {
+    case 'system':
+      return UserType.SYSTEM_USER;
+    case 'company':
+      return UserType.COMPANY_USER;
+    default:
+      // 默认归类为系统用户
+      console.warn(`Unknown user_type: ${userType}, defaulting to system user`);
+      return UserType.SYSTEM_USER;
+  }
+}
+
+/**
+ * @deprecated 使用 getUserType(userType) 替代，直接传入JWT中的user_type字段
+ * 根据角色确定用户类型 (仅为向后兼容保留)
  */
 export function getUserTypeFromRole(role: string): UserType {
   const systemRoles = ['admin', 'project_manager', 'developer'];

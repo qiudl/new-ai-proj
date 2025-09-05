@@ -1,7 +1,7 @@
 // 菜单可见性测试工具
 // 可以在浏览器控制台中运行这个脚本来测试菜单过滤逻辑
 
-import { isMenuVisible, getUserTypeFromRole, filterMenuItems, UserType } from '../config/menuVisibility';
+import { isMenuVisible, getUserType, getUserTypeFromRole, filterMenuItems, UserType } from '../config/menuVisibility';
 
 // 测试数据：模拟的菜单项
 const testMenuItems = [
@@ -50,14 +50,15 @@ export function testMenuVisibility() {
 
   console.log('\n  菜单项可见性测试:');
   testCases.forEach(testCase => {
-    const result = isMenuVisible(testCase.key, companyAdminUserType, companyAdminRole);
+    // 对于company_admin，userType应该是'company'
+    const result = isMenuVisible(testCase.key, 'company', companyAdminRole);
     const status = result === testCase.expected ? '✅' : '❌';
     console.log(`    ${status} ${testCase.description}: ${result ? '可见' : '隐藏'} (期望: ${testCase.expected ? '可见' : '隐藏'})`);
   });
 
   // 测试菜单过滤
   console.log('\n  菜单过滤测试:');
-  const filteredItems = filterMenuItems(testMenuItems, companyAdminUserType, companyAdminRole);
+  const filteredItems = filterMenuItems(testMenuItems, 'company', companyAdminRole);
   console.log(`    原始菜单项数: ${testMenuItems.length}`);
   console.log(`    过滤后菜单项数: ${filteredItems.length}`);
   console.log('    过滤后的菜单项:', filteredItems.map(item => item.label));
@@ -70,7 +71,7 @@ export function testMenuVisibility() {
   console.log(`  用户角色: ${adminRole}`);
   console.log(`  用户类型: ${adminUserType}`);
   
-  const adminFilteredItems = filterMenuItems(testMenuItems, adminUserType, adminRole);
+  const adminFilteredItems = filterMenuItems(testMenuItems, 'system', adminRole);
   console.log(`    过滤后菜单项数: ${adminFilteredItems.length}`);
   console.log('    过滤后的菜单项:', adminFilteredItems.map(item => item.label));
 
