@@ -264,7 +264,7 @@ const DocumentListItem: React.FC<{
 const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   projectId,
   taskId,
-  height = 600,
+  height = 'auto',
   className = '',
   style = {},
   defaultViewMode = 'edit',
@@ -1173,9 +1173,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             <div style={{ 
               whiteSpace: 'pre-wrap', 
               lineHeight: '1.6',
-              maxHeight: 'none',  // 移除高度限制
-              overflow: 'visible', // 允许内容完整显示
-              wordBreak: 'break-word' // 处理长单词换行
+              wordBreak: 'break-word'
             }}>
               {selectedDocument.content}
             </div>
@@ -1365,16 +1363,15 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           )
         }
         bodyStyle={{ padding: 0 }}
-        style={{ height: isFullscreen ? '100vh' : (viewMode === 'preview' ? 'auto' : height) }}
+        style={{ height: isFullscreen ? '100vh' : 'auto' }}
       >
-        <Row style={{ height: isFullscreen ? 'calc(100vh - 60px)' : (viewMode === 'preview' ? 'auto' : 'calc(100% - 60px)') }}>
+        <Row style={{ height: isFullscreen ? 'calc(100vh - 60px)' : 'auto' }}>
           {/* 左侧文档列表 */}
           {showDocumentList && (
             <Col 
               span={compactMode ? 24 : 7} 
               style={{ 
-                borderRight: compactMode ? 'none' : '1px solid #f0f0f0',
-                height: viewMode === 'preview' ? 'auto' : '100%'
+                borderRight: compactMode ? 'none' : '1px solid #f0f0f0'
               }}
             >
               <div style={{ padding: '16px 0' }}>
@@ -1430,10 +1427,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           {/* 右侧内容区域 */}
           <Col span={showDocumentList ? (compactMode ? 24 : 17) : 24}>
             <div style={{ 
-              padding: '16px', 
-              height: viewMode === 'preview' ? 'auto' : '100%', // 预览模式下取消高度限制
-              minHeight: viewMode === 'preview' ? '100%' : 'auto', // 预览模式下保证最小高度
-              overflow: viewMode === 'preview' ? 'visible' : 'auto' // 预览模式下允许滚动完整内容
+              padding: '16px'
             }}>
               {renderContentArea()}
             </div>

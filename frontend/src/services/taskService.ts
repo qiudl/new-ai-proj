@@ -27,17 +27,10 @@ export async function fetchTaskDescendants(projectId: number, taskId: number, pa
       { params: { depth, limit } }
     );
 
-    const data = Array.isArray(response?.data?.data)
-      ? response.data
-      : Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response)
-          ? response
-          : Array.isArray(response?.items)
-            ? response.items
-            : [];
-
-    return { data: { data } };
+    // API interceptor automatically unwraps { success: true, data: {...} } to just the data part
+    // So response is already the unwrapped data: { data: [...], meta: {...}, page_info: {...} }
+    const tasksArray = Array.isArray(response?.data) ? response.data : [];
+    return { data: { data: tasksArray } };
   } catch (e: any) {
     const status = e?.response?.status;
     const payload = e?.response?.data ? JSON.stringify(e.response.data) : e?.message || '';

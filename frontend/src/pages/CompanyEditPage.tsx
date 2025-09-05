@@ -207,9 +207,15 @@ const CompanyEditPage: React.FC = () => {
             </Button>
             <div>
               <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center' }}>
-                <EditOutlined style={{ marginRight: '8px', color: '#1890ff' }} />
+                <EditOutlined style={{ marginRight: '8px', color: company.deleted ? '#ff4d4f' : '#1890ff' }} />
                 编辑企业客户
-                {hasChanges && (
+                {company.deleted && (
+                  <Badge 
+                    count="已删除" 
+                    style={{ backgroundColor: '#ff4d4f', marginLeft: '8px' }} 
+                  />
+                )}
+                {hasChanges && !company.deleted && (
                   <Badge 
                     count="已修改" 
                     style={{ backgroundColor: '#fa8c16', marginLeft: '8px' }} 
@@ -218,6 +224,7 @@ const CompanyEditPage: React.FC = () => {
               </Title>
               <p style={{ margin: '4px 0 0 0', color: '#8c8c8c', fontSize: '14px' }}>
                 {company.companyName} - {company.companyTypeText} - {company.statusText}
+                {company.deleted && ' - 已删除'}
               </p>
             </div>
           </div>
@@ -229,21 +236,23 @@ const CompanyEditPage: React.FC = () => {
             >
               查看列表
             </Button>
-            <Button 
-              danger
-              icon={<DeleteOutlined />}
-              onClick={handleDelete}
-            >
-              删除企业
-            </Button>
+            {!company.deleted && (
+              <Button 
+                danger
+                icon={<DeleteOutlined />}
+                onClick={handleDelete}
+              >
+                删除企业
+              </Button>
+            )}
             <Button 
               type="primary" 
               icon={<SaveOutlined />}
               onClick={handleSubmit}
               loading={submitting}
-              disabled={!hasChanges}
+              disabled={!hasChanges || company.deleted}
             >
-              {hasChanges ? '保存修改' : '无修改'}
+              {company.deleted ? '无法保存(已删除)' : (hasChanges ? '保存修改' : '无修改')}
             </Button>
           </Space>
         </div>
@@ -266,10 +275,26 @@ const CompanyEditPage: React.FC = () => {
             ),
             children: (
               <div style={{ padding: '16px' }}>
+                {company.deleted && (
+                  <Alert
+                    message="企业已被删除"
+                    description="此企业已被删除，无法进行编辑。如需恢复，请联系系统管理员。"
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: '16px' }}
+                    action={
+                      <Button size="small" onClick={() => navigate('/companies')}>
+                        返回列表
+                      </Button>
+                    }
+                  />
+                )}
+                
                 <CompanyForm 
                   form={form}
                   company={company}
                   onValuesChange={handleValuesChange}
+                  disabled={company.deleted}
                 />
                 
                 {/* 底部操作栏 */}
@@ -285,9 +310,9 @@ const CompanyEditPage: React.FC = () => {
                         icon={<SaveOutlined />}
                         onClick={handleSubmit}
                         loading={submitting}
-                        disabled={!hasChanges}
+                        disabled={!hasChanges || company.deleted}
                       >
-                        {hasChanges ? '保存修改' : '无修改'}
+                        {company.deleted ? '无法保存(已删除)' : (hasChanges ? '保存修改' : '无修改')}
                       </Button>
                     </Space>
                   </div>

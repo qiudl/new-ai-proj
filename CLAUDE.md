@@ -131,3 +131,4 @@ openapi-generator generate -i docs/api/openapi.yaml -g [language] -o ./generated
 - 请记住本项目的重启方式是用docker compose
 - 记住docker-compose的用法: docker compose -f docker-compose.dev.yml {down/restart/up -d)
 - 开发登录端点路径：/api/v1/auth/dev/quick-login
+- 项目总结文档不要用工作笔记,而是任务文档.请记住

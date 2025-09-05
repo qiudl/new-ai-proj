@@ -128,4 +128,7 @@ type ApplicationInterface interface {
 	RestoreProjectHandler() gin.HandlerFunc
 	HardDeleteProjectHandler() gin.HandlerFunc
 	EmptyRecycleBinHandler() gin.HandlerFunc
+
+	// AI配置处理器
+	GetAIConfigHandler() *handlers.AIConfigHandler
 }

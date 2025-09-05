@@ -130,6 +130,33 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     userType: UserType.SYSTEM_USER,
     requiredRole: ['admin', 'company_admin'],
     description: 'API Key管理 - 系统管理员和企业管理员' 
+  },
+
+  // 企业组织管理 - 专为企业用户设计的组织管理功能
+  '/organization-management': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '企业组织管理菜单组 - 仅企业管理员可见' 
+  },
+  '/organization-structure': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '组织架构管理 - 仅企业管理员' 
+  },
+  '/position-management': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '岗位管理 - 仅企业管理员' 
+  },
+  '/enterprise-roles': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '企业角色管理 - 仅企业管理员' 
+  },
+  '/enterprise-users': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '企业用户管理 - 仅企业管理员' 
   }
 };
 

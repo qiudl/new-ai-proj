@@ -25,7 +25,8 @@ import {
   TIME_PERMISSIONS,
   API_KEY_PERMISSIONS,
   AUDIT_PERMISSIONS,
-  NAVIGATION_PERMISSIONS
+  NAVIGATION_PERMISSIONS,
+  ORGANIZATION_PERMISSIONS
 } from './constants/permissions';
 import './App.css';
 import './styles/task-hierarchy.css';
@@ -66,6 +67,12 @@ const NavigationManagementPage = React.lazy(() => import('./pages/NavigationMana
 const APIKeyManagement = React.lazy(() => import('./components/APIKeyManagement'));
 const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
+
+// Enterprise Organization Management Pages
+const OrganizationStructurePage = React.lazy(() => import('./pages/OrganizationStructurePage'));
+const PositionManagementPage = React.lazy(() => import('./pages/PositionManagementPage'));
+const EnterpriseRoleManagementPage = React.lazy(() => import('./pages/EnterpriseRoleManagementPage'));
+const EnterpriseUserManagementPage = React.lazy(() => import('./pages/EnterpriseUserManagementPage'));
 
 const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
@@ -370,6 +377,31 @@ const AppContent: React.FC = () => {
                 <Route path="/api-keys/:id/edit" element={
                   <PermissionRoute permission={API_KEY_PERMISSIONS.UPDATE}>
                     <APIKeyEdit />
+                  </PermissionRoute>
+                } />
+
+                {/* Enterprise Organization Management Routes */}
+                <Route path="/organization-structure" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.STRUCTURE_READ}>
+                    <OrganizationStructurePage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/position-management" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.POSITION_READ}>
+                    <PositionManagementPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/enterprise-roles" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.ROLE_READ}>
+                    <EnterpriseRoleManagementPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/enterprise-users" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.USER_READ}>
+                    <EnterpriseUserManagementPage />
                   </PermissionRoute>
                 } />
 

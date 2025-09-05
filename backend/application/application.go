@@ -520,6 +520,14 @@ func (app *Application) GetCalendarSyncHandler() *handlers.CalendarSyncHandler {
 	return nil // 需要通过工厂创建
 }
 
+// GetAIConfigHandler returns the AI config handler
+func (app *Application) GetAIConfigHandler() *handlers.AIConfigHandler {
+	if app.handlers != nil && app.handlers.AIConfigHandler != nil {
+		return app.handlers.AIConfigHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetWebSocketHandler returns the WebSocket handler - COMPLETELY DISABLED
 // func (app *Application) GetWebSocketHandler() gin.HandlerFunc {
 // 	// Temporarily disabled WebSocket functionality

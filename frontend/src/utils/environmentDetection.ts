@@ -110,16 +110,25 @@ export const getEnvironmentConfig = () => {
   // 前端JavaScript运行在浏览器中，不是Docker容器内
   // 根据访问端口和环境变量确定API地址
   let apiBaseURL: string;
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  const currentPort = getCurrentPort();
   
   if (env.actualEnv === 'local-dev') {
-    // 本地开发环境，使用相对路径通过 setupProxy.js 代理
-    apiBaseURL = '/api/v1';
+    // 本地开发环境，使用完整URL避免相对路径问题
+    if (currentPort === '3001' || currentPort === '3002') {
+      // 通过proxy代理到后端8081端口
+      apiBaseURL = `${protocol}//${hostname}:${currentPort}/api/v1`;
+    } else {
+      // 直接访问后端端口
+      apiBaseURL = `${protocol}//${hostname}:8081/api/v1`;
+    }
   } else if (env.actualEnv === 'docker-test') {
     // Docker测试环境，使用相对路径通过代理
-    apiBaseURL = '/api/v1';
+    apiBaseURL = `${protocol}//${hostname}:${currentPort}/api/v1`;
   } else {
     // 生产环境，使用相对路径通过反向代理
-    apiBaseURL = '/api/v1';
+    apiBaseURL = `${protocol}//${hostname}${currentPort !== '80' && currentPort !== '443' ? `:${currentPort}` : ''}/api/v1`;
   }
   
   return {

@@ -117,6 +117,20 @@ export const NAVIGATION_PERMISSIONS = {
   UPDATE: 'navigation_update'
 } as const;
 
+// 企业组织管理权限
+export const ORGANIZATION_PERMISSIONS = {
+  ADMIN: 'organization_admin',
+  STRUCTURE_READ: 'organization_structure_read',
+  STRUCTURE_MANAGE: 'organization_structure_manage',
+  POSITION_READ: 'position_read',
+  POSITION_MANAGE: 'position_manage',
+  ROLE_READ: 'enterprise_role_read',
+  ROLE_MANAGE: 'enterprise_role_manage',
+  USER_READ: 'enterprise_user_read',
+  USER_MANAGE: 'enterprise_user_manage',
+  USER_INVITE: 'enterprise_user_invite'
+} as const;
+
 // 角色常量
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
@@ -153,7 +167,13 @@ export const ROUTE_PERMISSIONS = {
   // 个人功能
   '/user-profile': [USER_PERMISSIONS.PROFILE_READ],
   '/personal-timer': [TIME_PERMISSIONS.READ],
-  '/timer-analytics': [TIME_PERMISSIONS.ANALYTICS_READ]
+  '/timer-analytics': [TIME_PERMISSIONS.ANALYTICS_READ],
+  
+  // 企业组织管理页面
+  '/organization-structure': [ORGANIZATION_PERMISSIONS.STRUCTURE_READ],
+  '/position-management': [ORGANIZATION_PERMISSIONS.POSITION_READ],
+  '/enterprise-roles': [ORGANIZATION_PERMISSIONS.ROLE_READ],
+  '/enterprise-users': [ORGANIZATION_PERMISSIONS.USER_READ]
 } as const;
 
 // 权限组合常量
@@ -193,6 +213,7 @@ export type DashboardPermission = typeof DASHBOARD_PERMISSIONS[keyof typeof DASH
 export type APIKeyPermission = typeof API_KEY_PERMISSIONS[keyof typeof API_KEY_PERMISSIONS];
 export type AuditPermission = typeof AUDIT_PERMISSIONS[keyof typeof AUDIT_PERMISSIONS];
 export type NavigationPermission = typeof NAVIGATION_PERMISSIONS[keyof typeof NAVIGATION_PERMISSIONS];
+export type OrganizationPermission = typeof ORGANIZATION_PERMISSIONS[keyof typeof ORGANIZATION_PERMISSIONS];
 export type Role = typeof ROLES[keyof typeof ROLES];
 
 export type AnyPermission = 
@@ -207,4 +228,5 @@ export type AnyPermission =
   | DashboardPermission
   | APIKeyPermission
   | AuditPermission
-  | NavigationPermission;
+  | NavigationPermission
+  | OrganizationPermission;

@@ -1285,11 +1285,10 @@ const TaskDetailPageNew: React.FC = () => {
                     </Space>
                   ),
                   children: (
-                    <div style={{ minHeight: '500px' }}>
+                    <div>
                       <UnifiedTaskDocumentArea
                         taskId={taskState.task.id}
                         projectId={parseInt(projectId || '0')}
-                        height="500px"
                         defaultViewMode="edit"
                         showToolbar={true}
                         showDocumentList={true}

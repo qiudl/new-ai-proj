@@ -38,6 +38,9 @@ import {
   FullscreenOutlined,
   FullscreenExitOutlined,
   KeyOutlined,
+  BankOutlined,
+  ContactsOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 
 const { Header, Sider, Content } = AntLayout;
@@ -239,6 +242,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/document-manager')) return ['/document-manager'];
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
+    if (path.includes('/organization-structure')) return ['/organization-structure'];
+    if (path.includes('/position-management')) return ['/position-management'];
+    if (path.includes('/enterprise-roles')) return ['/enterprise-roles'];
+    if (path.includes('/enterprise-users')) return ['/enterprise-users'];
     return [path];
   };
 
@@ -260,7 +267,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/document-manager') || path.includes('/task-documents')) {
       return ['/document-management'];
     }
-    if (path.includes('/permissions') || path.includes('/role-management') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management')) {
+    if (path.includes('/organization-structure') || path.includes('/position-management') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
+      return ['/organization-management'];
+    }
+    if (path.includes('/permissions') || path.includes('/role-management') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
       return ['/system-management'];
     }
     return [];
@@ -365,6 +375,33 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           key: '/task-documents',
           icon: <FileTextOutlined />,
           label: '任务文档',
+        },
+      ],
+    },
+    {
+      key: '/organization-management',
+      icon: <BankOutlined />,
+      label: '组织管理',
+      children: [
+        {
+          key: '/organization-structure',
+          icon: <BankOutlined />,
+          label: '组织架构',
+        },
+        {
+          key: '/position-management',
+          icon: <ContactsOutlined />,
+          label: '岗位管理',
+        },
+        {
+          key: '/enterprise-roles',
+          icon: <SafetyCertificateOutlined />,
+          label: '角色管理',
+        },
+        {
+          key: '/enterprise-users',
+          icon: <UserOutlined />,
+          label: '用户管理',
         },
       ],
     },

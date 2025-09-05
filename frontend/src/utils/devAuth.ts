@@ -17,7 +17,7 @@ export const getDevAuthToken = async (): Promise<string | null> => {
 
   try {
     console.log('🚀 开始调用开发登录API...');
-    const response = await fetch('/api/v1/auth/dev-quick-login', {
+    const response = await fetch('/api/v1/auth/dev/quick-login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -35,17 +35,33 @@ export const getDevAuthToken = async (): Promise<string | null> => {
     const data = await response.json();
     console.log('📦 API响应数据:', data);
     
+    // 修正响应格式，匹配后端实际返回的格式
     if (data.success && data.data && data.data.access_token) {
       // 存储token和用户信息
       localStorage.setItem('token', data.data.access_token);
-      localStorage.setItem('currentUser', JSON.stringify({
+      
+      // 构建完整的用户信息对象
+      const userInfo = {
         id: data.data.user.id,
         username: data.data.user.username,
-        role: data.data.user.role
-      }));
+        email: data.data.user.email,
+        role: data.data.user.role,
+        user_type: data.data.user.user_type,
+        // 如果是企业用户，添加company_id
+        company_id: data.data.user.user_type === 'company' ? 2 : undefined,
+        status: 'active',
+        profile: {
+          name: data.data.user.username,
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      localStorage.setItem('currentUser', JSON.stringify(userInfo));
       
       console.log('✅ 开发环境自动登录成功:', data.data.user.username);
       console.log('🔐 Token已存储到localStorage');
+      console.log('👤 用户信息:', userInfo);
       return data.data.access_token;
     } else {
       console.warn('❌ 开发环境自动登录响应格式错误:', data);
