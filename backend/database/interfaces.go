@@ -84,6 +84,12 @@ type TaskRepository interface {
 	GetRootTasks(ctx context.Context, projectID int, limit, offset int) ([]*models.Task, int, error)
 	// GetDescendants 按层级返回指定任务的后代节点（从子任务开始，level 从1起）
 	GetDescendants(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.TaskDescendantNode, error)
+	// GetDescendantsWithFullDetails 获取包含完整字段的任务后代列表（为统一API响应格式使用）
+	GetDescendantsWithFullDetails(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.Task, error)
+	// GetDescendantsPaginated 获取分页的简化任务后代列表
+	GetDescendantsPaginated(ctx context.Context, rootTaskID int, depth, page, pageSize int) ([]*models.TaskDescendantNode, int, error)
+	// GetDescendantsWithFullDetailsPaginated 获取分页的包含完整字段的任务后代列表
+	GetDescendantsWithFullDetailsPaginated(ctx context.Context, rootTaskID int, depth, page, pageSize int) ([]*models.Task, int, error)
 	SearchParentTasks(ctx context.Context, projectID int, keyword string, excludeTaskIDs []int, maxLevel int, limit, offset int) ([]*models.Task, int, error)
 	CheckCircularDependency(ctx context.Context, taskID int, potentialParentID int) (bool, error)
 

@@ -17,26 +17,171 @@ import {
   TimelineEvent,
 } from '../types/task';
 
-// Task service additions for descendants API
+import { UnifiedTaskNode, isBaseTaskNode, TaskDescendantsApiResponse } from '../types/UnifiedTaskNode';
+
+// API response format validator for V1 format
+function validateV1TaskDescendantsResponse(response: any): UnifiedTaskNode[] {
+  if (!response || typeof response !== 'object') {
+    throw new Error('Invalid API response: response is not an object');
+  }
+
+  // V1 format: direct array or nested in data property
+  const dataArray = Array.isArray(response) ? response : response.data;
+  
+  if (!Array.isArray(dataArray)) {
+    throw new Error('Invalid API response: data is not an array');
+  }
+
+  // Validate each task node
+  for (let i = 0; i < dataArray.length; i++) {
+    const node = dataArray[i];
+    if (!isBaseTaskNode(node)) {
+      console.warn(`Invalid task node at index ${i}:`, node);
+      throw new Error(`Invalid API response: task node at index ${i} is malformed`);
+    }
+  }
+
+  return dataArray as UnifiedTaskNode[];
+}
+
+// Enhanced parameters interface for the unified API
+export interface TaskDescendantsParams {
+  depth?: number;
+  limit?: number;
+  page?: number;
+  pageSize?: number;
+  includeExtended?: boolean;
+  apiVersion?: 'v1' | 'v2';
+}
+
+
+// Legacy function for backward compatibility
 export async function fetchTaskDescendants(projectId: number, taskId: number, params?: { depth?: number; limit?: number }) {
-  const depth = params?.depth ?? 2;
-  const limit = params?.limit ?? 200;
+  return fetchTaskDescendantsV2(projectId, taskId, {
+    depth: params?.depth,
+    limit: params?.limit,
+    apiVersion: 'v2' // Use V2 by default for standardized interface
+  });
+}
+
+// Enhanced function supporting the new unified API format
+export async function fetchTaskDescendantsV2(
+  projectId: number, 
+  taskId: number, 
+  params?: TaskDescendantsParams
+): Promise<TaskDescendantsApiResponse> {
+  const {
+    depth = 2,
+    limit = 200,
+    page,
+    pageSize,
+    includeExtended = false,
+    apiVersion = 'v2'
+  } = params || {};
+
   try {
+    // Build query parameters
+    const queryParams: Record<string, any> = { depth };
+    
+    if (apiVersion === 'v2') {
+      queryParams.api_version = 'v2';
+      
+      // Add pagination parameters if specified
+      if (page !== undefined) {
+        queryParams.page = page;
+      }
+      if (pageSize !== undefined) {
+        queryParams.page_size = pageSize;
+      } else if (limit !== undefined) {
+        queryParams.limit = limit;
+      }
+      
+      // Add extended fields parameter
+      if (includeExtended) {
+        queryParams.include_extended = 'true';
+      }
+    } else {
+      // V1 API parameters
+      queryParams.limit = limit;
+    }
+
     const response: any = await api.get(
       `/projects/${projectId}/tasks/${taskId}/descendants`,
-      { params: { depth, limit } }
+      { params: queryParams }
     );
 
     // API interceptor automatically unwraps { success: true, data: {...} } to just the data part
-    // So response is already the unwrapped data: { data: [...], meta: {...}, page_info: {...} }
-    const tasksArray = Array.isArray(response?.data) ? response.data : [];
-    return { data: { data: tasksArray } };
+    // For V2 API, response is the full unified format
+    // For V1 API, response needs to be wrapped for compatibility
+    
+    if (apiVersion === 'v2') {
+      // V2 API returns the full unified format
+      return { data: response };
+    } else {
+      // V1 API - validate and transform for backward compatibility
+      const validatedData = validateV1TaskDescendantsResponse(response);
+      return { 
+        data: { 
+          data: validatedData,
+          meta: {
+            requested_depth: depth,
+            max_depth_reached: false,
+            truncated: false,
+            total_returned: validatedData.length,
+            hidden_nodes_truncated: false,
+          }
+        } 
+      };
+    }
   } catch (e: any) {
+    // Enhanced error handling with validation context
+    if (e.message && e.message.includes('Invalid API response')) {
+      console.error('API Response Validation Error:', e.message);
+      throw new Error(`API validation failed: ${e.message}`);
+    }
+    
     const status = e?.response?.status;
     const payload = e?.response?.data ? JSON.stringify(e.response.data) : e?.message || '';
     throw new Error(`Failed to fetch descendants: ${status ?? ''} ${payload}`.trim());
   }
+}
 
+// Utility function to fetch paginated descendants
+export async function fetchTaskDescendantsPaginated(
+  projectId: number,
+  taskId: number,
+  page: number = 1,
+  pageSize: number = 20,
+  options?: {
+    depth?: number;
+    includeExtended?: boolean;
+  }
+): Promise<TaskDescendantsApiResponse> {
+  return fetchTaskDescendantsV2(projectId, taskId, {
+    depth: options?.depth ?? 2,
+    page,
+    pageSize,
+    includeExtended: options?.includeExtended ?? false,
+    apiVersion: 'v2'
+  });
+}
+
+// Utility function to fetch extended task details
+export async function fetchTaskDescendantsExtended(
+  projectId: number,
+  taskId: number,
+  params?: {
+    depth?: number;
+    limit?: number;
+    page?: number;
+    pageSize?: number;
+  }
+): Promise<TaskDescendantsApiResponse> {
+  return fetchTaskDescendantsV2(projectId, taskId, {
+    ...params,
+    includeExtended: true,
+    apiVersion: 'v2'
+  });
 }
 
 // Cache capability detection to avoid repeated 404s when backend endpoint is unavailable

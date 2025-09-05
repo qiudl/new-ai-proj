@@ -1,5 +1,5 @@
 import React from 'react';
-import { fetchTaskDescendants } from '../services/taskService';
+import { fetchTaskDescendantsV2 } from '../services/taskService';
 import { Tag, Tooltip, Avatar, Dropdown, Button, Spin } from 'antd';
 import { PauseCircleOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined, CalendarOutlined, UserOutlined, BranchesOutlined, EllipsisOutlined, FileTextOutlined, EditOutlined, PlusOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -9,23 +9,7 @@ import { useAutoRefreshOptimized } from '../hooks/useAutoRefreshOptimized';
 import LoadingIndicator from './LoadingIndicator';
 import AnimatedContainer, { UpdateAnimation } from './AnimatedContainer';
 import { useRefreshConfig } from '../contexts/RefreshConfigContext';
-
-type Node = {
-  id: number;
-  parent_id: number;
-  title: string;
-  status: string;
-  level: number;
-  has_children: boolean;
-  sort_order: number;
-  // Optional fields when backend provides them
-  assignee_id?: number | null;
-  assignee_name?: string | null;
-  due_date?: string | null;
-  priority?: 'low' | 'medium' | 'high' | string;
-  children_count?: number;
-  progress_percent?: number; // 0-100
-};
+import { UnifiedTaskNode } from '../types/UnifiedTaskNode';
 
 type Props = { projectId: number; rootTaskId: number; limit?: number };
 
@@ -44,7 +28,7 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
   
   // 获取刷新配置（位于 RefreshConfigProvider 内，因此可直接读取）
   const { config: refreshConfig } = useRefreshConfig();
-  const [childrenByParent, setChildrenByParent] = React.useState<Map<number, Node[]>>(new Map());
+  const [childrenByParent, setChildrenByParent] = React.useState<Map<number, UnifiedTaskNode[]>>(new Map());
   const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
   const [loadingById, setLoadingById] = React.useState<Record<number, boolean>>({});
   const [errorById, setErrorById] = React.useState<Record<number, string | undefined>>({});
@@ -78,14 +62,19 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
   const setNodeLoading = (id: number, val: boolean) => setLoadingById(prev => ({ ...prev, [id]: val }));
   const setNodeError = (id: number, msg?: string) => setErrorById(prev => ({ ...prev, [id]: msg }));
 
-  const sortNodes = React.useCallback((arr: Node[]) => {
+  const sortNodes = React.useCallback((arr: UnifiedTaskNode[]) => {
     return [...arr].sort((a, b) => a.sort_order - b.sort_order || a.id - b.id);
   }, []);
 
   // 加载子任务的函数（用于自动刷新）
   const loadRootChildren = React.useCallback(async () => {
-    const json = await fetchTaskDescendants(projectId, rootTaskId, { depth: 1, limit });
-    const data = (json?.data?.data ?? []) as Node[];
+    const json = await fetchTaskDescendantsV2(projectId, rootTaskId, { 
+      depth: 1, 
+      limit, 
+      apiVersion: 'v2',
+      includeExtended: true 
+    });
+    const data = (json?.data?.data ?? []) as UnifiedTaskNode[];
     const children = data.filter(n => n.parent_id === rootTaskId);
     
     setChildrenByParent(prev => {
@@ -136,8 +125,13 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     setNodeLoading(parentId, true);
     setNodeError(parentId, undefined);
     try {
-      const json = await fetchTaskDescendants(projectId, parentId, { depth: 1, limit });
-      const data = (json?.data?.data ?? []) as Node[];
+      const json = await fetchTaskDescendantsV2(projectId, parentId, { 
+        depth: 1, 
+        limit, 
+        apiVersion: 'v2',
+        includeExtended: true 
+      });
+      const data = (json?.data?.data ?? []) as UnifiedTaskNode[];
       const children = data.filter(n => n.parent_id === parentId);
       setChildrenByParent(prev => {
         const next = new Map(prev);
@@ -183,9 +177,14 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     
     (async () => {
       try {
-        const json = await fetchTaskDescendants(projectId, rootTaskId, { depth: 1, limit });
+        const json = await fetchTaskDescendantsV2(projectId, rootTaskId, { 
+      depth: 1, 
+      limit, 
+      apiVersion: 'v2',
+      includeExtended: true 
+    });
         if (!mounted) return;
-        const data = (json?.data?.data ?? []) as Node[];
+        const data = (json?.data?.data ?? []) as UnifiedTaskNode[];
         const children = data.filter(n => n.parent_id === rootTaskId);
         setChildrenByParent(new Map([[rootTaskId, sortNodes(children)]]));
       } catch (e: any) {
@@ -211,7 +210,7 @@ export const TaskDetailDescendantsTree: React.FC<Props> = ({ projectId, rootTask
     }
   }, [projectId, rootTaskId, limit]);
 
-  const toggleExpand = async (node: Node) => {
+  const toggleExpand = async (node: UnifiedTaskNode) => {
     const isExpanded = expanded.has(node.id);
     if (isExpanded) {
       const next = new Set(expanded);

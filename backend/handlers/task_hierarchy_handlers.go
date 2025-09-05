@@ -29,6 +29,7 @@ func NewTaskHierarchyHandler(db database.DB, logger *log.Logger, validator *vali
 }
 
 // GetTaskDescendants 获取任务后代（平铺，含层级）
+// Supports unified response format with backward compatibility
 func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 	// path params
 	projectIDStr := c.Param("id")
@@ -49,6 +50,9 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 	// query params
 	depth := 2
 	limit := 200
+	includeExtended := false
+	apiVersion := "v1" // default to v1 for backward compatibility
+	
 	if v := c.Query("depth"); v != "" {
 		if dv, err := strconv.Atoi(v); err == nil {
 			depth = dv
@@ -58,6 +62,12 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 		if lv, err := strconv.Atoi(v); err == nil {
 			limit = lv
 		}
+	}
+	if v := c.Query("include_extended"); v == "true" {
+		includeExtended = true
+	}
+	if v := c.Query("api_version"); v != "" {
+		apiVersion = v
 	}
 
 	// fetch root basic info
@@ -69,6 +79,14 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 		return
 	}
 
+	// Check API version and respond accordingly
+	if apiVersion == "v2" || includeExtended {
+		// Use new unified format
+		h.getTaskDescendantsV2(c, rootTaskID, depth, limit, includeExtended, rootTask)
+		return
+	}
+
+	// V1 API - maintain backward compatibility
 	nodes, err := h.db.Tasks().GetDescendants(c.Request.Context(), rootTaskID, depth, limit)
 	if err != nil {
 		h.logger.Printf("Error getting descendants: %v", err)
@@ -97,6 +115,153 @@ func (h *TaskHierarchyHandler) GetTaskDescendants(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(resp, "Task descendants retrieved successfully"))
+}
+
+// getTaskDescendantsV2 handles the new unified API format with pagination support
+func (h *TaskHierarchyHandler) getTaskDescendantsV2(c *gin.Context, rootTaskID, depth, limit int, includeExtended bool, rootTask *models.Task) {
+	// Parse pagination parameters
+	page := 1
+	pageSize := limit // Use limit as default page size for backward compatibility
+	usePagination := false
+	
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+			usePagination = true
+		}
+	}
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+			usePagination = true
+		}
+	}
+
+	// Create unified response
+	response := models.NewTaskHierarchyResponse("descendants", includeExtended)
+	
+	// Set root info
+	response.Root = &models.TaskRootInfo{
+		ID:          rootTask.ID,
+		Title:       rootTask.Title,
+		Description: rootTask.Description,
+		Status:      rootTask.Status,
+	}
+
+	var total int
+	var hasMore bool
+
+	if usePagination {
+		// Use paginated methods
+		if includeExtended {
+			// Get full task details with pagination
+			tasks, totalCount, err := h.db.Tasks().GetDescendantsWithFullDetailsPaginated(c.Request.Context(), rootTaskID, depth, page, pageSize)
+			if err != nil {
+				h.logger.Printf("Error getting descendants with full details (paginated): %v", err)
+				resp := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task descendants", nil)
+				c.JSON(http.StatusInternalServerError, resp)
+				return
+			}
+
+			total = totalCount
+			hasMore = page*pageSize < total
+
+			// Convert to unified nodes with extended fields
+			for _, task := range tasks {
+				node := models.NewUnifiedTaskNodeFromTask(task, task.TaskLevel)
+				response.Data = append(response.Data, node)
+			}
+		} else {
+			// Get minimal descendants with pagination
+			descendants, totalCount, err := h.db.Tasks().GetDescendantsPaginated(c.Request.Context(), rootTaskID, depth, page, pageSize)
+			if err != nil {
+				h.logger.Printf("Error getting descendants (paginated): %v", err)
+				resp := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task descendants", nil)
+				c.JSON(http.StatusInternalServerError, resp)
+				return
+			}
+
+			total = totalCount
+			hasMore = page*pageSize < total
+
+			// Convert to unified nodes with minimal fields
+			for _, descendant := range descendants {
+				node := models.NewUnifiedTaskNodeFromDescendant(descendant)
+				response.Data = append(response.Data, node)
+			}
+		}
+
+		// Set pagination info
+		totalPages := (total + pageSize - 1) / pageSize
+		response.PageInfo = &models.TaskHierarchyPage{
+			HasMore:    hasMore,
+			NextCursor: nil,
+			Page:       &page,
+			PageSize:   &pageSize,
+			Total:      &total,
+		}
+
+		response.Pagination = &models.Pagination{
+			Page:       page,
+			PageSize:   pageSize,
+			Total:      int64(total),
+			TotalPages: totalPages,
+			HasNext:    hasMore,
+			HasPrev:    page > 1,
+		}
+	} else {
+		// Use non-paginated methods for backward compatibility
+		if includeExtended {
+			// Get full task details for extended response
+			tasks, err := h.db.Tasks().GetDescendantsWithFullDetails(c.Request.Context(), rootTaskID, depth, limit)
+			if err != nil {
+				h.logger.Printf("Error getting descendants with full details: %v", err)
+				resp := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task descendants", nil)
+				c.JSON(http.StatusInternalServerError, resp)
+				return
+			}
+
+			// Convert to unified nodes with extended fields
+			for _, task := range tasks {
+				node := models.NewUnifiedTaskNodeFromTask(task, task.TaskLevel)
+				response.Data = append(response.Data, node)
+			}
+		} else {
+			// Get minimal descendants
+			descendants, err := h.db.Tasks().GetDescendants(c.Request.Context(), rootTaskID, depth, limit)
+			if err != nil {
+				h.logger.Printf("Error getting descendants: %v", err)
+				resp := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve task descendants", nil)
+				c.JSON(http.StatusInternalServerError, resp)
+				return
+			}
+
+			// Convert to unified nodes with minimal fields
+			for _, descendant := range descendants {
+				node := models.NewUnifiedTaskNodeFromDescendant(descendant)
+				response.Data = append(response.Data, node)
+			}
+		}
+
+		// Set pagination info for non-paginated response
+		response.PageInfo = &models.TaskHierarchyPage{
+			HasMore:    false,
+			NextCursor: nil,
+		}
+	}
+
+	// Set metadata
+	response.Meta.RequestedDepth = depth
+	response.Meta.MaxDepthReached = true
+	if usePagination {
+		response.Meta.Truncated = false
+	} else {
+		response.Meta.Truncated = len(response.Data) >= limit
+	}
+	response.Meta.TotalReturned = len(response.Data)
+	response.Meta.HiddenNodesTruncated = false
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(response, "Task descendants retrieved successfully"))
 }
 
 // GetTaskTree 获取任务树结构

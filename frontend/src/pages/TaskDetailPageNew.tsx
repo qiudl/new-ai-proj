@@ -54,7 +54,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { TaskService } from '../services/taskService';
-import { TaskDetailDescendantsTree } from '../components/TaskDetailDescendantsTree';
+import { TaskDetailDescendantsTreeV2 } from '../components/TaskDetailDescendantsTreeV2';
 import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
@@ -1227,7 +1227,7 @@ const TaskDetailPageNew: React.FC = () => {
             }
           >
             <div style={{ padding: '4px 0' }}>
-              <TaskDetailDescendantsTree 
+              <TaskDetailDescendantsTreeV2 
                 projectId={parseInt(projectId || '0')} 
                 rootTaskId={taskState.task.id} 
                 limit={200} 

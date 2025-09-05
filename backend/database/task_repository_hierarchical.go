@@ -396,6 +396,308 @@ func (r *PostgresTaskRepository) GetDescendants(ctx context.Context, rootTaskID 
 	return nodes, nil
 }
 
+// GetDescendantsWithFullDetails 获取包含完整字段的任务后代列表（为统一API响应格式使用）
+func (r *PostgresTaskRepository) GetDescendantsWithFullDetails(ctx context.Context, rootTaskID int, depth, limit int) ([]*models.Task, error) {
+	if depth <= 0 {
+		depth = 2
+	}
+	if limit <= 0 || limit > 1000 {
+		limit = 200
+	}
+
+	query := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, 
+				t.due_date, t.custom_fields, t.parent_id, t.task_level, t.sort_order,
+				t.total_time_seconds, t.start_datetime, t.due_datetime,
+				t.dependencies, t.estimated_hours, t.priority, t.tags,
+				t.created_at, t.updated_at,
+				-- Calculate has_children and children_count at query time
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				(SELECT COUNT(*) FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as children_count,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: find children of current level
+			SELECT 
+				t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, 
+				t.due_date, t.custom_fields, t.parent_id, t.task_level, t.sort_order,
+				t.total_time_seconds, t.start_datetime, t.due_datetime,
+				t.dependencies, t.estimated_hours, t.priority, t.tags,
+				t.created_at, t.updated_at,
+				-- Calculate has_children and children_count at query time
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				(SELECT COUNT(*) FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as children_count,
+				d.level + 1
+			FROM tasks t
+			JOIN descendants d ON t.parent_id = d.id
+			WHERE t.deleted_at IS NULL AND d.level < $2
+		)
+		SELECT 
+			id, project_id, title, description, status, assignee_id, 
+			due_date, custom_fields, parent_id, task_level, sort_order,
+			total_time_seconds, start_datetime, due_datetime,
+			dependencies, estimated_hours, priority, tags,
+			created_at, updated_at, has_children, children_count, level
+		FROM descendants
+		ORDER BY level, sort_order, id
+		LIMIT $3`
+
+	exec := r.getExecer()
+	rows, err := exec.QueryContext(ctx, query, rootTaskID, depth, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query descendants with full details: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		t := &models.Task{}
+		var level int          // We'll use this to set the calculated level
+		var hasChildren bool   // Calculated at query time
+		var childrenCount int  // Calculated at query time
+		
+		if err := rows.Scan(
+			&t.ID, &t.ProjectID, &t.Title, &t.Description, &t.Status, &t.AssigneeID,
+			&t.DueDate, &t.CustomFields, &t.ParentID, &t.TaskLevel, &t.SortOrder,
+			&t.TotalTimeSeconds, &t.StartDatetime, &t.DueDatetime,
+			&t.Dependencies, &t.EstimatedHours, &t.Priority, &t.Tags,
+			&t.CreatedAt, &t.UpdatedAt, &hasChildren, &childrenCount, &level,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan task with full details: %w", err)
+		}
+		
+		// Use the calculated level and children info from the CTE query
+		t.TaskLevel = level
+		t.HasChildren = hasChildren
+		t.ChildrenCount = childrenCount
+		tasks = append(tasks, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+	return tasks, nil
+}
+
+// GetDescendantsWithFullDetailsPaginated 获取分页的包含完整字段的任务后代列表
+func (r *PostgresTaskRepository) GetDescendantsWithFullDetailsPaginated(ctx context.Context, rootTaskID int, depth, page, pageSize int) ([]*models.Task, int, error) {
+	if depth <= 0 {
+		depth = 2
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 20
+	}
+	
+	offset := (page - 1) * pageSize
+
+	// First, get the total count
+	countQuery := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.parent_id,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: find children of current level
+			SELECT 
+				t.id, t.parent_id,
+				d.level + 1
+			FROM tasks t
+			JOIN descendants d ON t.parent_id = d.id
+			WHERE t.deleted_at IS NULL AND d.level < $2
+		)
+		SELECT COUNT(*) FROM descendants`
+
+	exec := r.getExecer()
+	var total int
+	err := exec.QueryRowContext(ctx, countQuery, rootTaskID, depth).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count descendants: %w", err)
+	}
+
+	// Then get the paginated data
+	query := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, 
+				t.due_date, t.custom_fields, t.parent_id, t.task_level, t.sort_order,
+				t.total_time_seconds, t.start_datetime, t.due_datetime,
+				t.dependencies, t.estimated_hours, t.priority, t.tags,
+				t.created_at, t.updated_at,
+				-- Calculate has_children and children_count at query time
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				(SELECT COUNT(*) FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as children_count,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: find children of current level
+			SELECT 
+				t.id, t.project_id, t.title, t.description, t.status, t.assignee_id, 
+				t.due_date, t.custom_fields, t.parent_id, t.task_level, t.sort_order,
+				t.total_time_seconds, t.start_datetime, t.due_datetime,
+				t.dependencies, t.estimated_hours, t.priority, t.tags,
+				t.created_at, t.updated_at,
+				-- Calculate has_children and children_count at query time
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				(SELECT COUNT(*) FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as children_count,
+				d.level + 1
+			FROM tasks t
+			JOIN descendants d ON t.parent_id = d.id
+			WHERE t.deleted_at IS NULL AND d.level < $2
+		)
+		SELECT 
+			id, project_id, title, description, status, assignee_id, 
+			due_date, custom_fields, parent_id, task_level, sort_order,
+			total_time_seconds, start_datetime, due_datetime,
+			dependencies, estimated_hours, priority, tags,
+			created_at, updated_at, has_children, children_count, level
+		FROM descendants
+		ORDER BY level, sort_order, id
+		LIMIT $3 OFFSET $4`
+
+	rows, err := exec.QueryContext(ctx, query, rootTaskID, depth, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query descendants with full details (paginated): %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*models.Task
+	for rows.Next() {
+		t := &models.Task{}
+		var level int          // We'll use this to set the calculated level
+		var hasChildren bool   // Calculated at query time
+		var childrenCount int  // Calculated at query time
+		
+		if err := rows.Scan(
+			&t.ID, &t.ProjectID, &t.Title, &t.Description, &t.Status, &t.AssigneeID,
+			&t.DueDate, &t.CustomFields, &t.ParentID, &t.TaskLevel, &t.SortOrder,
+			&t.TotalTimeSeconds, &t.StartDatetime, &t.DueDatetime,
+			&t.Dependencies, &t.EstimatedHours, &t.Priority, &t.Tags,
+			&t.CreatedAt, &t.UpdatedAt, &hasChildren, &childrenCount, &level,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan task with full details (paginated): %w", err)
+		}
+		
+		// Use the calculated level and children info from the CTE query
+		t.TaskLevel = level
+		t.HasChildren = hasChildren
+		t.ChildrenCount = childrenCount
+		tasks = append(tasks, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+	return tasks, total, nil
+}
+
+// GetDescendantsPaginated 获取分页的简化任务后代列表
+func (r *PostgresTaskRepository) GetDescendantsPaginated(ctx context.Context, rootTaskID int, depth, page, pageSize int) ([]*models.TaskDescendantNode, int, error) {
+	if depth <= 0 {
+		depth = 2
+	}
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 100 {
+		pageSize = 20
+	}
+	
+	offset := (page - 1) * pageSize
+
+	// First, get the total count
+	countQuery := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.parent_id,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: find children of current level
+			SELECT 
+				t.id, t.parent_id,
+				d.level + 1
+			FROM tasks t
+			JOIN descendants d ON t.parent_id = d.id
+			WHERE t.deleted_at IS NULL AND d.level < $2
+		)
+		SELECT COUNT(*) FROM descendants`
+
+	exec := r.getExecer()
+	var total int
+	err := exec.QueryRowContext(ctx, countQuery, rootTaskID, depth).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count descendants: %w", err)
+	}
+
+	// Then get the paginated data
+	query := `
+		WITH RECURSIVE descendants AS (
+			-- seed: root's direct children
+			SELECT 
+				t.id, t.parent_id, t.project_id, t.title, t.status, t.sort_order,
+				-- Calculate has_children at query time for better accuracy
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				1 AS level
+			FROM tasks t
+			WHERE t.parent_id = $1 AND t.deleted_at IS NULL
+			
+			UNION ALL
+			
+			-- recursive: find children of current level
+			SELECT 
+				t.id, t.parent_id, t.project_id, t.title, t.status, t.sort_order,
+				-- Calculate has_children at query time for better accuracy
+				(SELECT COUNT(*) > 0 FROM tasks ct WHERE ct.parent_id = t.id AND ct.deleted_at IS NULL) as has_children,
+				d.level + 1
+			FROM tasks t
+			JOIN descendants d ON t.parent_id = d.id
+			WHERE t.deleted_at IS NULL AND d.level < $2
+		)
+		SELECT id, parent_id, project_id, title, status, level, has_children, sort_order
+		FROM descendants
+		ORDER BY level, sort_order, id
+		LIMIT $3 OFFSET $4`
+
+	rows, err := exec.QueryContext(ctx, query, rootTaskID, depth, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query descendants (paginated): %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []*models.TaskDescendantNode
+	for rows.Next() {
+		n := &models.TaskDescendantNode{}
+		if err := rows.Scan(&n.ID, &n.ParentID, &n.ProjectID, &n.Title, &n.Status, &n.Level, &n.HasChildren, &n.SortOrder); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan descendant (paginated): %w", err)
+		}
+		nodes = append(nodes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+	return nodes, total, nil
+}
+
 // CreateTaskUpdate creates a task update history record
 func (r *PostgresTaskRepository) CreateTaskUpdate(ctx context.Context, update *models.TaskUpdate) error {
 	query := `
