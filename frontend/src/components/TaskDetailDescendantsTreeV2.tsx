@@ -56,9 +56,18 @@ const getStatusConfig = (status: string) => {
 const createRenderConfig = (navigate: (path: string) => void): NodeRenderConfig => ({
   showIcon: true,
   showStatus: true,
-  showAssignee: true,
+  showAssignee: false,
   showDueDate: true,
   showActions: true,
+  
+  taskIdRender: (node: UnifiedTaskNode) => (
+    <Tag 
+      color="blue" 
+      style={{ marginRight: 8, fontSize: '12px', minWidth: '50px', textAlign: 'center' }}
+    >
+      #{node.id}
+    </Tag>
+  ),
   
   iconRender: (node: UnifiedTaskNode) => (
     <FileTextOutlined style={{ color: '#1890ff', marginRight: 8 }} />
@@ -108,15 +117,7 @@ const createRenderConfig = (navigate: (path: string) => void): NodeRenderConfig 
   
   actionsRender: (node: UnifiedTaskNode) => (
     <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-      <Button
-        type="text"
-        size="small"
-        icon={<EditOutlined />}
-        onClick={(e) => {
-          e.stopPropagation();
-          navigate(`/projects/${node.project_id}/tasks/${node.id}`);
-        }}
-      />
+      
       <Dropdown
         menu={{
           items: [
@@ -275,8 +276,11 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
             />
           )}
 
-          {/* 节点图标 */}
-          {renderConfig.iconRender?.(node)}
+          {/* 任务ID */}
+          {renderConfig.taskIdRender?.(node)}
+
+          {/* 节点图标
+          {renderConfig.iconRender?.(node)} */}
 
           {/* 节点标题 */}
           {renderConfig.titleRender?.(node)}
@@ -370,47 +374,52 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
     );
   }, [rootTaskId, getChildren, initialLoading, initialError, renderNode, refresh]);
 
+  const rootChildren = getChildren(rootTaskId);
+  const hasSubtasks = rootChildren && rootChildren.length > 0;
+
   return (
     <div className="task-detail-descendants-tree-v2" style={{ padding: '16px' }}>
-      {/* 工具栏 */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '16px',
-        padding: '8px 12px',
-        backgroundColor: '#f5f5f5',
-        borderRadius: '6px'
-      }}>
-        <div>
-          <Button.Group size="small">
-            <Button 
-              icon={<BranchesOutlined />}
-              onClick={expandAll}
+      {/* 工具栏 - 只在有子任务时显示 */}
+      {hasSubtasks && (
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          marginBottom: '16px',
+          padding: '8px 12px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '6px'
+        }}>
+          <div>
+            <Button.Group size="small">
+              <Button 
+                icon={<BranchesOutlined />}
+                onClick={expandAll}
+              >
+                全部展开
+              </Button>
+              <Button 
+                icon={<BranchesOutlined rotate={90} />}
+                onClick={collapseAll}
+              >
+                全部收起
+              </Button>
+            </Button.Group>
+          </div>
+          
+          <div>
+            <Button
+              type="primary"
+              size="small"
+              icon={<ReloadOutlined />}
+              onClick={refresh}
+              loading={isLoading}
             >
-              全部展开
+              刷新
             </Button>
-            <Button 
-              icon={<BranchesOutlined rotate={90} />}
-              onClick={collapseAll}
-            >
-              全部收起
-            </Button>
-          </Button.Group>
+          </div>
         </div>
-        
-        <div>
-          <Button
-            type="primary"
-            size="small"
-            icon={<ReloadOutlined />}
-            onClick={refresh}
-            loading={isLoading}
-          >
-            刷新
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* 树形结构 */}
       <UpdateAnimation updateTrigger={childrenByParent.size}>

@@ -110,6 +110,8 @@ export interface TaskTreeConfig {
 
 // 节点渲染配置
 export interface NodeRenderConfig {
+  /** 任务ID渲染函数 */
+  taskIdRender?: (node: UnifiedTaskNode) => React.ReactNode;
   /** 是否显示图标 */
   showIcon?: boolean;
   /** 自定义图标函数 */
