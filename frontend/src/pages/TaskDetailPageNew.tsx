@@ -1011,7 +1011,7 @@ const TaskDetailPageNew: React.FC = () => {
                   {task.assignee_id && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <UserOutlined style={{ color: '#666' }} />
-                      <Text>负责人: 用户 {task.assignee_id}</Text>
+                      <Text>负责人: {task.assignee_name || `用户 ${task.assignee_id}`}</Text>
                     </div>
                   )}
                   
@@ -1037,6 +1037,24 @@ const TaskDetailPageNew: React.FC = () => {
                   status={task.status as 'todo'|'in_progress'|'blocked'|'completed'}
                   style={{ marginBottom: '16px' }} 
                 />
+              </div>
+              
+              {/* 操作按钮组 */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button 
+                  type="primary"
+                  icon={<EditOutlined />}
+                  onClick={handleEditTask}
+                >
+                  编辑任务
+                </Button>
+                <Button 
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={handleDeleteTask}
+                >
+                  删除
+                </Button>
               </div>
             </div>
           </Card>
@@ -1351,13 +1369,7 @@ const TaskDetailPageNew: React.FC = () => {
 
         {/* 右侧信息卡片 */}
         <Col xs={24} sm={24} md={24} lg={8} xl={8} className="info-sidebar">
-          {/* 性能监控 */}
-          <PerformanceMonitor 
-            size="small"
-            showDetails={false}
-            showAlerts={true}
-            style={{ marginBottom: '16px' }}
-          />
+
           
           {/* 任务计时器 */}
           <MVPTaskDetailTimer
@@ -1411,7 +1423,7 @@ const TaskDetailPageNew: React.FC = () => {
             getStatusConfig={getStatusConfig}
           />
 
-          // 任务详情分页 - 时间线和历史记录
+          
           <Card 
             title="任务详情"
             style={{ marginBottom: '16px' }}

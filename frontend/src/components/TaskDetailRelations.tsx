@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Card, Button, Space, Badge, Tooltip, Typography } from 'antd';
+import { Card, Button, Space, Badge, Tooltip, Typography, Tag } from 'antd';
 import { 
   BranchesOutlined, 
   PlusOutlined, 
@@ -194,6 +194,9 @@ const ParentTaskSection: React.FC<{
       onClick={() => onNavigate(parentTask.id, parentTask.project_id)}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Tag color="blue" style={{ margin: 0, fontSize: '10px', padding: '0 4px', lineHeight: '16px' }}>
+          #{parentTask.id}
+        </Tag>
         {getStatusConfig(parentTask.status).icon}
         <span>{parentTask.title}</span>
       </div>
@@ -322,6 +325,9 @@ const TaskLinkButton: React.FC<{
     onClick={() => onNavigate(task.id, task.project_id)}
   >
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Tag color="blue" style={{ margin: 0, fontSize: '10px', padding: '0 4px', lineHeight: '16px' }}>
+        #{task.id}
+      </Tag>
       {getStatusConfig(task.status).icon}
       <span style={{ flex: 1, minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
         {task.title}
