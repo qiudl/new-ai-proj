@@ -44,18 +44,37 @@ func NewOrganizationHandler(db database.DB) *OrganizationHandler {
 
 // GetDepartments 获取部门列表（树形结构）
 func (h *OrganizationHandler) GetDepartments(c *gin.Context) {
-	// 获取company_id参数，用于多租户支持
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	departments, err := h.deptRepo.GetAllByCompany(companyID)
@@ -86,18 +105,37 @@ func (h *OrganizationHandler) GetDepartment(c *gin.Context) {
 		return
 	}
 
-	// 获取company_id参数
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	department, err := h.deptRepo.GetByID(id, companyID)
@@ -134,18 +172,37 @@ func (h *OrganizationHandler) CreateDepartment(c *gin.Context) {
 		return
 	}
 
-	// 获取company_id参数
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	// 创建部门对象
@@ -220,18 +277,37 @@ func (h *OrganizationHandler) UpdateDepartment(c *gin.Context) {
 		updates["status"] = *req.Status
 	}
 
-	// 获取company_id参数
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	// 更新数据库
@@ -264,18 +340,37 @@ func (h *OrganizationHandler) DeleteDepartment(c *gin.Context) {
 		return
 	}
 
-	// 获取company_id参数
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	// 删除部门
@@ -354,18 +449,37 @@ func (h *OrganizationHandler) GetAvailableManagers(c *gin.Context) {
 
 // GetOrganizationStats 获取组织统计信息
 func (h *OrganizationHandler) GetOrganizationStats(c *gin.Context) {
-	// 获取company_id参数
-	companyIDStr := c.Query("company_id")
-	if companyIDStr == "" {
-		companyIDStr = "2" // 默认使用测试企业ID
-	}
-	companyID, err := strconv.Atoi(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Invalid company ID",
-		})
-		return
+	// 先从用户上下文获取company_id，如果没有则使用查询参数
+	var companyID int
+	if contextCompanyID, exists := c.Get("company_id"); exists && contextCompanyID != nil {
+		if cid, ok := contextCompanyID.(int); ok {
+			companyID = cid
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID in context",
+			})
+			return
+		}
+	} else {
+		// 如果上下文中没有company_id，则使用查询参数
+		companyIDStr := c.Query("company_id")
+		if companyIDStr == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Company ID is required",
+			})
+			return
+		}
+		var err error
+		companyID, err = strconv.Atoi(companyIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Invalid company ID",
+			})
+			return
+		}
 	}
 
 	stats, err := h.deptRepo.GetStatsByCompany(companyID)

@@ -53,7 +53,9 @@ import {
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
 import companyService from '../services/companyService';
+import enterpriseService from '../services/enterpriseService';
 import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
+import { Enterprise } from '../types/enterprise';
 import { useTimer } from '../contexts/TimerContext';
 import { ProjectProgressDisplay } from '../components/ProjectProgressDisplay';
 // 🎯 移除：不再需要SimplifiedTimerProvider，使用统一定时器系统
@@ -69,7 +71,7 @@ const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { timerState } = useTimer();
   const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [companyInfo, setCompanyInfo] = useState<Company | null>(null);
+  const [enterpriseInfo, setEnterpriseInfo] = useState<Enterprise | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('tasks-enhanced');
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -223,14 +225,14 @@ const ProjectDetailPage: React.FC = () => {
                     <Button 
                       type="link" 
                       icon={<LinkOutlined />}
-                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
                     >
                       查看企业详情
                     </Button>
                     <Button 
                       type="link" 
                       icon={<EditOutlined />}
-                      onClick={() => navigate(`/companies/${project.company_id}/edit`)}
+                      onClick={() => navigate(`/enterprises/${project.company_id}/edit`)}
                     >
                       编辑企业信息
                     </Button>
@@ -248,42 +250,42 @@ const ProjectDetailPage: React.FC = () => {
                             style={{ backgroundColor: '#52c41a' }} 
                           />
                           <div>
-<Text strong style={{ color: (companyInfo as any)?.deleted ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
-                              {companyInfo?.companyName || '加载中...'}
-                              {(companyInfo as any)?.deleted && '（已删除）'}
+<Text strong style={{ color: enterpriseInfo?.status === 'suspended' ? '#f5222d' : '#389e0d', fontSize: '16px' }}>
+                              {enterpriseInfo?.name || '加载中...'}
+                              {enterpriseInfo?.status === 'suspended' && '（已暂停）'}
                             </Text>
                             <br />
                             <Text type="secondary" style={{ fontSize: '12px' }}>企业ID: #{project.company_id}</Text>
                           </div>
                         </Space>
                         
-                        {companyInfo && (
+                        {enterpriseInfo && (
                           <>
                             <Divider style={{ margin: '8px 0' }} />
                             <Row gutter={[8, 8]}>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>行业</Text>
                                 <br />
-                                <Text style={{ fontSize: '13px' }}>{companyInfo.industry || '未设置'}</Text>
+                                <Text style={{ fontSize: '13px' }}>{enterpriseInfo.industry_type_text || enterpriseInfo.industry_type || '未设置'}</Text>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业类型</Text>
                                 <br />
-                                <Text style={{ fontSize: '13px' }}>{companyInfo.companyTypeText || '未设置'}</Text>
+                                <Text style={{ fontSize: '13px' }}>{enterpriseInfo.business_type_text || '未设置'}</Text>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>企业状态</Text>
                                 <br />
-<Tag color={(companyInfo as any).deleted ? 'red' : ((companyInfo as any).status === 'active' ? 'green' : 'orange')}>
-                                  {(companyInfo as any).deleted ? '已删除' : ((companyInfo as any).statusText || '未设置')}
+<Tag color={enterpriseInfo.status === 'active' ? 'green' : enterpriseInfo.status === 'suspended' ? 'red' : 'orange'}>
+                                  {enterpriseInfo.status_text || '未设置'}
                                 </Tag>
                               </Col>
                               <Col span={12}>
                                 <Text type="secondary" style={{ fontSize: '12px' }}>优先级</Text>
                                 <br />
-                                <Tag color={companyInfo.priority === 'high' ? 'red' : companyInfo.priority === 'medium' ? 'orange' : 'green'}>
-                                  {companyInfo.priorityText || '未设置'}
-                                </Tag>
+                                <Text style={{ fontSize: '13px' }}>
+                                  {enterpriseInfo.legal_representative || '未设置'}
+                                </Text>
                               </Col>
                             </Row>
                           </>
@@ -293,15 +295,15 @@ const ProjectDetailPage: React.FC = () => {
                   </Col>
                   <Col xs={24} lg={12}>
                     <Card size="small" title="联系方式" extra={<PhoneOutlined />}>
-                      {companyInfo ? (
+                      {enterpriseInfo ? (
                         <Space direction="vertical" style={{ width: '100%' }} size="small">
                           <Row gutter={[16, 8]}>
                             <Col span={24}>
                               <Space>
                                 <MailOutlined style={{ color: '#1890ff' }} />
                                 <Text strong>邮箱：</Text>
-                                <Text copyable={{ text: companyInfo.mainEmail }}>
-                                  {companyInfo.mainEmail || '未设置'}
+                                <Text copyable={{ text: enterpriseInfo.contact_email }}>
+                                  {enterpriseInfo.contact_email || '未设置'}
                                 </Text>
                               </Space>
                             </Col>
@@ -309,8 +311,8 @@ const ProjectDetailPage: React.FC = () => {
                               <Space>
                                 <PhoneOutlined style={{ color: '#52c41a' }} />
                                 <Text strong>电话：</Text>
-                                <Text copyable={{ text: companyInfo.mainPhone }}>
-                                  {companyInfo.mainPhone || '未设置'}
+                                <Text copyable={{ text: enterpriseInfo.contact_phone }}>
+                                  {enterpriseInfo.contact_phone || '未设置'}
                                 </Text>
                               </Space>
                             </Col>
@@ -319,11 +321,11 @@ const ProjectDetailPage: React.FC = () => {
                                 <HomeOutlined style={{ color: '#fa8c16' }} />
                                 <Text strong>地址：</Text>
                                 <Text style={{ wordBreak: 'break-all' }}>
-                                  {companyInfo.address || '未设置'}
+                                  {enterpriseInfo.address || '未设置'}
                                 </Text>
                               </Space>
                             </Col>
-                            {companyInfo.website && (
+                            {enterpriseInfo.website && (
                               <Col span={24}>
                                 <Space>
                                   <LinkOutlined style={{ color: '#722ed1' }} />
@@ -331,11 +333,11 @@ const ProjectDetailPage: React.FC = () => {
                                   <Button 
                                     type="link" 
                                     size="small" 
-                                    href={companyInfo.website} 
+                                    href={enterpriseInfo.website} 
                                     target="_blank"
                                     style={{ padding: 0, height: 'auto' }}
                                   >
-                                    {companyInfo.website}
+                                    {enterpriseInfo.website}
                                   </Button>
                                 </Space>
                               </Col>
@@ -360,19 +362,19 @@ const ProjectDetailPage: React.FC = () => {
                     <Button 
                       type="primary" 
                       icon={<LinkOutlined />}
-                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
                     >
                       查看完整企业资料
                     </Button>
                     <Button 
                       icon={<UserOutlined />}
-                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
                     >
                       企业联系人管理
                     </Button>
                     <Button 
                       icon={<PhoneOutlined />}
-                      onClick={() => navigate(`/companies/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
                     >
                       沟通记录
                     </Button>
@@ -496,10 +498,14 @@ const ProjectDetailPage: React.FC = () => {
       setProject(projectDetail);
       
       // 如果项目有关联企业，获取完整的企业信息
+      // 注意：由于数据迁移，company_id现在需要映射到enterprise_id
       if (projectDetail.company_id) {
         try {
-          const company = await companyService.getCompany(projectDetail.company_id);
-          setCompanyInfo(company);
+          // 临时解决方案：假设company_id和enterprise_id有直接映射关系
+          // TODO: 需要项目表添加enterprise_id字段或创建映射表
+          const enterpriseId = projectDetail.company_id;
+          const enterprise = await enterpriseService.getEnterprise(enterpriseId);
+          setEnterpriseInfo(enterprise);
         } catch (error) {
           console.error('获取企业信息失败:', error);
           message.warning('获取企业信息失败，部分信息可能无法显示');
@@ -683,9 +689,9 @@ const ProjectDetailPage: React.FC = () => {
                               fontWeight: 500
                             }}
                             icon={<LinkOutlined style={{ fontSize: '12px' }} />}
-                            onClick={() => navigate(`/companies/${project.company_id}`)}
+                            onClick={() => navigate(`/enterprises/${project.company_id}`)}
                           >
-                            {companyInfo?.companyName || '加载中...'}
+                            {enterpriseInfo?.name || '加载中...'}
                           </Button>
                         </Space>
               
