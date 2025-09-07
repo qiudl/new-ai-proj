@@ -179,6 +179,14 @@ class EnterpriseService {
       } as T;
     }
 
+    // 处理嵌套的 data.data 响应格式
+    if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
+      return {
+        data: response.data.data,
+        pagination: response.data.pagination
+      } as T;
+    }
+
     // 直接返回响应数据，API拦截器已经处理了标准响应格式
     return response as T;
   }

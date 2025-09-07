@@ -479,16 +479,26 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 		UPDATE users 
 		SET username = $2, email = $3, password_hash = $4, user_type = $5, 
 		    company_id = $6, company_user_id = $7, role = $8, status = $9,
-		    current_timing_task_id = $10, timing_start_time = $11, timing_status = $12,
+		    current_timing_task_id = $10, timing_start_time = $11, 
+		    timing_status = COALESCE($12, timing_status),
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
 
 	exec := r.getExecer()
+	
+	// Handle timing_status - provide NULL for empty string to avoid enum constraint error
+	var timingStatus interface{}
+	if user.TimingStatus == "" {
+		timingStatus = nil
+	} else {
+		timingStatus = user.TimingStatus
+	}
+	
 	row := exec.QueryRowContext(ctx, query,
 		user.ID, user.Username, user.Email, user.PasswordHash,
 		user.UserType, user.CompanyID, user.CompanyUserID, user.Role, user.Status,
-		user.CurrentTimingTaskID, user.TimingStartTime, user.TimingStatus)
+		user.CurrentTimingTaskID, user.TimingStartTime, timingStatus)
 
 	err := row.Scan(&user.UpdatedAt)
 	if err != nil {

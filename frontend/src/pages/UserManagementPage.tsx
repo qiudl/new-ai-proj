@@ -712,10 +712,13 @@ const UserManagementPage: React.FC = () => {
   return (
     <div className="page-container">
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: '16px' }}>
-        <Breadcrumb.Item>系统管理</Breadcrumb.Item>
-        <Breadcrumb.Item>用户管理</Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb 
+        style={{ marginBottom: '16px' }}
+        items={[
+          { title: '系统管理' },
+          { title: '用户管理' }
+        ]}
+      />
 
       <div className="page-header">
         <Title level={2}>

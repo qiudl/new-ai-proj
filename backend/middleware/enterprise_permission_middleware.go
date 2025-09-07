@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/security"
+	"ai-project-backend/services"
 	"context"
 	"crypto/md5"
 	"encoding/json"
@@ -25,16 +26,19 @@ type EnterprisePermissionMiddleware struct {
 	rateLimiter    *security.RateLimiter
 	ttl            time.Duration
 	enabled        bool
+	// New unified permission service adapter
+	permissionAdapter *services.PermissionServiceAdapter
 }
 
 // EnterprisePermissionConfig configures the enterprise permission middleware
 type EnterprisePermissionConfig struct {
-	RedisClient      *redis.Client
-	PermissionRepo   database.PermissionRepository
-	EnterpriseRepo   database.EnterpriseRepository
-	RateLimiter      *security.RateLimiter
-	CacheTTL         time.Duration
-	Enabled          bool
+	RedisClient       *redis.Client
+	PermissionRepo    database.PermissionRepository
+	EnterpriseRepo    database.EnterpriseRepository
+	RateLimiter       *security.RateLimiter
+	CacheTTL          time.Duration
+	Enabled           bool
+	PermissionAdapter *services.PermissionServiceAdapter
 }
 
 // NewEnterprisePermissionMiddleware creates a new enterprise permission middleware
@@ -44,12 +48,13 @@ func NewEnterprisePermissionMiddleware(config *EnterprisePermissionConfig) *Ente
 	}
 
 	return &EnterprisePermissionMiddleware{
-		cache:          config.RedisClient,
-		permissionRepo: config.PermissionRepo,
-		enterpriseRepo: config.EnterpriseRepo,
-		rateLimiter:    config.RateLimiter,
-		ttl:            config.CacheTTL,
-		enabled:        config.Enabled,
+		cache:             config.RedisClient,
+		permissionRepo:    config.PermissionRepo,
+		enterpriseRepo:    config.EnterpriseRepo,
+		rateLimiter:       config.RateLimiter,
+		ttl:               config.CacheTTL,
+		enabled:           config.Enabled,
+		permissionAdapter: config.PermissionAdapter,
 	}
 }
 
@@ -121,9 +126,17 @@ func (m *EnterprisePermissionMiddleware) CheckEnterprisePermission(ctx context.C
 	// Cache miss - check database
 	log.Printf("[ENTERPRISE_PERMISSION_CACHE] Cache miss for enterprise user %d, permission %s", enterpriseUserID, permissionCode)
 	
-	// For now, we'll adapt the existing permission system by treating enterprise users as company users
-	// In a full implementation, you would have a dedicated enterprise permission system
-	result, err := m.permissionRepo.CheckUserPermission(ctx, enterpriseUserID, permissionCode, resourceID)
+	var result *models.PermissionResult
+	var err error
+
+	// Use the new permission adapter if available
+	if m.permissionAdapter != nil {
+		result, err = m.permissionAdapter.CheckEnterpriseUserPermission(ctx, enterpriseUserID, permissionCode, resourceID)
+	} else {
+		// Fallback to legacy permission repo
+		result, err = m.permissionRepo.CheckUserPermission(ctx, enterpriseUserID, permissionCode, resourceID)
+	}
+	
 	if err != nil {
 		return nil, err
 	}
@@ -261,8 +274,17 @@ func (m *EnterprisePermissionMiddleware) BatchCheckEnterprisePermissions(ctx con
 
 	// Fetch uncached permissions from database
 	if len(uncachedPermissions) > 0 {
-		// Adapt to existing permission system
-		dbResults, err := m.permissionRepo.CheckMultiplePermissions(ctx, enterpriseUserID, uncachedPermissions, resourceID)
+		var dbResults map[string]*models.PermissionResult
+		var err error
+
+		// Use the new permission adapter if available
+		if m.permissionAdapter != nil {
+			dbResults, err = m.permissionAdapter.CheckMultiplePermissions(ctx, enterpriseUserID, uncachedPermissions, resourceID)
+		} else {
+			// Fallback to legacy permission repo
+			dbResults, err = m.permissionRepo.CheckMultiplePermissions(ctx, enterpriseUserID, uncachedPermissions, resourceID)
+		}
+		
 		if err != nil {
 			return nil, err
 		}

@@ -59,9 +59,18 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }, []);
 
   if (loading) {
-    // 使用全屏模式以满足 antd Spin 对 tip 的要求，避免控制台警告
+    // 使用包装容器以满足 antd Spin 对 tip 的要求
     return (
-      <Spin size="large" tip="正在验证身份..." />
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <Spin size="large" tip="正在验证身份...">
+          <div style={{ padding: 50 }} />
+        </Spin>
+      </div>
     );
   }
 

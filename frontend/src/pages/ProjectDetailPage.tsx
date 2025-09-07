@@ -143,11 +143,12 @@ const ProjectDetailPage: React.FC = () => {
           {/* 项目进度总览 */}
           <Col xs={24}>
             <Card title="项目进度总览" extra={<BarChartOutlined />}>
-              {projectId && React.createElement(ProjectProgressDisplay as any, {
-                projectId: Number(projectId),
-                showTopTasks: true,
-                maxTopTasks: 5
-              })}
+              {projectId && (
+                <ProjectProgressDisplay 
+                  projectId={Number(projectId)}
+                  showStats={true}
+                />
+              )}
             </Card>
           </Col>
           {/* 项目基础信息 */}
