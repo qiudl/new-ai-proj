@@ -13,6 +13,8 @@ type PostgresEnterpriseRepository struct {
 	db interface{}
 }
 
+// Note: execer interface is defined in user_repository.go to avoid conflicts
+
 // getExecer returns the appropriate execer (DB or Tx)
 func (r *PostgresEnterpriseRepository) getExecer() execer {
 	if tx, ok := r.db.(*sql.Tx); ok {
@@ -168,28 +170,23 @@ func (r *PostgresEnterpriseRepository) GetByCode(ctx context.Context, code strin
 func (r *PostgresEnterpriseRepository) List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Enterprise, int, error) {
 	whereClause, args := r.buildWhereClause(filters)
 
-	// Count query
-	countQuery := "SELECT COUNT(*) FROM enterprises WHERE deleted_at IS NULL" + whereClause
-	exec := r.getExecer()
-
-	var total int
-	err := exec.QueryRowContext(ctx, countQuery, args...).Scan(&total)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count enterprises: %w", err)
-	}
-
-	// Main query
+	// 使用优化的查询，避免不必要的统计字段（统计信息通过单独方法获取）
 	query := fmt.Sprintf(`
-		SELECT id, name, code, description, industry_type, business_type,
-		       registration_number, tax_id, legal_representative,
-		       contact_email, contact_phone, address, city, province, postal_code,
-		       website, status, created_by, updated_by, created_at, updated_at, deleted_at
-		FROM enterprises 
-		WHERE deleted_at IS NULL%s
+		WITH enterprise_base AS (
+			SELECT id, name, code, description, industry_type, business_type,
+			       registration_number, tax_id, legal_representative,
+			       contact_email, contact_phone, address, city, province, postal_code,
+			       website, status, created_by, updated_by, created_at, updated_at, deleted_at
+			FROM enterprises 
+			WHERE deleted_at IS NULL%s
+		)
+		SELECT *, COUNT(*) OVER() as total_count
+		FROM enterprise_base 
 		ORDER BY created_at DESC
 		LIMIT $%d OFFSET $%d`, whereClause, len(args)+1, len(args)+2)
 
 	args = append(args, limit, offset)
+	exec := r.getExecer()
 
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -197,9 +194,12 @@ func (r *PostgresEnterpriseRepository) List(ctx context.Context, limit, offset i
 	}
 	defer rows.Close()
 
-	enterprises := []*models.Enterprise{}
+	var enterprises []*models.Enterprise
+	var total int
+
 	for rows.Next() {
 		enterprise := &models.Enterprise{}
+
 		err := rows.Scan(
 			&enterprise.ID,
 			&enterprise.Name,
@@ -223,11 +223,17 @@ func (r *PostgresEnterpriseRepository) List(ctx context.Context, limit, offset i
 			&enterprise.CreatedAt,
 			&enterprise.UpdatedAt,
 			&enterprise.DeletedAt,
+			&total,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan enterprise: %w", err)
 		}
+
 		enterprises = append(enterprises, enterprise)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("row iteration failed: %w", err)
 	}
 
 	return enterprises, total, nil
@@ -424,6 +430,24 @@ func (r *PostgresEnterpriseRepository) GetStats(ctx context.Context) (*models.En
 	}
 
 	return stats, nil
+}
+
+// GetEnterpriseStatistics retrieves user and department counts for a specific enterprise
+func (r *PostgresEnterpriseRepository) GetEnterpriseStatistics(ctx context.Context, enterpriseID int) (userCount, departmentCount int, err error) {
+	exec := r.getExecer()
+	
+	// Get user count and department count in a single query for better performance
+	query := `
+		SELECT 
+			(SELECT COUNT(*) FROM enterprise_users WHERE enterprise_id = $1 AND deleted_at IS NULL) as user_count,
+			(SELECT COUNT(*) FROM enterprise_departments WHERE enterprise_id = $1 AND deleted_at IS NULL) as department_count`
+	
+	err = exec.QueryRowContext(ctx, query, enterpriseID).Scan(&userCount, &departmentCount)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get enterprise statistics: %w", err)
+	}
+	
+	return userCount, departmentCount, nil
 }
 
 // Enterprise User operations

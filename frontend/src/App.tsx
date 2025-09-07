@@ -9,6 +9,7 @@ import Layout from './components/Layout';
 import { TimerProvider } from './contexts/TimerContext';
 import { QueryProvider } from './providers/QueryProvider';
 import { RefreshConfigProvider } from './contexts/RefreshConfigContext';
+import { EnterpriseProvider } from './contexts/EnterpriseContext';
 import FloatingTimer from './components/FloatingTimer';
 // import UnifiedDebugPanel from './components/UnifiedDebugPanel'; // 隐藏调试功能
 import { setNavigateFunction } from './services/api';
@@ -474,19 +475,21 @@ function App() {
   return (
     <QueryProvider>
       <RefreshConfigProvider>
-        <ConfigProvider locale={zhCN}>
-          <ErrorBoundary>
-            <Router 
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}
-            >
-              {/* 在 AppContent 内部按路由条件挂载 TimerProvider */}
-              <AppContent />
-            </Router>
-          </ErrorBoundary>
-        </ConfigProvider>
+        <EnterpriseProvider>
+          <ConfigProvider locale={zhCN}>
+            <ErrorBoundary>
+              <Router 
+                future={{
+                  v7_startTransition: true,
+                  v7_relativeSplatPath: true
+                }}
+              >
+                {/* 在 AppContent 内部按路由条件挂载 TimerProvider */}
+                <AppContent />
+              </Router>
+            </ErrorBoundary>
+          </ConfigProvider>
+        </EnterpriseProvider>
       </RefreshConfigProvider>
     </QueryProvider>
   );

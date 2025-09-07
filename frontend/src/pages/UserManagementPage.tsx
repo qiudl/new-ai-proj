@@ -55,6 +55,9 @@ import {
 } from '../types/user';
 import { UserManagementService } from '../services/userManagementService';
 import CompanyService from '../services/companyService';
+import enterpriseService from '../services/enterpriseService';
+import EnterpriseSelector from '../components/EnterpriseSelector';
+import { Enterprise } from '../types/enterprise';
 import PermissionWrapper from '../components/PermissionWrapper';
 import { USER_PERMISSIONS } from '../constants/permissions';
 // import { useAsyncData } from '../hooks/useAsyncData';
@@ -75,7 +78,8 @@ const UserManagementPage: React.FC = () => {
   // 用户类型相关状态
   const [selectedUserType, setSelectedUserType] = useState<UserType>('system');
   const [availableRoles, setAvailableRoles] = useState<UserRole[]>([]);
-  const [companies, setCompanies] = useState<any[]>([]); // 企业列表
+  const [companies, setCompanies] = useState<any[]>([]); // 企业列表（向后兼容）
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]); // 新企业列表
   const [companiesLoading, setCompaniesLoading] = useState(false); // 企业加载状态
   const [companySearchKeyword, setCompanySearchKeyword] = useState<string>(''); // 企业搜索关键字
 
@@ -116,11 +120,33 @@ const UserManagementPage: React.FC = () => {
     setAvailableRoles(roles);
   }, [selectedUserType]);
 
-  // 获取企业列表（连接真实API）
+  // 获取企业列表（支持新旧两套系统）
   const fetchCompanies = useCallback(async () => {
     try {
       setCompaniesLoading(true);
-      // 获取所有活跃企业，用于企业用户选择器
+      
+      // 尝试使用新的企业系统API
+      try {
+        console.log('🏢 尝试加载新企业系统数据...');
+        const enterpriseResponse = await enterpriseService.getEnterprises(1, 100, { status: 'active' });
+        const enterprisesList = enterpriseResponse.data;
+        setEnterprises(enterprisesList);
+        
+        // 转换为向后兼容格式
+        const compatibleCompanies = enterprisesList.map(enterprise => ({
+          id: enterprise.id,
+          name: enterprise.name,
+          companyName: enterprise.name,
+          originalData: enterprise
+        }));
+        setCompanies(compatibleCompanies);
+        console.log('✅ 新企业系统数据加载成功:', enterprisesList.length, '个企业');
+        return;
+      } catch (enterpriseError) {
+        console.warn('⚠️ 新企业系统不可用，回退到旧系统:', enterpriseError);
+      }
+      
+      // 回退到旧的公司系统API
       const response = await CompanyService.getCompanies(
         { page: 1, pageSize: 100 }, // 获取前100个企业，足够用于选择器
         { status: 'active' } // 只获取活跃企业
@@ -130,13 +156,16 @@ const UserManagementPage: React.FC = () => {
       const companiesList = response.data.map(company => ({
         id: company.id,
         name: company.companyName,
+        companyName: company.companyName,
         // 保留原始数据以备将来使用
         originalData: company
       }));
       
       setCompanies(companiesList);
+      console.log('✅ 旧公司系统数据加载成功:', companiesList.length, '个公司');
+      
     } catch (error) {
-      console.error('Failed to fetch companies:', error);
+      console.error('❌ 获取企业列表失败:', error);
       message.error('获取企业列表失败');
       // 设置默认的企业数据作为回退
       setCompanies([
@@ -1049,29 +1078,24 @@ const UserManagementPage: React.FC = () => {
                   label="所属企业"
                   rules={[{ required: true, message: '请选择所属企业' }]}
                 >
-                  <Select 
+                  <EnterpriseSelector 
                     placeholder="请选择企业"
-                    showSearch
-                    loading={companiesLoading}
-                    filterOption={false} // 禁用默认过滤，使用自定义搜索
-                    onSearch={(value) => {
-                      setCompanySearchKeyword(value);
-                      searchCompanies(value);
-                    }}
-                    onFocus={() => {
-                      // 当选择器获得焦点时，确保有企业数据
-                      if (companies.length === 0) {
-                        fetchCompanies();
+                    onChange={(value, enterprise) => {
+                      // 保持兼容性，同时支持新旧字段
+                      if (createModalVisible) {
+                        createForm.setFieldsValue({
+                          company_id: value,
+                          enterprise_id: value
+                        });
+                      }
+                      if (editModalVisible) {
+                        editForm.setFieldsValue({
+                          company_id: value,
+                          enterprise_id: value
+                        });
                       }
                     }}
-                    notFoundContent={companiesLoading ? '加载中...' : '没有找到企业'}
-                  >
-                    {companies.map(company => (
-                      <Option key={company.id} value={company.id}>
-                        {company.name}
-                      </Option>
-                    ))}
-                  </Select>
+                  />
                 </Form.Item>
               ) : null;
             }}
@@ -1232,29 +1256,24 @@ const UserManagementPage: React.FC = () => {
                   label="所属企业"
                   rules={[{ required: true, message: '请选择所属企业' }]}
                 >
-                  <Select 
+                  <EnterpriseSelector 
                     placeholder="请选择企业"
-                    showSearch
-                    loading={companiesLoading}
-                    filterOption={false} // 禁用默认过滤，使用自定义搜索
-                    onSearch={(value) => {
-                      setCompanySearchKeyword(value);
-                      searchCompanies(value);
-                    }}
-                    onFocus={() => {
-                      // 当选择器获得焦点时，确保有企业数据
-                      if (companies.length === 0) {
-                        fetchCompanies();
+                    onChange={(value, enterprise) => {
+                      // 保持兼容性，同时支持新旧字段
+                      if (createModalVisible) {
+                        createForm.setFieldsValue({
+                          company_id: value,
+                          enterprise_id: value
+                        });
+                      }
+                      if (editModalVisible) {
+                        editForm.setFieldsValue({
+                          company_id: value,
+                          enterprise_id: value
+                        });
                       }
                     }}
-                    notFoundContent={companiesLoading ? '加载中...' : '没有找到企业'}
-                  >
-                    {companies.map(company => (
-                      <Option key={company.id} value={company.id}>
-                        {company.name}
-                      </Option>
-                    ))}
-                  </Select>
+                  />
                 </Form.Item>
               ) : null;
             }}

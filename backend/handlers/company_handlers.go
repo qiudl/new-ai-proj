@@ -1095,3 +1095,107 @@ func (h *CompanyHandler) GetAvailableRoleTemplates(c *gin.Context) {
 	response := models.NewErrorResponse(models.ErrCodeInternal, "Enterprise role templates not implemented", nil)
 	c.JSON(http.StatusNotImplemented, response)
 }
+
+// GetEnterpriseMapping handles GET /api/v1/company-enterprises/mapping
+// 提供公司到企业的映射信息，帮助前端了解迁移状态
+func (h *CompanyHandler) GetEnterpriseMapping(c *gin.Context) {
+	mappingInfo := gin.H{
+		"api_migration_status": "in_progress",
+		"migration_strategy":   "gradual_proxy",
+		"endpoints_migrated": []string{
+			"/companies -> /enterprises (proxied)",
+			"/companies/:id/users -> /enterprises/:id/users (proxied)",
+		},
+		"legacy_support":     true,
+		"recommended_action": "Use /api/v1/enterprises endpoints for new integrations",
+		"deprecation_timeline": gin.H{
+			"phase_1": "Current - Both APIs available",
+			"phase_2": "6 months - Company API deprecated warnings",
+			"phase_3": "12 months - Company API removal",
+		},
+	}
+
+	response := models.NewSuccessResponse(mappingInfo, "Company-Enterprise mapping information retrieved")
+	c.JSON(http.StatusOK, response)
+}
+
+// MigrateCompanyToEnterprise handles POST /api/v1/company-enterprises/migrate/:companyId
+// 将指定公司迁移到企业架构，这是一个过渡期辅助端点
+func (h *CompanyHandler) MigrateCompanyToEnterprise(c *gin.Context) {
+	companyIDStr := c.Param("companyId")
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid company ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// 检查公司是否存在
+	company, err := h.db.Companies().GetByID(c.Request.Context(), companyID)
+	if err != nil {
+		if err.Error() == "company not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Company not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error getting company: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to retrieve company", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// 检查是否已有对应的企业记录
+	enterprises, _, err := h.db.Enterprises().List(c.Request.Context(), 1000, 0, map[string]interface{}{
+		"search": company.CompanyName,
+	})
+	if err != nil {
+		h.logger.Printf("Error searching enterprises: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to check existing enterprises", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	var matchedEnterprise *models.Enterprise
+	for _, enterprise := range enterprises {
+		if enterprise.Name == company.CompanyName {
+			matchedEnterprise = enterprise
+			break
+		}
+	}
+
+	if matchedEnterprise != nil {
+		// 企业已存在，返回映射信息
+		migrationResult := gin.H{
+			"status":                "already_migrated",
+			"company_id":            companyID,
+			"company_name":          company.CompanyName,
+			"enterprise_id":         matchedEnterprise.ID,
+			"enterprise_name":       matchedEnterprise.Name,
+			"migration_date":        matchedEnterprise.CreatedAt,
+			"recommended_endpoint":  fmt.Sprintf("/api/v1/enterprises/%d", matchedEnterprise.ID),
+		}
+
+		response := models.NewSuccessResponse(migrationResult, "Company already has corresponding enterprise")
+		c.JSON(http.StatusOK, response)
+		return
+	}
+
+	// 如果企业不存在，提供创建建议
+	migrationGuide := gin.H{
+		"status":          "migration_required",
+		"company_id":      companyID,
+		"company_name":    company.CompanyName,
+		"suggested_action": "Create new enterprise using POST /api/v1/enterprises",
+		"migration_data": gin.H{
+			"name":          company.CompanyName,
+			"code":          company.CompanyCode,
+			"industry_type": company.Industry,
+			"business_type": company.CompanyType,
+			"status":        company.Status,
+		},
+		"note": "This endpoint provides migration guidance. Actual migration should be done through enterprise creation API.",
+	}
+
+	response := models.NewSuccessResponse(migrationGuide, "Migration guidance provided")
+	c.JSON(http.StatusAccepted, response)
+}

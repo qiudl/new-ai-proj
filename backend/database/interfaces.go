@@ -235,6 +235,7 @@ type EnterpriseRepository interface {
 	Update(ctx context.Context, enterprise *models.Enterprise) (*models.Enterprise, error)
 	Delete(ctx context.Context, id int) error
 	GetStats(ctx context.Context) (*models.EnterpriseStats, error)
+	GetEnterpriseStatistics(ctx context.Context, enterpriseID int) (userCount, departmentCount int, err error)
 
 	// Enterprise User operations
 	CreateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error)

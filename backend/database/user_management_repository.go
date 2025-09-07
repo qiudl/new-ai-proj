@@ -274,7 +274,7 @@ func (r *UserManagementRepository) queryEnterpriseUsers(ctx context.Context, exe
 		           WHEN eu.access_level = 2 THEN 'company_user'
 		           ELSE 'company_user'
 		       END as role,
-		       eu.status, '{}', eu.last_login_at, eu.created_at, eu.updated_at,
+		       eu.status, '{}'::jsonb, eu.last_login_at, eu.created_at, eu.updated_at,
 		       eu.name, eu.phone, eu.position, eu.is_primary_contact
 		FROM enterprise_users eu %s
 		ORDER BY eu.created_at DESC`, whereClause)
