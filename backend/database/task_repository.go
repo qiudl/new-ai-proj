@@ -704,6 +704,7 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 		    start_datetime = $12, due_datetime = $13, estimated_minutes = $14, 
 		    actual_minutes = $15, time_unit_preference = $16, 
 		    work_hours_per_day = $17, time_tracking_mode = $18,
+		    project_id = $19,
 		    updated_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 		RETURNING updated_at`
@@ -714,7 +715,8 @@ func (r *PostgresTaskRepository) Update(ctx context.Context, task *models.Task) 
 		task.Status, task.DueDate, customFieldsJSON, task.TotalTimeSeconds,
 		task.ParentID, task.TaskLevel, task.SortOrder,
 		task.StartDatetime, task.DueDatetime, task.EstimatedMinutes,
-		task.ActualMinutes, task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode)
+		task.ActualMinutes, task.TimeUnitPreference, task.WorkHoursPerDay, task.TimeTrackingMode,
+		task.ProjectID)
 
 	err = row.Scan(&task.UpdatedAt)
 	if err != nil {
@@ -795,19 +797,13 @@ func (r *PostgresTaskRepository) BulkDelete(ctx context.Context, ids []int) erro
 		AND deleted_at IS NULL`, strings.Join(placeholders, ","))
 
 	exec := r.getExecer()
-	result, err := exec.ExecContext(ctx, query, args...)
+	_, err := exec.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to bulk delete tasks and children: %w", err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("no tasks found to delete")
-	}
+	// For bulk delete, we consider the operation successful regardless of affected rows
+	// (tasks might have been already deleted or not exist)
 
 	return nil
 }

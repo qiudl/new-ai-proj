@@ -247,15 +247,6 @@ func (app *Application) GetTaskDescendantsHandler() gin.HandlerFunc {
 	return app.taskHierarchyHandler.GetTaskDescendants
 }
 
-// Bulk operation handlers
-func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc {
-	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
-		return app.handlers.BulkOperationHandler.BulkDeleteTasks()
-	}
-	return func(c *gin.Context) {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "BulkDeleteTasksHandler not implemented"})
-	}
-}
 
 func (app *Application) BulkImportTasksHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {

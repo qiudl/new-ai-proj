@@ -65,6 +65,7 @@ func registerTaskHierarchyRoutes(projects *gin.RouterGroup, app ApplicationInter
 	// 任务层级相关路由
 	projects.GET("/:id/tasks/root", hierarchyHandler.GetRootTasks)
 	projects.GET("/:id/tasks/tree", hierarchyHandler.GetTaskTree)
+	projects.GET("/:id/tasks/search-parents", hierarchyHandler.SearchParentTasks)
 	projects.GET("/:id/tasks/:taskId/descendants", hierarchyHandler.GetTaskDescendants)
 	projects.GET("/:id/tasks/:taskId/children", hierarchyHandler.GetTaskChildren)
 }
