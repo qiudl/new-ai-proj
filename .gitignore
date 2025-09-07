@@ -145,3 +145,7 @@ secrets/design/
 .design-secrets/
 design_secrets/
 config/design/*.secrets.*
+
+#claude related
+CLAUDE.md
+./claude/

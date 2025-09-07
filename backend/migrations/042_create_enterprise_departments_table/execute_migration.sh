@@ -1,0 +1,136 @@
+#!/bin/bash
+# 042_create_enterprise_departments_table/execute_migration.sh
+# 执行enterprise_departments表创建迁移脚本
+# 作者: Claude Code AI
+# 创建时间: 2025-09-05
+
+set -e
+
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 数据库连接配置
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+DB_NAME="${DB_NAME:-ai_proj_db}"
+DB_USER="${DB_USER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-postgres}"
+
+# 颜色输出
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}=== Enterprise Departments Table Migration ===${NC}"
+echo "Migration: 042_create_enterprise_departments_table"
+echo "Target Database: $DB_NAME"
+echo "Host: $DB_HOST:$DB_PORT"
+echo "User: $DB_USER"
+echo ""
+
+# 检查PostgreSQL连接
+echo -e "${YELLOW}Checking database connection...${NC}"
+if ! PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
+    echo -e "${RED}Error: Cannot connect to database${NC}"
+    echo "Please check your database configuration"
+    exit 1
+fi
+echo -e "${GREEN}✓ Database connection successful${NC}"
+
+# 检查enterprises表是否存在（依赖检查）
+echo -e "${YELLOW}Checking if enterprises table exists...${NC}"
+ENTERPRISES_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'enterprises');" | xargs)
+
+if [ "$ENTERPRISES_EXISTS" != "t" ]; then
+    echo -e "${RED}Error: enterprises table does not exist${NC}"
+    echo "Please run migration 040_create_enterprises_table first"
+    exit 1
+fi
+echo -e "${GREEN}✓ enterprises table exists${NC}"
+
+# 检查enterprise_departments表是否已存在
+echo -e "${YELLOW}Checking if enterprise_departments table already exists...${NC}"
+TABLE_EXISTS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'enterprise_departments');" | xargs)
+
+if [ "$TABLE_EXISTS" = "t" ]; then
+    echo -e "${YELLOW}⚠ enterprise_departments table already exists${NC}"
+    read -p "Do you want to continue anyway? This might cause errors. (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Migration cancelled"
+        exit 0
+    fi
+fi
+
+# 执行UP迁移
+echo -e "${YELLOW}Executing UP migration...${NC}"
+if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -f "$SCRIPT_DIR/up.sql"; then
+    echo -e "${GREEN}✓ UP migration completed successfully${NC}"
+else
+    echo -e "${RED}✗ UP migration failed${NC}"
+    exit 1
+fi
+
+# 验证表创建
+echo -e "${YELLOW}Verifying table creation...${NC}"
+TABLE_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM enterprise_departments;" | xargs)
+echo "enterprise_departments table record count: $TABLE_COUNT"
+
+# 验证索引创建
+INDEX_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'enterprise_departments';" | xargs)
+echo "enterprise_departments table index count: $INDEX_COUNT"
+
+# 验证触发器创建
+TRIGGER_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pg_trigger WHERE tgrelid = 'enterprise_departments'::regclass;" | xargs)
+echo "enterprise_departments table trigger count: $TRIGGER_COUNT"
+
+# 验证外键约束
+FK_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM information_schema.referential_constraints WHERE constraint_name LIKE '%enterprise_departments%';" | xargs)
+echo "enterprise_departments foreign key constraints: $FK_COUNT"
+
+# 验证层级结构
+echo -e "${YELLOW}Verifying hierarchical structure...${NC}"
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+SELECT 
+    e.name as enterprise_name,
+    COUNT(CASE WHEN ed.level = 1 THEN 1 END) as level_1_depts,
+    COUNT(CASE WHEN ed.level = 2 THEN 1 END) as level_2_depts,
+    COUNT(ed.id) as total_depts
+FROM enterprises e
+LEFT JOIN enterprise_departments ed ON e.id = ed.enterprise_id AND ed.deleted_at IS NULL
+GROUP BY e.id, e.name
+ORDER BY e.id;
+"
+
+echo ""
+echo -e "${GREEN}=== Migration Summary ===${NC}"
+echo "✓ enterprise_departments table created"
+echo "✓ $INDEX_COUNT indexes created"
+echo "✓ $TRIGGER_COUNT triggers created"
+echo "✓ $FK_COUNT foreign key constraints created"
+echo "✓ $TABLE_COUNT test departments inserted"
+echo "✓ Hierarchical structure established"
+echo ""
+echo -e "${GREEN}Migration 042_create_enterprise_departments_table completed successfully!${NC}"
+
+# 选项：显示表结构
+read -p "Do you want to see the table structure? (y/N): " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo -e "${YELLOW}enterprise_departments table structure:${NC}"
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\d enterprise_departments"
+    
+    echo ""
+    echo -e "${YELLOW}Sample hierarchical data:${NC}"
+    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "
+    SELECT 
+        REPEAT('  ', level-1) || name as department_tree,
+        level,
+        path,
+        status
+    FROM enterprise_departments 
+    WHERE enterprise_id = 1 AND deleted_at IS NULL
+    ORDER BY COALESCE(path || '/' || id::TEXT, id::TEXT);
+    "
+fi

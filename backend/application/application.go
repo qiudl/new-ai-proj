@@ -43,6 +43,7 @@ type Application struct {
 	routerDocumentHandler *handlers.RouterDocumentHandler // Router-based document handler
 	userProfileHandler    *handlers.UserProfileHandler    // User profile handler instance
 	companyHandler        *handlers.CompanyHandler        // Company handler instance
+	enterpriseHandler     *handlers.EnterpriseHandler     // Enterprise handler instance
 	projectHandler        *handlers.ProjectHandler        // Project handler instance
 	taskHandler           *handlers.TaskHandler           // Task handler instance
 	taskHierarchyHandler  *handlers.TaskHierarchyHandler  // Task hierarchy handler instance
@@ -103,6 +104,12 @@ func NewApplication() (*Application, error) {
 
 	// Initialize Company Handler
 	companyHandler := handlers.NewCompanyHandler(db, logger, validate)
+
+	// Initialize Enterprise Service and Handler
+	auditService := services.NewAuditService(db)
+	auditLogger := services.NewAsyncAuditLogger(auditService, 10, 30*time.Second)
+	enterpriseService := services.NewEnterpriseService(db.Enterprises(), auditLogger)
+	enterpriseHandler := handlers.NewEnterpriseHandler(enterpriseService, db, logger, validate)
 
 	// Initialize Project Handler
 	projectHandler := handlers.NewProjectHandler(db, logger, validate)
@@ -176,6 +183,7 @@ func NewApplication() (*Application, error) {
 		routerDocumentHandler: routerDocumentHandler,
 		userProfileHandler:    userProfileHandler,
 		companyHandler:        companyHandler,
+		enterpriseHandler:     enterpriseHandler,
 		projectHandler:        projectHandler,
 		taskHandler:           taskHandler,
 		taskHierarchyHandler:  taskHierarchyHandler,
@@ -301,6 +309,11 @@ func (app *Application) GetUserManagementHandler() *handlers.UserManagementHandl
 // GetCompanyHandler returns the company handler
 func (app *Application) GetCompanyHandler() *handlers.CompanyHandler {
 	return app.companyHandler
+}
+
+// GetEnterpriseHandler returns the enterprise handler
+func (app *Application) GetEnterpriseHandler() *handlers.EnterpriseHandler {
+	return app.enterpriseHandler
 }
 
 // GetOrganizationHandler returns the organization handler

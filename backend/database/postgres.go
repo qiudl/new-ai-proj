@@ -112,6 +112,11 @@ func (pdb *PostgresDB) Companies() CompanyRepository {
 	return NewCompanyRepository(pdb.db)
 }
 
+// Enterprises returns the enterprise repository (pure enterprise system)
+func (pdb *PostgresDB) Enterprises() EnterpriseRepository {
+	return NewEnterpriseRepository(pdb.db)
+}
+
 // Permissions returns the permission repository (enterprise permission management)
 func (pdb *PostgresDB) Permissions() PermissionRepository {
 	return NewPermissionRepository(pdb.db)
@@ -337,6 +342,11 @@ func (ptx *PostgresTx) Customers() CustomerRepository {
 // Companies returns the company repository for transaction (new enterprise customer model)
 func (ptx *PostgresTx) Companies() CompanyRepository {
 	return NewCompanyRepository(ptx.tx)
+}
+
+// Enterprises returns the enterprise repository for transaction (pure enterprise system)
+func (ptx *PostgresTx) Enterprises() EnterpriseRepository {
+	return NewEnterpriseRepository(ptx.tx)
 }
 
 // Permissions returns the permission repository for transaction (enterprise permission management)

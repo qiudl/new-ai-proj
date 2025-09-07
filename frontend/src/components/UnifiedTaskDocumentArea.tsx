@@ -71,10 +71,12 @@ const { TextArea } = Input;
 export type ViewMode = 'edit' | 'preview' | 'manage' | 'stats';
 
 // 文档类型定义
-export interface DocumentItem extends UnifiedDocument {
+export interface DocumentItem extends Omit<UnifiedDocument, 'type'> {
   loading?: boolean;
   selected?: boolean;
   sourceTaskId?: number;
+  file_path?: string; // 添加文件路径字段
+  type: 'markdown' | 'txt' | 'pdf' | 'image' | 'file'; // 扩展类型定义
 }
 
 // 组件属性接口
@@ -249,7 +251,7 @@ const DocumentListItem: React.FC<{
                   v{document.version}
                 </Text>
                 <Text type="secondary" style={{ fontSize: '11px' }}>
-                  {new Date(document.updated_at).toLocaleDateString()}
+                  {new Date(document.updated_at).toLocaleDateString()} {new Date(document.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </Text>
               </Space>
             </Space>
@@ -288,6 +290,8 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
   const [newDocumentModalVisible, setNewDocumentModalVisible] = useState(false);
   const [newDocumentForm, setNewDocumentForm] = useState({ title: '', type: 'markdown', description: '' });
   const [documentListView, setDocumentListView] = useState<'grouped' | 'list' | 'timeline' | 'grid'>('grouped');
+  const [documentSortBy, setDocumentSortBy] = useState<'created_at' | 'updated_at'>('created_at');
+  const [documentSortOrder, setDocumentSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // 切换视图模式
   const handleViewModeChange = useCallback((mode: ViewMode) => {
@@ -320,14 +324,14 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           title: doc.original_name || doc.file_name,
           content: '', // 上传的文件内容需要单独获取
           description: `上传的文件 (${Math.round(doc.file_size / 1024)}KB)`,
-          type: doc.mime_type?.startsWith('image/') ? 'image' : 
-                doc.mime_type === 'application/pdf' ? 'pdf' : 
-                doc.mime_type === 'text/markdown' ? 'markdown' : 'file',
+          type: doc.mime_type?.startsWith('image/') ? 'image' as const : 
+                doc.mime_type === 'application/pdf' ? 'pdf' as const : 
+                doc.mime_type === 'text/markdown' ? 'markdown' as const : 'file' as const,
           mime_type: doc.mime_type,
           file_size: doc.file_size,
           version: 1,
-          status: 'published',
-          visibility: 'team',
+          status: 'published' as const,
+          visibility: 'team' as const,
           is_template: false,
           project_id: projectId,
           task_id: taskId,
@@ -338,7 +342,10 @@ const UnifiedTaskDocumentArea: React.FC<UnifiedTaskDocumentAreaProps> = ({
           tags: ['uploaded'],
           selected: false,
           sourceTaskId: taskId,
-          file_path: doc.file_path // 保存文件路径用于下载/查看
+          file_path: doc.file_path, // 保存文件路径用于下载/查看
+          can_edit: true, // 添加权限字段
+          can_delete: true,
+          can_share: true
         }));
         docs = [...docs, ...uploadedDocs];
       } catch (uploadError) {
@@ -824,20 +831,58 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
   const renderDocumentList = useCallback(() => {
     if (documents.length === 0) {
       return (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="暂无文档"
-          style={{ margin: '40px 0' }}
-        >
-          <Button 
-            type="dashed" 
-            icon={<PlusOutlined />}
-            onClick={() => handleQuickCreateDocument('markdown')}
-            style={{ marginTop: '8px' }}
+        <div style={{ padding: '16px' }}>
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="暂无文档"
+            style={{ marginBottom: '24px' }}
+          />
+          
+          {/* 拖拽上传区域 */}
+          <Upload.Dragger
+            accept=".md,.pdf,.txt,.jpg,.jpeg,.png,.svg,.gif,.bmp,.webp"
+            showUploadList={false}
+            beforeUpload={handleFileUpload}
+            disabled={uploading}
+            multiple
+            style={{ marginBottom: '16px' }}
           >
-            创建文档
-          </Button>
-        </Empty>
+            <p className="ant-upload-drag-icon">
+              <CloudUploadOutlined />
+            </p>
+            <p className="ant-upload-text">拖拽文件到此处上传</p>
+            <p className="ant-upload-hint">
+              或点击选择文件，支持 PDF、Word、Markdown、图片等格式
+            </p>
+          </Upload.Dragger>
+
+          {/* 快速操作按钮 */}
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Button 
+              type="primary" 
+              icon={<PlusOutlined />}
+              onClick={() => handleQuickCreateDocument('markdown')}
+              block
+            >
+              创建 Markdown 文档
+            </Button>
+            <Button 
+              type="dashed" 
+              icon={<FileTextOutlined />}
+              onClick={() => handleQuickCreateDocument('text')}
+              block
+            >
+              创建纯文本文档
+            </Button>
+            <Button 
+              icon={<SettingOutlined />}
+              onClick={() => setNewDocumentModalVisible(true)}
+              block
+            >
+              高级创建选项
+            </Button>
+          </Space>
+        </div>
       );
     }
 
@@ -927,7 +972,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                         <span>v{doc.version}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
+                        <span>{new Date(doc.updated_at).toLocaleDateString()} {new Date(doc.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                         <span style={{ color: '#1890ff' }}>●</span>
                       </div>
                     </div>
@@ -956,11 +1001,9 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         return (
           <div style={{ padding: '0 8px' }}>
             <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', fontWeight: 'bold' }}>
-              📅 按时间排序
+              📅 按{documentSortBy === 'created_at' ? '创建' : '更新'}时间排序 ({documentSortOrder === 'desc' ? '新→旧' : '旧→新'})
             </div>
-            {filteredDocuments
-              .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
-              .map((doc) => (
+            {filteredDocuments.map((doc) => (
                 <div
                   key={doc.id}
                   onClick={() => handleDocumentSelect(doc)}
@@ -986,7 +1029,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                       {doc.title}
                     </div>
                     <div style={{ fontSize: '11px', color: '#666' }}>
-                      {new Date(doc.updated_at).toLocaleDateString()} • {Math.round(doc.file_size / 1024)}KB
+                      {new Date(doc.updated_at).toLocaleDateString()} {new Date(doc.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {Math.round(doc.file_size / 1024)}KB
                     </div>
                   </div>
                   <Button
@@ -1090,6 +1133,62 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     },
     { type: 'divider' },
     {
+      key: 'sort-options',
+      label: '排序选项',
+      icon: <BarChartOutlined />,
+      children: [
+        {
+          key: 'sort-created-desc',
+          label: '📅 按创建时间(新→旧)',
+          onClick: () => { setDocumentSortBy('created_at'); setDocumentSortOrder('desc'); }
+        },
+        {
+          key: 'sort-created-asc',
+          label: '📅 按创建时间(旧→新)',
+          onClick: () => { setDocumentSortBy('created_at'); setDocumentSortOrder('asc'); }
+        },
+        {
+          key: 'sort-updated-desc',
+          label: '🔄 按更新时间(新→旧)',
+          onClick: () => { setDocumentSortBy('updated_at'); setDocumentSortOrder('desc'); }
+        },
+        {
+          key: 'sort-updated-asc',
+          label: '🔄 按更新时间(旧→新)',
+          onClick: () => { setDocumentSortBy('updated_at'); setDocumentSortOrder('asc'); }
+        }
+      ]
+    },
+    { type: 'divider' },
+    {
+      key: 'view-options',
+      label: '视图选项',
+      icon: <EyeOutlined />,
+      children: [
+        {
+          key: 'view-grouped',
+          label: '📑 分组视图',
+          onClick: () => setDocumentListView('grouped')
+        },
+        {
+          key: 'view-timeline',
+          label: '📅 时间线',
+          onClick: () => setDocumentListView('timeline')
+        },
+        {
+          key: 'view-grid',
+          label: '⚏ 网格视图',
+          onClick: () => setDocumentListView('grid')
+        },
+        {
+          key: 'view-list',
+          label: '📋 列表视图',
+          onClick: () => setDocumentListView('list')
+        }
+      ]
+    },
+    { type: 'divider' },
+    {
       key: 'export-all',
       label: '导出全部',
       icon: <DownloadOutlined />,
@@ -1103,12 +1202,24 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   ];
 
+  // 排序文档的辅助函数
+  const sortDocuments = useCallback((docs: DocumentItem[]) => {
+    return [...docs].sort((a, b) => {
+      const aTime = new Date(a[documentSortBy]).getTime();
+      const bTime = new Date(b[documentSortBy]).getTime();
+      return documentSortOrder === 'desc' ? bTime - aTime : aTime - bTime;
+    });
+  }, [documentSortBy, documentSortOrder]);
+
   // 过滤后的文档
   const filteredDocuments = useMemo(() => {
-    if (filterMode === 'root') return documents.filter(d => (d.sourceTaskId ?? taskId) === taskId);
-    if (filterMode === 'desc') return documents.filter(d => (d.sourceTaskId ?? taskId) !== taskId);
-    return documents;
-  }, [documents, filterMode, taskId]);
+    let filtered: DocumentItem[];
+    if (filterMode === 'root') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) === taskId);
+    else if (filterMode === 'desc') filtered = documents.filter(d => (d.sourceTaskId ?? taskId) !== taskId);
+    else filtered = documents;
+    
+    return sortDocuments(filtered);
+  }, [documents, filterMode, taskId, sortDocuments]);
 
   // 文档统计（基于过滤结果）
   const documentStats = useMemo(() => {
@@ -1345,12 +1456,16 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 showUploadList={false}
                 beforeUpload={handleFileUpload}
                 disabled={uploading}
+                multiple
               >
-                <Tooltip title="上传文档">
+                <Tooltip title="上传文档 (支持拖拽和多选)">
                   <Button
+                    type="dashed"
                     icon={<CloudUploadOutlined />}
                     loading={uploading}
-                  />
+                  >
+                    上传文件
+                  </Button>
                 </Tooltip>
               </Upload>
 
@@ -1369,52 +1484,20 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           {/* 左侧文档列表 */}
           {showDocumentList && (
             <Col 
-              span={compactMode ? 24 : 7} 
+              span={compactMode ? 24 : 6} 
               style={{ 
                 borderRight: compactMode ? 'none' : '1px solid #f0f0f0'
               }}
             >
               <div style={{ padding: '16px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 16px 16px' }}>
-                  <Title level={5} style={{ margin: 0 }}>
+                <div style={{ margin: '0 16px 16px' }}>
+                  <Title level={5} style={{ margin: 0, marginBottom: '8px' }}>
                     文档列表 ({documentStats.total})
                   </Title>
-                  
-                  {/* 视图切换按钮 */}
-                  <Dropdown
-                    menu={{
-                      items: [
-                        {
-                          key: 'grouped',
-                          label: '📑 分组视图',
-                          onClick: () => setDocumentListView('grouped')
-                        },
-                        {
-                          key: 'timeline',
-                          label: '📅 时间线',
-                          onClick: () => setDocumentListView('timeline')
-                        },
-                        {
-                          key: 'grid',
-                          label: '⚏ 网格视图',
-                          onClick: () => setDocumentListView('grid')
-                        },
-                        {
-                          key: 'list',
-                          label: '📋 列表视图',
-                          onClick: () => setDocumentListView('list')
-                        }
-                      ]
-                    }}
-                    placement="bottomRight"
-                  >
-                    <Button size="small" type="text">
-                      {documentListView === 'grouped' && '📑'}
-                      {documentListView === 'timeline' && '📅'}
-                      {documentListView === 'grid' && '⚏'}
-                      {documentListView === 'list' && '📋'}
-                    </Button>
-                  </Dropdown>
+                  <div style={{ fontSize: '11px', color: '#999' }}>
+                    排序: {documentSortBy === 'created_at' ? '创建时间' : '更新时间'} 
+                    ({documentSortOrder === 'desc' ? '新→旧' : '旧→新'})
+                  </div>
                 </div>
                 
                 <Spin spinning={loading}>
@@ -1424,14 +1507,176 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
             </Col>
           )}
 
-          {/* 右侧内容区域 */}
-          <Col span={showDocumentList ? (compactMode ? 24 : 17) : 24}>
+          {/* 中间内容区域 */}
+          <Col span={showDocumentList ? (compactMode ? 24 : 12) : (selectedDocument ? 18 : 24)}>
             <div style={{ 
               padding: '16px'
             }}>
               {renderContentArea()}
             </div>
           </Col>
+
+          {/* 右侧文档概览 */}
+          {selectedDocument && showDocumentList && !compactMode && (
+            <Col 
+              span={6}
+              style={{ 
+                borderLeft: '1px solid #f0f0f0',
+                padding: '16px',
+                backgroundColor: '#fafafa',
+                height: isFullscreen ? 'calc(100vh - 60px)' : 'auto',
+                overflowY: 'auto'
+              }}
+            >
+              <div>
+                <Title level={5} style={{ margin: '0 0 16px 0', color: '#1890ff' }}>
+                  📊 文档概览
+                </Title>
+                
+                {/* 基本信息 */}
+                <Card 
+                  size="small" 
+                  title="📋 基本信息" 
+                  style={{ marginBottom: 16 }}
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">类型:</Text>
+                      <Tag color="blue">{selectedDocument.type?.toUpperCase()}</Tag>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">创建:</Text>
+                      <Text>{new Date(selectedDocument.created_at).toLocaleDateString()} {new Date(selectedDocument.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">更新:</Text>
+                      <Text>{new Date(selectedDocument.updated_at).toLocaleDateString()} {new Date(selectedDocument.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">作者:</Text>
+                      <Text>@{selectedDocument.created_by || 'system'}</Text>
+                    </div>
+                    {selectedDocument.file_size && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text type="secondary">大小:</Text>
+                        <Text>{Math.round(selectedDocument.file_size / 1024)}KB</Text>
+                      </div>
+                    )}
+                  </Space>
+                </Card>
+
+                {/* 统计信息 */}
+                <Card 
+                  size="small" 
+                  title="📈 统计信息" 
+                  style={{ marginBottom: 16 }}
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">字数:</Text>
+                      <Text>{selectedDocument.content?.length || 0} 字符</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">版本:</Text>
+                      <Text>v{selectedDocument.version || 1}</Text>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Text type="secondary">状态:</Text>
+                      <Tag color={selectedDocument.status === 'published' ? 'green' : 'orange'}>
+                        {selectedDocument.status === 'published' ? '已发布' : '草稿'}
+                      </Tag>
+                    </div>
+                  </Space>
+                </Card>
+
+                {/* 标签分类 */}
+                {selectedDocument.tags && selectedDocument.tags.length > 0 && (
+                  <Card 
+                    size="small" 
+                    title="🏷️ 标签分类" 
+                    style={{ marginBottom: 16 }}
+                    bodyStyle={{ padding: '12px' }}
+                  >
+                    <Space wrap>
+                      {selectedDocument.tags.map((tag, index) => (
+                        <Tag key={index} color="blue">{tag}</Tag>
+                      ))}
+                    </Space>
+                  </Card>
+                )}
+
+                {/* 快速操作 */}
+                <Card 
+                  size="small" 
+                  title="⚡ 快速操作" 
+                  style={{ marginBottom: 16 }}
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Button 
+                      type="primary" 
+                      icon={<EditOutlined />} 
+                      size="small" 
+                      block
+                      onClick={() => handleDocumentEdit(selectedDocument)}
+                    >
+                      编辑文档
+                    </Button>
+                    <Button 
+                      icon={<DownloadOutlined />} 
+                      size="small" 
+                      block
+                      onClick={() => handleDocumentDownload(selectedDocument)}
+                    >
+                      下载文档
+                    </Button>
+                    <Button 
+                      icon={<ShareAltOutlined />} 
+                      size="small" 
+                      block
+                      onClick={() => {
+                        navigator.clipboard.writeText(`/projects/${selectedDocument.project_id}/tasks/${selectedDocument.task_id}/documents/${selectedDocument.id}`);
+                        message.success('文档链接已复制');
+                      }}
+                    >
+                      分享链接
+                    </Button>
+                    <Button 
+                      danger 
+                      icon={<DeleteOutlined />} 
+                      size="small" 
+                      block
+                      onClick={() => {
+                        Modal.confirm({
+                          title: '确认删除',
+                          content: `确定要删除文档 "${selectedDocument.title}" 吗？`,
+                          okText: '删除',
+                          okType: 'danger',
+                          onOk: () => handleDocumentDelete(selectedDocument)
+                        });
+                      }}
+                    >
+                      删除文档
+                    </Button>
+                  </Space>
+                </Card>
+
+                {/* 版本历史 */}
+                <Card 
+                  size="small" 
+                  title="📚 版本历史" 
+                  bodyStyle={{ padding: '12px' }}
+                >
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+                    <HistoryOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+                    <div>版本历史功能开发中</div>
+                  </div>
+                </Card>
+              </div>
+            </Col>
+          )}
         </Row>
       </Card>
 

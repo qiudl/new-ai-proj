@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// PostgresUserRepository implements UserRepository using PostgreSQL
+// PostgresUserRepository implements UserRepository using PostgreSQL with enterprise support
 type PostgresUserRepository struct {
 	db interface{}
 }
@@ -30,6 +30,12 @@ func (r *PostgresUserRepository) getExecer() execer {
 
 // Create creates a new user
 func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) (*models.User, error) {
+	// Route company users to enterprise_users table
+	if user.UserType == "company" {
+		return r.createEnterpriseUser(ctx, user)
+	}
+	
+	// System users continue using users table
 	query := `
 		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role, 
 		                  contact_person_name, contact_phone, department_title, is_primary_contact, 
@@ -46,19 +52,97 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *models.User) 
 
 	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, fmt.Errorf("failed to create system user: %w", err)
 	}
+
+	return user, nil
+}
+
+// createEnterpriseUser creates a company user in enterprise_users table
+func (r *PostgresUserRepository) createEnterpriseUser(ctx context.Context, user *models.User) (*models.User, error) {
+	// Determine enterprise_id from company_id (assuming they map 1:1)
+	enterpriseID := user.CompanyID
+	if enterpriseID == nil {
+		return nil, fmt.Errorf("company_id is required for company users")
+	}
+
+	// Map User fields to enterprise_users fields
+	query := `
+		INSERT INTO enterprise_users (enterprise_id, username, email, name, phone, position, 
+		                            is_primary_contact, access_level, status, last_login_at, bio)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, created_at, updated_at`
+
+	exec := r.getExecer()
+	
+	// Map fields appropriately
+	name := ""
+	if user.ContactPersonName != nil {
+		name = *user.ContactPersonName
+	}
+	
+	phone := ""
+	if user.ContactPhone != nil {
+		phone = *user.ContactPhone
+	}
+	
+	position := ""
+	if user.DepartmentTitle != nil {
+		position = *user.DepartmentTitle
+	}
+	
+	// Map role to access_level
+	accessLevel := 1 // default
+	switch user.Role {
+	case "company_admin":
+		accessLevel = 4
+	case "company_user":
+		accessLevel = 2
+	}
+	
+	// Map notes to bio
+	bio := ""
+	if user.Notes != nil {
+		bio = *user.Notes
+	}
+
+	var newID int
+	var createdAt, updatedAt time.Time
+	err := exec.QueryRowContext(ctx, query,
+		enterpriseID, user.Username, user.Email, name, phone, position,
+		user.IsPrimaryContact, accessLevel, user.Status, user.LastLoginAt, bio).Scan(&newID, &createdAt, &updatedAt)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create enterprise user: %w", err)
+	}
+
+	// Update user with new values
+	user.ID = newID
+	user.CreatedAt = createdAt
+	user.UpdatedAt = updatedAt
 
 	return user, nil
 }
 
 // GetByID gets a user by ID
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.User, error) {
+	// First try to get from users table (system users)
+	user, err := r.getSystemUserByID(ctx, id)
+	if err == nil {
+		return user, nil
+	}
+	
+	// If not found, try enterprise_users table
+	return r.getEnterpriseUserByID(ctx, id)
+}
+
+// getSystemUserByID gets a system user from users table
+func (r *PostgresUserRepository) getSystemUserByID(ctx context.Context, id int) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, 
 		       created_at, updated_at
-		FROM users WHERE id = $1`
+		FROM users WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, id)
@@ -73,10 +157,82 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 	)
 
 	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("system user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system user: %w", err)
+	}
+
+	return user, nil
+}
+
+// getEnterpriseUserByID gets an enterprise user and maps to User model
+func (r *PostgresUserRepository) getEnterpriseUserByID(ctx context.Context, id int) (*models.User, error) {
+	query := `
+		SELECT eu.id, eu.username, eu.email, eu.enterprise_id, eu.name, eu.phone, eu.position,
+		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
+		       eu.created_at, eu.updated_at
+		FROM enterprise_users eu
+		WHERE eu.id = $1 AND eu.deleted_at IS NULL`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, id)
+
+	var euID int
+	var username, email string
+	var enterpriseID int
+	var name, phone, position sql.NullString
+	var isPrimaryContact bool
+	var accessLevel int
+	var status string
+	var lastLoginAt *time.Time
+	var bio sql.NullString
+	var createdAt, updatedAt time.Time
+
+	err := row.Scan(&euID, &username, &email, &enterpriseID, &name, &phone, &position,
+		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
+
+	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, fmt.Errorf("failed to get enterprise user: %w", err)
+	}
+
+	// Map enterprise user to User model
+	user := &models.User{
+		ID:               euID,
+		Username:         username,
+		Email:            email,
+		UserType:         "company",
+		CompanyID:        &enterpriseID,
+		Status:           status,
+		LastLoginAt:      lastLoginAt,
+		IsPrimaryContact: isPrimaryContact,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+	}
+
+	// Map string fields with null handling
+	if name.Valid {
+		user.ContactPersonName = &name.String
+	}
+	if phone.Valid {
+		user.ContactPhone = &phone.String
+	}
+	if position.Valid {
+		user.DepartmentTitle = &position.String
+	}
+	if bio.Valid {
+		user.Notes = &bio.String
+	}
+
+	// Map access_level to role
+	switch accessLevel {
+	case 4, 5:
+		user.Role = "company_admin"
+	default:
+		user.Role = "company_user"
 	}
 
 	return user, nil
@@ -84,11 +240,23 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id int) (*models.U
 
 // GetByUsername gets a user by username
 func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+	// First try system users
+	user, err := r.getSystemUserByUsername(ctx, username)
+	if err == nil {
+		return user, nil
+	}
+	
+	// Then try enterprise users
+	return r.getEnterpriseUserByUsername(ctx, username)
+}
+
+// getSystemUserByUsername gets a system user by username
+func (r *PostgresUserRepository) getSystemUserByUsername(ctx context.Context, username string) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at,
 		       created_at, updated_at
-		FROM users WHERE username = $1`
+		FROM users WHERE username = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, username)
@@ -103,10 +271,82 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 	)
 
 	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("system user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system user: %w", err)
+	}
+
+	return user, nil
+}
+
+// getEnterpriseUserByUsername gets an enterprise user by username
+func (r *PostgresUserRepository) getEnterpriseUserByUsername(ctx context.Context, username string) (*models.User, error) {
+	query := `
+		SELECT eu.id, eu.username, eu.email, eu.enterprise_id, eu.name, eu.phone, eu.position,
+		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
+		       eu.created_at, eu.updated_at
+		FROM enterprise_users eu
+		WHERE eu.username = $1 AND eu.deleted_at IS NULL`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, username)
+
+	var euID int
+	var user_username, email string
+	var enterpriseID int
+	var name, phone, position sql.NullString
+	var isPrimaryContact bool
+	var accessLevel int
+	var status string
+	var lastLoginAt *time.Time
+	var bio sql.NullString
+	var createdAt, updatedAt time.Time
+
+	err := row.Scan(&euID, &user_username, &email, &enterpriseID, &name, &phone, &position,
+		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
+
+	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, fmt.Errorf("failed to get enterprise user: %w", err)
+	}
+
+	// Map to User model
+	user := &models.User{
+		ID:               euID,
+		Username:         user_username,
+		Email:            email,
+		UserType:         "company",
+		CompanyID:        &enterpriseID,
+		Status:           status,
+		LastLoginAt:      lastLoginAt,
+		IsPrimaryContact: isPrimaryContact,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+	}
+
+	// Map optional fields
+	if name.Valid {
+		user.ContactPersonName = &name.String
+	}
+	if phone.Valid {
+		user.ContactPhone = &phone.String
+	}
+	if position.Valid {
+		user.DepartmentTitle = &position.String
+	}
+	if bio.Valid {
+		user.Notes = &bio.String
+	}
+
+	// Map access_level to role
+	switch accessLevel {
+	case 4, 5:
+		user.Role = "company_admin"
+	default:
+		user.Role = "company_user"
 	}
 
 	return user, nil
@@ -114,6 +354,18 @@ func (r *PostgresUserRepository) GetByUsername(ctx context.Context, username str
 
 // GetByEmail gets a user by email
 func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	// First try system users
+	user, err := r.getSystemUserByEmail(ctx, email)
+	if err == nil {
+		return user, nil
+	}
+	
+	// Then try enterprise users
+	return r.getEnterpriseUserByEmail(ctx, email)
+}
+
+// getSystemUserByEmail gets a system user by email
+func (r *PostgresUserRepository) getSystemUserByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, created_at, updated_at, deleted_at
@@ -132,10 +384,84 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 	)
 
 	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("system user not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system user: %w", err)
+	}
+
+	return user, nil
+}
+
+// getEnterpriseUserByEmail gets an enterprise user by email
+func (r *PostgresUserRepository) getEnterpriseUserByEmail(ctx context.Context, email string) (*models.User, error) {
+	query := `
+		SELECT eu.id, eu.username, eu.email, eu.enterprise_id, eu.name, eu.phone, eu.position,
+		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
+		       eu.created_at, eu.updated_at, eu.deleted_at
+		FROM enterprise_users eu
+		WHERE eu.email = $1 AND eu.deleted_at IS NULL`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, email)
+
+	var euID int
+	var username, user_email string
+	var enterpriseID int
+	var name, phone, position sql.NullString
+	var isPrimaryContact bool
+	var accessLevel int
+	var status string
+	var lastLoginAt *time.Time
+	var bio sql.NullString
+	var createdAt, updatedAt time.Time
+	var deletedAt *time.Time
+
+	err := row.Scan(&euID, &username, &user_email, &enterpriseID, &name, &phone, &position,
+		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt, &deletedAt)
+
+	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("user not found")
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, fmt.Errorf("failed to get enterprise user: %w", err)
+	}
+
+	// Map to User model
+	user := &models.User{
+		ID:               euID,
+		Username:         username,
+		Email:            user_email,
+		UserType:         "company",
+		CompanyID:        &enterpriseID,
+		Status:           status,
+		LastLoginAt:      lastLoginAt,
+		IsPrimaryContact: isPrimaryContact,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+		DeletedAt:        deletedAt,
+	}
+
+	// Map optional fields
+	if name.Valid {
+		user.ContactPersonName = &name.String
+	}
+	if phone.Valid {
+		user.ContactPhone = &phone.String
+	}
+	if position.Valid {
+		user.DepartmentTitle = &position.String
+	}
+	if bio.Valid {
+		user.Notes = &bio.String
+	}
+
+	// Map access_level to role
+	switch accessLevel {
+	case 4, 5:
+		user.Role = "company_admin"
+	default:
+		user.Role = "company_user"
 	}
 
 	return user, nil
@@ -143,6 +469,12 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 
 // Update updates a user
 func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) (*models.User, error) {
+	// Route company users to enterprise_users table
+	if user.UserType == "company" {
+		return r.updateEnterpriseUser(ctx, user)
+	}
+	
+	// System users continue using users table
 	query := `
 		UPDATE users 
 		SET username = $2, email = $3, password_hash = $4, user_type = $5, 
@@ -160,7 +492,63 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 
 	err := row.Scan(&user.UpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update user: %w", err)
+		return nil, fmt.Errorf("failed to update system user: %w", err)
+	}
+
+	return user, nil
+}
+
+// updateEnterpriseUser updates an enterprise user
+func (r *PostgresUserRepository) updateEnterpriseUser(ctx context.Context, user *models.User) (*models.User, error) {
+	// Map User fields to enterprise_users fields
+	query := `
+		UPDATE enterprise_users 
+		SET username = $2, email = $3, name = $4, phone = $5, position = $6,
+		    is_primary_contact = $7, access_level = $8, status = $9, bio = $10,
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+		RETURNING updated_at`
+
+	exec := r.getExecer()
+	
+	// Map fields appropriately
+	name := ""
+	if user.ContactPersonName != nil {
+		name = *user.ContactPersonName
+	}
+	
+	phone := ""
+	if user.ContactPhone != nil {
+		phone = *user.ContactPhone
+	}
+	
+	position := ""
+	if user.DepartmentTitle != nil {
+		position = *user.DepartmentTitle
+	}
+	
+	// Map role to access_level
+	accessLevel := 1 // default
+	switch user.Role {
+	case "company_admin":
+		accessLevel = 4
+	case "company_user":
+		accessLevel = 2
+	}
+	
+	// Map notes to bio
+	bio := ""
+	if user.Notes != nil {
+		bio = *user.Notes
+	}
+
+	row := exec.QueryRowContext(ctx, query,
+		user.ID, user.Username, user.Email, name, phone, position,
+		user.IsPrimaryContact, accessLevel, user.Status, bio)
+
+	err := row.Scan(&user.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update enterprise user: %w", err)
 	}
 
 	return user, nil
@@ -168,12 +556,26 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 
 // Delete soft deletes a user (sets deleted_at timestamp)
 func (r *PostgresUserRepository) Delete(ctx context.Context, id int) error {
+	// Try to delete from both tables
+	systemErr := r.deleteSystemUser(ctx, id)
+	enterpriseErr := r.deleteEnterpriseUser(ctx, id)
+	
+	// If both failed, return error
+	if systemErr != nil && enterpriseErr != nil {
+		return fmt.Errorf("user not found in either table")
+	}
+	
+	return nil
+}
+
+// deleteSystemUser deletes from users table
+func (r *PostgresUserRepository) deleteSystemUser(ctx context.Context, id int) error {
 	query := `UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
+		return fmt.Errorf("failed to delete system user: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -182,7 +584,29 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found or already deleted")
+		return fmt.Errorf("system user not found or already deleted")
+	}
+
+	return nil
+}
+
+// deleteEnterpriseUser deletes from enterprise_users table
+func (r *PostgresUserRepository) deleteEnterpriseUser(ctx context.Context, id int) error {
+	query := `UPDATE enterprise_users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete enterprise user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("enterprise user not found or already deleted")
 	}
 
 	return nil
@@ -190,12 +614,26 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id int) error {
 
 // Restore restores a soft deleted user
 func (r *PostgresUserRepository) Restore(ctx context.Context, id int) error {
+	// Try to restore from both tables
+	systemErr := r.restoreSystemUser(ctx, id)
+	enterpriseErr := r.restoreEnterpriseUser(ctx, id)
+	
+	// If both failed, return error
+	if systemErr != nil && enterpriseErr != nil {
+		return fmt.Errorf("user not found in recycle bin")
+	}
+	
+	return nil
+}
+
+// restoreSystemUser restores from users table
+func (r *PostgresUserRepository) restoreSystemUser(ctx context.Context, id int) error {
 	query := `UPDATE users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to restore user: %w", err)
+		return fmt.Errorf("failed to restore system user: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -204,7 +642,29 @@ func (r *PostgresUserRepository) Restore(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found in recycle bin")
+		return fmt.Errorf("system user not found in recycle bin")
+	}
+
+	return nil
+}
+
+// restoreEnterpriseUser restores from enterprise_users table
+func (r *PostgresUserRepository) restoreEnterpriseUser(ctx context.Context, id int) error {
+	query := `UPDATE enterprise_users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to restore enterprise user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("enterprise user not found in recycle bin")
 	}
 
 	return nil
@@ -212,12 +672,26 @@ func (r *PostgresUserRepository) Restore(ctx context.Context, id int) error {
 
 // HardDelete permanently deletes a user (only for admin/system cleanup)
 func (r *PostgresUserRepository) HardDelete(ctx context.Context, id int) error {
+	// Try to hard delete from both tables
+	systemErr := r.hardDeleteSystemUser(ctx, id)
+	enterpriseErr := r.hardDeleteEnterpriseUser(ctx, id)
+	
+	// If both failed, return error
+	if systemErr != nil && enterpriseErr != nil {
+		return fmt.Errorf("user not found in recycle bin")
+	}
+	
+	return nil
+}
+
+// hardDeleteSystemUser permanently deletes from users table
+func (r *PostgresUserRepository) hardDeleteSystemUser(ctx context.Context, id int) error {
 	query := `DELETE FROM users WHERE id = $1 AND deleted_at IS NOT NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, id)
 	if err != nil {
-		return fmt.Errorf("failed to permanently delete user: %w", err)
+		return fmt.Errorf("failed to permanently delete system user: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -226,7 +700,29 @@ func (r *PostgresUserRepository) HardDelete(ctx context.Context, id int) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found in recycle bin")
+		return fmt.Errorf("system user not found in recycle bin")
+	}
+
+	return nil
+}
+
+// hardDeleteEnterpriseUser permanently deletes from enterprise_users table
+func (r *PostgresUserRepository) hardDeleteEnterpriseUser(ctx context.Context, id int) error {
+	query := `DELETE FROM enterprise_users WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	exec := r.getExecer()
+	result, err := exec.ExecContext(ctx, query, id)
+	if err != nil {
+		return fmt.Errorf("failed to permanently delete enterprise user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("enterprise user not found in recycle bin")
 	}
 
 	return nil
@@ -234,6 +730,22 @@ func (r *PostgresUserRepository) HardDelete(ctx context.Context, id int) error {
 
 // IsDeleted checks if a user is soft deleted
 func (r *PostgresUserRepository) IsDeleted(ctx context.Context, id int) (bool, error) {
+	// Check both tables
+	systemDeleted, systemErr := r.isSystemUserDeleted(ctx, id)
+	if systemErr == nil {
+		return systemDeleted, nil
+	}
+	
+	enterpriseDeleted, enterpriseErr := r.isEnterpriseUserDeleted(ctx, id)
+	if enterpriseErr == nil {
+		return enterpriseDeleted, nil
+	}
+	
+	return false, fmt.Errorf("user not found")
+}
+
+// isSystemUserDeleted checks if system user is deleted
+func (r *PostgresUserRepository) isSystemUserDeleted(ctx context.Context, id int) (bool, error) {
 	query := `SELECT deleted_at FROM users WHERE id = $1`
 
 	exec := r.getExecer()
@@ -243,7 +755,26 @@ func (r *PostgresUserRepository) IsDeleted(ctx context.Context, id int) (bool, e
 	err := row.Scan(&deletedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, fmt.Errorf("user not found")
+			return false, fmt.Errorf("system user not found")
+		}
+		return false, fmt.Errorf("failed to check deletion status: %w", err)
+	}
+
+	return deletedAt != nil, nil
+}
+
+// isEnterpriseUserDeleted checks if enterprise user is deleted
+func (r *PostgresUserRepository) isEnterpriseUserDeleted(ctx context.Context, id int) (bool, error) {
+	query := `SELECT deleted_at FROM enterprise_users WHERE id = $1`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, id)
+
+	var deletedAt *time.Time
+	err := row.Scan(&deletedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, fmt.Errorf("enterprise user not found")
 		}
 		return false, fmt.Errorf("failed to check deletion status: %w", err)
 	}
@@ -253,14 +784,40 @@ func (r *PostgresUserRepository) IsDeleted(ctx context.Context, id int) (bool, e
 
 // List gets users with pagination
 func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([]*models.User, int, error) {
+	// Get users from both tables and combine
+	systemUsers, systemTotal, _ := r.listSystemUsers(ctx, limit, offset)
+	enterpriseUsers, enterpriseTotal, _ := r.listEnterpriseUsers(ctx, limit, offset)
+	
+	// Combine results
+	allUsers := make([]*models.User, 0, len(systemUsers)+len(enterpriseUsers))
+	allUsers = append(allUsers, systemUsers...)
+	allUsers = append(allUsers, enterpriseUsers...)
+	
+	totalCount := systemTotal + enterpriseTotal
+	
+	// Apply pagination to combined results
+	if offset >= len(allUsers) {
+		return []*models.User{}, totalCount, nil
+	}
+	
+	end := offset + limit
+	if end > len(allUsers) {
+		end = len(allUsers)
+	}
+	
+	return allUsers[offset:end], totalCount, nil
+}
+
+// listSystemUsers gets system users from users table
+func (r *PostgresUserRepository) listSystemUsers(ctx context.Context, limit, offset int) ([]*models.User, int, error) {
 	// Get total count (only non-deleted users)
-	countQuery := `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL`
+	countQuery := `SELECT COUNT(*) FROM users WHERE deleted_at IS NULL AND user_type = 'system'`
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery)
 
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to get user count: %w", err)
+		return nil, 0, fmt.Errorf("failed to get system user count: %w", err)
 	}
 
 	// Get users with pagination (only non-deleted users)
@@ -268,13 +825,13 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, created_at, updated_at, deleted_at
 		FROM users 
-		WHERE deleted_at IS NULL
+		WHERE deleted_at IS NULL AND user_type = 'system'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2`
 
 	rows, err := exec.QueryContext(ctx, query, limit, offset)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+		return nil, 0, fmt.Errorf("failed to list system users: %w", err)
 	}
 	defer rows.Close()
 
@@ -289,7 +846,100 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 			&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan system user: %w", err)
+		}
+
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return users, total, nil
+}
+
+// listEnterpriseUsers gets enterprise users and maps to User models
+func (r *PostgresUserRepository) listEnterpriseUsers(ctx context.Context, limit, offset int) ([]*models.User, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM enterprise_users WHERE deleted_at IS NULL`
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get enterprise user count: %w", err)
+	}
+
+	// Get enterprise users
+	query := `
+		SELECT id, username, email, enterprise_id, name, phone, position,
+		       is_primary_contact, access_level, status, last_login_at, bio,
+		       created_at, updated_at
+		FROM enterprise_users 
+		WHERE deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2`
+
+	rows, err := exec.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list enterprise users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		var euID int
+		var username, email string
+		var enterpriseID int
+		var name, phone, position sql.NullString
+		var isPrimaryContact bool
+		var accessLevel int
+		var status string
+		var lastLoginAt *time.Time
+		var bio sql.NullString
+		var createdAt, updatedAt time.Time
+
+		err := rows.Scan(&euID, &username, &email, &enterpriseID, &name, &phone, &position,
+			&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan enterprise user: %w", err)
+		}
+
+		// Map to User model
+		user := &models.User{
+			ID:               euID,
+			Username:         username,
+			Email:            email,
+			UserType:         "company",
+			CompanyID:        &enterpriseID,
+			Status:           status,
+			LastLoginAt:      lastLoginAt,
+			IsPrimaryContact: isPrimaryContact,
+			CreatedAt:        createdAt,
+			UpdatedAt:        updatedAt,
+		}
+
+		// Map optional fields
+		if name.Valid {
+			user.ContactPersonName = &name.String
+		}
+		if phone.Valid {
+			user.ContactPhone = &phone.String
+		}
+		if position.Valid {
+			user.DepartmentTitle = &position.String
+		}
+		if bio.Valid {
+			user.Notes = &bio.String
+		}
+
+		// Map access_level to role
+		switch accessLevel {
+		case 4, 5:
+			user.Role = "company_admin"
+		default:
+			user.Role = "company_user"
 		}
 
 		users = append(users, user)
@@ -304,6 +954,21 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 
 // UpdateProfile updates a user's profile (username and email only)
 func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int, username, email string) (*models.User, error) {
+	// First try to get user to determine which table to update
+	user, err := r.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	
+	if user.UserType == "company" {
+		return r.updateEnterpriseUserProfile(ctx, userID, username, email)
+	}
+	
+	return r.updateSystemUserProfile(ctx, userID, username, email)
+}
+
+// updateSystemUserProfile updates system user profile
+func (r *PostgresUserRepository) updateSystemUserProfile(ctx context.Context, userID int, username, email string) (*models.User, error) {
 	query := `
 		UPDATE users 
 		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
@@ -322,9 +987,81 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int, 
 		&user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("system user not found")
 		}
-		return nil, fmt.Errorf("failed to update user profile: %w", err)
+		return nil, fmt.Errorf("failed to update system user profile: %w", err)
+	}
+
+	return user, nil
+}
+
+// updateEnterpriseUserProfile updates enterprise user profile
+func (r *PostgresUserRepository) updateEnterpriseUserProfile(ctx context.Context, userID int, username, email string) (*models.User, error) {
+	query := `
+		UPDATE enterprise_users 
+		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+		RETURNING id, username, email, enterprise_id, name, phone, position,
+		          is_primary_contact, access_level, status, last_login_at, bio,
+		          created_at, updated_at`
+
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, query, userID, username, email)
+
+	var euID int
+	var user_username, user_email string
+	var enterpriseID int
+	var name, phone, position sql.NullString
+	var isPrimaryContact bool
+	var accessLevel int
+	var status string
+	var lastLoginAt *time.Time
+	var bio sql.NullString
+	var createdAt, updatedAt time.Time
+
+	err := row.Scan(&euID, &user_username, &user_email, &enterpriseID, &name, &phone, &position,
+		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("enterprise user not found")
+		}
+		return nil, fmt.Errorf("failed to update enterprise user profile: %w", err)
+	}
+
+	// Map to User model
+	user := &models.User{
+		ID:               euID,
+		Username:         user_username,
+		Email:            user_email,
+		UserType:         "company",
+		CompanyID:        &enterpriseID,
+		Status:           status,
+		LastLoginAt:      lastLoginAt,
+		IsPrimaryContact: isPrimaryContact,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+	}
+
+	// Map optional fields
+	if name.Valid {
+		user.ContactPersonName = &name.String
+	}
+	if phone.Valid {
+		user.ContactPhone = &phone.String
+	}
+	if position.Valid {
+		user.DepartmentTitle = &position.String
+	}
+	if bio.Valid {
+		user.Notes = &bio.String
+	}
+
+	// Map access_level to role
+	switch accessLevel {
+	case 4, 5:
+		user.Role = "company_admin"
+	default:
+		user.Role = "company_user"
 	}
 
 	return user, nil
@@ -332,6 +1069,19 @@ func (r *PostgresUserRepository) UpdateProfile(ctx context.Context, userID int, 
 
 // UpdatePassword updates a user's password
 func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int, passwordHash string) error {
+	// First try to get user to determine which table to update
+	user, err := r.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+	
+	if user.UserType == "company" {
+		// Enterprise users don't have passwords in enterprise_users table
+		// For now, return an error or handle differently
+		return fmt.Errorf("password update not supported for enterprise users")
+	}
+	
+	// Update system user password
 	query := `
 		UPDATE users 
 		SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
@@ -357,25 +1107,25 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 
 // ListCompanyUsersWithPagination lists company users with pagination and filtering
 func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Context, params *models.CompanyUserListParams) ([]*models.EnterpriseUserResponse, int, error) {
-	// Build WHERE clause based on filters
-	whereConditions := []string{"u.user_type = 'company'", "u.deleted_at IS NULL"}
+	// Now query enterprise_users table instead of users table
+	whereConditions := []string{"eu.deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
 
 	if params.CompanyID != nil {
-		whereConditions = append(whereConditions, fmt.Sprintf("u.company_id = $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("eu.enterprise_id = $%d", argIndex))
 		args = append(args, *params.CompanyID)
 		argIndex++
 	}
 
 	if params.Status != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("u.status = $%d", argIndex))
+		whereConditions = append(whereConditions, fmt.Sprintf("eu.status = $%d", argIndex))
 		args = append(args, params.Status)
 		argIndex++
 	}
 
 	if params.Search != "" {
-		searchCondition := fmt.Sprintf("(u.username ILIKE $%d OR u.email ILIKE $%d OR u.contact_person_name ILIKE $%d)", argIndex, argIndex+1, argIndex+2)
+		searchCondition := fmt.Sprintf("(eu.username ILIKE $%d OR eu.email ILIKE $%d OR eu.name ILIKE $%d)", argIndex, argIndex+1, argIndex+2)
 		whereConditions = append(whereConditions, searchCondition)
 		searchPattern := "%" + params.Search + "%"
 		args = append(args, searchPattern, searchPattern, searchPattern)
@@ -390,8 +1140,8 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 	// Get total count
 	countQuery := fmt.Sprintf(`
 		SELECT COUNT(*) 
-		FROM users u 
-		LEFT JOIN customers c ON u.company_id = c.id 
+		FROM enterprise_users eu 
+		LEFT JOIN enterprises e ON eu.enterprise_id = e.id 
 		%s`, whereClause)
 
 	exec := r.getExecer()
@@ -399,27 +1149,27 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to get company user count: %w", err)
+		return nil, 0, fmt.Errorf("failed to get enterprise user count: %w", err)
 	}
 
 	// Get users with pagination
 	offset := (params.Page - 1) * params.PageSize
 	query := fmt.Sprintf(`
-		SELECT u.id, u.username, u.email, u.contact_person_name, u.contact_phone, 
-		       u.department_title, u.is_primary_contact, u.status, u.company_id, 
-		       c.company_name, u.last_login_at, u.account_expires_at, 
-		       u.last_project_access, u.notes, u.created_at, u.updated_at
-		FROM users u 
-		LEFT JOIN customers c ON u.company_id = c.id 
+		SELECT eu.id, eu.username, eu.email, eu.name, eu.phone, 
+		       eu.position, eu.is_primary_contact, eu.status, eu.enterprise_id, 
+		       e.name, eu.last_login_at, NULL as account_expires_at, 
+		       NULL as last_project_access, eu.bio, eu.created_at, eu.updated_at
+		FROM enterprise_users eu 
+		LEFT JOIN enterprises e ON eu.enterprise_id = e.id 
 		%s
-		ORDER BY u.created_at DESC
+		ORDER BY eu.created_at DESC
 		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
 
 	args = append(args, params.PageSize, offset)
 
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list company users: %w", err)
+		return nil, 0, fmt.Errorf("failed to list enterprise users: %w", err)
 	}
 	defer rows.Close()
 
@@ -435,7 +1185,7 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan company user: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan enterprise user: %w", err)
 		}
 
 		users = append(users, user)
@@ -450,34 +1200,73 @@ func (r *PostgresUserRepository) ListCompanyUsersWithPagination(ctx context.Cont
 
 // GetPrimaryContactByCompanyID gets the primary contact for a company
 func (r *PostgresUserRepository) GetPrimaryContactByCompanyID(ctx context.Context, companyID int) (*models.User, error) {
+	// Query enterprise_users table for primary contact
 	query := `
-		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, contact_person_name, contact_phone,
-		       department_title, is_primary_contact, account_expires_at, last_project_access,
-		       notes, current_timing_task_id, timing_start_time, created_at, updated_at, deleted_at
-		FROM users 
-		WHERE company_id = $1 AND user_type = 'company' AND is_primary_contact = true AND deleted_at IS NULL
+		SELECT eu.id, eu.username, eu.email, eu.enterprise_id, eu.name, eu.phone, eu.position,
+		       eu.is_primary_contact, eu.access_level, eu.status, eu.last_login_at, eu.bio,
+		       eu.created_at, eu.updated_at
+		FROM enterprise_users eu
+		WHERE eu.enterprise_id = $1 AND eu.is_primary_contact = true AND eu.deleted_at IS NULL
 		LIMIT 1`
 
 	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, query, companyID)
 
-	user := &models.User{}
-	err := row.Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.UserType, &user.CompanyID, &user.CompanyUserID,
-		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
-		&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
-		&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
-		&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
-	)
+	var euID int
+	var username, email string
+	var enterpriseID int
+	var name, phone, position sql.NullString
+	var isPrimaryContact bool
+	var accessLevel int
+	var status string
+	var lastLoginAt *time.Time
+	var bio sql.NullString
+	var createdAt, updatedAt time.Time
+
+	err := row.Scan(&euID, &username, &email, &enterpriseID, &name, &phone, &position,
+		&isPrimaryContact, &accessLevel, &status, &lastLoginAt, &bio, &createdAt, &updatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // No primary contact found (this is not an error)
 		}
 		return nil, fmt.Errorf("failed to get primary contact: %w", err)
+	}
+
+	// Map to User model
+	user := &models.User{
+		ID:               euID,
+		Username:         username,
+		Email:            email,
+		UserType:         "company",
+		CompanyID:        &enterpriseID,
+		Status:           status,
+		LastLoginAt:      lastLoginAt,
+		IsPrimaryContact: isPrimaryContact,
+		CreatedAt:        createdAt,
+		UpdatedAt:        updatedAt,
+	}
+
+	// Map optional fields
+	if name.Valid {
+		user.ContactPersonName = &name.String
+	}
+	if phone.Valid {
+		user.ContactPhone = &phone.String
+	}
+	if position.Valid {
+		user.DepartmentTitle = &position.String
+	}
+	if bio.Valid {
+		user.Notes = &bio.String
+	}
+
+	// Map access_level to role
+	switch accessLevel {
+	case 4, 5:
+		user.Role = "company_admin"
+	default:
+		user.Role = "company_user"
 	}
 
 	return user, nil
@@ -487,38 +1276,38 @@ func (r *PostgresUserRepository) GetPrimaryContactByCompanyID(ctx context.Contex
 func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (*models.CompanyUserStats, error) {
 	exec := r.getExecer()
 
-	// Get total count and count by status
+	// Get total count and count by status from enterprise_users
 	statusQuery := `
 		SELECT 
 			COUNT(*) as total,
 			COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
 			COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive,
 			COUNT(CASE WHEN is_primary_contact = true THEN 1 END) as primary_contacts,
-			COUNT(CASE WHEN account_expires_at IS NOT NULL AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '30 days' AND account_expires_at > CURRENT_TIMESTAMP THEN 1 END) as expiring_accounts,
+			0 as expiring_accounts,
 			COUNT(CASE WHEN created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days' THEN 1 END) as recent_registrations
-		FROM users 
-		WHERE user_type = 'company' AND deleted_at IS NULL`
+		FROM enterprise_users 
+		WHERE deleted_at IS NULL`
 
 	row := exec.QueryRowContext(ctx, statusQuery)
 
 	var total, active, inactive, primaryContacts, expiringAccounts, recentRegistrations int
 	err := row.Scan(&total, &active, &inactive, &primaryContacts, &expiringAccounts, &recentRegistrations)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get company user statistics: %w", err)
+		return nil, fmt.Errorf("failed to get enterprise user statistics: %w", err)
 	}
 
-	// Get count by company
+	// Get count by enterprise (company)
 	companyQuery := `
-		SELECT c.company_name, COUNT(u.id) as user_count
-		FROM users u
-		LEFT JOIN customers c ON u.company_id = c.id
-		WHERE u.user_type = 'company' AND u.deleted_at IS NULL
-		GROUP BY c.id, c.company_name
+		SELECT e.name, COUNT(eu.id) as user_count
+		FROM enterprise_users eu
+		LEFT JOIN enterprises e ON eu.enterprise_id = e.id
+		WHERE eu.deleted_at IS NULL
+		GROUP BY e.id, e.name
 		ORDER BY user_count DESC`
 
 	rows, err := exec.QueryContext(ctx, companyQuery)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get company user stats by company: %w", err)
+		return nil, fmt.Errorf("failed to get enterprise user stats by company: %w", err)
 	}
 	defer rows.Close()
 
@@ -551,55 +1340,14 @@ func (r *PostgresUserRepository) GetCompanyUserStatistics(ctx context.Context) (
 
 // GetExpiringAccounts gets company users whose accounts are expiring soon
 func (r *PostgresUserRepository) GetExpiringAccounts(ctx context.Context, days int) ([]*models.User, error) {
-	query := `
-		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
-		       role, status, profile, last_login_at, contact_person_name, contact_phone,
-		       department_title, is_primary_contact, account_expires_at, last_project_access,
-		       notes, current_timing_task_id, timing_start_time, created_at, updated_at, deleted_at
-		FROM users 
-		WHERE user_type = 'company' 
-		  AND account_expires_at IS NOT NULL 
-		  AND account_expires_at <= CURRENT_TIMESTAMP + INTERVAL '%d days'
-		  AND account_expires_at > CURRENT_TIMESTAMP
-		  AND deleted_at IS NULL
-		ORDER BY account_expires_at ASC`
-
-	exec := r.getExecer()
-	rows, err := exec.QueryContext(ctx, fmt.Sprintf(query, days))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get expiring accounts: %w", err)
-	}
-	defer rows.Close()
-
-	var users []*models.User
-	for rows.Next() {
-		user := &models.User{}
-
-		err := rows.Scan(
-			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-			&user.UserType, &user.CompanyID, &user.CompanyUserID,
-			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-			&user.ContactPersonName, &user.ContactPhone, &user.DepartmentTitle,
-			&user.IsPrimaryContact, &user.AccountExpiresAt, &user.LastProjectAccess,
-			&user.Notes, &user.CurrentTimingTaskID, &user.TimingStartTime,
-			&user.CreatedAt, &user.UpdatedAt, &user.DeletedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan expiring user: %w", err)
-		}
-
-		users = append(users, user)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
-	}
-
-	return users, nil
+	// Enterprise users don't have account expiry in the current schema
+	// Return empty list for now
+	return []*models.User{}, nil
 }
 
 // GetUsersTimingTask retrieves all users currently timing the specified task
 func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID int) ([]models.User, error) {
+	// Only system users have timing functionality in users table
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id, 
 		       role, status, profile, last_login_at, is_primary_contact, notes,
@@ -660,13 +1408,14 @@ func (r *PostgresUserRepository) GetUsersTimingTask(ctx context.Context, taskID 
 
 // GetFirstAdminUser gets the first available admin user (fallback for task assignment)
 func (r *PostgresUserRepository) GetFirstAdminUser(ctx context.Context) (*models.User, error) {
+	// Only system users can be admins
 	query := `
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at,
 		       current_timing_task_id, current_user_timer_task_id, timing_start_time, timing_status,
 		       created_at, updated_at
 		FROM users 
-		WHERE role = 'admin' AND status = 'active'
+		WHERE role = 'admin' AND status = 'active' AND deleted_at IS NULL
 		ORDER BY created_at ASC
 		LIMIT 1`
 

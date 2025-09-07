@@ -10,12 +10,24 @@ import (
 
 // UserManagementRepository extends user repository with management functions
 type UserManagementRepository struct {
-	db interface{}
+	db       interface{}
+	userRepo UserRepository
 }
 
 // NewUserManagementRepository creates a new user management repository
 func NewUserManagementRepository(db interface{}) *UserManagementRepository {
-	return &UserManagementRepository{db: db}
+	// Create the main UserRepository for delegation using struct literal
+	var userRepo UserRepository
+	if sqlDB, ok := db.(*sql.DB); ok {
+		userRepo = &PostgresUserRepository{db: sqlDB}
+	} else if tx, ok := db.(*sql.Tx); ok {
+		userRepo = &PostgresUserRepository{db: tx}
+	}
+
+	return &UserManagementRepository{
+		db:       db,
+		userRepo: userRepo,
+	}
 }
 
 // getExecer returns the appropriate execer (DB or Tx)
@@ -28,162 +40,113 @@ func (r *UserManagementRepository) getExecer() execer {
 
 // CreateUser creates a new user with enhanced fields
 func (r *UserManagementRepository) CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
-	query := `
-		INSERT INTO users (username, email, password_hash, user_type, company_id, company_user_id, role, status, profile)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, created_at, updated_at`
-
-	exec := r.getExecer()
-	row := exec.QueryRowContext(ctx, query,
-		user.Username, user.Email, user.PasswordHash, user.UserType,
-		user.CompanyID, user.CompanyUserID, user.Role, user.Status, user.Profile)
-
-	err := row.Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return user, nil
+	// Delegate to the main UserRepository which handles enterprise routing
+	return r.userRepo.Create(ctx, user)
 }
 
 // GetUserByID gets a user by ID with all fields
 func (r *UserManagementRepository) GetUserByID(ctx context.Context, id int) (*models.User, error) {
-	query := `
-		SELECT id, username, email, password_hash, user_type, company_id, company_user_id, 
-		       role, status, profile, last_login_at, created_at, updated_at
-		FROM users WHERE id = $1`
-
-	exec := r.getExecer()
-	row := exec.QueryRowContext(ctx, query, id)
-
-	user := &models.User{}
-	err := row.Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.UserType, &user.CompanyID, &user.CompanyUserID,
-		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
-	}
-
-	return user, nil
+	// Delegate to the main UserRepository which handles enterprise routing
+	return r.userRepo.GetByID(ctx, id)
 }
 
 // UpdateUser updates a user with partial updates
 func (r *UserManagementRepository) UpdateUser(ctx context.Context, id int, req *models.UserUpdateRequest) (*models.User, error) {
-	// Build dynamic query based on provided fields
-	setParts := []string{}
-	args := []interface{}{}
-	argIndex := 1
+	// First get the existing user
+	user, err := r.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %w", err)
+	}
 
+	// Apply the partial updates to the user object
 	if req.Username != nil {
-		setParts = append(setParts, fmt.Sprintf("username = $%d", argIndex))
-		args = append(args, *req.Username)
-		argIndex++
+		user.Username = *req.Username
 	}
 	if req.Email != nil {
-		setParts = append(setParts, fmt.Sprintf("email = $%d", argIndex))
-		args = append(args, *req.Email)
-		argIndex++
+		user.Email = *req.Email
 	}
 	if req.UserType != nil {
-		setParts = append(setParts, fmt.Sprintf("user_type = $%d", argIndex))
-		args = append(args, *req.UserType)
-		argIndex++
+		user.UserType = *req.UserType
 	}
 	if req.CompanyID != nil {
-		setParts = append(setParts, fmt.Sprintf("company_id = $%d", argIndex))
-		args = append(args, *req.CompanyID)
-		argIndex++
+		user.CompanyID = req.CompanyID
 	}
 	if req.Role != nil {
-		setParts = append(setParts, fmt.Sprintf("role = $%d", argIndex))
-		args = append(args, *req.Role)
-		argIndex++
+		user.Role = *req.Role
 	}
 	if req.Status != nil {
-		setParts = append(setParts, fmt.Sprintf("status = $%d", argIndex))
-		args = append(args, *req.Status)
-		argIndex++
+		user.Status = *req.Status
 	}
 	if req.Profile != nil {
-		setParts = append(setParts, fmt.Sprintf("profile = $%d", argIndex))
-		args = append(args, *req.Profile)
-		argIndex++
+		user.Profile = *req.Profile
 	}
 
-	if len(setParts) == 0 {
-		return r.GetUserByID(ctx, id)
-	}
-
-	// Add updated_at
-	setParts = append(setParts, "updated_at = NOW()")
-
-	// Add WHERE clause
-	args = append(args, id)
-	whereClause := fmt.Sprintf("id = $%d", argIndex)
-
-	query := fmt.Sprintf(`
-		UPDATE users 
-		SET %s
-		WHERE %s
-		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
-		          role, status, profile, last_login_at, created_at, updated_at`,
-		strings.Join(setParts, ", "), whereClause)
-
-	exec := r.getExecer()
-	row := exec.QueryRowContext(ctx, query, args...)
-
-	user := &models.User{}
-	err := row.Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.UserType, &user.CompanyID, &user.CompanyUserID,
-		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to update user: %w", err)
-	}
-
-	return user, nil
+	// Update using the main UserRepository which handles enterprise routing
+	return r.userRepo.Update(ctx, user)
 }
 
 // DeleteUser soft deletes a user (or hard delete based on preference)
 func (r *UserManagementRepository) DeleteUser(ctx context.Context, id int) error {
-	// For now, we'll do hard delete. You can implement soft delete by adding deleted_at field
-	query := `DELETE FROM users WHERE id = $1`
-
-	exec := r.getExecer()
-	result, err := exec.ExecContext(ctx, query, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("user not found")
-	}
-
-	return nil
+	// Delegate to the main UserRepository which handles enterprise routing
+	return r.userRepo.Delete(ctx, id)
 }
 
 // ListUsers gets users with advanced filtering and pagination
 func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models.UserListParams) ([]*models.User, int, error) {
-	// Build WHERE clause
-	whereConditions := []string{}
+	// This is complex because we need to query both users and enterprise_users tables
+	// and merge the results while maintaining pagination
+	
+	// For simplicity, we'll query both tables separately and merge
+	exec := r.getExecer()
+	
+	// Query 1: System users from users table
+	systemUsers, systemTotal, err := r.querySystemUsers(ctx, exec, params)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query system users: %w", err)
+	}
+	
+	// Query 2: Enterprise users from enterprise_users table
+	enterpriseUsers, enterpriseTotal, err := r.queryEnterpriseUsers(ctx, exec, params)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query enterprise users: %w", err)
+	}
+	
+	// Merge results
+	allUsers := append(systemUsers, enterpriseUsers...)
+	totalCount := systemTotal + enterpriseTotal
+	
+	// Apply client-side pagination and sorting since we merged two queries
+	if len(allUsers) > 0 {
+		// Sort by created_at DESC (newest first)
+		for i := 0; i < len(allUsers)-1; i++ {
+			for j := i + 1; j < len(allUsers); j++ {
+				if allUsers[i].CreatedAt.Before(allUsers[j].CreatedAt) {
+					allUsers[i], allUsers[j] = allUsers[j], allUsers[i]
+				}
+			}
+		}
+		
+		// Apply pagination
+		start := (params.Page - 1) * params.PageSize
+		end := start + params.PageSize
+		
+		if start >= len(allUsers) {
+			return []*models.User{}, totalCount, nil
+		}
+		
+		if end > len(allUsers) {
+			end = len(allUsers)
+		}
+		
+		allUsers = allUsers[start:end]
+	}
+	
+	return allUsers, totalCount, nil
+}
+
+// querySystemUsers queries users from the users table
+func (r *UserManagementRepository) querySystemUsers(ctx context.Context, exec execer, params *models.UserListParams) ([]*models.User, int, error) {
+	whereConditions := []string{"user_type = 'system'"}
 	args := []interface{}{}
 	argIndex := 1
 
@@ -199,10 +162,9 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 		argIndex++
 	}
 
-	if params.UserType != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("user_type = $%d", argIndex))
-		args = append(args, params.UserType)
-		argIndex++
+	if params.UserType != "" && params.UserType != "system" {
+		// If filtering for non-system users, return empty
+		return []*models.User{}, 0, nil
 	}
 
 	if params.Search != "" {
@@ -212,45 +174,32 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 		argIndex++
 	}
 
-	whereClause := ""
-	if len(whereConditions) > 0 {
-		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
-	}
+	whereClause := "WHERE " + strings.Join(whereConditions, " AND ")
 
-	// Get total count
+	// Get count
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM users %s", whereClause)
-	exec := r.getExecer()
 	row := exec.QueryRowContext(ctx, countQuery, args...)
-
 	var total int
 	if err := row.Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("failed to get user count: %w", err)
+		return nil, 0, fmt.Errorf("failed to get system user count: %w", err)
 	}
 
-	// Calculate offset
-	offset := (params.Page - 1) * params.PageSize
-
-	// Get users with pagination
+	// Get users
 	query := fmt.Sprintf(`
 		SELECT id, username, email, password_hash, user_type, company_id, company_user_id,
 		       role, status, profile, last_login_at, created_at, updated_at
-		FROM users 
-		%s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
-
-	args = append(args, params.PageSize, offset)
+		FROM users %s
+		ORDER BY created_at DESC`, whereClause)
 
 	rows, err := exec.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+		return nil, 0, fmt.Errorf("failed to query system users: %w", err)
 	}
 	defer rows.Close()
 
 	var users []*models.User
 	for rows.Next() {
 		user := &models.User{}
-
 		err := rows.Scan(
 			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
 			&user.UserType, &user.CompanyID, &user.CompanyUserID,
@@ -258,14 +207,108 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 			&user.CreatedAt, &user.UpdatedAt,
 		)
 		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+			return nil, 0, fmt.Errorf("failed to scan system user: %w", err)
 		}
-
 		users = append(users, user)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, 0, fmt.Errorf("rows error: %w", err)
+	return users, total, nil
+}
+
+// queryEnterpriseUsers queries users from the enterprise_users table
+func (r *UserManagementRepository) queryEnterpriseUsers(ctx context.Context, exec execer, params *models.UserListParams) ([]*models.User, int, error) {
+	whereConditions := []string{"eu.deleted_at IS NULL"}
+	args := []interface{}{}
+	argIndex := 1
+
+	// Convert role to access_level for enterprise users
+	if params.Role != "" {
+		var accessLevel int
+		switch params.Role {
+		case "company_admin":
+			accessLevel = 4
+		case "company_user":
+			accessLevel = 2
+		default:
+			// If filtering for system roles, return empty
+			return []*models.User{}, 0, nil
+		}
+		whereConditions = append(whereConditions, fmt.Sprintf("eu.access_level = $%d", argIndex))
+		args = append(args, accessLevel)
+		argIndex++
+	}
+
+	if params.Status != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("eu.status = $%d", argIndex))
+		args = append(args, params.Status)
+		argIndex++
+	}
+
+	if params.UserType != "" && params.UserType != "company" {
+		// If filtering for non-company users, return empty
+		return []*models.User{}, 0, nil
+	}
+
+	if params.Search != "" {
+		searchPattern := "%" + params.Search + "%"
+		whereConditions = append(whereConditions, fmt.Sprintf("(eu.username ILIKE $%d OR eu.email ILIKE $%d OR eu.name ILIKE $%d)", argIndex, argIndex, argIndex))
+		args = append(args, searchPattern)
+		argIndex++
+	}
+
+	whereClause := "WHERE " + strings.Join(whereConditions, " AND ")
+
+	// Get count
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM enterprise_users eu %s", whereClause)
+	row := exec.QueryRowContext(ctx, countQuery, args...)
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get enterprise user count: %w", err)
+	}
+
+	// Get users with enterprise join
+	query := fmt.Sprintf(`
+		SELECT eu.id, eu.username, eu.email, '', 'company', eu.enterprise_id, NULL,
+		       CASE 
+		           WHEN eu.access_level = 4 THEN 'company_admin'
+		           WHEN eu.access_level = 2 THEN 'company_user'
+		           ELSE 'company_user'
+		       END as role,
+		       eu.status, '{}', eu.last_login_at, eu.created_at, eu.updated_at,
+		       eu.name, eu.phone, eu.position, eu.is_primary_contact
+		FROM enterprise_users eu %s
+		ORDER BY eu.created_at DESC`, whereClause)
+
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query enterprise users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*models.User
+	for rows.Next() {
+		user := &models.User{}
+		var name, phone, position *string
+		var isPrimary bool
+		
+		err := rows.Scan(
+			&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+			&user.UserType, &user.CompanyID, &user.CompanyUserID,
+			&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
+			&user.CreatedAt, &user.UpdatedAt,
+			&name, &phone, &position, &isPrimary,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan enterprise user: %w", err)
+		}
+		
+		// Map enterprise fields to user fields
+		user.ContactPersonName = name
+		user.ContactPhone = phone
+		user.DepartmentTitle = position
+		user.IsPrimaryContact = isPrimary
+		
+		users = append(users, user)
 	}
 
 	return users, total, nil
@@ -273,13 +316,26 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 
 // ResetPassword resets a user's password
 func (r *UserManagementRepository) ResetPassword(ctx context.Context, userID int, passwordHash string) error {
-	query := `
-		UPDATE users 
-		SET password_hash = $2, updated_at = NOW()
-		WHERE id = $1`
+	// Get the user first to determine which table to update
+	user, err := r.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
 
 	exec := r.getExecer()
-	result, err := exec.ExecContext(ctx, query, userID, passwordHash)
+	var query string
+	var result sql.Result
+
+	if user.UserType == "system" {
+		// Update users table for system users
+		query = `UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1`
+		result, err = exec.ExecContext(ctx, query, userID, passwordHash)
+	} else {
+		// Update enterprise_users table for company users
+		query = `UPDATE enterprise_users SET password_hash = $2, updated_at = NOW() WHERE id = $1`
+		result, err = exec.ExecContext(ctx, query, userID, passwordHash)
+	}
+
 	if err != nil {
 		return fmt.Errorf("failed to reset password: %w", err)
 	}
@@ -298,32 +354,17 @@ func (r *UserManagementRepository) ResetPassword(ctx context.Context, userID int
 
 // UpdateUserStatus updates a user's status
 func (r *UserManagementRepository) UpdateUserStatus(ctx context.Context, userID int, status string) (*models.User, error) {
-	query := `
-		UPDATE users 
-		SET status = $2, updated_at = NOW()
-		WHERE id = $1
-		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
-		          role, status, profile, last_login_at, created_at, updated_at`
-
-	exec := r.getExecer()
-	row := exec.QueryRowContext(ctx, query, userID, status)
-
-	user := &models.User{}
-	err := row.Scan(
-		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
-		&user.UserType, &user.CompanyID, &user.CompanyUserID,
-		&user.Role, &user.Status, &user.Profile, &user.LastLoginAt,
-		&user.CreatedAt, &user.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
-	}
+	// Get the existing user first
+	user, err := r.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update user status: %w", err)
+		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
-	return user, nil
+	// Update the status
+	user.Status = status
+
+	// Update using the main UserRepository which handles enterprise routing
+	return r.userRepo.Update(ctx, user)
 }
 
 // BatchUpdateUsers performs batch operations on users
@@ -332,38 +373,27 @@ func (r *UserManagementRepository) BatchUpdateUsers(ctx context.Context, userIDs
 		return fmt.Errorf("no user IDs provided")
 	}
 
-	placeholders := make([]string, len(userIDs))
-	args := make([]interface{}, len(userIDs))
-	for i, id := range userIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
-
-	var query string
-	switch action {
-	case "activate":
-		query = fmt.Sprintf("UPDATE users SET status = 'active', updated_at = NOW() WHERE id IN (%s)", strings.Join(placeholders, ","))
-	case "suspend":
-		query = fmt.Sprintf("UPDATE users SET status = 'suspended', updated_at = NOW() WHERE id IN (%s)", strings.Join(placeholders, ","))
-	case "delete":
-		query = fmt.Sprintf("DELETE FROM users WHERE id IN (%s)", strings.Join(placeholders, ","))
-	default:
-		return fmt.Errorf("invalid action: %s", action)
-	}
-
-	exec := r.getExecer()
-	result, err := exec.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to perform batch operation: %w", err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to get affected rows: %w", err)
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("no users were affected")
+	// Process each user individually to handle hybrid storage
+	for _, userID := range userIDs {
+		switch action {
+		case "activate":
+			_, err := r.UpdateUserStatus(ctx, userID, "active")
+			if err != nil {
+				return fmt.Errorf("failed to activate user %d: %w", userID, err)
+			}
+		case "suspend":
+			_, err := r.UpdateUserStatus(ctx, userID, "suspended")
+			if err != nil {
+				return fmt.Errorf("failed to suspend user %d: %w", userID, err)
+			}
+		case "delete":
+			err := r.DeleteUser(ctx, userID)
+			if err != nil {
+				return fmt.Errorf("failed to delete user %d: %w", userID, err)
+			}
+		default:
+			return fmt.Errorf("invalid action: %s", action)
+		}
 	}
 
 	return nil
@@ -373,15 +403,50 @@ func (r *UserManagementRepository) BatchUpdateUsers(ctx context.Context, userIDs
 func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.UserStats, error) {
 	exec := r.getExecer()
 	
+	// Get stats from users table (system users)
+	systemStats, err := r.getSystemUserStats(ctx, exec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system user stats: %w", err)
+	}
+	
+	// Get stats from enterprise_users table
+	enterpriseStats, err := r.getEnterpriseUserStats(ctx, exec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enterprise user stats: %w", err)
+	}
+	
+	// Merge the stats
+	totalStats := &models.UserStats{
+		Total: systemStats.Total + enterpriseStats.Total,
+		ByRole: map[string]int{
+			"admin":           systemStats.ByRole["admin"],
+			"project_manager": systemStats.ByRole["project_manager"],
+			"developer":       systemStats.ByRole["developer"],
+			"company_admin":   systemStats.ByRole["company_admin"] + enterpriseStats.ByRole["company_admin"],
+			"company_user":    systemStats.ByRole["company_user"] + enterpriseStats.ByRole["company_user"],
+		},
+		ByStatus: map[string]int{
+			"active":    systemStats.ByStatus["active"] + enterpriseStats.ByStatus["active"],
+			"inactive":  systemStats.ByStatus["inactive"] + enterpriseStats.ByStatus["inactive"],
+			"suspended": systemStats.ByStatus["suspended"] + enterpriseStats.ByStatus["suspended"],
+		},
+		RecentRegistrations: systemStats.RecentRegistrations + enterpriseStats.RecentRegistrations,
+	}
+	
+	return totalStats, nil
+}
+
+// getSystemUserStats gets statistics from users table
+func (r *UserManagementRepository) getSystemUserStats(ctx context.Context, exec execer) (*models.UserStats, error) {
 	// Get total count
 	var total int
-	totalQuery := `SELECT COUNT(*) FROM users`
+	totalQuery := `SELECT COUNT(*) FROM users WHERE user_type = 'system'`
 	row := exec.QueryRowContext(ctx, totalQuery)
 	if err := row.Scan(&total); err != nil {
-		return nil, fmt.Errorf("failed to get total user count: %w", err)
+		return nil, fmt.Errorf("failed to get total system user count: %w", err)
 	}
 
-	// Get role counts using simple CASE statements instead of FILTER
+	// Get role counts
 	roleQuery := `
 		SELECT 
 			SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) as admin_count,
@@ -389,41 +454,41 @@ func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.Us
 			SUM(CASE WHEN role = 'developer' THEN 1 ELSE 0 END) as dev_count,
 			SUM(CASE WHEN role = 'company_admin' THEN 1 ELSE 0 END) as company_admin_count,
 			SUM(CASE WHEN role = 'company_user' THEN 1 ELSE 0 END) as company_user_count
-		FROM users`
+		FROM users WHERE user_type = 'system'`
 
 	var adminCount, pmCount, devCount, companyAdminCount, companyUserCount int
 	roleRow := exec.QueryRowContext(ctx, roleQuery)
 	err := roleRow.Scan(&adminCount, &pmCount, &devCount, &companyAdminCount, &companyUserCount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get role stats: %w", err)
+		return nil, fmt.Errorf("failed to get system role stats: %w", err)
 	}
 
-	// Get status breakdown using simple CASE statements
+	// Get status breakdown
 	statusQuery := `
 		SELECT 
 			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
 			SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
 			SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended
-		FROM users`
+		FROM users WHERE user_type = 'system'`
 
 	var activeStatus, inactiveStatus, suspendedStatus int
 	statusRow := exec.QueryRowContext(ctx, statusQuery)
 	err = statusRow.Scan(&activeStatus, &inactiveStatus, &suspendedStatus)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get status stats: %w", err)
+		return nil, fmt.Errorf("failed to get system status stats: %w", err)
 	}
 
-	// Get recent registrations (last 7 days)
+	// Get recent registrations
 	recentQuery := `
 		SELECT COUNT(*) 
 		FROM users 
-		WHERE created_at >= NOW() - INTERVAL '7 days'`
+		WHERE user_type = 'system' AND created_at >= NOW() - INTERVAL '7 days'`
 
 	var recent int
 	recentRow := exec.QueryRowContext(ctx, recentQuery)
 	err = recentRow.Scan(&recent)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get recent registrations: %w", err)
+		return nil, fmt.Errorf("failed to get recent system registrations: %w", err)
 	}
 
 	return &models.UserStats{
@@ -444,12 +509,96 @@ func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.Us
 	}, nil
 }
 
+// getEnterpriseUserStats gets statistics from enterprise_users table
+func (r *UserManagementRepository) getEnterpriseUserStats(ctx context.Context, exec execer) (*models.UserStats, error) {
+	// Get total count
+	var total int
+	totalQuery := `SELECT COUNT(*) FROM enterprise_users WHERE deleted_at IS NULL`
+	row := exec.QueryRowContext(ctx, totalQuery)
+	if err := row.Scan(&total); err != nil {
+		return nil, fmt.Errorf("failed to get total enterprise user count: %w", err)
+	}
+
+	// Get role counts (map access_level to roles)
+	roleQuery := `
+		SELECT 
+			SUM(CASE WHEN access_level = 4 THEN 1 ELSE 0 END) as company_admin_count,
+			SUM(CASE WHEN access_level = 2 THEN 1 ELSE 0 END) as company_user_count
+		FROM enterprise_users WHERE deleted_at IS NULL`
+
+	var companyAdminCount, companyUserCount int
+	roleRow := exec.QueryRowContext(ctx, roleQuery)
+	err := roleRow.Scan(&companyAdminCount, &companyUserCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enterprise role stats: %w", err)
+	}
+
+	// Get status breakdown
+	statusQuery := `
+		SELECT 
+			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+			SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
+			SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended
+		FROM enterprise_users WHERE deleted_at IS NULL`
+
+	var activeStatus, inactiveStatus, suspendedStatus int
+	statusRow := exec.QueryRowContext(ctx, statusQuery)
+	err = statusRow.Scan(&activeStatus, &inactiveStatus, &suspendedStatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enterprise status stats: %w", err)
+	}
+
+	// Get recent registrations
+	recentQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_users 
+		WHERE deleted_at IS NULL AND created_at >= NOW() - INTERVAL '7 days'`
+
+	var recent int
+	recentRow := exec.QueryRowContext(ctx, recentQuery)
+	err = recentRow.Scan(&recent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get recent enterprise registrations: %w", err)
+	}
+
+	return &models.UserStats{
+		Total: total,
+		ByRole: map[string]int{
+			"admin":           0,
+			"project_manager": 0,
+			"developer":       0,
+			"company_admin":   companyAdminCount,
+			"company_user":    companyUserCount,
+		},
+		ByStatus: map[string]int{
+			"active":    activeStatus,
+			"inactive":  inactiveStatus,
+			"suspended": suspendedStatus,
+		},
+		RecentRegistrations: recent,
+	}, nil
+}
+
 // UpdateLastLogin updates the last login timestamp
 func (r *UserManagementRepository) UpdateLastLogin(ctx context.Context, userID int) error {
-	query := `UPDATE users SET last_login_at = NOW() WHERE id = $1`
+	// Get the user first to determine which table to update
+	user, err := r.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
 
 	exec := r.getExecer()
-	_, err := exec.ExecContext(ctx, query, userID)
+	var query string
+
+	if user.UserType == "system" {
+		// Update users table for system users
+		query = `UPDATE users SET last_login_at = NOW() WHERE id = $1`
+	} else {
+		// Update enterprise_users table for company users
+		query = `UPDATE enterprise_users SET last_login_at = NOW() WHERE id = $1`
+	}
+
+	_, err = exec.ExecContext(ctx, query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update last login: %w", err)
 	}

@@ -8,8 +8,8 @@ import {
   TeamOutlined,
   CalendarOutlined
 } from '@ant-design/icons';
-import { Company } from '../types/company';
-import companyService from '../services/companyService';
+import { Enterprise } from '../types/enterprise';
+import enterpriseService from '../services/enterpriseService';
 import { User } from '../types/user';
 
 const { Text, Title } = Typography;
@@ -30,7 +30,7 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
   style,
   size = 'default'
 }) => {
-  const [company, setCompany] = useState<Company | null>(null);
+  const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,8 +41,8 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
       return false;
     }
     
-    // 企业用户需要有company_id
-    if (user.user_type === 'company' && user.company_id) {
+    // 企业用户需要有enterprise_id或company_id (向后兼容)
+    if (user.user_type === 'company' && (user.enterprise_id || user.company_id)) {
       return true;
     }
     
@@ -50,8 +50,9 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
   };
 
   // 加载企业信息
-  const loadCompanyInfo = async () => {
-    if (!user.company_id || !shouldShowCompanyInfo()) {
+  const loadEnterpriseInfo = async () => {
+    const enterpriseId = user.enterprise_id || user.company_id;
+    if (!enterpriseId || !shouldShowCompanyInfo()) {
       return;
     }
 
@@ -59,10 +60,10 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
     setError(null);
     
     try {
-      console.log('🏢 加载企业信息，企业ID:', user.company_id);
-      const companyData = await companyService.getCompany(user.company_id);
-      setCompany(companyData);
-      console.log('✅ 企业信息加载成功:', companyData);
+      console.log('🏢 加载企业信息，企业ID:', enterpriseId);
+      const enterpriseData = await enterpriseService.getEnterprise(enterpriseId);
+      setEnterprise(enterpriseData);
+      console.log('✅ 企业信息加载成功:', enterpriseData);
     } catch (err) {
       console.error('❌ 加载企业信息失败:', err);
       setError('加载企业信息失败');
@@ -73,8 +74,8 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
   };
 
   useEffect(() => {
-    loadCompanyInfo();
-  }, [user.company_id]);
+    loadEnterpriseInfo();
+  }, [user.enterprise_id, user.company_id]);
 
   // 如果不应该显示企业信息，返回null
   if (!shouldShowCompanyInfo()) {
@@ -100,7 +101,7 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
   }
 
   // 错误状态
-  if (error && !company) {
+  if (error && !enterprise) {
     return (
       <Card 
         style={style}
@@ -118,7 +119,7 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
   }
 
   // 没有企业信息
-  if (!company) {
+  if (!enterprise) {
     return null;
   }
 
@@ -133,12 +134,13 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
     }
   };
 
-  // 获取优先级标签颜色
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'red';
-      case 'medium': return 'orange';
-      case 'low': return 'blue';
+  // 获取业务类型标签颜色
+  const getBusinessTypeColor = (businessType: string) => {
+    switch (businessType) {
+      case 'corporation': return 'blue';
+      case 'llc': return 'cyan';
+      case 'partnership': return 'purple';
+      case 'individual': return 'orange';
       default: return 'default';
     }
   };
@@ -155,11 +157,11 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
       }
       extra={
         <Space>
-          <Tag color={getStatusColor(company.status)}>
-            {company.statusText}
+          <Tag color={getStatusColor(enterprise.status)}>
+            {enterprise.status_text}
           </Tag>
-          <Tag color={getPriorityColor(company.priority)}>
-            {company.priorityText}
+          <Tag color={getBusinessTypeColor(enterprise.business_type)}>
+            {enterprise.business_type_text}
           </Tag>
         </Space>
       }
@@ -168,67 +170,86 @@ const CompanyInfoCard: React.FC<CompanyInfoCardProps> = ({
         {/* 企业名称和类型 */}
         <div>
           <Title level={size === 'small' ? 5 : 4} style={{ margin: 0 }}>
-            {company.companyName}
+            {enterprise.name}
           </Title>
           <Text type="secondary">
-            {company.companyTypeText}
-            {company.companySizeText && ` • ${company.companySizeText}`}
+            {enterprise.business_type_text}
+            {enterprise.industry_type_text && ` • ${enterprise.industry_type_text}`}
           </Text>
         </div>
 
         {/* 联系信息 */}
         <Space direction="vertical" size="small">
-          {company.mainPhone && (
+          {enterprise.contact_phone && (
             <Space>
               <PhoneOutlined />
-              <Text>{company.mainPhone}</Text>
+              <Text>{enterprise.contact_phone}</Text>
             </Space>
           )}
           
-          {company.mainEmail && (
+          {enterprise.contact_email && (
             <Space>
               <MailOutlined />
-              <Text>{company.mainEmail}</Text>
+              <Text>{enterprise.contact_email}</Text>
             </Space>
           )}
           
-          {company.address && (
+          {enterprise.address && (
             <Space>
               <EnvironmentOutlined />
               <Text>
-                {company.address}
-                {company.city && `, ${company.city}`}
-                {company.province && `, ${company.province}`}
+                {enterprise.address}
+                {enterprise.city && `, ${enterprise.city}`}
+                {enterprise.province && `, ${enterprise.province}`}
               </Text>
             </Space>
           )}
         </Space>
 
-        {/* 企业规模和成立时间 */}
+        {/* 企业统计信息 */}
         <Space wrap>
-          {company.employeeCount && (
+          {enterprise.user_count !== undefined && (
             <Space size="small">
               <TeamOutlined />
-              <Text type="secondary">员工数: {company.employeeCount}</Text>
+              <Text type="secondary">用户数: {enterprise.user_count}</Text>
             </Space>
           )}
           
-          {company.startDate && (
+          {enterprise.department_count !== undefined && (
             <Space size="small">
-              <CalendarOutlined />
-              <Text type="secondary">
-                成立: {new Date(company.startDate).toLocaleDateString()}
-              </Text>
+              <TeamOutlined />
+              <Text type="secondary">部门数: {enterprise.department_count}</Text>
             </Space>
           )}
+          
+          <Space size="small">
+            <CalendarOutlined />
+            <Text type="secondary">
+              创建: {new Date(enterprise.created_at).toLocaleDateString()}
+            </Text>
+          </Space>
         </Space>
 
-        {/* 行业信息 */}
-        {company.industry && (
-          <Text type="secondary">
-            行业: {company.industry}
-          </Text>
-        )}
+        {/* 注册信息 */}
+        <Space direction="vertical" size="small">
+          {enterprise.registration_number && (
+            <Text type="secondary">
+              注册号: {enterprise.registration_number}
+            </Text>
+          )}
+          
+          {enterprise.tax_id && (
+            <Text type="secondary">
+              税务识别号: {enterprise.tax_id}
+            </Text>
+          )}
+          
+          {enterprise.legal_representative && (
+            <Text type="secondary">
+              法定代表人: {enterprise.legal_representative}
+            </Text>
+          )}
+        </Space>
       </Space>
     </Card>
   );

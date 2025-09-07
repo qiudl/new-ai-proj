@@ -1294,21 +1294,53 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       // 🚀 核心功能1：智能启动任务并开始计时
       case 'start_task_with_timer':
-        // 首先处理taskIdOrTitle，如果是字符串需要先查找任务
+        // 首先处理taskIdOrTitle，智能识别是ID还是标题
         let taskId: number;
-        if (typeof args.taskIdOrTitle === 'string') {
-          // 通过标题模糊匹配找到任务
-          const findResult = await taskServer.findTaskByName(args.taskIdOrTitle);
-          if (!findResult.success || !findResult.tasks || findResult.tasks.length === 0) {
+        const input = args.taskIdOrTitle;
+        console.error(`[DEBUG] start_task_with_timer input: ${JSON.stringify(input)}, type: ${typeof input}`);
+        
+        // 如果是纯数字字符串或数字，尝试作为ID处理
+        if (typeof input === 'number' || /^\d+$/.test(String(input))) {
+          const numericId = typeof input === 'number' ? input : parseInt(String(input), 10);
+          try {
+            // 先尝试通过ID查找任务验证是否存在
+            const task = await taskServer.findTaskById(numericId);
+            if (task) {
+              taskId = numericId;
+            } else {
+              throw new Error('Task not found by ID');
+            }
+          } catch (idError) {
+            // ID查找失败，如果原输入是字符串，尝试标题匹配
+            if (typeof input === 'string') {
+              const findResult = await taskServer.findTaskByName(input);
+              if (!findResult.success || !findResult.data?.tasks || findResult.data.tasks.length === 0) {
+                result = {
+                  success: false,
+                  error: `找不到ID为 "${input}" 的任务，也找不到匹配标题 "${input}" 的任务`
+                };
+                break;
+              }
+              taskId = findResult.data.tasks[0].id;
+            } else {
+              result = {
+                success: false,
+                error: `找不到ID为 "${input}" 的任务`
+              };
+              break;
+            }
+          }
+        } else {
+          // 作为标题进行模糊匹配
+          const findResult = await taskServer.findTaskByName(String(input));
+          if (!findResult.success || !findResult.data?.tasks || findResult.data.tasks.length === 0) {
             result = {
               success: false,
-              error: `找不到匹配标题 "${args.taskIdOrTitle}" 的任务`
+              error: `找不到匹配标题 "${input}" 的任务`
             };
             break;
           }
-          taskId = findResult.tasks[0].id;
-        } else {
-          taskId = args.taskIdOrTitle as number;
+          taskId = findResult.data.tasks[0].id;
         }
         result = await taskServer.startTaskWithTimer(taskId, args.timerDescription);
         break;

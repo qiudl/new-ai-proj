@@ -225,6 +225,36 @@ type CompanyRepository interface {
 	GetContacts(ctx context.Context, companyID int, limit, offset int) ([]*models.CompanyContact, int, error)
 }
 
+// EnterpriseRepository defines the interface for enterprise operations (new system)
+type EnterpriseRepository interface {
+	// Enterprise operations
+	Create(ctx context.Context, enterprise *models.Enterprise) (*models.Enterprise, error)
+	GetByID(ctx context.Context, id int) (*models.Enterprise, error)
+	GetByCode(ctx context.Context, code string) (*models.Enterprise, error)
+	List(ctx context.Context, limit, offset int, filters map[string]interface{}) ([]*models.Enterprise, int, error)
+	Update(ctx context.Context, enterprise *models.Enterprise) (*models.Enterprise, error)
+	Delete(ctx context.Context, id int) error
+	GetStats(ctx context.Context) (*models.EnterpriseStats, error)
+
+	// Enterprise User operations
+	CreateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error)
+	GetUserByID(ctx context.Context, id int) (*models.EnterpriseUser, error)
+	GetUsers(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.EnterpriseUser, int, error)
+	ListUsers(ctx context.Context, enterpriseID int, limit, offset int, filters map[string]interface{}) ([]*models.EnterpriseUser, int, error)
+	UpdateUser(ctx context.Context, user *models.EnterpriseUser) (*models.EnterpriseUser, error)
+	DeleteUser(ctx context.Context, userID int) error
+	GetPrimaryContact(ctx context.Context, enterpriseID int) (*models.EnterpriseUser, error)
+
+	// Enterprise Department operations
+	CreateDepartment(ctx context.Context, dept *models.EnterpriseDepartment) (*models.EnterpriseDepartment, error)
+	GetDepartmentByID(ctx context.Context, id int) (*models.EnterpriseDepartment, error)
+	GetDepartments(ctx context.Context, enterpriseID int) ([]*models.EnterpriseDepartment, error)
+	ListDepartments(ctx context.Context, enterpriseID int, limit, offset int, filters map[string]interface{}) ([]*models.EnterpriseDepartment, error)
+	UpdateDepartment(ctx context.Context, dept *models.EnterpriseDepartment) (*models.EnterpriseDepartment, error)
+	DeleteDepartment(ctx context.Context, id int) error
+	GetDepartmentStats(ctx context.Context, enterpriseID int) (*models.EnterpriseDepartmentStats, error)
+}
+
 // PermissionRepository defines the interface for permission operations
 type PermissionRepository interface {
 	// Role management
@@ -467,6 +497,7 @@ type DB interface {
 	Tasks() TaskRepository
 	Customers() CustomerRepository     // Deprecated, use Companies instead
 	Companies() CompanyRepository      // New enterprise customer model
+	Enterprises() EnterpriseRepository // Pure enterprise system
 	Permissions() PermissionRepository // Enterprise permission management
 	System() SystemRepository
 	Audit() AuditRepository
@@ -501,6 +532,7 @@ type Tx interface {
 	Tasks() TaskRepository
 	Customers() CustomerRepository
 	Companies() CompanyRepository
+	Enterprises() EnterpriseRepository
 	Permissions() PermissionRepository
 	Audit() AuditRepository
 	APIKeys() APIKeyRepository

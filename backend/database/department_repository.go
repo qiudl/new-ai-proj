@@ -8,10 +8,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Department 部门模型（支持多租户）
+// Department 部门模型（支持企业多租户）
 type Department struct {
 	ID            int            `db:"id" json:"id"`
-	CompanyID     int            `db:"company_id" json:"company_id"`
+	EnterpriseID  int            `db:"enterprise_id" json:"enterprise_id"` // 改为enterprise_id
 	Name          string         `db:"name" json:"name"`
 	ParentID      sql.NullInt64  `db:"parent_id" json:"-"`
 	ManagerID     sql.NullInt64  `db:"manager_id" json:"-"`
@@ -31,6 +31,9 @@ type Department struct {
 	ManagerName     *string `json:"manager_name,omitempty"`
 	DescriptionPtr  *string `json:"description"`
 	Children        []Department `json:"children,omitempty"`
+	
+	// 向后兼容字段
+	CompanyID int `json:"company_id"` // 用于向后兼容，实际映射到enterprise_id
 }
 
 // DepartmentRepository 部门数据库操作
@@ -43,21 +46,26 @@ func NewDepartmentRepository(db *sql.DB) *DepartmentRepository {
 	return &DepartmentRepository{db: db}
 }
 
-// GetAllByCompany 获取指定企业的所有部门（树形结构）
+// GetAllByCompany 获取指定企业的所有部门（树形结构）- 保持向后兼容
 func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, error) {
+	return r.GetAllByEnterprise(companyID)
+}
+
+// GetAllByEnterprise 获取指定企业的所有部门（树形结构）
+func (r *DepartmentRepository) GetAllByEnterprise(enterpriseID int) ([]Department, error) {
 	query := `
 		SELECT 
-			d.id, d.company_id, d.name, d.parent_id, d.manager_id, d.description, 
+			d.id, d.enterprise_id, d.name, d.parent_id, d.manager_id, d.description, 
 			d.level, d.employee_count, d.status, d.sort_order, d.path,
 			d.created_at, d.updated_at,
-			cu.name as manager_name
-		FROM company_departments d
-		LEFT JOIN company_users cu ON d.manager_id = cu.id
-		WHERE d.company_id = $1 AND d.deleted_at IS NULL
+			eu.name as manager_name
+		FROM enterprise_departments d
+		LEFT JOIN enterprise_users eu ON d.manager_id = eu.id
+		WHERE d.enterprise_id = $1 AND d.deleted_at IS NULL
 		ORDER BY d.level, d.sort_order, d.id
 	`
 
-	rows, err := r.db.Query(query, companyID)
+	rows, err := r.db.Query(query, enterpriseID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query departments: %w", err)
 	}
@@ -71,7 +79,7 @@ func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, err
 		var managerName sql.NullString
 		
 		err := rows.Scan(
-			&dept.ID, &dept.CompanyID, &dept.Name, &dept.ParentID, &dept.ManagerID, 
+			&dept.ID, &dept.EnterpriseID, &dept.Name, &dept.ParentID, &dept.ManagerID, 
 			&dept.Description, &dept.Level, &dept.EmployeeCount, 
 			&dept.Status, &dept.SortOrder, &dept.Path,
 			&dept.CreatedAt, &dept.UpdatedAt, &managerName,
@@ -79,6 +87,9 @@ func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan department: %w", err)
 		}
+
+		// 向后兼容设置
+		dept.CompanyID = dept.EnterpriseID
 
 		// 转换NULL值
 		if dept.ParentID.Valid {
@@ -128,24 +139,29 @@ func (r *DepartmentRepository) GetAllByCompany(companyID int) ([]Department, err
 	return roots, nil
 }
 
-// GetByID 根据ID获取部门（支持多租户检查）
+// GetByID 根据ID获取部门（支持企业多租户检查）- 保持向后兼容
 func (r *DepartmentRepository) GetByID(id int, companyID int) (*Department, error) {
+	return r.GetByIDEnterprise(id, companyID)
+}
+
+// GetByIDEnterprise 根据ID获取部门（支持企业多租户检查）
+func (r *DepartmentRepository) GetByIDEnterprise(id int, enterpriseID int) (*Department, error) {
 	query := `
 		SELECT 
-			d.id, d.company_id, d.name, d.parent_id, d.manager_id, d.description, 
+			d.id, d.enterprise_id, d.name, d.parent_id, d.manager_id, d.description, 
 			d.level, d.employee_count, d.status, d.sort_order, d.path,
 			d.created_at, d.updated_at,
-			cu.name as manager_name
-		FROM company_departments d
-		LEFT JOIN company_users cu ON d.manager_id = cu.id
-		WHERE d.id = $1 AND d.company_id = $2 AND d.deleted_at IS NULL
+			eu.name as manager_name
+		FROM enterprise_departments d
+		LEFT JOIN enterprise_users eu ON d.manager_id = eu.id
+		WHERE d.id = $1 AND d.enterprise_id = $2 AND d.deleted_at IS NULL
 	`
 
 	var dept Department
 	var managerName sql.NullString
 	
-	err := r.db.QueryRow(query, id, companyID).Scan(
-		&dept.ID, &dept.CompanyID, &dept.Name, &dept.ParentID, &dept.ManagerID,
+	err := r.db.QueryRow(query, id, enterpriseID).Scan(
+		&dept.ID, &dept.EnterpriseID, &dept.Name, &dept.ParentID, &dept.ManagerID,
 		&dept.Description, &dept.Level, &dept.EmployeeCount,
 		&dept.Status, &dept.SortOrder, &dept.Path,
 		&dept.CreatedAt, &dept.UpdatedAt, &managerName,
@@ -157,6 +173,9 @@ func (r *DepartmentRepository) GetByID(id int, companyID int) (*Department, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to get department: %w", err)
 	}
+
+	// 向后兼容设置
+	dept.CompanyID = dept.EnterpriseID
 
 	// 转换NULL值
 	if dept.ParentID.Valid {
@@ -177,11 +196,18 @@ func (r *DepartmentRepository) GetByID(id int, companyID int) (*Department, erro
 	return &dept, nil
 }
 
-// Create 创建部门（支持多租户）
+// Create 创建部门（支持企业多租户）
 func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
-	// 验证company_id是否提供
-	if dept.CompanyID == 0 {
-		return nil, fmt.Errorf("company_id is required")
+	// 支持向后兼容：如果使用CompanyID，映射到EnterpriseID
+	enterpriseID := dept.EnterpriseID
+	if enterpriseID == 0 && dept.CompanyID != 0 {
+		enterpriseID = dept.CompanyID
+		dept.EnterpriseID = enterpriseID
+	}
+	
+	// 验证enterprise_id是否提供
+	if enterpriseID == 0 {
+		return nil, fmt.Errorf("enterprise_id is required")
 	}
 	
 	// 计算level和path
@@ -189,7 +215,7 @@ func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
 	path := ""
 	
 	if dept.ParentIDPtr != nil {
-		parent, err := r.GetByID(*dept.ParentIDPtr, dept.CompanyID)
+		parent, err := r.GetByIDEnterprise(*dept.ParentIDPtr, enterpriseID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get parent department: %w", err)
 		}
@@ -201,7 +227,7 @@ func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
 	}
 
 	query := `
-		INSERT INTO company_departments (company_id, name, parent_id, manager_id, description, level, status, path, sort_order)
+		INSERT INTO enterprise_departments (enterprise_id, name, parent_id, manager_id, description, level, status, path, sort_order)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id, created_at, updated_at
 	`
@@ -227,16 +253,16 @@ func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
 	if dept.ParentIDPtr != nil {
 		var maxOrder sql.NullInt64
 		err := r.db.QueryRow(`
-			SELECT MAX(sort_order) FROM company_departments 
-			WHERE parent_id = $1 AND company_id = $2 AND deleted_at IS NULL
-		`, *dept.ParentIDPtr, dept.CompanyID).Scan(&maxOrder)
+			SELECT MAX(sort_order) FROM enterprise_departments 
+			WHERE parent_id = $1 AND enterprise_id = $2 AND deleted_at IS NULL
+		`, *dept.ParentIDPtr, enterpriseID).Scan(&maxOrder)
 		if err == nil && maxOrder.Valid {
 			sortOrder = int(maxOrder.Int64) + 1
 		}
 	}
 
 	err := r.db.QueryRow(
-		query, dept.CompanyID, dept.Name, parentID, managerID, description,
+		query, enterpriseID, dept.Name, parentID, managerID, description,
 		level, dept.Status, "", sortOrder,
 	).Scan(&dept.ID, &dept.CreatedAt, &dept.UpdatedAt)
 
@@ -248,10 +274,10 @@ func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
 	if path == "" {
 		path = fmt.Sprintf("%d", dept.ID)
 	} else {
-		path = fmt.Sprintf("%s.%d", path, dept.ID)
+		path = fmt.Sprintf("%s/%d", path, dept.ID)
 	}
 	
-	_, err = r.db.Exec("UPDATE company_departments SET path = $1 WHERE id = $2", path, dept.ID)
+	_, err = r.db.Exec("UPDATE enterprise_departments SET path = $1 WHERE id = $2", path, dept.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update department path: %w", err)
 	}
@@ -259,12 +285,18 @@ func (r *DepartmentRepository) Create(dept *Department) (*Department, error) {
 	dept.Level = level
 	dept.Path = path
 	dept.SortOrder = sortOrder
+	dept.CompanyID = enterpriseID // 向后兼容
 
 	return dept, nil
 }
 
-// Update 更新部门（支持多租户）
+// Update 更新部门（支持企业多租户）
 func (r *DepartmentRepository) Update(id int, companyID int, updates map[string]interface{}) (*Department, error) {
+	return r.UpdateEnterprise(id, companyID, updates)
+}
+
+// UpdateEnterprise 更新部门（支持企业多租户）
+func (r *DepartmentRepository) UpdateEnterprise(id int, enterpriseID int, updates map[string]interface{}) (*Department, error) {
 	var setClauses []string
 	var args []interface{}
 	argIndex := 1
@@ -276,21 +308,21 @@ func (r *DepartmentRepository) Update(id int, companyID int, updates map[string]
 	}
 
 	if len(setClauses) == 0 {
-		return r.GetByID(id, companyID)
+		return r.GetByIDEnterprise(id, enterpriseID)
 	}
 
-	args = append(args, id, companyID)
+	args = append(args, id, enterpriseID)
 	query := fmt.Sprintf(`
-		UPDATE company_departments 
+		UPDATE enterprise_departments 
 		SET %s, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $%d AND company_id = $%d AND deleted_at IS NULL
-		RETURNING id, company_id, name, parent_id, manager_id, description, level, 
+		WHERE id = $%d AND enterprise_id = $%d AND deleted_at IS NULL
+		RETURNING id, enterprise_id, name, parent_id, manager_id, description, level, 
 		          employee_count, status, sort_order, path, created_at, updated_at
 	`, strings.Join(setClauses, ", "), argIndex, argIndex+1)
 
 	var dept Department
 	err := r.db.QueryRow(query, args...).Scan(
-		&dept.ID, &dept.CompanyID, &dept.Name, &dept.ParentID, &dept.ManagerID,
+		&dept.ID, &dept.EnterpriseID, &dept.Name, &dept.ParentID, &dept.ManagerID,
 		&dept.Description, &dept.Level, &dept.EmployeeCount,
 		&dept.Status, &dept.SortOrder, &dept.Path,
 		&dept.CreatedAt, &dept.UpdatedAt,
@@ -302,6 +334,9 @@ func (r *DepartmentRepository) Update(id int, companyID int, updates map[string]
 	if err != nil {
 		return nil, fmt.Errorf("failed to update department: %w", err)
 	}
+
+	// 向后兼容设置
+	dept.CompanyID = dept.EnterpriseID
 
 	// 转换NULL值
 	if dept.ParentID.Valid {
@@ -318,20 +353,25 @@ func (r *DepartmentRepository) Update(id int, companyID int, updates map[string]
 
 	// 如果更新了parent_id，需要更新level和path
 	if _, ok := updates["parent_id"]; ok {
-		r.updateHierarchy(&dept, companyID)
+		r.updateHierarchy(&dept, enterpriseID)
 	}
 
 	return &dept, nil
 }
 
-// Delete 删除部门（软删除，支持多租户）
+// Delete 删除部门（软删除，支持企业多租户）
 func (r *DepartmentRepository) Delete(id int, companyID int) error {
+	return r.DeleteEnterprise(id, companyID)
+}
+
+// DeleteEnterprise 删除部门（软删除，支持企业多租户）
+func (r *DepartmentRepository) DeleteEnterprise(id int, enterpriseID int) error {
 	// 检查是否有子部门
 	var count int
 	err := r.db.QueryRow(`
-		SELECT COUNT(*) FROM company_departments 
-		WHERE parent_id = $1 AND company_id = $2 AND deleted_at IS NULL
-	`, id, companyID).Scan(&count)
+		SELECT COUNT(*) FROM enterprise_departments 
+		WHERE parent_id = $1 AND enterprise_id = $2 AND deleted_at IS NULL
+	`, id, enterpriseID).Scan(&count)
 	
 	if err != nil {
 		return fmt.Errorf("failed to check child departments: %w", err)
@@ -343,10 +383,10 @@ func (r *DepartmentRepository) Delete(id int, companyID int) error {
 
 	// 软删除
 	_, err = r.db.Exec(`
-		UPDATE company_departments 
+		UPDATE enterprise_departments 
 		SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1 AND company_id = $2 AND deleted_at IS NULL
-	`, id, companyID)
+		WHERE id = $1 AND enterprise_id = $2 AND deleted_at IS NULL
+	`, id, enterpriseID)
 
 	if err != nil {
 		return fmt.Errorf("failed to delete department: %w", err)
@@ -355,27 +395,27 @@ func (r *DepartmentRepository) Delete(id int, companyID int) error {
 	return nil
 }
 
-// updateHierarchy 更新部门层级信息（支持多租户）
-func (r *DepartmentRepository) updateHierarchy(dept *Department, companyID int) error {
+// updateHierarchy 更新部门层级信息（支持企业多租户）
+func (r *DepartmentRepository) updateHierarchy(dept *Department, enterpriseID int) error {
 	level := 1
 	path := fmt.Sprintf("%d", dept.ID)
 
 	if dept.ParentIDPtr != nil {
-		parent, err := r.GetByID(*dept.ParentIDPtr, companyID)
+		parent, err := r.GetByIDEnterprise(*dept.ParentIDPtr, enterpriseID)
 		if err != nil {
 			return fmt.Errorf("failed to get parent: %w", err)
 		}
 		if parent != nil {
 			level = parent.Level + 1
-			path = fmt.Sprintf("%s.%d", parent.Path, dept.ID)
+			path = fmt.Sprintf("%s/%d", parent.Path, dept.ID)
 		}
 	}
 
 	_, err := r.db.Exec(`
-		UPDATE company_departments 
+		UPDATE enterprise_departments 
 		SET level = $1, path = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3 AND company_id = $4
-	`, level, path, dept.ID, companyID)
+		WHERE id = $3 AND enterprise_id = $4
+	`, level, path, dept.ID, enterpriseID)
 
 	if err != nil {
 		return fmt.Errorf("failed to update hierarchy: %w", err)
@@ -386,9 +426,9 @@ func (r *DepartmentRepository) updateHierarchy(dept *Department, companyID int) 
 
 	// 递归更新子部门
 	rows, err := r.db.Query(`
-		SELECT id FROM company_departments 
-		WHERE parent_id = $1 AND company_id = $2 AND deleted_at IS NULL
-	`, dept.ID, companyID)
+		SELECT id FROM enterprise_departments 
+		WHERE parent_id = $1 AND enterprise_id = $2 AND deleted_at IS NULL
+	`, dept.ID, enterpriseID)
 	
 	if err != nil {
 		return fmt.Errorf("failed to get child departments: %w", err)
@@ -401,24 +441,29 @@ func (r *DepartmentRepository) updateHierarchy(dept *Department, companyID int) 
 			continue
 		}
 		
-		child, _ := r.GetByID(childID, companyID)
+		child, _ := r.GetByIDEnterprise(childID, enterpriseID)
 		if child != nil {
-			r.updateHierarchy(child, companyID)
+			r.updateHierarchy(child, enterpriseID)
 		}
 	}
 
 	return nil
 }
 
-// GetStatsByCompany 获取指定企业的部门统计信息
+// GetStatsByCompany 获取指定企业的部门统计信息 - 保持向后兼容
 func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]interface{}, error) {
+	return r.GetStatsByEnterprise(companyID)
+}
+
+// GetStatsByEnterprise 获取指定企业的部门统计信息
+func (r *DepartmentRepository) GetStatsByEnterprise(enterpriseID int) (map[string]interface{}, error) {
 	stats := make(map[string]interface{})
 
 	// 总部门数
 	var totalDepartments int
 	err := r.db.QueryRow(`
-		SELECT COUNT(*) FROM company_departments WHERE company_id = $1 AND deleted_at IS NULL
-	`, companyID).Scan(&totalDepartments)
+		SELECT COUNT(*) FROM enterprise_departments WHERE enterprise_id = $1 AND deleted_at IS NULL
+	`, enterpriseID).Scan(&totalDepartments)
 	if err != nil {
 		return nil, err
 	}
@@ -427,9 +472,9 @@ func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]inte
 	// 活跃部门数
 	var activeDepartments int
 	err = r.db.QueryRow(`
-		SELECT COUNT(*) FROM company_departments 
-		WHERE company_id = $1 AND status = 'active' AND deleted_at IS NULL
-	`, companyID).Scan(&activeDepartments)
+		SELECT COUNT(*) FROM enterprise_departments 
+		WHERE enterprise_id = $1 AND status = 'active' AND deleted_at IS NULL
+	`, enterpriseID).Scan(&activeDepartments)
 	if err != nil {
 		return nil, err
 	}
@@ -438,9 +483,9 @@ func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]inte
 	// 最大层级
 	var maxLevel int
 	err = r.db.QueryRow(`
-		SELECT COALESCE(MAX(level), 0) FROM company_departments 
-		WHERE company_id = $1 AND deleted_at IS NULL
-	`, companyID).Scan(&maxLevel)
+		SELECT COALESCE(MAX(level), 0) FROM enterprise_departments 
+		WHERE enterprise_id = $1 AND deleted_at IS NULL
+	`, enterpriseID).Scan(&maxLevel)
 	if err != nil {
 		return nil, err
 	}
@@ -449,9 +494,9 @@ func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]inte
 	// 总员工数（所有部门员工数之和）
 	var totalEmployees int
 	err = r.db.QueryRow(`
-		SELECT COALESCE(SUM(employee_count), 0) FROM company_departments 
-		WHERE company_id = $1 AND deleted_at IS NULL
-	`, companyID).Scan(&totalEmployees)
+		SELECT COALESCE(SUM(employee_count), 0) FROM enterprise_departments 
+		WHERE enterprise_id = $1 AND deleted_at IS NULL
+	`, enterpriseID).Scan(&totalEmployees)
 	if err != nil {
 		return nil, err
 	}
@@ -463,5 +508,5 @@ func (r *DepartmentRepository) GetStatsByCompany(companyID int) (map[string]inte
 // GetAll 保持向后兼容性的方法（返回空列表）
 func (r *DepartmentRepository) GetAll() ([]Department, error) {
 	// 旧版本兼容，返回空列表并警告
-	return []Department{}, fmt.Errorf("GetAll is deprecated, use GetAllByCompany instead")
+	return []Department{}, fmt.Errorf("GetAll is deprecated, use GetAllByCompany/GetAllByEnterprise instead")
 }

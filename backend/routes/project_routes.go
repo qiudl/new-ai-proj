@@ -40,6 +40,7 @@ func registerSimpleTaskRoutes(projects *gin.RouterGroup, app ApplicationInterfac
 	// Basic tasks routes only
 	projects.GET("/:id/tasks", app.GetTasksHandler())
 	projects.POST("/:id/tasks", app.CreateTaskHandler())
+	projects.DELETE("/:id/tasks", app.BulkDeleteTasksHandler())  // Bulk delete tasks
 	projects.GET("/:id/tasks/:taskId", app.GetTaskHandler())
 	projects.PUT("/:id/tasks/:taskId", app.UpdateTaskHandler())
 	projects.DELETE("/:id/tasks/:taskId", app.DeleteTaskHandler())

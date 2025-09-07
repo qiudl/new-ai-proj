@@ -1004,7 +1004,7 @@ const TaskDetailPageNew: React.FC = () => {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <TagOutlined style={{ color: '#666' }} />
-                    <Text>优先级:</Text>
+                    <Text>ID: #{task.id} | 优先级:</Text>
                     <Tag color={priorityConfig.color}>{priorityConfig.text}</Tag>
                   </div>
                   

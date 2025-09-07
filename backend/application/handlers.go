@@ -198,6 +198,12 @@ func (app *Application) BulkReorderTasksHandler() gin.HandlerFunc {
 	return app.taskHandler.BulkReorderTasks
 }
 
+func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc {
+	// Create bulk operation handler on-demand
+	bulkOpHandler := handlers.NewBulkOperationHandler(app.db, app.logger, app.validator)
+	return bulkOpHandler.BulkDeleteTasks()
+}
+
 func (app *Application) GetTaskProgressHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.GetTaskProgress

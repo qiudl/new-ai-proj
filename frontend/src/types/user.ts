@@ -16,7 +16,8 @@ export interface User {
   username: string;
   email: string;
   user_type: UserType;
-  company_id?: number;
+  company_id?: number; // Legacy field, kept for compatibility
+  enterprise_id?: number; // New enterprise system field
   company_user_id?: number;
   role: UserRole;
   status: UserStatus;

@@ -61,6 +61,9 @@ type ApplicationInterface interface {
 	MoveTaskHandler() gin.HandlerFunc
 	ReorderTaskHandler() gin.HandlerFunc
 	BulkReorderTasksHandler() gin.HandlerFunc
+	
+	// 批量任务操作接口
+	BulkDeleteTasksHandler() gin.HandlerFunc
 
 	// 独立任务处理器（跨项目）
 	GetAllTasksHandler() gin.HandlerFunc
@@ -84,6 +87,9 @@ type ApplicationInterface interface {
 
 	// 公司管理处理器
 	GetCompanyHandler() *handlers.CompanyHandler
+
+	// 企业管理处理器
+	GetEnterpriseHandler() *handlers.EnterpriseHandler
 
 	// 组织管理处理器
 	GetOrganizationHandler() *handlers.OrganizationHandler
