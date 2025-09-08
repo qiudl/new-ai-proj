@@ -89,15 +89,21 @@ const EnterpriseUserManagementPage: React.FC = () => {
     setLoading(true);
     try {
       const result = await enterpriseService.getEnterpriseUsers(enterpriseIdNum, page, pageSize);
-      setUsers(result.data);
+      setUsers(result?.data || []);
       setPagination({
         current: page,
         pageSize: pageSize,
-        total: result.pagination.total,
+        total: result?.pagination?.total || 0,
       });
     } catch (error) {
       console.error('加载用户数据失败:', error);
       message.error('加载用户数据失败');
+      setUsers([]); // 确保错误时也设置为空数组
+      setPagination({
+        current: 1,
+        pageSize: 20,
+        total: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -108,9 +114,10 @@ const EnterpriseUserManagementPage: React.FC = () => {
     if (!enterpriseIdNum) return;
     try {
       const result = await enterpriseService.getEnterpriseDepartments(enterpriseIdNum, 1, 100);
-      setDepartments(result.data);
+      setDepartments(result?.data || []);
     } catch (error) {
       console.error('加载部门数据失败:', error);
+      setDepartments([]); // 确保错误时也设置为空数组
     }
   };
 
@@ -549,7 +556,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 name="department_id"
               >
                 <Select placeholder="请选择部门" allowClear>
-                  {departments.map(dept => (
+                  {departments && departments.map(dept => (
                     <Option key={dept.id} value={dept.id}>
                       {dept.name}
                     </Option>
@@ -567,7 +574,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 rules={[{ required: true, message: '请选择访问级别' }]}
               >
                 <Select placeholder="请选择访问级别">
-                  {ACCESS_LEVEL_OPTIONS.map(option => (
+                  {ACCESS_LEVEL_OPTIONS && ACCESS_LEVEL_OPTIONS.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
                     </Option>
@@ -582,7 +589,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 rules={[{ required: true, message: '请选择状态' }]}
               >
                 <Select placeholder="请选择状态">
-                  {USER_STATUS_OPTIONS.map(option => (
+                  {USER_STATUS_OPTIONS && USER_STATUS_OPTIONS.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
                     </Option>

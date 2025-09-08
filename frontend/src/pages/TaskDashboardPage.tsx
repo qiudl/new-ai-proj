@@ -45,11 +45,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { DashboardService } from '../services/dashboardService';
 import { projectService } from '../services/projectService';
-import companyService from '../services/companyService';
+// import companyService from '../services/companyService'; // Removed - company service no longer exists
 import { Task } from '../types/task';
 import { formatTaskStatus } from '../utils/formatters';
 import { Project } from '../types/project';
-import { Company } from '../types/company';
+// import { Company } from '../types/company'; // Removed - company types no longer exist
 import { useWeeklyDashboardStats, useDashboardManager } from '../hooks/useDashboard';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '../utils/queryClient';

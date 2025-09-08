@@ -4,6 +4,11 @@ import (
 	"time"
 )
 
+// DEPRECATED: This file contains deprecated models for customer management.
+// These models are being migrated to the new enterprise system.
+// Use enterprise_*.go models instead for new development.
+// This file will be removed after complete migration to enterprise system.
+
 // Customer represents a customer entity
 type Customer struct {
 	ID            int          `json:"id" db:"id"`

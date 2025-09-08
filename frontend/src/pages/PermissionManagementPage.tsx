@@ -29,7 +29,8 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import { permissionService } from '../services/permissionService';
-import companyService from '../services/companyService';
+// import companyService from '../services/companyService'; // Removed - company service no longer exists
+import { getPermissionName, getPermissionDescription } from '../utils/permissionMapping';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -303,6 +304,8 @@ const PermissionManagementPage: React.FC = () => {
       title: '名称',
       dataIndex: 'permissionName',
       key: 'permissionName',
+      render: (text: string, record: Permission) => 
+        getPermissionName(record.permissionCode),
     },
     {
       title: '模块',

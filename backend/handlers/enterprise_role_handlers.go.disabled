@@ -1,0 +1,509 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
+
+	"ai-project-backend/models"
+	"ai-project-backend/services"
+)
+
+type EnterpriseRoleHandler struct {
+	roleService     *services.EnterpriseRoleService
+	positionService *services.EnterprisePositionService
+}
+
+func NewEnterpriseRoleHandler(
+	roleService *services.EnterpriseRoleService,
+	positionService *services.EnterprisePositionService,
+) *EnterpriseRoleHandler {
+	return &EnterpriseRoleHandler{
+		roleService:     roleService,
+		positionService: positionService,
+	}
+}
+
+// CreateRole 创建角色
+func (h *EnterpriseRoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	role, err := h.roleService.CreateRole(&req, userID)
+	if err != nil {
+		http.Error(w, "创建角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色创建成功",
+		"data":    role,
+	})
+}
+
+// GetRoleByID 获取角色详情
+func (h *EnterpriseRoleHandler) GetRoleByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	roleID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的角色ID", http.StatusBadRequest)
+		return
+	}
+
+	includeRelated := r.URL.Query().Get("include_related") == "true"
+
+	role, err := h.roleService.GetRoleByID(roleID, includeRelated)
+	if err != nil {
+		http.Error(w, "获取角色失败: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    role,
+	})
+}
+
+// GetRolesByEnterpriseID 获取企业角色列表
+func (h *EnterpriseRoleHandler) GetRolesByEnterpriseID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	page := 1
+	pageSize := 20
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+
+	if ps := r.URL.Query().Get("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
+			pageSize = parsed
+		}
+	}
+
+	response, err := h.roleService.GetRolesByEnterpriseID(enterpriseID, page, pageSize)
+	if err != nil {
+		http.Error(w, "获取角色列表失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// UpdateRole 更新角色
+func (h *EnterpriseRoleHandler) UpdateRole(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	roleID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的角色ID", http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdateRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	role, err := h.roleService.UpdateRole(roleID, &req, userID)
+	if err != nil {
+		http.Error(w, "更新角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色更新成功",
+		"data":    role,
+	})
+}
+
+// DeleteRole 删除角色
+func (h *EnterpriseRoleHandler) DeleteRole(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	roleID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的角色ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.roleService.DeleteRole(roleID)
+	if err != nil {
+		http.Error(w, "删除角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色删除成功",
+	})
+}
+
+// GetRoleHierarchy 获取角色层级结构
+func (h *EnterpriseRoleHandler) GetRoleHierarchy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	hierarchy, err := h.roleService.GetRoleHierarchy(enterpriseID)
+	if err != nil {
+		http.Error(w, "获取角色层级失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    hierarchy,
+	})
+}
+
+// AssignRoleToUser 分配角色给用户
+func (h *EnterpriseRoleHandler) AssignRoleToUser(w http.ResponseWriter, r *http.Request) {
+	var req models.AssignRoleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	assignment, err := h.roleService.AssignRoleToUser(&req, userID)
+	if err != nil {
+		http.Error(w, "分配角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色分配成功",
+		"data":    assignment,
+	})
+}
+
+// RemoveRoleFromUser 移除用户角色
+func (h *EnterpriseRoleHandler) RemoveRoleFromUser(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, err := strconv.Atoi(vars["user_id"])
+	if err != nil {
+		http.Error(w, "无效的用户ID", http.StatusBadRequest)
+		return
+	}
+
+	roleID, err := strconv.Atoi(vars["role_id"])
+	if err != nil {
+		http.Error(w, "无效的角色ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.roleService.RemoveRoleFromUser(userID, roleID)
+	if err != nil {
+		http.Error(w, "移除用户角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "用户角色移除成功",
+	})
+}
+
+// GetUserRoles 获取用户角色
+func (h *EnterpriseRoleHandler) GetUserRoles(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, err := strconv.Atoi(vars["user_id"])
+	if err != nil {
+		http.Error(w, "无效的用户ID", http.StatusBadRequest)
+		return
+	}
+
+	roles, err := h.roleService.GetUserRoles(userID)
+	if err != nil {
+		http.Error(w, "获取用户角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    roles,
+	})
+}
+
+// GetUserEffectivePermissions 获取用户有效权限
+func (h *EnterpriseRoleHandler) GetUserEffectivePermissions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, err := strconv.Atoi(vars["user_id"])
+	if err != nil {
+		http.Error(w, "无效的用户ID", http.StatusBadRequest)
+		return
+	}
+
+	permissions, err := h.roleService.GetUserEffectivePermissions(userID)
+	if err != nil {
+		http.Error(w, "获取用户有效权限失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    permissions,
+	})
+}
+
+// CreateRoleFromTemplate 从模板创建角色
+func (h *EnterpriseRoleHandler) CreateRoleFromTemplate(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		EnterpriseID int    `json:"enterprise_id" validate:"required"`
+		TemplateID   int    `json:"template_id" validate:"required"`
+		RoleCode     string `json:"role_code" validate:"required,max=50"`
+		RoleName     string `json:"role_name" validate:"required,max=100"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	role, err := h.roleService.CreateRoleFromTemplate(req.EnterpriseID, req.TemplateID, req.RoleCode, req.RoleName, userID)
+	if err != nil {
+		http.Error(w, "从模板创建角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色创建成功",
+		"data":    role,
+	})
+}
+
+// GetRoleStatistics 获取角色统计信息
+func (h *EnterpriseRoleHandler) GetRoleStatistics(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	stats, err := h.roleService.GetRoleStatistics(enterpriseID)
+	if err != nil {
+		http.Error(w, "获取角色统计失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    stats,
+	})
+}
+
+// CloneRole 克隆角色
+func (h *EnterpriseRoleHandler) CloneRole(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sourceID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的角色ID", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		NewCode string `json:"new_code" validate:"required,max=50"`
+		NewName string `json:"new_name" validate:"required,max=100"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	role, err := h.roleService.CloneRole(sourceID, req.NewCode, req.NewName, userID)
+	if err != nil {
+		http.Error(w, "克隆角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色克隆成功",
+		"data":    role,
+	})
+}
+
+// BatchUpdateRoleStatus 批量更新角色状态
+func (h *EnterpriseRoleHandler) BatchUpdateRoleStatus(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		RoleIDs  []int `json:"role_ids" validate:"required,min=1"`
+		IsActive bool  `json:"is_active"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	err := h.roleService.BatchUpdateRoleStatus(req.RoleIDs, req.IsActive, userID)
+	if err != nil {
+		http.Error(w, "批量更新角色状态失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	statusText := "启用"
+	if !req.IsActive {
+		statusText = "停用"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色" + statusText + "成功",
+	})
+}
+
+// BatchAssignRoles 批量分配角色
+func (h *EnterpriseRoleHandler) BatchAssignRoles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID  int   `json:"user_id" validate:"required"`
+		RoleIDs []int `json:"role_ids" validate:"required,min=1"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	err := h.roleService.BatchAssignRoles(req.UserID, req.RoleIDs, userID)
+	if err != nil {
+		http.Error(w, "批量分配角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色批量分配成功",
+	})
+}
+
+// BatchRemoveRoles 批量移除角色
+func (h *EnterpriseRoleHandler) BatchRemoveRoles(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		UserID  int   `json:"user_id" validate:"required"`
+		RoleIDs []int `json:"role_ids" validate:"required,min=1"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := h.roleService.BatchRemoveRoles(req.UserID, req.RoleIDs)
+	if err != nil {
+		http.Error(w, "批量移除角色失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "角色批量移除成功",
+	})
+}

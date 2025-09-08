@@ -12,14 +12,15 @@ export const SYSTEM_PERMISSIONS = {
   MAINTENANCE: 'system_maintenance'
 } as const;
 
-// 公司管理权限
-export const COMPANY_PERMISSIONS = {
-  ADMIN: 'company_admin',
-  READ: 'company_read',
-  CREATE: 'company_create',
-  UPDATE: 'company_update',
-  DELETE: 'company_delete',
-  USER_ADMIN: 'company_user_admin'
+// REMOVED: 公司管理权限 (已迁移到ORGANIZATION_PERMISSIONS)
+// 企业管理权限 (替代原company权限)
+export const ENTERPRISE_PERMISSIONS = {
+  ADMIN: 'enterprise_admin',
+  READ: 'enterprise_read', 
+  CREATE: 'enterprise_create',
+  UPDATE: 'enterprise_update',
+  DELETE: 'enterprise_delete',
+  USER_ADMIN: 'enterprise_user_admin'
 } as const;
 
 // 用户管理权限
@@ -134,7 +135,7 @@ export const ORGANIZATION_PERMISSIONS = {
 // 角色常量
 export const ROLES = {
   SUPER_ADMIN: 'super_admin',
-  COMPANY_ADMIN: 'company_admin',
+  ENTERPRISE_ADMIN: 'enterprise_admin', // 替代原company_admin
   PROJECT_MANAGER: 'project_manager',
   TEAM_LEAD: 'team_lead',
   DEVELOPER: 'developer',
@@ -143,11 +144,10 @@ export const ROLES = {
 
 // 页面路由权限映射
 export const ROUTE_PERMISSIONS = {
-  // 管理类页面
-  '/companies': [COMPANY_PERMISSIONS.READ],
-  '/companies/create': [COMPANY_PERMISSIONS.CREATE],
+  // 管理类页面 (已移除/companies相关路由，保留enterprises)
+  '/enterprises': [ENTERPRISE_PERMISSIONS.READ],
+  '/enterprises/create': [ENTERPRISE_PERMISSIONS.CREATE],
   '/user-management': [USER_PERMISSIONS.ADMIN],
-  '/company-user-management': [COMPANY_PERMISSIONS.USER_ADMIN],
   '/permissions': [PERMISSION_PERMISSIONS.ADMIN],
   '/enhanced-permissions': [PERMISSION_PERMISSIONS.ADMIN],
   '/ai-config': [SYSTEM_PERMISSIONS.ADMIN],
@@ -180,7 +180,7 @@ export const ROUTE_PERMISSIONS = {
 export const PERMISSION_GROUPS = {
   ADMIN_PAGES: [
     SYSTEM_PERMISSIONS.ADMIN,
-    COMPANY_PERMISSIONS.ADMIN,
+    ENTERPRISE_PERMISSIONS.ADMIN,
     USER_PERMISSIONS.ADMIN,
     PERMISSION_PERMISSIONS.ADMIN
   ],
@@ -202,7 +202,7 @@ export const PERMISSION_GROUPS = {
 
 // 类型定义
 export type SystemPermission = typeof SYSTEM_PERMISSIONS[keyof typeof SYSTEM_PERMISSIONS];
-export type CompanyPermission = typeof COMPANY_PERMISSIONS[keyof typeof COMPANY_PERMISSIONS];
+export type EnterprisePermission = typeof ENTERPRISE_PERMISSIONS[keyof typeof ENTERPRISE_PERMISSIONS];
 export type UserPermission = typeof USER_PERMISSIONS[keyof typeof USER_PERMISSIONS];
 export type PermissionPermission = typeof PERMISSION_PERMISSIONS[keyof typeof PERMISSION_PERMISSIONS];
 export type ProjectPermission = typeof PROJECT_PERMISSIONS[keyof typeof PROJECT_PERMISSIONS];
@@ -218,7 +218,7 @@ export type Role = typeof ROLES[keyof typeof ROLES];
 
 export type AnyPermission = 
   | SystemPermission
-  | CompanyPermission
+  | EnterprisePermission
   | UserPermission
   | PermissionPermission
   | ProjectPermission

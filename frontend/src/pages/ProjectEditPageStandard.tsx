@@ -45,10 +45,12 @@ import {
 import type { TransferDirection } from 'antd/es/transfer';
 import dayjs from 'dayjs';
 import { projectService } from '../services/projectService';
-import companyService from '../services/companyService';
+// import companyService from '../services/companyService'; // Removed - company service no longer exists
+import enterpriseService from '../services/enterpriseService';
 import { Project, ProjectRequest } from '../types/project';
-import { Company, CompanyUser } from '../types/company';
-import AddCompanyUserModal from '../components/AddCompanyUserModal';
+// import { Company, CompanyUser } from '../types/company'; // Removed - company types no longer exist
+import { Enterprise, EnterpriseUser } from '../types/enterprise';
+// import AddCompanyUserModal from '../components/AddCompanyUserModal'; // Removed - component no longer exists
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -77,13 +79,19 @@ const ProjectEditPageNew: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [isEditing, setIsEditing] = useState(true);
   
-  // 客户相关状态
+  // 客户相关状态（向后兼容）
   const [companies, setCompanies] = useState<Company[]>([]);
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const [companyLoading, setCompanyLoading] = useState(false);
   
+  // 企业相关状态（新架构）
+  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
+  const [selectedEnterprise, setSelectedEnterprise] = useState<number | null>(null);
+  const [enterpriseLoading, setEnterpriseLoading] = useState(false);
+  
   // 用户相关状态
   const [companyUsers, setCompanyUsers] = useState<{ [companyId: number]: CompanyUser[] }>({});
+  const [enterpriseUsers, setEnterpriseUsers] = useState<EnterpriseUser[]>([]);
   const [availableUsers, setAvailableUsers] = useState<ProjectCompanyUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userRoles, setUserRoles] = useState<{ [userKey: string]: string }>({});
@@ -105,29 +113,42 @@ const ProjectEditPageNew: React.FC = () => {
         progress: 0
       });
       
-      // 检查URL参数中的companyId，如果有则预选择该企业
-      const companyIdParam = searchParams.get('companyId');
-      if (companyIdParam) {
-        const companyId = parseInt(companyIdParam);
-        if (!isNaN(companyId)) {
-          setSelectedCompanies([companyId]);
+      // 检查URL参数中的enterpriseId，优先使用新架构
+      const enterpriseIdParam = searchParams.get('enterpriseId');
+      if (enterpriseIdParam) {
+        const enterpriseId = parseInt(enterpriseIdParam);
+        if (!isNaN(enterpriseId)) {
+          setSelectedEnterprise(enterpriseId);
+        }
+      } else {
+        // 兼容旧的companyId参数
+        const companyIdParam = searchParams.get('companyId');
+        if (companyIdParam) {
+          const companyId = parseInt(companyIdParam);
+          if (!isNaN(companyId)) {
+            setSelectedCompanies([companyId]);
+          }
         }
       }
     }
     loadCompanies();
+    loadEnterprises();
   }, [projectId, form, searchParams]);
 
   useEffect(() => {
-    if (selectedCompanies && selectedCompanies.length > 0) {
+    if (selectedEnterprise) {
+      loadEnterpriseUsers();
+    } else if (selectedCompanies && selectedCompanies.length > 0) {
       loadCompanyUsers();
     } else {
       // 安全地重置用户相关状态，确保始终是数组类型
       setAvailableUsers([]);
       setSelectedUsers([]);
       setCompanyUsers({});
+      setEnterpriseUsers([]);
       setUserRoles({});
     }
-  }, [selectedCompanies]);
+  }, [selectedCompanies, selectedEnterprise]);
 
   const loadProject = async () => {
     if (!projectId || projectId === 'create') return;
@@ -152,11 +173,15 @@ const ProjectEditPageNew: React.FC = () => {
         ] : undefined
       });
 
-      // 设置选中的客户
-      if (projectData.companies) {
+      // 设置选中的企业（优先使用新架构）
+      if (projectData.enterprise_id) {
+        setSelectedEnterprise(projectData.enterprise_id);
+      } else if (projectData.companies) {
+        // 兼容旧的多客户架构
         const companyIds = projectData.companies.map(pc => pc.company_id);
         setSelectedCompanies(companyIds);
       } else if (projectData.company_id) {
+        // 兼容旧的单客户架构
         setSelectedCompanies([projectData.company_id]);
       }
 
@@ -250,6 +275,55 @@ const ProjectEditPageNew: React.FC = () => {
       message.error('加载客户列表失败');
     } finally {
       setCompanyLoading(false);
+    }
+  };
+
+  const loadEnterprises = async () => {
+    try {
+      setEnterpriseLoading(true);
+      const response = await enterpriseService.getEnterprises(1, 100);
+      setEnterprises(response.data);
+    } catch (error) {
+      console.error('加载企业列表失败:', error);
+      message.error('加载企业列表失败');
+    } finally {
+      setEnterpriseLoading(false);
+    }
+  };
+
+  const loadEnterpriseUsers = async () => {
+    if (!selectedEnterprise) {
+      setEnterpriseUsers([]);
+      setAvailableUsers([]);
+      return;
+    }
+
+    try {
+      setUserLoading(true);
+      const response = await enterpriseService.getEnterpriseUsers(selectedEnterprise, 1, 100);
+      setEnterpriseUsers(response.data);
+      
+      // 转换为可用用户格式
+      const projectUsers: ProjectCompanyUser[] = response.data.map(user => ({
+        key: `${user.id}_${selectedEnterprise}`,
+        companyId: selectedEnterprise,
+        companyName: enterprises.find(e => e.id === selectedEnterprise)?.name || '',
+        userId: user.id,
+        userName: user.name,
+        userEmail: user.email,
+        position: user.position,
+        department: user.department_name,
+        avatar: undefined
+      }));
+      
+      setAvailableUsers(projectUsers);
+    } catch (error) {
+      console.error('加载企业用户失败:', error);
+      message.error('加载企业用户失败');
+      setEnterpriseUsers([]);
+      setAvailableUsers([]);
+    } finally {
+      setUserLoading(false);
     }
   };
 
@@ -480,8 +554,11 @@ const ProjectEditPageNew: React.FC = () => {
         project_number: values.project_number?.trim() || undefined,
         name: values.name?.trim() || '',
         description: values.description?.trim() || '',
-        company_id: selectedCompanies.length > 0 ? selectedCompanies[0] : undefined,
-        company_ids: selectedCompanies.length > 0 ? selectedCompanies : undefined,
+        // 优先使用新的enterprise架构
+        enterprise_id: selectedEnterprise || undefined,
+        // 兼容旧的company架构
+        company_id: !selectedEnterprise && selectedCompanies.length > 0 ? selectedCompanies[0] : undefined,
+        company_ids: !selectedEnterprise && selectedCompanies.length > 0 ? selectedCompanies : undefined,
         user_ids: processedUserIds.length > 0 ? processedUserIds : undefined,
         status: values.status || 'planning',
         priority: values.priority || 'medium',
@@ -834,12 +911,66 @@ const ProjectEditPageNew: React.FC = () => {
               style={{ marginBottom: 24 }}
             >
               <div style={{ marginBottom: '16px' }}>
-                <Row justify="space-between" align="middle">
+                {/* 企业选择器（新架构） */}
+                <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
                   <Col>
-                    <Text strong>选择关联客户</Text>
+                    <Text strong>选择关联企业</Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: '12px' }}>
-                      项目可以关联多个客户，至少选择一个
+                      推荐使用企业架构，选择一个企业来管理项目
+                    </Text>
+                  </Col>
+                </Row>
+                <Select
+                  placeholder="请选择企业，支持搜索企业名称"
+                  value={selectedEnterprise}
+                  onChange={setSelectedEnterprise}
+                  loading={enterpriseLoading}
+                  showSearch
+                  allowClear
+                  filterOption={(input, option) =>
+                    (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
+                  }
+                  style={{ width: '100%', marginBottom: '16px' }}
+                  popupRender={(menu) => (
+                    <div>
+                      {menu}
+                      <Divider style={{ margin: '8px 0' }} />
+                      <Space style={{ padding: '0 8px 4px' }}>
+                        <Button
+                          type="text"
+                          icon={<PlusOutlined />}
+                          onClick={() => navigate('/enterprises/create')}
+                          style={{ width: '100%' }}
+                        >
+                          新建企业
+                        </Button>
+                      </Space>
+                    </div>
+                  )}
+                >
+                  {Array.isArray(enterprises) && enterprises.map(enterprise => (
+                    <Option key={enterprise.id} value={enterprise.id}>
+                      <Space>
+                        <BankOutlined />
+                        <div>
+                          <div>{enterprise.name}</div>
+                          <Text type="secondary" style={{ fontSize: '12px' }}>
+                            {enterprise.code} | {enterprise.business_type_text}
+                          </Text>
+                        </div>
+                      </Space>
+                    </Option>
+                  ))}
+                </Select>
+
+                {/* 客户选择器（向后兼容） */}
+                <Row justify="space-between" align="middle">
+                  <Col>
+                    <Text strong>选择关联客户（传统模式）</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      {selectedEnterprise ? '已选择企业，此选项已禁用' : '项目可以关联多个客户，至少选择一个'}
                     </Text>
                   </Col>
                   <Col>
@@ -867,7 +998,10 @@ const ProjectEditPageNew: React.FC = () => {
               </div>
 
               <Form.Item
-                rules={[{ required: true, message: '请至少选择一个关联客户' }]}
+                rules={[{ 
+                  required: !selectedEnterprise, 
+                  message: '请至少选择一个关联客户或企业' 
+                }]}
               >
                 {!companies || companies.length === 0 ? (
                   <Alert
@@ -892,10 +1026,11 @@ const ProjectEditPageNew: React.FC = () => {
                 ) : (
                   <Select
                     mode="multiple"
-                    placeholder="请选择关联的客户，支持搜索客户名称"
+                    placeholder={selectedEnterprise ? "已选择企业，客户选择已禁用" : "请选择关联的客户，支持搜索客户名称"}
                     value={selectedCompanies}
                     onChange={setSelectedCompanies}
                     loading={companyLoading}
+                    disabled={!!selectedEnterprise}
                     showSearch
                     filterOption={(input, option) =>
                       (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
@@ -958,10 +1093,10 @@ const ProjectEditPageNew: React.FC = () => {
 
             {/* 用户分配 */}
             <Card title="项目成员" extra={<TeamOutlined />}>
-              {selectedCompanies.length === 0 ? (
+              {!selectedEnterprise && selectedCompanies.length === 0 ? (
                 <Alert
-                  message="请先选择关联客户"
-                  description="只能添加所选客户的用户作为项目成员"
+                  message="请先选择关联企业或客户"
+                  description="只能添加所选企业或客户的用户作为项目成员"
                   type="info"
                   showIcon
                 />

@@ -66,6 +66,12 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册增强权限路由
 	RegisterEnhancedPermissionRoutes(authorized, app)
 
+	// 注册权限审批路由（暂时禁用以避免未完成模块导致的编译问题）
+	// RegisterPermissionApprovalRoutes(authorized, app)
+
+	// 注册角色模板路由
+	RegisterRoleTemplateRoutes(authorized, app)
+
 	// 注册公司管理路由
 	RegisterCompanyRoutes(authorized, app)
 
@@ -84,6 +90,11 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	fmt.Println("DEBUG: About to call RegisterTaskRoutes")
 	RegisterTaskRoutes(authorized, app)
 	fmt.Println("DEBUG: RegisterTaskRoutes completed")
+
+	// 注册批量操作路由
+	fmt.Println("DEBUG: About to call RegisterBatchOperationRoutes")
+	RegisterBatchOperationRoutes(authorized, app)
+	fmt.Println("DEBUG: RegisterBatchOperationRoutes completed")
 
 	// 注册简化的系统路由（主要是权限相关）
 	RegisterSystemRoutes(authorized, app)

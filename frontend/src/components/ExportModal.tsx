@@ -38,7 +38,6 @@ import {
 } from '../services/exportService';
 import { Task } from '../types/task';
 import { Project } from '../types/project';
-import { Company } from '../types/company';
 
 // 类型定义
 interface StatItem {

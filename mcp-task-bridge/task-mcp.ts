@@ -334,6 +334,11 @@ export class TaskMCPServer {
     return this.projectService;
   }
 
+  // 新增：列出所有活跃计时器
+  async getActiveTimers(): Promise<ApiResponse<{ active_timers: TimerData[] }>> {
+    return this.timerService.getActiveTimers();
+  }
+
   // 批量操作：启动任务并开始计时
   async startTaskWithTimer(taskId: number, timerDescription?: string): Promise<ApiResponse> {
     try {

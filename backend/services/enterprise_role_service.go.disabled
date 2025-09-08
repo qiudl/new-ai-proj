@@ -1,0 +1,418 @@
+package services
+
+import (
+	"fmt"
+	"time"
+
+	"ai-project-backend/database"
+	"ai-project-backend/models"
+)
+
+type EnterpriseRoleService struct {
+	roleRepo       *database.EnterpriseRoleRepository
+	positionRepo   *database.EnterprisePositionRepository
+	enterpriseRepo *database.EnterpriseRepository
+}
+
+func NewEnterpriseRoleService(
+	roleRepo *database.EnterpriseRoleRepository,
+	positionRepo *database.EnterprisePositionRepository,
+	enterpriseRepo *database.EnterpriseRepository,
+) *EnterpriseRoleService {
+	return &EnterpriseRoleService{
+		roleRepo:       roleRepo,
+		positionRepo:   positionRepo,
+		enterpriseRepo: enterpriseRepo,
+	}
+}
+
+// CreateRole 创建角色
+func (s *EnterpriseRoleService) CreateRole(req *models.CreateRoleRequest, createdBy *int) (*models.EnterpriseRole, error) {
+	// 验证企业是否存在
+	_, err := s.enterpriseRepo.GetEnterpriseByID(req.EnterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("企业不存在: %w", err)
+	}
+
+	// 验证角色代码唯一性
+	// TODO: 添加角色代码唯一性检查
+
+	// 验证父角色
+	if req.ParentRoleID != nil {
+		_, err = s.roleRepo.GetRoleByID(*req.ParentRoleID, false)
+		if err != nil {
+			return nil, fmt.Errorf("父角色不存在: %w", err)
+		}
+	}
+
+	// 验证角色模板
+	if req.TemplateID != nil && req.RoleType == "template" {
+		// TODO: 验证角色模板存在
+	}
+
+	// 创建角色对象
+	role := &models.EnterpriseRole{
+		EnterpriseID:    req.EnterpriseID,
+		RoleCode:        req.RoleCode,
+		RoleName:        req.RoleName,
+		RoleDescription: req.RoleDescription,
+		RoleType:        req.RoleType,
+		TemplateID:      req.TemplateID,
+		Permissions:     req.Permissions,
+		RoleLevel:       req.RoleLevel,
+		ParentRoleID:    req.ParentRoleID,
+		IsDefault:       req.IsDefault,
+		AutoAssign:      req.AutoAssign,
+		MaxUsers:        req.MaxUsers,
+		IsActive:        true,
+		CreatedBy:       createdBy,
+	}
+
+	// 保存到数据库
+	err = s.roleRepo.CreateRole(role)
+	if err != nil {
+		return nil, fmt.Errorf("创建角色失败: %w", err)
+	}
+
+	// 返回完整的角色信息
+	return s.roleRepo.GetRoleByID(role.ID, true)
+}
+
+// GetRoleByID 获取角色详情
+func (s *EnterpriseRoleService) GetRoleByID(id int, includeRelated bool) (*models.EnterpriseRole, error) {
+	return s.roleRepo.GetRoleByID(id, includeRelated)
+}
+
+// GetRolesByEnterpriseID 获取企业角色列表
+func (s *EnterpriseRoleService) GetRolesByEnterpriseID(enterpriseID int, page, pageSize int) (*models.RoleListResponse, error) {
+	roles, total, err := s.roleRepo.GetRolesByEnterpriseID(enterpriseID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.RoleListResponse{
+		Roles:    roles,
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// UpdateRole 更新角色
+func (s *EnterpriseRoleService) UpdateRole(id int, req *models.UpdateRoleRequest, updatedBy *int) (*models.EnterpriseRole, error) {
+	// 检查角色是否存在
+	existingRole, err := s.roleRepo.GetRoleByID(id, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建更新字段
+	updates := make(map[string]interface{})
+	
+	if req.RoleName != nil {
+		updates["role_name"] = *req.RoleName
+	}
+	if req.RoleDescription != nil {
+		updates["role_description"] = *req.RoleDescription
+	}
+	if req.Permissions != nil {
+		updates["permissions"] = req.Permissions
+	}
+	if req.RoleLevel != nil {
+		updates["role_level"] = *req.RoleLevel
+	}
+	if req.ParentRoleID != nil {
+		// 验证父角色存在且不是自己
+		if *req.ParentRoleID == id {
+			return nil, fmt.Errorf("不能将自己设为父角色")
+		}
+		_, err = s.roleRepo.GetRoleByID(*req.ParentRoleID, false)
+		if err != nil {
+			return nil, fmt.Errorf("父角色不存在: %w", err)
+		}
+		updates["parent_role_id"] = *req.ParentRoleID
+	}
+	if req.IsDefault != nil {
+		// 如果设为默认角色，需要检查是否已有默认角色
+		if *req.IsDefault {
+			// TODO: 检查企业是否已有默认角色
+		}
+		updates["is_default"] = *req.IsDefault
+	}
+	if req.AutoAssign != nil {
+		updates["auto_assign"] = *req.AutoAssign
+	}
+	if req.MaxUsers != nil {
+		// 验证最大用户数不能少于当前用户数
+		if *req.MaxUsers < existingRole.UserCount {
+			return nil, fmt.Errorf("最大用户数不能少于当前用户数 %d", existingRole.UserCount)
+		}
+		updates["max_users"] = *req.MaxUsers
+	}
+	if req.IsActive != nil {
+		updates["is_active"] = *req.IsActive
+	}
+	if updatedBy != nil {
+		updates["updated_by"] = *updatedBy
+	}
+
+	// 执行更新
+	err = s.roleRepo.UpdateRole(id, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	// 返回更新后的角色信息
+	return s.roleRepo.GetRoleByID(id, true)
+}
+
+// DeleteRole 删除角色
+func (s *EnterpriseRoleService) DeleteRole(id int) error {
+	return s.roleRepo.DeleteRole(id)
+}
+
+// GetRoleHierarchy 获取角色层级结构
+func (s *EnterpriseRoleService) GetRoleHierarchy(enterpriseID int) ([]models.RoleHierarchy, error) {
+	return s.roleRepo.GetRoleHierarchy(enterpriseID)
+}
+
+// AssignRoleToUser 分配角色给用户
+func (s *EnterpriseRoleService) AssignRoleToUser(req *models.AssignRoleRequest, assignedBy *int) (*models.EnterpriseUserRole, error) {
+	// 验证请求数据
+	if req.ExpiryDate != nil && req.ExpiryDate.Before(req.AssignedDate) {
+		return nil, fmt.Errorf("过期日期不能早于分配日期")
+	}
+
+	// 创建分配对象
+	assignment := &models.EnterpriseUserRole{
+		EnterpriseUserID: req.EnterpriseUserID,
+		RoleID:           req.RoleID,
+		AssignedDate:     req.AssignedDate,
+		ExpiryDate:       req.ExpiryDate,
+		IsActive:         true,
+		AssignedBy:       assignedBy,
+	}
+
+	// 执行分配
+	err := s.roleRepo.AssignRoleToUser(assignment)
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+// RemoveRoleFromUser 移除用户角色
+func (s *EnterpriseRoleService) RemoveRoleFromUser(userID, roleID int) error {
+	return s.roleRepo.RemoveRoleFromUser(userID, roleID)
+}
+
+// GetUserRoles 获取用户角色
+func (s *EnterpriseRoleService) GetUserRoles(userID int) ([]models.EnterpriseUserRole, error) {
+	return s.roleRepo.GetUserRoles(userID)
+}
+
+// GetUserEffectivePermissions 获取用户有效权限
+func (s *EnterpriseRoleService) GetUserEffectivePermissions(userID int) ([]models.UserEffectivePermission, error) {
+	return s.roleRepo.GetUserEffectivePermissions(userID)
+}
+
+// CreateRoleFromTemplate 从模板创建角色
+func (s *EnterpriseRoleService) CreateRoleFromTemplate(enterpriseID, templateID int, roleCode, roleName string, createdBy *int) (*models.EnterpriseRole, error) {
+	return s.roleRepo.CreateRoleFromTemplate(enterpriseID, templateID, roleCode, roleName, createdBy)
+}
+
+// GetRoleStatistics 获取角色统计信息
+func (s *EnterpriseRoleService) GetRoleStatistics(enterpriseID int) (map[string]interface{}, error) {
+	roles, _, err := s.roleRepo.GetRolesByEnterpriseID(enterpriseID, 1, 1000)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色列表失败: %w", err)
+	}
+
+	stats := make(map[string]interface{})
+	
+	totalRoles := len(roles)
+	activeRoles := 0
+	defaultRoles := 0
+	templateRoles := 0
+	customRoles := 0
+	systemRoles := 0
+	totalUsers := 0
+	levelDistribution := make(map[int]int)
+	typeDistribution := make(map[string]int)
+	
+	for _, role := range roles {
+		if role.IsActive {
+			activeRoles++
+		}
+		if role.IsDefault {
+			defaultRoles++
+		}
+		totalUsers += role.UserCount
+		levelDistribution[role.RoleLevel]++
+		typeDistribution[role.RoleType]++
+		
+		switch role.RoleType {
+		case "template":
+			templateRoles++
+		case "custom":
+			customRoles++
+		case "system":
+			systemRoles++
+		}
+	}
+
+	stats["total_roles"] = totalRoles
+	stats["active_roles"] = activeRoles
+	stats["default_roles"] = defaultRoles
+	stats["template_roles"] = templateRoles
+	stats["custom_roles"] = customRoles
+	stats["system_roles"] = systemRoles
+	stats["total_users"] = totalUsers
+	stats["level_distribution"] = levelDistribution
+	stats["type_distribution"] = typeDistribution
+
+	return stats, nil
+}
+
+// CloneRole 克隆角色
+func (s *EnterpriseRoleService) CloneRole(sourceID int, newCode, newName string, createdBy *int) (*models.EnterpriseRole, error) {
+	// 获取源角色
+	sourceRole, err := s.roleRepo.GetRoleByID(sourceID, false)
+	if err != nil {
+		return nil, fmt.Errorf("源角色不存在: %w", err)
+	}
+
+	// 创建克隆角色
+	cloneRole := &models.EnterpriseRole{
+		EnterpriseID:    sourceRole.EnterpriseID,
+		RoleCode:        newCode,
+		RoleName:        newName,
+		RoleDescription: sourceRole.RoleDescription,
+		RoleType:        "custom", // 克隆的角色都是自定义类型
+		Permissions:     sourceRole.Permissions,
+		RoleLevel:       sourceRole.RoleLevel,
+		IsDefault:       false, // 克隆的角色不是默认角色
+		AutoAssign:      false, // 克隆的角色不自动分配
+		MaxUsers:        sourceRole.MaxUsers,
+		IsActive:        true,
+		CreatedBy:       createdBy,
+	}
+
+	// 保存克隆角色
+	err = s.roleRepo.CreateRole(cloneRole)
+	if err != nil {
+		return nil, fmt.Errorf("创建克隆角色失败: %w", err)
+	}
+
+	return s.roleRepo.GetRoleByID(cloneRole.ID, true)
+}
+
+// BatchUpdateRoleStatus 批量更新角色状态
+func (s *EnterpriseRoleService) BatchUpdateRoleStatus(roleIDs []int, isActive bool, updatedBy *int) error {
+	for _, id := range roleIDs {
+		updates := map[string]interface{}{
+			"is_active": isActive,
+		}
+		if updatedBy != nil {
+			updates["updated_by"] = *updatedBy
+		}
+		
+		err := s.roleRepo.UpdateRole(id, updates)
+		if err != nil {
+			return fmt.Errorf("更新角色 %d 状态失败: %w", id, err)
+		}
+	}
+
+	return nil
+}
+
+// BatchAssignRoles 批量分配角色
+func (s *EnterpriseRoleService) BatchAssignRoles(userID int, roleIDs []int, assignedBy *int) error {
+	now := time.Now()
+	
+	for _, roleID := range roleIDs {
+		assignment := &models.EnterpriseUserRole{
+			EnterpriseUserID: userID,
+			RoleID:           roleID,
+			AssignedDate:     now,
+			IsActive:         true,
+			AssignedBy:       assignedBy,
+		}
+		
+		err := s.roleRepo.AssignRoleToUser(assignment)
+		if err != nil {
+			return fmt.Errorf("分配角色 %d 失败: %w", roleID, err)
+		}
+	}
+
+	return nil
+}
+
+// BatchRemoveRoles 批量移除角色
+func (s *EnterpriseRoleService) BatchRemoveRoles(userID int, roleIDs []int) error {
+	for _, roleID := range roleIDs {
+		err := s.roleRepo.RemoveRoleFromUser(userID, roleID)
+		if err != nil {
+			return fmt.Errorf("移除角色 %d 失败: %w", roleID, err)
+		}
+	}
+
+	return nil
+}
+
+// ValidateRolePermissions 验证角色权限配置
+func (s *EnterpriseRoleService) ValidateRolePermissions(roleID int) error {
+	role, err := s.roleRepo.GetRoleByID(roleID, false)
+	if err != nil {
+		return err
+	}
+
+	if len(role.Permissions) == 0 {
+		return fmt.Errorf("角色必须至少拥有一个权限")
+	}
+
+	// TODO: 验证权限代码的有效性
+	// TODO: 检查权限冲突
+
+	return nil
+}
+
+// GetExpiredRoleAssignments 获取过期的角色分配
+func (s *EnterpriseRoleService) GetExpiredRoleAssignments(enterpriseID int) ([]models.EnterpriseUserRole, error) {
+	// 这里需要修改查询逻辑来获取过期的角色分配
+	// TODO: 实现获取过期角色分配的查询
+	return nil, nil
+}
+
+// CleanupExpiredRoleAssignments 清理过期的角色分配
+func (s *EnterpriseRoleService) CleanupExpiredRoleAssignments() error {
+	// TODO: 实现过期角色分配的清理逻辑
+	return nil
+}
+
+// SyncRoleFromTemplate 从模板同步角色权限
+func (s *EnterpriseRoleService) SyncRoleFromTemplate(roleID int) error {
+	role, err := s.roleRepo.GetRoleByID(roleID, false)
+	if err != nil {
+		return err
+	}
+
+	if role.RoleType != "template" || role.TemplateID == nil {
+		return fmt.Errorf("只能同步基于模板创建的角色")
+	}
+
+	// TODO: 从模板获取最新权限并更新角色
+	// newRole, err := s.roleRepo.CreateRoleFromTemplate(role.EnterpriseID, *role.TemplateID, role.RoleCode, role.RoleName, nil)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// updates := map[string]interface{}{
+	// 	"permissions": newRole.Permissions,
+	// }
+
+	// return s.roleRepo.UpdateRole(roleID, updates)
+
+	return nil
+}

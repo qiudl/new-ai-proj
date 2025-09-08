@@ -26,7 +26,7 @@ import {
   CustomerOption,
 } from '../types/document';
 import { projectService } from '../services/projectService';
-import companyService from '../services/companyService';
+// import companyService from '../services/companyService'; // Removed - company service no longer exists
 
 const { Title, Text } = Typography;
 

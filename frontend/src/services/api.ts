@@ -3,6 +3,8 @@ import { NetworkErrorHandler, AppError, ErrorType, withRetry } from '../utils/er
 import { getEnvironmentConfig } from '../utils/environmentDetection';
 import TokenManager from '../utils/tokenManager';
 import TokenRefreshManager from '../utils/tokenRefreshManager';
+import { enhancedApi, EnhancedRequestOptions } from './enhancedApiClient';
+import { apiCache } from '../utils/apiCacheManager';
 
 // API Base Configuration  
 const envConfig = getEnvironmentConfig();
@@ -290,6 +292,51 @@ export const safeApiCall = async <T>(
     }
     return fallbackValue;
   }
+};
+
+// 增强API功能的便捷方法
+export const cachedGet = <T>(url: string, options?: EnhancedRequestOptions) =>
+  enhancedApi.get<T>(url, { cache: true, ...options });
+
+export const cachedGetWithTTL = <T>(url: string, ttlMinutes = 5, options?: EnhancedRequestOptions) =>
+  enhancedApi.get<T>(url, { 
+    cache: { ttl: ttlMinutes * 60 * 1000 }, 
+    ...options 
+  });
+
+export const priorityPost = <T>(url: string, data?: any, priority = 10, options?: EnhancedRequestOptions) =>
+  enhancedApi.post<T>(url, data, { priority, ...options });
+
+export const batchGet = async <T>(urls: string[], options?: EnhancedRequestOptions): Promise<T[]> => {
+  const requests = urls.map(url => 
+    enhancedApi.get<T>(url, { cache: true, ...options })
+  );
+  return Promise.all(requests);
+};
+
+export const invalidateCache = (pattern?: RegExp | string) => {
+  enhancedApi.clearCache(pattern);
+};
+
+export const getApiStats = () => {
+  return {
+    original: {
+      baseURL: API_BASE_URL,
+      timeout: api.defaults.timeout
+    },
+    enhanced: enhancedApi.getStatus()
+  };
+};
+
+// 缓存预热 - 可用于应用启动时预加载常用数据
+export const warmupCommonCache = async () => {
+  const commonRequests = [
+    { method: 'GET', url: '/api/v1/users/profile' },
+    { method: 'GET', url: '/api/v1/permissions' },
+    { method: 'GET', url: '/api/v1/permissions/roles' }
+  ];
+  
+  await enhancedApi.warmupCache(commonRequests);
 };
 
 export default api;

@@ -36,6 +36,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import PermissionMatrix from '../components/PermissionMatrix';
 import UserRoleAssignment from '../components/UserRoleAssignment';
+import PermissionTree from '../components/PermissionTree';
+import { getPermissionName, getPermissionDescription } from '../utils/permissionMapping';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -102,6 +104,11 @@ const RoleManagementPage: React.FC = () => {
     totalUsers: 0
   });
 
+  // 权限相关状态
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+
   // 加载角色数据
   const loadRoles = useCallback(async () => {
     setLoading(true);
@@ -113,21 +120,17 @@ const RoleManagementPage: React.FC = () => {
         }
       });
       
-      if (response.data.success) {
-        const roleData = response.data.data || [];
-        setRoles(roleData);
-        
-        // 计算统计数据
-        setStatistics({
-          totalRoles: roleData.length,
-          systemRoles: roleData.filter((role: Role) => role.is_system_role).length,
-          enterpriseRoles: roleData.filter((role: Role) => !role.is_system_role).length,
-          activeRoles: roleData.filter((role: Role) => role.is_active).length,
-          totalUsers: roleData.reduce((sum: number, role: Role) => sum + (role.user_count || 0), 0)
-        });
-      } else {
-        message.error('获取角色列表失败');
-      }
+      const roleData: Role[] = Array.isArray(response) ? response as Role[] : ((response as any)?.data || []);
+      setRoles(roleData);
+      
+      // 计算统计数据
+      setStatistics({
+        totalRoles: roleData.length,
+        systemRoles: roleData.filter((role: Role) => role.is_system_role).length,
+        enterpriseRoles: roleData.filter((role: Role) => !role.is_system_role).length,
+        activeRoles: roleData.filter((role: Role) => role.is_active).length,
+        totalUsers: roleData.reduce((sum: number, role: Role) => sum + (role.user_count || 0), 0)
+      });
     } catch (error: any) {
       console.error('Failed to load roles:', error);
       message.error('获取角色列表失败：' + (error.response?.data?.message || error.message));
@@ -197,50 +200,148 @@ const RoleManagementPage: React.FC = () => {
     }
   }, []);
 
-  // 处理角色提交（创建或更新）
-  const handleRoleSubmit = async (values: RoleFormData) => {
+  // 加载权限数据
+  const loadPermissions = useCallback(async () => {
+    setPermissionsLoading(true);
     try {
-      if (editingRole) {
-        // 更新角色
-        const response = await api.put(`/api/v1/roles/${editingRole.id}`, values);
-        if (response.data.success) {
-          message.success('角色更新成功');
-          loadRoles();
-          setModalVisible(false);
-          setEditingRole(null);
-          form.resetFields();
-        } else {
-          message.error('角色更新失败：' + (response.data.message || '未知错误'));
-        }
+      const response = await api.get('/api/v1/permissions', {
+        params: { include_inactive: false }
+      });
+      
+      const perms: Permission[] = Array.isArray(response) ? response as Permission[] : ((response as any)?.data || []);
+      if (perms && perms.length > 0) {
+        setPermissions(perms);
       } else {
-        // 创建角色
-        const response = await api.post('/api/v1/roles', values);
-        if (response.data.success) {
-          message.success('角色创建成功');
-          loadRoles();
-          setModalVisible(false);
-          form.resetFields();
-        } else {
-          message.error('角色创建失败：' + (response.data.message || '未知错误'));
-        }
+        // 使用模拟权限数据
+        const mockPermissions: Permission[] = [
+          {
+            id: 1,
+            permission_code: 'user.create',
+            permission_name: '创建用户',
+            permission_description: '允许创建新用户',
+            module: '用户管理',
+            resource: 'user',
+            action: 'create',
+            is_active: true
+          },
+          {
+            id: 2,
+            permission_code: 'user.read',
+            permission_name: '查看用户',
+            permission_description: '允许查看用户信息',
+            module: '用户管理',
+            resource: 'user',
+            action: 'read',
+            is_active: true
+          },
+          {
+            id: 3,
+            permission_code: 'role.create',
+            permission_name: '创建角色',
+            permission_description: '允许创建新角色',
+            module: '角色管理',
+            resource: 'role',
+            action: 'create',
+            is_active: true
+          },
+          {
+            id: 4,
+            permission_code: 'role.read',
+            permission_name: '查看角色',
+            permission_description: '允许查看角色信息',
+            module: '角色管理',
+            resource: 'role',
+            action: 'read',
+            is_active: true
+          }
+        ];
+        setPermissions(mockPermissions);
       }
     } catch (error: any) {
+      console.error('Failed to load permissions:', error);
+      message.error('获取权限列表失败');
+    } finally {
+      setPermissionsLoading(false);
+    }
+  }, []);
+
+  // 加载角色权限
+  const loadRolePermissions = useCallback(async (roleId: number) => {
+    try {
+      const response = await api.get(`/api/v1/roles/${roleId}/permissions`);
+      const rolePermissions: any[] = Array.isArray(response) ? response as any[] : ((response as any)?.data || []);
+      const permissionCodes = rolePermissions.map((p: any) => p.permission_code || p.permissionCode);
+      setSelectedPermissions(permissionCodes);
+    } catch (error) {
+      console.error('Failed to load role permissions:', error);
+      setSelectedPermissions([]);
+    }
+  }, []);
+
+  // 处理角色提交（创建或更新）
+  const handleRoleSubmit = async (values: RoleFormData) => {
+    const isEditing = !!editingRole;
+    const operationText = isEditing ? '更新' : '创建';
+    
+    try {
+      message.loading(`正在${operationText}角色...`, 0);
+      let roleId: number;
+      
+      if (editingRole) {
+        // 更新角色
+        await api.put(`/api/v1/roles/${editingRole.id}`, values);
+        roleId = editingRole.id;
+        message.destroy();
+        message.success(`角色\"${values.role_name}\"更新成功！`);
+      } else {
+        // 创建角色
+        const created: any = await api.post('/api/v1/roles', values);
+        roleId = created?.id || created?.data?.id;
+        message.destroy();
+        message.success(`角色\"${values.role_name}\"创建成功！`);
+      }
+
+      // 分配权限给角色
+      if (selectedPermissions.length > 0 && roleId) {
+        try {
+          const permissionIds = permissions
+            .filter(p => selectedPermissions.includes(p.permission_code))
+            .map(p => p.id);
+            
+          await api.post(`/api/v1/roles/${roleId}/permissions`, {
+            permission_ids: permissionIds
+          });
+          message.success(`已为角色分配 ${selectedPermissions.length} 个权限`);
+        } catch (error) {
+          console.error('Failed to assign permissions:', error);
+          message.warning(`角色${operationText}成功，但权限分配失败，请手动配置权限`);
+        }
+      }
+
+      // 清理状态
+      loadRoles();
+      setModalVisible(false);
+      setEditingRole(null);
+      setSelectedPermissions([]);
+      form.resetFields();
+      
+    } catch (error: any) {
+      message.destroy();
       console.error('Failed to save role:', error);
-      message.error('操作失败：' + (error.response?.data?.message || error.message));
+      message.error(`角色${operationText}失败：` + (error.response?.data?.message || error.message));
     }
   };
 
   // 处理删除角色
   const handleDeleteRole = async (role: Role) => {
     try {
-      const response = await api.delete(`/api/v1/roles/${role.id}`);
-      if (response.data.success) {
-        message.success('角色删除成功');
-        loadRoles();
-      } else {
-        message.error('角色删除失败：' + (response.data.message || '未知错误'));
-      }
+      message.loading(`正在删除角色\"${role.role_name}\"...`, 0);
+      await api.delete(`/api/v1/roles/${role.id}`);
+      message.destroy();
+      message.success(`角色\"${role.role_name}\"已成功删除`);
+      loadRoles();
     } catch (error: any) {
+      message.destroy();
       console.error('Failed to delete role:', error);
       message.error('删除失败：' + (error.response?.data?.message || error.message));
     }
@@ -249,15 +350,11 @@ const RoleManagementPage: React.FC = () => {
   // 处理角色状态切换
   const handleToggleRoleStatus = async (role: Role) => {
     try {
-      const response = await api.patch(`/api/v1/roles/${role.id}/status`, {
+      await api.patch(`/api/v1/roles/${role.id}/status`, {
         is_active: !role.is_active
       });
-      if (response.data.success) {
-        message.success(`角色${!role.is_active ? '启用' : '禁用'}成功`);
-        loadRoles();
-      } else {
-        message.error('状态更新失败：' + (response.data.message || '未知错误'));
-      }
+      message.success(`角色${!role.is_active ? '启用' : '禁用'}成功`);
+      loadRoles();
     } catch (error: any) {
       console.error('Failed to toggle role status:', error);
       message.error('状态更新失败：' + (error.response?.data?.message || error.message));
@@ -267,6 +364,7 @@ const RoleManagementPage: React.FC = () => {
   // 打开新建角色模态框
   const handleCreateRole = () => {
     setEditingRole(null);
+    setSelectedPermissions([]);
     setModalVisible(true);
     form.resetFields();
     form.setFieldsValue({
@@ -276,7 +374,7 @@ const RoleManagementPage: React.FC = () => {
   };
 
   // 打开编辑角色模态框
-  const handleEditRole = (role: Role) => {
+  const handleEditRole = async (role: Role) => {
     setEditingRole(role);
     setModalVisible(true);
     form.setFieldsValue({
@@ -286,12 +384,16 @@ const RoleManagementPage: React.FC = () => {
       is_system_role: role.is_system_role,
       is_active: role.is_active
     });
+    
+    // 加载角色的权限
+    await loadRolePermissions(role.id);
   };
 
   // 初始化数据
   useEffect(() => {
     loadRoles();
-  }, [loadRoles]);
+    loadPermissions();
+  }, [loadRoles, loadPermissions]);
 
   // 筛选后的角色列表
   const filteredRoles = roles.filter(role => {
@@ -409,11 +511,13 @@ const RoleManagementPage: React.FC = () => {
             </Button>
           </Popconfirm>
           <Popconfirm
-            title="确定要删除这个角色吗？此操作不可恢复！"
+            title={`确定要删除角色"${record.role_name}"吗？`}
+            description={`此操作将永久删除角色及其权限配置，且不可恢复。${record.user_count ? `当前有 ${record.user_count} 个用户使用此角色。` : ''}`}
             onConfirm={() => handleDeleteRole(record)}
-            okText="确定"
+            okText="确认删除"
             cancelText="取消"
             okType="danger"
+            icon={<DeleteOutlined style={{ color: 'red' }} />}
           >
             <Button 
               size="small" 
@@ -637,10 +741,11 @@ const RoleManagementPage: React.FC = () => {
         onCancel={() => {
           setModalVisible(false);
           setEditingRole(null);
+          setSelectedPermissions([]);
           form.resetFields();
         }}
         footer={null}
-        width={600}
+        width={800}
       >
         <Form
           form={form}
@@ -714,11 +819,36 @@ const RoleManagementPage: React.FC = () => {
             </Col>
           </Row>
 
+          {/* 权限选择区域 */}
+          <Form.Item label="角色权限">
+            <Card 
+              size="small" 
+              title="选择角色权限"
+              extra={
+                <Text type="secondary">
+                  已选择 {selectedPermissions.length} 个权限
+                </Text>
+              }
+            >
+              <PermissionTree
+                permissions={permissions}
+                selectedPermissions={selectedPermissions}
+                onSelectionChange={setSelectedPermissions}
+                loading={permissionsLoading}
+                height={300}
+                showSearch={true}
+                showStatistics={true}
+                onRefresh={loadPermissions}
+              />
+            </Card>
+          </Form.Item>
+
           <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
             <Space>
               <Button onClick={() => {
                 setModalVisible(false);
                 setEditingRole(null);
+                setSelectedPermissions([]);
                 form.resetFields();
               }}>
                 取消

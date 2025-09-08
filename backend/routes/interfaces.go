@@ -39,6 +39,13 @@ type ApplicationInterface interface {
 	GetEnhancedPermissionHandler() *handlers.EnhancedPermissionHandler
 	GetUnifiedPermissionHandler() *handlers.UnifiedPermissionHandler
 
+	// 权限审批处理器（已暂时禁用）
+	// GetPermissionApprovalHandler() *handlers.PermissionApprovalHandler
+	// GetPermissionApprovalGinHandler() *handlers.PermissionApprovalGinHandler
+
+	// 角色模板处理器
+	GetRoleTemplateHandler() *handlers.RoleTemplateHandler
+
 	// 项目相关处理器
 	GetProjectsHandler() gin.HandlerFunc
 	CreateProjectHandler() gin.HandlerFunc
@@ -125,6 +132,9 @@ type ApplicationInterface interface {
 	// 任务层级处理器
 	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	GetTaskTimelineHandler() gin.HandlerFunc
+
+	// 批量操作处理器
+	GetBulkOperationHandler() *handlers.BulkOperationHandler
 
 	// 回收站处理器
 	GetRecycledTasksHandler() gin.HandlerFunc

@@ -1,0 +1,380 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
+
+	"ai-project-backend/models"
+	"ai-project-backend/services"
+)
+
+type EnterprisePositionHandler struct {
+	positionService *services.EnterprisePositionService
+	roleService     *services.EnterpriseRoleService
+}
+
+func NewEnterprisePositionHandler(
+	positionService *services.EnterprisePositionService,
+	roleService *services.EnterpriseRoleService,
+) *EnterprisePositionHandler {
+	return &EnterprisePositionHandler{
+		positionService: positionService,
+		roleService:     roleService,
+	}
+}
+
+// CreatePosition 创建岗位
+func (h *EnterprisePositionHandler) CreatePosition(w http.ResponseWriter, r *http.Request) {
+	var req models.CreatePositionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID（从认证中间件获取）
+	userID := getUserIDFromContext(r.Context())
+
+	position, err := h.positionService.CreatePosition(&req, userID)
+	if err != nil {
+		http.Error(w, "创建岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位创建成功",
+		"data":    position,
+	})
+}
+
+// GetPositionByID 获取岗位详情
+func (h *EnterprisePositionHandler) GetPositionByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	positionID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的岗位ID", http.StatusBadRequest)
+		return
+	}
+
+	includeRelated := r.URL.Query().Get("include_related") == "true"
+
+	position, err := h.positionService.GetPositionByID(positionID, includeRelated)
+	if err != nil {
+		http.Error(w, "获取岗位失败: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    position,
+	})
+}
+
+// GetPositionsByEnterpriseID 获取企业岗位列表
+func (h *EnterprisePositionHandler) GetPositionsByEnterpriseID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	page := 1
+	pageSize := 20
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+
+	if ps := r.URL.Query().Get("page_size"); ps != "" {
+		if parsed, err := strconv.Atoi(ps); err == nil && parsed > 0 && parsed <= 100 {
+			pageSize = parsed
+		}
+	}
+
+	response, err := h.positionService.GetPositionsByEnterpriseID(enterpriseID, page, pageSize)
+	if err != nil {
+		http.Error(w, "获取岗位列表失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// UpdatePosition 更新岗位
+func (h *EnterprisePositionHandler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	positionID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的岗位ID", http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdatePositionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	position, err := h.positionService.UpdatePosition(positionID, &req, userID)
+	if err != nil {
+		http.Error(w, "更新岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位更新成功",
+		"data":    position,
+	})
+}
+
+// DeletePosition 删除岗位
+func (h *EnterprisePositionHandler) DeletePosition(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	positionID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的岗位ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.positionService.DeletePosition(positionID)
+	if err != nil {
+		http.Error(w, "删除岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位删除成功",
+	})
+}
+
+// GetPositionHierarchy 获取岗位层级结构
+func (h *EnterprisePositionHandler) GetPositionHierarchy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	hierarchy, err := h.positionService.GetPositionHierarchy(enterpriseID)
+	if err != nil {
+		http.Error(w, "获取岗位层级失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    hierarchy,
+	})
+}
+
+// AssignUserToPosition 分配用户到岗位
+func (h *EnterprisePositionHandler) AssignUserToPosition(w http.ResponseWriter, r *http.Request) {
+	var req models.AssignPositionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	assignment, err := h.positionService.AssignUserToPosition(&req, userID)
+	if err != nil {
+		http.Error(w, "分配岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位分配成功",
+		"data":    assignment,
+	})
+}
+
+// RemoveUserFromPosition 移除用户岗位
+func (h *EnterprisePositionHandler) RemoveUserFromPosition(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, err := strconv.Atoi(vars["user_id"])
+	if err != nil {
+		http.Error(w, "无效的用户ID", http.StatusBadRequest)
+		return
+	}
+
+	positionID, err := strconv.Atoi(vars["position_id"])
+	if err != nil {
+		http.Error(w, "无效的岗位ID", http.StatusBadRequest)
+		return
+	}
+
+	err = h.positionService.RemoveUserFromPosition(userID, positionID)
+	if err != nil {
+		http.Error(w, "移除用户岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "用户岗位移除成功",
+	})
+}
+
+// GetUserPositions 获取用户岗位
+func (h *EnterprisePositionHandler) GetUserPositions(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID, err := strconv.Atoi(vars["user_id"])
+	if err != nil {
+		http.Error(w, "无效的用户ID", http.StatusBadRequest)
+		return
+	}
+
+	positions, err := h.positionService.GetUserPositions(userID)
+	if err != nil {
+		http.Error(w, "获取用户岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    positions,
+	})
+}
+
+// GetPositionStatistics 获取岗位统计信息
+func (h *EnterprisePositionHandler) GetPositionStatistics(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	enterpriseID, err := strconv.Atoi(vars["enterprise_id"])
+	if err != nil {
+		http.Error(w, "无效的企业ID", http.StatusBadRequest)
+		return
+	}
+
+	stats, err := h.positionService.GetPositionStatistics(enterpriseID)
+	if err != nil {
+		http.Error(w, "获取岗位统计失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    stats,
+	})
+}
+
+// ClonePosition 克隆岗位
+func (h *EnterprisePositionHandler) ClonePosition(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	sourceID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "无效的岗位ID", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		NewCode string `json:"new_code" validate:"required,max=50"`
+		NewName string `json:"new_name" validate:"required,max=100"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	position, err := h.positionService.ClonePosition(sourceID, req.NewCode, req.NewName, userID)
+	if err != nil {
+		http.Error(w, "克隆岗位失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位克隆成功",
+		"data":    position,
+	})
+}
+
+// BatchUpdatePositionStatus 批量更新岗位状态
+func (h *EnterprisePositionHandler) BatchUpdatePositionStatus(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		PositionIDs []int  `json:"position_ids" validate:"required,min=1"`
+		Status      string `json:"status" validate:"required,oneof=active inactive frozen"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求数据: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 验证请求数据
+	if err := validateStruct(&req); err != nil {
+		http.Error(w, "数据验证失败: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// 获取当前用户ID
+	userID := getUserIDFromContext(r.Context())
+
+	err := h.positionService.BatchUpdatePositionStatus(req.PositionIDs, req.Status, userID)
+	if err != nil {
+		http.Error(w, "批量更新岗位状态失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "岗位状态更新成功",
+	})
+}

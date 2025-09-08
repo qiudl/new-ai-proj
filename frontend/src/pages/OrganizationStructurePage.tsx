@@ -31,7 +31,6 @@ import {
 } from '@ant-design/icons';
 import organizationService, { Department, Employee, CreateDepartmentRequest, UpdateDepartmentRequest } from '../services/organizationService';
 import { ensureAuthToken } from '../utils/devAuth';
-import CompanyInfoCard from '../components/CompanyInfoCard';
 import { getCurrentUser, shouldShowCompanyInfo } from '../utils/userUtils';
 
 const { Title, Text } = Typography;
@@ -441,17 +440,6 @@ const OrganizationStructurePage: React.FC = () => {
       </Row>
       
       {/* 企业信息卡片 - 仅对企业用户显示 */}
-      {currentUser && shouldShowCompanyInfo(currentUser) && (
-        <Row style={{ marginBottom: 24 }}>
-          <Col span={24}>
-            <CompanyInfoCard 
-              user={currentUser} 
-              size="small"
-              style={{ backgroundColor: '#f6f8fa' }}
-            />
-          </Col>
-        </Row>
-      )}
       
       {/* 统计信息 */}
       <Row gutter={16} style={{ marginBottom: 24 }}>

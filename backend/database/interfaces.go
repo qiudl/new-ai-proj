@@ -441,6 +441,70 @@ type DocumentVersionRepository interface {
 
 // DocumentRegistryRepository disabled - conflicting models
 
+// NOTE: Permission approval repository is temporarily disabled in development builds
+// to allow the core task/timer backend to compile and run without the unfinished module.
+// If you need approval features, re-enable this interface and related methods.
+/*
+// PermissionApprovalRepository defines the interface for permission approval operations
+ type PermissionApprovalRepository interface {
+	// Approval request operations
+	CreateApprovalRequest(ctx context.Context, request *models.PermissionApprovalRequest) (*models.PermissionApprovalRequest, error)
+	GetApprovalRequestByID(ctx context.Context, id int) (*models.PermissionApprovalRequest, error)
+	GetApprovalRequestByRequestID(ctx context.Context, requestID string) (*models.PermissionApprovalRequest, error)
+	UpdateApprovalRequest(ctx context.Context, request *models.PermissionApprovalRequest) error
+	ListApprovalRequests(ctx context.Context, filter *models.ApprovalRequestFilter) ([]*models.PermissionApprovalRequest, int, error)
+	DeleteApprovalRequest(ctx context.Context, id int) error
+
+	// Approval step operations
+	CreateApprovalStep(ctx context.Context, step *models.PermissionApprovalStep) (*models.PermissionApprovalStep, error)
+	GetApprovalStepByID(ctx context.Context, id int) (*models.PermissionApprovalStep, error)
+	GetApprovalStepsByRequestID(ctx context.Context, requestID int) ([]*models.PermissionApprovalStep, error)
+	UpdateApprovalStep(ctx context.Context, step *models.PermissionApprovalStep) error
+	DeleteApprovalStep(ctx context.Context, id int) error
+
+	// Approval workflow operations
+	CreateApprovalWorkflow(ctx context.Context, workflow *models.ApprovalWorkflow) (*models.ApprovalWorkflow, error)
+	GetApprovalWorkflowByID(ctx context.Context, id int) (*models.ApprovalWorkflow, error)
+	ListApprovalWorkflows(ctx context.Context, filter *models.WorkflowFilter) ([]*models.ApprovalWorkflow, error)
+	FindMatchingWorkflows(ctx context.Context, permissionCode, resourceType string, priority models.ApprovalPriority) ([]*models.ApprovalWorkflow, error)
+	UpdateApprovalWorkflow(ctx context.Context, workflow *models.ApprovalWorkflow) error
+	DeleteApprovalWorkflow(ctx context.Context, id int) error
+
+	// Approval delegation operations
+	CreateDelegation(ctx context.Context, delegation *models.ApprovalDelegation) (*models.ApprovalDelegation, error)
+	GetActiveDelegations(ctx context.Context, delegatorID int) ([]*models.ApprovalDelegation, error)
+	GetDelegationsByApprover(ctx context.Context, approverID int) ([]*models.ApprovalDelegation, error)
+	UpdateDelegation(ctx context.Context, delegation *models.ApprovalDelegation) error
+	EndDelegation(ctx context.Context, id int) error
+
+	// Approval escalation operations
+	CreateEscalation(ctx context.Context, escalation *models.ApprovalEscalation) (*models.ApprovalEscalation, error)
+	GetEscalationsByStep(ctx context.Context, stepID int) ([]*models.ApprovalEscalation, error)
+	UpdateEscalation(ctx context.Context, escalation *models.ApprovalEscalation) error
+
+	// Approval notification operations
+	CreateNotification(ctx context.Context, notification *models.ApprovalNotification) (*models.ApprovalNotification, error)
+	GetPendingNotifications(ctx context.Context) ([]*models.ApprovalNotification, error)
+	GetNotificationsByUser(ctx context.Context, userID int, limit, offset int) ([]*models.ApprovalNotification, int, error)
+	MarkNotificationAsSent(ctx context.Context, id int) error
+	MarkNotificationAsRead(ctx context.Context, id int, userID int) error
+
+	// Approval audit log operations
+	CreateAuditLog(ctx context.Context, log *models.ApprovalAuditLog) error
+	GetAuditLogsByRequest(ctx context.Context, requestID int, limit, offset int) ([]*models.ApprovalAuditLog, int, error)
+	GetAuditLogsByUser(ctx context.Context, userID int, limit, offset int) ([]*models.ApprovalAuditLog, int, error)
+
+	// Statistics and reporting
+	GetApprovalStats(ctx context.Context, filter *models.ApprovalStatsFilter) (*models.ApprovalStats, error)
+	GetUserApprovalWorkload(ctx context.Context, userID int) (*models.UserApprovalWorkload, error)
+	GetOverdueApprovals(ctx context.Context, threshold time.Duration) ([]*models.PermissionApprovalRequest, error)
+
+	// Bulk operations
+	BulkUpdateApprovalSteps(ctx context.Context, updates []models.ApprovalStepUpdate) error
+	BulkCreateNotifications(ctx context.Context, notifications []*models.ApprovalNotification) error
+ }
+*/
+
 // TimerRepository defines the interface for timer operations
 type TimerRepository interface {
 	// Time log operations
@@ -500,6 +564,7 @@ type DB interface {
 	Companies() CompanyRepository      // New enterprise customer model
 	Enterprises() EnterpriseRepository // Pure enterprise system
 	Permissions() PermissionRepository // Enterprise permission management
+	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled
 	System() SystemRepository
 	Audit() AuditRepository
 	APIKeys() APIKeyRepository // API key management
@@ -535,6 +600,7 @@ type Tx interface {
 	Companies() CompanyRepository
 	Enterprises() EnterpriseRepository
 	Permissions() PermissionRepository
+	// PermissionApprovals() PermissionApprovalRepository // Temporarily disabled
 	Audit() AuditRepository
 	APIKeys() APIKeyRepository
 	Documents() DocumentRepository

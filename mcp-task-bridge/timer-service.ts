@@ -13,23 +13,29 @@ export class TimerService extends BaseClient {
         title: description || `计时器-任务${taskId}`
       };
       if (description) {
+        // 将描述作为上下文来源，后端会根据需要回退为默认上下文
         payload.context = description;
       }
 
       const response = await this.makeRequest<{
-        success: boolean;
-        timer_id: number;
-        timer_type: string;
-        message: string;
-        started_at: string;
-        data: any;
+        success?: boolean; // 后端统一计时接口可能不返回 success 字段
+        timer_id?: number;
+        timer_type?: string;
+        message?: string;
+        started_at?: string;
+        data?: any;
       }>('POST', '/user/timer/start', payload);
 
-      if (response.success && response.data) {
+      // 兼容后端统一计时器返回格式：顶层即为结果字段，不一定包含 success/data 嵌套
+      const timerId = (response as any)?.timer_id;
+      const startedAt = (response as any)?.started_at;
+      const ok = (response as any)?.success === undefined ? (timerId !== undefined) : !!(response as any)?.success;
+
+      if (ok && timerId !== undefined) {
         const timerData: TimerData = {
-          id: response.data.timer_id,
+          id: timerId,
           task_id: taskId,
-          started_at: response.data.started_at,
+          started_at: startedAt || new Date().toISOString(),
           description: description
         };
 
@@ -37,16 +43,15 @@ export class TimerService extends BaseClient {
           success: true,
           data: timerData,
           task_id: taskId,
-          task_title: response.data.data?.task_title,
-          timer_id: response.data.timer_id,
-          started_at: response.data.started_at,
-          description: description || response.data.data?.description,
-          message: `⏱️ 任务 "${response.data.data?.task_title || taskId}" 开始计时`
+          timer_id: timerId,
+          started_at: startedAt,
+          description: description,
+          message: (response as any)?.message || `⏱️ 任务 "${taskId}" 开始计时`
         };
       } else {
         return {
           success: false,
-          error: response.error || '开始计时失败'
+          error: (response as any)?.error || '开始计时失败'
         } as ApiResponse<TimerData>;
       }
     } catch (error: any) {
@@ -116,51 +121,87 @@ export class TimerService extends BaseClient {
     }
   }
 
-  // 获取当前计时状态
+  // 获取当前计时状态（兼容多计时器改造后的返回）
   async getCurrentTimer(): Promise<ApiResponse<{ active_timers: TimerData[] }>> {
     try {
-      const response = await this.makeRequest<{
-        active_timers: Array<{
-          timer_id: number;
-          task_id: number;
-          task_title: string;
-          started_at: string;
-          duration_seconds: number;
-          duration_formatted: string;
-          description?: string;
-        }>;
-        message: string;
-      }>('GET', '/user/timer/current');
+      // 统一计时接口返回的是最近一个活动计时器（running/paused），不带 success 包装
+      const resp = await this.makeRequest<any>('GET', '/user/timer/current');
 
-      if (response.success && response.data) {
-        const activeTimers: TimerData[] = response.data.active_timers.map(timer => ({
+      // 如果后端直接返回计时器对象（无 success 字段）
+      if (resp && (resp as any).id !== undefined) {
+        const t = resp as any;
+        const active: TimerData = {
+          id: t.id,
+          task_id: t.target_id || 0,
+          started_at: t.start_time,
+          description: t.description,
+          duration_seconds: t.elapsed_seconds
+        };
+        return {
+          success: true,
+          data: { active_timers: [active] },
+          active_count: 1,
+          timers: [t],
+          message: '⏰ 存在一个活动计时器'
+        };
+      }
+
+      // 若按旧格式返回（带 success/data/active_timers）
+      if ((resp as any)?.success && (resp as any)?.data?.active_timers) {
+        const activeTimers: TimerData[] = (resp as any).data.active_timers.map((timer: any) => ({
           id: timer.timer_id,
           task_id: timer.task_id,
           started_at: timer.started_at,
           duration_seconds: timer.duration_seconds,
           description: timer.description
         }));
-
         return {
           success: true,
           data: { active_timers: activeTimers },
           active_count: activeTimers.length,
-          timers: response.data.active_timers, // 保留原始数据格式
-          message: activeTimers.length > 0 
-            ? `⏰ 当前有 ${activeTimers.length} 个活跃计时器`
-            : '📝 当前无活跃计时器'
+          timers: (resp as any).data.active_timers,
+          message: activeTimers.length > 0 ? `⏰ 当前有 ${activeTimers.length} 个活跃计时器` : '📝 当前无活跃计时器'
         };
-      } else {
-        return {
-          success: false,
-          error: response.error || '获取当前计时状态失败'
-        } as ApiResponse<{ active_timers: TimerData[] }>;
       }
+
+      return { success: true, data: { active_timers: [] }, active_count: 0, timers: [], message: '📝 当前无活跃计时器' };
     } catch (error: any) {
       return {
         success: false,
         error: `获取当前计时状态失败: ${error.message || error}`
       };
+    }
+  }
+
+  // 获取所有活跃计时器（running/paused）
+  async getActiveTimers(): Promise<ApiResponse<{ active_timers: TimerData[] }>> {
+    try {
+      const resp = await this.makeRequest<any>('GET', '/user/timer/active');
+      const timers = (resp as any)?.timers || [];
+      if (Array.isArray(timers)) {
+        const mapped: TimerData[] = timers.map((t: any) => ({
+          id: t.id,
+          task_id: t.target_id || 0,
+          started_at: t.start_time,
+          description: t.description,
+          duration_seconds: t.elapsed_seconds
+        }));
+        return {
+          success: true,
+          data: { active_timers: mapped },
+          active_count: mapped.length,
+          timers,
+          message: mapped.length > 0 ? `⏰ 当前有 ${mapped.length} 个活跃计时器` : '📝 当前无活跃计时器'
+        };
+      }
+      // 兼容老格式
+      if ((resp as any)?.success && (resp as any)?.data?.active_timers) {
+        const activeTimers = (resp as any).data.active_timers as TimerData[];
+        return { success: true, data: { active_timers: activeTimers }, active_count: activeTimers.length, timers: activeTimers } as any;
+      }
+      return { success: true, data: { active_timers: [] }, active_count: 0, timers: [], message: '📝 当前无活跃计时器' };
+    } catch (error: any) {
+      return { success: false, error: `获取活跃计时器失败: ${error.message || error}` };
     }
   }
 

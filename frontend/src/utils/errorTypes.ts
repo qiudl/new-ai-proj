@@ -86,26 +86,228 @@ export class ValidationHelper {
   }
 }
 
-// Minimal withRetry implementation
+// Enhanced retry mechanism with backoff and custom conditions
+export interface RetryOptions {
+  maxRetries?: number;
+  delay?: number;
+  backoff?: boolean;
+  maxDelay?: number;
+  retryCondition?: (error: any) => boolean;
+  onRetry?: (error: any, attempt: number) => void;
+}
+
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  maxRetries: number = 3,
+  maxRetriesOrOptions: number | RetryOptions = 3,
   delay: number = 1000
 ): Promise<T> {
+  // Handle backward compatibility
+  const options: RetryOptions = typeof maxRetriesOrOptions === 'number' 
+    ? { maxRetries: maxRetriesOrOptions, delay }
+    : { delay, ...maxRetriesOrOptions };
+
+  const {
+    maxRetries = 3,
+    delay: initialDelay = 1000,
+    backoff = true,
+    maxDelay = 10000,
+    retryCondition = defaultRetryCondition,
+    onRetry
+  } = options;
+
   let lastError: any;
+  let currentDelay = initialDelay;
   
-  for (let i = 0; i <= maxRetries; i++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await operation();
     } catch (error) {
       lastError = error;
-      if (i < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delay));
+      
+      // Don't retry on the last attempt or if retry condition fails
+      if (attempt === maxRetries || !retryCondition(error)) {
+        break;
+      }
+      
+      // Call retry callback if provided
+      if (onRetry) {
+        onRetry(error, attempt + 1);
+      }
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, currentDelay));
+      
+      // Apply exponential backoff
+      if (backoff) {
+        currentDelay = Math.min(currentDelay * 2, maxDelay);
       }
     }
   }
   
   throw lastError;
+}
+
+// Default retry condition - only retry on network errors and 5xx status codes
+function defaultRetryCondition(error: any): boolean {
+  // Always retry network errors
+  if (!error.response) {
+    return true;
+  }
+  
+  // Retry on server errors (5xx) but not client errors (4xx)
+  const status = error.response?.status;
+  if (status >= 500 && status < 600) {
+    return true;
+  }
+  
+  // Don't retry authentication errors or bad requests
+  if (status === 401 || status === 400 || status === 403 || status === 404) {
+    return false;
+  }
+  
+  // Retry on rate limiting
+  if (status === 429) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Circuit breaker pattern implementation
+export class CircuitBreaker {
+  private failureCount = 0;
+  private nextAttempt = Date.now();
+  private state: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED';
+  
+  constructor(
+    private failureThreshold: number = 5,
+    private recoveryTimeout: number = 60000,
+    private monitoringPeriod: number = 120000
+  ) {}
+  
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.state === 'OPEN') {
+      if (Date.now() < this.nextAttempt) {
+        throw new AppError(
+          'Circuit breaker is OPEN - service temporarily unavailable',
+          ErrorType.SYSTEM
+        );
+      }
+      
+      // Try to recover
+      this.state = 'HALF_OPEN';
+    }
+    
+    try {
+      const result = await operation();
+      
+      // Success - reset circuit breaker
+      if (this.state === 'HALF_OPEN') {
+        this.state = 'CLOSED';
+        this.failureCount = 0;
+      }
+      
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      throw error;
+    }
+  }
+  
+  private recordFailure(): void {
+    this.failureCount++;
+    
+    if (this.failureCount >= this.failureThreshold) {
+      this.state = 'OPEN';
+      this.nextAttempt = Date.now() + this.recoveryTimeout;
+    }
+  }
+  
+  getState(): string {
+    return this.state;
+  }
+  
+  getStats(): any {
+    return {
+      state: this.state,
+      failureCount: this.failureCount,
+      nextAttempt: this.nextAttempt,
+      failureThreshold: this.failureThreshold
+    };
+  }
+  
+  reset(): void {
+    this.state = 'CLOSED';
+    this.failureCount = 0;
+    this.nextAttempt = Date.now();
+  }
+}
+
+// Global circuit breakers for different services
+const circuitBreakers = new Map<string, CircuitBreaker>();
+
+export function getCircuitBreaker(serviceName: string): CircuitBreaker {
+  if (!circuitBreakers.has(serviceName)) {
+    circuitBreakers.set(serviceName, new CircuitBreaker());
+  }
+  return circuitBreakers.get(serviceName)!;
+}
+
+// Rate limiter implementation
+export class RateLimiter {
+  private tokens: number;
+  private lastRefill: number;
+  
+  constructor(
+    private maxTokens: number = 100,
+    private refillRate: number = 10, // tokens per second
+    private interval: number = 1000 // milliseconds
+  ) {
+    this.tokens = maxTokens;
+    this.lastRefill = Date.now();
+  }
+  
+  async acquire(tokens: number = 1): Promise<void> {
+    this.refill();
+    
+    if (this.tokens >= tokens) {
+      this.tokens -= tokens;
+      return;
+    }
+    
+    // Calculate wait time
+    const deficit = tokens - this.tokens;
+    const waitTime = (deficit / this.refillRate) * this.interval;
+    
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    
+    this.refill();
+    this.tokens -= tokens;
+  }
+  
+  private refill(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    const tokensToAdd = Math.floor((elapsed / this.interval) * this.refillRate);
+    
+    this.tokens = Math.min(this.maxTokens, this.tokens + tokensToAdd);
+    this.lastRefill = now;
+  }
+  
+  getAvailableTokens(): number {
+    this.refill();
+    return this.tokens;
+  }
+}
+
+// Global rate limiters
+const rateLimiters = new Map<string, RateLimiter>();
+
+export function getRateLimiter(serviceName: string): RateLimiter {
+  if (!rateLimiters.has(serviceName)) {
+    rateLimiters.set(serviceName, new RateLimiter());
+  }
+  return rateLimiters.get(serviceName)!;
 }
 
 // Progress feedback interface and implementation

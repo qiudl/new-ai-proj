@@ -23,15 +23,18 @@ const EnhancedPermissionManagementPage: React.FC = () => {
     try {
       setLoading(true);
       const [roleTemplatesData, permissionTemplatesData] = await Promise.all([
-        enhancedPermissionService.getRoleTemplates(),
-        enhancedPermissionService.getPermissionTemplates(),
+        enhancedPermissionService.getRoleTemplates().catch(() => []),
+        enhancedPermissionService.getPermissionTemplates().catch(() => []),
       ]);
       
-      setRoleTemplates(roleTemplatesData);
-      setPermissionTemplates(permissionTemplatesData);
+      setRoleTemplates(Array.isArray(roleTemplatesData) ? roleTemplatesData : []);
+      setPermissionTemplates(Array.isArray(permissionTemplatesData) ? permissionTemplatesData : []);
     } catch (error) {
       console.error('Failed to load initial data:', error);
       message.error('加载数据失败');
+      // 兜底
+      setRoleTemplates([]);
+      setPermissionTemplates([]);
     } finally {
       setLoading(false);
     }
@@ -59,7 +62,7 @@ const EnhancedPermissionManagementPage: React.FC = () => {
             </span>
           </Breadcrumb.Item>
           <Breadcrumb.Item>
-            <span onClick={() => navigate('/system')} style={{ cursor: 'pointer' }}>
+            <span onClick={() => navigate('/admin/permissions')} style={{ cursor: 'pointer' }}>
               系统管理
             </span>
           </Breadcrumb.Item>
@@ -111,11 +114,11 @@ const EnhancedPermissionManagementPage: React.FC = () => {
             <div style={{ padding: '16px' }}>
               <h3>内置角色模板</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px', marginTop: '16px' }}>
-                {roleTemplates.map(template => (
+                {(roleTemplates || []).map(template => (
                   <Card
-                    key={template.id}
+                    key={template?.id}
                     size="small"
-                    title={template.name}
+                    title={template?.name || '模板'}
                     extra={
                       <span style={{ 
                         padding: '2px 8px', 

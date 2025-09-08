@@ -495,6 +495,10 @@ export const MCP_COMMAND_PERMISSIONS: Record<string, {
     permission: 'timer.read',
     description: '获取当前计时'
   },
+  'get_active_timers': {
+    permission: 'timer.read',
+    description: '获取活跃计时列表'
+  },
 
   // 高级功能
   'start_task_with_timer': {

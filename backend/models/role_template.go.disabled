@@ -1,0 +1,391 @@
+package models
+
+import (
+	"time"
+)
+
+// RoleTemplate represents a reusable role template with predefined permissions and configurations
+type RoleTemplate struct {
+	ID                  int          `json:"id" db:"id"`
+	TemplateCode        string       `json:"template_code" db:"template_code" validate:"required,min=1,max=50"`
+	TemplateName        string       `json:"template_name" db:"template_name" validate:"required,min=1,max=100"`
+	TemplateDescription *string      `json:"template_description" db:"template_description"`
+	Category            string       `json:"category" db:"category" validate:"required"` // "system", "business", "custom"
+	Industry            *string      `json:"industry" db:"industry"`                     // Industry-specific templates
+	Department          *string      `json:"department" db:"department"`                // Department-specific templates
+	Level               int          `json:"level" db:"level"`                          // Hierarchy level (1=highest)
+	ParentTemplateID    *int         `json:"parent_template_id" db:"parent_template_id"`
+	IsSystemTemplate    bool         `json:"is_system_template" db:"is_system_template"`
+	IsActive            bool         `json:"is_active" db:"is_active"`
+	Configuration       CustomFields `json:"configuration" db:"configuration"` // Template-specific config
+	Metadata            CustomFields `json:"metadata" db:"metadata"`           // Additional metadata
+	Tags                []string     `json:"tags" db:"-"`                      // For filtering and search
+	Version             int          `json:"version" db:"version"`             // Version control
+	CreatedBy           *int         `json:"created_by" db:"created_by"`
+	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at" db:"updated_at"`
+}
+
+// RoleTemplatePermission represents the association between templates and permissions
+type RoleTemplatePermission struct {
+	ID           int       `json:"id" db:"id"`
+	TemplateID   int       `json:"template_id" db:"template_id"`
+	PermissionID int       `json:"permission_id" db:"permission_id"`
+	IsRequired   bool      `json:"is_required" db:"is_required"`     // Must be granted
+	IsDefault    bool      `json:"is_default" db:"is_default"`       // Granted by default
+	Priority     int       `json:"priority" db:"priority"`           // Permission priority
+	Conditions   JSONField `json:"conditions" db:"conditions"`       // Conditional permission rules
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+}
+
+// RoleTemplateInheritance represents parent-child relationships between templates
+type RoleTemplateInheritance struct {
+	ID               int       `json:"id" db:"id"`
+	ParentTemplateID int       `json:"parent_template_id" db:"parent_template_id"`
+	ChildTemplateID  int       `json:"child_template_id" db:"child_template_id"`
+	InheritanceType  string    `json:"inheritance_type" db:"inheritance_type"` // "full", "partial", "override"
+	InheritedFields  JSONField `json:"inherited_fields" db:"inherited_fields"` // Which fields to inherit
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+}
+
+// RoleTemplateUsage tracks how templates are used to create roles
+type RoleTemplateUsage struct {
+	ID                int          `json:"id" db:"id"`
+	TemplateID        int          `json:"template_id" db:"template_id"`
+	RoleID            int          `json:"role_id" db:"role_id"`
+	UsageType         string       `json:"usage_type" db:"usage_type"` // "created", "updated", "applied"
+	Customizations    CustomFields `json:"customizations" db:"customizations"`
+	AppliedBy         *int         `json:"applied_by" db:"applied_by"`
+	AppliedAt         time.Time    `json:"applied_at" db:"applied_at"`
+	IsCurrentTemplate bool         `json:"is_current_template" db:"is_current_template"`
+}
+
+// RoleTemplateTag represents tags for categorizing and filtering templates
+type RoleTemplateTag struct {
+	ID          int       `json:"id" db:"id"`
+	TemplateID  int       `json:"template_id" db:"template_id"`
+	TagName     string    `json:"tag_name" db:"tag_name" validate:"required,min=1,max=50"`
+	TagCategory string    `json:"tag_category" db:"tag_category"` // "industry", "department", "function", "custom"
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+// RoleTemplateVersion represents version history of templates
+type RoleTemplateVersion struct {
+	ID                  int          `json:"id" db:"id"`
+	TemplateID          int          `json:"template_id" db:"template_id"`
+	Version             int          `json:"version" db:"version"`
+	TemplateName        string       `json:"template_name" db:"template_name"`
+	TemplateDescription *string      `json:"template_description" db:"template_description"`
+	Configuration       CustomFields `json:"configuration" db:"configuration"`
+	PermissionSnapshot  JSONField    `json:"permission_snapshot" db:"permission_snapshot"`
+	ChangeLog           *string      `json:"change_log" db:"change_log"`
+	CreatedBy           *int         `json:"created_by" db:"created_by"`
+	CreatedAt           time.Time    `json:"created_at" db:"created_at"`
+}
+
+// Enums and constants
+
+type TemplateCategory string
+
+const (
+	TemplateCategorySystem   TemplateCategory = "system"
+	TemplateCategoryBusiness TemplateCategory = "business"
+	TemplateCategoryCustom   TemplateCategory = "custom"
+)
+
+type InheritanceType string
+
+const (
+	InheritanceTypeFull     InheritanceType = "full"
+	InheritanceTypePartial  InheritanceType = "partial"
+	InheritanceTypeOverride InheritanceType = "override"
+)
+
+type UsageType string
+
+const (
+	UsageTypeCreated UsageType = "created"
+	UsageTypeUpdated UsageType = "updated"
+	UsageTypeApplied UsageType = "applied"
+)
+
+// Request/Response models
+
+// CreateRoleTemplateRequest represents a request to create a role template
+type CreateRoleTemplateRequest struct {
+	TemplateCode        string                    `json:"template_code" validate:"required,min=1,max=50"`
+	TemplateName        string                    `json:"template_name" validate:"required,min=1,max=100"`
+	TemplateDescription *string                   `json:"template_description"`
+	Category            string                    `json:"category" validate:"required"`
+	Industry            *string                   `json:"industry"`
+	Department          *string                   `json:"department"`
+	Level               int                       `json:"level" validate:"min=1"`
+	ParentTemplateID    *int                      `json:"parent_template_id"`
+	Configuration       map[string]interface{}    `json:"configuration"`
+	Metadata            map[string]interface{}    `json:"metadata"`
+	Tags                []string                  `json:"tags"`
+	PermissionCodes     []string                  `json:"permission_codes"`
+	PermissionSettings  []TemplatePermissionItem  `json:"permission_settings"`
+	InheritanceSettings *TemplateInheritanceItem  `json:"inheritance_settings"`
+}
+
+// UpdateRoleTemplateRequest represents a request to update a role template
+type UpdateRoleTemplateRequest struct {
+	TemplateName        string                   `json:"template_name" validate:"required,min=1,max=100"`
+	TemplateDescription *string                  `json:"template_description"`
+	Category            string                   `json:"category" validate:"required"`
+	Industry            *string                  `json:"industry"`
+	Department          *string                  `json:"department"`
+	Level               int                      `json:"level" validate:"min=1"`
+	Configuration       map[string]interface{}   `json:"configuration"`
+	Metadata            map[string]interface{}   `json:"metadata"`
+	Tags                []string                 `json:"tags"`
+	PermissionCodes     []string                 `json:"permission_codes"`
+	PermissionSettings  []TemplatePermissionItem `json:"permission_settings"`
+	ChangeLog           *string                  `json:"change_log"`
+}
+
+// TemplatePermissionItem represents permission configuration in template
+type TemplatePermissionItem struct {
+	PermissionCode string                 `json:"permission_code" validate:"required"`
+	IsRequired     bool                   `json:"is_required"`
+	IsDefault      bool                   `json:"is_default"`
+	Priority       int                    `json:"priority"`
+	Conditions     map[string]interface{} `json:"conditions"`
+}
+
+// TemplateInheritanceItem represents inheritance configuration
+type TemplateInheritanceItem struct {
+	ParentTemplateID int                    `json:"parent_template_id" validate:"required"`
+	InheritanceType  string                 `json:"inheritance_type" validate:"required"`
+	InheritedFields  map[string]interface{} `json:"inherited_fields"`
+}
+
+// RoleTemplateResponse represents a role template with full details
+type RoleTemplateResponse struct {
+	ID                  int                      `json:"id"`
+	TemplateCode        string                   `json:"template_code"`
+	TemplateName        string                   `json:"template_name"`
+	TemplateDescription *string                  `json:"template_description"`
+	Category            string                   `json:"category"`
+	Industry            *string                  `json:"industry"`
+	Department          *string                  `json:"department"`
+	Level               int                      `json:"level"`
+	ParentTemplateID    *int                     `json:"parent_template_id"`
+	ParentTemplateName  *string                  `json:"parent_template_name"`
+	IsSystemTemplate    bool                     `json:"is_system_template"`
+	IsActive            bool                     `json:"is_active"`
+	Configuration       map[string]interface{}   `json:"configuration"`
+	Metadata            map[string]interface{}   `json:"metadata"`
+	Tags                []string                 `json:"tags"`
+	Version             int                      `json:"version"`
+	Permissions         []TemplatePermissionResponse `json:"permissions"`
+	Children            []RoleTemplateChildResponse  `json:"children"`
+	UsageCount          int                      `json:"usage_count"`
+	CreatedBy           *int                     `json:"created_by"`
+	CreatedByName       *string                  `json:"created_by_name"`
+	CreatedAt           time.Time                `json:"created_at"`
+	UpdatedAt           time.Time                `json:"updated_at"`
+}
+
+// TemplatePermissionResponse represents permission in template context
+type TemplatePermissionResponse struct {
+	PermissionID        int                    `json:"permission_id"`
+	PermissionCode      string                 `json:"permission_code"`
+	PermissionName      string                 `json:"permission_name"`
+	Module              string                 `json:"module"`
+	IsRequired          bool                   `json:"is_required"`
+	IsDefault           bool                   `json:"is_default"`
+	Priority            int                    `json:"priority"`
+	Conditions          map[string]interface{} `json:"conditions"`
+	IsFromParent        bool                   `json:"is_from_parent"`
+	ParentTemplateID    *int                   `json:"parent_template_id"`
+	ParentTemplateName  *string                `json:"parent_template_name"`
+}
+
+// RoleTemplateChildResponse represents child template in hierarchy
+type RoleTemplateChildResponse struct {
+	ID           int    `json:"id"`
+	TemplateCode string `json:"template_code"`
+	TemplateName string `json:"template_name"`
+	Level        int    `json:"level"`
+	UsageCount   int    `json:"usage_count"`
+}
+
+// ApplyTemplateRequest represents a request to apply template to role
+type ApplyTemplateRequest struct {
+	TemplateID     int                    `json:"template_id" validate:"required"`
+	RoleID         *int                   `json:"role_id"`         // If provided, update existing role
+	NewRoleCode    *string                `json:"new_role_code"`   // If creating new role
+	NewRoleName    *string                `json:"new_role_name"`   // If creating new role
+	Customizations map[string]interface{} `json:"customizations"`  // Custom settings
+	OverrideMode   string                 `json:"override_mode"`   // "merge", "replace", "append"
+}
+
+// ApplyTemplateResponse represents the result of applying a template
+type ApplyTemplateResponse struct {
+	Success          bool                   `json:"success"`
+	RoleID           int                    `json:"role_id"`
+	RoleCode         string                 `json:"role_code"`
+	RoleName         string                 `json:"role_name"`
+	TemplateApplied  RoleTemplateResponse   `json:"template_applied"`
+	PermissionsSet   []string               `json:"permissions_set"`
+	CustomizationsApplied map[string]interface{} `json:"customizations_applied"`
+	CreatedRole      bool                   `json:"created_role"`
+	Message          string                 `json:"message"`
+}
+
+// RoleTemplateListRequest represents parameters for listing templates
+type RoleTemplateListRequest struct {
+	Category     *string  `json:"category"`
+	Industry     *string  `json:"industry"`
+	Department   *string  `json:"department"`
+	Level        *int     `json:"level"`
+	Tags         []string `json:"tags"`
+	IsActive     *bool    `json:"is_active"`
+	IsSystem     *bool    `json:"is_system"`
+	Search       *string  `json:"search"`
+	ParentID     *int     `json:"parent_id"`
+	IncludeUsage bool     `json:"include_usage"`
+	SortBy       string   `json:"sort_by"`     // "name", "level", "usage", "created"
+	SortOrder    string   `json:"sort_order"`  // "asc", "desc"
+	Limit        int      `json:"limit"`
+	Offset       int      `json:"offset"`
+}
+
+// RoleTemplateListResponse represents the response for template listing
+type RoleTemplateListResponse struct {
+	Templates []RoleTemplateResponse `json:"templates"`
+	Total     int                    `json:"total"`
+	Page      int                    `json:"page"`
+	PageSize  int                    `json:"page_size"`
+	HasNext   bool                   `json:"has_next"`
+	Filters   map[string]interface{} `json:"filters"`
+}
+
+// Conversion methods
+
+// ToResponse converts RoleTemplate to RoleTemplateResponse
+func (rt *RoleTemplate) ToResponse() RoleTemplateResponse {
+	response := RoleTemplateResponse{
+		ID:                  rt.ID,
+		TemplateCode:        rt.TemplateCode,
+		TemplateName:        rt.TemplateName,
+		TemplateDescription: rt.TemplateDescription,
+		Category:            rt.Category,
+		Industry:            rt.Industry,
+		Department:          rt.Department,
+		Level:               rt.Level,
+		ParentTemplateID:    rt.ParentTemplateID,
+		IsSystemTemplate:    rt.IsSystemTemplate,
+		IsActive:            rt.IsActive,
+		Version:             rt.Version,
+		CreatedBy:           rt.CreatedBy,
+		CreatedAt:           rt.CreatedAt,
+		UpdatedAt:           rt.UpdatedAt,
+		Tags:                []string{},
+		Permissions:         []TemplatePermissionResponse{},
+		Children:            []RoleTemplateChildResponse{},
+	}
+
+	// Convert CustomFields to map[string]interface{}
+	if rt.Configuration != nil {
+		response.Configuration = map[string]interface{}(rt.Configuration)
+	} else {
+		response.Configuration = make(map[string]interface{})
+	}
+
+	if rt.Metadata != nil {
+		response.Metadata = map[string]interface{}(rt.Metadata)
+	} else {
+		response.Metadata = make(map[string]interface{})
+	}
+
+	return response
+}
+
+// Template validation methods
+
+// ValidateCategory validates template category
+func ValidateTemplateCategory(category string) bool {
+	switch TemplateCategory(category) {
+	case TemplateCategorySystem, TemplateCategoryBusiness, TemplateCategoryCustom:
+		return true
+	default:
+		return false
+	}
+}
+
+// ValidateInheritanceType validates inheritance type
+func ValidateInheritanceType(inheritanceType string) bool {
+	switch InheritanceType(inheritanceType) {
+	case InheritanceTypeFull, InheritanceTypePartial, InheritanceTypeOverride:
+		return true
+	default:
+		return false
+	}
+}
+
+// GetDefaultSystemTemplates returns predefined system role templates
+func GetDefaultSystemTemplates() []CreateRoleTemplateRequest {
+	return []CreateRoleTemplateRequest{
+		{
+			TemplateCode:        "admin_template",
+			TemplateName:        "管理员模板",
+			TemplateDescription: stringPtr("系统管理员角色模板，拥有完整的系统管理权限"),
+			Category:            "system",
+			Level:               1,
+			Tags:                []string{"admin", "system", "management"},
+			PermissionCodes: []string{
+				"system.users.manage", "system.roles.manage", "system.config.manage",
+				"company.manage", "project.manage", "task.manage", "document.manage",
+			},
+		},
+		{
+			TemplateCode:        "manager_template",
+			TemplateName:        "经理模板",
+			TemplateDescription: stringPtr("部门经理角色模板，负责团队和项目管理"),
+			Category:            "business",
+			Department:          stringPtr("management"),
+			Level:               2,
+			Tags:                []string{"manager", "team-lead", "business"},
+			PermissionCodes: []string{
+				"project.manage", "task.manage", "document.manage",
+				"team.manage", "report.view",
+			},
+		},
+		{
+			TemplateCode:        "employee_template",
+			TemplateName:        "员工模板",
+			TemplateDescription: stringPtr("普通员工角色模板，基础工作权限"),
+			Category:            "business",
+			Level:               3,
+			Tags:                []string{"employee", "basic", "user"},
+			PermissionCodes: []string{
+				"task.read", "task.update", "document.read", "document.create",
+				"profile.update",
+			},
+		},
+		{
+			TemplateCode:        "readonly_template",
+			TemplateName:        "只读模板",
+			TemplateDescription: stringPtr("只读访问模板，仅查看权限"),
+			Category:            "custom",
+			Level:               4,
+			Tags:                []string{"readonly", "guest", "limited"},
+			PermissionCodes: []string{
+				"project.read", "task.read", "document.read",
+			},
+		},
+	}
+}
+
+// Helper functions
+
+func stringPtr(s string) *string {
+	return &s
+}
+
+func intPtr(i int) *int {
+	return &i
+}

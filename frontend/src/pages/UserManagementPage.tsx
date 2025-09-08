@@ -54,7 +54,7 @@ import {
   validateUserRole 
 } from '../types/user';
 import { UserManagementService } from '../services/userManagementService';
-import CompanyService from '../services/companyService';
+// import CompanyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
 import EnterpriseSelector from '../components/EnterpriseSelector';
 import { Enterprise } from '../types/enterprise';

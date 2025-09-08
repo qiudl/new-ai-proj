@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ConfigProvider, Spin } from 'antd';
 import zhCN from 'antd/locale/zh_CN';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -16,7 +16,7 @@ import { setNavigateFunction } from './services/api';
 import { installPerformanceInterceptors, uninstallPerformanceInterceptors } from './utils/apiInterceptor';
 import { getCurrentPerformanceConfig, memoryMonitor } from './config/performance';
 import {
-  COMPANY_PERMISSIONS,
+  ENTERPRISE_PERMISSIONS,
   USER_PERMISSIONS,
   PERMISSION_PERMISSIONS,
   SYSTEM_PERMISSIONS,
@@ -53,13 +53,12 @@ const BulkImportPage = React.lazy(() => import('./pages/BulkImportPage'));
 const RecycleBinPage = React.lazy(() => import('./pages/RecycleBinPage'));
 const AuditLogPage = React.lazy(() => import('./pages/AuditLogPage'));
 const UserProfilePage = React.lazy(() => import('./pages/UserProfilePage'));
-const CompanyListPage = React.lazy(() => import('./pages/CompanyListPage'));
-const CompanyDetailPage = React.lazy(() => import('./pages/CompanyDetailPage'));
-const CompanyCreatePage = React.lazy(() => import('./pages/CompanyCreatePage'));
-const CompanyEditPage = React.lazy(() => import('./pages/CompanyEditPage'));
 const PermissionManagementPage = React.lazy(() => import('./pages/PermissionManagementPage'));
 const EnhancedPermissionManagementPage = React.lazy(() => import('./pages/EnhancedPermissionManagementPage'));
+const PermissionOverviewPage = React.lazy(() => import('./pages/PermissionOverviewPage'));
 const RoleManagementPage = React.lazy(() => import('./pages/RoleManagementPage'));
+const AdminRoleListPage = React.lazy(() => import('./pages/AdminRoleListPage'));
+const AdminRoleDetailPage = React.lazy(() => import('./pages/AdminRoleDetailPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
@@ -70,6 +69,10 @@ const APIKeyDetail = React.lazy(() => import('./components/APIKeyDetail'));
 const APIKeyEdit = React.lazy(() => import('./components/APIKeyEdit'));
 
 // Enterprise Organization Management Pages
+const EnterpriseManagementPage = React.lazy(() => import('./pages/EnterpriseManagementPage'));
+const EnterpriseDetailPage = React.lazy(() => import('./pages/EnterpriseDetailPage'));
+const EnterpriseEditPage = React.lazy(() => import('./pages/EnterpriseEditPage'));
+const EnterpriseCreatePage = React.lazy(() => import('./pages/EnterpriseCreatePage'));
 const OrganizationStructurePage = React.lazy(() => import('./pages/OrganizationStructurePage'));
 const PositionManagementPage = React.lazy(() => import('./pages/PositionManagementPage'));
 const EnterpriseRoleManagementPage = React.lazy(() => import('./pages/EnterpriseRoleManagementPage'));
@@ -92,6 +95,8 @@ const InsightsPage = React.lazy(() => import('./pages/InsightsPage'));
 const PermissionDemoPage = React.lazy(() => import('./pages/PermissionDemoPage'));
 const RefreshTestPage = React.lazy(() => import('./pages/RefreshTestPage'));
 // const WebSocketProgressTestPage = React.lazy(() => import('./pages/WebSocketProgressTestPage')); // DISABLED: WebSocket functionality
+const RoleTemplatesPage = React.lazy(() => import('./pages/RoleTemplatesPage'));
+const RoleTemplateDetailPage = React.lazy(() => import('./pages/RoleTemplateDetailPage'));
 
 // Loading component for Suspense
 const PageLoading = () => (
@@ -130,6 +135,13 @@ const AppContent: React.FC = () => {
       // 加载认证修复工具
       import('./utils/authFix').catch(error => {
         console.warn('Failed to load auth fix tool:', error);
+      });
+      // 加载API集成测试
+      import('./test/apiIntegrationTest').then(({ runAllApiTests }) => {
+        console.log('🔧 开发环境已加载API集成测试');
+        console.log('运行 window.apiTests.runAll() 测试所有API功能');
+      }).catch(error => {
+        console.warn('API测试加载失败:', error);
       });
     }
   }, [isLoginRoute]);
@@ -288,46 +300,75 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
-                {/* Enterprise customer management routes */}
-                <Route path="/companies" element={
-                  <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
-                    <CompanyListPage />
+                {/* Enterprise management routes */}
+                <Route path="/enterprises" element={
+                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.READ}>
+                    <EnterpriseManagementPage />
                   </PermissionRoute>
                 } />
 
-                <Route path="/companies/:id" element={
-                  <PermissionRoute permission={COMPANY_PERMISSIONS.READ}>
-                    <CompanyDetailPage />
+                <Route path="/enterprises/create" element={
+                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.CREATE}>
+                    <EnterpriseCreatePage />
                   </PermissionRoute>
                 } />
 
-                <Route path="/companies/create" element={
-                  <PermissionRoute permission={COMPANY_PERMISSIONS.CREATE}>
-                    <CompanyCreatePage />
+                <Route path="/enterprises/:id" element={
+                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.READ}>
+                    <EnterpriseDetailPage />
                   </PermissionRoute>
                 } />
 
-                <Route path="/companies/:id/edit" element={
-                  <PermissionRoute permission={COMPANY_PERMISSIONS.UPDATE}>
-                    <CompanyEditPage />
+                <Route path="/enterprises/:id/edit" element={
+                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.UPDATE}>
+                    <EnterpriseEditPage />
                   </PermissionRoute>
                 } />
+
+                {/* Enterprise customer management routes (legacy) */}
 
                 <Route path="/document-manager" element={<ModernDocumentManagerPage />} />
 
 
                 <Route path="/task-documents" element={<TaskDocumentListPage />} />
 
-                {/* Permission management routes */}
-                <Route path="/permissions" element={
+                {/* Admin routes - 系统管理 */}
+                <Route path="/admin/permissions" element={
                   <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                    <PermissionManagementPage />
+                    <PermissionOverviewPage />
                   </PermissionRoute>
                 } />
 
-                <Route path="/enhanced-permissions" element={
+                <Route path="/admin/roles" element={
                   <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
-                    <EnhancedPermissionManagementPage />
+                    <AdminRoleListPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/admin/roles/:id" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                    <AdminRoleDetailPage />
+                  </PermissionRoute>
+                } />
+
+                {/* 向后兼容的旧路由 - 重定向到新路由 */}
+                <Route path="/permissions" element={
+                  <Navigate to="/admin/permissions" replace />
+                } />
+
+                <Route path="/enhanced-permissions" element={
+                  <Navigate to="/admin/permissions" replace />
+                } />
+
+                <Route path="/admin/role-templates" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                    <RoleTemplatesPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/admin/role-templates/:id" element={
+                  <PermissionRoute permission={PERMISSION_PERMISSIONS.ADMIN}>
+                    <RoleTemplateDetailPage />
                   </PermissionRoute>
                 } />
 
@@ -400,7 +441,7 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
-                <Route path="/enterprise-users" element={
+                <Route path="/enterprises/:enterpriseId/users" element={
                   <PermissionRoute permission={ORGANIZATION_PERMISSIONS.USER_READ}>
                     <EnterpriseUserManagementPage />
                   </PermissionRoute>

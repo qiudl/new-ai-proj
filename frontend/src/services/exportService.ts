@@ -6,7 +6,6 @@ import dayjs from 'dayjs';
 import type { Dayjs } from 'dayjs';
 import { Task } from '../types/task';
 import { Project } from '../types/project';
-import { Company } from '../types/company';
 import { configurePDFForChinese, validatePDFChineseContent } from '../utils/pdfFontUtils';
 
 // 扩展jsPDF类型定义
@@ -22,7 +21,7 @@ export interface ExportData {
   selectedWeek: Dayjs;
   tasks: Task[];
   projects?: Project[];
-  customers?: Company[];
+  customers?: any[];
   stats: {
     totalTasks: number;
     completedTasks: number;

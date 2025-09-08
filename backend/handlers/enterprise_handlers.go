@@ -88,10 +88,23 @@ func (h *EnterpriseHandler) GetEnterprises(c *gin.Context) {
 		return
 	}
 
-	// Convert to response format
+	// Convert to response format with statistics
 	enterpriseResponses := make([]models.EnterpriseResponse, len(enterprises))
 	for i, enterprise := range enterprises {
-		enterpriseResponses[i] = enterprise.ToResponse()
+		response := enterprise.ToResponse()
+		
+		// Get user and department counts for each enterprise
+		userCount, departmentCount, err := h.db.Enterprises().GetEnterpriseStatistics(c.Request.Context(), enterprise.ID)
+		if err != nil {
+			h.logger.Printf("Warning: Failed to get statistics for enterprise %d: %v", enterprise.ID, err)
+			// Continue with zero counts instead of failing the entire request
+			userCount = 0
+			departmentCount = 0
+		}
+		
+		response.UserCount = userCount
+		response.DepartmentCount = departmentCount
+		enterpriseResponses[i] = response
 	}
 
 	// Create pagination metadata
@@ -169,7 +182,20 @@ func (h *EnterpriseHandler) GetEnterprise(c *gin.Context) {
 		return
 	}
 
-	response := models.NewSuccessResponse(enterprise.ToResponse(), "Enterprise retrieved successfully")
+	// Get statistics for the enterprise
+	enterpriseResponse := enterprise.ToResponse()
+	userCount, departmentCount, err := h.db.Enterprises().GetEnterpriseStatistics(c.Request.Context(), enterprise.ID)
+	if err != nil {
+		h.logger.Printf("Warning: Failed to get statistics for enterprise %d: %v", enterprise.ID, err)
+		// Continue with zero counts instead of failing the request
+		userCount = 0
+		departmentCount = 0
+	}
+	
+	enterpriseResponse.UserCount = userCount
+	enterpriseResponse.DepartmentCount = departmentCount
+
+	response := models.NewSuccessResponse(enterpriseResponse, "Enterprise retrieved successfully")
 	c.JSON(http.StatusOK, response)
 }
 

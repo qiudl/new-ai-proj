@@ -30,7 +30,7 @@ import PermissionTableActions from '../components/PermissionTableActions';
 import { 
   PROJECT_PERMISSIONS, 
   USER_PERMISSIONS, 
-  COMPANY_PERMISSIONS,
+  ENTERPRISE_PERMISSIONS,
   SYSTEM_PERMISSIONS
 } from '../constants/permissions';
 
@@ -306,12 +306,12 @@ const PermissionDemoPage: React.FC = () => {
 
           <PermissionButton
             icon={<UserOutlined />}
-            permissions={[USER_PERMISSIONS.CREATE, COMPANY_PERMISSIONS.CREATE]}
+            permissions={[USER_PERMISSIONS.CREATE, ENTERPRISE_PERMISSIONS.CREATE]}
             requireAll={false}
             fallbackMode="tooltip"
-            noPermissionTooltip="需要用户创建或公司创建权限"
+            noPermissionTooltip="需要用户创建或企业创建权限"
           >
-            创建用户/公司
+            创建用户/企业
           </PermissionButton>
 
           <PermissionButton
@@ -474,7 +474,7 @@ const PermissionDemoPage: React.FC = () => {
             </Tag>
           </Col>
           <Col span={6}>
-            <Text>公司管理: </Text>
+            <Text>企业管理: </Text>
             <Tag color={isCompanyAdmin ? 'green' : 'red'}>
               {isCompanyAdmin ? '允许' : '拒绝'}
             </Tag>

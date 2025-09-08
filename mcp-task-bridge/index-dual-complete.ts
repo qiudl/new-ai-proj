@@ -482,6 +482,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: 'get_active_timers',
+        description: '获取所有活跃计时器（running/paused）',
+        inputSchema: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      {
         name: 'create_sibling_task',
         description: '创建兄弟任务（与指定任务共享相同的父任务）',
         inputSchema: {
@@ -1247,6 +1255,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'get_current_timer':
         result = await taskServer.getCurrentTimer();
         break;
+      case 'get_active_timers':
+        result = await taskServer.getActiveTimers();
+        break;
       
       case 'create_sibling_task':
         result = await taskServer.createSiblingTask(
@@ -1411,6 +1422,16 @@ function createHttpServer() {
     }
   });
 
+  // 新增：获取所有活跃计时器
+  app.get('/api/get_active_timers', async (req, res) => {
+    try {
+      const result = await taskServer.getActiveTimers();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error?.message || String(error) });
+    }
+  });
+
   app.post('/api/create_task', async (req, res) => {
     try {
       const { title, projectId = 1 } = req.body;
@@ -1477,6 +1498,9 @@ function createHttpServer() {
 
 // 启动服务器
 async function main() {
+  // 启动内置HTTP服务，便于通过REST快速验证工具
+  try { createHttpServer(); } catch (e) { console.error('[MCP] 启动HTTP服务器失败:', (e as any)?.message || String(e)); }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error('[MCP] Task MCP Server 已启动');

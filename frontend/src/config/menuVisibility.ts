@@ -62,9 +62,9 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     userType: UserType.BOTH,
     description: '任务列表 - 所有用户，但数据隔离' 
   },
-  '/companies': { 
+  '/enterprises': { 
     userType: UserType.SYSTEM_USER,
-    description: '企业客户管理 - 仅系统用户' 
+    description: '企业管理 - 仅系统用户' 
   },
 
   // 批量导入 - 根据权限控制
@@ -102,10 +102,25 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
     requiredRole: ['admin'],
     description: '权限管理 - 仅系统管理员' 
   },
+  '/admin/permissions': { 
+    userType: UserType.SYSTEM_USER,
+    requiredRole: ['admin'],
+    description: '权限管理（新）- 仅系统管理员' 
+  },
   '/role-management': { 
     userType: UserType.SYSTEM_USER,
     requiredRole: ['admin'],
     description: '角色管理 - 仅系统管理员' 
+  },
+  '/admin/roles': { 
+    userType: UserType.SYSTEM_USER,
+    requiredRole: ['admin'],
+    description: '角色管理（新）- 仅系统管理员' 
+  },
+  '/admin/role-templates': {
+    userType: UserType.SYSTEM_USER,
+    requiredRole: ['admin'],
+    description: '角色模板（新）- 仅系统管理员'
   },
   '/ai-config': { 
     userType: UserType.SYSTEM_USER,

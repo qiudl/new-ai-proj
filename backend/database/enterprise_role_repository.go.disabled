@@ -1,0 +1,680 @@
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
+
+	"ai-project-backend/models"
+)
+
+type EnterpriseRoleRepository struct {
+	db *sqlx.DB
+}
+
+func NewEnterpriseRoleRepository(db *sqlx.DB) *EnterpriseRoleRepository {
+	return &EnterpriseRoleRepository{db: db}
+}
+
+// CreateRole 创建角色
+func (r *EnterpriseRoleRepository) CreateRole(role *models.EnterpriseRole) error {
+	query := `
+		INSERT INTO enterprise_roles (
+			enterprise_id, role_code, role_name, role_description, role_type,
+			template_id, permissions, role_level, parent_role_id, is_default,
+			auto_assign, max_users, created_by
+		) VALUES (
+			:enterprise_id, :role_code, :role_name, :role_description, :role_type,
+			:template_id, :permissions, :role_level, :parent_role_id, :is_default,
+			:auto_assign, :max_users, :created_by
+		) RETURNING id, created_at, updated_at`
+
+	rows, err := r.db.NamedQuery(query, role)
+	if err != nil {
+		return fmt.Errorf("创建角色失败: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&role.ID, &role.CreatedAt, &role.UpdatedAt)
+		if err != nil {
+			return fmt.Errorf("扫描创建结果失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetRoleByID 根据ID获取角色
+func (r *EnterpriseRoleRepository) GetRoleByID(id int, includeRelated bool) (*models.EnterpriseRole, error) {
+	query := `
+		SELECT er.*, 
+			   e.name as enterprise_name,
+			   rt.template_name as template_name,
+			   COUNT(eur.id) as user_count
+		FROM enterprise_roles er
+		LEFT JOIN enterprises e ON er.enterprise_id = e.id
+		LEFT JOIN role_templates rt ON er.template_id = rt.id
+		LEFT JOIN enterprise_user_roles eur ON er.id = eur.role_id AND eur.is_active = true
+		WHERE er.id = $1 AND er.deleted_at IS NULL
+		GROUP BY er.id, e.name, rt.template_name`
+
+	var role models.EnterpriseRole
+	var enterpriseName, templateName sql.NullString
+	var userCount int
+
+	err := r.db.QueryRow(query, id).Scan(
+		&role.ID, &role.EnterpriseID, &role.RoleCode, &role.RoleName,
+		&role.RoleDescription, &role.RoleType, &role.TemplateID, &role.Permissions,
+		&role.RoleLevel, &role.ParentRoleID, &role.IsDefault, &role.AutoAssign,
+		&role.MaxUsers, &role.IsActive, &role.CreatedBy, &role.UpdatedBy,
+		&role.CreatedAt, &role.UpdatedAt, &role.DeletedAt,
+		&enterpriseName, &templateName, &userCount,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("角色不存在")
+		}
+		return nil, fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	role.UserCount = userCount
+
+	// 填充关联数据
+	if enterpriseName.Valid {
+		role.Enterprise = &models.Enterprise{
+			ID:   role.EnterpriseID,
+			Name: enterpriseName.String,
+		}
+	}
+
+	if templateName.Valid && role.TemplateID != nil {
+		role.Template = &models.RoleTemplate{
+			ID:           *role.TemplateID,
+			TemplateName: templateName.String,
+		}
+	}
+
+	if includeRelated {
+		// 加载子角色
+		childRoles, err := r.GetChildRoles(id)
+		if err != nil {
+			return nil, fmt.Errorf("加载子角色失败: %w", err)
+		}
+		role.ChildRoles = childRoles
+
+		// 加载角色用户
+		users, err := r.GetRoleUsers(id)
+		if err != nil {
+			return nil, fmt.Errorf("加载角色用户失败: %w", err)
+		}
+		role.Users = users
+	}
+
+	return &role, nil
+}
+
+// GetRolesByEnterpriseID 获取企业所有角色
+func (r *EnterpriseRoleRepository) GetRolesByEnterpriseID(enterpriseID int, page, pageSize int) ([]models.EnterpriseRole, int, error) {
+	offset := (page - 1) * pageSize
+
+	// 获取总数
+	var total int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_roles 
+		WHERE enterprise_id = $1 AND deleted_at IS NULL`
+	
+	err := r.db.Get(&total, countQuery, enterpriseID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("查询角色总数失败: %w", err)
+	}
+
+	// 获取角色列表
+	query := `
+		SELECT er.*, 
+			   e.name as enterprise_name,
+			   rt.template_name as template_name,
+			   COUNT(eur.id) as user_count
+		FROM enterprise_roles er
+		LEFT JOIN enterprises e ON er.enterprise_id = e.id
+		LEFT JOIN role_templates rt ON er.template_id = rt.id
+		LEFT JOIN enterprise_user_roles eur ON er.id = eur.role_id AND eur.is_active = true
+		WHERE er.enterprise_id = $1 AND er.deleted_at IS NULL
+		GROUP BY er.id, e.name, rt.template_name
+		ORDER BY er.role_level, er.role_name
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.db.Query(query, enterpriseID, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("查询角色列表失败: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []models.EnterpriseRole
+	for rows.Next() {
+		var role models.EnterpriseRole
+		var enterpriseName, templateName sql.NullString
+		var userCount int
+
+		err = rows.Scan(
+			&role.ID, &role.EnterpriseID, &role.RoleCode, &role.RoleName,
+			&role.RoleDescription, &role.RoleType, &role.TemplateID, &role.Permissions,
+			&role.RoleLevel, &role.ParentRoleID, &role.IsDefault, &role.AutoAssign,
+			&role.MaxUsers, &role.IsActive, &role.CreatedBy, &role.UpdatedBy,
+			&role.CreatedAt, &role.UpdatedAt, &role.DeletedAt,
+			&enterpriseName, &templateName, &userCount,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("扫描角色数据失败: %w", err)
+		}
+
+		role.UserCount = userCount
+
+		// 填充关联数据
+		if enterpriseName.Valid {
+			role.Enterprise = &models.Enterprise{
+				ID:   role.EnterpriseID,
+				Name: enterpriseName.String,
+			}
+		}
+
+		if templateName.Valid && role.TemplateID != nil {
+			role.Template = &models.RoleTemplate{
+				ID:           *role.TemplateID,
+				TemplateName: templateName.String,
+			}
+		}
+
+		roles = append(roles, role)
+	}
+
+	return roles, total, nil
+}
+
+// UpdateRole 更新角色
+func (r *EnterpriseRoleRepository) UpdateRole(id int, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return fmt.Errorf("没有要更新的字段")
+	}
+
+	// 构建 SET 子句
+	setParts := make([]string, 0, len(updates))
+	args := make([]interface{}, 0, len(updates)+1)
+	argIndex := 1
+
+	for field, value := range updates {
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", field, argIndex))
+		args = append(args, value)
+		argIndex++
+	}
+
+	// 添加 updated_at
+	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	// 添加 ID 参数
+	args = append(args, id)
+
+	query := fmt.Sprintf(`
+		UPDATE enterprise_roles 
+		SET %s 
+		WHERE id = $%d AND deleted_at IS NULL`,
+		strings.Join(setParts, ", "),
+		argIndex)
+
+	result, err := r.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("更新角色失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取更新结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("角色不存在或已删除")
+	}
+
+	return nil
+}
+
+// DeleteRole 删除角色（软删除）
+func (r *EnterpriseRoleRepository) DeleteRole(id int) error {
+	// 检查是否有用户分配了该角色
+	var userCount int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_user_roles 
+		WHERE role_id = $1 AND is_active = true`
+	
+	err := r.db.Get(&userCount, countQuery, id)
+	if err != nil {
+		return fmt.Errorf("检查角色用户失败: %w", err)
+	}
+
+	if userCount > 0 {
+		return fmt.Errorf("角色下还有 %d 个用户，无法删除", userCount)
+	}
+
+	// 检查是否有子角色
+	var childCount int
+	childCountQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_roles 
+		WHERE parent_role_id = $1 AND deleted_at IS NULL`
+	
+	err = r.db.Get(&childCount, childCountQuery, id)
+	if err != nil {
+		return fmt.Errorf("检查子角色失败: %w", err)
+	}
+
+	if childCount > 0 {
+		return fmt.Errorf("角色下还有 %d 个子角色，无法删除", childCount)
+	}
+
+	// 执行软删除
+	query := `
+		UPDATE enterprise_roles 
+		SET deleted_at = NOW() 
+		WHERE id = $1 AND deleted_at IS NULL`
+
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("删除角色失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取删除结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("角色不存在或已删除")
+	}
+
+	return nil
+}
+
+// GetChildRoles 获取子角色
+func (r *EnterpriseRoleRepository) GetChildRoles(parentID int) ([]models.EnterpriseRole, error) {
+	query := `
+		SELECT id, enterprise_id, role_code, role_name, role_description, role_type,
+			   template_id, permissions, role_level, parent_role_id, is_default,
+			   auto_assign, max_users, is_active, created_by, updated_by, 
+			   created_at, updated_at, deleted_at
+		FROM enterprise_roles
+		WHERE parent_role_id = $1 AND deleted_at IS NULL
+		ORDER BY role_level, role_name`
+
+	var roles []models.EnterpriseRole
+	err := r.db.Select(&roles, query, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("查询子角色失败: %w", err)
+	}
+
+	return roles, nil
+}
+
+// GetRoleUsers 获取角色用户
+func (r *EnterpriseRoleRepository) GetRoleUsers(roleID int) ([]models.EnterpriseUser, error) {
+	query := `
+		SELECT eu.id, eu.username, eu.email, eu.name, eu.phone, eu.position,
+			   eu.department_id, eu.is_primary_contact, eu.status
+		FROM enterprise_users eu
+		JOIN enterprise_user_roles eur ON eu.id = eur.enterprise_user_id
+		WHERE eur.role_id = $1 AND eur.is_active = true AND eu.deleted_at IS NULL
+		ORDER BY eu.name`
+
+	var users []models.EnterpriseUser
+	err := r.db.Select(&users, query, roleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色用户失败: %w", err)
+	}
+
+	return users, nil
+}
+
+// GetRoleHierarchy 获取角色层级结构
+func (r *EnterpriseRoleRepository) GetRoleHierarchy(enterpriseID int) ([]models.RoleHierarchy, error) {
+	query := `
+		SELECT id, role_code, role_name, role_level, parent_role_id,
+			   role_type, is_default, is_active, max_users
+		FROM enterprise_roles
+		WHERE enterprise_id = $1 AND deleted_at IS NULL
+		ORDER BY role_level, role_name`
+
+	rows, err := r.db.Query(query, enterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色层级失败: %w", err)
+	}
+	defer rows.Close()
+
+	// 构建角色映射
+	roleMap := make(map[int]*models.EnterpriseRole)
+	var rootRoles []*models.EnterpriseRole
+
+	for rows.Next() {
+		var role models.EnterpriseRole
+		err = rows.Scan(
+			&role.ID, &role.RoleCode, &role.RoleName, &role.RoleLevel,
+			&role.ParentRoleID, &role.RoleType, &role.IsDefault, &role.IsActive,
+			&role.MaxUsers,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描角色数据失败: %w", err)
+		}
+
+		roleMap[role.ID] = &role
+
+		if role.ParentRoleID == nil {
+			rootRoles = append(rootRoles, &role)
+		}
+	}
+
+	// 构建层级结构
+	var buildHierarchy func(*models.EnterpriseRole, int, string) models.RoleHierarchy
+	buildHierarchy = func(role *models.EnterpriseRole, level int, path string) models.RoleHierarchy {
+		hierarchy := models.RoleHierarchy{
+			Role:  role,
+			Level: level,
+			Path:  path,
+		}
+
+		// 查找子角色
+		for _, childRole := range roleMap {
+			if childRole.ParentRoleID != nil && *childRole.ParentRoleID == role.ID {
+				childPath := path
+				if childPath != "" {
+					childPath += "/"
+				}
+				childPath += fmt.Sprintf("%d", childRole.ID)
+				
+				childHierarchy := buildHierarchy(childRole, level+1, childPath)
+				hierarchy.Children = append(hierarchy.Children, childHierarchy)
+			}
+		}
+
+		return hierarchy
+	}
+
+	var result []models.RoleHierarchy
+	for _, rootRole := range rootRoles {
+		hierarchy := buildHierarchy(rootRole, 1, fmt.Sprintf("%d", rootRole.ID))
+		result = append(result, hierarchy)
+	}
+
+	return result, nil
+}
+
+// AssignRoleToUser 分配角色给用户
+func (r *EnterpriseRoleRepository) AssignRoleToUser(assignment *models.EnterpriseUserRole) error {
+	// 检查角色是否存在且可分配
+	var role models.EnterpriseRole
+	roleQuery := `
+		SELECT id, max_users, is_active 
+		FROM enterprise_roles 
+		WHERE id = $1 AND deleted_at IS NULL`
+	
+	err := r.db.Get(&role, roleQuery, assignment.RoleID)
+	if err != nil {
+		return fmt.Errorf("查询角色失败: %w", err)
+	}
+
+	if !role.IsActive {
+		return fmt.Errorf("角色已停用，无法分配")
+	}
+
+	// 检查用户数量限制
+	if role.MaxUsers != nil {
+		var currentUserCount int
+		countQuery := `
+			SELECT COUNT(*) 
+			FROM enterprise_user_roles 
+			WHERE role_id = $1 AND is_active = true`
+		
+		err = r.db.Get(&currentUserCount, countQuery, assignment.RoleID)
+		if err != nil {
+			return fmt.Errorf("查询角色用户数失败: %w", err)
+		}
+
+		if currentUserCount >= *role.MaxUsers {
+			return fmt.Errorf("角色已达到最大用户数限制，无法分配")
+		}
+	}
+
+	// 检查是否已分配
+	var existingCount int
+	checkQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_user_roles 
+		WHERE enterprise_user_id = $1 AND role_id = $2`
+	
+	err = r.db.Get(&existingCount, checkQuery, assignment.EnterpriseUserID, assignment.RoleID)
+	if err != nil {
+		return fmt.Errorf("检查角色分配失败: %w", err)
+	}
+
+	if existingCount > 0 {
+		return fmt.Errorf("用户已分配该角色")
+	}
+
+	// 创建角色分配
+	query := `
+		INSERT INTO enterprise_user_roles (
+			enterprise_user_id, role_id, assigned_date, expiry_date, assigned_by
+		) VALUES (
+			:enterprise_user_id, :role_id, :assigned_date, :expiry_date, :assigned_by
+		) RETURNING id, created_at, updated_at`
+
+	rows, err := r.db.NamedQuery(query, assignment)
+	if err != nil {
+		return fmt.Errorf("创建角色分配失败: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&assignment.ID, &assignment.CreatedAt, &assignment.UpdatedAt)
+		if err != nil {
+			return fmt.Errorf("扫描创建结果失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// RemoveRoleFromUser 移除用户角色
+func (r *EnterpriseRoleRepository) RemoveRoleFromUser(userID, roleID int) error {
+	query := `
+		UPDATE enterprise_user_roles 
+		SET is_active = false, updated_at = NOW() 
+		WHERE enterprise_user_id = $1 AND role_id = $2 AND is_active = true`
+
+	result, err := r.db.Exec(query, userID, roleID)
+	if err != nil {
+		return fmt.Errorf("移除用户角色失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取更新结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("角色分配不存在或已停用")
+	}
+
+	return nil
+}
+
+// GetUserRoles 获取用户的角色
+func (r *EnterpriseRoleRepository) GetUserRoles(userID int) ([]models.EnterpriseUserRole, error) {
+	query := `
+		SELECT eur.*, 
+			   er.role_code, er.role_name, er.role_description, er.role_type
+		FROM enterprise_user_roles eur
+		JOIN enterprise_roles er ON eur.role_id = er.id
+		WHERE eur.enterprise_user_id = $1 AND eur.is_active = true
+		ORDER BY er.role_level, eur.created_at`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户角色失败: %w", err)
+	}
+	defer rows.Close()
+
+	var roles []models.EnterpriseUserRole
+	for rows.Next() {
+		var role models.EnterpriseUserRole
+		var roleCode, roleName, roleType string
+		var roleDescription sql.NullString
+
+		err = rows.Scan(
+			&role.ID, &role.EnterpriseUserID, &role.RoleID,
+			&role.AssignedDate, &role.ExpiryDate, &role.IsActive,
+			&role.AssignedBy, &role.CreatedAt, &role.UpdatedAt,
+			&roleCode, &roleName, &roleDescription, &roleType,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描用户角色数据失败: %w", err)
+		}
+
+		// 填充角色信息
+		role.Role = &models.EnterpriseRole{
+			ID:       role.RoleID,
+			RoleCode: roleCode,
+			RoleName: roleName,
+			RoleType: roleType,
+		}
+
+		if roleDescription.Valid {
+			role.Role.RoleDescription = &roleDescription.String
+		}
+
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// CreateRoleFromTemplate 从模板创建角色
+func (r *EnterpriseRoleRepository) CreateRoleFromTemplate(enterpriseID, templateID int, roleCode, roleName string, createdBy *int) (*models.EnterpriseRole, error) {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return nil, fmt.Errorf("开始事务失败: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 获取模板信息
+	var template models.RoleTemplate
+	templateQuery := `
+		SELECT id, template_name, template_description, category, level
+		FROM role_templates
+		WHERE id = $1 AND is_active = true`
+	
+	err = tx.Get(&template, templateQuery, templateID)
+	if err != nil {
+		return nil, fmt.Errorf("查询角色模板失败: %w", err)
+	}
+
+	// 获取模板权限
+	var templatePermissions []string
+	permQuery := `
+		SELECT p.permission_code
+		FROM role_template_permissions rtp
+		JOIN permissions p ON rtp.permission_id = p.id
+		WHERE rtp.template_id = $1 AND p.is_active = true
+		ORDER BY rtp.priority`
+	
+	err = tx.Select(&templatePermissions, permQuery, templateID)
+	if err != nil {
+		return nil, fmt.Errorf("查询模板权限失败: %w", err)
+	}
+
+	// 创建企业角色
+	role := &models.EnterpriseRole{
+		EnterpriseID:    enterpriseID,
+		RoleCode:        roleCode,
+		RoleName:        roleName,
+		RoleDescription: template.TemplateDescription,
+		RoleType:        "template",
+		TemplateID:      &templateID,
+		Permissions:     pq.StringArray(templatePermissions),
+		RoleLevel:       template.Level,
+		IsActive:        true,
+		CreatedBy:       createdBy,
+	}
+
+	createQuery := `
+		INSERT INTO enterprise_roles (
+			enterprise_id, role_code, role_name, role_description, role_type,
+			template_id, permissions, role_level, created_by
+		) VALUES (
+			:enterprise_id, :role_code, :role_name, :role_description, :role_type,
+			:template_id, :permissions, :role_level, :created_by
+		) RETURNING id, created_at, updated_at`
+
+	rows, err := tx.NamedQuery(createQuery, role)
+	if err != nil {
+		return nil, fmt.Errorf("创建角色失败: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&role.ID, &role.CreatedAt, &role.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("扫描创建结果失败: %w", err)
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	return role, nil
+}
+
+// GetUserEffectivePermissions 获取用户的有效权限
+func (r *EnterpriseRoleRepository) GetUserEffectivePermissions(userID int) ([]models.UserEffectivePermission, error) {
+	query := `
+		SELECT 
+			(perm->>'source')::text AS source,
+			(perm->>'permission_code')::text AS permission_code,
+			(perm->>'permission_name')::text AS permission_name,
+			(perm->>'granted_through')::text AS granted_through,
+			(perm->>'permission_id')::integer AS permission_id
+		FROM v_user_effective_permissions v
+		CROSS JOIN jsonb_array_elements(v.effective_permissions) AS perm
+		WHERE v.user_id = $1
+		ORDER BY source, permission_code`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户有效权限失败: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []models.UserEffectivePermission
+	for rows.Next() {
+		var perm models.UserEffectivePermission
+		err = rows.Scan(
+			&perm.Source, &perm.PermissionCode, &perm.PermissionName,
+			&perm.GrantedThrough, &perm.PermissionID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描权限数据失败: %w", err)
+		}
+
+		permissions = append(permissions, perm)
+	}
+
+	return permissions, nil
+}

@@ -7,6 +7,8 @@ export interface Project {
   company_id?: number; // 主客户ID（保持向后兼容）
   company_name?: string; // 主客户名称（保持向后兼容）
   companies?: ProjectCompany[]; // 多客户关联
+  enterprise_id?: number; // 企业ID（新架构）
+  enterprise_name?: string; // 企业名称（新架构）
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
   priority?: 'high' | 'medium' | 'low';
   start_date?: string;
@@ -22,6 +24,7 @@ export interface ProjectRequest {
   description?: string;
   company_id?: number; // 主客户ID（保持向后兼容）
   company_ids?: number[]; // 多客户ID列表
+  enterprise_id?: number; // 企业ID（新架构）
   user_ids?: number[]; // 项目用户ID列表
   status?: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled';
   priority?: 'high' | 'medium' | 'low';

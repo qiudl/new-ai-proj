@@ -238,7 +238,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/task-list')) return ['/task-list'];
     if (path.includes('/bulk-import')) return ['/bulk-import'];
     if (path === '/projects') return ['/projects'];
-    if (path.includes('/companies')) return ['/companies'];
+    if (path.includes('/enterprises')) return ['/enterprises'];
     if (path.includes('/document-manager')) return ['/document-manager'];
     if (path.includes('/task-documents')) return ['/task-documents'];
     if (path.includes('/api-keys')) return ['/api-keys'];
@@ -246,6 +246,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/position-management')) return ['/position-management'];
     if (path.includes('/enterprise-roles')) return ['/enterprise-roles'];
     if (path.includes('/enterprise-users')) return ['/enterprise-users'];
+    if (path.includes('/admin/permissions')) return ['/admin/permissions'];
+    if (path.includes('/admin/roles')) return ['/admin/roles'];
+    if (path.includes('/admin/role-templates')) return ['/admin/role-templates'];
     return [path];
   };
 
@@ -261,7 +264,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/personal-timer') || path.includes('/timer-analytics')) {
       return ['/timer-management'];
     }
-    if (path.includes('/projects') || path.includes('/companies') || path.includes('/tasks')) {
+    if (path.includes('/projects') || path.includes('/enterprises') || path.includes('/tasks')) {
       return ['/project-customer-management'];
     }
     if (path.includes('/document-manager') || path.includes('/task-documents')) {
@@ -270,7 +273,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (path.includes('/organization-structure') || path.includes('/position-management') || path.includes('/enterprise-roles') || path.includes('/enterprise-users')) {
       return ['/organization-management'];
     }
-    if (path.includes('/permissions') || path.includes('/role-management') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
+    if (path.includes('/admin/permissions') || path.includes('/admin/roles') || path.includes('/user-management') || path.includes('/ai-config') || path.includes('/recycle-bin') || path.includes('/audit-logs') || path.includes('/navigation-management') || path.includes('/api-keys')) {
       return ['/system-management'];
     }
     return [];
@@ -350,7 +353,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '全部任务',
         },
         {
-          key: '/companies',
+          key: '/enterprises',
           icon: <CustomerServiceOutlined />,
           label: '企业客户',
         },
@@ -416,14 +419,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           label: '用户管理',
         },
         {
-          key: '/permissions',
+          key: '/admin/permissions',
           icon: <SafetyOutlined />,
           label: '权限管理',
         },
         {
-          key: '/role-management',
+          key: '/admin/roles',
           icon: <TeamOutlined />,
           label: '角色管理',
+        },
+        {
+          key: '/admin/role-templates',
+          icon: <SafetyCertificateOutlined />,
+          label: '角色模板',
         },
         {
           key: '/ai-config',

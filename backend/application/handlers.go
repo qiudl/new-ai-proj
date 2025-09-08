@@ -589,3 +589,12 @@ func (app *Application) ReorderTaskByIdHandler() gin.HandlerFunc {
 func (app *Application) GetRouterDocumentHandler() *handlers.RouterDocumentHandler {
 	return app.routerDocumentHandler
 }
+
+// GetBulkOperationHandler returns the bulk operation handler
+func (app *Application) GetBulkOperationHandler() *handlers.BulkOperationHandler {
+	if app.handlers != nil && app.handlers.BulkOperationHandler != nil {
+		return app.handlers.BulkOperationHandler
+	}
+	// Fallback: create handler on-demand
+	return handlers.NewBulkOperationHandler(app.db, app.logger, app.validator)
+}

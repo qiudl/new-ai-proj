@@ -485,6 +485,14 @@ func (app *Application) GetEnhancedPermissionHandler() *handlers.EnhancedPermiss
 	return nil
 }
 
+// GetRoleTemplateHandler returns the role template handler
+func (app *Application) GetRoleTemplateHandler() *handlers.RoleTemplateHandler {
+	if app.handlers != nil && app.handlers.RoleTemplateHandler != nil {
+		return app.handlers.RoleTemplateHandler
+	}
+	return nil
+}
+
 // GetUnifiedPermissionHandler returns the unified permission handler
 func (app *Application) GetUnifiedPermissionHandler() *handlers.UnifiedPermissionHandler {
 	if app.handlers != nil && app.handlers.UnifiedPermissionHandler != nil {

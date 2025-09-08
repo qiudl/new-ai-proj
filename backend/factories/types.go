@@ -6,6 +6,9 @@ import "ai-project-backend/handlers"
 type AllHandlers struct {
 	// 认证处理器
 	AuthHandler *handlers.AuthHandler
+	
+	// 角色模板处理器
+	RoleTemplateHandler *handlers.RoleTemplateHandler
 	// JWTTokenHandler           *handlers.JWTTokenHandler // 暂时注释掉，handler缺失
 
 	// 分析埋点处理器

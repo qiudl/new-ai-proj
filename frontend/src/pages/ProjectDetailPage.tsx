@@ -52,9 +52,9 @@ import {
   UserAddOutlined
 } from '@ant-design/icons';
 import { projectService } from '../services/projectService';
-import companyService from '../services/companyService';
+// import companyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
-import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole, Company } from '../types/project';
+import { ProjectDetail, ProjectUser, ProjectActivity, ProjectUserRole } from '../types/project';
 import { Enterprise } from '../types/enterprise';
 import { useTimer } from '../contexts/TimerContext';
 import { ProjectProgressDisplay } from '../components/ProjectProgressDisplay';
@@ -408,7 +408,7 @@ const ProjectDetailPage: React.FC = () => {
                     </Button>
                     <Button 
                       icon={<BankOutlined />}
-                      onClick={() => navigate('/companies')}
+                      onClick={() => navigate('/enterprises')}
                     >
                       查看企业列表
                     </Button>

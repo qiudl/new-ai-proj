@@ -834,54 +834,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         <div style={{ padding: '16px' }}>
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="暂无文档"
-            style={{ marginBottom: '24px' }}
+            description="暂无文档，请使用右上角的更多操作菜单创建或上传文档"
           />
-          
-          {/* 拖拽上传区域 */}
-          <Upload.Dragger
-            accept=".md,.pdf,.txt,.jpg,.jpeg,.png,.svg,.gif,.bmp,.webp"
-            showUploadList={false}
-            beforeUpload={handleFileUpload}
-            disabled={uploading}
-            multiple
-            style={{ marginBottom: '16px' }}
-          >
-            <p className="ant-upload-drag-icon">
-              <CloudUploadOutlined />
-            </p>
-            <p className="ant-upload-text">拖拽文件到此处上传</p>
-            <p className="ant-upload-hint">
-              或点击选择文件，支持 PDF、Word、Markdown、图片等格式
-            </p>
-          </Upload.Dragger>
-
-          {/* 快速操作按钮 */}
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Button 
-              type="primary" 
-              icon={<PlusOutlined />}
-              onClick={() => handleQuickCreateDocument('markdown')}
-              block
-            >
-              创建 Markdown 文档
-            </Button>
-            <Button 
-              type="dashed" 
-              icon={<FileTextOutlined />}
-              onClick={() => handleQuickCreateDocument('text')}
-              block
-            >
-              创建纯文本文档
-            </Button>
-            <Button 
-              icon={<SettingOutlined />}
-              onClick={() => setNewDocumentModalVisible(true)}
-              block
-            >
-              高级创建选项
-            </Button>
-          </Space>
         </div>
       );
     }
@@ -1104,34 +1058,8 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
     }
   }, [documents, selectedDocument, documentListView, handleDocumentSelect, handleDocumentEdit, handleDocumentDelete, handleDocumentDownload, handleDocumentView, handleQuickCreateDocument]);
 
-  // 工具栏按钮
+  // 工具栏按钮 - 移除了新建文档、上传文件等按钮，保留核心功能
   const toolbarItems: MenuProps['items'] = [
-    {
-      key: 'refresh',
-      label: '刷新列表',
-      icon: <SyncOutlined />,
-      onClick: loadDocuments
-    },
-    {
-      key: 'new-doc-advanced',
-      label: '新建文档 (高级)',
-      icon: <PlusOutlined />,
-      onClick: () => setNewDocumentModalVisible(true)
-    },
-    { type: 'divider' },
-    {
-      key: 'quick-md',
-      label: '快速新建 Markdown',
-      icon: <FileTextOutlined />,
-      onClick: () => handleQuickCreateDocument('markdown')
-    },
-    {
-      key: 'quick-txt',
-      label: '快速新建文本',
-      icon: <FileTextOutlined />,
-      onClick: () => handleQuickCreateDocument('text')
-    },
-    { type: 'divider' },
     {
       key: 'sort-options',
       label: '排序选项',
@@ -1193,12 +1121,6 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       label: '导出全部',
       icon: <DownloadOutlined />,
       onClick: () => message.info('批量导出功能开发中')
-    },
-    {
-      key: 'manage',
-      label: '高级管理',
-      icon: <SettingOutlined />,
-      onClick: () => setManagerVisible(true)
     }
   ];
 
@@ -1247,33 +1169,9 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
           />
         ) : (
           <Empty
-            description="暂无文档，请创建一个新文档开始编辑"
+            description="暂无文档，请通过右上角的更多操作菜单创建文档"
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-          >
-            <Space direction="vertical" size="middle">
-              <Space>
-                <Button 
-                  type="primary" 
-                  icon={<PlusOutlined />}
-                  onClick={() => handleQuickCreateDocument('markdown')}
-                >
-                  新建 Markdown 文档
-                </Button>
-                <Button 
-                  icon={<FileTextOutlined />}
-                  onClick={() => handleQuickCreateDocument('text')}
-                >
-                  新建文本文档
-                </Button>
-              </Space>
-              <Button 
-                type="link" 
-                onClick={() => setNewDocumentModalVisible(true)}
-              >
-                高级创建选项
-              </Button>
-            </Space>
-          </Empty>
+          />
         );
         
       case 'preview':
@@ -1370,79 +1268,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
         extra={
           showToolbar && (
             <Space>
-              {/* 全屏切换 */}
-              <Tooltip title={isFullscreen ? '退出全屏 (Esc)' : '全屏查看'}>
-                <Button
-                  icon={isFullscreen ? <ShrinkOutlined /> : <ArrowsAltOutlined />}
-                  onClick={() => setIsFullscreen(v => !v)}
-                />
-              </Tooltip>
-
-              {/* 视图模式切换 */}
-              <Button.Group>
-                <Button
-                  type={viewMode === 'edit' ? 'primary' : 'default'}
-                  icon={<EditOutlined />}
-                  onClick={() => handleViewModeChange('edit')}
-                >
-                  编辑
-                </Button>
-                <Button
-                  type={viewMode === 'preview' ? 'primary' : 'default'}
-                  icon={<EyeOutlined />}
-                  onClick={() => handleViewModeChange('preview')}
-                >
-                  预览
-                </Button>
-                <Button
-                  type={viewMode === 'manage' ? 'primary' : 'default'}
-                  icon={<SettingOutlined />}
-                  onClick={() => handleViewModeChange('manage')}
-                >
-                  管理
-                </Button>
-                <Button
-                  type={viewMode === 'stats' ? 'primary' : 'default'}
-                  icon={<BarChartOutlined />}
-                  onClick={() => handleViewModeChange('stats')}
-                >
-                  统计
-                </Button>
-              </Button.Group>
-
-              {/* 快速操作 */}
-              <Divider type="vertical" />
-
-              {/* 范围切换：仅本任务 / 含下级 */}
-              <Tooltip title={includeDescendants ? '显示本任务及所有下级任务文档' : '仅显示本任务文档'}>
-                <Button
-                  onClick={() => { setIncludeDescendants(v => !v); setFilterMode('all'); loadDocuments(); }}
-                  type={includeDescendants ? 'primary' : 'default'}
-                >
-                  {includeDescendants ? '含下级' : '仅本任务'}
-                </Button>
-              </Tooltip>
-
-              {/* 快速过滤：全部 / 仅本任务 / 仅子任务 */}
-              <Space size={4}>
-                <Button size="small" type={filterMode === 'all' ? 'primary' : 'default'} onClick={() => setFilterMode('all')}>全部</Button>
-                <Button size="small" type={filterMode === 'root' ? 'primary' : 'default'} onClick={() => setFilterMode('root')}>仅本任务</Button>
-                <Button size="small" type={filterMode === 'desc' ? 'primary' : 'default'} onClick={() => setFilterMode('desc')}>仅子任务</Button>
-              </Space>
-
-              <Divider type="vertical" />
-              
-              {/* 新建文档按钮 - 明显位置 */}
-              <Tooltip title="新建文档">
-                <Button
-                  type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => handleQuickCreateDocument('markdown')}
-                >
-                  新建文档
-                </Button>
-              </Tooltip>
-              
+              {/* 仅保留刷新按钮 */}
               <Tooltip title="刷新">
                 <Button
                   icon={<SyncOutlined />}
@@ -1450,24 +1276,6 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                   loading={loading}
                 />
               </Tooltip>
-              
-              <Upload
-                accept=".md,.pdf,.txt,.jpg,.jpeg,.png,.svg,.gif,.bmp,.webp"
-                showUploadList={false}
-                beforeUpload={handleFileUpload}
-                disabled={uploading}
-                multiple
-              >
-                <Tooltip title="上传文档 (支持拖拽和多选)">
-                  <Button
-                    type="dashed"
-                    icon={<CloudUploadOutlined />}
-                    loading={uploading}
-                  >
-                    上传文件
-                  </Button>
-                </Tooltip>
-              </Upload>
 
               <Dropdown menu={{ items: toolbarItems }} trigger={['click']}>
                 <Tooltip title="更多操作">

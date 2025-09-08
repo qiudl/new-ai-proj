@@ -479,6 +479,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         }
       },
       {
+        name: 'get_active_timers',
+        description: '获取所有活跃计时器（running/paused）',
+        inputSchema: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      {
         name: 'create_sibling_task',
         description: '创建兄弟任务（与指定任务共享相同的父任务）',
         inputSchema: {
@@ -1243,6 +1251,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case 'get_current_timer':
         result = await taskServer.getCurrentTimer();
+        break;
+      case 'get_active_timers':
+        result = await taskServer.getActiveTimers();
         break;
       
       case 'create_sibling_task':

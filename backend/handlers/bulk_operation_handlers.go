@@ -3,6 +3,7 @@ package handlers
 import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
+	"ai-project-backend/services"
 	"encoding/csv"
 	"log"
 	"net/http"
@@ -19,14 +20,16 @@ type BulkOperationHandler struct {
 	db        database.DB
 	logger    *log.Logger
 	validator *validator.Validate
+	batchService *services.BatchOperationService
 }
 
 // NewBulkOperationHandler 创建批量操作处理器
 func NewBulkOperationHandler(db database.DB, logger *log.Logger, validator *validator.Validate) *BulkOperationHandler {
 	return &BulkOperationHandler{
-		db:        db,
-		logger:    logger,
-		validator: validator,
+		db:           db,
+		logger:       logger,
+		validator:    validator,
+		batchService: services.NewBatchOperationService(db, logger),
 	}
 }
 
@@ -524,4 +527,327 @@ func (h *BulkOperationHandler) BulkUpdateTasks(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, models.NewSuccessResponse(response, response.Message))
+}
+
+// Enhanced Batch Operation Handlers using the new service
+
+// ValidateBatchOperation validates a batch operation request
+func (h *BulkOperationHandler) ValidateBatchOperation(c *gin.Context) {
+	var req models.BatchOperationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Printf("Error binding batch validation request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		h.logger.Printf("Validation error for batch operation: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.batchService.ValidateBatchOperation(c.Request.Context(), &req)
+	if err != nil {
+		h.logger.Printf("Error validating batch operation: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to validate batch operation", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusOK
+	if !result.Valid {
+		statusCode = http.StatusUnprocessableEntity
+	}
+
+	c.JSON(statusCode, models.NewSuccessResponse(result, "Batch operation validation completed"))
+}
+
+// ExecuteBatchOperation executes a validated batch operation
+func (h *BulkOperationHandler) ExecuteBatchOperation(c *gin.Context) {
+	var req models.BatchOperationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Printf("Error binding batch execution request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		h.logger.Printf("Validation error for batch execution: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Validate before execution unless validation is skipped
+	if !req.Options.ValidateOnly {
+		validationResult, err := h.batchService.ValidateBatchOperation(c.Request.Context(), &req)
+		if err != nil {
+			h.logger.Printf("Error validating batch operation before execution: %v", err)
+			response := models.NewErrorResponse(models.ErrCodeInternal, "Pre-execution validation failed", nil)
+			c.JSON(http.StatusInternalServerError, response)
+			return
+		}
+
+		if !validationResult.CanProceed {
+			response := models.NewErrorResponse(models.ErrCodeBadRequest, "Batch operation cannot proceed due to validation errors", validationResult)
+			c.JSON(http.StatusBadRequest, response)
+			return
+		}
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &req)
+	if err != nil {
+		h.logger.Printf("Error executing batch operation: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch operation", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	statusCode := http.StatusOK
+	if result.Status == models.BatchStatusFailed {
+		statusCode = http.StatusInternalServerError
+	} else if result.Status == models.BatchStatusPartial {
+		statusCode = http.StatusPartialContent
+	}
+
+	c.JSON(statusCode, models.NewSuccessResponse(result, "Batch operation executed"))
+}
+
+// GetBatchOperationStatus returns the current status of a batch operation
+func (h *BulkOperationHandler) GetBatchOperationStatus(c *gin.Context) {
+	operationID := c.Param("operation_id")
+	if operationID == "" {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Operation ID is required", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	result, err := h.batchService.GetBatchOperationStatus(operationID)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Operation not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch operation status retrieved"))
+}
+
+// PreviewBatchOperation generates a preview of what the batch operation would do
+func (h *BulkOperationHandler) PreviewBatchOperation(c *gin.Context) {
+	var req models.BatchOperationRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Printf("Error binding batch preview request: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&req); err != nil {
+		h.logger.Printf("Validation error for batch preview: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	preview, err := h.batchService.PreviewBatchOperation(c.Request.Context(), &req)
+	if err != nil {
+		h.logger.Printf("Error generating batch operation preview: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to generate preview", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(preview, "Batch operation preview generated"))
+}
+
+// Specific batch operation handlers
+
+// BatchStatusUpdate handles batch status updates
+func (h *BulkOperationHandler) BatchStatusUpdate(c *gin.Context) {
+	var reqData models.BatchStatusUpdateRequest
+
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Convert to generic batch request
+	batchReq := models.BatchOperationRequest{
+		OperationType: models.BatchOperationStatusUpdate,
+		TaskIDs:       reqData.TaskIDs,
+		Parameters: map[string]interface{}{
+			"new_status": reqData.NewStatus,
+			"force":      reqData.Force,
+		},
+		RequestedBy: 1, // TODO: Get from auth context
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &batchReq)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch status update", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch status update completed"))
+}
+
+// BatchParentChange handles batch parent changes
+func (h *BulkOperationHandler) BatchParentChange(c *gin.Context) {
+	var reqData models.BatchParentChangeRequest
+
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Convert to generic batch request
+	batchReq := models.BatchOperationRequest{
+		OperationType: models.BatchOperationParentChange,
+		TaskIDs:       reqData.TaskIDs,
+		Parameters: map[string]interface{}{
+			"new_parent_id":    reqData.NewParentID,
+			"maintain_order":   reqData.MaintainOrder,
+		},
+		RequestedBy: 1, // TODO: Get from auth context
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &batchReq)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch parent change", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch parent change completed"))
+}
+
+// BatchAssigneeChange handles batch assignee changes
+func (h *BulkOperationHandler) BatchAssigneeChange(c *gin.Context) {
+	var reqData models.BatchAssigneeChangeRequest
+
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	batchReq := models.BatchOperationRequest{
+		OperationType: models.BatchOperationAssignee,
+		TaskIDs:       reqData.TaskIDs,
+		Parameters: map[string]interface{}{
+			"new_assignee_id": reqData.NewAssigneeID,
+			"notify_users":    reqData.NotifyUsers,
+		},
+		RequestedBy: 1, // TODO: Get from auth context
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &batchReq)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch assignee change", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch assignee change completed"))
+}
+
+// BatchDelete handles batch delete operations
+func (h *BulkOperationHandler) BatchDelete(c *gin.Context) {
+	var reqData models.BatchDeleteRequest
+
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	batchReq := models.BatchOperationRequest{
+		OperationType: models.BatchOperationDelete,
+		TaskIDs:       reqData.TaskIDs,
+		Parameters: map[string]interface{}{
+			"delete_children": reqData.DeleteChildren,
+			"hard_delete":     reqData.HardDelete,
+			"backup_first":    reqData.BackupFirst,
+			"reason":          reqData.Reason,
+		},
+		RequestedBy: 1, // TODO: Get from auth context
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &batchReq)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch delete", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch delete completed"))
+}
+
+// BatchArchive handles batch archive operations  
+func (h *BulkOperationHandler) BatchArchive(c *gin.Context) {
+	var reqData models.BatchArchiveRequest
+
+	if err := c.ShouldBindJSON(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	if err := h.validator.Struct(&reqData); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", err.Error())
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	batchReq := models.BatchOperationRequest{
+		OperationType: models.BatchOperationArchive,
+		TaskIDs:       reqData.TaskIDs,
+		Parameters: map[string]interface{}{
+			"archive_children": reqData.ArchiveChildren,
+			"reason":           reqData.Reason,
+		},
+		RequestedBy: 1, // TODO: Get from auth context
+	}
+
+	result, err := h.batchService.ExecuteBatchOperation(c.Request.Context(), &batchReq)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to execute batch archive", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(result, "Batch archive completed"))
 }

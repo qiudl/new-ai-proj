@@ -11,10 +11,33 @@ import {
   Spin,
   message,
   Tag,
-  Alert
+  Alert,
+  Tooltip,
+  Badge,
+  Modal,
+  Descriptions,
+  List,
+  Progress,
+  Row,
+  Col,
+  Statistic
 } from 'antd';
-import { SaveOutlined, ReloadOutlined } from '@ant-design/icons';
+import { 
+  SaveOutlined, 
+  ReloadOutlined, 
+  InfoCircleOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  WarningOutlined,
+  BulbOutlined,
+  EyeOutlined,
+  ExportOutlined,
+  ImportOutlined,
+  TeamOutlined,
+  SafetyOutlined
+} from '@ant-design/icons';
 import api from '../services/api';
+import { getPermissionName, getPermissionDescription, getPermissionCategory } from '../utils/permissionMapping';
 
 const { Search } = Input;
 const { Option } = Select;
@@ -46,11 +69,41 @@ interface PermissionMatrix {
 interface PermissionMatrixProps {
   height?: number;
   onPermissionChange?: (roleId: number, permissionId: number, granted: boolean) => void;
+  showStatistics?: boolean;
+  enableBatchOperations?: boolean;
+  enableExportImport?: boolean;
+  readOnly?: boolean;
+}
+
+// 权限统计信息
+interface PermissionStatistics {
+  totalPermissions: number;
+  totalRoles: number;
+  grantedCount: number;
+  deniedCount: number;
+  roleStats: Array<{
+    roleId: number;
+    roleName: string;
+    grantedCount: number;
+    totalCount: number;
+    percentage: number;
+  }>;
+  permissionStats: Array<{
+    permissionId: number;
+    permissionName: string;
+    grantedCount: number;
+    totalCount: number;
+    percentage: number;
+  }>;
 }
 
 const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
   height = 600,
-  onPermissionChange
+  onPermissionChange,
+  showStatistics = true,
+  enableBatchOperations = true,
+  enableExportImport = true,
+  readOnly = false
 }) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
@@ -61,11 +114,24 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
   const [selectedRoleType, setSelectedRoleType] = useState<string>('all');
   const [changes, setChanges] = useState<Map<string, boolean>>(new Map());
   const [saving, setSaving] = useState(false);
+  const [statistics, setStatistics] = useState<PermissionStatistics | null>(null);
+  const [statisticsModalVisible, setStatisticsModalVisible] = useState(false);
+  const [batchModalVisible, setBatchModalVisible] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<number[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([]);
+  const [batchAction, setBatchAction] = useState<'grant' | 'revoke'>('grant');
+  const [exportModalVisible, setExportModalVisible] = useState(false);
 
   // 加载数据
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (showStatistics && roles.length > 0 && permissions.length > 0) {
+      calculateStatistics();
+    }
+  }, [roles, permissions, permissionMatrix, showStatistics]);
 
   const loadData = async () => {
     setLoading(true);
@@ -233,6 +299,122 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
     message.info('已重置所有变更');
   };
 
+  // 计算统计信息
+  const calculateStatistics = () => {
+    const totalPermissions = permissions.length;
+    const totalRoles = roles.length;
+    let grantedCount = 0;
+
+    // 计算总体统计
+    permissionMatrix.forEach(pm => {
+      if (pm.granted) grantedCount++;
+    });
+
+    // 计算每个角色的统计信息
+    const roleStats = roles.map(role => {
+      const rolePermissions = permissionMatrix.filter(pm => pm.role_id === role.id);
+      const grantedCount = rolePermissions.filter(pm => pm.granted).length;
+      return {
+        roleId: role.id,
+        roleName: role.role_name,
+        grantedCount,
+        totalCount: totalPermissions,
+        percentage: totalPermissions > 0 ? Math.round((grantedCount / totalPermissions) * 100) : 0
+      };
+    });
+
+    // 计算每个权限的统计信息
+    const permissionStats = permissions.map(permission => {
+      const permissionGrants = permissionMatrix.filter(pm => pm.permission_id === permission.id);
+      const grantedCount = permissionGrants.filter(pm => pm.granted).length;
+      return {
+        permissionId: permission.id,
+        permissionName: permission.permission_name,
+        grantedCount,
+        totalCount: totalRoles,
+        percentage: totalRoles > 0 ? Math.round((grantedCount / totalRoles) * 100) : 0
+      };
+    });
+
+    setStatistics({
+      totalPermissions,
+      totalRoles,
+      grantedCount,
+      deniedCount: (totalPermissions * totalRoles) - grantedCount,
+      roleStats,
+      permissionStats
+    });
+  };
+
+  // 批量操作处理
+  const handleBatchOperation = async () => {
+    if (selectedRoles.length === 0 || selectedPermissions.length === 0) {
+      message.warning('请选择角色和权限');
+      return;
+    }
+
+    const newChanges = new Map(changes);
+    selectedRoles.forEach(roleId => {
+      selectedPermissions.forEach(permissionId => {
+        const key = `${roleId}-${permissionId}`;
+        newChanges.set(key, batchAction === 'grant');
+      });
+    });
+
+    setChanges(newChanges);
+    setBatchModalVisible(false);
+    setSelectedRoles([]);
+    setSelectedPermissions([]);
+    message.success(`已${batchAction === 'grant' ? '授予' : '撤销'} ${selectedRoles.length} 个角色的 ${selectedPermissions.length} 个权限`);
+  };
+
+  // 导出权限矩阵
+  const handleExport = () => {
+    const exportData = {
+      timestamp: new Date().toISOString(),
+      roles: roles,
+      permissions: permissions,
+      matrix: permissionMatrix,
+      statistics: statistics
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `permission-matrix-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    message.success('权限矩阵已导出');
+    setExportModalVisible(false);
+  };
+
+  // 导入权限矩阵
+  const handleImport = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importData = JSON.parse(e.target?.result as string);
+        
+        // 验证数据格式
+        if (!importData.matrix || !Array.isArray(importData.matrix)) {
+          throw new Error('无效的数据格式');
+        }
+
+        // 更新权限矩阵
+        setPermissionMatrix(importData.matrix);
+        
+        message.success('权限矩阵导入成功');
+      } catch (error) {
+        message.error('导入失败：文件格式错误');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   // 构建表格数据
   const tableData = filteredPermissions.map(permission => ({
     key: permission.id,
@@ -248,7 +430,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
       fixed: 'left' as const,
       render: (text: string, record: Permission) => (
         <div>
-          <div>{text}</div>
+          <div>{getPermissionName(record.permission_code)}</div>
           <div style={{ fontSize: '12px', color: '#999' }}>
             {record.permission_code}
           </div>
@@ -269,6 +451,8 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
       dataIndex: 'permission_description',
       width: 150,
       ellipsis: true,
+      render: (text: string, record: Permission) => 
+        text || getPermissionDescription(record.permission_code),
     },
     // 动态生成角色列
     ...filteredRoles.map(role => ({
@@ -341,17 +525,45 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
             icon={<SaveOutlined />}
             onClick={handleSaveChanges}
             loading={saving}
-            disabled={changes.size === 0}
+            disabled={changes.size === 0 || readOnly}
           >
             保存变更 ({changes.size})
           </Button>
           
           <Button
             onClick={handleReset}
-            disabled={changes.size === 0}
+            disabled={changes.size === 0 || readOnly}
           >
             重置变更
           </Button>
+
+          {enableBatchOperations && (
+            <Button
+              icon={<CheckCircleOutlined />}
+              onClick={() => setBatchModalVisible(true)}
+              disabled={readOnly}
+            >
+              批量操作
+            </Button>
+          )}
+
+          {showStatistics && (
+            <Button
+              icon={<InfoCircleOutlined />}
+              onClick={() => setStatisticsModalVisible(true)}
+            >
+              查看统计
+            </Button>
+          )}
+
+          {enableExportImport && (
+            <Button
+              icon={<ExportOutlined />}
+              onClick={() => setExportModalVisible(true)}
+            >
+              导出/导入
+            </Button>
+          )}
           
           <Button
             icon={<ReloadOutlined />}
@@ -411,6 +623,241 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
           )}
         </Space>
       </div>
+
+      {/* 统计信息模态框 */}
+      <Modal
+        title={
+          <Space>
+            <InfoCircleOutlined />
+            权限矩阵统计信息
+          </Space>
+        }
+        open={statisticsModalVisible}
+        onCancel={() => setStatisticsModalVisible(false)}
+        footer={null}
+        width={900}
+      >
+        {statistics && (
+          <div>
+            <Row gutter={16} style={{ marginBottom: 24 }}>
+              <Col span={6}>
+                <Statistic
+                  title="总角色数"
+                  value={statistics.totalRoles}
+                  prefix={<TeamOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="总权限数"
+                  value={statistics.totalPermissions}
+                  prefix={<SafetyOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="已授权"
+                  value={statistics.grantedCount}
+                  valueStyle={{ color: '#3f8600' }}
+                  prefix={<CheckCircleOutlined />}
+                />
+              </Col>
+              <Col span={6}>
+                <Statistic
+                  title="未授权"
+                  value={statistics.deniedCount}
+                  valueStyle={{ color: '#cf1322' }}
+                  prefix={<StopOutlined />}
+                />
+              </Col>
+            </Row>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Card title="角色权限分布" size="small">
+                  <List
+                    size="small"
+                    dataSource={statistics.roleStats}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <div style={{ width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text>{item.roleName}</Text>
+                            <Text>{item.percentage}%</Text>
+                          </div>
+                          <Progress 
+                            percent={item.percentage} 
+                            size="small"
+                            status={item.percentage > 80 ? 'success' : item.percentage > 50 ? 'normal' : 'exception'}
+                          />
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="权限分配情况" size="small">
+                  <List
+                    size="small"
+                    dataSource={statistics.permissionStats}
+                    renderItem={(item) => (
+                      <List.Item>
+                        <div style={{ width: '100%' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text ellipsis style={{ maxWidth: 150 }}>{item.permissionName}</Text>
+                            <Text>{item.percentage}%</Text>
+                          </div>
+                          <Progress 
+                            percent={item.percentage} 
+                            size="small"
+                            status={item.percentage > 80 ? 'exception' : item.percentage > 50 ? 'normal' : 'success'}
+                          />
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        )}
+      </Modal>
+
+      {/* 批量操作模态框 */}
+      <Modal
+        title={
+          <Space>
+            <CheckCircleOutlined />
+            批量权限操作
+          </Space>
+        }
+        open={batchModalVisible}
+        onCancel={() => {
+          setBatchModalVisible(false);
+          setSelectedRoles([]);
+          setSelectedPermissions([]);
+        }}
+        onOk={handleBatchOperation}
+        okText="执行"
+        cancelText="取消"
+        width={800}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <div>
+            <Text strong>选择操作类型：</Text>
+            <Select
+              value={batchAction}
+              onChange={setBatchAction}
+              style={{ marginLeft: 8, width: 120 }}
+            >
+              <Option value="grant">批量授权</Option>
+              <Option value="revoke">批量撤销</Option>
+            </Select>
+          </div>
+          
+          <div>
+            <Text strong>选择角色：</Text>
+            <Select
+              mode="multiple"
+              placeholder="请选择要操作的角色"
+              style={{ width: '100%', marginTop: 8 }}
+              value={selectedRoles}
+              onChange={setSelectedRoles}
+            >
+              {filteredRoles.map(role => (
+                <Option key={role.id} value={role.id}>
+                  {role.role_name} ({role.is_system_role ? '系统' : '企业'})
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          <div>
+            <Text strong>选择权限：</Text>
+            <Select
+              mode="multiple"
+              placeholder="请选择要操作的权限"
+              style={{ width: '100%', marginTop: 8 }}
+              value={selectedPermissions}
+              onChange={setSelectedPermissions}
+            >
+              {filteredPermissions.map(permission => (
+                <Option key={permission.id} value={permission.id}>
+                  {permission.permission_name} ({permission.module})
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          {selectedRoles.length > 0 && selectedPermissions.length > 0 && (
+            <Alert
+              message={`将${batchAction === 'grant' ? '授予' : '撤销'} ${selectedRoles.length} 个角色的 ${selectedPermissions.length} 个权限`}
+              type="info"
+              showIcon
+            />
+          )}
+        </Space>
+      </Modal>
+
+      {/* 导出/导入模态框 */}
+      <Modal
+        title={
+          <Space>
+            <ExportOutlined />
+            导出/导入权限矩阵
+          </Space>
+        }
+        open={exportModalVisible}
+        onCancel={() => setExportModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size="large">
+          <Card title="导出权限矩阵" size="small">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">
+                导出当前的权限矩阵配置，包含角色、权限和分配关系
+              </Text>
+              <Button
+                type="primary"
+                icon={<ExportOutlined />}
+                onClick={handleExport}
+                block
+              >
+                导出为 JSON 文件
+              </Button>
+            </Space>
+          </Card>
+
+          <Card title="导入权限矩阵" size="small">
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Text type="secondary">
+                从JSON文件导入权限矩阵配置
+              </Text>
+              <Alert
+                message="注意"
+                description="导入将覆盖当前的权限矩阵配置，请谨慎操作"
+                type="warning"
+                showIcon
+                style={{ marginBottom: 12 }}
+              />
+              <input
+                type="file"
+                accept=".json"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleImport(file);
+                    e.target.value = '';
+                  }
+                }}
+                style={{ width: '100%' }}
+              />
+            </Space>
+          </Card>
+        </Space>
+      </Modal>
     </Card>
   );
 };

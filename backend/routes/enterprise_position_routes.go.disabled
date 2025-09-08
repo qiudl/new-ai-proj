@@ -1,0 +1,118 @@
+package routes
+
+import (
+	"github.com/gorilla/mux"
+
+	"ai-project-backend/handlers"
+)
+
+// RegisterEnterprisePositionRoutes 注册企业岗位管理路由
+func RegisterEnterprisePositionRoutes(router *mux.Router, handler *handlers.EnterprisePositionHandler) {
+	// 岗位管理路由组
+	positionRouter := router.PathPrefix("/positions").Subrouter()
+
+	// 岗位 CRUD 操作
+	positionRouter.HandleFunc("", handler.CreatePosition).Methods("POST")
+	positionRouter.HandleFunc("/{id:[0-9]+}", handler.GetPositionByID).Methods("GET")
+	positionRouter.HandleFunc("/{id:[0-9]+}", handler.UpdatePosition).Methods("PUT")
+	positionRouter.HandleFunc("/{id:[0-9]+}", handler.DeletePosition).Methods("DELETE")
+
+	// 企业岗位列表
+	positionRouter.HandleFunc("/enterprise/{enterprise_id:[0-9]+}", handler.GetPositionsByEnterpriseID).Methods("GET")
+
+	// 岗位层级结构
+	positionRouter.HandleFunc("/hierarchy/enterprise/{enterprise_id:[0-9]+}", handler.GetPositionHierarchy).Methods("GET")
+
+	// 岗位统计信息
+	positionRouter.HandleFunc("/statistics/enterprise/{enterprise_id:[0-9]+}", handler.GetPositionStatistics).Methods("GET")
+
+	// 岗位克隆
+	positionRouter.HandleFunc("/{id:[0-9]+}/clone", handler.ClonePosition).Methods("POST")
+
+	// 批量操作
+	positionRouter.HandleFunc("/batch/status", handler.BatchUpdatePositionStatus).Methods("PUT")
+
+	// 用户岗位分配管理
+	assignmentRouter := positionRouter.PathPrefix("/assignments").Subrouter()
+	assignmentRouter.HandleFunc("", handler.AssignUserToPosition).Methods("POST")
+	assignmentRouter.HandleFunc("/user/{user_id:[0-9]+}/position/{position_id:[0-9]+}", handler.RemoveUserFromPosition).Methods("DELETE")
+	assignmentRouter.HandleFunc("/user/{user_id:[0-9]+}", handler.GetUserPositions).Methods("GET")
+}
+
+// RegisterEnterpriseRoleRoutes 注册企业角色管理路由
+func RegisterEnterpriseRoleRoutes(router *mux.Router, handler *handlers.EnterpriseRoleHandler) {
+	// 角色管理路由组
+	roleRouter := router.PathPrefix("/roles").Subrouter()
+
+	// 角色 CRUD 操作
+	roleRouter.HandleFunc("", handler.CreateRole).Methods("POST")
+	roleRouter.HandleFunc("/{id:[0-9]+}", handler.GetRoleByID).Methods("GET")
+	roleRouter.HandleFunc("/{id:[0-9]+}", handler.UpdateRole).Methods("PUT")
+	roleRouter.HandleFunc("/{id:[0-9]+}", handler.DeleteRole).Methods("DELETE")
+
+	// 企业角色列表
+	roleRouter.HandleFunc("/enterprise/{enterprise_id:[0-9]+}", handler.GetRolesByEnterpriseID).Methods("GET")
+
+	// 角色层级结构
+	roleRouter.HandleFunc("/hierarchy/enterprise/{enterprise_id:[0-9]+}", handler.GetRoleHierarchy).Methods("GET")
+
+	// 角色统计信息
+	roleRouter.HandleFunc("/statistics/enterprise/{enterprise_id:[0-9]+}", handler.GetRoleStatistics).Methods("GET")
+
+	// 从模板创建角色
+	roleRouter.HandleFunc("/from-template", handler.CreateRoleFromTemplate).Methods("POST")
+
+	// 角色克隆
+	roleRouter.HandleFunc("/{id:[0-9]+}/clone", handler.CloneRole).Methods("POST")
+
+	// 批量操作
+	roleRouter.HandleFunc("/batch/status", handler.BatchUpdateRoleStatus).Methods("PUT")
+	roleRouter.HandleFunc("/batch/assign", handler.BatchAssignRoles).Methods("POST")
+	roleRouter.HandleFunc("/batch/remove", handler.BatchRemoveRoles).Methods("DELETE")
+
+	// 用户角色分配管理
+	assignmentRouter := roleRouter.PathPrefix("/assignments").Subrouter()
+	assignmentRouter.HandleFunc("", handler.AssignRoleToUser).Methods("POST")
+	assignmentRouter.HandleFunc("/user/{user_id:[0-9]+}/role/{role_id:[0-9]+}", handler.RemoveRoleFromUser).Methods("DELETE")
+	assignmentRouter.HandleFunc("/user/{user_id:[0-9]+}", handler.GetUserRoles).Methods("GET")
+	assignmentRouter.HandleFunc("/user/{user_id:[0-9]+}/permissions", handler.GetUserEffectivePermissions).Methods("GET")
+}
+
+// RegisterEnterpriseOrganizationRoutes 注册企业组织管理的综合路由
+func RegisterEnterpriseOrganizationRoutes(
+	router *mux.Router,
+	positionHandler *handlers.EnterprisePositionHandler,
+	roleHandler *handlers.EnterpriseRoleHandler,
+) {
+	// 创建企业组织管理的子路由器
+	orgRouter := router.PathPrefix("/enterprises/{enterprise_id:[0-9]+}/organization").Subrouter()
+
+	// 岗位管理路由
+	RegisterEnterprisePositionRoutes(orgRouter, positionHandler)
+
+	// 角色管理路由
+	RegisterEnterpriseRoleRoutes(orgRouter, roleHandler)
+
+	// 综合管理路由 - 同时涉及岗位和角色的操作
+	
+	// 获取用户的完整组织信息（岗位 + 角色）
+	orgRouter.HandleFunc("/users/{user_id:[0-9]+}/organization", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: 实现获取用户完整组织信息的处理器
+		// 这个处理器会同时返回用户的岗位和角色信息
+	}).Methods("GET")
+
+	// 批量分配用户组织结构（同时分配岗位和角色）
+	orgRouter.HandleFunc("/users/{user_id:[0-9]+}/batch-assign", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: 实现批量分配用户组织结构的处理器
+	}).Methods("POST")
+
+	// 获取组织架构概览（包含岗位和角色的层级结构）
+	orgRouter.HandleFunc("/overview", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: 实现组织架构概览的处理器
+	}).Methods("GET")
+
+	// 组织架构报告（统计信息）
+	orgRouter.HandleFunc("/reports", func(w http.ResponseWriter, r *http.Request) {
+		// TODO: 实现组织架构报告的处理器
+	}).Methods("GET")
+}

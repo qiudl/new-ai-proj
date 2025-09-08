@@ -78,6 +78,10 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 角色管理处理器
 	allHandlers.RoleManagementHandler = handlers.NewRoleManagementHandler(f.db.Permissions())
 
+	// 角色模板系统处理器（最小可用）
+	roleTemplateService := services.NewRoleTemplateService(f.db, f.db.Permissions(), f.logger)
+	allHandlers.RoleTemplateHandler = handlers.NewRoleTemplateHandler(roleTemplateService, f.logger)
+
 	// 任务管理处理器
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)

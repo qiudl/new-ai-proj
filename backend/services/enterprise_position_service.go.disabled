@@ -1,0 +1,343 @@
+package services
+
+import (
+	"fmt"
+	"time"
+
+	"ai-project-backend/database"
+	"ai-project-backend/models"
+)
+
+type EnterprisePositionService struct {
+	positionRepo *database.EnterprisePositionRepository
+	roleRepo     *database.EnterpriseRoleRepository
+	enterpriseRepo *database.EnterpriseRepository
+}
+
+func NewEnterprisePositionService(
+	positionRepo *database.EnterprisePositionRepository,
+	roleRepo *database.EnterpriseRoleRepository,
+	enterpriseRepo *database.EnterpriseRepository,
+) *EnterprisePositionService {
+	return &EnterprisePositionService{
+		positionRepo: positionRepo,
+		roleRepo: roleRepo,
+		enterpriseRepo: enterpriseRepo,
+	}
+}
+
+// CreatePosition 创建岗位
+func (s *EnterprisePositionService) CreatePosition(req *models.CreatePositionRequest, createdBy *int) (*models.EnterprisePosition, error) {
+	// 验证企业是否存在
+	enterprise, err := s.enterpriseRepo.GetEnterpriseByID(req.EnterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("企业不存在: %w", err)
+	}
+
+	// 验证岗位代码唯一性
+	// TODO: 添加岗位代码唯一性检查
+
+	// 验证父岗位
+	if req.ParentPositionID != nil {
+		_, err = s.positionRepo.GetPositionByID(*req.ParentPositionID, false)
+		if err != nil {
+			return nil, fmt.Errorf("父岗位不存在: %w", err)
+		}
+	}
+
+	// 创建岗位对象
+	position := &models.EnterprisePosition{
+		EnterpriseID:          req.EnterpriseID,
+		PositionCode:          req.PositionCode,
+		PositionName:          req.PositionName,
+		PositionLevel:         req.PositionLevel,
+		DepartmentID:          req.DepartmentID,
+		ParentPositionID:      req.ParentPositionID,
+		Description:           req.Description,
+		Responsibilities:      req.Responsibilities,
+		Requirements:          req.Requirements,
+		RoleTemplateID:        req.RoleTemplateID,
+		BasePermissions:       req.BasePermissions,
+		AdditionalPermissions: req.AdditionalPermissions,
+		RestrictedPermissions: req.RestrictedPermissions,
+		MaxHeadcount:          req.MaxHeadcount,
+		CurrentHeadcount:      0,
+		IsKeyPosition:         req.IsKeyPosition,
+		ApprovalRequired:      req.ApprovalRequired,
+		Status:                "active",
+		CreatedBy:             createdBy,
+	}
+
+	// 保存到数据库
+	err = s.positionRepo.CreatePosition(position)
+	if err != nil {
+		return nil, fmt.Errorf("创建岗位失败: %w", err)
+	}
+
+	// 返回完整的岗位信息
+	return s.positionRepo.GetPositionByID(position.ID, true)
+}
+
+// GetPositionByID 获取岗位详情
+func (s *EnterprisePositionService) GetPositionByID(id int, includeRelated bool) (*models.EnterprisePosition, error) {
+	return s.positionRepo.GetPositionByID(id, includeRelated)
+}
+
+// GetPositionsByEnterpriseID 获取企业岗位列表
+func (s *EnterprisePositionService) GetPositionsByEnterpriseID(enterpriseID int, page, pageSize int) (*models.PositionListResponse, error) {
+	positions, total, err := s.positionRepo.GetPositionsByEnterpriseID(enterpriseID, page, pageSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.PositionListResponse{
+		Positions: positions,
+		Total:     total,
+		Page:      page,
+		PageSize:  pageSize,
+	}, nil
+}
+
+// UpdatePosition 更新岗位
+func (s *EnterprisePositionService) UpdatePosition(id int, req *models.UpdatePositionRequest, updatedBy *int) (*models.EnterprisePosition, error) {
+	// 检查岗位是否存在
+	existingPosition, err := s.positionRepo.GetPositionByID(id, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// 构建更新字段
+	updates := make(map[string]interface{})
+	
+	if req.PositionName != nil {
+		updates["position_name"] = *req.PositionName
+	}
+	if req.PositionLevel != nil {
+		updates["position_level"] = *req.PositionLevel
+	}
+	if req.DepartmentID != nil {
+		updates["department_id"] = *req.DepartmentID
+	}
+	if req.ParentPositionID != nil {
+		// 验证父岗位存在且不是自己
+		if *req.ParentPositionID == id {
+			return nil, fmt.Errorf("不能将自己设为父岗位")
+		}
+		_, err = s.positionRepo.GetPositionByID(*req.ParentPositionID, false)
+		if err != nil {
+			return nil, fmt.Errorf("父岗位不存在: %w", err)
+		}
+		updates["parent_position_id"] = *req.ParentPositionID
+	}
+	if req.Description != nil {
+		updates["description"] = *req.Description
+	}
+	if req.Responsibilities != nil {
+		updates["responsibilities"] = *req.Responsibilities
+	}
+	if req.Requirements != nil {
+		updates["requirements"] = *req.Requirements
+	}
+	if req.RoleTemplateID != nil {
+		updates["role_template_id"] = *req.RoleTemplateID
+	}
+	if req.BasePermissions != nil {
+		updates["base_permissions"] = req.BasePermissions
+	}
+	if req.AdditionalPermissions != nil {
+		updates["additional_permissions"] = req.AdditionalPermissions
+	}
+	if req.RestrictedPermissions != nil {
+		updates["restricted_permissions"] = req.RestrictedPermissions
+	}
+	if req.MaxHeadcount != nil {
+		if *req.MaxHeadcount < existingPosition.CurrentHeadcount {
+			return nil, fmt.Errorf("最大编制人数不能少于当前在岗人数 %d", existingPosition.CurrentHeadcount)
+		}
+		updates["max_headcount"] = *req.MaxHeadcount
+	}
+	if req.CurrentHeadcount != nil {
+		if *req.CurrentHeadcount > existingPosition.MaxHeadcount {
+			return nil, fmt.Errorf("当前人数不能超过最大编制人数 %d", existingPosition.MaxHeadcount)
+		}
+		updates["current_headcount"] = *req.CurrentHeadcount
+	}
+	if req.IsKeyPosition != nil {
+		updates["is_key_position"] = *req.IsKeyPosition
+	}
+	if req.ApprovalRequired != nil {
+		updates["approval_required"] = *req.ApprovalRequired
+	}
+	if req.Status != nil {
+		updates["status"] = *req.Status
+	}
+	if updatedBy != nil {
+		updates["updated_by"] = *updatedBy
+	}
+
+	// 执行更新
+	err = s.positionRepo.UpdatePosition(id, updates)
+	if err != nil {
+		return nil, err
+	}
+
+	// 返回更新后的岗位信息
+	return s.positionRepo.GetPositionByID(id, true)
+}
+
+// DeletePosition 删除岗位
+func (s *EnterprisePositionService) DeletePosition(id int) error {
+	return s.positionRepo.DeletePosition(id)
+}
+
+// GetPositionHierarchy 获取岗位层级结构
+func (s *EnterprisePositionService) GetPositionHierarchy(enterpriseID int) ([]models.PositionHierarchy, error) {
+	return s.positionRepo.GetPositionHierarchy(enterpriseID)
+}
+
+// AssignUserToPosition 分配用户到岗位
+func (s *EnterprisePositionService) AssignUserToPosition(req *models.AssignPositionRequest, assignedBy *int) (*models.EnterpriseUserPosition, error) {
+	// 验证请求数据
+	if req.EndDate != nil && req.EndDate.Before(req.StartDate) {
+		return nil, fmt.Errorf("结束日期不能早于开始日期")
+	}
+
+	// 创建分配对象
+	assignment := &models.EnterpriseUserPosition{
+		EnterpriseUserID: req.EnterpriseUserID,
+		PositionID:       req.PositionID,
+		AppointmentType:  req.AppointmentType,
+		StartDate:        req.StartDate,
+		EndDate:          req.EndDate,
+		IsActive:         true,
+		AppointedBy:      assignedBy,
+	}
+
+	// 执行分配
+	err := s.positionRepo.AssignUserToPosition(assignment)
+	if err != nil {
+		return nil, err
+	}
+
+	return assignment, nil
+}
+
+// RemoveUserFromPosition 移除用户岗位
+func (s *EnterprisePositionService) RemoveUserFromPosition(userID, positionID int) error {
+	return s.positionRepo.RemoveUserFromPosition(userID, positionID)
+}
+
+// GetUserPositions 获取用户岗位
+func (s *EnterprisePositionService) GetUserPositions(userID int) ([]models.EnterpriseUserPosition, error) {
+	return s.positionRepo.GetUserPositions(userID)
+}
+
+// GetPositionStatistics 获取岗位统计信息
+func (s *EnterprisePositionService) GetPositionStatistics(enterpriseID int) (map[string]interface{}, error) {
+	positions, _, err := s.positionRepo.GetPositionsByEnterpriseID(enterpriseID, 1, 1000)
+	if err != nil {
+		return nil, fmt.Errorf("查询岗位列表失败: %w", err)
+	}
+
+	stats := make(map[string]interface{})
+	
+	totalPositions := len(positions)
+	activePositions := 0
+	keyPositions := 0
+	totalHeadcount := 0
+	currentHeadcount := 0
+	levelDistribution := make(map[int]int)
+	
+	for _, position := range positions {
+		if position.Status == "active" {
+			activePositions++
+		}
+		if position.IsKeyPosition {
+			keyPositions++
+		}
+		totalHeadcount += position.MaxHeadcount
+		currentHeadcount += position.CurrentHeadcount
+		levelDistribution[position.PositionLevel]++
+	}
+
+	stats["total_positions"] = totalPositions
+	stats["active_positions"] = activePositions
+	stats["key_positions"] = keyPositions
+	stats["total_headcount"] = totalHeadcount
+	stats["current_headcount"] = currentHeadcount
+	stats["headcount_utilization"] = float64(currentHeadcount) / float64(totalHeadcount) * 100
+	stats["level_distribution"] = levelDistribution
+
+	return stats, nil
+}
+
+// ValidatePositionPermissions 验证岗位权限配置
+func (s *EnterprisePositionService) ValidatePositionPermissions(position *models.EnterprisePosition) error {
+	// 获取所有可用权限列表（简化实现，实际应从权限系统获取）
+	// TODO: 从权限系统验证权限的有效性
+	
+	effectivePermissions := position.GetEffectivePermissions()
+	if len(effectivePermissions) == 0 {
+		return fmt.Errorf("岗位必须至少拥有一个权限")
+	}
+
+	return nil
+}
+
+// ClonePosition 克隆岗位
+func (s *EnterprisePositionService) ClonePosition(sourceID int, newCode, newName string, createdBy *int) (*models.EnterprisePosition, error) {
+	// 获取源岗位
+	sourcePosition, err := s.positionRepo.GetPositionByID(sourceID, false)
+	if err != nil {
+		return nil, fmt.Errorf("源岗位不存在: %w", err)
+	}
+
+	// 创建克隆岗位
+	clonePosition := &models.EnterprisePosition{
+		EnterpriseID:          sourcePosition.EnterpriseID,
+		PositionCode:          newCode,
+		PositionName:          newName,
+		PositionLevel:         sourcePosition.PositionLevel,
+		DepartmentID:          sourcePosition.DepartmentID,
+		Description:           sourcePosition.Description,
+		Responsibilities:      sourcePosition.Responsibilities,
+		Requirements:          sourcePosition.Requirements,
+		RoleTemplateID:        sourcePosition.RoleTemplateID,
+		BasePermissions:       sourcePosition.BasePermissions,
+		AdditionalPermissions: sourcePosition.AdditionalPermissions,
+		RestrictedPermissions: sourcePosition.RestrictedPermissions,
+		MaxHeadcount:          sourcePosition.MaxHeadcount,
+		CurrentHeadcount:      0, // 新岗位初始人数为0
+		IsKeyPosition:         sourcePosition.IsKeyPosition,
+		ApprovalRequired:      sourcePosition.ApprovalRequired,
+		Status:                "active",
+		CreatedBy:             createdBy,
+	}
+
+	// 保存克隆岗位
+	err = s.positionRepo.CreatePosition(clonePosition)
+	if err != nil {
+		return nil, fmt.Errorf("创建克隆岗位失败: %w", err)
+	}
+
+	return s.positionRepo.GetPositionByID(clonePosition.ID, true)
+}
+
+// BatchUpdatePositionStatus 批量更新岗位状态
+func (s *EnterprisePositionService) BatchUpdatePositionStatus(positionIDs []int, status string, updatedBy *int) error {
+	for _, id := range positionIDs {
+		updates := map[string]interface{}{
+			"status": status,
+		}
+		if updatedBy != nil {
+			updates["updated_by"] = *updatedBy
+		}
+		
+		err := s.positionRepo.UpdatePosition(id, updates)
+		if err != nil {
+			return fmt.Errorf("更新岗位 %d 状态失败: %w", id, err)
+		}
+	}
+
+	return nil
+}

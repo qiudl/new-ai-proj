@@ -1,0 +1,385 @@
+package handlers
+
+import (
+	"ai-project-backend/models"
+	"ai-project-backend/services"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+)
+
+// PermissionApprovalHandler handles permission approval HTTP requests
+type PermissionApprovalHandler struct {
+	approvalService *services.PermissionApprovalService
+	logger          *log.Logger
+}
+
+// NewPermissionApprovalHandler creates a new permission approval handler
+func NewPermissionApprovalHandler(approvalService *services.PermissionApprovalService, logger *log.Logger) *PermissionApprovalHandler {
+	return &PermissionApprovalHandler{
+		approvalService: approvalService,
+		logger:          logger,
+	}
+}
+
+// CreateApprovalRequest creates a new permission approval request
+func (h *PermissionApprovalHandler) CreateApprovalRequest(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateApprovalRequestRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Get user ID from context (assumed to be set by middleware)
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	response, err := h.approvalService.CreateApprovalRequest(r.Context(), &req, userID)
+	if err != nil {
+		h.logger.Printf("Error creating approval request: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to create approval request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetApprovalRequest retrieves a specific approval request
+func (h *PermissionApprovalHandler) GetApprovalRequest(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	requestID := vars["id"]
+	if requestID == "" {
+		http.Error(w, "Request ID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	response, err := h.approvalService.GetApprovalRequest(r.Context(), requestID, userID)
+	if err != nil {
+		if err.Error() == "approval request not found" {
+			http.Error(w, "Approval request not found", http.StatusNotFound)
+			return
+		}
+		h.logger.Printf("Error getting approval request: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to get approval request: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ListApprovalRequests retrieves approval requests with filtering
+func (h *PermissionApprovalHandler) ListApprovalRequests(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse query parameters
+	filter := &models.ApprovalRequestFilter{
+		RequesterID: parseIntQuery(r, "requester_id"),
+		ApproverID:  parseIntQuery(r, "approver_id"),
+		Status:      r.URL.Query().Get("status"),
+		Priority:    r.URL.Query().Get("priority"),
+		Limit:       parseIntQueryWithDefault(r, "limit", 20),
+		Offset:      parseIntQueryWithDefault(r, "offset", 0),
+	}
+
+	if permissionCode := r.URL.Query().Get("permission_code"); permissionCode != "" {
+		filter.PermissionCode = &permissionCode
+	}
+	if resourceType := r.URL.Query().Get("resource_type"); resourceType != "" {
+		filter.ResourceType = &resourceType
+	}
+
+	response, err := h.approvalService.ListApprovalRequests(r.Context(), filter, userID)
+	if err != nil {
+		h.logger.Printf("Error listing approval requests: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to list approval requests: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// ProcessApprovalDecision processes an approval decision (approve/reject/delegate)
+func (h *PermissionApprovalHandler) ProcessApprovalDecision(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	requestID := vars["id"]
+	if requestID == "" {
+		http.Error(w, "Request ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var req models.ProcessApprovalDecisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	response, err := h.approvalService.ProcessApprovalDecision(r.Context(), requestID, &req, userID)
+	if err != nil {
+		if err.Error() == "approval request not found" {
+			http.Error(w, "Approval request not found", http.StatusNotFound)
+			return
+		}
+		if err.Error() == "user not authorized to approve this request" {
+			http.Error(w, "Not authorized to approve this request", http.StatusForbidden)
+			return
+		}
+		h.logger.Printf("Error processing approval decision: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to process approval decision: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetApprovalHistory retrieves the approval history for a request
+func (h *PermissionApprovalHandler) GetApprovalHistory(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	requestID := vars["id"]
+	if requestID == "" {
+		http.Error(w, "Request ID is required", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	limit := parseIntQueryWithDefault(r, "limit", 50)
+	offset := parseIntQueryWithDefault(r, "offset", 0)
+
+	response, err := h.approvalService.GetApprovalHistory(r.Context(), requestID, userID, limit, offset)
+	if err != nil {
+		if err.Error() == "approval request not found" {
+			http.Error(w, "Approval request not found", http.StatusNotFound)
+			return
+		}
+		h.logger.Printf("Error getting approval history: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to get approval history: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetPendingApprovals retrieves pending approvals for the current user
+func (h *PermissionApprovalHandler) GetPendingApprovals(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	limit := parseIntQueryWithDefault(r, "limit", 20)
+	offset := parseIntQueryWithDefault(r, "offset", 0)
+	priority := r.URL.Query().Get("priority")
+
+	response, err := h.approvalService.GetPendingApprovals(r.Context(), userID, priority, limit, offset)
+	if err != nil {
+		h.logger.Printf("Error getting pending approvals: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to get pending approvals: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// CreateDelegation creates a delegation for approval authority
+func (h *PermissionApprovalHandler) CreateDelegation(w http.ResponseWriter, r *http.Request) {
+	var req models.CreateDelegationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	response, err := h.approvalService.CreateDelegation(r.Context(), &req, userID)
+	if err != nil {
+		h.logger.Printf("Error creating delegation: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to create delegation: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetUserDelegations retrieves delegations for a user
+func (h *PermissionApprovalHandler) GetUserDelegations(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	limit := parseIntQueryWithDefault(r, "limit", 20)
+	offset := parseIntQueryWithDefault(r, "offset", 0)
+	includeExpired := r.URL.Query().Get("include_expired") == "true"
+
+	response, err := h.approvalService.GetUserDelegations(r.Context(), userID, includeExpired, limit, offset)
+	if err != nil {
+		h.logger.Printf("Error getting user delegations: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to get user delegations: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// UpdateDelegation updates a delegation
+func (h *PermissionApprovalHandler) UpdateDelegation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	delegationIDStr := vars["id"]
+	if delegationIDStr == "" {
+		http.Error(w, "Delegation ID is required", http.StatusBadRequest)
+		return
+	}
+
+	delegationID, err := strconv.Atoi(delegationIDStr)
+	if err != nil {
+		http.Error(w, "Invalid delegation ID", http.StatusBadRequest)
+		return
+	}
+
+	var req models.UpdateDelegationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.logger.Printf("Error decoding request body: %v", err)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	response, err := h.approvalService.UpdateDelegation(r.Context(), delegationID, &req, userID)
+	if err != nil {
+		if err.Error() == "delegation not found" {
+			http.Error(w, "Delegation not found", http.StatusNotFound)
+			return
+		}
+		if err.Error() == "user not authorized to update this delegation" {
+			http.Error(w, "Not authorized to update this delegation", http.StatusForbidden)
+			return
+		}
+		h.logger.Printf("Error updating delegation: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to update delegation: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// GetApprovalStats retrieves approval statistics
+func (h *PermissionApprovalHandler) GetApprovalStats(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserIDFromContext(r)
+	if !ok {
+		http.Error(w, "User not authenticated", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse query parameters for stats filter
+	filter := &models.ApprovalStatsFilter{
+		UserID:    &userID,
+		StartDate: r.URL.Query().Get("start_date"),
+		EndDate:   r.URL.Query().Get("end_date"),
+		GroupBy:   r.URL.Query().Get("group_by"), // "status", "priority", "permission", etc.
+	}
+
+	if requesterID := parseIntQuery(r, "requester_id"); requesterID != nil {
+		filter.RequesterID = requesterID
+	}
+	if approverID := parseIntQuery(r, "approver_id"); approverID != nil {
+		filter.ApproverID = approverID
+	}
+
+	response, err := h.approvalService.GetApprovalStats(r.Context(), filter, userID)
+	if err != nil {
+		h.logger.Printf("Error getting approval stats: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to get approval stats: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// Utility functions
+
+func getUserIDFromContext(r *http.Request) (int, bool) {
+	// This would typically be set by authentication middleware
+	// For now, return a placeholder implementation
+	userIDValue := r.Context().Value("user_id")
+	if userIDValue == nil {
+		return 0, false
+	}
+
+	userID, ok := userIDValue.(int)
+	return userID, ok
+}
+
+func parseIntQuery(r *http.Request, param string) *int {
+	value := r.URL.Query().Get(param)
+	if value == "" {
+		return nil
+	}
+	if intValue, err := strconv.Atoi(value); err == nil {
+		return &intValue
+	}
+	return nil
+}
+
+func parseIntQueryWithDefault(r *http.Request, param string, defaultValue int) int {
+	value := r.URL.Query().Get(param)
+	if value == "" {
+		return defaultValue
+	}
+	if intValue, err := strconv.Atoi(value); err == nil {
+		return intValue
+	}
+	return defaultValue
+}

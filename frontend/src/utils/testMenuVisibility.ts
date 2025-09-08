@@ -19,7 +19,8 @@ const testMenuItems = [
     children: [
       { key: '/user-management', label: '用户管理' },
       { key: '/permissions', label: '权限管理' },
-      { key: '/companies', label: '企业客户' }
+      { key: '/companies', label: '企业客户 (legacy)' },
+      { key: '/enterprises', label: '企业管理' }
     ]
   }
 ];
@@ -43,7 +44,8 @@ export function testMenuVisibility() {
     { key: '/system-management', expected: false, description: '系统管理菜单组' },
     { key: '/user-management', expected: false, description: '用户管理' },
     { key: '/permissions', expected: false, description: '权限管理' },
-    { key: '/companies', expected: false, description: '企业客户' },
+    { key: '/companies', expected: false, description: '企业客户 (legacy)' },
+    { key: '/enterprises', expected: false, description: '企业管理' },
     { key: '/projects', expected: true, description: '项目列表' },
     { key: '/audit-logs', expected: false, description: '审计日志' }
   ];

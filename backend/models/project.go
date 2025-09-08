@@ -15,7 +15,8 @@ type Project struct {
 	Name          string     `json:"name" db:"name" validate:"required,min=1,max=100"`
 	Description   string     `json:"description" db:"description"`
 	OwnerID       int        `json:"owner_id" db:"owner_id"`
-	CompanyID     *int       `json:"company_id,omitempty" db:"company_id"` // 主客户ID
+	CompanyID     *int       `json:"company_id,omitempty" db:"company_id"`     // 主客户ID（向后兼容）
+	EnterpriseID  *int       `json:"enterprise_id,omitempty" db:"enterprise_id"` // 企业ID（新架构）
 	Status        string     `json:"status" db:"status" validate:"oneof=planning active on_hold completed cancelled"`
 	Priority      string     `json:"priority" db:"priority" validate:"oneof=high medium low"`
 	Progress      int        `json:"progress" db:"progress" validate:"min=0,max=100"`
@@ -32,8 +33,9 @@ type ProjectRequest struct {
 	ProjectNumber *string  `json:"project_number,omitempty"`
 	Name          string   `json:"name" validate:"required,min=1,max=100"`
 	Description   string   `json:"description"`
-	CompanyID     *int     `json:"company_id,omitempty"`  // 主客户ID
-	CompanyIDs    []int    `json:"company_ids,omitempty"` // 多客户ID列表
+	CompanyID     *int     `json:"company_id,omitempty"`    // 主客户ID（向后兼容）
+	CompanyIDs    []int    `json:"company_ids,omitempty"`   // 多客户ID列表
+	EnterpriseID  *int     `json:"enterprise_id,omitempty"` // 企业ID（新架构）
 	UserIDs       []int    `json:"user_ids,omitempty"`    // 项目用户ID列表
 	Status        string   `json:"status" validate:"omitempty,oneof=planning active on_hold completed cancelled"`
 	Priority      string   `json:"priority" validate:"omitempty,oneof=high medium low"`
@@ -52,7 +54,9 @@ type ProjectResponse struct {
 	OwnerID       int        `json:"owner_id"`
 	OwnerName     string     `json:"owner_name,omitempty"`
 	CompanyID     *int       `json:"company_id,omitempty"`
-	CompanyName   string     `json:"company_name,omitempty"` // 新增：客户名称
+	CompanyName   string     `json:"company_name,omitempty"`   // 客户名称（向后兼容）
+	EnterpriseID  *int       `json:"enterprise_id,omitempty"` // 企业ID（新架构）
+	EnterpriseName string    `json:"enterprise_name,omitempty"` // 企业名称（新架构）
 	Status        string     `json:"status,omitempty"`
 	Priority      string     `json:"priority,omitempty"`
 	Progress      int        `json:"progress"`
@@ -139,6 +143,7 @@ func (p *Project) ToResponse() ProjectResponse {
 		Description:   p.Description,
 		OwnerID:       p.OwnerID,
 		CompanyID:     p.CompanyID,
+		EnterpriseID:  p.EnterpriseID,
 		Status:        p.Status,
 		Priority:      p.Priority,
 		Progress:      p.Progress,

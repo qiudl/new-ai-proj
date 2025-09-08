@@ -1,0 +1,602 @@
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+
+	"ai-project-backend/models"
+)
+
+type EnterprisePositionRepository struct {
+	db *sqlx.DB
+}
+
+func NewEnterprisePositionRepository(db *sqlx.DB) *EnterprisePositionRepository {
+	return &EnterprisePositionRepository{db: db}
+}
+
+// CreatePosition 创建岗位
+func (r *EnterprisePositionRepository) CreatePosition(position *models.EnterprisePosition) error {
+	query := `
+		INSERT INTO enterprise_positions (
+			enterprise_id, position_code, position_name, position_level,
+			department_id, parent_position_id, description, responsibilities,
+			requirements, role_template_id, base_permissions, additional_permissions,
+			restricted_permissions, max_headcount, is_key_position, approval_required,
+			status, created_by
+		) VALUES (
+			:enterprise_id, :position_code, :position_name, :position_level,
+			:department_id, :parent_position_id, :description, :responsibilities,
+			:requirements, :role_template_id, :base_permissions, :additional_permissions,
+			:restricted_permissions, :max_headcount, :is_key_position, :approval_required,
+			:status, :created_by
+		) RETURNING id, created_at, updated_at`
+
+	rows, err := r.db.NamedQuery(query, position)
+	if err != nil {
+		return fmt.Errorf("创建岗位失败: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&position.ID, &position.CreatedAt, &position.UpdatedAt)
+		if err != nil {
+			return fmt.Errorf("扫描创建结果失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// GetPositionByID 根据ID获取岗位
+func (r *EnterprisePositionRepository) GetPositionByID(id int, includeRelated bool) (*models.EnterprisePosition, error) {
+	query := `
+		SELECT p.*, 
+			   e.name as enterprise_name,
+			   d.name as department_name,
+			   rt.template_name as role_template_name
+		FROM enterprise_positions p
+		LEFT JOIN enterprises e ON p.enterprise_id = e.id
+		LEFT JOIN enterprise_departments d ON p.department_id = d.id
+		LEFT JOIN role_templates rt ON p.role_template_id = rt.id
+		WHERE p.id = $1 AND p.deleted_at IS NULL`
+
+	var position models.EnterprisePosition
+	var enterpriseName, departmentName, roleTemplateName sql.NullString
+
+	err := r.db.QueryRow(query, id).Scan(
+		&position.ID, &position.EnterpriseID, &position.PositionCode, &position.PositionName,
+		&position.PositionLevel, &position.DepartmentID, &position.ParentPositionID,
+		&position.Description, &position.Responsibilities, &position.Requirements,
+		&position.RoleTemplateID, &position.BasePermissions, &position.AdditionalPermissions,
+		&position.RestrictedPermissions, &position.MaxHeadcount, &position.CurrentHeadcount,
+		&position.IsKeyPosition, &position.ApprovalRequired, &position.Status,
+		&position.CreatedBy, &position.UpdatedBy, &position.CreatedAt, &position.UpdatedAt,
+		&position.DeletedAt, &enterpriseName, &departmentName, &roleTemplateName,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("岗位不存在")
+		}
+		return nil, fmt.Errorf("查询岗位失败: %w", err)
+	}
+
+	// 填充关联数据
+	if enterpriseName.Valid {
+		position.Enterprise = &models.Enterprise{
+			ID:   position.EnterpriseID,
+			Name: enterpriseName.String,
+		}
+	}
+
+	if departmentName.Valid && position.DepartmentID != nil {
+		position.Department = &models.EnterpriseDepartment{
+			ID:   *position.DepartmentID,
+			Name: departmentName.String,
+		}
+	}
+
+	if includeRelated {
+		// 加载子岗位
+		childPositions, err := r.GetChildPositions(id)
+		if err != nil {
+			return nil, fmt.Errorf("加载子岗位失败: %w", err)
+		}
+		position.ChildPositions = childPositions
+
+		// 加载岗位用户
+		users, err := r.GetPositionUsers(id)
+		if err != nil {
+			return nil, fmt.Errorf("加载岗位用户失败: %w", err)
+		}
+		position.Users = users
+	}
+
+	return &position, nil
+}
+
+// GetPositionsByEnterpriseID 获取企业所有岗位
+func (r *EnterprisePositionRepository) GetPositionsByEnterpriseID(enterpriseID int, page, pageSize int) ([]models.EnterprisePosition, int, error) {
+	offset := (page - 1) * pageSize
+
+	// 获取总数
+	var total int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_positions 
+		WHERE enterprise_id = $1 AND deleted_at IS NULL`
+	
+	err := r.db.Get(&total, countQuery, enterpriseID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("查询岗位总数失败: %w", err)
+	}
+
+	// 获取岗位列表
+	query := `
+		SELECT p.*, 
+			   e.name as enterprise_name,
+			   d.name as department_name,
+			   COUNT(eup.id) as user_count
+		FROM enterprise_positions p
+		LEFT JOIN enterprises e ON p.enterprise_id = e.id
+		LEFT JOIN enterprise_departments d ON p.department_id = d.id
+		LEFT JOIN enterprise_user_positions eup ON p.id = eup.position_id AND eup.is_active = true
+		WHERE p.enterprise_id = $1 AND p.deleted_at IS NULL
+		GROUP BY p.id, e.name, d.name
+		ORDER BY p.position_level, p.position_name
+		LIMIT $2 OFFSET $3`
+
+	rows, err := r.db.Query(query, enterpriseID, pageSize, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("查询岗位列表失败: %w", err)
+	}
+	defer rows.Close()
+
+	var positions []models.EnterprisePosition
+	for rows.Next() {
+		var position models.EnterprisePosition
+		var enterpriseName, departmentName sql.NullString
+		var userCount int
+
+		err = rows.Scan(
+			&position.ID, &position.EnterpriseID, &position.PositionCode, &position.PositionName,
+			&position.PositionLevel, &position.DepartmentID, &position.ParentPositionID,
+			&position.Description, &position.Responsibilities, &position.Requirements,
+			&position.RoleTemplateID, &position.BasePermissions, &position.AdditionalPermissions,
+			&position.RestrictedPermissions, &position.MaxHeadcount, &position.CurrentHeadcount,
+			&position.IsKeyPosition, &position.ApprovalRequired, &position.Status,
+			&position.CreatedBy, &position.UpdatedBy, &position.CreatedAt, &position.UpdatedAt,
+			&position.DeletedAt, &enterpriseName, &departmentName, &userCount,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("扫描岗位数据失败: %w", err)
+		}
+
+		// 填充关联数据
+		if enterpriseName.Valid {
+			position.Enterprise = &models.Enterprise{
+				ID:   position.EnterpriseID,
+				Name: enterpriseName.String,
+			}
+		}
+
+		if departmentName.Valid && position.DepartmentID != nil {
+			position.Department = &models.EnterpriseDepartment{
+				ID:   *position.DepartmentID,
+				Name: departmentName.String,
+			}
+		}
+
+		positions = append(positions, position)
+	}
+
+	return positions, total, nil
+}
+
+// UpdatePosition 更新岗位
+func (r *EnterprisePositionRepository) UpdatePosition(id int, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return fmt.Errorf("没有要更新的字段")
+	}
+
+	// 构建 SET 子句
+	setParts := make([]string, 0, len(updates))
+	args := make([]interface{}, 0, len(updates)+1)
+	argIndex := 1
+
+	for field, value := range updates {
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", field, argIndex))
+		args = append(args, value)
+		argIndex++
+	}
+
+	// 添加 updated_at
+	setParts = append(setParts, fmt.Sprintf("updated_at = $%d", argIndex))
+	args = append(args, time.Now())
+	argIndex++
+
+	// 添加 ID 参数
+	args = append(args, id)
+
+	query := fmt.Sprintf(`
+		UPDATE enterprise_positions 
+		SET %s 
+		WHERE id = $%d AND deleted_at IS NULL`,
+		strings.Join(setParts, ", "),
+		argIndex)
+
+	result, err := r.db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("更新岗位失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取更新结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("岗位不存在或已删除")
+	}
+
+	return nil
+}
+
+// DeletePosition 删除岗位（软删除）
+func (r *EnterprisePositionRepository) DeletePosition(id int) error {
+	// 检查是否有用户在该岗位
+	var userCount int
+	countQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_user_positions 
+		WHERE position_id = $1 AND is_active = true`
+	
+	err := r.db.Get(&userCount, countQuery, id)
+	if err != nil {
+		return fmt.Errorf("检查岗位用户失败: %w", err)
+	}
+
+	if userCount > 0 {
+		return fmt.Errorf("岗位下还有 %d 个用户，无法删除", userCount)
+	}
+
+	// 检查是否有子岗位
+	var childCount int
+	childCountQuery := `
+		SELECT COUNT(*) 
+		FROM enterprise_positions 
+		WHERE parent_position_id = $1 AND deleted_at IS NULL`
+	
+	err = r.db.Get(&childCount, childCountQuery, id)
+	if err != nil {
+		return fmt.Errorf("检查子岗位失败: %w", err)
+	}
+
+	if childCount > 0 {
+		return fmt.Errorf("岗位下还有 %d 个子岗位，无法删除", childCount)
+	}
+
+	// 执行软删除
+	query := `
+		UPDATE enterprise_positions 
+		SET deleted_at = NOW() 
+		WHERE id = $1 AND deleted_at IS NULL`
+
+	result, err := r.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("删除岗位失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取删除结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("岗位不存在或已删除")
+	}
+
+	return nil
+}
+
+// GetChildPositions 获取子岗位
+func (r *EnterprisePositionRepository) GetChildPositions(parentID int) ([]models.EnterprisePosition, error) {
+	query := `
+		SELECT id, enterprise_id, position_code, position_name, position_level,
+			   department_id, parent_position_id, description, responsibilities,
+			   requirements, role_template_id, base_permissions, additional_permissions,
+			   restricted_permissions, max_headcount, current_headcount, is_key_position,
+			   approval_required, status, created_by, updated_by, created_at, updated_at, deleted_at
+		FROM enterprise_positions
+		WHERE parent_position_id = $1 AND deleted_at IS NULL
+		ORDER BY position_level, position_name`
+
+	var positions []models.EnterprisePosition
+	err := r.db.Select(&positions, query, parentID)
+	if err != nil {
+		return nil, fmt.Errorf("查询子岗位失败: %w", err)
+	}
+
+	return positions, nil
+}
+
+// GetPositionUsers 获取岗位用户
+func (r *EnterprisePositionRepository) GetPositionUsers(positionID int) ([]models.EnterpriseUser, error) {
+	query := `
+		SELECT eu.id, eu.username, eu.email, eu.name, eu.phone, eu.position,
+			   eu.department_id, eu.is_primary_contact, eu.status
+		FROM enterprise_users eu
+		JOIN enterprise_user_positions eup ON eu.id = eup.enterprise_user_id
+		WHERE eup.position_id = $1 AND eup.is_active = true AND eu.deleted_at IS NULL
+		ORDER BY eup.appointment_type, eu.name`
+
+	var users []models.EnterpriseUser
+	err := r.db.Select(&users, query, positionID)
+	if err != nil {
+		return nil, fmt.Errorf("查询岗位用户失败: %w", err)
+	}
+
+	return users, nil
+}
+
+// GetPositionHierarchy 获取岗位层级结构
+func (r *EnterprisePositionRepository) GetPositionHierarchy(enterpriseID int) ([]models.PositionHierarchy, error) {
+	query := `
+		SELECT id, position_code, position_name, position_level, parent_position_id,
+			   department_id, max_headcount, current_headcount, is_key_position, status
+		FROM enterprise_positions
+		WHERE enterprise_id = $1 AND deleted_at IS NULL
+		ORDER BY position_level, position_name`
+
+	rows, err := r.db.Query(query, enterpriseID)
+	if err != nil {
+		return nil, fmt.Errorf("查询岗位层级失败: %w", err)
+	}
+	defer rows.Close()
+
+	// 构建岗位映射
+	positionMap := make(map[int]*models.EnterprisePosition)
+	var rootPositions []*models.EnterprisePosition
+
+	for rows.Next() {
+		var position models.EnterprisePosition
+		err = rows.Scan(
+			&position.ID, &position.PositionCode, &position.PositionName,
+			&position.PositionLevel, &position.ParentPositionID, &position.DepartmentID,
+			&position.MaxHeadcount, &position.CurrentHeadcount, &position.IsKeyPosition,
+			&position.Status,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描岗位数据失败: %w", err)
+		}
+
+		positionMap[position.ID] = &position
+
+		if position.ParentPositionID == nil {
+			rootPositions = append(rootPositions, &position)
+		}
+	}
+
+	// 构建层级结构
+	var buildHierarchy func(*models.EnterprisePosition, int, string) models.PositionHierarchy
+	buildHierarchy = func(position *models.EnterprisePosition, level int, path string) models.PositionHierarchy {
+		hierarchy := models.PositionHierarchy{
+			Position: position,
+			Level:    level,
+			Path:     path,
+		}
+
+		// 查找子岗位
+		for _, childPosition := range positionMap {
+			if childPosition.ParentPositionID != nil && *childPosition.ParentPositionID == position.ID {
+				childPath := path
+				if childPath != "" {
+					childPath += "/"
+				}
+				childPath += fmt.Sprintf("%d", childPosition.ID)
+				
+				childHierarchy := buildHierarchy(childPosition, level+1, childPath)
+				hierarchy.Children = append(hierarchy.Children, childHierarchy)
+			}
+		}
+
+		return hierarchy
+	}
+
+	var result []models.PositionHierarchy
+	for _, rootPosition := range rootPositions {
+		hierarchy := buildHierarchy(rootPosition, 1, fmt.Sprintf("%d", rootPosition.ID))
+		result = append(result, hierarchy)
+	}
+
+	return result, nil
+}
+
+// AssignUserToPosition 分配用户到岗位
+func (r *EnterprisePositionRepository) AssignUserToPosition(assignment *models.EnterpriseUserPosition) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("开始事务失败: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 检查岗位是否存在且未满员
+	var position models.EnterprisePosition
+	positionQuery := `
+		SELECT id, max_headcount, current_headcount 
+		FROM enterprise_positions 
+		WHERE id = $1 AND deleted_at IS NULL`
+	
+	err = tx.Get(&position, positionQuery, assignment.PositionID)
+	if err != nil {
+		return fmt.Errorf("查询岗位失败: %w", err)
+	}
+
+	if position.CurrentHeadcount >= position.MaxHeadcount {
+		return fmt.Errorf("岗位已满员，无法分配")
+	}
+
+	// 如果是主岗位，检查用户是否已有主岗位
+	if assignment.AppointmentType == "primary" {
+		var existingCount int
+		checkQuery := `
+			SELECT COUNT(*) 
+			FROM enterprise_user_positions 
+			WHERE enterprise_user_id = $1 AND appointment_type = 'primary' AND is_active = true`
+		
+		err = tx.Get(&existingCount, checkQuery, assignment.EnterpriseUserID)
+		if err != nil {
+			return fmt.Errorf("检查用户主岗位失败: %w", err)
+		}
+
+		if existingCount > 0 {
+			return fmt.Errorf("用户已有主岗位，无法重复分配")
+		}
+	}
+
+	// 创建岗位分配
+	assignQuery := `
+		INSERT INTO enterprise_user_positions (
+			enterprise_user_id, position_id, appointment_type, start_date, end_date, appointed_by
+		) VALUES (
+			:enterprise_user_id, :position_id, :appointment_type, :start_date, :end_date, :appointed_by
+		) RETURNING id, created_at, updated_at`
+
+	rows, err := tx.NamedQuery(assignQuery, assignment)
+	if err != nil {
+		return fmt.Errorf("创建岗位分配失败: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		err = rows.Scan(&assignment.ID, &assignment.CreatedAt, &assignment.UpdatedAt)
+		if err != nil {
+			return fmt.Errorf("扫描创建结果失败: %w", err)
+		}
+	}
+
+	// 更新岗位当前人数
+	updateQuery := `
+		UPDATE enterprise_positions 
+		SET current_headcount = current_headcount + 1 
+		WHERE id = $1`
+	
+	_, err = tx.Exec(updateQuery, assignment.PositionID)
+	if err != nil {
+		return fmt.Errorf("更新岗位人数失败: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveUserFromPosition 移除用户岗位
+func (r *EnterprisePositionRepository) RemoveUserFromPosition(userID, positionID int) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("开始事务失败: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 停用岗位分配
+	deactivateQuery := `
+		UPDATE enterprise_user_positions 
+		SET is_active = false, updated_at = NOW() 
+		WHERE enterprise_user_id = $1 AND position_id = $2 AND is_active = true`
+
+	result, err := tx.Exec(deactivateQuery, userID, positionID)
+	if err != nil {
+		return fmt.Errorf("停用岗位分配失败: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("获取更新结果失败: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("岗位分配不存在或已停用")
+	}
+
+	// 更新岗位当前人数
+	updateQuery := `
+		UPDATE enterprise_positions 
+		SET current_headcount = GREATEST(current_headcount - 1, 0)
+		WHERE id = $1`
+	
+	_, err = tx.Exec(updateQuery, positionID)
+	if err != nil {
+		return fmt.Errorf("更新岗位人数失败: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("提交事务失败: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserPositions 获取用户的岗位
+func (r *EnterprisePositionRepository) GetUserPositions(userID int) ([]models.EnterpriseUserPosition, error) {
+	query := `
+		SELECT eup.*, 
+			   ep.position_code, ep.position_name, ep.position_level,
+			   ed.name as department_name
+		FROM enterprise_user_positions eup
+		JOIN enterprise_positions ep ON eup.position_id = ep.id
+		LEFT JOIN enterprise_departments ed ON ep.department_id = ed.id
+		WHERE eup.enterprise_user_id = $1 AND eup.is_active = true
+		ORDER BY eup.appointment_type = 'primary' DESC, eup.created_at`
+
+	rows, err := r.db.Query(query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("查询用户岗位失败: %w", err)
+	}
+	defer rows.Close()
+
+	var positions []models.EnterpriseUserPosition
+	for rows.Next() {
+		var position models.EnterpriseUserPosition
+		var positionCode, positionName string
+		var positionLevel int
+		var departmentName sql.NullString
+
+		err = rows.Scan(
+			&position.ID, &position.EnterpriseUserID, &position.PositionID,
+			&position.AppointmentType, &position.StartDate, &position.EndDate,
+			&position.IsActive, &position.AppointedBy, &position.CreatedAt, &position.UpdatedAt,
+			&positionCode, &positionName, &positionLevel, &departmentName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("扫描用户岗位数据失败: %w", err)
+		}
+
+		// 填充岗位信息
+		position.Position = &models.EnterprisePosition{
+			ID:            position.PositionID,
+			PositionCode:  positionCode,
+			PositionName:  positionName,
+			PositionLevel: positionLevel,
+		}
+
+		if departmentName.Valid {
+			position.Position.Department = &models.EnterpriseDepartment{
+				Name: departmentName.String,
+			}
+		}
+
+		positions = append(positions, position)
+	}
+
+	return positions, nil
+}

@@ -1,160 +1,191 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
-  Card,
-  Button,
   Table,
-  Modal,
-  Form,
+  Button,
   Input,
   Select,
-  message,
   Space,
+  Card,
   Tag,
+  Pagination,
+  Modal,
+  message,
+  Tooltip,
+  Typography,
   Row,
   Col,
-  Statistic,
-  Typography,
   Divider,
-  Tabs,
-  Badge,
-  Dropdown,
-  Alert,
-  Tooltip,
-  Popconfirm
+  Radio,
+  Badge
 } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
+  SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
+  FilterOutlined,
+  ReloadOutlined,
   TeamOutlined,
-  BankOutlined,
   UserOutlined,
-  SettingOutlined,
-  ExclamationCircleOutlined,
-  ReloadOutlined
+  BankOutlined,
+  EnvironmentOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 import enterpriseService from '../services/enterpriseService';
+import { formatDate } from '../utils/formatters';
 import {
   Enterprise,
-  EnterpriseRequest,
-  EnterpriseUpdateRequest,
-  EnterpriseStats,
   BUSINESS_TYPE_OPTIONS,
   STATUS_OPTIONS,
   INDUSTRY_TYPE_OPTIONS
 } from '../types/enterprise';
 
-const { Title, Text } = Typography;
+const { Search } = Input;
 const { Option } = Select;
-const { TextArea } = Input;
+const { Title, Text } = Typography;
+
+type ViewMode = 'list' | 'card';
+
+// 企业筛选接口
+interface EnterpriseFilter {
+  search?: string;
+  status?: string;
+  businessType?: string;
+  industryType?: string;
+}
 
 const EnterpriseManagementPage: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // 基础状态
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
-  const [stats, setStats] = useState<EnterpriseStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingEnterprise, setEditingEnterprise] = useState<Enterprise | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  
+  // 分页状态
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
     total: 0,
+    showSizeChanger: true,
+    showQuickJumper: true,
+    showTotal: (total: number) => `共 ${total} 条记录`,
   });
-  const [form] = Form.useForm();
+  
+  // 筛选状态
+  const [filters, setFilters] = useState<EnterpriseFilter>({});
 
   // 加载企业列表
-  const loadEnterprises = async (page = 1, pageSize = 20) => {
+  const loadEnterprises = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await enterpriseService.getEnterprises(page, pageSize);
-      setEnterprises(result.data);
-      setPagination({
-        current: page,
-        pageSize: pageSize,
-        total: result.pagination.total,
-      });
+      // 准备筛选参数
+      const filterParams: any = {};
+      
+      if (filters.search) {
+        filterParams.search = filters.search;
+      }
+      if (filters.status) {
+        filterParams.status = filters.status;
+      }
+      if (filters.businessType) {
+        filterParams.business_type = filters.businessType;
+      }
+      if (filters.industryType) {
+        filterParams.industry_type = filters.industryType;
+      }
+      
+      const result = await enterpriseService.getEnterprises(
+        pagination.current, 
+        pagination.pageSize, 
+        filterParams
+      );
+      
+      setEnterprises(result?.data || []);
+      setPagination(prev => ({
+        ...prev,
+        total: result?.pagination?.total || 0,
+      }));
     } catch (error) {
       console.error('加载企业列表失败:', error);
-      message.error('加载企业列表失败');
+      message.error('加载企业列表失败: ' + (error?.message || '未知错误'));
+      setEnterprises([]);
+      setPagination(prev => ({
+        ...prev,
+        total: 0,
+        current: 1,
+      }));
     } finally {
       setLoading(false);
     }
-  };
-
-  // 加载统计信息
-  const loadStats = async () => {
-    try {
-      const result = await enterpriseService.getEnterpriseStats();
-      setStats(result);
-    } catch (error) {
-      console.error('加载统计信息失败:', error);
-    }
-  };
+  }, [pagination.current, pagination.pageSize, filters]);
 
   useEffect(() => {
     loadEnterprises();
-    loadStats();
+  }, [loadEnterprises]);
+
+  // 处理搜索
+  const handleSearch = (value: string) => {
+    setFilters(prev => ({ ...prev, search: value }));
+    setPagination(prev => ({ ...prev, current: 1 }));
+  };
+
+  // 处理筛选变化
+  const handleFilterChange = useCallback((key: keyof EnterpriseFilter, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, current: 1 }));
   }, []);
 
-  // 处理表格分页变化
-  const handleTableChange = (pagination: any) => {
-    loadEnterprises(pagination.current, pagination.pageSize);
+  // 清除筛选
+  const handleClearFilters = useCallback(() => {
+    setFilters({});
+    setPagination(prev => ({ ...prev, current: 1 }));
+  }, []);
+
+  // 处理分页变化  
+  const handleTableChange = useCallback((page: number, pageSize?: number) => {
+    setPagination(prev => ({
+      ...(prev || { current: 1, pageSize: 20, total: 0, showSizeChanger: true, showQuickJumper: true, showTotal: (total: number) => `共 ${total} 条记录` }),
+      current: page,
+      pageSize: pageSize || prev?.pageSize || 20,
+    }));
+  }, []);
+
+  // 处理视图模式变化
+  const handleViewModeChange = (e: any) => {
+    setViewMode(e.target.value);
   };
 
-  // 打开创建/编辑对话框
-  const openModal = (enterprise?: Enterprise) => {
-    setEditingEnterprise(enterprise || null);
-    if (enterprise) {
-      form.setFieldsValue(enterprise);
-    } else {
-      form.resetFields();
-    }
-    setModalVisible(true);
+  // 处理删除企业
+  const handleDelete = async (id: number, name: string) => {
+    Modal.confirm({
+      title: '确认删除',
+      content: `确定要删除企业"${name}"吗？此操作不可恢复。`,
+      okText: '确定',
+      cancelText: '取消',
+      okType: 'danger',
+      onOk: async () => {
+        try {
+          await enterpriseService.deleteEnterprise(id);
+          message.success('企业删除成功');
+          loadEnterprises();
+        } catch (error) {
+          console.error('删除企业失败:', error);
+          message.error('删除企业失败');
+        }
+      },
+    });
   };
 
-  // 关闭对话框
-  const closeModal = () => {
-    setModalVisible(false);
-    setEditingEnterprise(null);
-    form.resetFields();
+  // 管理用户
+  const handleManageUsers = (enterprise: Enterprise) => {
+    navigate(`/enterprises/${enterprise.id}/users`);
   };
 
-  // 保存企业
-  const saveEnterprise = async (values: any) => {
-    try {
-      if (editingEnterprise) {
-        // 更新企业
-        const updateData: EnterpriseUpdateRequest = values;
-        await enterpriseService.updateEnterprise(editingEnterprise.id, updateData);
-        message.success('更新企业成功');
-      } else {
-        // 创建企业
-        const createData: EnterpriseRequest = values;
-        await enterpriseService.createEnterprise(createData);
-        message.success('创建企业成功');
-      }
-      closeModal();
-      loadEnterprises(pagination.current, pagination.pageSize);
-      loadStats(); // 刷新统计信息
-    } catch (error) {
-      console.error('保存企业失败:', error);
-      message.error(editingEnterprise ? '更新企业失败' : '创建企业失败');
-    }
-  };
-
-  // 删除企业
-  const deleteEnterprise = async (id: number) => {
-    try {
-      await enterpriseService.deleteEnterprise(id);
-      message.success('删除企业成功');
-      loadEnterprises(pagination.current, pagination.pageSize);
-      loadStats();
-    } catch (error) {
-      console.error('删除企业失败:', error);
-      message.error('删除企业失败');
-    }
-  };
 
   // 状态标签颜色映射
   const getStatusColor = (status: string) => {
@@ -184,18 +215,26 @@ const EnterpriseManagementPage: React.FC = () => {
       dataIndex: 'id',
       key: 'id',
       width: 80,
+      fixed: 'left',
     },
     {
       title: '企业名称',
       dataIndex: 'name',
       key: 'name',
+      width: 200,
+      fixed: 'left',
       render: (text: string, record: Enterprise) => (
         <div>
-          <Text strong>{text}</Text>
-          <br />
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            {record.code}
-          </Text>
+          <div style={{ fontWeight: 500, marginBottom: 4 }}>
+            {text}
+          </div>
+          <Space size="small">
+            {record.code && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {record.code}
+              </Text>
+            )}
+          </Space>
         </div>
       ),
     },
@@ -280,352 +319,289 @@ const EnterpriseManagementPage: React.FC = () => {
             <Button
               type="text"
               icon={<EyeOutlined />}
-              onClick={() => {
-                // TODO: Navigate to enterprise detail page
-                message.info('查看企业详情功能开发中...');
-              }}
+              onClick={() => navigate(`/enterprises/${record.id}`)}
             />
           </Tooltip>
           <Tooltip title="管理用户">
             <Button
               type="text"
               icon={<UserOutlined />}
-              onClick={() => {
-                // TODO: Navigate to enterprise users page
-                message.info('企业用户管理功能开发中...');
-              }}
-            />
-          </Tooltip>
-          <Tooltip title="管理部门">
-            <Button
-              type="text"
-              icon={<TeamOutlined />}
-              onClick={() => {
-                // TODO: Navigate to enterprise departments page
-                message.info('企业部门管理功能开发中...');
-              }}
+              onClick={() => handleManageUsers(record)}
             />
           </Tooltip>
           <Tooltip title="编辑">
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => openModal(record)}
+              onClick={() => message.info('编辑企业功能开发中...')}
             />
           </Tooltip>
-          <Popconfirm
-            title="确定要删除这个企业吗?"
-            description="删除后无法恢复，请谨慎操作。"
-            onConfirm={() => deleteEnterprise(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Tooltip title="删除">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Tooltip>
-          </Popconfirm>
+          <Tooltip title="删除">
+            <Button
+              type="text"
+              icon={<DeleteOutlined />}
+              danger
+              onClick={() => handleDelete(record.id, record.name)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
+  // 渲染卡片视图
+  const renderCardView = () => (
+    <Row gutter={[16, 16]}>
+      {enterprises.map((enterprise) => (
+        <Col xs={24} sm={12} lg={8} xl={6} key={enterprise.id}>
+          <Card
+            size="small"
+            hoverable
+            actions={[
+              <Tooltip title="查看详情" key="view">
+                <EyeOutlined onClick={() => navigate(`/enterprises/${enterprise.id}`)} />
+              </Tooltip>,
+              <Tooltip title="管理用户" key="users">
+                <UserOutlined onClick={() => handleManageUsers(enterprise)} />
+              </Tooltip>,
+              <Tooltip title="编辑" key="edit">
+                <EditOutlined onClick={() => message.info('编辑企业功能开发中...')} />
+              </Tooltip>,
+              <Tooltip title="删除" key="delete">
+                <DeleteOutlined onClick={() => handleDelete(enterprise.id, enterprise.name)} />
+              </Tooltip>,
+            ]}
+          >
+            {/* 企业名称 */}
+            <div style={{ marginBottom: 12 }}>
+              <Text strong style={{ fontSize: '16px' }}>{enterprise.name}</Text>
+              {enterprise.code && (
+                <div>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {enterprise.code}
+                  </Text>
+                </div>
+              )}
+            </div>
+
+            {/* 状态和类型标签 */}
+            <div style={{ marginBottom: 12 }}>
+              <Space size="small" wrap>
+                <Tag color="blue">{enterprise.status_text}</Tag>
+                <Tag color="green">{enterprise.business_type_text}</Tag>
+                {enterprise.industry_type_text && (
+                  <Tag color="geekblue">{enterprise.industry_type_text}</Tag>
+                )}
+              </Space>
+            </div>
+
+            {/* 联系方式 */}
+            {(enterprise.contact_email || enterprise.contact_phone) && (
+              <div style={{ marginBottom: 12 }}>
+                {enterprise.contact_email && (
+                  <div style={{ fontSize: '12px', marginBottom: 4 }}>
+                    <Text type="secondary">{enterprise.contact_email}</Text>
+                  </div>
+                )}
+                {enterprise.contact_phone && (
+                  <div style={{ fontSize: '12px' }}>
+                    <Text type="secondary">{enterprise.contact_phone}</Text>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 地址 */}
+            {enterprise.address && (
+              <div style={{ marginBottom: 12 }}>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  <EnvironmentOutlined style={{ marginRight: 4 }} />
+                  {enterprise.address}
+                </Text>
+              </div>
+            )}
+
+            {/* 统计信息 */}
+            <div style={{ marginBottom: 12 }}>
+              <Space size="large">
+                <span style={{ fontSize: '12px' }}>
+                  <UserOutlined style={{ marginRight: 4 }} />
+                  <Text type="secondary">{enterprise.user_count || 0}用户</Text>
+                </span>
+                <span style={{ fontSize: '12px' }}>
+                  <TeamOutlined style={{ marginRight: 4 }} />
+                  <Text type="secondary">{enterprise.department_count || 0}部门</Text>
+                </span>
+              </Space>
+            </div>
+            
+            {/* 时间信息 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', color: '#8c8c8c', fontSize: '12px' }}>
+              <div>
+                创建: {formatDate(enterprise.created_at)}
+              </div>
+              {enterprise.updated_at && (
+                <div>
+                  更新: {formatDate(enterprise.updated_at)}
+                </div>
+              )}
+            </div>
+          </Card>
+        </Col>
+      ))}
+    </Row>
+  );
+
+  // 渲染列表视图
+  const renderListView = () => (
+    <Table
+      columns={columns}
+      dataSource={enterprises}
+      rowKey="id"
+      loading={loading}
+      pagination={false}
+      scroll={{ x: 1400 }}
+      size="middle"
+    />
+  );
+
   return (
     <div style={{ padding: '24px' }}>
-      <Title level={2}>
-        <BankOutlined /> 企业管理
-      </Title>
+      <div style={{ marginBottom: '24px' }}>
+        <Title level={2}>企业客户管理</Title>
 
-      {/* 统计卡片 */}
-      {stats && (
-        <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="企业总数"
-                value={stats.total_enterprises}
-                prefix={<BankOutlined style={{ color: '#1890ff' }} />}
+        {/* Filters and Actions */}
+        <Card style={{ marginBottom: '16px' }}>
+          <Row gutter={16} align="middle" style={{ marginBottom: '16px' }}>
+            <Col flex="300px">
+              <Search
+                placeholder="搜索企业名称、邮箱或电话"
+                allowClear
+                enterButton={<SearchOutlined />}
+                onSearch={handleSearch}
               />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="活跃企业"
-                value={stats.active_enterprises}
-                prefix={<BankOutlined style={{ color: '#52c41a' }} />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="总用户数"
-                value={stats.total_users}
-                prefix={<UserOutlined style={{ color: '#722ed1' }} />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <Card>
-              <Statistic
-                title="总部门数"
-                value={stats.total_departments}
-                prefix={<TeamOutlined style={{ color: '#fa8c16' }} />}
-              />
-            </Card>
-          </Col>
-        </Row>
-      )}
+            </Col>
+            <Col>
+              <Select
+                placeholder="状态"
+                allowClear
+                style={{ width: 120 }}
+                onChange={(value) => handleFilterChange('status', value)}
+                value={filters.status}
+              >
+                {STATUS_OPTIONS.map(option => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col>
+              <Select
+                placeholder="业务类型"
+                allowClear
+                style={{ width: 120 }}
+                onChange={(value) => handleFilterChange('businessType', value)}
+                value={filters.businessType}
+              >
+                {BUSINESS_TYPE_OPTIONS.map(option => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col>
+              <Select
+                placeholder="行业类型"
+                allowClear
+                style={{ width: 120 }}
+                onChange={(value) => handleFilterChange('industryType', value)}
+                value={filters.industryType}
+              >
+                {INDUSTRY_TYPE_OPTIONS.map(option => (
+                  <Option key={option.value} value={option.value}>
+                    {option.label}
+                  </Option>
+                ))}
+              </Select>
+            </Col>
+            <Col>
+              <Space>
+                <Button
+                  icon={<FilterOutlined />}
+                  onClick={handleClearFilters}
+                >
+                  清除筛选
+                </Button>
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => {
+                    loadEnterprises();
+                  }}
+                >
+                  刷新
+                </Button>
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => {
+                    message.info('创建企业功能开发中...');
+                  }}
+                >
+                  新建企业
+                </Button>
+              </Space>
+            </Col>
+          </Row>
+          
+          {/* 视图切换控件 */}
+          <Row justify="space-between" align="middle">
+            <Col>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ color: '#8c8c8c' }}>视图模式:</span>
+                <Radio.Group 
+                  value={viewMode} 
+                  onChange={handleViewModeChange}
+                  buttonStyle="solid"
+                  size="small"
+                >
+                  <Radio.Button value="list">
+                    <UnorderedListOutlined /> 列表
+                  </Radio.Button>
+                  <Radio.Button value="card">
+                    <AppstoreOutlined /> 卡片
+                  </Radio.Button>
+                </Radio.Group>
+              </div>
+            </Col>
+            
+            <Col>
+              <div style={{ color: '#8c8c8c', fontSize: '14px' }}>
+                共 {enterprises.length} 家企业
+              </div>
+            </Col>
+          </Row>
+        </Card>
 
-      {/* 主要内容 */}
-      <Card>
-        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => openModal()}
-            >
-              创建企业
-            </Button>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                loadEnterprises(pagination.current, pagination.pageSize);
-                loadStats();
-              }}
-            >
-              刷新
-            </Button>
-          </Space>
+        {/* 内容区域 */}
+        {viewMode === 'card' ? renderCardView() : renderListView()}
+        
+        <Divider />
+        
+        <div style={{ textAlign: 'right' }}>
+          <Pagination
+            current={pagination?.current || 1}
+            pageSize={pagination?.pageSize || 20}
+            total={pagination?.total || 0}
+            showSizeChanger={pagination?.showSizeChanger || true}
+            showQuickJumper={pagination?.showQuickJumper || true}
+            showTotal={pagination?.showTotal || ((total: number) => `共 ${total} 条记录`)}
+            onChange={handleTableChange}
+            onShowSizeChange={handleTableChange}
+          />
         </div>
-
-        <Table
-          columns={columns}
-          dataSource={enterprises}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-          }}
-          onChange={handleTableChange}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
-
-      {/* 创建/编辑对话框 */}
-      <Modal
-        title={editingEnterprise ? '编辑企业' : '创建企业'}
-        open={modalVisible}
-        onCancel={closeModal}
-        width={800}
-        footer={null}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={saveEnterprise}
-          initialValues={{
-            status: 'active',
-            business_type: 'llc',
-          }}
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="企业名称"
-                name="name"
-                rules={[
-                  { required: true, message: '请输入企业名称' },
-                  { min: 1, max: 255, message: '企业名称长度为1-255个字符' }
-                ]}
-              >
-                <Input placeholder="请输入企业名称" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="企业代码"
-                name="code"
-                rules={[
-                  { required: true, message: '请输入企业代码' },
-                  { min: 1, max: 100, message: '企业代码长度为1-100个字符' }
-                ]}
-              >
-                <Input placeholder="请输入企业代码" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="企业描述"
-            name="description"
-          >
-            <TextArea rows={3} placeholder="请输入企业描述" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="业务类型"
-                name="business_type"
-                rules={[{ required: true, message: '请选择业务类型' }]}
-              >
-                <Select placeholder="请选择业务类型">
-                  {BUSINESS_TYPE_OPTIONS.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="行业类型"
-                name="industry_type"
-              >
-                <Select placeholder="请选择行业类型" allowClear>
-                  {INDUSTRY_TYPE_OPTIONS.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="注册号码"
-                name="registration_number"
-              >
-                <Input placeholder="请输入注册号码" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="税务识别号"
-                name="tax_id"
-              >
-                <Input placeholder="请输入税务识别号" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="法定代表人"
-            name="legal_representative"
-          >
-            <Input placeholder="请输入法定代表人" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="联系邮箱"
-                name="contact_email"
-                rules={[
-                  { type: 'email', message: '请输入正确的邮箱格式' }
-                ]}
-              >
-                <Input placeholder="请输入联系邮箱" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="联系电话"
-                name="contact_phone"
-              >
-                <Input placeholder="请输入联系电话" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item
-            label="地址"
-            name="address"
-          >
-            <Input placeholder="请输入详细地址" />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item
-                label="城市"
-                name="city"
-              >
-                <Input placeholder="请输入城市" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item
-                label="省份"
-                name="province"
-              >
-                <Input placeholder="请输入省份" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item
-                label="邮政编码"
-                name="postal_code"
-              >
-                <Input placeholder="请输入邮政编码" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="网站"
-                name="website"
-                rules={[
-                  { type: 'url', message: '请输入正确的网站URL' }
-                ]}
-              >
-                <Input placeholder="请输入网站URL" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="状态"
-                name="status"
-                rules={[{ required: true, message: '请选择状态' }]}
-              >
-                <Select placeholder="请选择状态">
-                  {STATUS_OPTIONS.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <div style={{ textAlign: 'right', marginTop: '24px' }}>
-            <Space>
-              <Button onClick={closeModal}>
-                取消
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingEnterprise ? '更新' : '创建'}
-              </Button>
-            </Space>
-          </div>
-        </Form>
-      </Modal>
+      </div>
     </div>
   );
 };
