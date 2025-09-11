@@ -456,8 +456,7 @@ func (app *Application) GetTimelineHandler() *handlers.TimelineHandler {
 		return app.handlers.TimelineHandler
 	}
 	// Fallback: create handler on-demand
-	timelineRepo := database.NewTimelineEventsRepository(app.db.GetDB())
-	return handlers.NewTimelineHandler(timelineRepo, app.logger)
+	return handlers.NewTimelineHandler(app.db, app.logger, app.validator)
 }
 
 // checkMirrorWritable verifies if the optional mirror base path is writable

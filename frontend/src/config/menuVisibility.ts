@@ -175,21 +175,36 @@ export const MENU_VISIBILITY_CONFIG: MenuVisibilityConfig = {
   }
 };
 
-// 企业用户专有菜单配置（如果需要添加）
+// 企业用户专有菜单配置（已迁移到新企业架构）
 export const COMPANY_SPECIFIC_MENUS: MenuVisibilityConfig = {
-  '/company-dashboard': { 
+  '/enterprise-dashboard': { 
     userType: UserType.COMPANY_USER,
     description: '企业仪表板 - 仅企业用户' 
   },
-  '/company-settings': { 
+  '/enterprise-settings': { 
     userType: UserType.COMPANY_USER,
     requiredRole: ['company_admin'],
     description: '企业设置 - 仅企业管理员' 
   },
-  '/company-users': { 
+  '/enterprise-users': { 
     userType: UserType.COMPANY_USER,
     requiredRole: ['company_admin'],
     description: '企业用户管理 - 仅企业管理员' 
+  },
+  // 🚨 保留旧路由用于向后兼容（已弃用）
+  '/company-dashboard': { 
+    userType: UserType.COMPANY_USER,
+    description: '企业仪表板 - 仅企业用户（已弃用，请使用 /enterprise-dashboard）' 
+  },
+  '/company-settings': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '企业设置 - 仅企业管理员（已弃用，请使用 /enterprise-settings）' 
+  },
+  '/company-users': { 
+    userType: UserType.COMPANY_USER,
+    requiredRole: ['company_admin'],
+    description: '企业用户管理 - 仅企业管理员（已弃用，请使用 /enterprise-users）' 
   }
 };
 

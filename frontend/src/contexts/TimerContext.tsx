@@ -5,6 +5,19 @@ import { personalTimerService, PersonalTimerCurrent } from '../services/personal
 import { TimerCurrentResponse } from '../types/timer';
 import { AppError, ErrorType } from '../utils/errorTypes';
 
+// 🆕 计时器刷新配置常量
+const TIMER_REFRESH_CONFIG = {
+  ACTIVE_TIMER_INTERVAL: 10000,    // 有活跃计时器时10秒刷新
+  INACTIVE_TIMER_INTERVAL: 30000,  // 无计时器时30秒刷新
+  NETWORK_ERROR_INTERVAL: 15000,   // 网络错误时15秒重试
+  VISIBILITY_CHANGE_DELAY: 2000,   // 页面可见性变化后2秒刷新
+  MAX_RETRY_ATTEMPTS: 3,            // 最大重试次数
+  // 🆕 阶段4：准实时推送配置
+  REALTIME_SIMULATION_INTERVAL: 5000,  // 准实时模拟间隔（5秒）
+  CROSS_TAB_SYNC_INTERVAL: 2000,       // 跨标签页同步间隔（2秒）
+  EVENT_DRIVEN_REFRESH_DELAY: 1000     // 事件驱动刷新延迟（1秒）
+};
+
 interface TimerState {
   isRunning: boolean;
   isPaused: boolean; // 🎯 统一为必需字段，兼容SimplifiedTimer
@@ -33,6 +46,17 @@ startTimer: (taskId: number, taskTitle: string, taskType?: 'personal' | 'project
   pauseTimer: () => Promise<boolean>;
   resumeTimer: () => Promise<boolean>;
   refreshTimer: () => Promise<void>;
+  
+  // 🆕 新增：乐观更新方法
+  optimisticStartTimer: (taskId: number, taskTitle: string, taskType?: 'personal' | 'project') => void;
+  optimisticStopTimer: () => void;
+  optimisticPauseTimer: () => void;
+  optimisticResumeTimer: () => void;
+  
+  // 🆕 阶段4：准实时推送方法
+  enableRealtimeSimulation: () => void;
+  disableRealtimeSimulation: () => void;
+  triggerEventDrivenRefresh: () => void;
   
   // 🎯 新增：任务计时判断工具函数
   isTaskTiming: (taskId: number, taskType: string) => boolean;
@@ -73,6 +97,21 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
   
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
+  
+  // 🆕 刷新间隔状态管理
+  const [currentRefreshInterval, setCurrentRefreshInterval] = useState(TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  
+  // 🆕 乐观更新状态管理
+  const [optimisticState, setOptimisticState] = useState<Partial<TimerState> | null>(null);
+  const optimisticTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 🆕 阶段4：准实时推送状态管理
+  const [realtimeEnabled, setRealtimeEnabled] = useState(true); // 默认启用
+  const realtimeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const crossTabSyncRef = useRef<NodeJS.Timeout | null>(null);
+  const eventDrivenTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
   
   // 🎯 新增：模式状态管理
   const [currentMode, setCurrentMode] = useState<'full' | 'simplified'>(mode);
@@ -182,13 +221,171 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     }
   }, [startLocalTimer]);
 
-  // 从服务器加载当前定时器状态
+  // 🆕 智能刷新间隔计算
+  const calculateRefreshInterval = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('globalTimerState');
+      if (!saved) return TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL;
+      
+      const parsedState = JSON.parse(saved);
+      return parsedState.isRunning 
+        ? TIMER_REFRESH_CONFIG.ACTIVE_TIMER_INTERVAL 
+        : TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL;
+    } catch {
+      return TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL;
+    }
+  }, []);
+
+  // 🆕 动态更新刷新间隔
+  const updateRefreshInterval = useCallback((newInterval?: number) => {
+    const interval = newInterval || calculateRefreshInterval();
+    if (interval !== currentRefreshInterval) {
+      setCurrentRefreshInterval(interval);
+      console.log(`🔄 Timer refresh interval updated to: ${interval}ms`);
+    }
+  }, [currentRefreshInterval, calculateRefreshInterval]);
+
+  // 🆕 乐观更新工具函数
+  const clearOptimisticState = useCallback(() => {
+    if (optimisticTimeoutRef.current) {
+      clearTimeout(optimisticTimeoutRef.current);
+      optimisticTimeoutRef.current = null;
+    }
+    setOptimisticState(null);
+  }, []);
+
+  // 🆕 应用乐观更新
+  const applyOptimisticUpdate = useCallback((updates: Partial<TimerState>, revertAfterMs: number = 10000) => {
+    setOptimisticState(updates);
+    
+    // 清除现有的恢复定时器
+    if (optimisticTimeoutRef.current) {
+      clearTimeout(optimisticTimeoutRef.current);
+    }
+    
+    // 设置自动恢复定时器，防止乐观更新永远不被清除
+    optimisticTimeoutRef.current = setTimeout(() => {
+      console.warn('🔄 Optimistic update timeout, clearing optimistic state');
+      setOptimisticState(null);
+    }, revertAfterMs);
+    
+    console.log('🚀 Applied optimistic update:', updates);
+  }, []);
+
+  // 🆕 计算最终显示的状态（合并实际状态和乐观更新）
+  const finalTimerState = useMemo(() => {
+    if (!optimisticState) return timerState;
+    
+    return {
+      ...timerState,
+      ...optimisticState
+    };
+  }, [timerState, optimisticState]);
+
+  // 🆕 阶段4：准实时推送核心功能
+  
+  // 初始化BroadcastChannel用于跨标签页通信 - 🔧 移除refreshTimer依赖避免循环
+  const initBroadcastChannel = useCallback(() => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+      }
+      
+      broadcastChannelRef.current = new BroadcastChannel('timer-sync');
+      broadcastChannelRef.current.onmessage = (event) => {
+        if (event.data.type === 'timer-state-change') {
+          console.log('🔄 Received cross-tab timer sync:', event.data);
+          // 延迟一点刷新，避免与发送者冲突 - 使用异步调用
+          setTimeout(() => {
+            // 这里会在refreshTimer定义后调用
+            if (isMountedRef.current) {
+              refreshTimer();
+            }
+          }, TIMER_REFRESH_CONFIG.CROSS_TAB_SYNC_INTERVAL / 2);
+        }
+      };
+    } catch (error) {
+      console.warn('BroadcastChannel not supported:', error);
+    }
+  }, []);
+
+  // 广播计时器状态变化到其他标签页
+  const broadcastTimerChange = useCallback((action: string, data?: any) => {
+    try {
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'timer-state-change',
+          action,
+          data,
+          timestamp: Date.now()
+        });
+        console.log('📡 Broadcasted timer change:', action);
+      }
+    } catch (error) {
+      console.warn('Failed to broadcast timer change:', error);
+    }
+  }, []);
+
+  // 启用准实时模拟 - 🔧 移除refreshTimer依赖避免循环  
+  const enableRealtimeSimulation = useCallback(() => {
+    setRealtimeEnabled(true);
+    
+    // 启动准实时刷新（更高频率的轮询）
+    if (realtimeIntervalRef.current) {
+      clearInterval(realtimeIntervalRef.current);
+    }
+    
+    realtimeIntervalRef.current = setInterval(() => {
+      if (finalTimerState.isRunning) {
+        // 异步调用refreshTimer
+        if (isMountedRef.current) {
+          refreshTimer();
+        }
+      }
+    }, TIMER_REFRESH_CONFIG.REALTIME_SIMULATION_INTERVAL);
+    
+    console.log('🚀 Realtime simulation enabled');
+  }, [finalTimerState.isRunning]);
+
+  // 禁用准实时模拟
+  const disableRealtimeSimulation = useCallback(() => {
+    setRealtimeEnabled(false);
+    
+    if (realtimeIntervalRef.current) {
+      clearInterval(realtimeIntervalRef.current);
+      realtimeIntervalRef.current = null;
+    }
+    
+    console.log('⏸️ Realtime simulation disabled');
+  }, []);
+
+  // 触发事件驱动的刷新 - 🔧 移除refreshTimer依赖避免循环
+  const triggerEventDrivenRefresh = useCallback(() => {
+    // 清除现有的延迟刷新
+    if (eventDrivenTimeoutRef.current) {
+      clearTimeout(eventDrivenTimeoutRef.current);
+    }
+    
+    // 延迟执行刷新，避免频繁调用
+    eventDrivenTimeoutRef.current = setTimeout(() => {
+      // 异步调用refreshTimer
+      if (isMountedRef.current) {
+        refreshTimer();
+      }
+      // 广播给其他标签页
+      broadcastTimerChange('event-driven-refresh');
+    }, TIMER_REFRESH_CONFIG.EVENT_DRIVEN_REFRESH_DELAY);
+  }, [broadcastTimerChange]);
+
+  // 从服务器加载当前定时器状态 - 🆕 集成智能刷新间隔
   const refreshTimer = useCallback(async () => {
     if (!isMountedRef.current) return;
     
     // 离线检测：若浏览器检测为离线，则直接进入本地恢复逻辑，避免无效请求与控制台噪音
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
       setConnectionStatus('disconnected');
+      // 🆕 网络错误时使用错误重试间隔
+      updateRefreshInterval(TIMER_REFRESH_CONFIG.NETWORK_ERROR_INTERVAL);
       restoreFromLocalStorage();
       return;
     }
@@ -214,6 +411,12 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
         };
         updateTimerFromResponse(emptyResponse);
         setConnectionStatus('connected');
+        // 🆕 无计时器时使用较长间隔
+        updateRefreshInterval(TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL);
+        setRetryAttempts(0); // 重置重试次数
+        
+        // 🆕 清除乐观更新状态
+        clearOptimisticState();
         return;
       }
 
@@ -232,21 +435,38 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       
       updateTimerFromResponse(convertedResponse);
       setConnectionStatus('connected');
+      // 🆕 根据计时器运行状态动态调整刷新间隔
+      const newInterval = convertedResponse.is_running 
+        ? TIMER_REFRESH_CONFIG.ACTIVE_TIMER_INTERVAL 
+        : TIMER_REFRESH_CONFIG.INACTIVE_TIMER_INTERVAL;
+      updateRefreshInterval(newInterval);
+      setRetryAttempts(0); // 重置重试次数
+      
+      // 🆕 清除乐观更新状态（服务器状态已获取到）
+      clearOptimisticState();
+      
     } catch (error) {
       if (!isMountedRef.current) return;
       
+      // 🆕 增加重试逻辑
+      const newRetryAttempts = retryAttempts + 1;
+      setRetryAttempts(newRetryAttempts);
+      
       // 网络类错误降级为警告，减少控制台噪音
       if (error instanceof AppError && error.type === ErrorType.NETWORK) {
-        console.warn('网络异常，刷新计时器失败，将尝试使用本地状态:', error.message);
+        console.warn(`网络异常，刷新计时器失败 (重试${newRetryAttempts}/${TIMER_REFRESH_CONFIG.MAX_RETRY_ATTEMPTS})，将尝试使用本地状态:`, error.message);
       } else {
         console.error('Failed to refresh timer:', error);
       }
       setConnectionStatus('disconnected');
       
+      // 🆕 错误时使用网络错误间隔
+      updateRefreshInterval(TIMER_REFRESH_CONFIG.NETWORK_ERROR_INTERVAL);
+      
       // 尝试从localStorage恢复
       restoreFromLocalStorage();
     }
-  }, [updateTimerFromResponse, startLocalTimer, restoreFromLocalStorage]);
+  }, [updateTimerFromResponse, startLocalTimer, restoreFromLocalStorage, updateRefreshInterval, retryAttempts, clearOptimisticState]);
 
   // 🎯 新增：调试信息获取 (兼容SimplifiedTimer)
   const getDebugInfo = useCallback(() => {
@@ -317,9 +537,65 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
     };
   }, [timerState, isLoading, connectionStatus, currentMode]);
 
-  // 启动定时器
+  // 🆕 乐观更新操作方法
+  const optimisticStartTimer = useCallback((taskId: number, taskTitle: string, taskType: 'personal' | 'project' = 'personal') => {
+    const now = new Date();
+    applyOptimisticUpdate({
+      isRunning: true,
+      isPaused: false,
+      taskId,
+      taskTitle,
+      taskType,
+      startTime: now,
+      elapsedSeconds: 0,
+      formattedTime: '00:00:00'
+    });
+    
+    // 立即启动本地计时器以显示时间增长
+    startLocalTimer(now);
+  }, [applyOptimisticUpdate, startLocalTimer]);
+
+  const optimisticStopTimer = useCallback(() => {
+    applyOptimisticUpdate({
+      isRunning: false,
+      isPaused: false,
+      taskId: undefined,
+      taskTitle: undefined,
+      taskType: undefined,
+      startTime: undefined
+    });
+    
+    // 停止本地计时器
+    stopLocalTimer();
+  }, [applyOptimisticUpdate, stopLocalTimer]);
+
+  const optimisticPauseTimer = useCallback(() => {
+    applyOptimisticUpdate({
+      isPaused: true
+    });
+    
+    // 停止本地计时器
+    stopLocalTimer();
+  }, [applyOptimisticUpdate, stopLocalTimer]);
+
+  const optimisticResumeTimer = useCallback(() => {
+    applyOptimisticUpdate({
+      isPaused: false,
+      startTime: new Date() // 重新设置开始时间
+    });
+    
+    // 重新启动本地计时器
+    if (finalTimerState.startTime) {
+      startLocalTimer(finalTimerState.startTime);
+    }
+  }, [applyOptimisticUpdate, startLocalTimer, finalTimerState]);
+
+  // 启动定时器 - 🆕 集成乐观更新
 const startTimer = useCallback(async (taskId: number, taskTitle: string, taskType: 'personal' | 'project' = 'personal', options?: { autoStopOthers?: boolean }): Promise<boolean> => {
     if (isLoading) return false;
+    
+    // 🆕 立即应用乐观更新
+    optimisticStartTimer(taskId, taskTitle, taskType);
     
     setIsLoading(true);
     try {
@@ -351,6 +627,9 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       // 立即刷新状态
       await refreshTimer();
       
+      // 🆕 阶段4：广播计时器启动事件
+      broadcastTimerChange('start', { taskId, taskTitle, taskType });
+      
       return true;
     } catch (error) {
       if (!isMountedRef.current) return false;
@@ -369,11 +648,14 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
         setIsLoading(false);
       }
     }
-  }, [isLoading, refreshTimer]);
+  }, [isLoading, refreshTimer, optimisticStartTimer, broadcastTimerChange]);
 
-  // 停止定时器
+  // 停止定时器 - 🆕 集成乐观更新
   const stopTimer = useCallback(async (): Promise<boolean> => {
     if (isLoading || !timerState.isRunning) return false;
+    
+    // 🆕 立即应用乐观更新
+    optimisticStopTimer();
     
     setIsLoading(true);
     try {
@@ -387,6 +669,9 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       // 立即刷新状态
       await refreshTimer();
       
+      // 🆕 阶段4：广播计时器停止事件
+      broadcastTimerChange('stop', { taskTitle: timerState.taskTitle });
+      
       return true;
     } catch (error) {
       if (!isMountedRef.current) return false;
@@ -399,11 +684,14 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
         setIsLoading(false);
       }
     }
-  }, [isLoading, timerState.isRunning, refreshTimer]);
+  }, [isLoading, timerState.isRunning, refreshTimer, optimisticStopTimer, broadcastTimerChange]);
 
-  // 暂停定时器
+  // 暂停定时器 - 🆕 集成乐观更新
   const pauseTimer = useCallback(async (): Promise<boolean> => {
     if (isLoading || !timerState.isRunning || timerState.isPaused) return false;
+    
+    // 🆕 立即应用乐观更新
+    optimisticPauseTimer();
     
     setIsLoading(true);
     try {
@@ -417,6 +705,9 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       // 立即刷新状态
       await refreshTimer();
       
+      // 🆕 阶段4：广播计时器暂停事件
+      broadcastTimerChange('pause', { taskTitle: response.task_title });
+      
       return true;
     } catch (error) {
       if (!isMountedRef.current) return false;
@@ -429,11 +720,14 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
         setIsLoading(false);
       }
     }
-  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
+  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer, optimisticPauseTimer, broadcastTimerChange]);
 
-  // 恢复定时器
+  // 恢复定时器 - 🆕 集成乐观更新
   const resumeTimer = useCallback(async (): Promise<boolean> => {
     if (isLoading || timerState.isRunning || !timerState.isPaused) return false;
+    
+    // 🆕 立即应用乐观更新
+    optimisticResumeTimer();
     
     setIsLoading(true);
     try {
@@ -447,6 +741,9 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       // 立即刷新状态
       await refreshTimer();
       
+      // 🆕 阶段4：广播计时器恢复事件
+      broadcastTimerChange('resume', { taskTitle: response.task_title });
+      
       return true;
     } catch (error) {
       if (!isMountedRef.current) return false;
@@ -459,18 +756,18 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
         setIsLoading(false);
       }
     }
-  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer]);
+  }, [isLoading, timerState.isRunning, timerState.isPaused, refreshTimer, optimisticResumeTimer, broadcastTimerChange]);
 
-  // 🎯 新增：判断指定任务是否正在计时
+  // 🎯 新增：判断指定任务是否正在计时 - 🆕 使用最终状态
   const isTaskTiming = useCallback((taskId: number, taskType: string): boolean => {
     const normalize = (t?: string) => (t ? t.replace('_task', '') : t);
     return (
-      timerState.isRunning && 
-      !timerState.isPaused &&
-      timerState.taskId === taskId &&
-      normalize(timerState.taskType) === normalize(taskType)
+      finalTimerState.isRunning && 
+      !finalTimerState.isPaused &&
+      finalTimerState.taskId === taskId &&
+      normalize(finalTimerState.taskType) === normalize(taskType)
     );
-  }, [timerState.isRunning, timerState.isPaused, timerState.taskId, timerState.taskType]);
+  }, [finalTimerState.isRunning, finalTimerState.isPaused, finalTimerState.taskId, finalTimerState.taskType]);
 
   // 💡 修复：分离初始化和状态恢复
   useEffect(() => {
@@ -530,41 +827,102 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
         
         if (mounted) {
           setIsInitialized(true);
+          // 🆕 阶段4：初始化准实时推送功能
+          initBroadcastChannel();
+          if (realtimeEnabled) {
+            enableRealtimeSimulation();
+          }
         }
         
       } catch (error) {
         console.error('初始化定时器失败:', error);
         if (mounted) {
           setIsInitialized(true);
+          // 🆕 阶段4：即使出错也要初始化实时功能
+          initBroadcastChannel();
         }
       }
     };
     
     initializeTimerState();
     
-    // 定期刷新 (每30秒) - 只在没有运行定时器时刷新
-    refreshIntervalRef.current = setInterval(() => {
-      if (!mounted) return;
-      
-      // 从localStorage检查最新状态，而不是依赖state
-      try {
-        const saved = localStorage.getItem('globalTimerState');
-        if (!saved || !JSON.parse(saved).isRunning) {
-          refreshTimer();
-        }
-      } catch (error) {
-        // 忽略JSON解析错误，继续刷新
-        refreshTimer();
+    // 🆕 智能动态刷新 - 根据计时器状态使用不同的刷新间隔
+    const startDynamicRefresh = () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
       }
-    }, 30000);
+      
+      const scheduleRefresh = () => {
+        if (!mounted) return;
+        
+        refreshIntervalRef.current = setTimeout(() => {
+          if (!mounted) return;
+          
+          // 检查是否需要刷新
+          try {
+            const saved = localStorage.getItem('globalTimerState');
+            const hasRunningTimer = saved && JSON.parse(saved).isRunning;
+            
+            // 有运行计时器时也要定期刷新以确保同步
+            refreshTimer().finally(() => {
+              if (mounted) {
+                scheduleRefresh(); // 递归调度下一次刷新
+              }
+            });
+          } catch (error) {
+            // 忽略JSON解析错误，继续刷新
+            refreshTimer().finally(() => {
+              if (mounted) {
+                scheduleRefresh(); // 递归调度下一次刷新
+              }
+            });
+          }
+        }, currentRefreshInterval);
+      };
+      
+      scheduleRefresh();
+    };
+    
+    startDynamicRefresh();
 
     return () => {
       mounted = false;
       if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
+        clearTimeout(refreshIntervalRef.current); // 🆕 更改为clearTimeout
+        refreshIntervalRef.current = null;
+      }
+      // 🆕 阶段4：清理准实时推送资源
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+        realtimeIntervalRef.current = null;
+      }
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
       }
     };
-  }, []);
+  }, [initBroadcastChannel, enableRealtimeSimulation]);
+
+  // 🆕 监听刷新间隔变化并重新调度
+  useEffect(() => {
+    if (!isInitialized) return;
+    
+    console.log(`🔄 Refresh interval changed to: ${currentRefreshInterval}ms`);
+    
+    // 如果当前有定时器在运行，清除并重新调度
+    if (refreshIntervalRef.current) {
+      clearTimeout(refreshIntervalRef.current);
+      
+      // 重新调度下一次刷新
+      refreshIntervalRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          refreshTimer().finally(() => {
+            // 这里会通过refreshTimer的逻辑自动调度后续刷新
+          });
+        }
+      }, currentRefreshInterval);
+    }
+  }, [currentRefreshInterval, isInitialized, refreshTimer]);
 
   // 单独处理本地计时器的启动和停止
   useEffect(() => {
@@ -577,7 +935,7 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     }
   }, [timerState.isRunning, timerState.startTime, timerState.isPaused, startLocalTimer, stopLocalTimer]);
 
-  // 页面可见性变化处理
+  // 页面可见性变化处理 - 🆕 集成动态刷新间隔
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!isMountedRef.current) return;
@@ -585,9 +943,14 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       if (document.hidden) {
         // 页面隐藏时停止本地更新
         stopLocalTimer();
-      } else if (timerState.isRunning && timerState.startTime) {
+      } else {
         // 页面显示时恢复并同步
-        refreshTimer();
+        // 🆕 延迟一段时间后刷新，避免频繁切换
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            refreshTimer();
+          }
+        }, TIMER_REFRESH_CONFIG.VISIBILITY_CHANGE_DELAY);
       }
     };
 
@@ -596,7 +959,7 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [timerState.isRunning, timerState.startTime, refreshTimer, stopLocalTimer]);
+  }, [refreshTimer, stopLocalTimer]);
 
   // 跨页面/标签页同步 - 监听localStorage变化
   useEffect(() => {
@@ -671,13 +1034,29 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
       isMountedRef.current = false;
       stopLocalTimer();
       if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
+        clearTimeout(refreshIntervalRef.current); // 🆕 更改为clearTimeout
+        refreshIntervalRef.current = null;
+      }
+      // 🆕 清理乐观更新状态
+      clearOptimisticState();
+      // 🆕 阶段4：清理所有准实时推送资源
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+        realtimeIntervalRef.current = null;
+      }
+      if (eventDrivenTimeoutRef.current) {
+        clearTimeout(eventDrivenTimeoutRef.current);
+        eventDrivenTimeoutRef.current = null;
+      }
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
       }
     };
   }, []); // 空依赖数组，只在真正挂载/卸载时执行
 
   const value: TimerContextType = useMemo(() => ({
-    timerState,
+    timerState: finalTimerState, // 🆕 使用最终状态（包含乐观更新）
     isLoading,
     // 🎯 简化模式下优化连接状态 (减少网络检查)
     connectionStatus: currentMode === 'simplified' ? 'connected' : connectionStatus,
@@ -689,13 +1068,22 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    // 🆕 新增：乐观更新方法
+    optimisticStartTimer,
+    optimisticStopTimer,
+    optimisticPauseTimer,
+    optimisticResumeTimer,
+    // 🆕 阶段4：准实时推送方法
+    enableRealtimeSimulation,
+    disableRealtimeSimulation,
+    triggerEventDrivenRefresh,
     // 🎯 新增：任务计时判断工具函数
     isTaskTiming,
     // 🎯 新增：调试功能
     getDebugInfo,
     onTimerUpdate
   }), [
-    timerState,
+    finalTimerState, // 🆕 使用最终状态
     isLoading,
     connectionStatus,
     currentMode,
@@ -704,6 +1092,15 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
     pauseTimer,
     resumeTimer,
     refreshTimer,
+    // 🆕 添加乐观更新方法依赖
+    optimisticStartTimer,
+    optimisticStopTimer,
+    optimisticPauseTimer,
+    optimisticResumeTimer,
+    // 🆕 阶段4：准实时推送方法依赖
+    enableRealtimeSimulation,
+    disableRealtimeSimulation,
+    triggerEventDrivenRefresh,
     isTaskTiming,
     getDebugInfo,
     onTimerUpdate

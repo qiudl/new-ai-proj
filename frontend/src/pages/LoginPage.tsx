@@ -93,7 +93,7 @@ const LoginPage: React.FC = () => {
     }
     try {
       setQuickLoadingUser(username);
-      const resp = await fetch(`${apiBaseURL}/auth/dev-quick-login`, {
+      const resp = await fetch('/api/v1/auth/dev-quick-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username })

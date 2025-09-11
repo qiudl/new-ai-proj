@@ -67,6 +67,7 @@ import TaskInfoEditor from '../components/TaskInfoEditor';
 import TaskSummaryEditor from '../components/TaskSummaryEditor';
 // 🔽 UPDATED: 使用全局计时器
 import MVPTaskDetailTimer from '../components/MVPTaskDetailTimer';
+import { useTimer } from '../contexts/TimerContext';
 import TaskDocumentEditor from '../components/TaskDocumentEditor';
 import BulkSubTaskCreator from '../components/BulkSubTaskCreator';
 import TaskDocumentWidget from '../components/TaskDocumentWidget';
@@ -160,6 +161,9 @@ const TaskDetailPageNew: React.FC = () => {
     updateProjectState,
     resetAllState
   } = useTaskDetailState();
+
+  // 🆕 Timer hook for refreshing timer state when task completes
+  const { refreshTimer } = useTimer();
 
   // 解构任务状态
   const { task, loading } = taskState;
@@ -676,6 +680,19 @@ const TaskDetailPageNew: React.FC = () => {
       await TaskService.updateTask(parsedProjectId, taskState.task.id, taskData);
       message.success('任务更新成功');
       updateUIState({ taskModalVisible: false, modalLoading: false });
+      
+      // 🆕 如果任务状态变更为completed或cancelled，主动刷新计时器
+      const status = (taskData as any)?.status;
+      if (status === 'completed' || status === 'cancelled') {
+        try {
+          await refreshTimer();
+          console.log(`✅ Timer refreshed after task status changed to: ${status}`);
+        } catch (timerError) {
+          console.warn('Failed to refresh timer after task completion:', timerError);
+          // 不影响主流程，只记录警告
+        }
+      }
+      
       loadTask();
     } catch (error) {
       message.error('任务更新失败');

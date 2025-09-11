@@ -333,7 +333,7 @@ const EnterpriseManagementPage: React.FC = () => {
             <Button
               type="text"
               icon={<EditOutlined />}
-              onClick={() => message.info('编辑企业功能开发中...')}
+              onClick={() => navigate(`/enterprises/${record.id}/edit`)}
             />
           </Tooltip>
           <Tooltip title="删除">
@@ -365,11 +365,11 @@ const EnterpriseManagementPage: React.FC = () => {
                 <UserOutlined onClick={() => handleManageUsers(enterprise)} />
               </Tooltip>,
               <Tooltip title="编辑" key="edit">
-                <EditOutlined onClick={() => message.info('编辑企业功能开发中...')} />
+                <EditOutlined onClick={() => navigate(`/enterprises/${enterprise.id}/edit`)} />
               </Tooltip>,
               <Tooltip title="删除" key="delete">
                 <DeleteOutlined onClick={() => handleDelete(enterprise.id, enterprise.name)} />
-              </Tooltip>,
+              </Tooltip>
             ]}
           >
             {/* 企业名称 */}
@@ -545,9 +545,7 @@ const EnterpriseManagementPage: React.FC = () => {
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}
-                  onClick={() => {
-                    message.info('创建企业功能开发中...');
-                  }}
+                  onClick={() => navigate('/enterprises/create')}
                 >
                   新建企业
                 </Button>

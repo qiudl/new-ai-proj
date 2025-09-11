@@ -36,7 +36,7 @@ const TasksPage: React.FC = () => {
   const isSwimlaneView = new URLSearchParams(location.search).get('view') === 'swimlane';
   
   // Global timer context
-  const { timerState, isTaskTiming } = useTimer();
+  const { timerState, isTaskTiming, refreshTimer } = useTimer();
 
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const timerUpdateRef = useRef<NodeJS.Timeout | null>(null);
@@ -639,6 +639,19 @@ const TasksPage: React.FC = () => {
       }
       
       await TaskService.updateTask(projectId, editingTask.id, taskData);
+      
+      // 🆕 如果任务状态变更为completed或cancelled，主动刷新计时器
+      const status = (taskData as any)?.status;
+      if (status === 'completed' || status === 'cancelled') {
+        try {
+          await refreshTimer();
+          console.log(`✅ Timer refreshed after task status changed to: ${status}`);
+        } catch (timerError) {
+          console.warn('Failed to refresh timer after task completion:', timerError);
+          // 不影响主流程，只记录警告
+        }
+      }
+      
       message.success('任务更新成功');
       setTaskModalVisible(false);
       setEditingTask(undefined);
@@ -934,6 +947,17 @@ const TasksPage: React.FC = () => {
       });
       // analytics
       try { const { track } = await import('../utils/analytics'); track('task_update', { action: 'status_change', taskId, projectId, newStatus }); } catch {}
+      
+      // 🆕 如果任务状态变更为completed或cancelled，主动刷新计时器
+      if (newStatus === 'completed' || newStatus === 'cancelled') {
+        try {
+          await refreshTimer();
+          console.log(`✅ Timer refreshed after task status changed to: ${newStatus}`);
+        } catch (timerError) {
+          console.warn('Failed to refresh timer after task completion:', timerError);
+          // 不影响主流程，只记录警告
+        }
+      }
       
       message.success('状态更新成功');
       

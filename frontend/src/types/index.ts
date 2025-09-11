@@ -7,6 +7,7 @@
 export * from './task';
 export * from './project';
 export * from './user';
+export * from './timeline';
 
 // ===== Unified Task Node Types =====
 export * from './UnifiedTaskNode';

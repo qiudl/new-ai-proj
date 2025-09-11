@@ -525,10 +525,11 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 label="邮箱"
                 name="email"
                 rules={[
+                  { required: true, message: '请输入邮箱' },
                   { type: 'email', message: '请输入正确的邮箱格式' }
                 ]}
               >
-                <Input placeholder="请输入邮箱" />
+                <Input placeholder="请输入邮箱（必填）" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>

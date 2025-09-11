@@ -27,7 +27,7 @@ const FloatingTimerForced = () => {
         position: 'fixed',
         left: position.x,
         top: position.y,
-        zIndex: 9999,
+        zIndex: 999,
         background: 'rgba(255, 255, 255, 0.95)',
         border: '3px solid #52c41a',
         borderRadius: '12px',

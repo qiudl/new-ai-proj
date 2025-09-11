@@ -104,7 +104,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
   rows = 4,
   style = {},
 }) => {
-  const [mode, setMode] = useState<'edit' | 'preview'>('preview');
+  const [mode, setMode] = useState<'edit' | 'preview'>('edit');
 
   const handleInsertMarkdown = (before: string, after: string = '') => {
     const textarea = document.querySelector('.task-markdown-textarea') as HTMLTextAreaElement;
@@ -224,7 +224,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
             padding: '15px 50px',
             backgroundColor: '#fafafa',
             overflow: 'auto',
-            zIndex: 9999, // 设置z-index为最大
+            zIndex: 1, // 预览区域只需要基础层级
             position: 'relative', // 需要设置position才能生效z-index
             // 全屏时让预览区域也占满空间
             ...(style?.flex === 1 ? {

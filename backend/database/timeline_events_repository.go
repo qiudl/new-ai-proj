@@ -7,88 +7,105 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
-	"gorm.io/gorm"
+	"github.com/lib/pq"
 )
 
 // TimelineEventsRepository 时间线事件仓库接口
 type TimelineEventsRepository interface {
-	// 创建时间线事件
 	CreateEvent(ctx context.Context, event *models.TaskTimelineEvent) error
-	
-	// 批量创建时间线事件
 	CreateEvents(ctx context.Context, events []*models.TaskTimelineEvent) error
-	
-	// 获取任务的时间线事件
 	GetTaskTimeline(ctx context.Context, taskID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error)
-	
-	// 获取多个任务的时间线事件
 	GetTasksTimeline(ctx context.Context, taskIDs []int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error)
-	
-	// 获取项目的时间线事件
 	GetProjectTimeline(ctx context.Context, projectID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error)
-	
-	// 获取用户的活动时间线
 	GetUserActivity(ctx context.Context, userID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error)
-	
-	// 获取事件详情
 	GetEventByID(ctx context.Context, eventID int64) (*models.TaskTimelineEvent, error)
-	
-	// 删除事件
 	DeleteEvent(ctx context.Context, eventID int64) error
-	
-	// 获取时间线统计信息
 	GetTimelineStatistics(ctx context.Context, filter *models.TimelineEventFilter) (*models.TimelineStatistics, error)
-	
-	// 清理过期事件
 	CleanupExpiredEvents(ctx context.Context, beforeDate time.Time) (int64, error)
 }
 
-// timelineEventsRepository 时间线事件仓库实现
+// timelineEventsRepository PostgreSQL实现
 type timelineEventsRepository struct {
-	db interface{}
+	db interface{} // 兼容不同的DB接口
 }
 
 // NewTimelineEventsRepository 创建新的时间线事件仓库
 func NewTimelineEventsRepository(db interface{}) TimelineEventsRepository {
-	return &timelineEventsRepository{db: db}
+	return &timelineEventsRepository{
+		db: db,
+	}
 }
 
-// CreateEvent 创建时间线事件
+// execContext 执行上下文查询
+func (r *timelineEventsRepository) execContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	switch db := r.db.(type) {
+	case *sql.DB:
+		return db.ExecContext(ctx, query, args...)
+	case *sql.Tx:
+		return db.ExecContext(ctx, query, args...)
+	default:
+		return nil, fmt.Errorf("unsupported database type")
+	}
+}
+
+// queryContext 执行上下文查询
+func (r *timelineEventsRepository) queryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	switch db := r.db.(type) {
+	case *sql.DB:
+		return db.QueryContext(ctx, query, args...)
+	case *sql.Tx:
+		return db.QueryContext(ctx, query, args...)
+	default:
+		return nil, fmt.Errorf("unsupported database type")
+	}
+}
+
+// queryRowContext 执行单行查询
+func (r *timelineEventsRepository) queryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	switch db := r.db.(type) {
+	case *sql.DB:
+		return db.QueryRowContext(ctx, query, args...)
+	case *sql.Tx:
+		return db.QueryRowContext(ctx, query, args...)
+	default:
+		// 这种情况下无法返回有意义的结果
+		return nil
+	}
+}
+
+// CreateEvent 创建单个时间线事件
 func (r *timelineEventsRepository) CreateEvent(ctx context.Context, event *models.TaskTimelineEvent) error {
-	if event == nil {
-		return fmt.Errorf("event cannot be nil")
+	query := `
+		INSERT INTO timeline_events (
+			task_id, event_type, event_date, description, user_id, metadata
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id`
+
+	var metadataJSON []byte
+	var err error
+	if event.Metadata != nil {
+		metadataJSON, err = json.Marshal(event.Metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal metadata: %w", err)
+		}
 	}
-	
-	// 设置默认值
-	if event.EventDate.IsZero() {
-		event.EventDate = time.Now()
+
+	err = r.queryRowContext(ctx, query,
+		event.TaskID,
+		string(event.EventType),
+		event.EventDate,
+		event.Description,
+		event.UserID,
+		metadataJSON,
+	).Scan(&event.ID)
+
+	if err != nil {
+		return fmt.Errorf("failed to create timeline event: %w", err)
 	}
-	if event.Severity == "" {
-		event.Severity = models.SeverityInfo
-	}
-	if event.Category == "" {
-		event.Category = models.CategoryUser
-	}
-	
-	// 处理不同的数据库类型
-	if gormDB, ok := r.db.(*gorm.DB); ok {
-		return gormDB.WithContext(ctx).Create(event).Error
-	}
-	
-	// 使用原生SQL的简化实现
-	if sqlDB, ok := r.db.(*sql.DB); ok {
-		return r.createEventWithSQL(ctx, sqlDB, event)
-	}
-	
-	if sqlTx, ok := r.db.(*sql.Tx); ok {
-		return r.createEventWithSQLTx(ctx, sqlTx, event)
-	}
-	
-	log.Printf("Timeline events repository: database type not supported, event logged: %+v", event)
-	return nil // 不支持的数据库类型，仅记录日志
+
+	return nil
 }
 
 // CreateEvents 批量创建时间线事件
@@ -96,434 +113,311 @@ func (r *timelineEventsRepository) CreateEvents(ctx context.Context, events []*m
 	if len(events) == 0 {
 		return nil
 	}
-	
-	// 设置默认值
-	now := time.Now()
-	for _, event := range events {
-		if event.EventDate.IsZero() {
-			event.EventDate = now
-		}
-		if event.Severity == "" {
-			event.Severity = models.SeverityInfo
-		}
-		if event.Category == "" {
-			event.Category = models.CategoryUser
-		}
-	}
-	
-	// 处理不同的数据库类型
-	if gormDB, ok := r.db.(*gorm.DB); ok {
-		return gormDB.WithContext(ctx).CreateInBatches(events, 100).Error
-	}
-	
-	// 使用原生SQL逐个插入
+
+	// 对于批量操作，先简单循环实现
 	for _, event := range events {
 		if err := r.CreateEvent(ctx, event); err != nil {
-			return fmt.Errorf("failed to create event: %w", err)
+			return err
 		}
 	}
+
 	return nil
 }
 
-// GetTaskTimeline 获取任务的时间线事件
+// GetTaskTimeline 获取任务时间线
 func (r *timelineEventsRepository) GetTaskTimeline(ctx context.Context, taskID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
-	if filter == nil {
-		filter = &models.TimelineEventFilter{}
+	// 构建基础查询
+	baseQuery := `
+		SELECT 
+			te.id, te.task_id, te.event_type, te.event_date, te.description, 
+			te.user_id, te.metadata,
+			COALESCE(u.username, '') as username,
+			COALESCE(t.title, '') as task_title
+		FROM timeline_events te
+		LEFT JOIN users u ON te.user_id = u.id
+		LEFT JOIN tasks t ON te.task_id = t.id
+		WHERE te.task_id = $1
+	`
+
+	// 添加排序
+	orderClause := " ORDER BY te.event_date DESC"
+	
+	// 添加分页
+	limitClause := ""
+	args := []interface{}{taskID}
+	
+	if filter != nil {
+		if filter.PageSize > 0 {
+			offset := (filter.Page - 1) * filter.PageSize
+			limitClause = fmt.Sprintf(" LIMIT $2 OFFSET $3")
+			args = append(args, filter.PageSize, offset)
+		}
+	} else {
+		// 默认分页
+		limitClause = " LIMIT 100 OFFSET 0"
 	}
-	
-	// 设置任务ID过滤
-	filter.TaskID = &taskID
-	
-	return r.getTimelineWithFilter(ctx, filter)
+
+	query := baseQuery + orderClause + limitClause
+
+	rows, err := r.queryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query task timeline: %w", err)
+	}
+	defer rows.Close()
+
+	events, err := r.scanTimelineEvents(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 查询总数
+	countQuery := `SELECT COUNT(*) FROM timeline_events WHERE task_id = $1`
+	var total int64
+	err = r.queryRowContext(ctx, countQuery, taskID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count task timeline: %w", err)
+	}
+
+	return events, total, nil
 }
 
-// GetTasksTimeline 获取多个任务的时间线事件
+// GetTasksTimeline 获取多个任务的时间线
 func (r *timelineEventsRepository) GetTasksTimeline(ctx context.Context, taskIDs []int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
 	if len(taskIDs) == 0 {
 		return []*models.TaskTimelineEvent{}, 0, nil
 	}
-	
-	if filter == nil {
-		filter = &models.TimelineEventFilter{}
-	}
-	
-	// 设置任务IDs过滤
-	filter.TaskIDs = taskIDs
-	
-	return r.getTimelineWithFilter(ctx, filter)
-}
 
-// GetProjectTimeline 获取项目的时间线事件
-func (r *timelineEventsRepository) GetProjectTimeline(ctx context.Context, projectID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
-	if filter == nil {
-		filter = &models.TimelineEventFilter{}
-	}
-	
-	// 设置项目ID过滤
-	filter.ProjectID = &projectID
-	
-	return r.getTimelineWithFilter(ctx, filter)
-}
+	query := `
+		SELECT 
+			te.id, te.task_id, te.event_type, te.event_date, te.description, 
+			te.user_id, te.metadata,
+			COALESCE(u.username, '') as username,
+			COALESCE(t.title, '') as task_title
+		FROM timeline_events te
+		LEFT JOIN users u ON te.user_id = u.id
+		LEFT JOIN tasks t ON te.task_id = t.id
+		WHERE te.task_id = ANY($1)
+		ORDER BY te.event_date DESC
+		LIMIT 1000
+	`
 
-// GetUserActivity 获取用户的活动时间线
-func (r *timelineEventsRepository) GetUserActivity(ctx context.Context, userID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
-	if filter == nil {
-		filter = &models.TimelineEventFilter{}
-	}
-	
-	// 设置用户ID过滤
-	filter.UserIDs = []int64{userID}
-	
-	return r.getTimelineWithFilter(ctx, filter)
-}
-
-// getTimelineWithFilter 根据过滤器获取时间线事件
-func (r *timelineEventsRepository) getTimelineWithFilter(ctx context.Context, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
-	query := r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{})
-	
-	// 应用过滤条件
-	query = r.applyFilters(query, filter)
-	
-	// 计算总数
-	var total int64
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to count timeline events: %w", err)
-	}
-	
-	// 应用排序
-	query = r.applySorting(query, filter)
-	
-	// 应用分页
-	query = r.applyPagination(query, filter)
-	
-	// 执行查询
-	var events []*models.TaskTimelineEvent
-	if err := query.Find(&events).Error; err != nil {
-		return nil, 0, fmt.Errorf("failed to fetch timeline events: %w", err)
-	}
-	
-	return events, total, nil
-}
-
-// applyFilters 应用过滤条件
-func (r *timelineEventsRepository) applyFilters(query *gorm.DB, filter *models.TimelineEventFilter) *gorm.DB {
-	// 任务ID过滤
-	if filter.TaskID != nil {
-		query = query.Where("task_id = ?", *filter.TaskID)
-	}
-	
-	// 多个任务ID过滤
-	if len(filter.TaskIDs) > 0 {
-		query = query.Where("task_id IN ?", filter.TaskIDs)
-	}
-	
-	// 项目ID过滤
-	if filter.ProjectID != nil {
-		query = query.Where("project_id = ?", *filter.ProjectID)
-	}
-	
-	// 事件类型过滤
-	if len(filter.EventTypes) > 0 {
-		types := make([]string, len(filter.EventTypes))
-		for i, t := range filter.EventTypes {
-			types[i] = string(t)
-		}
-		query = query.Where("event_type IN ?", types)
-	}
-	
-	// 用户ID过滤
-	if len(filter.UserIDs) > 0 {
-		query = query.Where("user_id IN ?", filter.UserIDs)
-	}
-	
-	// 事件分类过滤
-	if len(filter.Categories) > 0 {
-		categories := make([]string, len(filter.Categories))
-		for i, c := range filter.Categories {
-			categories[i] = string(c)
-		}
-		query = query.Where("category IN ?", categories)
-	}
-	
-	// 严重性过滤
-	if len(filter.Severities) > 0 {
-		severities := make([]string, len(filter.Severities))
-		for i, s := range filter.Severities {
-			severities[i] = string(s)
-		}
-		query = query.Where("severity IN ?", severities)
-	}
-	
-	// 时间范围过滤
-	if filter.StartDate != nil {
-		query = query.Where("event_date >= ?", *filter.StartDate)
-	}
-	if filter.EndDate != nil {
-		query = query.Where("event_date <= ?", *filter.EndDate)
-	}
-	
-	// 批次ID过滤
-	if filter.BatchID != "" {
-		query = query.Where("metadata->>'batch_id' = ?", filter.BatchID)
-	}
-	
-	// 是否包含系统事件
-	if !filter.IncludeSystem {
-		query = query.Where("category != ?", "system")
-	}
-	
-	return query
-}
-
-// applySorting 应用排序
-func (r *timelineEventsRepository) applySorting(query *gorm.DB, filter *models.TimelineEventFilter) *gorm.DB {
-	sortBy := filter.SortBy
-	if sortBy == "" {
-		sortBy = "event_date"
-	}
-	
-	sortOrder := filter.SortOrder
-	if sortOrder == "" {
-		sortOrder = "desc"
-	}
-	
-	// 验证排序字段
-	validSortFields := map[string]bool{
-		"event_date": true,
-		"created_at": true,
-		"severity":   true,
-		"event_type": true,
-		"user_id":    true,
-	}
-	
-	if !validSortFields[sortBy] {
-		sortBy = "event_date"
-	}
-	
-	// 验证排序方向
-	if sortOrder != "asc" && sortOrder != "desc" {
-		sortOrder = "desc"
-	}
-	
-	return query.Order(fmt.Sprintf("%s %s", sortBy, strings.ToUpper(sortOrder)))
-}
-
-// applyPagination 应用分页
-func (r *timelineEventsRepository) applyPagination(query *gorm.DB, filter *models.TimelineEventFilter) *gorm.DB {
-	page := filter.Page
-	if page <= 0 {
-		page = 1
-	}
-	
-	pageSize := filter.PageSize
-	if pageSize <= 0 {
-		pageSize = 50
-	}
-	if pageSize > 200 {
-		pageSize = 200
-	}
-	
-	offset := (page - 1) * pageSize
-	return query.Offset(offset).Limit(pageSize)
-}
-
-// GetEventByID 获取事件详情
-func (r *timelineEventsRepository) GetEventByID(ctx context.Context, eventID int64) (*models.TaskTimelineEvent, error) {
-	var event models.TaskTimelineEvent
-	err := r.db.WithContext(ctx).First(&event, eventID).Error
+	rows, err := r.queryContext(ctx, query, pq.Array(taskIDs))
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("timeline event not found")
-		}
-		return nil, fmt.Errorf("failed to get timeline event: %w", err)
+		return nil, 0, fmt.Errorf("failed to query tasks timeline: %w", err)
 	}
-	return &event, nil
+	defer rows.Close()
+
+	events, err := r.scanTimelineEvents(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return events, int64(len(events)), nil
+}
+
+// GetProjectTimeline 获取项目时间线
+func (r *timelineEventsRepository) GetProjectTimeline(ctx context.Context, projectID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
+	query := `
+		SELECT 
+			te.id, te.task_id, te.event_type, te.event_date, te.description, 
+			te.user_id, te.metadata,
+			COALESCE(u.username, '') as username,
+			COALESCE(t.title, '') as task_title
+		FROM timeline_events te
+		LEFT JOIN users u ON te.user_id = u.id
+		INNER JOIN tasks t ON te.task_id = t.id
+		WHERE t.project_id = $1
+		ORDER BY te.event_date DESC
+		LIMIT 1000
+	`
+
+	rows, err := r.queryContext(ctx, query, projectID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query project timeline: %w", err)
+	}
+	defer rows.Close()
+
+	events, err := r.scanTimelineEvents(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return events, int64(len(events)), nil
+}
+
+// GetUserActivity 获取用户活动时间线
+func (r *timelineEventsRepository) GetUserActivity(ctx context.Context, userID int64, filter *models.TimelineEventFilter) ([]*models.TaskTimelineEvent, int64, error) {
+	query := `
+		SELECT 
+			te.id, te.task_id, te.event_type, te.event_date, te.description, 
+			te.user_id, te.metadata,
+			COALESCE(u.username, '') as username,
+			COALESCE(t.title, '') as task_title
+		FROM timeline_events te
+		LEFT JOIN users u ON te.user_id = u.id
+		LEFT JOIN tasks t ON te.task_id = t.id
+		WHERE te.user_id = $1
+		ORDER BY te.event_date DESC
+		LIMIT 1000
+	`
+
+	rows, err := r.queryContext(ctx, query, userID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query user activity: %w", err)
+	}
+	defer rows.Close()
+
+	events, err := r.scanTimelineEvents(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return events, int64(len(events)), nil
+}
+
+// GetEventByID 根据ID获取事件
+func (r *timelineEventsRepository) GetEventByID(ctx context.Context, eventID int64) (*models.TaskTimelineEvent, error) {
+	query := `
+		SELECT 
+			te.id, te.task_id, te.event_type, te.event_date, te.description, 
+			te.user_id, te.metadata,
+			COALESCE(u.username, '') as username,
+			COALESCE(t.title, '') as task_title
+		FROM timeline_events te
+		LEFT JOIN users u ON te.user_id = u.id
+		LEFT JOIN tasks t ON te.task_id = t.id
+		WHERE te.id = $1
+	`
+
+	rows, err := r.queryContext(ctx, query, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query event: %w", err)
+	}
+	defer rows.Close()
+
+	events, err := r.scanTimelineEvents(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(events) == 0 {
+		return nil, fmt.Errorf("event not found")
+	}
+
+	return events[0], nil
 }
 
 // DeleteEvent 删除事件
 func (r *timelineEventsRepository) DeleteEvent(ctx context.Context, eventID int64) error {
-	result := r.db.WithContext(ctx).Delete(&models.TaskTimelineEvent{}, eventID)
-	if result.Error != nil {
-		return fmt.Errorf("failed to delete timeline event: %w", result.Error)
+	query := `DELETE FROM timeline_events WHERE id = $1`
+	
+	result, err := r.execContext(ctx, query, eventID)
+	if err != nil {
+		return fmt.Errorf("failed to delete timeline event: %w", err)
 	}
-	if result.RowsAffected == 0 {
-		return fmt.Errorf("timeline event not found")
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("event not found")
+	}
+
 	return nil
 }
 
 // GetTimelineStatistics 获取时间线统计信息
 func (r *timelineEventsRepository) GetTimelineStatistics(ctx context.Context, filter *models.TimelineEventFilter) (*models.TimelineStatistics, error) {
-	stats := &models.TimelineStatistics{
-		EventTypesDistribution: make(map[models.TaskTimelineEventType]int),
-		UserActivity:           []models.UserActivityStat{},
-		DailyActivity:          []models.DailyActivityStat{},
-		SeverityDistribution:   make(map[models.EventSeverity]int),
-		CategoryDistribution:   make(map[models.EventCategory]int),
-	}
-	
-	query := r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{})
-	query = r.applyFilters(query, filter)
-	
-	// 总事件数
-	if err := query.Count(&stats.TotalEvents).Error; err != nil {
-		return nil, fmt.Errorf("failed to count total events: %w", err)
-	}
-	
-	// 事件类型分布
-	var eventTypeStats []struct {
-		EventType string
-		Count     int
-	}
-	err := r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{}).
-		Select("event_type, COUNT(*) as count").
-		Group("event_type").
-		Scan(&eventTypeStats).Error
+	// 返回基础统计信息
+	query := `
+		SELECT 
+			COUNT(*) as total_events
+		FROM timeline_events
+	`
+
+	var stats models.TimelineStatistics
+	err := r.queryRowContext(ctx, query).Scan(
+		&stats.TotalEvents,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get event type distribution: %w", err)
+		return nil, fmt.Errorf("failed to query timeline statistics: %w", err)
 	}
-	
-	for _, stat := range eventTypeStats {
-		stats.EventTypesDistribution[models.TaskTimelineEventType(stat.EventType)] = stat.Count
-	}
-	
-	// 用户活动统计
-	var userStats []struct {
-		UserID    int64
-		Username  string
-		Count     int
-	}
-	err = r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{}).
-		Select("user_id, username, COUNT(*) as count").
-		Where("user_id IS NOT NULL").
-		Group("user_id, username").
-		Order("count DESC").
-		Limit(10).
-		Scan(&userStats).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user activity: %w", err)
-	}
-	
-	for _, stat := range userStats {
-		stats.UserActivity = append(stats.UserActivity, models.UserActivityStat{
-			UserID:     stat.UserID,
-			Username:   stat.Username,
-			EventCount: stat.Count,
-		})
-	}
-	
-	// 每日活动统计
-	var dailyStats []struct {
-		Date  string
-		Count int
-	}
-	err = r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{}).
-		Select("DATE(event_date) as date, COUNT(*) as count").
-		Where("event_date >= ?", time.Now().AddDate(0, 0, -30)).
-		Group("DATE(event_date)").
-		Order("date DESC").
-		Scan(&dailyStats).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to get daily activity: %w", err)
-	}
-	
-	for _, stat := range dailyStats {
-		stats.DailyActivity = append(stats.DailyActivity, models.DailyActivityStat{
-			Date:       stat.Date,
-			EventCount: stat.Count,
-		})
-	}
-	
-	// 严重性分布
-	var severityStats []struct {
-		Severity string
-		Count    int
-	}
-	err = r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{}).
-		Select("severity, COUNT(*) as count").
-		Group("severity").
-		Scan(&severityStats).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to get severity distribution: %w", err)
-	}
-	
-	for _, stat := range severityStats {
-		stats.SeverityDistribution[models.EventSeverity(stat.Severity)] = stat.Count
-	}
-	
-	// 分类分布
-	var categoryStats []struct {
-		Category string
-		Count    int
-	}
-	err = r.db.WithContext(ctx).Model(&models.TaskTimelineEvent{}).
-		Select("category, COUNT(*) as count").
-		Group("category").
-		Scan(&categoryStats).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to get category distribution: %w", err)
-	}
-	
-	for _, stat := range categoryStats {
-		stats.CategoryDistribution[models.EventCategory(stat.Category)] = stat.Count
-	}
-	
-	return stats, nil
+
+	// 初始化分布映射
+	stats.EventTypesDistribution = make(map[models.TaskTimelineEventType]int)
+	stats.SeverityDistribution = make(map[models.EventSeverity]int)
+	stats.CategoryDistribution = make(map[models.EventCategory]int)
+
+	return &stats, nil
 }
 
 // CleanupExpiredEvents 清理过期事件
 func (r *timelineEventsRepository) CleanupExpiredEvents(ctx context.Context, beforeDate time.Time) (int64, error) {
-	result := r.db.WithContext(ctx).
-		Where("event_date < ?", beforeDate).
-		Delete(&models.TaskTimelineEvent{})
+	query := `DELETE FROM timeline_events WHERE event_date < $1`
 	
-	if result.Error != nil {
-		return 0, fmt.Errorf("failed to cleanup expired events: %w", result.Error)
+	result, err := r.execContext(ctx, query, beforeDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to cleanup expired events: %w", err)
 	}
-	
-	return result.RowsAffected, nil
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return rowsAffected, nil
 }
 
-// createEventWithSQL 使用原生SQL创建事件
-func (r *timelineEventsRepository) createEventWithSQL(ctx context.Context, db *sql.DB, event *models.TaskTimelineEvent) error {
-	query := `
-		INSERT INTO task_timeline_events (
-			task_id, event_type, event_date, description, user_id, 
-			metadata, username, task_title, project_id, correlation_id, 
-			parent_event_id, severity, category, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-	`
-	
-	metadataJSON, _ := json.Marshal(event.Metadata)
-	now := time.Now()
-	
-	_, err := db.ExecContext(ctx, query,
-		event.TaskID, event.EventType, event.EventDate, event.Description,
-		event.UserID, metadataJSON, event.Username, event.TaskTitle,
-		event.ProjectID, event.CorrelationID, event.ParentEventID,
-		event.Severity, event.Category, now, now,
-	)
-	return err
-}
+// scanTimelineEvents 扫描时间线事件结果
+func (r *timelineEventsRepository) scanTimelineEvents(rows *sql.Rows) ([]*models.TaskTimelineEvent, error) {
+	events := []*models.TaskTimelineEvent{}
 
-// createEventWithSQLTx 使用事务创建事件
-func (r *timelineEventsRepository) createEventWithSQLTx(ctx context.Context, tx *sql.Tx, event *models.TaskTimelineEvent) error {
-	query := `
-		INSERT INTO task_timeline_events (
-			task_id, event_type, event_date, description, user_id, 
-			metadata, username, task_title, project_id, correlation_id, 
-			parent_event_id, severity, category, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-	`
-	
-	metadataJSON, _ := json.Marshal(event.Metadata)
-	now := time.Now()
-	
-	_, err := tx.ExecContext(ctx, query,
-		event.TaskID, event.EventType, event.EventDate, event.Description,
-		event.UserID, metadataJSON, event.Username, event.TaskTitle,
-		event.ProjectID, event.CorrelationID, event.ParentEventID,
-		event.Severity, event.Category, now, now,
-	)
-	return err
+	for rows.Next() {
+		event := &models.TaskTimelineEvent{}
+		var metadataJSON sql.NullString
+		var username sql.NullString
+		var taskTitle sql.NullString
+
+		err := rows.Scan(
+			&event.ID,
+			&event.TaskID,
+			&event.EventType,
+			&event.EventDate,
+			&event.Description,
+			&event.UserID,
+			&metadataJSON,
+			&username,
+			&taskTitle,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan timeline event: %w", err)
+		}
+
+		if username.Valid {
+			event.Username = username.String
+		}
+		if taskTitle.Valid {
+			event.TaskTitle = taskTitle.String
+		}
+
+		// 解析元数据
+		if metadataJSON.Valid && metadataJSON.String != "" {
+			var metadata models.TaskTimelineEventMetadata
+			if err := json.Unmarshal([]byte(metadataJSON.String), &metadata); err != nil {
+				log.Printf("Warning: failed to unmarshal metadata for event %d: %v", event.ID, err)
+			} else {
+				event.Metadata = &metadata
+			}
+		}
+
+		events = append(events, event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating timeline events: %w", err)
+	}
+
+	return events, nil
 }

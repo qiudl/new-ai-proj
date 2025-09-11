@@ -87,8 +87,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
 	
 	// 时间线处理器
-	timelineRepo := database.NewTimelineEventsRepository(f.db.GetDB())
-	allHandlers.TimelineHandler = handlers.NewTimelineHandler(timelineRepo, f.logger)
+	allHandlers.TimelineHandler = handlers.NewTimelineHandler(f.db, f.logger, f.validate)
 
 	// 创建ltree任务层级处理器 - 暂时注释掉，handler缺失
 	// f.logger.Printf("[FACTORY] Creating TaskLTreeHierarchyHandler...")

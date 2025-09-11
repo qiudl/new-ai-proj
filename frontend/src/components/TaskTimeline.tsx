@@ -20,7 +20,7 @@ import {
   FilterOutlined,
   ReloadOutlined,
 } from '@ant-design/icons';
-import { TimelineEvent } from '../types/task';
+import { TaskTimelineEvent as TimelineEvent } from '../types/timeline';
 
 const { Text, Title } = Typography;
 

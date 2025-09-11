@@ -105,6 +105,13 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
   // 初始化时恢复企业信息
   useEffect(() => {
     const initializeEnterprise = async () => {
+      // 检查用户是否已登录
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('⚠️ 用户未登录，跳过企业初始化');
+        return;
+      }
+
       // 尝试从本地存储恢复当前企业
       const savedEnterpriseId = localStorage.getItem('currentEnterpriseId');
       if (savedEnterpriseId) {
@@ -121,6 +128,29 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     };
 
     initializeEnterprise();
+
+    // 监听存储变化（登录/登出）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token') {
+        if (e.newValue) {
+          // 用户登录，刷新企业列表
+          console.log('👤 检测到用户登录，刷新企业列表');
+          initializeEnterprise();
+        } else {
+          // 用户登出，清空企业数据
+          console.log('👤 检测到用户登出，清空企业数据');
+          setCurrentEnterprise(null);
+          setEnterprises([]);
+          localStorage.removeItem('currentEnterpriseId');
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const value: EnterpriseContextType = {

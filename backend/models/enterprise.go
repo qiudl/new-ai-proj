@@ -45,7 +45,7 @@ type EnterpriseUser struct {
 	ID           int     `json:"id" db:"id"`
 	EnterpriseID int     `json:"enterprise_id" db:"enterprise_id" validate:"required"`
 	Username     string  `json:"username" db:"username" validate:"required,min=3,max=50"`
-	Email        *string `json:"email" db:"email" validate:"omitempty,email"`
+	Email        string `json:"email" db:"email" validate:"required,email"`
 	
 	// Personal information
 	Name     string  `json:"name" db:"name" validate:"required,min=1,max=100"`
@@ -186,9 +186,9 @@ type EnterpriseResponse struct {
 
 // EnterpriseUserRequest represents a request to create or update an enterprise user
 type EnterpriseUserRequest struct {
-	EnterpriseID int     `json:"enterprise_id" validate:"required"`
-	Username     string  `json:"username" validate:"required,min=3,max=50"`
-	Email        *string `json:"email" validate:"omitempty,email"`
+	EnterpriseID int    `json:"enterprise_id" validate:"required"`
+	Username     string `json:"username" validate:"required,min=3,max=50"`
+	Email        string `json:"email" validate:"required,email"`
 	
 	Name     string  `json:"name" validate:"required,min=1,max=100"`
 	Phone    *string `json:"phone"`
@@ -203,10 +203,10 @@ type EnterpriseUserRequest struct {
 
 // EnterpriseUserResponseNew represents the response format for an enterprise user (new system)
 type EnterpriseUserResponseNew struct {
-	ID           int     `json:"id"`
-	EnterpriseID int     `json:"enterprise_id"`
-	Username     string  `json:"username"`
-	Email        *string `json:"email"`
+	ID           int    `json:"id"`
+	EnterpriseID int    `json:"enterprise_id"`
+	Username     string `json:"username"`
+	Email        string `json:"email"`
 	
 	Name     string  `json:"name"`
 	Phone    *string `json:"phone"`

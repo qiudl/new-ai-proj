@@ -115,10 +115,10 @@ export const getEnvironmentConfig = () => {
   const currentPort = getCurrentPort();
   
   if (env.actualEnv === 'local-dev') {
-    // 本地开发环境，使用完整URL避免相对路径问题
+    // 本地开发环境，使用代理相对路径
     if (currentPort === '3001' || currentPort === '3002') {
-      // 通过proxy代理到后端8081端口
-      apiBaseURL = `${protocol}//${hostname}:${currentPort}/api/v1`;
+      // 通过setupProxy.js代理到后端8081端口，使用相对路径
+      apiBaseURL = '/api/v1';
     } else {
       // 直接访问后端端口
       apiBaseURL = `${protocol}//${hostname}:8081/api/v1`;

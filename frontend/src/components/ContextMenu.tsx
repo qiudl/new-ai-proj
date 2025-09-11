@@ -247,7 +247,7 @@ export const ContextMenuProvider: React.FC<{ children: React.ReactNode }> = ({ c
             position: 'fixed',
             top: menuState.y,
             left: menuState.x,
-            zIndex: 9999,
+            zIndex: 1010,
             pointerEvents: 'auto'
           }}
           onClick={(e) => e.stopPropagation()}

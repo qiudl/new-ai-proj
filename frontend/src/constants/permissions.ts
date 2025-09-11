@@ -14,6 +14,17 @@ export const SYSTEM_PERMISSIONS = {
 
 // REMOVED: 公司管理权限 (已迁移到ORGANIZATION_PERMISSIONS)
 // 企业管理权限 (替代原company权限)
+
+// DEPRECATED: 向后兼容的公司权限常量 (使用ORGANIZATION_PERMISSIONS代替)
+export const COMPANY_PERMISSIONS = {
+  ADMIN: 'organization_admin',
+  READ: 'organization_read',
+  CREATE: 'organization_create',
+  UPDATE: 'organization_update',
+  DELETE: 'organization_delete',
+  USER_MANAGEMENT: 'organization_user_management',
+  DEPARTMENT_MANAGEMENT: 'organization_department_management'
+} as const;
 export const ENTERPRISE_PERMISSIONS = {
   ADMIN: 'enterprise_admin',
   READ: 'enterprise_read', 

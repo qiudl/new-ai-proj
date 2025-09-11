@@ -901,7 +901,7 @@ const ProjectEditPageNew: React.FC = () => {
                     type="text"
                     size="small"
                     icon={<PlusOutlined />}
-                    onClick={() => navigate('/companies/create')}
+                    onClick={() => navigate('/enterprises/create')}
                   >
                     新建客户
                   </Button>
@@ -979,7 +979,7 @@ const ProjectEditPageNew: React.FC = () => {
                         type="dashed"
                         size="small"
                         icon={<PlusOutlined />}
-                        onClick={() => navigate('/companies/create')}
+                        onClick={() => navigate('/enterprises/create')}
                       >
                         新建客户
                       </Button>
@@ -1013,7 +1013,7 @@ const ProjectEditPageNew: React.FC = () => {
                         <Button
                           type="link"
                           icon={<PlusOutlined />}
-                          onClick={() => navigate('/companies/create')}
+                          onClick={() => navigate('/enterprises/create')}
                           style={{ padding: 0, marginTop: '8px' }}
                         >
                           立即创建第一个客户
@@ -1044,7 +1044,7 @@ const ProjectEditPageNew: React.FC = () => {
                           <Button
                             type="text"
                             icon={<PlusOutlined />}
-                            onClick={() => navigate('/companies/create')}
+                            onClick={() => navigate('/enterprises/create')}
                             style={{ width: '100%' }}
                           >
                             新建客户

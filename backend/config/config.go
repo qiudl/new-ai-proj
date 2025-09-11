@@ -68,8 +68,9 @@ func LoadConfig() (*Config, error) {
 	}
 	for _, f := range candidates {
 		if _, err := os.Stat(f); err == nil {
-			// Use Overload to ensure later files override earlier ones
-			if err := godotenv.Overload(f); err == nil {
+			// Use Load (not Overload) to respect existing environment variables
+			// Docker environment variables should take precedence over .env files
+			if err := godotenv.Load(f); err == nil {
 				log.Printf("Loaded %s", f)
 			}
 		}
