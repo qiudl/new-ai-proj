@@ -450,6 +450,16 @@ func (app *Application) GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	return app.taskHierarchyHandler
 }
 
+// GetTimelineHandler returns the timeline handler
+func (app *Application) GetTimelineHandler() *handlers.TimelineHandler {
+	if app.handlers != nil && app.handlers.TimelineHandler != nil {
+		return app.handlers.TimelineHandler
+	}
+	// Fallback: create handler on-demand
+	timelineRepo := database.NewTimelineEventsRepository(app.db.GetDB())
+	return handlers.NewTimelineHandler(timelineRepo, app.logger)
+}
+
 // checkMirrorWritable verifies if the optional mirror base path is writable
 func (app *Application) checkMirrorWritable() bool {
 	cfg := app.config

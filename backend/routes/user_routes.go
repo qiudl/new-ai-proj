@@ -37,5 +37,8 @@ func RegisterUserRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 
 		// 使用真实的用户管理处理器获取用户列表
 		users.GET("", userManagementHandler.GetUserList)
+
+		// 用户活动时间线
+		users.GET("/:id/activity", app.GetTimelineHandler().GetUserActivity)
 	}
 }

@@ -133,6 +133,9 @@ type ApplicationInterface interface {
 	GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	GetTaskTimelineHandler() gin.HandlerFunc
 
+	// 时间线处理器
+	GetTimelineHandler() *handlers.TimelineHandler
+
 	// 批量操作处理器
 	GetBulkOperationHandler() *handlers.BulkOperationHandler
 

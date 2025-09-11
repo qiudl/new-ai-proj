@@ -37,6 +37,24 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		tasks.POST("/:id/move", app.MoveTaskByIdHandler())
 		tasks.POST("/:id/reorder", app.ReorderTaskByIdHandler())
 
+		// 任务时间线路由
+		taskTimeline := tasks.Group("/:id/timeline")
+		{
+			timelineHandler := app.GetTimelineHandler()
+
+			// 获取任务时间线
+			taskTimeline.GET("", timelineHandler.GetTaskTimeline)
+
+			// 获取时间线统计
+			taskTimeline.GET("/stats", timelineHandler.GetTimelineStatistics)
+
+			// 创建时间线事件
+			taskTimeline.POST("", timelineHandler.CreateTimelineEvent)
+		}
+
+		// 批量任务时间线
+		tasks.GET("/timeline/batch", app.GetTimelineHandler().GetTasksTimeline)
+
 		// 任务关联的工作笔记路由
 		taskWorkNotes := tasks.Group("/:id/work-notes")
 		{

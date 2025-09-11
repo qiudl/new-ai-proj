@@ -199,6 +199,11 @@ func (pdb *PostgresDB) UserTimer() UserTimerRepository {
 	return NewUserTimerRepository(pdb.db)
 }
 
+// TimelineEvents returns the timeline events repository
+func (pdb *PostgresDB) TimelineEvents() TimelineEventsRepository {
+	return NewTimelineEventsRepository(pdb.db)
+}
+
 // GoogleAuth returns the Google authentication repository
 func (pdb *PostgresDB) GoogleAuth() GoogleAuthRepository {
 	return NewGoogleAuthRepository(pdb.db)
@@ -410,6 +415,11 @@ func (ptx *PostgresTx) Timer() TimerRepository {
 // UserTimer returns the user timer repository for transaction
 func (ptx *PostgresTx) UserTimer() UserTimerRepository {
 	return NewUserTimerRepository(ptx.tx)
+}
+
+// TimelineEvents returns the timeline events repository for transaction
+func (ptx *PostgresTx) TimelineEvents() TimelineEventsRepository {
+	return NewTimelineEventsRepository(ptx.tx)
 }
 
 // Commit commits the transaction
