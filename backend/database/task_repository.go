@@ -449,10 +449,16 @@ func (r *PostgresTaskRepository) GetAllFiltered(ctx context.Context, opts *model
 			args = append(args, *opts.ProjectID)
 			argIdx++
 		}
-		// 企业数据隔离：通过项目的company_id过滤任务
+		// 企业数据隔离：通过项目的company_id过滤任务 (旧系统)
 		if opts.CompanyID != nil {
 			conditions = append(conditions, fmt.Sprintf("p.company_id = $%d", argIdx))
 			args = append(args, *opts.CompanyID)
+			argIdx++
+		}
+		// 企业数据隔离：通过项目的enterprise_id过滤任务 (新系统)
+		if opts.EnterpriseID != nil {
+			conditions = append(conditions, fmt.Sprintf("p.enterprise_id = $%d", argIdx))
+			args = append(args, *opts.EnterpriseID)
 			argIdx++
 		}
 		if opts.Status != "" {

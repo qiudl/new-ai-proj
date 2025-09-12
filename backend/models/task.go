@@ -243,17 +243,18 @@ type TaskFilter struct {
 
 // TaskListOptions provides server-side filter options for global listing
 type TaskListOptions struct {
-	Preset    string // overdue | planning | on_hold | ""
-	Status    string
-	Priority  string
-	Search    string
-	Assignee  *int
-	ProjectID *int
-	TaskID    *int
-	CompanyID *int   // 企业数据隔离过滤
-	OnlyRoots bool   // if true, only return root tasks (parent_id IS NULL)
-	SortBy    string // updated_at | due_date | created_at
-	SortOrder string // asc | desc
+	Preset       string // overdue | planning | on_hold | ""
+	Status       string
+	Priority     string
+	Search       string
+	Assignee     *int
+	ProjectID    *int
+	TaskID       *int
+	CompanyID    *int   // 企业数据隔离过滤 (旧系统)
+	EnterpriseID *int   // 企业数据隔离过滤 (新系统)
+	OnlyRoots    bool   // if true, only return root tasks (parent_id IS NULL)
+	SortBy       string // updated_at | due_date | created_at
+	SortOrder    string // asc | desc
 }
 
 // BatchUpdateTasksRequest represents a batch update request for multiple tasks

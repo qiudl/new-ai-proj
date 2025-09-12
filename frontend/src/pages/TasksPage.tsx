@@ -17,6 +17,7 @@ import ColumnCustomizer, { ColumnConfig } from '../components/ColumnCustomizer';
 import ResizableTitle from '../components/ResizableTitle';
 import TaskCompletionRefresh from '../components/TaskCompletionRefresh';
 import { useTimer } from '../contexts/TimerContext';
+import { useImpersonation } from '../contexts/ImpersonationContext';
 import { Project, ProjectUser } from '../types/project';
 import { projectService } from '../services/projectService';
 import { formatRelativeTime, formatExactTime, getTimeStyle, getUpdateTimestamp } from '../utils/dateUtils';
@@ -37,6 +38,9 @@ const TasksPage: React.FC = () => {
   
   // Global timer context
   const { timerState, isTaskTiming, refreshTimer } = useTimer();
+  
+  // Enterprise impersonation context
+  const { isImpersonating, impersonationStatus } = useImpersonation();
 
   // MEMORY OPTIMIZATION: Use refs for timers and mounted state
   const timerUpdateRef = useRef<NodeJS.Timeout | null>(null);
@@ -55,7 +59,7 @@ const TasksPage: React.FC = () => {
   const [taskModalVisible, setTaskModalVisible] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>();
   const [modalLoading, setModalLoading] = useState(false);
-  const [hierarchicalView, setHierarchicalView] = useState(true);
+  const [hierarchicalView, setHierarchicalView] = useState(false); // 默认使用列表视图，与全部任务页面保持一致
   const [parentTaskForNew, setParentTaskForNew] = useState<Task | undefined>();
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set());
   const [subTasks, setSubTasks] = useState<Map<number, Task[]>>(new Map());
@@ -112,7 +116,6 @@ const TasksPage: React.FC = () => {
   // Debug logging for swimlane view issues
   useEffect(() => {
     if (isSwimlaneView) {
-      console.log('Swimlane view - projectId:', projectId, 'projectIdNum:', projectIdNum, 'selectedProjectId:', selectedProjectId, 'effectiveProjectId:', effectiveProjectId);
     }
   }, [isSwimlaneView, projectId, projectIdNum, selectedProjectId, effectiveProjectId]);
   
@@ -380,7 +383,6 @@ const TasksPage: React.FC = () => {
     pageSize = 20,
     sortOverride?: { sortBy?: string; sortOrder?: 'asc' | 'desc' }
   ) => {
-    console.log('loadTasks called with effectiveProjectId:', effectiveProjectId, 'page:', page, 'pageSize:', pageSize);
     setLoading(true);
     try {
       let response: any;
@@ -417,6 +419,11 @@ const TasksPage: React.FC = () => {
           ...(filters?.q ? { q: filters.q } : {}),
           ...(typeof filters?.task_id === 'number' ? { task_id: filters.task_id } : {}),
         };
+        
+        // 企业模拟模式下，只显示该企业的任务
+        if (isImpersonating && impersonationStatus?.enterprise?.id) {
+          params.enterprise_id = impersonationStatus.enterprise.id;
+        }
         if (preset === 'overdue') {
           params.sort_by = 'due_date';
           params.sort_order = 'asc';
@@ -489,9 +496,7 @@ const TasksPage: React.FC = () => {
       // 直接使用服务端排序结果，不再在前端强制改为按更新时间排序
       const finalTasks = Array.isArray(validTasks) ? validTasks : [];
 
-      console.log('Setting tasks data:', finalTasks.length, 'tasks for project:', effectiveProjectId);
       if (isSwimlaneView) {
-        console.log('Swimlane view - tasks loaded:', finalTasks.length);
       }
       setTasks(finalTasks as any);
 
@@ -535,7 +540,7 @@ const TasksPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [effectiveProjectId, filters, preset, tableSort]);
+  }, [effectiveProjectId, filters, preset, tableSort, isImpersonating, impersonationStatus]);
 
   // 获取全局统计数据
 
@@ -645,7 +650,6 @@ const TasksPage: React.FC = () => {
       if (status === 'completed' || status === 'cancelled') {
         try {
           await refreshTimer();
-          console.log(`✅ Timer refreshed after task status changed to: ${status}`);
         } catch (timerError) {
           console.warn('Failed to refresh timer after task completion:', timerError);
           // 不影响主流程，只记录警告
@@ -924,12 +928,8 @@ const TasksPage: React.FC = () => {
     setBulkSubTaskModalVisible(false);
     setSelectedParentTaskForBulk(undefined);
     message.success('批量创建子任务成功！');
-    // 刷新任务列表
-    if (hierarchicalView) {
-      loadTasks();
-    } else {
-      loadTasks(pagination.current, pagination.pageSize);
-    }
+    // 刷新任务列表 - 统一使用分页参数
+    loadTasks(pagination.current, pagination.pageSize);
   };
 
   // Handle status update - 内联编辑状态
@@ -953,7 +953,6 @@ const TasksPage: React.FC = () => {
       if (newStatus === 'completed' || newStatus === 'cancelled') {
         try {
           await refreshTimer();
-          console.log(`✅ Timer refreshed after task status changed to: ${newStatus}`);
         } catch (timerError) {
           console.warn('Failed to refresh timer after task completion:', timerError);
           // 不影响主流程，只记录警告
@@ -1611,7 +1610,7 @@ const TasksPage: React.FC = () => {
                     backgroundColor: '#fafafa'
                   }}
                   variant="borderless"
-                  size="small"
+                  
                   suffixIcon={null}
                 >
                   {TASK_STATUS_OPTIONS.map(opt => (
@@ -1640,7 +1639,7 @@ const TasksPage: React.FC = () => {
                   value={record.assignee_id ?? undefined}
                   placeholder="未分配"
                   allowClear
-                  size="small"
+                  
                   variant="borderless"
                   style={{ width: '100%' }}
                   loading={loadingProjectUsers.has(pid)}
@@ -1712,7 +1711,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                     fontWeight: 500
                   }}
                   variant="borderless"
-                  size="small"
+                  
                   placeholder="设置截止日期"
                   format="YYYY-MM-DD"
                   allowClear
@@ -1758,7 +1757,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               return (
                 <Select
                   value={current}
-                  size="small"
+                  
                   variant="borderless"
                   style={{ width: '100%' }}
                   onChange={(val) => handlePriorityUpdate(record, val as 'low' | 'medium' | 'high')}
@@ -1825,10 +1824,10 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             width: config.width,
             fixed: 'right',
             render: (_: unknown, record: Task & { isSubTask?: boolean; depth?: number }) => (
-              <Space size="small">
+              <Space >
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<EyeOutlined />}
                   onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
                   title="查看详情"
@@ -2060,7 +2059,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                             {!['completed', 'cancelled', 'archived'].includes(subTask.status) && (
                               <TimerStartButton
                                 task={subTask}
-                                size="small"
+                                
                                 type="text"
                                 className="subtask-timer-button"
                               />
@@ -2100,7 +2099,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                     }}>
                       <Button
                         type="dashed"
-                        size="small"
+                        
                         icon={<PlusOutlined />}
                         onClick={() => handleCreateSubTask(record)}
                         style={{
@@ -2137,7 +2136,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               borderRadius: '4px'
             }}
             variant="borderless"
-            size="small"
+            
             styles={{ popup: { root: { minWidth: 140 } } }}
             suffixIcon={null}
           >
@@ -2226,7 +2225,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               fontWeight: 500
             }}
             variant="borderless"
-            size="small"
+            
             placeholder="设置截止日期"
             format="YYYY-MM-DD"
             allowClear
@@ -2322,12 +2321,12 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
         const canStartTimer = !['completed', 'cancelled', 'archived'].includes(record.status);
         
         return (
-          <Space size="small">
+          <Space >
             {/* 计时器按钮 */}
             {canStartTimer && (
               <TimerStartButton
                 task={record}
-                size="small"
+                
                 type="text"
                 className="task-list-timer-button"
               />
@@ -2336,7 +2335,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             {/* 添加子任务按钮 */}
             <Button
               type="text"
-              size="small"
+              
               icon={<AppstoreAddOutlined />}
               onClick={() => handleCreateSubTask(record)}
               title="添加子任务"
@@ -2345,7 +2344,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             {/* 批量创建子任务按钮 */}
             <Button
               type="text"
-              size="small"
+              
               icon={<BranchesOutlined />}
               onClick={() => handleBulkCreateSubTasks(record)}
               title="批量创建子任务"
@@ -2354,7 +2353,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             {/* 查看按钮 - 外显 */}
             <Button
               type="text"
-              size="small"
+              
               icon={<EyeOutlined />}
               onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
               title="查看详情"
@@ -2392,7 +2391,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
                 ],
               }}
             >
-              <Button type="text" size="small" icon={<MoreOutlined />} title="更多操作" />
+              <Button type="text"  icon={<MoreOutlined />} title="更多操作" />
             </Dropdown>
           </Space>
         );
@@ -2443,12 +2442,9 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               value={selectedProjectId}
               onChange={(projectId, project) => {
                 if (projectId) {
-                  console.log('Project selected in swimlane:', projectId, project?.name);
                   handleProjectChange(projectId, project);
                   // 不跳转路由，仅更新内容
-                  console.log('Project changed, staying on swimlane view with projectId:', projectId);
                 } else {
-                  console.log('Project cleared in swimlane');
                   handleProjectChange(0);
                 }
               }}
@@ -2469,7 +2465,6 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
             initialGroupBy="status"
             onUpdated={() => {
               // 更新后刷新一次任务数据
-              console.log('SwimlaneBoard updated, reloading tasks...');
               loadTasks(pagination.current, pagination.pageSize);
             }}
           />
@@ -2771,7 +2766,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               <Space>
                 <TaskCompletionRefresh 
                   onRefreshCompletionStats={() => loadTasks(pagination.current, pagination.pageSize)}
-                  size="small"
+                  
                   showProgress={true}
                 />
               </Space>
@@ -2872,7 +2867,7 @@ onOpenChange={(open) => { if (open) loadProjectUsers(pid); }}
               <Space>
                 <TaskCompletionRefresh 
                   onRefreshCompletionStats={() => loadTasks(pagination.current, pagination.pageSize)}
-                  size="small"
+                  
                   showProgress={true}
                 />
               </Space>

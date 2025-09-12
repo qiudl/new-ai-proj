@@ -167,6 +167,7 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	assigneeID := c.Query("assignee_id")
 	priority := c.Query("priority")
 	taskIDParam := c.Query("task_id")
+	enterpriseIDParam := c.Query("enterprise_id")
 	sortBy := c.DefaultQuery("sort_by", "created_at")
 	sortOrder := c.DefaultQuery("sort_order", "desc")
 	preset := c.DefaultQuery("preset", "") // overdue | planning | on_hold
@@ -191,6 +192,12 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 			taskIDPtr = &v
 		}
 	}
+	var enterpriseIDPtr *int
+	if enterpriseIDParam != "" {
+		if v, err := strconv.Atoi(enterpriseIDParam); err == nil {
+			enterpriseIDPtr = &v
+		}
+	}
 
 	// If preset is overdue and client didn't specify sort, prefer due_date ASC
 	if preset == "overdue" {
@@ -212,17 +219,18 @@ func (h *TaskHandler) GetAllTasks(c *gin.Context) {
 	offset := (page - 1) * pageSize
 
 	options := &models.TaskListOptions{
-		Preset:    preset,
-		Status:    status,
-		Priority:  priority,
-		Search:    search,
-		Assignee:  assigneePtr,
-		ProjectID: projectPtr,
-		TaskID:    taskIDPtr,
-		CompanyID: companyIDPtr, // 企业数据隔离
-		OnlyRoots: onlyRoots,
-		SortBy:    sortBy,
-		SortOrder: sortOrder,
+		Preset:       preset,
+		Status:       status,
+		Priority:     priority,
+		Search:       search,
+		Assignee:     assigneePtr,
+		ProjectID:    projectPtr,
+		TaskID:       taskIDPtr,
+		CompanyID:    companyIDPtr, // 企业数据隔离 (旧系统)
+		EnterpriseID: enterpriseIDPtr, // 企业数据隔离 (新系统)
+		OnlyRoots:    onlyRoots,
+		SortBy:       sortBy,
+		SortOrder:    sortOrder,
 	}
 
 	tasks, total, err := h.db.Tasks().GetAllFiltered(c.Request.Context(), options, pageSize, offset)
