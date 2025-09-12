@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { UserManagementService } from '../services/userManagementService';
+import userManagementService from '../services/userManagementService';
 import { 
   User, 
   UserListResponse,
@@ -19,7 +19,7 @@ export const useSystemUsers = (params: SystemUserParams) => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await UserManagementService.getUserList({
+      const response = await userManagementService.getUserList({
         ...params,
         user_type: 'system'
       });
@@ -36,7 +36,7 @@ export const useSystemUsers = (params: SystemUserParams) => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const statsData = await UserManagementService.getUserStats();
+      const statsData = await userManagementService.getUserStats();
       // 过滤出系统用户统计 - 目前后端返回的是所有用户统计，需要分离
       const systemStats: SystemUserStats = {
         total: statsData.total || 0,
@@ -84,7 +84,7 @@ export const useEnterpriseUsers = (params: EnterpriseUserParams) => {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await UserManagementService.getUserList({
+      const response = await userManagementService.getUserList({
         ...params,
         user_type: 'company'
       });
@@ -101,7 +101,7 @@ export const useEnterpriseUsers = (params: EnterpriseUserParams) => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const statsData = await UserManagementService.getUserStats();
+      const statsData = await userManagementService.getUserStats();
       // 构建企业用户统计 - 需要后端支持分离统计
       const enterpriseStats: EnterpriseUserStats = {
         total: total, // 使用实际的企业用户总数

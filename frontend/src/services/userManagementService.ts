@@ -8,11 +8,11 @@ import {
   PasswordResetRequest 
 } from '../types/user';
 
-export class UserManagementService {
+class UserManagementService {
   /**
    * 获取用户列表
    */
-  static async getUserList(params: UserListParams = {}): Promise<UserListResponse> {
+  async getUserList(params: UserListParams = {}): Promise<UserListResponse> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -48,10 +48,10 @@ export class UserManagementService {
   /**
    * 获取用户详情
    */
-  static async getUserById(id: number): Promise<User> {
+  async getUserById(id: number): Promise<{ data: User }> {
     try {
       const response = await api.get(`/admin/users/${id}`);
-      return response.data;
+      return { data: response };
     } catch (error) {
       console.error('Error fetching user:', error);
       throw new Error('Failed to fetch user details');
@@ -61,7 +61,7 @@ export class UserManagementService {
   /**
    * 创建用户
    */
-  static async createUser(userData: UserCreateRequest): Promise<User> {
+  async createUser(userData: UserCreateRequest): Promise<User> {
     try {
       const response = await api.post('/admin/users', userData);
       return response.data;
@@ -74,7 +74,7 @@ export class UserManagementService {
   /**
    * 更新用户信息
    */
-  static async updateUser(id: number, userData: UserUpdateRequest): Promise<User> {
+  async updateUser(id: number, userData: UserUpdateRequest): Promise<User> {
     try {
       const response = await api.put(`/admin/users/${id}`, userData);
       return response.data;
@@ -87,7 +87,7 @@ export class UserManagementService {
   /**
    * 删除用户（软删除）
    */
-  static async deleteUser(id: number): Promise<void> {
+  async deleteUser(id: number): Promise<void> {
     try {
       await api.delete(`/admin/users/${id}`);
     } catch (error) {
@@ -99,7 +99,7 @@ export class UserManagementService {
   /**
    * 重置用户密码
    */
-  static async resetUserPassword(id: number, passwordData: PasswordResetRequest): Promise<void> {
+  async resetUserPassword(id: number, passwordData: PasswordResetRequest): Promise<void> {
     try {
       await api.post(`/admin/users/${id}/reset-password`, passwordData);
     } catch (error) {
@@ -111,7 +111,7 @@ export class UserManagementService {
   /**
    * 更新用户状态
    */
-  static async updateUserStatus(id: number, status: 'active' | 'inactive' | 'suspended'): Promise<User> {
+  async updateUserStatus(id: number, status: 'active' | 'inactive' | 'suspended'): Promise<User> {
     try {
       // Validate user ID
       if (!id || typeof id !== 'number' || id <= 0) {
@@ -132,7 +132,7 @@ export class UserManagementService {
   /**
    * 批量操作用户
    */
-  static async batchUpdateUsers(userIds: number[], action: 'activate' | 'suspend' | 'delete'): Promise<void> {
+  async batchUpdateUsers(userIds: number[], action: 'activate' | 'suspend' | 'delete'): Promise<void> {
     try {
       await api.post('/admin/users/batch', {
         user_ids: userIds,
@@ -147,7 +147,7 @@ export class UserManagementService {
   /**
    * 获取用户统计信息
    */
-  static async getUserStats(): Promise<{
+  async getUserStats(): Promise<{
     total: number;
     by_role: Record<string, number>;
     by_status: Record<string, number>;
@@ -168,7 +168,7 @@ export class UserManagementService {
   /**
    * 导出用户数据
    */
-  static async exportUsers(params: UserListParams = {}): Promise<Blob> {
+  async exportUsers(params: UserListParams = {}): Promise<Blob> {
     try {
       const queryParams = new URLSearchParams();
       
@@ -190,4 +190,59 @@ export class UserManagementService {
       throw new Error('Failed to export user data');
     }
   }
+
+  /**
+   * 获取用户参与的项目列表
+   */
+  async getUserProjects(userId: number): Promise<{
+    data: Array<{
+      id: number;
+      name: string;
+      role: string;
+      status: string;
+      last_access?: string;
+    }>
+  }> {
+    try {
+      const response = await api.get(`/admin/users/${userId}/projects`);
+      return { data: response.data || [] };
+    } catch (error) {
+      console.error('Error fetching user projects:', error);
+      // 返回空数据而不是抛出错误，以便页面能正常显示
+      return { data: [] };
+    }
+  }
+
+  /**
+   * 获取用户活动日志
+   */
+  async getUserActivityLog(userId: number, params: { page?: number; page_size?: number } = {}): Promise<{
+    data: Array<{
+      id: string;
+      action: string;
+      description: string;
+      ip_address?: string;
+      created_at: string;
+    }>;
+    total: number;
+  }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page.toString());
+      if (params.page_size) queryParams.append('page_size', params.page_size.toString());
+      
+      const response = await api.get(`/admin/users/${userId}/activity?${queryParams.toString()}`);
+      return {
+        data: response.data || [],
+        total: response.total || 0
+      };
+    } catch (error) {
+      console.error('Error fetching user activity log:', error);
+      // 返回空数据而不是抛出错误，以便页面能正常显示
+      return { data: [], total: 0 };
+    }
+  }
 }
+
+export const userManagementService = new UserManagementService();
+export default userManagementService;

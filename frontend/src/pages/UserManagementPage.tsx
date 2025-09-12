@@ -56,7 +56,7 @@ import {
   getValidRolesForUserType,
   validateUserRole 
 } from '../types/user';
-import { UserManagementService } from '../services/userManagementService';
+import userManagementService from '../services/userManagementService';
 // import CompanyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
 import EnterpriseSelector from '../components/EnterpriseSelector';
@@ -227,7 +227,7 @@ const UserManagementPage: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
-      const data = await UserManagementService.getUserList(searchParams);
+      const data = await userManagementService.getUserList(searchParams);
       setUsersData(data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -241,7 +241,7 @@ const UserManagementPage: React.FC = () => {
   const fetchStats = useCallback(async () => {
     try {
       setStatsLoading(true);
-      const data = await UserManagementService.getUserStats();
+      const data = await userManagementService.getUserStats();
       setUserStats(data);
     } catch (error) {
       console.error('Failed to fetch user stats:', error);
@@ -368,7 +368,7 @@ const UserManagementPage: React.FC = () => {
         return;
       }
       
-      await UserManagementService.createUser(values);
+      await userManagementService.createUser(values);
       message.success('用户创建成功');
       setCreateModalVisible(false);
       createForm.resetFields();
@@ -386,7 +386,7 @@ const UserManagementPage: React.FC = () => {
     if (!editingUser) return;
     
     try {
-      await UserManagementService.updateUser(editingUser.id, values);
+      await userManagementService.updateUser(editingUser.id, values);
       message.success('用户信息更新成功');
       setEditModalVisible(false);
       setEditingUser(null);
@@ -403,7 +403,7 @@ const UserManagementPage: React.FC = () => {
     if (!resetPasswordUser) return;
     
     try {
-      await UserManagementService.resetUserPassword(resetPasswordUser.id, values);
+      await userManagementService.resetUserPassword(resetPasswordUser.id, values);
       message.success('密码重置成功');
       setPasswordModalVisible(false);
       setResetPasswordUser(null);
@@ -416,7 +416,7 @@ const UserManagementPage: React.FC = () => {
   // 删除用户
   const handleDeleteUser = useCallback(async (user: User) => {
     try {
-      await UserManagementService.deleteUser(user.id);
+      await userManagementService.deleteUser(user.id);
       message.success('用户删除成功');
       refreshUsers();
       refreshStats();
@@ -433,7 +433,7 @@ const UserManagementPage: React.FC = () => {
     }
 
     try {
-      await UserManagementService.updateUserStatus(user.id, status);
+      await userManagementService.updateUserStatus(user.id, status);
       message.success('用户状态更新成功');
       refreshUsers();
       refreshStats();
@@ -459,7 +459,7 @@ const UserManagementPage: React.FC = () => {
     }
 
     try {
-      await UserManagementService.batchUpdateUsers(
+      await userManagementService.batchUpdateUsers(
         selectedRowKeys.map(key => Number(key)), 
         action
       );
@@ -475,7 +475,7 @@ const UserManagementPage: React.FC = () => {
   // 导出用户数据
   const handleExportUsers = useCallback(async () => {
     try {
-      const blob = await UserManagementService.exportUsers(searchParams);
+      const blob = await userManagementService.exportUsers(searchParams);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

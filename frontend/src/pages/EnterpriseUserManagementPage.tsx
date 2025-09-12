@@ -113,10 +113,14 @@ const EnterpriseUserManagementPage: React.FC = () => {
   const loadDepartments = async () => {
     if (!enterpriseIdNum) return;
     try {
+      console.log('🔍 开始加载企业部门，企业ID:', enterpriseIdNum);
       const result = await enterpriseService.getEnterpriseDepartments(enterpriseIdNum, 1, 100);
+      console.log('✅ 部门API返回结果:', result);
+      console.log('📋 部门数据:', result?.data);
+      console.log('📊 部门数量:', result?.data?.length);
       setDepartments(result?.data || []);
     } catch (error) {
-      console.error('加载部门数据失败:', error);
+      console.error('❌ 加载部门数据失败:', error);
       setDepartments([]); // 确保错误时也设置为空数组
     }
   };
@@ -312,9 +316,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
             <Button
               type="text"
               icon={<UserOutlined />}
-              onClick={() => {
-                message.info('用户详情功能开发中...');
-              }}
+              onClick={() => navigate(`/users/${record.id}`)}
             />
           </Tooltip>
           <Popconfirm
@@ -556,13 +558,51 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 label="部门"
                 name="department_id"
               >
-                <Select placeholder="请选择部门" allowClear>
+                <Select 
+                  placeholder={
+                    !departments || departments.length === 0 
+                      ? "暂无部门，请先创建部门" 
+                      : "请选择部门"
+                  }
+                  allowClear
+                  disabled={!departments || departments.length === 0}
+                  notFoundContent={
+                    !departments || departments.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '12px' }}>
+                        <div>暂无部门数据</div>
+                        <div style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>
+                          请先在组织管理中创建部门
+                        </div>
+                      </div>
+                    ) : "暂无数据"
+                  }
+                >
                   {departments && departments.map(dept => (
                     <Option key={dept.id} value={dept.id}>
                       {dept.name}
                     </Option>
                   ))}
                 </Select>
+                {(!departments || departments.length === 0) && (
+                  <div style={{ 
+                    color: '#fa8c16', 
+                    fontSize: '12px', 
+                    marginTop: '4px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px' 
+                  }}>
+                    <span>💡 提示：此企业暂无部门，</span>
+                    <a 
+                      href={`/enterprises/${enterpriseId}/organization`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      style={{ color: '#1890ff' }}
+                    >
+                      点击此处创建部门
+                    </a>
+                  </div>
+                )}
               </Form.Item>
             </Col>
           </Row>

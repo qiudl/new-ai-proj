@@ -62,6 +62,7 @@ const AdminRoleListPage = React.lazy(() => import('./pages/AdminRoleListPage'));
 const AdminRoleDetailPage = React.lazy(() => import('./pages/AdminRoleDetailPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
 const UserManagementPageTabbed = React.lazy(() => import('./pages/UserManagementPageTabbed'));
+const UserDetailPage = React.lazy(() => import('./pages/UserDetailPage'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
@@ -311,6 +312,7 @@ const AppContent: React.FC = () => {
 
                 {/* Enterprise current info route - for impersonation mode */}
                 <Route path="/enterprise" element={<EnterpriseCurrentInfoPage />} />
+                <Route path="/enterprise/info" element={<EnterpriseCurrentInfoPage />} />
 
                 {/* Enterprise departments route - redirect to organization structure */}
                 <Route path="/enterprise/departments" element={<EnterpriseDepartmentsRedirectPage />} />
@@ -388,6 +390,12 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
                 
+                <Route path="/users/:userId" element={
+                  <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
+                    <UserDetailPage />
+                  </PermissionRoute>
+                } />
+                
                 {/* 原用户管理页面临时路由 */}
                 <Route path="/user-management-old" element={
                   <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
@@ -444,6 +452,12 @@ const AppContent: React.FC = () => {
                 <Route path="/enterprises/:enterpriseId/users" element={
                   <PermissionRoute permission={ORGANIZATION_PERMISSIONS.USER_READ}>
                     <EnterpriseUserManagementPage />
+                  </PermissionRoute>
+                } />
+
+                <Route path="/enterprises/:enterpriseId/organization" element={
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.DEPARTMENT_READ}>
+                    <OrganizationStructurePage />
                   </PermissionRoute>
                 } />
 

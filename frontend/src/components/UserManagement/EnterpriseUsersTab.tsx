@@ -1,16 +1,22 @@
 import React, { useCallback } from 'react';
-import { Card, Row, Col, Statistic, Select, Input, Space, Tag, Button, DatePicker } from 'antd';
+import { Card, Select, Input, Space, Tag, Button, DatePicker, Table, Avatar, Popconfirm, message } from 'antd';
 import { 
-  BankOutlined, 
   ContactsOutlined, 
-  ClockCircleOutlined,
   CheckCircleOutlined,
   StopOutlined,
   ExclamationCircleOutlined,
-  CrownOutlined
+  CrownOutlined,
+  UserOutlined,
+  EyeOutlined,
+  DeleteOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useEnterpriseUsers } from '../../hooks/useUserManagement';
-import { EnterpriseUserParams, EnterpriseUserStats } from '../../types/user';
+import { EnterpriseUserParams, EnterpriseUserStats, User, USER_STATUS_CONFIG } from '../../types/user';
+import userManagementService from '../../services/userManagementService';
+import { formatDistanceToNow } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+import type { ColumnsType } from 'antd/es/table';
 
 interface EnterpriseUsersTabProps {
   params: EnterpriseUserParams;
@@ -26,157 +32,192 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
   enterprises = []
 }) => {
   const { users, total, stats, loading, refreshUsers, refreshStats } = useEnterpriseUsers(params);
+  const navigate = useNavigate();
 
   // 处理筛选变更
   const handleFilterChange = useCallback((key: keyof EnterpriseUserParams, value: any) => {
     onParamsChange({ [key]: value, page: 1 });
   }, [onParamsChange]);
 
-  // 统计卡片渲染
-  const renderStatsCards = () => {
-    if (!stats) return null;
+  // 用户操作处理
+  const handleViewUser = useCallback((userId: number) => {
+    navigate(`/users/${userId}`);
+  }, [navigate]);
 
-    return (
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card  className="stats-card">
-            <Statistic
-              title="总用户数"
-              value={stats.total}
-              prefix={<BankOutlined />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('total')}
-                >
-                  查看全部
-                </Button>
-              }
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card  className="stats-card">
-            <Statistic
-              title="主要联系人"
-              value={stats.primary_contacts}
-              prefix={<CrownOutlined style={{ color: '#faad14' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('contact_type', 'primary')}
-                >
-                  筛选
-                </Button>
-              }
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card  className="stats-card">
-            <Statistic
-              title="普通联系人"
-              value={(stats.total || 0) - (stats.primary_contacts || 0)}
-              prefix={<ContactsOutlined style={{ color: '#1890ff' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('contact_type', 'normal')}
-                >
-                  筛选
-                </Button>
-              }
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card  className="stats-card">
-            <Statistic
-              title="即将过期账户"
-              value={stats.expiring_accounts}
-              prefix={<ClockCircleOutlined style={{ color: '#fa541c' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('expiring')}
-                >
-                  筛选
-                </Button>
-              }
-            />
-          </Card>
-        </Col>
-      </Row>
-    );
-  };
+  const handleToggleUserStatus = useCallback(async (user: User) => {
+    try {
+      const newStatus = user.status === 'active' ? 'suspended' : 'active';
+      await userManagementService.updateUser(user.id, { status: newStatus });
+      message.success(`用户已${newStatus === 'active' ? '激活' : '停用'}`);
+      refreshUsers();
+    } catch (error) {
+      message.error('操作失败');
+      console.error('Toggle user status error:', error);
+    }
+  }, [refreshUsers]);
 
-  // 状态统计渲染
-  const renderStatusStats = () => {
-    if (!stats?.by_status) return null;
+  const handleDeleteUser = useCallback(async (userId: number) => {
+    try {
+      await userManagementService.deleteUser(userId);
+      message.success('用户删除成功');
+      refreshUsers();
+    } catch (error) {
+      message.error('删除失败');
+      console.error('Delete user error:', error);
+    }
+  }, [refreshUsers]);
 
-    return (
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card  className="stats-card">
-            <Statistic
-              title="正常用户"
-              value={stats.by_status.active || 0}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('status', 'active')}
-                >
-                  筛选
-                </Button>
-              }
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    onParamsChange({
+      page,
+      page_size: pageSize || params.page_size
+    });
+  }, [onParamsChange, params.page_size]);
+
+  // 表格列定义
+  const columns: ColumnsType<User> = [
+    {
+      title: '用户',
+      key: 'user',
+      render: (_, user) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Avatar size="small" icon={<UserOutlined />} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{user.username}</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>{user.email}</div>
+          </div>
+        </div>
+      ),
+      width: 200
+    },
+    {
+      title: '联系人信息',
+      key: 'contact',
+      render: (_, user) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>
+            {user.contact_person_name || '-'}
+            {user.is_primary_contact && (
+              <Tag color="gold" style={{ marginLeft: '4px', fontSize: '10px' }}>
+                <CrownOutlined style={{ fontSize: '10px' }} /> 主要联系人
+              </Tag>
+            )}
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {user.contact_phone || '-'}
+          </div>
+        </div>
+      ),
+      width: 180
+    },
+    {
+      title: '部门职位',
+      dataIndex: 'department_title',
+      key: 'department_title',
+      render: (title: string) => title || '-',
+      width: 120
+    },
+    {
+      title: '企业',
+      key: 'enterprise',
+      render: (_, user) => {
+        const enterpriseName = enterprises.find(e => e.id === (user.enterprise_id || user.company_id))?.name;
+        return enterpriseName || `企业${user.enterprise_id || user.company_id}` || '-';
+      },
+      width: 150
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const config = USER_STATUS_CONFIG[status as keyof typeof USER_STATUS_CONFIG];
+        return config ? (
+          <Tag color={config.color}>{config.label}</Tag>
+        ) : (
+          <Tag>{status}</Tag>
+        );
+      },
+      width: 100
+    },
+    {
+      title: '注册时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => (
+        <span title={new Date(date).toLocaleString()}>
+          {formatDistanceToNow(new Date(date), { addSuffix: true, locale: zhCN })}
+        </span>
+      ),
+      width: 120
+    },
+    {
+      title: '账户到期',
+      dataIndex: 'account_expires_at',
+      key: 'account_expires_at',
+      render: (date: string) => {
+        if (!date) return '-';
+        const expiresAt = new Date(date);
+        const now = new Date();
+        const isExpiring = (expiresAt.getTime() - now.getTime()) < 30 * 24 * 60 * 60 * 1000; // 30天内
+        return (
+          <span 
+            style={{ color: isExpiring ? '#fa541c' : undefined }}
+            title={expiresAt.toLocaleString()}
+          >
+            {formatDistanceToNow(expiresAt, { addSuffix: true, locale: zhCN })}
+          </span>
+        );
+      },
+      width: 120
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      render: (_, user) => (
+        <Space size="small">
+          <Button
+            type="text"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewUser(user.id)}
+            title="查看详情"
+          />
+          <Popconfirm
+            title={`确定要${user.status === 'active' ? '停用' : '激活'}这个用户吗？`}
+            onConfirm={() => handleToggleUserStatus(user)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={user.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}
+              danger={user.status === 'active'}
+              title={user.status === 'active' ? '停用用户' : '激活用户'}
             />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card  className="stats-card">
-            <Statistic
-              title="未激活用户"
-              value={stats.by_status.inactive || 0}
-              prefix={<ExclamationCircleOutlined style={{ color: '#faad14' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('status', 'inactive')}
-                >
-                  筛选
-                </Button>
-              }
+          </Popconfirm>
+          <Popconfirm
+            title="确定要删除这个用户吗？此操作不可恢复。"
+            onConfirm={() => handleDeleteUser(user.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              title="删除用户"
             />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card  className="stats-card">
-            <Statistic
-              title="已停用用户"
-              value={stats.by_status.suspended || 0}
-              prefix={<StopOutlined style={{ color: '#f50' }} />}
-              suffix={
-                <Button 
-                  type="link" 
-                   
-                  onClick={() => onStatClick('status', 'suspended')}
-                >
-                  筛选
-                </Button>
-              }
-            />
-          </Card>
-        </Col>
-      </Row>
-    );
-  };
+          </Popconfirm>
+        </Space>
+      ),
+      width: 120,
+      fixed: 'right'
+    }
+  ];
+
 
   // 筛选器渲染
   const renderFilters = () => {
@@ -270,18 +311,29 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
 
   return (
     <div className="enterprise-users-tab">
-      {renderStatsCards()}
-      {renderStatusStats()}
       {renderFilters()}
       
-      {/* 用户表格将在后续步骤中实现 */}
+      {/* 用户表格 */}
       <Card>
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <div>企业用户表格 ({users.length} / {total})</div>
-          <div style={{ marginTop: 8, fontSize: '12px', color: '#999' }}>
-            表格组件将在下一阶段实现
-          </div>
-        </div>
+        <Table<User>
+          columns={columns}
+          dataSource={users}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: params.page || 1,
+            pageSize: params.page_size || 10,
+            total: total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            onChange: handlePageChange,
+            onShowSizeChange: handlePageChange,
+            pageSizeOptions: ['10', '20', '50', '100']
+          }}
+          scroll={{ x: 'max-content' }}
+          size="small"
+        />
       </Card>
     </div>
   );
