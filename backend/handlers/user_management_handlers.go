@@ -507,3 +507,85 @@ func (h *UserManagementHandler) ExportUsers(c *gin.Context) {
 		}
 	}
 }
+
+// GetUserProjects gets projects associated with a specific user
+func (h *UserManagementHandler) GetUserProjects(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", "User ID must be a valid integer")
+		c.JSON(models.GetStatusCode(models.ErrCodeBadRequest), response)
+		return
+	}
+
+	// Check if user exists first
+	_, err = h.userRepo.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found", fmt.Sprintf("User with ID %d not found", userID))
+			c.JSON(models.GetStatusCode(models.ErrCodeNotFound), response)
+			return
+		}
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to verify user", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeInternal), response)
+		return
+	}
+
+	// For now, return empty list as project association feature is not implemented
+	projects := make([]map[string]interface{}, 0)
+	
+	response := models.NewSuccessResponse(map[string]interface{}{
+		"data": projects,
+		"total": 0,
+	}, "User projects retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// GetUserActivityLog gets activity log for a specific user
+func (h *UserManagementHandler) GetUserActivityLog(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", "User ID must be a valid integer")
+		c.JSON(models.GetStatusCode(models.ErrCodeBadRequest), response)
+		return
+	}
+
+	// Parse pagination parameters
+	page := 1
+	pageSize := 10
+
+	if pageStr := c.Query("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	if pageSizeStr := c.Query("page_size"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	// Check if user exists first
+	_, err = h.userRepo.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found", fmt.Sprintf("User with ID %d not found", userID))
+			c.JSON(models.GetStatusCode(models.ErrCodeNotFound), response)
+			return
+		}
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to verify user", err.Error())
+		c.JSON(models.GetStatusCode(models.ErrCodeInternal), response)
+		return
+	}
+
+	// For now, return empty list as activity logging feature is not implemented
+	activities := make([]map[string]interface{}, 0)
+	
+	response := models.NewSuccessResponse(map[string]interface{}{
+		"data": activities,
+		"total": 0,
+		"page": page,
+		"page_size": pageSize,
+	}, "User activity log retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}

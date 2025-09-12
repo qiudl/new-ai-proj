@@ -510,6 +510,93 @@ func (h *EnterpriseHandler) CreateEnterpriseDepartment(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
+// UpdateEnterpriseDepartment handles PUT /api/v1/enterprises/:id/departments/:dept_id
+func (h *EnterpriseHandler) UpdateEnterpriseDepartment(c *gin.Context) {
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	departmentIDStr := c.Param("dept_id")
+	departmentID, err := strconv.Atoi(departmentIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid department ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req models.EnterpriseDepartmentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Set enterprise ID
+	req.EnterpriseID = enterpriseID
+
+	// Validate request
+	if err := h.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", h.extractValidationErrors(err))
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get operator ID from context (TODO: implement proper auth context)
+	operatorID := 1
+
+	// Update enterprise department using service
+	updatedDepartment, err := h.enterpriseService.UpdateEnterpriseDepartment(c.Request.Context(), departmentID, &req, operatorID)
+	if err != nil {
+		if err.Error() == "department not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Department not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error updating enterprise department: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update enterprise department", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(updatedDepartment.ToResponse(), "Enterprise department updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// DeleteEnterpriseDepartment handles DELETE /api/v1/enterprises/:id/departments/:dept_id
+func (h *EnterpriseHandler) DeleteEnterpriseDepartment(c *gin.Context) {
+	departmentIDStr := c.Param("dept_id")
+	departmentID, err := strconv.Atoi(departmentIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid department ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get operator ID from context (TODO: implement proper auth context)
+	operatorID := 1
+
+	// Delete enterprise department using service
+	err = h.enterpriseService.DeleteEnterpriseDepartment(c.Request.Context(), departmentID, operatorID)
+	if err != nil {
+		if err.Error() == "department not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "Department not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error deleting enterprise department: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to delete enterprise department", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(nil, "Enterprise department deleted successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // extractValidationErrors extracts validation errors from validator error
 func (h *EnterpriseHandler) extractValidationErrors(err error) map[string]string {
 	errors := make(map[string]string)

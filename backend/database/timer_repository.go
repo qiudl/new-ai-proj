@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"time"
 
 	"ai-project-backend/models"
@@ -571,9 +572,23 @@ func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int,
 		}
 
 		totalHours := float64(totalSeconds) / 3600.0
-		efficiency := float64(80 + (completedTasks * 5)) // 保持原有的效率计算方式
-		if efficiency > 100 {
-			efficiency = 100
+		
+		// 改进的效率计算算法
+		efficiency := float64(0)
+		if totalHours > 0 {
+			// 基于工作时长和任务完成数的效率计算
+			// 基础效率: 工作时长贡献 (最多60分)
+			timeEfficiency := math.Min(totalHours/8.0*60, 60) // 8小时=满分60分
+			
+			// 任务完成效率: 每完成1个任务+10分 (最多40分)
+			taskEfficiency := math.Min(float64(completedTasks)*10, 40)
+			
+			efficiency = timeEfficiency + taskEfficiency
+			
+			// 效率上限100分
+			if efficiency > 100 {
+				efficiency = 100
+			}
 		}
 
 		topTaskStr := ""

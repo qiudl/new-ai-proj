@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -594,15 +595,46 @@ func (h *UserTimerHandler) GetWeeklyReport(c *gin.Context) {
 		// Calculate Sunday (end of week)
 		sunday := monday.AddDate(0, 0, 6)
 		endDate = sunday.Format("2006-01-02")
+
+		// Log the calculated date range for debugging
+		fmt.Printf("DEBUG: Weekly report for user %d, date range: %s to %s (today: %s)\n", 
+			uid, startDate, endDate, now.Format("2006-01-02"))
 	}
 
 	// Get weekly report data
 	weeklyReport, err := h.db.Timer().GetWeeklyReport(ctx, uid, startDate, endDate)
 	if err != nil {
+		fmt.Printf("ERROR: Failed to get weekly report for user %d: %v\n", uid, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error":   "Failed to get weekly report",
 			"details": err.Error(),
 		})
+		return
+	}
+
+	// Log successful response for debugging
+	fmt.Printf("DEBUG: Weekly report retrieved for user %d - TotalHours: %.2f, TotalTasks: %d\n", 
+		uid, weeklyReport.WeeklyStats.TotalHours, weeklyReport.WeeklyStats.TotalTasks)
+
+	// Check if report has no data and provide helpful message
+	if weeklyReport.WeeklyStats.TotalHours == 0 && weeklyReport.WeeklyStats.TotalTasks == 0 {
+		fmt.Printf("WARNING: No time logs found for user %d in date range %s to %s\n", 
+			uid, startDate, endDate)
+		
+		// Still return the empty report but with debug info in response
+		response := gin.H{
+			"weekly_stats": weeklyReport.WeeklyStats,
+			"daily_stats": weeklyReport.DailyStats,
+			"task_time_entries": weeklyReport.TaskTimeEntries,
+			"project_stats": weeklyReport.ProjectStats,
+			"debug_info": gin.H{
+				"user_id": uid,
+				"date_range": fmt.Sprintf("%s to %s", startDate, endDate),
+				"query_time": time.Now().Format("2006-01-02 15:04:05"),
+				"message": "No time logs found in this date range",
+			},
+		}
+		c.JSON(http.StatusOK, response)
 		return
 	}
 

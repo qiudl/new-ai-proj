@@ -140,6 +140,8 @@ func registerAdminUserManagementRoutes(admin *gin.RouterGroup, app ApplicationIn
 		adminUsers.DELETE("/:id", app.GetUserManagementHandler().DeleteUser)
 		adminUsers.POST("/:id/reset-password", app.GetUserManagementHandler().ResetUserPassword)
 		adminUsers.PUT("/:id/status", app.GetUserManagementHandler().UpdateUserStatus)
+		adminUsers.GET("/:id/projects", app.GetUserManagementHandler().GetUserProjects)
+		adminUsers.GET("/:id/activity", app.GetUserManagementHandler().GetUserActivityLog)
 	}
 }
 
