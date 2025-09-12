@@ -29,9 +29,21 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	userRole, _ := c.Get("user_role")
 	
-	// 获取当前用户的企业ID（用于企业数据隔离）
+	// 检查是否处于企业模拟状态
+	var enterpriseIDPtr *int
+	if isImpersonating, exists := c.Get("is_impersonating"); exists && isImpersonating.(bool) {
+		// 如果在模拟状态，使用模拟的企业ID
+		if enterpriseID, exists := c.Get("enterprise_id"); exists {
+			if eid, ok := enterpriseID.(int); ok && eid > 0 {
+				log.Printf("[ProjectHandler] Using impersonated enterprise ID: %d", eid)
+				enterpriseIDPtr = &eid
+			}
+		}
+	}
+	
+	// 如果不是模拟状态，获取当前用户的企业ID（用于企业数据隔离）
 	var companyIDPtr *int
-	if userRole != nil {
+	if enterpriseIDPtr == nil && userRole != nil {
 		roleStr := userRole.(string)
 		if roleStr == "company_admin" || roleStr == "company_user" {
 			companyID, err := h.getUserCompanyID(uint(userID), roleStr)
@@ -64,7 +76,7 @@ func (h *ProjectHandler) GetProjects(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr)
+	projectsWithCompany, total, err := h.db.Projects().GetPaginatedWithCompany(c.Request.Context(), userID, offset, pageSize, search, status, sortBy, sortOrder, companyIDPtr, enterpriseIDPtr)
 	if err != nil {
 		log.Printf("Error getting projects: %v", err)
 		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取项目列表失败", nil))
@@ -443,7 +455,7 @@ func (h *ProjectHandler) GetDocumentProjects(c *gin.Context) {
 
 	// 获取当前用户可访问的项目（包含拥有者或成员身份）
 	projectsWithCompany, _, err := h.db.Projects().GetPaginatedWithCompany(
-		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc", nil,
+		c.Request.Context(), userID, 0, 100, "", "", "updated_at", "desc", nil, nil,
 	)
 	if err != nil {
 		log.Printf("Error getting document projects: %v", err)

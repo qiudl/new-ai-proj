@@ -272,14 +272,20 @@ func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int
 
 // GetPaginatedWithCompany gets projects with pagination and joins company info (company_name)
 // If companyID is provided and > 0, filters projects to only that company (for enterprise user isolation)
-func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string, companyID *int) ([]*models.ProjectWithCompany, int, error) {
+func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string, companyID *int, enterpriseID *int) ([]*models.ProjectWithCompany, int, error) {
 	// Build WHERE clause with conditions
 	whereConditions := []string{"p.deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
 
-	// Enterprise data isolation: filter by company_id if provided
-	if companyID != nil && *companyID > 0 {
+	// Data isolation: prioritize enterprise_id over company_id
+	if enterpriseID != nil && *enterpriseID > 0 {
+		// Filter by enterprise_id for enterprise impersonation mode
+		whereConditions = append(whereConditions, fmt.Sprintf("p.enterprise_id = $%d", argIndex))
+		args = append(args, *enterpriseID)
+		argIndex++
+	} else if companyID != nil && *companyID > 0 {
+		// Filter by company_id for legacy company isolation
 		whereConditions = append(whereConditions, fmt.Sprintf("p.company_id = $%d", argIndex))
 		args = append(args, *companyID)
 		argIndex++

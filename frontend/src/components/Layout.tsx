@@ -7,6 +7,7 @@ import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
 import EnterpriseImpersonation from './EnterpriseImpersonation';
+import { useImpersonation } from '../contexts/ImpersonationContext';
 
 // 开发环境下加载菜单测试工具
 if (process.env.NODE_ENV === 'development') {
@@ -58,6 +59,7 @@ const hasTypeField = (e: unknown): e is { type?: string } => {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isImpersonating, impersonationStatus } = useImpersonation();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [collapsed, setCollapsed] = useState(() => {
     // 从localStorage读取用户的折叠状态偏好，默认为false
@@ -463,7 +465,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     },
   ];
 
-  // 根据用户角色过滤菜单项
+  // 根据用户角色和模拟状态过滤菜单项
   const sidebarItems = useMemo(() => {
     if (!currentUser || !currentUser.role) {
       // 如果用户信息未加载，显示基础菜单
@@ -471,13 +473,51 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
 
     const userType = getUserType(currentUser.user_type);
-    const filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role);
+    let filteredItems = filterMenuItems(baseSidebarItems, userType, currentUser.role);
+    
+    // 如果处于模拟状态，调整菜单显示
+    if (isImpersonating) {
+      // 移除系统管理菜单
+      filteredItems = filteredItems.filter(item => item.key !== '/system-management');
+      
+      // 确保显示企业管理菜单
+      const hasEnterpriseMenu = filteredItems.some(item => item.key === '/enterprise');
+      if (!hasEnterpriseMenu) {
+        // 添加企业管理菜单项
+        const enterpriseIndex = filteredItems.findIndex(item => item.key === '/workspace-management');
+        if (enterpriseIndex !== -1) {
+          filteredItems.splice(enterpriseIndex + 1, 0, {
+            key: '/enterprise',
+            icon: <BankOutlined />,
+            label: '企业管理',
+            children: [
+              {
+                key: '/enterprise',
+                icon: <BankOutlined />,
+                label: '企业信息',
+              },
+              {
+                key: '/enterprise/departments',
+                icon: <TeamOutlined />,
+                label: '部门管理',
+              },
+              {
+                key: '/enterprise/users',
+                icon: <TeamOutlined />,
+                label: '企业用户',
+              },
+            ],
+          });
+        }
+      }
+    }
     
     // 开发环境下打印菜单过滤结果
     if (process.env.NODE_ENV === 'development') {
       console.log('[DEBUG Layout] Menu filtering:', {
         userRole: currentUser.role,
         userType: userType,
+        isImpersonating: isImpersonating,
         originalMenuCount: baseSidebarItems.length,
         filteredMenuCount: filteredItems.length,
         filteredItems: filteredItems.map(item => ({
@@ -489,7 +529,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
     
     return filteredItems;
-  }, [currentUser]);
+  }, [currentUser, isImpersonating]);
 
   return (
     <AntLayout>
@@ -506,7 +546,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             }}
           />
           <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>AI上下文任务系统</span>
+            <span>
+              {isImpersonating && impersonationStatus?.enterprise ? 
+                `${impersonationStatus.enterprise.name} - 企业后台` : 
+                'AI上下文任务系统 - 系统后台'}
+            </span>
 {/* 环境标志显示 */}
             {process.env['REACT_APP_LOCAL_DEV'] === 'true' && (
               <span style={{

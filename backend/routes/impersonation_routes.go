@@ -2,8 +2,10 @@ package routes
 
 import (
 	"context"
+	"fmt"
 	"time"
 	"github.com/gin-gonic/gin"
+	"ai-project-backend/database"
 	"ai-project-backend/handlers"
 	"ai-project-backend/middleware"
 	"ai-project-backend/models"
@@ -12,8 +14,12 @@ import (
 
 // RegisterImpersonationRoutes 注册模拟管理路由
 func RegisterImpersonationRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
-	// 创建服务实现
-	enterpriseService := &SimpleEnterpriseService{}
+	// 使用真正的企业服务，从应用获取
+	enterpriseHandler := app.GetEnterpriseHandler()
+	enterpriseService := &RealEnterpriseServiceAdapter{
+		handler: enterpriseHandler,
+		db:      app.GetDB(),
+	}
 	
 	// 从应用获取JWT配置信息
 	config := app.GetConfig()
@@ -36,37 +42,56 @@ func RegisterImpersonationRoutes(authorized *gin.RouterGroup, app ApplicationInt
 		auditServiceAdapter,
 	)
 	
-	// 创建管理员路由组 - 只有系统管理员可以访问
+	// 创建管理员路由组
 	admin := authorized.Group("/admin")
-	admin.Use(middleware.RequireSystemAdmin())
 	
 	// 模拟功能路由组
 	impersonate := admin.Group("/impersonate")
 	{
-		// 开始模拟企业 - 禁止在模拟状态下嵌套模拟
+		// 开始模拟企业 - 需要系统管理员权限，禁止在模拟状态下嵌套模拟
 		impersonate.POST("/enterprise/:id",
+			middleware.RequireSystemAdmin(),
 			middleware.RequireNonImpersonation(),
 			impersonationHandler.StartImpersonation,
 		)
 		
-		// 退出模拟
+		// 退出模拟 - 不需要系统管理员权限，模拟状态下可以访问
 		impersonate.POST("/exit",
 			impersonationHandler.ExitImpersonation,
 		)
 		
-		// 查看当前模拟状态
+		// 查看当前模拟状态 - 不需要系统管理员权限，任何登录用户都可以查看自己的状态
 		impersonate.GET("/status",
 			impersonationHandler.GetImpersonationStatus,
 		)
 		
-		// 查看模拟历史记录
+		// 查看模拟历史记录 - 需要系统管理员权限
 		impersonate.GET("/history",
+			middleware.RequireSystemAdmin(),
 			impersonationHandler.GetImpersonationHistory,
 		)
 	}
 }
 
-// SimpleEnterpriseService 简单的企业服务实现
+// RealEnterpriseServiceAdapter 真实企业服务适配器
+type RealEnterpriseServiceAdapter struct {
+	handler *handlers.EnterpriseHandler
+	db      database.DB
+}
+
+func (s *RealEnterpriseServiceAdapter) GetEnterpriseByID(ctx context.Context, id int) (*models.Enterprise, error) {
+	// 使用真实的数据库查询获取企业信息
+	enterprise, err := s.db.Enterprises().GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enterprise: %w", err)
+	}
+	if enterprise == nil {
+		return nil, fmt.Errorf("enterprise not found: ID %d", id)
+	}
+	return enterprise, nil
+}
+
+// SimpleEnterpriseService 简单的企业服务实现（保留用于测试）
 type SimpleEnterpriseService struct{}
 
 func (s *SimpleEnterpriseService) GetEnterpriseByID(ctx context.Context, id int) (*models.Enterprise, error) {

@@ -24,6 +24,7 @@ import {
   BuildOutlined
 } from '@ant-design/icons';
 import { User } from '../types/user';
+import { useImpersonation } from '../contexts/ImpersonationContext';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -52,16 +53,28 @@ interface ImpersonationHistoryItem {
   enterpriseId: number;
   enterpriseName: string;
   startedAt: string;
-  endedAt: string;
+  endedAt: string | null;
   duration: string;
+  status: string;
+  reason: string;
 }
 
 const EnterpriseImpersonation: React.FC = () => {
+  // 使用新的 ImpersonationProvider 系统
+  const {
+    isImpersonating,
+    impersonationStatus,
+    loading: impersonationLoading,
+    startImpersonation,
+    exitImpersonation,
+    getImpersonationHistory,
+    triggerTokenChangeEvent
+  } = useImpersonation();
+
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<ImpersonationStatus>({ is_impersonating: false });
   const [history, setHistory] = useState<ImpersonationHistoryItem[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -111,74 +124,22 @@ const EnterpriseImpersonation: React.FC = () => {
     }
   };
 
-  // 获取模拟状态
-  const fetchImpersonationStatus = async () => {
-    if (!token) return;
-    
-    try {
-      const response = await fetch('/api/v1/admin/impersonate/status', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        // 后端返回的是扁平结构：{ is_impersonating, enterprise, original_user, session }
-        // 这里做一次映射，适配当前组件的期望结构
-        if (result && result.is_impersonating) {
-          const enterprise = result.enterprise || {};
-          const session = result.session || {};
-          const mapped = {
-            is_impersonating: true,
-            session: {
-              sessionId: session.id || session.session_id || session.sessionId,
-              enterpriseId: enterprise.id || session.enterprise_id,
-              enterpriseName: enterprise.name || session.enterprise_name,
-              startedAt: session.started_at || session.startedAt,
-              expiresAt: session.expires_at || session.expiresAt,
-            }
-          } as ImpersonationStatus;
-          setStatus(mapped);
-        } else {
-          setStatus({ is_impersonating: false });
-        }
-      } else {
-        console.warn('Impersonation API not available, using fallback');
-        setStatus({ is_impersonating: false });
-      }
-    } catch (error) {
-      console.error('Failed to fetch impersonation status:', error);
-      setStatus({ is_impersonating: false });
-    }
-  };
+  // 注意：现在使用 ImpersonationProvider 的状态，不需要手动获取
 
-  // 获取模拟历史
+  // 使用 ImpersonationProvider 的 getImpersonationHistory 方法
   const fetchImpersonationHistory = async () => {
-    if (!token) return;
-    
     try {
-      const response = await fetch('/api/v1/admin/impersonate/history', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        setHistory(result.data || []);
-      }
+      const historyData = await getImpersonationHistory();
+      setHistory(historyData);
     } catch (error) {
       console.error('Failed to fetch impersonation history:', error);
       message.error('获取模拟历史失败');
     }
   };
 
-  // 开始企业模拟
-  const startImpersonation = async () => {
-    if (!selectedEnterpriseId || !token) return;
+  // 使用 ImpersonationProvider 的 startImpersonation 方法
+  const handleStartImpersonation = async () => {
+    if (!selectedEnterpriseId) return;
 
     const reasonToSend = reason.trim();
     if (reasonToSend.length < 10) {
@@ -186,76 +147,35 @@ const EnterpriseImpersonation: React.FC = () => {
       return;
     }
 
-    setLoading(true);
     try {
-      const response = await fetch(`/api/v1/admin/impersonate/enterprise/${selectedEnterpriseId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reason: reasonToSend })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        // 持久化新的模拟令牌（如果返回）
-        if (result.token) {
-          try {
-            localStorage.setItem('token', result.token);
-          } catch (e) {
-            console.warn('无法保存模拟令牌到本地存储:', e);
-          }
-        }
-        message.success('企业模拟开始成功');
-        setShowModal(false);
-        setSelectedEnterpriseId(undefined);
-        setReason('');
-        fetchImpersonationStatus();
-        // 刷新页面以应用新的权限上下文
-        window.location.reload();
-      } else if (response.status === 401) {
-        message.error('权限不足：企业模拟功能需要系统管理员权限');
-      } else {
-        const errorData = await response.json().catch(() => ({ message: '未知错误' }));
-        message.error(`开始模拟失败: ${errorData.message || response.statusText}`);
-      }
-    } catch (error: any) {
-      console.error('Failed to start impersonation:', error);
-      message.error('网络错误：无法连接到服务器，请检查网络连接');
-    } finally {
-      setLoading(false);
+      await startImpersonation(selectedEnterpriseId, reasonToSend);
+      // 成功后关闭模态框
+      setShowModal(false);
+      setSelectedEnterpriseId(undefined);
+      setReason('');
+      
+      // 手动触发token变化事件，确保状态同步
+      console.log('🔥 EnterpriseImpersonation: 触发token变化事件');
+      triggerTokenChangeEvent();
+      
+    } catch (error) {
+      // 错误处理已在 ImpersonationProvider 中完成
+      console.error('Start impersonation failed:', error);
     }
   };
 
-  // 退出企业模拟
-  const exitImpersonation = async () => {
-    if (!token) return;
-
-    setLoading(true);
+  // 使用 ImpersonationProvider 的 exitImpersonation 方法
+  const handleExitImpersonation = async () => {
     try {
-      const response = await fetch('/api/v1/admin/impersonate/exit', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        message.success('已退出企业模拟');
-        fetchImpersonationStatus();
-        // 刷新页面以恢复原始权限上下文
-        window.location.reload();
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || '退出模拟失败');
-      }
-    } catch (error: any) {
-      console.error('Failed to exit impersonation:', error);
-      message.error('退出模拟失败: ' + error.message);
-    } finally {
-      setLoading(false);
+      await exitImpersonation();
+      
+      // 手动触发token变化事件，确保状态同步
+      console.log('🔥 EnterpriseImpersonation: 退出模拟后触发token变化事件');
+      triggerTokenChangeEvent();
+      
+    } catch (error) {
+      // 错误处理已在 ImpersonationProvider 中完成
+      console.error('Exit impersonation failed:', error);
     }
   };
 
@@ -263,7 +183,7 @@ const EnterpriseImpersonation: React.FC = () => {
   useEffect(() => {
     if (isSystemAdmin) {
       fetchEnterprises();
-      fetchImpersonationStatus();
+      // 不需要手动获取模拟状态，ImpersonationProvider 会自动处理
     }
   }, [isSystemAdmin, token]);
 
@@ -275,23 +195,23 @@ const EnterpriseImpersonation: React.FC = () => {
   return (
     <>
       <Space>
-        {status.is_impersonating ? (
+        {isImpersonating ? (
           <Card size="small" style={{ backgroundColor: '#fff2e8', border: '1px solid #ffbb96' }}>
             <Space>
               <SafetyOutlined style={{ color: '#fa541c' }} />
               <div>
                 <Text strong style={{ color: '#fa541c' }}>
-                  正在模拟: {status.session?.enterpriseName}
+                  正在模拟: {impersonationStatus?.enterprise?.name}
                 </Text>
                 <br />
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  开始于: {status.session?.startedAt ? new Date(status.session.startedAt).toLocaleString() : ''}
+                  开始于: {impersonationStatus?.session?.started_at ? new Date(impersonationStatus.session.started_at).toLocaleString() : ''}
                 </Text>
               </div>
               <Popconfirm
                 title="确定要退出企业模拟吗？"
                 description="退出后将恢复原始管理员权限"
-                onConfirm={exitImpersonation}
+                onConfirm={handleExitImpersonation}
                 okText="退出"
                 cancelText="取消"
               >
@@ -300,7 +220,7 @@ const EnterpriseImpersonation: React.FC = () => {
                   danger
                   size="small"
                   icon={<LogoutOutlined />}
-                  loading={loading}
+                  loading={impersonationLoading}
                 >
                   退出模拟
                 </Button>
@@ -344,9 +264,9 @@ const EnterpriseImpersonation: React.FC = () => {
           <Button
             key="start"
             type="primary"
-            loading={loading}
+            loading={impersonationLoading}
             disabled={!selectedEnterpriseId || !reason || reason.trim().length < 10}
-            onClick={startImpersonation}
+            onClick={handleStartImpersonation}
           >
             开始模拟
           </Button>
@@ -464,18 +384,30 @@ const EnterpriseImpersonation: React.FC = () => {
                 title={
                   <Space>
                     <Text strong>{item.enterpriseName}</Text>
-                    <Tag>{item.sessionId.slice(0, 8)}</Tag>
+                    {item.sessionId && <Tag>{item.sessionId.slice(0, 8)}</Tag>}
+                    <Tag color={item.status === 'active' ? 'green' : item.status === 'ended' ? 'blue' : 'orange'}>
+                      {item.status === 'active' ? '进行中' : item.status === 'ended' ? '已结束' : item.status}
+                    </Tag>
                   </Space>
                 }
                 description={
                   <Space direction="vertical" size={4}>
-                    <Text type="secondary">
-                      开始: {new Date(item.startedAt).toLocaleString()}
-                    </Text>
-                    <Text type="secondary">
-                      结束: {new Date(item.endedAt).toLocaleString()}
-                    </Text>
-                    <Text type="secondary">持续时间: {item.duration}</Text>
+                    {item.startedAt && (
+                      <Text type="secondary">
+                        开始时间: {new Date(item.startedAt).toLocaleString()}
+                      </Text>
+                    )}
+                    {item.endedAt && (
+                      <Text type="secondary">
+                        结束时间: {new Date(item.endedAt).toLocaleString()}
+                      </Text>
+                    )}
+                    {item.duration && (
+                      <Text type="secondary">持续时间: {item.duration}</Text>
+                    )}
+                    {item.reason && (
+                      <Text type="secondary">原因: {item.reason}</Text>
+                    )}
                   </Space>
                 }
               />

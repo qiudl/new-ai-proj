@@ -229,7 +229,11 @@ func (h *ImpersonationHandler) StartImpersonation(c *gin.Context) {
 		Message: fmt.Sprintf("Successfully switched to enterprise: %s", enterprise.Name),
 	}
 	
-	c.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": fmt.Sprintf("Successfully switched to enterprise: %s", enterprise.Name),
+		"data":    response,
+	})
 }
 
 // ExitImpersonation POST /api/v1/admin/impersonate/exit
@@ -299,12 +303,15 @@ func (h *ImpersonationHandler) ExitImpersonation(c *gin.Context) {
 	
 	// 5. 返回原始Token
 	c.JSON(http.StatusOK, gin.H{
-		"token":   originalToken,
+		"success": true,
 		"message": "Successfully exited impersonation mode",
-		"original_user": gin.H{
-			"id":       ctx.OriginalUserID,
-			"username": ctx.OriginalUsername,
-			"role":     ctx.OriginalRole,
+		"data": gin.H{
+			"token":   originalToken,
+			"original_user": gin.H{
+				"id":       ctx.OriginalUserID,
+				"username": ctx.OriginalUsername,
+				"role":     ctx.OriginalRole,
+			},
 		},
 	})
 }
@@ -315,7 +322,9 @@ func (h *ImpersonationHandler) GetImpersonationStatus(c *gin.Context) {
 	claims, exists := c.Get("claims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
-			"error": "No authentication claims found",
+			"success": false,
+			"message": "No authentication claims found",
+			"error":   "No authentication claims found",
 		})
 		return
 	}
@@ -323,14 +332,20 @@ func (h *ImpersonationHandler) GetImpersonationStatus(c *gin.Context) {
 	extendedClaims, ok := claims.(*models.ExtendedClaims)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Invalid claims type",
+			"success": false,
+			"message": "Invalid claims type",
+			"error":   "Invalid claims type",
 		})
 		return
 	}
 	
 	if !extendedClaims.IsImpersonating() {
 		c.JSON(http.StatusOK, gin.H{
-			"is_impersonating": false,
+			"success": true,
+			"message": "Status retrieved successfully",
+			"data": gin.H{
+				"is_impersonating": false,
+			},
 		})
 		return
 	}
@@ -338,22 +353,26 @@ func (h *ImpersonationHandler) GetImpersonationStatus(c *gin.Context) {
 	ctx := extendedClaims.ImpersonationContext
 	
 	c.JSON(http.StatusOK, gin.H{
-		"is_impersonating": true,
-		"enterprise": gin.H{
-			"id":   ctx.EnterpriseID,
-			"name": ctx.EnterpriseName,
-			"code": ctx.EnterpriseCode,
-		},
-		"original_user": gin.H{
-			"id":       ctx.OriginalUserID,
-			"username": ctx.OriginalUsername,
-			"role":     ctx.OriginalRole,
-		},
-		"session": gin.H{
-			"id":         ctx.SessionID,
-			"started_at": ctx.StartedAt.Format(time.RFC3339),
-			"expires_at": ctx.ExpiresAt.Format(time.RFC3339),
-			"reason":     ctx.Reason,
+		"success": true,
+		"message": "Status retrieved successfully",
+		"data": gin.H{
+			"is_impersonating": true,
+			"enterprise": gin.H{
+				"id":   ctx.EnterpriseID,
+				"name": ctx.EnterpriseName,
+				"code": ctx.EnterpriseCode,
+			},
+			"original_user": gin.H{
+				"id":       ctx.OriginalUserID,
+				"username": ctx.OriginalUsername,
+				"role":     ctx.OriginalRole,
+			},
+			"session": gin.H{
+				"id":         ctx.SessionID,
+				"started_at": ctx.StartedAt.Format(time.RFC3339),
+				"expires_at": ctx.ExpiresAt.Format(time.RFC3339),
+				"reason":     ctx.Reason,
+			},
 		},
 	})
 }

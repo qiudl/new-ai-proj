@@ -123,6 +123,9 @@ export interface ImpersonationStateContextType {
   // 刷新方法
   refreshStatus: () => Promise<void>;
   
+  // Token变化事件触发（用于同窗口状态同步）
+  triggerTokenChangeEvent: () => void;
+  
   // 警告和提示
   showWarning: boolean;
   warningMessage: string;

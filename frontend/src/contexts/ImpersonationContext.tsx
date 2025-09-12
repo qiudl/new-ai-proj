@@ -95,10 +95,15 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       if (response.success) {
         // 更新token
         if (response.token) {
+          const oldToken = localStorage.getItem('token');
           localStorage.setItem('token', response.token);
+          console.log('🔄 Token已更新，长度:', response.token.length);
+          
+          // 手动触发状态刷新，因为同窗口localStorage变化不会触发storage事件
+          console.log('🔄 手动刷新模拟状态...');
         }
         
-        // 刷新状态
+        // 刷新状态 - 必须在token更新后调用
         await getImpersonationStatus();
         
         message.success(`开始模拟企业: ${response.enterprise.name}`);
@@ -137,6 +142,7 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
         // 更新token
         if (response.token) {
           localStorage.setItem('token', response.token);
+          console.log('🔄 Token已更新为原始令牌，长度:', response.token.length);
         }
         
         // 清除状态
@@ -188,8 +194,15 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
 
   // 刷新状态
   const refreshStatus = useCallback(async () => {
+    console.log('🔄 手动刷新模拟状态...');
     await getImpersonationStatus();
   }, [getImpersonationStatus]);
+
+  // 触发token变化事件的辅助函数
+  const triggerTokenChangeEvent = useCallback(() => {
+    console.log('🔥 触发token变化事件');
+    window.dispatchEvent(new CustomEvent('tokenChanged'));
+  }, []);
 
   // 关闭警告
   const dismissWarning = useCallback(() => {
@@ -237,14 +250,14 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
 
     initializeImpersonation();
 
-    // 监听token变化
+    // 监听token变化（仅用于跨窗口）
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'token') {
         if (e.newValue) {
-          console.log('👤 检测到token变化，重新检查模拟状态');
+          console.log('👤 检测到跨窗口token变化，重新检查模拟状态');
           initializeImpersonation();
         } else {
-          console.log('👤 检测到token清除，清空模拟状态');
+          console.log('👤 检测到跨窗口token清除，清空模拟状态');
           setIsImpersonating(false);
           setImpersonationStatus(null);
           setShowWarning(false);
@@ -253,10 +266,18 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       }
     };
 
+    // 监听自定义token变化事件（用于同窗口）
+    const handleCustomTokenChange = (e: CustomEvent) => {
+      console.log('👤 检测到同窗口token变化事件');
+      initializeImpersonation();
+    };
+
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('tokenChanged', handleCustomTokenChange as EventListener);
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('tokenChanged', handleCustomTokenChange as EventListener);
     };
   }, [getImpersonationStatus]);
 
@@ -270,6 +291,7 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
     getImpersonationStatus,
     getImpersonationHistory,
     refreshStatus,
+    triggerTokenChangeEvent,
     showWarning,
     warningMessage,
     dismissWarning,

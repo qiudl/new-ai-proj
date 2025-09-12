@@ -20,13 +20,16 @@ class ImpersonationService {
   async getStatus(): Promise<ImpersonationStatus> {
     try {
       console.log('🔍 获取模拟状态...');
-      const response = await api.get<ApiResponse<ImpersonationStatus>>(`${this.baseUrl}/status`);
+      const response = await api.get<any>(`${this.baseUrl}/status`);
       
-      if (response.success && response.data) {
-        console.log('✅ 模拟状态获取成功:', response.data);
-        return response.data;
+      console.log('✅ 模拟状态获取成功:', response);
+      
+      // API拦截器已经处理了标准响应格式，直接返回了data部分
+      // response就是原始data内容
+      if (response && typeof response.is_impersonating !== 'undefined') {
+        return response;
       } else {
-        throw new Error(response.message || '获取模拟状态失败');
+        throw new Error('无效的响应格式');
       }
     } catch (error: any) {
       console.error('❌ 获取模拟状态失败:', error);
@@ -51,13 +54,31 @@ class ImpersonationService {
       console.log('🚀 开始模拟企业:', { enterpriseId, reason });
       
       const requestData: StartImpersonationRequest = { reason };
-      const response = await api.post<StartImpersonationResponse>(
+      const response = await api.post<any>(
         `${this.baseUrl}/enterprise/${enterpriseId}`,
         requestData
       );
       
       console.log('✅ 模拟开始请求成功:', response);
-      return response;
+      
+      // API拦截器已经处理了标准响应格式，直接返回了data部分
+      // 所以response就是data内容，包含 token, enterprise, message 等
+      if (response && response.token && response.enterprise) {
+        return {
+          success: true,
+          message: response.message || '模拟开始成功',
+          token: response.token,
+          enterprise: response.enterprise,
+          session: response.impersonation_info || {
+            id: response.impersonation_info?.session_id || '',
+            started_at: response.impersonation_info?.started_at || new Date().toISOString(),
+            expires_at: response.impersonation_info?.expires_at || '',
+            reason: reason
+          }
+        };
+      } else {
+        throw new Error('无效的响应格式');
+      }
     } catch (error: any) {
       console.error('❌ 开始模拟失败:', error);
       throw this.handleError(error, '开始模拟失败');
@@ -71,10 +92,25 @@ class ImpersonationService {
     try {
       console.log('🚪 退出模拟...');
       
-      const response = await api.post<ExitImpersonationResponse>(`${this.baseUrl}/exit`);
+      const response = await api.post<any>(`${this.baseUrl}/exit`);
       
       console.log('✅ 退出模拟请求成功:', response);
-      return response;
+      
+      // API拦截器已经处理了标准响应格式，直接返回了data部分
+      if (response && (response.token || response.original_user)) {
+        return {
+          success: true,
+          message: response.message || '退出模拟成功',
+          token: response.token || '',
+          original_user: response.original_user || {
+            id: 0,
+            username: 'unknown',
+            role: 'unknown'
+          }
+        };
+      } else {
+        throw new Error('无效的响应格式');
+      }
     } catch (error: any) {
       console.error('❌ 退出模拟失败:', error);
       throw this.handleError(error, '退出模拟失败');
