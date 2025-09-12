@@ -171,7 +171,7 @@ const DocumentTypeSelector: React.FC<DocumentTypeSelectorProps> = ({
           {Object.values(documentTypes).map(type => (
             <Col key={type.type} span={8}>
               <Card
-                size="small"
+                
                 className={`document-type-card ${selectedType === type.type ? 'selected' : ''}`}
                 onClick={() => handleTypeSelect(type.type)}
                 style={{
@@ -257,7 +257,7 @@ const DocumentTypeSelector: React.FC<DocumentTypeSelectorProps> = ({
           {Object.values(documentCategories).map(category => (
             <Col key={category.id} span={12}>
               <Card
-                size="small"
+                
                 className={`category-card ${selectedCategory === category.id ? 'selected' : ''}`}
                 onClick={() => handleCategorySelect(category.id)}
                 style={{

@@ -333,7 +333,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
               <>
                 <Button
                   onClick={selectedCount === totalCount ? onClearSelection : onSelectAll}
-                  size="small"
+                  
                 >
                   {selectedCount === totalCount ? '取消全选' : '全选'}
                 </Button>
@@ -400,7 +400,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
                           {intelligentSearchOptions.map(option => (
                             <div key={option.value}>
                               <Switch
-                                size="small"
+                                
                                 checked={advancedFilters?.[option.value as keyof AdvancedSearchConfig] as boolean}
                                 onChange={(checked) => {
                                   if (onAdvancedFiltersChange && advancedFilters) {
@@ -421,7 +421,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
                     >
                       <Button 
                         type="text" 
-                        size="small" 
+                         
                         icon={<BulbOutlined />}
                         style={{ color: '#1890ff' }}
                       />
@@ -463,7 +463,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
                               <span>{filter.name}</span>
                               <Button
                                 type="text"
-                                size="small"
+                                
                                 icon={<CloseOutlined />}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -502,7 +502,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
               value={filterStatus}
               onChange={onFilterStatusChange}
               style={{ width: 100 }}
-              size="small"
+              
             >
               <Option value="all">全部状态</Option>
               {Object.entries(DOCUMENT_STATUS).map(([key, config]) => (
@@ -514,7 +514,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
               value={filterType}
               onChange={onFilterTypeChange}
               style={{ width: 100 }}
-              size="small"
+              
             >
               <Option value="all">全部类型</Option>
               {Object.entries(DOCUMENT_TYPES).map(([key, config]) => (
@@ -533,7 +533,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
             onSortOrderChange(order as unknown);
           }}
           style={{ width: mode === 'simple' ? 100 : 120 }}
-          size="small"
+          
         >
           <Option value="updated_at-desc">最近更新</Option>
           <Option value="created_at-desc">最近创建</Option>
@@ -544,7 +544,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
         {mode === 'simple' && (
           <Tooltip title={sortOrder === 'desc' ? '降序排列' : '升序排列'}>
             <Button
-              size="small"
+              
               icon={sortOrder === 'desc' ? <SortDescendingOutlined /> : <SortAscendingOutlined />}
               onClick={() => onSortOrderChange(sortOrder === 'desc' ? 'asc' : 'desc')}
             />
@@ -556,7 +556,7 @@ const DocumentToolbar: React.FC<DocumentToolbarProps> = ({
           <Radio.Group
             value={viewMode}
             onChange={(e) => onViewModeChange(e.target.value)}
-            size="small"
+            
           >
             <Radio.Button value="table">
               <Tooltip title="表格视图">

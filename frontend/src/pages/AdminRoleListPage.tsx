@@ -347,10 +347,10 @@ const AdminRoleListPage: React.FC = () => {
       key: 'actions',
       width: 180,
       render: (record: Role) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看详情">
             <Button 
-              size="small" 
+               
               type="text"
               icon={<EyeOutlined />}
               onClick={() => navigate(`/admin/roles/${record.id}`)}
@@ -358,7 +358,7 @@ const AdminRoleListPage: React.FC = () => {
           </Tooltip>
           <Tooltip title="编辑角色">
             <Button 
-              size="small" 
+               
               type="text"
               icon={<EditOutlined />}
               onClick={() => navigate(`/admin/roles/${record.id}?mode=edit`)}
@@ -375,7 +375,7 @@ const AdminRoleListPage: React.FC = () => {
             >
               <Tooltip title="删除角色">
                 <Button 
-                  size="small" 
+                   
                   type="text"
                   danger
                   icon={<DeleteOutlined />}

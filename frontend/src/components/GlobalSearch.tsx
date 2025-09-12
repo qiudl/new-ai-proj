@@ -127,7 +127,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
               value: `result-${result.id}`,
               label: (
                 <div style={{ padding: '8px 0' }}>
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space direction="vertical"  style={{ width: '100%' }}>
                     <Space>
                       {getTypeIcon(result.type)}
                       <Text strong ellipsis style={{ maxWidth: 200 }}>
@@ -147,7 +147,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                       </Text>
                     )}
                     {result.project_name && (
-                      <Space size="small">
+                      <Space >
                         <ProjectOutlined style={{ fontSize: '10px', color: '#999' }} />
                         <Text type="secondary" style={{ fontSize: '10px' }}>
                           {result.project_name}
@@ -172,7 +172,7 @@ const GlobalSearch: React.FC<GlobalSearchProps> = ({
                 borderTop: '1px solid #f0f0f0',
                 marginTop: '4px'
               }}>
-                <Button type="link" size="small">
+                <Button type="link" >
                   查看所有结果 ({searchResults.total_count})
                 </Button>
               </div>

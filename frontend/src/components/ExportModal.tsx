@@ -37,7 +37,7 @@ import {
   type ExportOptions,
 } from '../services/exportService';
 import { Task } from '../types/task';
-import { Project } from '../types/project';
+import { Project, Company } from '../types/project';
 
 // 类型定义
 interface StatItem {
@@ -271,7 +271,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   <ClockCircleOutlined />
                   <span>正在生成{exportFormat.toUpperCase()}文件...</span>
                 </div>
-                <Progress percent={exportProgress} size="small" />
+                <Progress percent={exportProgress}  />
               </div>
             }
             type="info"
@@ -280,12 +280,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         )}
 
         {/* 格式选择 */}
-        <Card size="small" title="选择导出格式" style={{ marginBottom: '16px' }}>
+        <Card  title="选择导出格式" style={{ marginBottom: '16px' }}>
           <Row gutter={[16, 16]}>
             {(['excel', 'pdf', 'csv'] as ExportFormat[]).map(format => (
               <Col span={8} key={format}>
                 <Card
-                  size="small"
+                  
                   hoverable
                   onClick={() => setExportFormat(format)}
                   style={{
@@ -312,7 +312,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </Card>
 
         {/* 导出配置 */}
-        <Card size="small" title={<><SettingOutlined /> 导出配置</>} style={{ marginBottom: '16px' }}>
+        <Card  title={<><SettingOutlined /> 导出配置</>} style={{ marginBottom: '16px' }}>
           <Form form={form} layout="vertical">
             <Row gutter={[16, 0]}>
               <Col span={12}>
@@ -398,7 +398,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
         {/* 预览信息 */}
         {showPreview && previewData && (
-          <Card size="small" title={<><EyeOutlined /> 导出预览</>}>
+          <Card  title={<><EyeOutlined /> 导出预览</>}>
             <Row gutter={[16, 8]}>
               <Col span={24}>
                 <Text strong>{previewData.summary.title}</Text>

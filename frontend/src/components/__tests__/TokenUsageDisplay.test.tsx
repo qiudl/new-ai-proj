@@ -235,7 +235,7 @@ describe('TokenUsageDisplay', () => {
     const { rerender } = render(
       <TokenUsageDisplay 
         {...defaultProps} 
-        size="small"
+        
         showDetailed={true}
       />
     );

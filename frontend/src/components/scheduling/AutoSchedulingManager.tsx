@@ -347,7 +347,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
               </Col>
               
               <Col span={8}>
-                <Card size="small" title="调度算法">
+                <Card  title="调度算法">
                   <Select
                     value={config.algorithm}
                     onChange={(value) => setConfig({ ...config, algorithm: value })}
@@ -361,7 +361,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
               </Col>
               
               <Col span={8}>
-                <Card size="small" title="优化目标">
+                <Card  title="优化目标">
                   <Select
                     value={config.optimizeFor}
                     onChange={(value) => setConfig({ ...config, optimizeFor: value })}
@@ -375,7 +375,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
               </Col>
               
               <Col span={8}>
-                <Card size="small" title="缓冲时间">
+                <Card  title="缓冲时间">
                   <InputNumber
                     value={config.bufferPercentage}
                     onChange={(value) => setConfig({ ...config, bufferPercentage: value || 10 })}
@@ -389,7 +389,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
               </Col>
               
               <Col span={12}>
-                <Card size="small" title="工作日设置">
+                <Card  title="工作日设置">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Switch
                       checked={config.workingDaysOnly}
@@ -413,7 +413,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
               </Col>
               
               <Col span={12}>
-                <Card size="small" title="高级设置">
+                <Card  title="高级设置">
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Switch
                       checked={config.considerResources}
@@ -529,7 +529,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                     showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条记录，共 ${total} 条`
                   }}
                   scroll={{ x: 1000 }}
-                  size="small"
+                  
                 />
               </div>
             )}
@@ -617,7 +617,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                       dataSource={schedulingResult.warnings}
                       rowKey={(record, index) => index}
                       pagination={false}
-                      size="small"
+                      
                     />
                   </div>
                 )}
@@ -630,7 +630,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
             {schedulingResult && schedulingResult.statistics && (
               <Row gutter={[16, 16]}>
                 <Col span={12}>
-                  <Card title="浮动时间分布" size="small">
+                  <Card title="浮动时间分布" >
                     <div style={{ marginBottom: 16 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                         <Text>零浮动 (关键任务)</Text>
@@ -639,7 +639,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                       <Progress 
                         percent={Math.round(schedulingResult.statistics.floatDistribution.zeroFloat / schedulingResult.statistics.totalTasks * 100)}
                         strokeColor="#ff4d4f"
-                        size="small"
+                        
                       />
                     </div>
                     
@@ -651,7 +651,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                       <Progress 
                         percent={Math.round(schedulingResult.statistics.floatDistribution.lowFloat / schedulingResult.statistics.totalTasks * 100)}
                         strokeColor="#fa8c16"
-                        size="small"
+                        
                       />
                     </div>
                     
@@ -663,7 +663,7 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                       <Progress 
                         percent={Math.round(schedulingResult.statistics.floatDistribution.mediumFloat / schedulingResult.statistics.totalTasks * 100)}
                         strokeColor="#52c41a"
-                        size="small"
+                        
                       />
                     </div>
                     
@@ -675,14 +675,14 @@ const AutoSchedulingManager: React.FC<AutoSchedulingManagerProps> = ({
                       <Progress 
                         percent={Math.round(schedulingResult.statistics.floatDistribution.highFloat / schedulingResult.statistics.totalTasks * 100)}
                         strokeColor="#1890ff"
-                        size="small"
+                        
                       />
                     </div>
                   </Card>
                 </Col>
                 
                 <Col span={12}>
-                  <Card title="调度质量评估" size="small">
+                  <Card title="调度质量评估" >
                     <Statistic
                       title="约束满足度"
                       value={schedulingResult.statistics.constraintSatisfaction * 100}

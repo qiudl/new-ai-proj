@@ -335,11 +335,11 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       key: 'actions',
       width: 100,
       render: (_: unknown, record: DocumentListItem) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="编辑">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => onDocumentEdit(record)}
             />
@@ -347,7 +347,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
           <Tooltip title="复制">
             <Button
               type="text"
-              size="small"
+              
               icon={<CopyOutlined />}
               loading={operationLoading[`copy-${record.id}`]}
               onClick={() => handleCopyDocument(record)}
@@ -375,7 +375,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
             >
               <Button
                 type="text"
-                size="small"
+                
                 danger
                 icon={<DeleteOutlined />}
                 loading={operationLoading[`delete-${record.id}`]}
@@ -526,7 +526,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
       width: 100,
       render: (name: string) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} />
+          <Avatar  icon={<UserOutlined />} />
           <Text>{name}</Text>
         </Space>
       )
@@ -553,7 +553,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
           {
             key: 'template',
             label: record.is_template ? '取消模板' : '创建模板',
-            icon: operationLoading[`template-${record.id}`] ? <Spin size="small" /> : <BookOutlined />,
+            icon: operationLoading[`template-${record.id}`] ? <Spin  /> : <BookOutlined />,
             disabled: operationLoading[`template-${record.id}`],
             onClick: () => handleCreateTemplate(record)
           },
@@ -568,21 +568,21 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
               {
                 key: 'export-pdf',
                 label: '导出为 PDF',
-                icon: operationLoading[`export-${record.id}-PDF`] ? <Spin size="small" /> : <FilePdfOutlined />,
+                icon: operationLoading[`export-${record.id}-PDF`] ? <Spin  /> : <FilePdfOutlined />,
                 disabled: operationLoading[`export-${record.id}-PDF`],
                 onClick: () => handleExportDocument(record, 'PDF')
               },
               {
                 key: 'export-word',
                 label: '导出为 Word',
-                icon: operationLoading[`export-${record.id}-Word`] ? <Spin size="small" /> : <FileWordOutlined />,
+                icon: operationLoading[`export-${record.id}-Word`] ? <Spin  /> : <FileWordOutlined />,
                 disabled: operationLoading[`export-${record.id}-Word`],
                 onClick: () => handleExportDocument(record, 'Word')
               },
               {
                 key: 'export-markdown',
                 label: '导出为 Markdown',
-                icon: operationLoading[`export-${record.id}-Markdown`] ? <Spin size="small" /> : <FileMarkdownOutlined />,
+                icon: operationLoading[`export-${record.id}-Markdown`] ? <Spin  /> : <FileMarkdownOutlined />,
                 disabled: operationLoading[`export-${record.id}-Markdown`],
                 onClick: () => handleExportDocument(record, 'Markdown')
               }
@@ -597,11 +597,11 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         ];
 
         return (
-          <Space size="small">
+          <Space >
             <Tooltip title="查看">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EyeOutlined />}
                 onClick={() => onDocumentSelect(record)}
               />
@@ -609,7 +609,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
             <Tooltip title="编辑">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EditOutlined />}
                 onClick={() => onDocumentEdit(record)}
               />
@@ -617,7 +617,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
             <Tooltip title="复制">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<CopyOutlined />}
                 loading={operationLoading[`copy-${record.id}`]}
                 onClick={() => handleCopyDocument(record)}
@@ -626,7 +626,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
             <Tooltip title="下载">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<DownloadOutlined />}
                 loading={operationLoading[`download-${record.id}`]}
                 onClick={() => handleDownloadDocument(record)}
@@ -640,7 +640,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
               <Tooltip title="更多">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<MoreOutlined />}
                 />
               </Tooltip>
@@ -667,7 +667,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
               >
                 <Button
                   type="text"
-                  size="small"
+                  
                   danger
                   icon={<DeleteOutlined />}
                   loading={operationLoading[`delete-${record.id}`]}
@@ -694,7 +694,7 @@ const DocumentTableView: React.FC<DocumentTableViewProps> = ({
         showIcon
         action={
           onRetry && (
-            <Button size="small" danger onClick={onRetry}>
+            <Button  danger onClick={onRetry}>
               重试
             </Button>
           )

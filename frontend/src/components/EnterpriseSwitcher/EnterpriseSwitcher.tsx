@@ -290,7 +290,7 @@ const EnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                         <Tooltip title={enterprise.isCurrentlyImpersonated ? '当前正在模拟此企业' : ''}>
                           <Button
                             type={enterprise.isCurrentlyImpersonated ? 'default' : 'primary'}
-                            size="small"
+                            
                             onClick={() => handleEnterpriseSelect(enterprise.id)}
                             disabled={!permissions.canStartImpersonation || enterprise.status !== 'active'}
                           >
@@ -311,12 +311,12 @@ const EnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                         title={
                           <Space>
                             <Text strong>{enterprise.name}</Text>
-                            <Tag color={getStatusColor(enterprise.status)} size="small">
+                            <Tag color={getStatusColor(enterprise.status)} >
                               {getStatusIcon(enterprise.status)}
                               {getStatusText(enterprise.status)}
                             </Tag>
                             {enterprise.isCurrentlyImpersonated && (
-                              <Tag color="red" size="small">正在模拟</Tag>
+                              <Tag color="red" >正在模拟</Tag>
                             )}
                           </Space>
                         }
@@ -331,7 +331,7 @@ const EnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                                 <Text type="secondary">{enterprise.description}</Text>
                               </div>
                             )}
-                            <Space size="small">
+                            <Space >
                               <Text type="secondary" style={{ fontSize: '12px' }}>
                                 <UserOutlined /> {enterprise.userCount || 0} 用户
                               </Text>

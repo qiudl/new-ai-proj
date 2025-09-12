@@ -15,25 +15,20 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        console.log('🔐 开始认证检查...');
         
         // 使用TokenManager检查当前token状态
         let isTokenCurrentlyValid = TokenManager.isTokenValid();
-        console.log('📱 Token状态检查:', isTokenCurrentlyValid ? '有效' : '无效');
         
         // 如果token无效，在开发环境下尝试自动刷新
         if (!isTokenCurrentlyValid) {
-          console.log('🚀 Token无效，尝试自动刷新...');
           
           try {
             const tokenRefreshManager = TokenRefreshManager.getInstance();
             const refreshResult = await tokenRefreshManager.refreshToken();
             
             if (refreshResult.success) {
-              console.log('✅ Token自动刷新成功');
               isTokenCurrentlyValid = true;
             } else {
-              console.log('❌ Token刷新失败:', refreshResult.error);
               // 清除无效的token数据
               TokenManager.clearAuthData();
             }
@@ -43,7 +38,6 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
           }
         }
         
-        console.log('🔍 最终认证结果:', isTokenCurrentlyValid ? '通过' : '失败');
         setAuthenticated(isTokenCurrentlyValid);
         
       } catch (error) {
@@ -75,7 +69,6 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
   }
 
   if (!authenticated) {
-    console.log('❌ 认证失败，重定向到登录页');
     return <Navigate to="/login" replace />;
   }
 

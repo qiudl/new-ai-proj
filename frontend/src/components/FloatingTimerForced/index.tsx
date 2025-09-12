@@ -37,7 +37,7 @@ const FloatingTimerForced = () => {
       }}
     >
       <Card
-        size="small"
+        
         title={
           <Space>
             <ClockCircleOutlined style={{ color: '#52c41a' }} />
@@ -48,7 +48,7 @@ const FloatingTimerForced = () => {
           body: { padding: '12px' }
         }}
       >
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical"  style={{ width: '100%' }}>
           <div>
             <Text strong>任务: </Text>
             <Text>{testState.taskTitle}</Text>
@@ -67,18 +67,18 @@ const FloatingTimerForced = () => {
             </Text>
           </div>
           
-          <Space size="small" style={{ width: '100%', justifyContent: 'center' }}>
+          <Space  style={{ width: '100%', justifyContent: 'center' }}>
             <Button
               type="primary"
               danger
-              size="small"
+              
               icon={<StopOutlined />}
               onClick={() => alert('这是测试按钮，点击了停止')}
             >
               停止
             </Button>
             <Button
-              size="small"
+              
               onClick={() => alert('这是测试按钮，点击了详情')}
             >
               详情

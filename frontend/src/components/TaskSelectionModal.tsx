@@ -247,7 +247,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
               <span>第一步：选择项目</span>
             </Space>
           }
-          size="small"
+          
           style={{ marginBottom: 16 }}
         >
           <Select
@@ -283,7 +283,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
                 <span>第二步：选择任务</span>
               </Space>
             }
-            size="small"
+            
             extra={
               <Search
                 placeholder="搜索任务..."
@@ -402,7 +402,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
             <Divider />
             <Card
               title="已选择的任务"
-              size="small"
+              
               style={{ 
                 backgroundColor: '#f6ffed',
                 borderColor: '#b7eb8f'

@@ -265,14 +265,14 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
                     <>
                       <Button 
                         type={uploadMode === 'manual' ? 'primary' : 'default'}
-                        size="small"
+                        
                         onClick={() => setUploadMode('manual')}
                       >
                         文件上传
                       </Button>
                       <Button 
                         type={uploadMode === 'api' ? 'primary' : 'default'}
-                        size="small"
+                        
                         onClick={() => setUploadMode('api')}
                       >
                         内容创建
@@ -283,14 +283,14 @@ const DocumentManagerPage: React.FC<DocumentManagerPageProps> = ({
                     <>
                       <Button 
                         icon={<ImportOutlined />}
-                        size="small"
+                        
                         onClick={handleOpenImportExport}
                       >
                         导入文档
                       </Button>
                       <Button 
                         icon={<ExportOutlined />}
-                        size="small"
+                        
                         onClick={handleOpenImportExport}
                         disabled={documents.length === 0}
                       >

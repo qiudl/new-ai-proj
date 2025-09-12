@@ -119,7 +119,7 @@ export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
       <Row gutter={[24, 16]}>
         {/* 统计信息 */}
         <Col span={24}>
-          <Card size="small" title="刷新统计">
+          <Card  title="刷新统计">
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic
@@ -333,7 +333,7 @@ export const RefreshConfigModal: React.FC<RefreshConfigModalProps> = ({
             type="info"
             message="配置建议"
             description={
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" >
                 <Text>• 对于实时性要求高的页面，建议使用15-30秒的刷新间隔</Text>
                 <Text>• 启用页面可见性检测可以节省资源</Text>
                 <Text>• 适当的重试机制可以提高系统可靠性</Text>
@@ -359,7 +359,7 @@ export const RefreshConfigButton: React.FC = () => {
       <Tooltip title="刷新配置">
         <Button
           type="text"
-          size="small"
+          
           icon={<SettingOutlined />}
           onClick={() => setModalVisible(true)}
           style={{ 

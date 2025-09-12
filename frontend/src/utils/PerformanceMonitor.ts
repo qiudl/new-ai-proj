@@ -258,7 +258,7 @@ class PerformanceMonitor {
   /**
    * 添加性能指标
    */
-  private addMetric(metric: PerformanceMetric): void {
+  public addMetric(metric: PerformanceMetric): void {
     this.metrics.push(metric);
     
     // 保持最近1000个指标

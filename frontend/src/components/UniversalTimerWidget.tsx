@@ -738,7 +738,7 @@ const renderMainControls = () => (
           {mockSuggestions.slice(0, 4).map((suggestion, index) => (
             <Button
               key={index}
-              size="small"
+              
               style={{ 
                 height: 'auto',
                 padding: '8px 12px',
@@ -852,7 +852,7 @@ const renderMainControls = () => (
                     </Text>
                     <Button 
                       type="text" 
-                      size="small" 
+                       
                       style={{ fontSize: 10, height: 'auto', padding: '2px 4px' }}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -877,7 +877,7 @@ const renderMainControls = () => (
             <div style={{ textAlign: 'center', marginTop: 12 }}>
               <Button 
                 type="link" 
-                size="small"
+                
                 loading={loadingMoreTasks}
                 onClick={loadMoreTasks}
                 style={{ fontSize: 12 }}
@@ -958,7 +958,7 @@ const renderMainControls = () => (
               {templates.map(template => (
                 <Option key={template.id} value={template.id}>
                   <Space>
-                    <Avatar size="small" icon={<ThunderboltOutlined />} />
+                    <Avatar  icon={<ThunderboltOutlined />} />
                     {template.name}
                     <Text type="secondary">({template.default_duration_minutes}分钟)</Text>
                   </Space>
@@ -980,7 +980,7 @@ const renderMainControls = () => (
         <Tooltip title={isFullscreen ? '退出全屏' : '全屏'}>
           <Button
             type="text"
-            size="small"
+            
             icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
             onClick={() => setIsFullscreen(!isFullscreen)}
           />
@@ -990,7 +990,7 @@ const renderMainControls = () => (
       <Tooltip title={isMinimized ? '展开' : '最小化'}>
         <Button
           type="text"
-          size="small"
+          
           icon={<EyeInvisibleOutlined />}
           onClick={() => setIsMinimized(!isMinimized)}
         />
@@ -1001,7 +1001,7 @@ const renderMainControls = () => (
   if (isMinimized) {
     return (
       <div ref={widgetRef} className={cardClass} style={{ position: 'fixed', bottom: 20, right: 20, zIndex: 1000 }}>
-        <Card size="small" extra={cardExtra}>
+        <Card  extra={cardExtra}>
           <Space>
             <Badge status={isRunning ? 'processing' : 'default'} color={getTimerStatusColor()}>
               <Text style={{ 
@@ -1013,7 +1013,7 @@ const renderMainControls = () => (
                 {formatDuration(elapsedSeconds)}
               </Text>
             </Badge>
-            <Button size="small" type="primary" onClick={handlePlayPause}>
+            <Button  type="primary" onClick={handlePlayPause}>
               {isRunning && !isPaused ? <PauseOutlined /> : <PlayCircleOutlined />}
             </Button>
           </Space>
@@ -1052,11 +1052,11 @@ const renderMainControls = () => (
           <Text strong style={{ fontSize: '14px', color: '#595959' }}>
             ⏱️ 活动计时（{activeTimers.length}）
           </Text>
-          <Space size="small">
-            <Button size="small" disabled={!hasActive} onClick={pauseAll}>全部暂停</Button>
-            <Button size="small" type="primary" disabled={!hasActive} onClick={resumeAll}>全部继续</Button>
-            <Button size="small" danger disabled={!hasActive} onClick={stopAll}>全部完成</Button>
-            <Button type="link" size="small" onClick={refreshActiveTimers} style={{ fontSize: 12 }}>刷新</Button>
+          <Space >
+            <Button  disabled={!hasActive} onClick={pauseAll}>全部暂停</Button>
+            <Button  type="primary" disabled={!hasActive} onClick={resumeAll}>全部继续</Button>
+            <Button  danger disabled={!hasActive} onClick={stopAll}>全部完成</Button>
+            <Button type="link"  onClick={refreshActiveTimers} style={{ fontSize: 12 }}>刷新</Button>
           </Space>
         </div>
         {!hasActive ? (
@@ -1106,14 +1106,14 @@ const renderMainControls = () => (
                           <>
                             <Tooltip title={t.status === 'running' ? '暂停' : '继续'}>
                               <Button
-                                size="small"
+                                
                                 type={t.status === 'running' ? 'default' : 'primary'}
                                 icon={t.status === 'running' ? <PauseOutlined /> : <PlayCircleOutlined />}
                                 onClick={() => (t.status === 'running' ? pauseTimerById(t.id) : resumeTimerById(t.id))}
                               />
                             </Tooltip>
                             <Tooltip title="完成">
-                              <Button size="small" danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
+                              <Button  danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
                             </Tooltip>
                           </>
                         )}

@@ -247,10 +247,10 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
           }
           color={version.isCurrent ? 'green' : 'blue'}
         >
-          <Card size="small" style={{ marginBottom: 8 }}>
+          <Card  style={{ marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space direction="vertical"  style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Text strong>版本 {version.version}</Text>
                     {version.isCurrent && <Badge status="success" text="当前版本" />}
@@ -260,8 +260,8 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                   <Text>{version.summary}</Text>
                   
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <Space size="small">
-                      <Avatar size="small" src={version.createdByAvatar} icon={<UserOutlined />} />
+                    <Space >
+                      <Avatar  src={version.createdByAvatar} icon={<UserOutlined />} />
                       <Text type="secondary">{version.createdByName}</Text>
                     </Space>
                     <Text type="secondary">
@@ -286,9 +286,9 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                 </Space>
               </div>
               
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" >
                 <Button
-                  size="small"
+                  
                   icon={<EyeOutlined />}
                   onClick={() => {
                     setSelectedVersion(version);
@@ -307,7 +307,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                     cancelText="取消"
                   >
                     <Button
-                      size="small"
+                      
                       icon={<RollbackOutlined />}
                       type="dashed"
                     >
@@ -318,7 +318,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                 
                 {index < versions.length - 1 && (
                   <Button
-                    size="small"
+                    
                     icon={<DiffOutlined />}
                     onClick={() => handleVersionCompare(versions[index + 1], version)}
                     loading={diffLoading}
@@ -367,7 +367,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
     >
       {selectedVersion && (
         <div>
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card  style={{ marginBottom: 16 }}>
             <Row gutter={[16, 16]}>
               <Col span={12}>
                 <Statistic title="版本号" value={selectedVersion.version} />
@@ -428,7 +428,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
     >
       {versionDiff && (
         <div>
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card  style={{ marginBottom: 16 }}>
             <Row gutter={[16, 16]}>
               <Col span={6}>
                 <Statistic 

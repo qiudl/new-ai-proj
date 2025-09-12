@@ -358,7 +358,7 @@ export const TaskTreeUnified: React.FC<TaskTreeUnifiedProps> = ({
         }}>
           <Space>
             <Button
-              size="small"
+              
               icon={<ExpandOutlined />}
               onClick={expandAll}
               disabled={isLoading}
@@ -366,7 +366,7 @@ export const TaskTreeUnified: React.FC<TaskTreeUnifiedProps> = ({
               全部展开
             </Button>
             <Button
-              size="small"
+              
               icon={<CompressOutlined />}
               onClick={collapseAll}
               disabled={isLoading}
@@ -375,7 +375,7 @@ export const TaskTreeUnified: React.FC<TaskTreeUnifiedProps> = ({
             </Button>
             <Button
               type="primary"
-              size="small"
+              
               icon={<ReloadOutlined />}
               loading={isLoading}
               onClick={refresh}

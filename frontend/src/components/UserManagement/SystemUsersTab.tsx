@@ -37,7 +37,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
     return (
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="总用户数"
               value={stats.total}
@@ -45,7 +45,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('total')}
                 >
                   查看全部
@@ -55,7 +55,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="系统管理员"
               value={stats.by_role?.admin || 0}
@@ -63,7 +63,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('role', 'admin')}
                 >
                   筛选
@@ -73,7 +73,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="项目经理"
               value={stats.by_role?.project_manager || 0}
@@ -81,7 +81,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('role', 'project_manager')}
                 >
                   筛选
@@ -91,7 +91,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="开发工程师"
               value={stats.by_role?.developer || 0}
@@ -99,7 +99,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('role', 'developer')}
                 >
                   筛选
@@ -119,7 +119,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
     return (
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="正常用户"
               value={stats.by_status.active || 0}
@@ -127,7 +127,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'active')}
                 >
                   筛选
@@ -137,7 +137,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="未激活用户"
               value={stats.by_status.inactive || 0}
@@ -145,7 +145,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'inactive')}
                 >
                   筛选
@@ -155,7 +155,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="已停用用户"
               value={stats.by_status.suspended || 0}
@@ -163,7 +163,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'suspended')}
                 >
                   筛选
@@ -179,7 +179,7 @@ const SystemUsersTab: React.FC<SystemUsersTabProps> = ({
   // 筛选器渲染
   const renderFilters = () => {
     return (
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Space wrap>
           <Select
             placeholder="选择角色"

@@ -185,7 +185,7 @@ const EnterpriseFilter: React.FC<EnterpriseFilterProps> = ({
       <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '12px' }}>
         <Space>
           <Button 
-            size="small" 
+             
             icon={<ClearOutlined />} 
             onClick={onReset}
             disabled={activeFilterCount === 0}
@@ -193,7 +193,7 @@ const EnterpriseFilter: React.FC<EnterpriseFilterProps> = ({
             重置
           </Button>
           <Button 
-            size="small" 
+             
             type="primary" 
             onClick={() => setFilterVisible(false)}
           >
@@ -238,7 +238,7 @@ const EnterpriseFilter: React.FC<EnterpriseFilterProps> = ({
             onOpenChange={setFilterVisible}
             placement="bottomRight"
           >
-            <Badge count={activeFilterCount} size="small" offset={[10, 0]}>
+            <Badge count={activeFilterCount}  offset={[10, 0]}>
               <Button 
                 icon={<FilterOutlined />}
                 type={activeFilterCount > 0 ? 'primary' : 'default'}
@@ -285,7 +285,7 @@ const EnterpriseFilter: React.FC<EnterpriseFilterProps> = ({
           
           <Button 
             type="link" 
-            size="small" 
+             
             icon={<ClearOutlined />}
             onClick={onReset}
             style={{ height: 'auto', padding: '2px 4px', fontSize: '11px' }}

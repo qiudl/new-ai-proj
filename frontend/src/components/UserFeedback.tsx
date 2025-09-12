@@ -128,7 +128,7 @@ export const UserFeedbackCard: React.FC<UserFeedbackCardProps> = ({
         <Button
           key="retry"
           type="primary"
-          size="small"
+          
           icon={<ReloadOutlined />}
           onClick={onRetry}
         >
@@ -139,7 +139,7 @@ export const UserFeedbackCard: React.FC<UserFeedbackCardProps> = ({
 
     if (onDismiss) {
       actions.push(
-        <Button key="dismiss" size="small" onClick={onDismiss}>
+        <Button key="dismiss"  onClick={onDismiss}>
           知道了
         </Button>
       );
@@ -150,7 +150,7 @@ export const UserFeedbackCard: React.FC<UserFeedbackCardProps> = ({
         <Button
           key="details"
           type="link"
-          size="small"
+          
           onClick={() => setShowDetailedInfo(!showDetailedInfo)}
         >
           {showDetailedInfo ? '隐藏详情' : '查看详情'}
@@ -176,7 +176,7 @@ export const UserFeedbackCard: React.FC<UserFeedbackCardProps> = ({
 
       {/* 详细信息展示 */}
       {showDetailedInfo && error && (
-        <Card size="small" style={{ marginBottom: children ? 16 : 0 }}>
+        <Card  style={{ marginBottom: children ? 16 : 0 }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             {/* 错误基本信息 */}
             <div>
@@ -285,7 +285,7 @@ export const OperationProgress: React.FC<OperationProgressProps> = ({
       title={title}
       extra={
         onCancel && status === 'active' && (
-          <Button size="small" onClick={onCancel}>
+          <Button  onClick={onCancel}>
             取消
           </Button>
         )

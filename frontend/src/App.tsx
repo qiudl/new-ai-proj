@@ -79,6 +79,9 @@ const OrganizationStructurePage = React.lazy(() => import('./pages/OrganizationS
 const PositionManagementPage = React.lazy(() => import('./pages/PositionManagementPage'));
 const EnterpriseRoleManagementPage = React.lazy(() => import('./pages/EnterpriseRoleManagementPage'));
 const EnterpriseUserManagementPage = React.lazy(() => import('./pages/EnterpriseUserManagementPage'));
+const EnterpriseCurrentInfoPage = React.lazy(() => import('./pages/EnterpriseCurrentInfoPage'));
+const EnterpriseDepartmentsRedirectPage = React.lazy(() => import('./pages/EnterpriseDepartmentsRedirectPage'));
+const EnterpriseUsersRedirectPage = React.lazy(() => import('./pages/EnterpriseUsersRedirectPage'));
 
 const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumentManagerPage'));
 // const DocumentEditorPage = React.lazy(() => import('./pages/DocumentEditorPage')); // 已归档
@@ -140,8 +143,6 @@ const AppContent: React.FC = () => {
       });
       // 加载API集成测试
       import('./test/apiIntegrationTest').then(({ runAllApiTests }) => {
-        console.log('🔧 开发环境已加载API集成测试');
-        console.log('运行 window.apiTests.runAll() 测试所有API功能');
       }).catch(error => {
         console.warn('API测试加载失败:', error);
       });
@@ -303,29 +304,19 @@ const AppContent: React.FC = () => {
                 } />
 
                 {/* Enterprise management routes */}
-                <Route path="/enterprises" element={
-                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.READ}>
-                    <EnterpriseManagementPage />
-                  </PermissionRoute>
-                } />
+                <Route path="/enterprises" element={<EnterpriseManagementPage />} />
+                <Route path="/enterprises/create" element={<EnterpriseCreatePage />} />
+                <Route path="/enterprises/:id" element={<EnterpriseDetailPage />} />
+                <Route path="/enterprises/:id/edit" element={<EnterpriseEditPage />} />
 
-                <Route path="/enterprises/create" element={
-                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.CREATE}>
-                    <EnterpriseCreatePage />
-                  </PermissionRoute>
-                } />
+                {/* Enterprise current info route - for impersonation mode */}
+                <Route path="/enterprise" element={<EnterpriseCurrentInfoPage />} />
 
-                <Route path="/enterprises/:id" element={
-                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.READ}>
-                    <EnterpriseDetailPage />
-                  </PermissionRoute>
-                } />
+                {/* Enterprise departments route - redirect to organization structure */}
+                <Route path="/enterprise/departments" element={<EnterpriseDepartmentsRedirectPage />} />
 
-                <Route path="/enterprises/:id/edit" element={
-                  <PermissionRoute permission={ENTERPRISE_PERMISSIONS.UPDATE}>
-                    <EnterpriseEditPage />
-                  </PermissionRoute>
-                } />
+                {/* Enterprise users route - redirect to current enterprise users */}
+                <Route path="/enterprise/users" element={<EnterpriseUsersRedirectPage />} />
 
                 {/* Enterprise customer management routes (legacy) */}
 
@@ -502,11 +493,6 @@ function App() {
     
     if (config.enablePerformanceMonitoring) {
       installPerformanceInterceptors();
-      if (process.env.NODE_ENV === 'development') {
-        console.log('性能监控已启用');
-      }
-    } else if (process.env.NODE_ENV === 'development') {
-      console.log('性能监控已禁用（优化内存使用）');
     }
     
     // 启动内存监控

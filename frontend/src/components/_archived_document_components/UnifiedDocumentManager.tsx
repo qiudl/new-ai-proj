@@ -551,7 +551,7 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
                       fontSize: '14px' 
                     }} 
                   />
-                  <Badge count={collaboration.getOnlineUserCount()} size="small">
+                  <Badge count={collaboration.getOnlineUserCount()} >
                     <UserOutlined style={{ fontSize: '14px' }} />
                   </Badge>
                 </Space>
@@ -564,7 +564,7 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
                 <Space>
                   <BulbOutlined style={{ color: '#1890ff', fontSize: '14px' }} />
                   {recommendations.length > 0 && (
-                    <Badge count={recommendations.length} size="small">
+                    <Badge count={recommendations.length} >
                       <ThunderboltOutlined style={{ fontSize: '14px' }} />
                     </Badge>
                   )}
@@ -579,7 +579,7 @@ const UnifiedDocumentManager: React.FC<UnifiedDocumentManagerProps> = ({
                   {advancedMode ? '高级' : '简洁'}
                 </Text>
                 <Switch
-                  size="small"
+                  
                   checked={advancedMode}
                   onChange={handleModeSwitch}
                   checkedChildren={<SettingOutlined />}

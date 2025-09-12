@@ -58,7 +58,7 @@ const MobileFilterPanel: React.FC<MobileFilterPanelProps> = ({
           {hasActiveFilters && (
             <Button
               type="text"
-              size="small"
+              
               icon={<ClearOutlined />}
               onClick={clearFilters}
             >

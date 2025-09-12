@@ -498,7 +498,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                   </div>
                   <Progress
                     percent={Math.round((uploadStats.completedFiles / uploadStats.totalFiles) * 100)}
-                    size="small"
+                    
                     status="active"
                   />
                 </div>
@@ -510,7 +510,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
 <Text className="flex-1 truncate">
                         {progress.fileName}
                       </Text>
-                      <Space size="small">
+                      <Space >
                         {progress.status === 'uploading' && progress.speed && (
 <Text type="secondary">
                             {taskDocumentService.formatFileSize(progress.speed)}/s
@@ -534,7 +534,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                     </div>
                     <Progress
                       percent={progress.progress}
-                      size="small"
+                      
                       status={
                         progress.status === 'success' ? 'success' : 
                         progress.status === 'error' ? 'exception' : 'active'
@@ -611,7 +611,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                           </Text>
                           <Button
                             type="text"
-                            size="small"
+                            
                             icon={<DeleteOutlined />}
                             onClick={() => {
                               setFileList(prev => prev.filter((_, i) => i !== index));
@@ -732,7 +732,7 @@ const TaskDocumentUploader: React.FC<TaskDocumentUploaderProps> = ({
                     </Space>
                   }
                   description={
-                    <Space direction="vertical" size="small">
+                    <Space direction="vertical" >
                       <Text type="secondary">
                         大小: {taskDocumentService.formatFileSize(doc.file_size)} | 
                         类型: {doc.mime_type} | 

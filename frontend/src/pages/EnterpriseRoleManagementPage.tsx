@@ -380,7 +380,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
         <Space>
           <Button
             type="link"
-            size="small"
+            
             icon={<EditOutlined />}
             onClick={() => showRoleModal(record)}
             disabled={record.is_system}
@@ -389,7 +389,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
           </Button>
           <Button
             type="link"
-            size="small"
+            
             icon={<SettingOutlined />}
             onClick={() => showPermissionModal(record)}
           >
@@ -397,7 +397,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
           </Button>
           <Button
             type="link"
-            size="small"
+            
             icon={<CopyOutlined />}
             onClick={() => handleRoleCopy(record)}
           >
@@ -405,7 +405,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
           </Button>
           <Button
             type="link"
-            size="small"
+            
             icon={<DeleteOutlined />}
             danger
             onClick={() => handleRoleDelete(record)}
@@ -465,8 +465,8 @@ const EnterpriseRoleManagementPage: React.FC = () => {
       key: 'actions',
       render: (record: UserRole) => (
         <Space>
-          <Button type="link" size="small">修改</Button>
-          <Button type="link" size="small" danger>撤销</Button>
+          <Button type="link" >修改</Button>
+          <Button type="link"  danger>撤销</Button>
         </Space>
       )
     }
@@ -508,7 +508,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
                 dataSource={(roles || []).flatMap(role => [role, ...(role.children || [])])}
                 rowKey="id"
                 loading={loading}
-                size="small"
+                
                 pagination={{
                   pageSize: 10,
                   showSizeChanger: true,
@@ -577,7 +577,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
             columns={userRoleColumns}
             dataSource={userRoles || []}
             rowKey="id"
-            size="small"
+            
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
@@ -720,7 +720,7 @@ const EnterpriseRoleManagementPage: React.FC = () => {
                           <Space>
                             <Text strong>{permission.name}</Text>
                             <Text code>{permission.code}</Text>
-                            {permission.is_system && <Tag size="small" color="blue">系统</Tag>}
+                            {permission.is_system && <Tag  color="blue">系统</Tag>}
                           </Space>
                           <div style={{ marginLeft: 24, color: '#666', fontSize: '12px' }}>
                             {permission.description}

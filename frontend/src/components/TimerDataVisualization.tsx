@@ -302,7 +302,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
     return (
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
+          <Card  style={{ textAlign: 'center' }}>
             <Statistic
               title="今日工时"
               value={timerDataAnalyticsService.formatDuration(today_stats.total_seconds)}
@@ -312,7 +312,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
+          <Card  style={{ textAlign: 'center' }}>
             <Statistic
               title="完成会话"
               value={today_stats.session_count}
@@ -323,7 +323,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
+          <Card  style={{ textAlign: 'center' }}>
             <Statistic
               title="效率评分"
               value={today_stats.efficiency_score}
@@ -338,7 +338,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" style={{ textAlign: 'center' }}>
+          <Card  style={{ textAlign: 'center' }}>
             <div style={{ fontSize: compactMode ? '12px' : '14px', color: '#8c8c8c', marginBottom: '8px' }}>
               目标达成
             </div>
@@ -367,7 +367,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
       <div>
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col span={8}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="整体效率"
                 value={metrics.overall_efficiency}
@@ -383,7 +383,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="专注指数"
                 value={metrics.focus_index}
@@ -399,7 +399,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
             </Card>
           </Col>
           <Col span={8}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="一致性"
                 value={metrics.consistency_score}
@@ -417,7 +417,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
           </Col>
         </Row>
         
-        <Card size="small" title="工作建议" style={{ fontSize: compactMode ? '12px' : '14px' }}>
+        <Card  title="工作建议" style={{ fontSize: compactMode ? '12px' : '14px' }}>
           <ul style={{ margin: 0, paddingLeft: '20px' }}>
             {analyticsData.task_completion_analysis.improvement_suggestions.map((suggestion, index) => (
               <li key={index} style={{ marginBottom: '4px' }}>{suggestion}</li>
@@ -434,7 +434,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
         title="📊 数据分析" 
         style={{ height, ...style }}
         extra={
-          <Button size="small" icon={<ReloadOutlined />} onClick={handleRefresh}>
+          <Button  icon={<ReloadOutlined />} onClick={handleRefresh}>
             重试
           </Button>
         }
@@ -455,7 +455,7 @@ const TimerDataVisualization: React.FC<TimerDataVisualizationProps> = ({
       extra={
         <Tooltip title="刷新数据">
           <Button 
-            size="small" 
+             
             icon={<ReloadOutlined />} 
             onClick={handleRefresh}
             loading={loading}

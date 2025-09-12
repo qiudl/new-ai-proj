@@ -137,7 +137,7 @@ const KeyboardShortcutsHelp: React.FC<KeyboardShortcutsHelpProps> = ({
               }))}
               columns={columns}
               pagination={false}
-              size="small"
+              
               rowKey="id"
               style={{ marginBottom: '16px' }}
             />

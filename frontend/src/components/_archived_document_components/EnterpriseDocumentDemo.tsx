@@ -196,7 +196,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
     >
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <TeamOutlined style={{ fontSize: '32px', color: '#52c41a', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>实时协作</div>
@@ -205,7 +205,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <BulbOutlined style={{ fontSize: '32px', color: '#1890ff', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>智能搜索</div>
@@ -214,7 +214,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <EditOutlined style={{ fontSize: '32px', color: '#722ed1', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>在线编辑</div>
@@ -223,7 +223,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <HistoryOutlined style={{ fontSize: '32px', color: '#fa541c', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>版本控制</div>
@@ -232,7 +232,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <GoogleOutlined style={{ fontSize: '32px', color: '#4285f4', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>Google Docs</div>
@@ -241,7 +241,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <ThunderboltOutlined style={{ fontSize: '32px', color: '#faad14', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>高性能</div>
@@ -250,7 +250,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <CloudOutlined style={{ fontSize: '32px', color: '#13c2c2', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>云端存储</div>
@@ -259,7 +259,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
-          <Card size="small" hoverable>
+          <Card  hoverable>
             <div style={{ textAlign: 'center' }}>
               <SettingOutlined style={{ fontSize: '32px', color: '#8c8c8c', marginBottom: 8 }} />
               <div style={{ fontWeight: 'bold' }}>权限管理</div>
@@ -284,7 +284,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
         <Space>
           <Text type="secondary">显示功能介绍</Text>
           <Switch
-            size="small"
+            
             checked={showFeatures}
             onChange={setShowFeatures}
           />
@@ -295,7 +295,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
         activeKey={currentDemo}
         onChange={setCurrentDemo}
         type="card"
-        size="small"
+        
       >
         {Object.entries(DEMO_CONFIGS).map(([key, config]) => (
           <TabPane
@@ -357,7 +357,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
   const renderStats = () => {
     const config = DEMO_CONFIGS[currentDemo];
     return (
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Row gutter={16}>
           <Col span={6}>
             <Statistic
@@ -428,7 +428,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
         style={{ marginBottom: 16 }}
         action={
           currentConfig.highlight && (
-            <Button size="small" type="primary" ghost>
+            <Button  type="primary" ghost>
               企业级推荐
             </Button>
           )
@@ -460,7 +460,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
         </Title>
         <Row gutter={[16, 16]}>
           <Col xs={24} md={8}>
-            <Card size="small" title="🚀 快速开始">
+            <Card  title="🚀 快速开始">
               <Paragraph>
                 推荐从<strong>基础模式</strong>开始，逐步启用高级功能。
                 企业用户可直接使用<strong>企业级完整版</strong>。
@@ -468,7 +468,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} md={8}>
-            <Card size="small" title="⚡ 性能优化">
+            <Card  title="⚡ 性能优化">
               <Paragraph>
                 大数据场景启用<strong>虚拟化列表</strong>，
                 协作场景启用<strong>实时协作</strong>功能。
@@ -476,7 +476,7 @@ const EnterpriseDocumentDemo: React.FC = () => {
             </Card>
           </Col>
           <Col xs={24} md={8}>
-            <Card size="small" title="🔧 定制开发">
+            <Card  title="🔧 定制开发">
               <Paragraph>
                 所有组件均支持高度自定义，
                 可根据具体业务需求调整功能配置。

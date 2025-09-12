@@ -1107,3 +1107,6 @@ const mergedRaw = { ...(params || {}) } as any;
   }
 
 }
+
+// Export a default instance
+export const taskService = new TaskService();

@@ -94,7 +94,7 @@ const ImpersonationStateTest: React.FC = () => {
                 {warning.actions.map((action, actionIndex) => (
                   <Button
                     key={actionIndex}
-                    size="small"
+                    
                     type={action.type === 'primary' ? 'primary' : action.type === 'danger' ? 'default' : 'default'}
                     danger={action.type === 'danger'}
                     onClick={action.action}
@@ -154,7 +154,7 @@ const ImpersonationStateTest: React.FC = () => {
       <Card title="基础状态" style={{ marginBottom: '16px' }}>
         <Descriptions column={2} bordered>
           <Descriptions.Item label="模拟状态">
-            {loading ? <Spin size="small" /> : (
+            {loading ? <Spin  /> : (
               <Tag color={isImpersonating ? 'red' : 'green'}>
                 {isImpersonating ? '正在模拟' : '正常状态'}
               </Tag>

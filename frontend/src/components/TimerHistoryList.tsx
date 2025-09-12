@@ -323,7 +323,7 @@ title={
                     </Space>
                   }
                   description={
-                    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                    <Space direction="vertical"  style={{ width: '100%' }}>
                       <Space>
                         <CalendarOutlined />
                         <Text type="secondary">

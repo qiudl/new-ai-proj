@@ -189,8 +189,8 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
         }}
         onClick={() => setShowMonitor(!showMonitor)}
       >
-        <Card size="small" style={{ minWidth: '120px' }}>
-          <Space direction="vertical" size="small">
+        <Card  style={{ minWidth: '120px' }}>
+          <Space direction="vertical" >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {status.type === 'error' ? <ExclamationCircleOutlined style={{ color: status.color }} /> :
                status.type === 'warning' ? <WarningOutlined style={{ color: status.color }} /> :
@@ -201,7 +201,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
             </div>
             <Progress 
               percent={Math.round(usage)} 
-              size="small" 
+               
               strokeColor={status.color}
               format={() => `${Math.round(usage)}%`}
             />
@@ -222,7 +222,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
         >
           <Card 
             title="内存使用监控"
-            size="small"
+            
             extra={
               <Button 
                 type="text" 
@@ -269,7 +269,7 @@ const MemoryMonitor: React.FC<MemoryMonitorProps> = ({
 
               <div>
                 <Button 
-                  size="small" 
+                   
                   onClick={triggerCleanup}
                   style={{ width: '100%' }}
                 >

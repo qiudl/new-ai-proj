@@ -488,7 +488,7 @@ const TaskEditPage: React.FC = () => {
         <Col xs={24} lg={8}>
           {/* 任务上下文信息 */}
           <Card title="任务信息" style={{ marginBottom: '16px' }}>
-            <Descriptions column={1} size="small">
+            <Descriptions column={1} >
               <Descriptions.Item label="任务ID">#{task.id}</Descriptions.Item>
               <Descriptions.Item label="所属项目">
                 {projectInfo ? (

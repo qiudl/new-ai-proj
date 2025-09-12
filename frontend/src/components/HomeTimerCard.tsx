@@ -110,14 +110,14 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
             <Badge status="default" text="空闲中" />
           </Space>
         }
-        size="small"
+        
         style={style}
         className={className}
         extra={
           <Tooltip title="开始计时">
             <Button 
               type="primary" 
-              size="small"
+              
               icon={<PlayCircleOutlined />}
               onClick={handleQuickStart}
             >
@@ -155,7 +155,7 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
           <Badge status="processing" text="计时中" />
         </Space>
       }
-      size="small"
+      
       style={{
         ...style,
         background: '#f6ffed',
@@ -182,7 +182,7 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
             </Text>
             <Button
               type="link"
-              size="small"
+              
               icon={<EyeOutlined />}
               onClick={handleViewTaskDetail}
               style={{ padding: 0 }}
@@ -271,11 +271,11 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
             <Text strong style={{ fontSize: 14 }}>
               ⏱️ 正在计时（{activeTimers?.length || 0}）
             </Text>
-            <Space size="small">
-              <Button size="small" onClick={pauseAll} disabled={!activeTimers || activeTimers.length === 0}>全部暂停</Button>
-              <Button size="small" type="primary" onClick={resumeAll} disabled={!activeTimers || activeTimers.length === 0}>全部继续</Button>
-              <Button size="small" danger onClick={stopAll} disabled={!activeTimers || activeTimers.length === 0}>全部完成</Button>
-              <Button size="small" type="text" icon={<ReloadOutlined />} onClick={refreshActiveTimers} />
+            <Space >
+              <Button  onClick={pauseAll} disabled={!activeTimers || activeTimers.length === 0}>全部暂停</Button>
+              <Button  type="primary" onClick={resumeAll} disabled={!activeTimers || activeTimers.length === 0}>全部继续</Button>
+              <Button  danger onClick={stopAll} disabled={!activeTimers || activeTimers.length === 0}>全部完成</Button>
+              <Button  type="text" icon={<ReloadOutlined />} onClick={refreshActiveTimers} />
             </Space>
           </div>
 
@@ -296,16 +296,16 @@ const HomeTimerCard: React.FC<HomeTimerCardProps> = ({
                       </div>
                     </div>
                   </div>
-                  <Space size="small">
+                  <Space >
                     {t.status === 'running' ? (
                       <>
-                        <Button size="small" onClick={() => pauseTimerById(t.id)} icon={<PauseCircleOutlined />}>暂停</Button>
-                        <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                        <Button  onClick={() => pauseTimerById(t.id)} icon={<PauseCircleOutlined />}>暂停</Button>
+                        <Button  danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
                       </>
                     ) : (
                       <>
-                        <Button size="small" type="primary" onClick={() => resumeTimerById(t.id)} icon={<PlayCircleOutlined />}>继续</Button>
-                        <Button size="small" danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
+                        <Button  type="primary" onClick={() => resumeTimerById(t.id)} icon={<PlayCircleOutlined />}>继续</Button>
+                        <Button  danger onClick={() => stopTimerById(t.id)} icon={<StopOutlined />}>完成</Button>
                       </>
                     )}
                   </Space>

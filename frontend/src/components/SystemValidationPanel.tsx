@@ -288,7 +288,7 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
                     
                     return (
                       <Col span={8} key={category}>
-                        <Card size="small" style={{ height: '120px' }}>
+                        <Card  style={{ height: '120px' }}>
                           <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '24px', marginBottom: '8px' }}>
                               {getCategoryIcon(category)}
@@ -347,7 +347,7 @@ export const SystemValidationPanel: React.FC<SystemValidationPanelProps> = ({
                       </Tag>
                     </Space>
                   }
-                  size="small"
+                  
                   style={{ marginBottom: '16px' }}
                 >
                   <List

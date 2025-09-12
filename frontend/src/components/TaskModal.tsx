@@ -534,7 +534,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                       borderRadius: 6,
                       backgroundColor: '#fafafa'
                     }}>
-                      <Spin size="small" />
+                      <Spin  />
                       <span style={{ color: '#8c8c8c' }}>正在加载父任务信息...</span>
                     </div>
                   );
@@ -558,7 +558,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                       <Tooltip title="清除选择">
                         <Button 
                           type="text" 
-                          size="small" 
+                           
                           onClick={() => handleParentSelect(null, null)}
                         >
                           ✕

@@ -40,14 +40,12 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       setLoading(true);
       setError(null);
       
-      console.log('🔄 检查模拟状态...');
       const status = await impersonationService.getStatus();
       
       setImpersonationStatus(status);
       setIsImpersonating(status.is_impersonating);
       
       if (status.is_impersonating) {
-        console.log('✅ 当前处于模拟状态:', status.enterprise?.name);
         
         // 检查会话是否即将过期
         if (status.session?.expires_at) {
@@ -64,7 +62,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
           }
         }
       } else {
-        console.log('ℹ️ 当前未处于模拟状态');
       }
       
     } catch (err) {
@@ -88,7 +85,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       setLoading(true);
       setError(null);
       
-      console.log('🚀 开始模拟企业，ID:', enterpriseId, '原因:', reason);
       
       const response: StartImpersonationResponse = await impersonationService.startImpersonation(enterpriseId, reason);
       
@@ -97,17 +93,14 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
         if (response.token) {
           const oldToken = localStorage.getItem('token');
           localStorage.setItem('token', response.token);
-          console.log('🔄 Token已更新，长度:', response.token.length);
           
           // 手动触发状态刷新，因为同窗口localStorage变化不会触发storage事件
-          console.log('🔄 手动刷新模拟状态...');
         }
         
         // 刷新状态 - 必须在token更新后调用
         await getImpersonationStatus();
         
         message.success(`开始模拟企业: ${response.enterprise.name}`);
-        console.log('✅ 模拟开始成功');
         
         // 设置警告提示
         setShowWarning(true);
@@ -134,7 +127,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       setLoading(true);
       setError(null);
       
-      console.log('🚪 退出模拟...');
       
       const response: ExitImpersonationResponse = await impersonationService.exitImpersonation();
       
@@ -142,7 +134,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
         // 更新token
         if (response.token) {
           localStorage.setItem('token', response.token);
-          console.log('🔄 Token已更新为原始令牌，长度:', response.token.length);
         }
         
         // 清除状态
@@ -152,7 +143,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
         setWarningMessage('');
         
         message.success(`已退出模拟，恢复为用户: ${response.original_user.username}`);
-        console.log('✅ 退出模拟成功');
         
       } else {
         throw new Error(response.message || '退出模拟失败');
@@ -175,11 +165,9 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
       setLoading(true);
       setError(null);
       
-      console.log('📋 获取模拟历史，页码:', page, '每页:', pageSize);
       
       const response: ImpersonationHistoryResponse = await impersonationService.getHistory(page, pageSize);
       
-      console.log('✅ 获取模拟历史成功:', response.data.length, '条记录');
       return response.data;
       
     } catch (err) {
@@ -194,13 +182,11 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
 
   // 刷新状态
   const refreshStatus = useCallback(async () => {
-    console.log('🔄 手动刷新模拟状态...');
     await getImpersonationStatus();
   }, [getImpersonationStatus]);
 
   // 触发token变化事件的辅助函数
   const triggerTokenChangeEvent = useCallback(() => {
-    console.log('🔥 触发token变化事件');
     window.dispatchEvent(new CustomEvent('tokenChanged'));
   }, []);
 
@@ -243,7 +229,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
     const initializeImpersonation = async () => {
       const token = localStorage.getItem('token');
       if (token) {
-        console.log('🔄 初始化检查模拟状态...');
         await getImpersonationStatus();
       }
     };
@@ -254,10 +239,8 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'token') {
         if (e.newValue) {
-          console.log('👤 检测到跨窗口token变化，重新检查模拟状态');
           initializeImpersonation();
         } else {
-          console.log('👤 检测到跨窗口token清除，清空模拟状态');
           setIsImpersonating(false);
           setImpersonationStatus(null);
           setShowWarning(false);
@@ -268,7 +251,6 @@ export const ImpersonationProvider: React.FC<ImpersonationProviderProps> = ({ ch
 
     // 监听自定义token变化事件（用于同窗口）
     const handleCustomTokenChange = (e: CustomEvent) => {
-      console.log('👤 检测到同窗口token变化事件');
       initializeImpersonation();
     };
 

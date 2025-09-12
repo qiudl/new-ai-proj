@@ -362,7 +362,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
             {record.usage_limit && (
               <Progress 
                 percent={usagePercent} 
-                size="small" 
+                 
                 status={usagePercent >= 90 ? 'exception' : 'normal'}
                 showInfo={false}
               />
@@ -387,11 +387,11 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       key: 'actions',
       width: 200,
       render: (_, record: APIKey) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看详情">
             <Button
               type="text"
-              size="small"
+              
               icon={<EyeOutlined />}
               onClick={() => navigate(`/api-keys/${record.id}`)}
             />
@@ -400,7 +400,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           <Tooltip title="编辑">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => {
                 setEditingKey(record);
@@ -420,7 +420,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           
           <Tooltip title={record.is_active ? '禁用' : '启用'}>
             <Switch
-              size="small"
+              
               checked={record.is_active}
               onChange={() => toggleStatus(record.id, record.is_active)}
             />
@@ -436,7 +436,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
             >
               <Button
                 type="text"
-                size="small"
+                
                 icon={<ReloadOutlined />}
               />
             </Popconfirm>
@@ -452,7 +452,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
             >
               <Button
                 type="text"
-                size="small"
+                
                 danger
                 icon={<DeleteOutlined />}
               />
@@ -500,7 +500,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
       {/* 使用统计 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
-          <Card size="small">
+          <Card >
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#1890ff' }}>
                 {apiKeys.length}
@@ -510,7 +510,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small">
+          <Card >
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#52c41a' }}>
                 {apiKeys.filter(key => key.is_active).length}
@@ -520,7 +520,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small">
+          <Card >
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#faad14' }}>
                 {apiKeys.filter(key => key.expires_at && dayjs(key.expires_at).isBefore(dayjs().add(7, 'day'))).length}
@@ -530,7 +530,7 @@ const APIKeyManagement: React.FC<APIKeyManagementProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small">
+          <Card >
             <div style={{ textAlign: 'center' }}>
               <Title level={3} style={{ margin: 0, color: '#ff4d4f' }}>
                 {apiKeys.filter(key => key.expires_at && dayjs(key.expires_at).isBefore(dayjs())).length}

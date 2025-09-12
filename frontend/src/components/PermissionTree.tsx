@@ -123,9 +123,9 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
                     <Text strong style={{ color: isActive ? '#000' : '#999' }}>
                       {name}
                     </Text>
-                    {!isActive && <Tag color="red" size="small">已停用</Tag>}
+                    {!isActive && <Tag color="red" >已停用</Tag>}
                     {permission.module && (
-                      <Tag color="geekblue" size="small">{permission.module}</Tag>
+                      <Tag color="geekblue" >{permission.module}</Tag>
                     )}
                   </Space>
                   <Text 
@@ -305,7 +305,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Space>
                 <Button
-                  size="small"
+                  
                   icon={expandedKeys.length > 0 ? <CompressOutlined /> : <ExpandAltOutlined />}
                   onClick={handleExpandAll}
                 >
@@ -313,7 +313,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
                 </Button>
                 
                 <Button
-                  size="small"
+                  
                   icon={checkedKeys.length === statistics.active ? <CloseOutlined /> : <CheckOutlined />}
                   onClick={handleSelectAll}
                   disabled={disabled}
@@ -323,7 +323,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
                 
                 {onRefresh && (
                   <Button
-                    size="small"
+                    
                     icon={<ReloadOutlined />}
                     onClick={onRefresh}
                     loading={loading}
@@ -339,7 +339,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
 
       {/* 统计信息 */}
       {showStatistics && (
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card  style={{ marginBottom: 16 }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Space>
@@ -399,7 +399,7 @@ const PermissionTree: React.FC<PermissionTreeProps> = ({
                         {node.title}
                         <Button
                           type="link"
-                          size="small"
+                          
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCategorySelect(node.category || '');

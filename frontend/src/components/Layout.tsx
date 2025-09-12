@@ -154,7 +154,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const fetchUser = async () => {
       try {
         const token = localStorage.getItem('token');
-        console.log('[DEBUG Layout] Token from localStorage exists:', !!token);
         if (!token) {
           console.error('No token found, redirecting to login');
           navigate('/login');
@@ -162,21 +161,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }
 
         const response = await userService.getProfile();
-        console.log('[DEBUG Layout] Profile API response:', response);
         
         if (response.success && response.data) {
-          console.log('[DEBUG Layout] Setting currentUser:', {
-            id: response.data.id,
-            username: response.data.username,
-            role: response.data.role,
-            email: response.data.email,
-            userType: response.data.user_type
-          });
           setCurrentUser(response.data);
           
           // 存储到localStorage以便调试
           localStorage.setItem('currentUser', JSON.stringify(response.data));
-          console.log('[DEBUG Layout] User stored in localStorage');
         } else {
           console.error('Failed to load user profile:', response.message);
           // Don't redirect to login for profile fetch failure, user might still be authenticated
@@ -186,7 +176,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         // Check if it's an authentication error
         if (hasTypeField(error) && error.type === 'AUTHENTICATION') {
-          console.log('[DEBUG Layout] Authentication error, clearing storage and redirecting');
           localStorage.removeItem('token');
           localStorage.removeItem('currentUser');
           navigate('/login');
@@ -195,15 +184,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         // For other errors, don't redirect but show a fallback
         const storedUser = localStorage.getItem('currentUser');
-        console.log('[DEBUG Layout] Attempting to use stored user, exists:', !!storedUser);
         if (storedUser) {
           try {
             const parsedUser = JSON.parse(storedUser);
-            console.log('[DEBUG Layout] Using fallback stored user:', {
-              id: parsedUser.id,
-              username: parsedUser.username,
-              role: parsedUser.role
-            });
             setCurrentUser(parsedUser);
           } catch (parseError) {
             console.error('Failed to parse stored user data:', parseError);
@@ -477,8 +460,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     
     // 如果处于模拟状态，调整菜单显示
     if (isImpersonating) {
-      // 移除系统管理菜单
+      // 移除系统管理菜单和企业客户菜单
       filteredItems = filteredItems.filter(item => item.key !== '/system-management');
+      
+      // 移除或修改项目客户菜单中的企业客户子项
+      filteredItems = filteredItems.map(item => {
+        if (item.key === '/project-customer-management' && item.children) {
+          return {
+            ...item,
+            children: item.children.filter((child: any) => child.key !== '/enterprises')
+          };
+        }
+        return item;
+      });
       
       // 确保显示企业管理菜单
       const hasEnterpriseMenu = filteredItems.some(item => item.key === '/enterprise');
@@ -492,7 +486,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             label: '企业管理',
             children: [
               {
-                key: '/enterprise',
+                key: '/enterprise/info',
                 icon: <BankOutlined />,
                 label: '企业信息',
               },
@@ -512,21 +506,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       }
     }
     
-    // 开发环境下打印菜单过滤结果
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[DEBUG Layout] Menu filtering:', {
-        userRole: currentUser.role,
-        userType: userType,
-        isImpersonating: isImpersonating,
-        originalMenuCount: baseSidebarItems.length,
-        filteredMenuCount: filteredItems.length,
-        filteredItems: filteredItems.map(item => ({
-          key: item.key,
-          label: item.label,
-          childrenCount: item.children?.length || 0
-        }))
-      });
-    }
     
     return filteredItems;
   }, [currentUser, isImpersonating]);
@@ -642,12 +621,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <span>
                   {(() => {
                     const displayText = currentUser?.username || '加载中...';
-                    console.log('[DEBUG Layout] Rendering user display:', {
-                      currentUser: currentUser,
-                      username: currentUser?.username,
-                      role: currentUser?.role,
-                      displayText: displayText
-                    });
                     return displayText;
                   })()}
                 </span>

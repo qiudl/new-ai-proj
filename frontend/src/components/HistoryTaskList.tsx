@@ -188,7 +188,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
           </Title>
           <Button 
             type="text" 
-            size="small"
+            
             icon={<ReloadOutlined />}
             onClick={loadHistoryTasks}
             loading={loading}
@@ -212,7 +212,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
             />
           ) : (
             <List
-              size="small"
+              
               dataSource={historyTasks}
               style={{ height: '100%', overflow: 'auto' }}
               renderItem={(task) => (
@@ -225,7 +225,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                     <Tooltip title="开始计时">
                       <Button 
                         type="text" 
-                        size="small"
+                        
                         icon={<PlayCircleOutlined />}
                         onClick={() => handleStartTimer(task)}
                         disabled={timerState.isRunning && timerState.taskId === task.task_id}
@@ -234,7 +234,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                     <Tooltip title="查看详情">
                       <Button 
                         type="text" 
-                        size="small"
+                        
                         icon={<EyeOutlined />}
                         onClick={() => handleViewDetails(task)}
                       />
@@ -248,7 +248,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                       <Tooltip title="删除记录">
                         <Button 
                           type="text" 
-                          size="small"
+                          
                           icon={<DeleteOutlined />}
                           danger
                         />
@@ -331,7 +331,7 @@ const HistoryTaskList: React.FC<HistoryTaskListProps> = ({
                   <Title level={5}>计时记录</Title>
                   {taskTimeHistory.sessions && taskTimeHistory.sessions.length > 0 ? (
                     <List
-                      size="small"
+                      
                       dataSource={taskTimeHistory.sessions}
                       renderItem={(session: SessionInfo) => (
                         <List.Item>

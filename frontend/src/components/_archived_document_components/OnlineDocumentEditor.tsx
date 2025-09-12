@@ -792,7 +792,7 @@ const OnlineDocumentEditor: React.FC<OnlineDocumentEditorProps> = ({
 
       <Space>
         {enableCollaboration && EDITOR_CONFIGS[currentEditor].supportRealtime && (
-          <Badge count={collaborators.length} size="small">
+          <Badge count={collaborators.length} >
             <Button icon={<TeamOutlined />} type="text">
               协作
             </Button>
@@ -836,8 +836,8 @@ const OnlineDocumentEditor: React.FC<OnlineDocumentEditorProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {config.icon}
             <span style={{ fontWeight: 500 }}>{config.name}</span>
-            {config.isCloud && <Badge count="云端" size="small" />}
-            {config.supportRealtime && <Badge count="协作" size="small" />}
+            {config.isCloud && <Badge count="云端"  />}
+            {config.supportRealtime && <Badge count="协作"  />}
           </div>
         }
         description={

@@ -307,7 +307,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       }}
     >
       {/* 基本信息 */}
-      <Card size="small" title={
+      <Card  title={
         <Space>
           <FileTextOutlined />
           <span>基本信息</span>
@@ -362,7 +362,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       </Card>
 
       {/* 关联信息 */}
-      <Card size="small" title={
+      <Card  title={
         <Space>
           <ProjectOutlined />
           <span>关联信息</span>
@@ -441,7 +441,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       </Card>
 
       {/* 标签和分类 */}
-      <Card size="small" title={
+      <Card  title={
         <Space>
           <TagsOutlined />
           <span>标签管理</span>
@@ -501,7 +501,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       </Card>
 
       {/* 权限和可见性 */}
-      <Card size="small" title={
+      <Card  title={
         <Space>
           <EyeOutlined />
           <span>权限设置</span>
@@ -568,7 +568,7 @@ const DocumentPropertyEditor: React.FC<DocumentPropertyEditorProps> = ({
       </Card>
 
       {/* 高级设置 */}
-      <Card size="small" title={
+      <Card  title={
         <Space>
           <CalendarOutlined />
           <span>高级设置</span>

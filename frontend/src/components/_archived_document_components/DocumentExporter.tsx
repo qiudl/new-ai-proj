@@ -362,7 +362,7 @@ const DocumentExporter: React.FC<DocumentExporterProps> = ({
         }}
       >
         {/* 文档信息 */}
-        <Card size="small" style={{ marginBottom: '16px', backgroundColor: '#f8f9fa' }}>
+        <Card  style={{ marginBottom: '16px', backgroundColor: '#f8f9fa' }}>
           <Title level={5} style={{ margin: 0, marginBottom: '8px' }}>
             {document.title}
           </Title>
@@ -387,7 +387,7 @@ const DocumentExporter: React.FC<DocumentExporterProps> = ({
             {exportFormats.map(format => (
               <Card
                 key={format.key}
-                size="small"
+                
                 style={{ 
                   marginBottom: '8px',
                   cursor: 'pointer',

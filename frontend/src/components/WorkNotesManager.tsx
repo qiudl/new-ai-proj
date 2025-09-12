@@ -693,18 +693,18 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
       width: 240,
       fixed: 'right',
       render: (_, record: WorkNote) => (
-        <Space size="small" wrap>
+        <Space  wrap>
           <Tooltip title="查看详情">
             <Button
               icon={<EyeOutlined />}
-              size="small"
+              
               onClick={() => handleView(record)}
             />
           </Tooltip>
           <Tooltip title="编辑内容">
             <Button
               icon={<EditOutlined />}
-              size="small"
+              
               type="primary"
               ghost
               onClick={() => openEditModal(record)}
@@ -713,7 +713,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           <Tooltip title="转换为任务文档">
             <Button
               icon={<SwapOutlined />}
-              size="small"
+              
               type="primary"
               onClick={() => openConversionModal(record)}
             />
@@ -721,14 +721,14 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
           <Tooltip title="复制副本">
             <Button
               icon={<CopyOutlined />}
-              size="small"
+              
               onClick={() => handleCopy(record.id)}
             />
           </Tooltip>
           <Tooltip title={record.is_template ? "取消模板" : "设为模板"}>
             <Button
               icon={record.is_template ? <StarFilled /> : <StarOutlined />}
-              size="small"
+              
               type={record.is_template ? "primary" : "default"}
               ghost={record.is_template}
               onClick={() => handleToggleTemplate(record.id)}
@@ -745,7 +745,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
             <Tooltip title="删除">
               <Button
                 icon={<DeleteOutlined />}
-                size="small"
+                
                 danger
               />
             </Tooltip>
@@ -837,7 +837,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                     <Space>
                       批量操作
                       {selectedRowKeys.length > 0 && (
-                        <Badge count={selectedRowKeys.length} size="small" />
+                        <Badge count={selectedRowKeys.length}  />
                       )}
                       <DownOutlined />
                     </Space>
@@ -865,7 +865,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                 <Radio.Group 
                   value={viewMode} 
                   onChange={(e) => setViewMode(e.target.value)}
-                  size="small"
+                  
                 >
                   <Radio.Button value="table" title="表格视图">
                     <TableOutlined />

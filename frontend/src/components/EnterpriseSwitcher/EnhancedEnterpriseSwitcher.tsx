@@ -354,7 +354,7 @@ const EnhancedEnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                 <BuildOutlined style={{ color: '#1890ff', marginRight: 8 }} />
                 将要模拟企业: {enterpriseOptions.find(e => e.id === selectedEnterpriseId)?.name}
               </Title>
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" >
                 <Text type="secondary">
                   企业代码: <Text code>{enterpriseOptions.find(e => e.id === selectedEnterpriseId)?.code}</Text>
                 </Text>
@@ -396,7 +396,7 @@ const EnhancedEnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
         // 企业列表界面
         <>
           {/* 统计信息 */}
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card  style={{ marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
               <Statistic title="总企业数" value={statistics.total} prefix={<TeamOutlined />} />
               <Statistic title="活跃企业" value={statistics.active} valueStyle={{ color: '#52c41a' }} />
@@ -421,7 +421,7 @@ const EnhancedEnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
 
           {/* 最近历史 */}
           {recentHistory.length > 0 && (
-            <Card size="small" title={<><HistoryOutlined /> 最近模拟记录</>} style={{ marginBottom: 16 }}>
+            <Card  title={<><HistoryOutlined /> 最近模拟记录</>} style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {recentHistory.map((item, index) => (
                   <Tag 
@@ -471,7 +471,7 @@ const EnhancedEnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                           }>
                             <Button
                               type={enterprise.isCurrentlyImpersonated ? 'default' : 'primary'}
-                              size="small"
+                              
                               onClick={() => handleEnterpriseSelect(enterprise.id)}
                               disabled={!permissions.canStartImpersonation || enterprise.status !== 'active'}
                             >
@@ -494,12 +494,12 @@ const EnhancedEnterpriseSwitcher: React.FC<EnterpriseSwitcherProps> = ({
                           title={
                             <Space wrap>
                               <Text strong style={{ fontSize: '16px' }}>{enterprise.name}</Text>
-                              <Tag color={statusInfo.color} size="small">
+                              <Tag color={statusInfo.color} >
                                 {getStatusIcon(enterprise.status)}
                                 {statusInfo.text}
                               </Tag>
                               {enterprise.isCurrentlyImpersonated && (
-                                <Tag color="red" size="small">正在模拟</Tag>
+                                <Tag color="red" >正在模拟</Tag>
                               )}
                             </Space>
                           }

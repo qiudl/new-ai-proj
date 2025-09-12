@@ -103,18 +103,15 @@ export class SystemService {
   // Recycled Projects
   static async getRecycledProjects(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledProject>> {
     try {
-      console.log('🔍 [SystemService] Calling getRecycledProjects API:', `/system/recycle/projects?page=${page}&page_size=${pageSize}`);
       
       const response: any = await api.get<BackendPaginatedResponse>(
         `/system/recycle/projects?page=${page}&page_size=${pageSize}`
       );
       
-      console.log('📥 [SystemService] Raw API response for projects:', response);
       
       // API interceptor now returns the full backend response for recycle bin APIs
       // Backend response: {success: true, data: [...], pagination: {...}, message: "..."}
       const projectsData = Array.isArray(response?.data) ? (response.data as RecycledProject[]) : [];
-      console.log('📋 [SystemService] Extracted projects data:', projectsData?.length, 'items');
       
       const pagination = (response?.pagination && typeof response.pagination === 'object')
         ? response.pagination
@@ -132,7 +129,6 @@ export class SystemService {
         pagination,
       };
       
-      console.log('✅ [SystemService] Final projects result:', result);
       return result;
     } catch (e) {
       // Fallback when backend is not implemented or API fails
@@ -161,18 +157,15 @@ export class SystemService {
   // Recycled Tasks
   static async getRecycledTasks(page = 1, pageSize = 20): Promise<PaginatedResponse<RecycledTask>> {
     try {
-      console.log('🔍 [SystemService] Calling getRecycledTasks API:', `/system/recycle/tasks?page=${page}&page_size=${pageSize}`);
       
       const response: any = await api.get<BackendPaginatedResponse>(
         `/system/recycle/tasks?page=${page}&page_size=${pageSize}`
       );
       
-      console.log('📥 [SystemService] Raw API response:', response);
       
       // API interceptor now returns the full backend response for recycle bin APIs
       // Backend response: {success: true, data: [...], pagination: {...}, message: "..."}
       const tasksData = Array.isArray(response?.data) ? (response.data as RecycledTask[]) : [];
-      console.log('📋 [SystemService] Extracted tasks data:', tasksData?.length, 'items');
       
       const pagination = (response?.pagination && typeof response.pagination === 'object')
         ? response.pagination
@@ -185,14 +178,12 @@ export class SystemService {
             has_prev: false,
           };
       
-      console.log('📄 [SystemService] Final pagination:', pagination);
 
       const result = {
         data: tasksData,
         pagination,
       };
       
-      console.log('✅ [SystemService] Final result:', result);
       return result;
     } catch (e) {
       // Fallback when backend is not implemented or API fails

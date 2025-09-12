@@ -322,7 +322,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
       key: 'version_number',
       width: 80,
       render: (version: number, record: DocumentVersion) => (
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <Text strong>v{version}</Text>
           {getVersionTypeTag(record)}
         </Space>
@@ -333,7 +333,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
       dataIndex: 'title',
       key: 'title',
       render: (title: string, record: DocumentVersion) => (
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <Text strong>{title}</Text>
           {record.change_summary && (
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -413,13 +413,13 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
             <Button
               type="text"
               icon={<EyeOutlined />}
-              size="small"
+              
               onClick={() => handleViewVersion(record)}
             />
             <Button
               type="text"
               icon={<DownloadOutlined />}
-              size="small"
+              
               onClick={() => handleDownloadVersion(record.version_number)}
             />
             {!record.is_current && (
@@ -433,7 +433,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                   <Button
                     type="text"
                     icon={<RollbackOutlined />}
-                    size="small"
+                    
                   />
                 </Popconfirm>
                 <Popconfirm
@@ -445,7 +445,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
                   <Button
                     type="text"
                     icon={<DeleteOutlined />}
-                    size="small"
+                    
                     danger
                   />
                 </Popconfirm>
@@ -555,8 +555,8 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
           
           <Row gutter={16}>
             <Col span={12}>
-              <Card title={`版本 v${comparison.version1.version_number}`} size="small">
-                <Descriptions size="small" column={1}>
+              <Card title={`版本 v${comparison.version1.version_number}`} >
+                <Descriptions  column={1}>
                   <Descriptions.Item label="标题">
                     {comparison.version1.title}
                   </Descriptions.Item>
@@ -570,8 +570,8 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
               </Card>
             </Col>
             <Col span={12}>
-              <Card title={`版本 v${comparison.version2.version_number}`} size="small">
-                <Descriptions size="small" column={1}>
+              <Card title={`版本 v${comparison.version2.version_number}`} >
+                <Descriptions  column={1}>
                   <Descriptions.Item label="标题">
                     {comparison.version2.title}
                   </Descriptions.Item>
@@ -586,7 +586,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
             </Col>
           </Row>
 
-          <Card title="差异统计" size="small">
+          <Card title="差异统计" >
             <Row gutter={16}>
               <Col span={8}>
                 <Statistic
@@ -750,7 +750,7 @@ const DocumentVersionControl: React.FC<DocumentVersionControlProps> = ({
             showQuickJumper: true,
             showTotal: (total) => `共 ${total} 个版本`,
           }}
-          size="small"
+          
         />
       </Card>
 

@@ -185,7 +185,7 @@ const TimeManagementHomePage: React.FC = () => {
           description="无法获取今日任务统计数据，请检查网络连接或稍后重试。"
           type="error"
           action={
-            <Button size="small" danger onClick={handleRefresh}>
+            <Button  danger onClick={handleRefresh}>
               重试
             </Button>
           }
@@ -297,7 +297,7 @@ const TimeManagementHomePage: React.FC = () => {
             <div style={{ marginTop: '8px' }}>
               <Progress 
                 percent={todayStats.completionRate} 
-                size="small" 
+                 
                 showInfo={false}
                 strokeColor="#52c41a"
               />
@@ -370,7 +370,7 @@ const TimeManagementHomePage: React.FC = () => {
                 showIcon
                 icon={<ExclamationCircleOutlined />}
                 action={
-                  <Button size="small" danger onClick={() => navigate('/task-dashboard')}>
+                  <Button  danger onClick={() => navigate('/task-dashboard')}>
                     查看详情
                   </Button>
                 }
@@ -387,7 +387,7 @@ const TimeManagementHomePage: React.FC = () => {
                 showIcon
                 icon={<FireOutlined />}
                 action={
-                  <Button size="small" onClick={() => navigate('/task-dashboard')}>
+                  <Button  onClick={() => navigate('/task-dashboard')}>
                     查看详情
                   </Button>
                 }
@@ -402,7 +402,7 @@ const TimeManagementHomePage: React.FC = () => {
         <Col xs={24} lg={8}>
           <Card 
             title="任务计时器" 
-            size="small"
+            
             style={{ 
               height: '182px', // 增加30%：140px * 1.3 = 182px
               border: '1px solid #d9d9d9',
@@ -418,7 +418,7 @@ const TimeManagementHomePage: React.FC = () => {
           {/* 这里可以添加其他工作台工具 */}
           <Card 
             title="工作台工具" 
-            size="small"
+            
             style={{ 
               height: '182px', // 增加30%：140px * 1.3 = 182px
               border: '1px solid #b7eb8f',
@@ -458,7 +458,7 @@ const TimeManagementHomePage: React.FC = () => {
         <Col xs={24} md={8}>
           <Card 
             title="任务状态分布" 
-            size="small"
+            
             style={{ 
               height: '234px', // 增加30%：180px * 1.3 = 234px
               border: '1px solid #ffd591',
@@ -504,7 +504,7 @@ const TimeManagementHomePage: React.FC = () => {
         <Col xs={24} md={8}>
           <Card 
             title="优先级分布" 
-            size="small"
+            
             style={{ 
               height: '234px', // 增加30%：180px * 1.3 = 234px
               border: '1px solid #91d5ff',
@@ -550,7 +550,7 @@ const TimeManagementHomePage: React.FC = () => {
         <Col xs={24} md={8}>
           <Card 
             title="时间统计" 
-            size="small"
+            
             style={{ 
               height: '234px', // 增加30%：180px * 1.3 = 234px
               border: '1px solid #d3adf7',
@@ -599,14 +599,14 @@ const TimeManagementHomePage: React.FC = () => {
                 <Space>
                   <FireOutlined style={{ color: '#ff4d4f' }} />
                   <span>紧急任务</span>
-                  <Badge count={todayStats.urgentTasks.length} color="#ff4d4f" size="small" />
+                  <Badge count={todayStats.urgentTasks.length} color="#ff4d4f"  />
                 </Space>
               }
-              size="small"
+              
               extra={
                 <Button 
                   type="link" 
-                  size="small"
+                  
                   onClick={() => navigate('/task-dashboard')}
                 >
                   查看全部
@@ -615,14 +615,14 @@ const TimeManagementHomePage: React.FC = () => {
             >
               <List
                 dataSource={todayStats.urgentTasks.slice(0, 5)}
-                size="small"
+                
                 renderItem={(task: Task) => (
                   <List.Item
                     actions={[
                       <Button 
                         key="view"
                         type="text" 
-                        size="small"
+                        
                         icon={<EyeOutlined />}
                         onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
                       />
@@ -631,7 +631,7 @@ const TimeManagementHomePage: React.FC = () => {
                     <List.Item.Meta
                       avatar={
                         <Avatar 
-                          size="small"
+                          
                           style={{ backgroundColor: getStatusColor(task.status) }}
                           icon={task.status === 'in_progress' ? <PlayCircleOutlined /> : <ClockCircleOutlined />}
                         />
@@ -674,14 +674,14 @@ const TimeManagementHomePage: React.FC = () => {
                 <Space>
                   <CalendarOutlined style={{ color: '#fa8c16' }} />
                   <span>明日到期</span>
-                  <Badge count={todayStats.upcomingDeadlines.length} color="#fa8c16" size="small" />
+                  <Badge count={todayStats.upcomingDeadlines.length} color="#fa8c16"  />
                 </Space>
               }
-              size="small"
+              
               extra={
                 <Button 
                   type="link" 
-                  size="small"
+                  
                   onClick={() => navigate('/task-dashboard')}
                 >
                   查看全部
@@ -690,14 +690,14 @@ const TimeManagementHomePage: React.FC = () => {
             >
               <List
                 dataSource={todayStats.upcomingDeadlines}
-                size="small"
+                
                 renderItem={(task: Task) => (
                   <List.Item
                     actions={[
                       <Button 
                         key="view"
                         type="text" 
-                        size="small"
+                        
                         icon={<EyeOutlined />}
                         onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
                       />
@@ -706,7 +706,7 @@ const TimeManagementHomePage: React.FC = () => {
                     <List.Item.Meta
                       avatar={
                         <Avatar 
-                          size="small"
+                          
                           style={{ backgroundColor: getStatusColor(task.status) }}
                           icon={<CalendarOutlined />}
                         />
@@ -756,7 +756,7 @@ const TimeManagementHomePage: React.FC = () => {
 
       {/* 效率小贴士 */}
       {derivedData && (
-        <Card style={{ marginTop: '24px' }} size="small">
+        <Card style={{ marginTop: '24px' }} >
           <Title level={5}>💡 效率小贴士</Title>
           <Space direction="vertical">
             {derivedData.workloadLevel === 'heavy' && (

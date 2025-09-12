@@ -154,7 +154,6 @@ export const useSmartPreload = (options?: {
       for (const priority of ['high', 'medium', 'low'] as const) {
         const group = priorityGroups[priority];
         if (group.length > 0) {
-          console.log(`🚀 开始预加载 ${priority} 优先级策略`);
           
           await Promise.allSettled(
             group.map(async (strategy) => {

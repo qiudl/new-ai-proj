@@ -86,13 +86,13 @@ const ResponsiveDocumentManager: React.FC<ResponsiveDocumentManagerProps> = ({
                 <Space>
                   <Button
                     type={showMobileSearch ? 'primary' : 'default'}
-                    size="small"
+                    
                     onClick={() => setShowMobileSearch(!showMobileSearch)}
                   >
                     搜索
                   </Button>
                   <Button
-                    size="small"
+                    
                     onClick={() => setShowMobileFilters(!showMobileFilters)}
                   >
                     筛选

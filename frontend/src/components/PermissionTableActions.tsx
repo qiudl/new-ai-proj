@@ -177,7 +177,7 @@ const PermissionTableActions: React.FC<PermissionTableActionsProps> = ({
   }
   
   return (
-    <Space size="small">
+    <Space >
       {/* 可见操作按钮 */}
       {visibleActions.map(renderAction)}
       

@@ -255,7 +255,7 @@ const PermissionDemoPage: React.FC = () => {
       </Row>
 
       {/* 演示模式切换 */}
-      <Card size="small" style={{ marginBottom: '24px' }}>
+      <Card  style={{ marginBottom: '24px' }}>
         <Space>
           <Text>演示模式:</Text>
           <Switch
@@ -371,7 +371,7 @@ const PermissionDemoPage: React.FC = () => {
           columns={projectColumns}
           dataSource={mockProjects}
           rowKey="id"
-          size="small"
+          
           pagination={false}
         />
       </Card>
@@ -400,7 +400,7 @@ const PermissionDemoPage: React.FC = () => {
           columns={userColumns}
           dataSource={mockUsers}
           rowKey="id"
-          size="small"
+          
           pagination={false}
         />
       </Card>

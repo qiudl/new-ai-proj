@@ -525,7 +525,7 @@ const ConflictDetectionTestPage: React.FC = () => {
       render: (_, record: ConflictResolution) => (
         <Button
           type="primary"
-          size="small"
+          
           onClick={() => applyResolution(record)}
           disabled={loading}
         >
@@ -573,7 +573,7 @@ const ConflictDetectionTestPage: React.FC = () => {
       {/* 项目选择和概览 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card title="项目选择" size="small">
+          <Card title="项目选择" >
             <Select
               value={selectedProject?.id}
               onChange={(id) => {
@@ -597,7 +597,7 @@ const ConflictDetectionTestPage: React.FC = () => {
         </Col>
 
         <Col span={16}>
-          <Card title="项目概览" size="small">
+          <Card title="项目概览" >
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic
@@ -875,7 +875,7 @@ const ConflictDetectionTestPage: React.FC = () => {
                           
                           <Title level={5}>执行步骤</Title>
                           <List
-                            size="small"
+                            
                             dataSource={record.actions}
                             renderItem={(action, index) => (
                               <List.Item>

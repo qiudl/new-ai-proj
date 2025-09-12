@@ -262,7 +262,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
       key: 'tags',
       width: 150,
       render: (tags: string[]) => (
-        <Space wrap size="small">
+        <Space wrap >
           {tags.slice(0, 2).map(tag => (
             <Tag key={tag} color="blue" style={{ margin: 0 }}>
               {tag}
@@ -309,8 +309,8 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
       width: 100,
       render: (name: string) => (
         <Tooltip title={name}>
-          <Space size="small">
-            <Avatar size="small" style={{ backgroundColor: '#87d068' }}>
+          <Space >
+            <Avatar  style={{ backgroundColor: '#87d068' }}>
               {name?.charAt(0)}
             </Avatar>
             <Text style={{ fontSize: '12px' }}>{name}</Text>
@@ -347,7 +347,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
           }}
           trigger={['click']}
         >
-          <Button type="text" size="small" icon={<MoreOutlined />} />
+          <Button type="text"  icon={<MoreOutlined />} />
         </Dropdown>
       ),
     },
@@ -424,7 +424,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
                 </Tooltip>
               }
               description={
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space direction="vertical"  style={{ width: '100%' }}>
                   <div style={{
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -436,7 +436,7 @@ const DocumentListDraggable: React.FC<DocumentListDraggableProps> = ({
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Space size="small">
+                    <Space >
                       <Tag color="blue">{doc.type}</Tag>
                       <Tag color={getStatusConfig(doc.status).color}>
                         {getStatusConfig(doc.status).text}

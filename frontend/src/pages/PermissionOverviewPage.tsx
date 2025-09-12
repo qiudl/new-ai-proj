@@ -232,7 +232,7 @@ const PermissionOverviewPage: React.FC = () => {
       dataIndex: 'permission_name',
       key: 'permission_name',
       render: (name: string, record: Permission) => (
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <Text strong>{name}</Text>
           {record.description && (
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -300,12 +300,12 @@ const PermissionOverviewPage: React.FC = () => {
       key: 'actions',
       width: 100,
       render: (_, record: Permission) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看详情">
             <Button 
               type="text" 
               icon={<EyeOutlined />} 
-              size="small"
+              
               onClick={() => message.info(`查看权限: ${record.permission_name}`)}
             />
           </Tooltip>
@@ -454,8 +454,8 @@ const PermissionOverviewPage: React.FC = () => {
       
       <Row gutter={16}>
         <Col xs={24} md={12}>
-          <Card size="small" title="权限分类说明">
-            <Collapse size="small" ghost>
+          <Card  title="权限分类说明">
+            <Collapse  ghost>
               {Object.entries(PERMISSION_CATEGORIES).map(([key, name]) => (
                 <Panel key={key} header={`${name} (${key})`}>
                   <Text type="secondary">
@@ -467,7 +467,7 @@ const PermissionOverviewPage: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card size="small" title="权限代码规范">
+          <Card  title="权限代码规范">
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
                 <Text strong>命名规则：</Text>
@@ -585,7 +585,7 @@ const PermissionOverviewPage: React.FC = () => {
                     dataSource={groupPermissions}
                     rowKey="id"
                     pagination={false}
-                    size="small"
+                    
                     scroll={{ x: 800 }}
                   />
                 </Panel>

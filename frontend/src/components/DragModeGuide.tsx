@@ -30,14 +30,14 @@ const DragModeGuide: React.FC<DragModeGuideProps> = ({ isDragMode, onDismiss }) 
 
   return (
     <div className={`drag-mode-indicator ${showGuide ? 'active' : ''}`}>
-      <Space direction="vertical" align="center" size="small">
+      <Space direction="vertical" align="center" >
         <Text style={{ color: 'white', fontWeight: 'bold' }}>拖拽模式已启用</Text>
         <Space align="center" size="middle">
-          <Space align="center" size="small">
+          <Space align="center" >
             <DragOutlined style={{ color: '#40a9ff' }} />
             <Text style={{ color: 'white', fontSize: '12px' }}>拖拽移动</Text>
           </Space>
-          <Space align="center" size="small">
+          <Space align="center" >
             <SettingOutlined style={{ color: '#52c41a' }} />
             <Text style={{ color: 'white', fontSize: '12px' }}>调整设置</Text>
           </Space>

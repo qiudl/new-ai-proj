@@ -207,7 +207,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
             icon={<DownloadOutlined />}
             onClick={exportToCSV}
             disabled={loading || !stats}
-            size="small"
+            
           >
             导出CSV
           </Button>
@@ -261,7 +261,7 @@ const TimerStatsCard: React.FC<TimerStatsCardProps> = ({ refreshTrigger }) => {
             dataSource={dailyStats}
             columns={dailyStatsColumns}
             rowKey="date"
-            size="small"
+            
             pagination={{
               pageSize: 7,
               showSizeChanger: false,

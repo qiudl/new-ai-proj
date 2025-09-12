@@ -406,11 +406,11 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({
           <Card
             key={category}
             title={category}
-            size="small"
+            
             style={{ marginBottom: '16px' }}
           >
             <List
-              size="small"
+              
               dataSource={shortcuts}
               renderItem={(shortcut) => (
                 <List.Item>
@@ -437,8 +437,8 @@ const AccessibilityHelper: React.FC<AccessibilityHelperProps> = ({
           </Card>
         ))}
 
-        <Card title="无障碍功能" size="small">
-          <List size="small">
+        <Card title="无障碍功能" >
+          <List >
             <List.Item>
               <List.Item.Meta
                 title="屏幕阅读器支持"

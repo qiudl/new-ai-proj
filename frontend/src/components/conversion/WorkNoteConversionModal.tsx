@@ -89,13 +89,9 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
 
   // 获取预览
   const handlePreview = async () => {
-    console.log('🔍 [DEBUG] 开始预览流程');
-    console.log('🔍 [DEBUG] 选中任务:', selectedTask);
-    console.log('🔍 [DEBUG] 工作笔记:', workNote);
     
     try {
       const values = form.getFieldsValue();
-      console.log('🔍 [DEBUG] 表单值:', values);
       
       if (!selectedTask) {
         console.warn('🔍 [DEBUG] 未选择任务，终止预览');
@@ -110,10 +106,8 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
       }
 
       setPreviewLoading(true);
-      console.log('🔍 [DEBUG] 开始加载预览...');
       
       // 强制使用模拟数据进行调试
-      console.log('🔍 [DEBUG] 使用调试模式，直接生成模拟数据');
       
       const mockPreviewData = {
         source_document: {
@@ -145,10 +139,8 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
         warning_messages: workNote.content && workNote.content.length > 10000 ? ['内容较长，转换可能需要更多时间'] : []
       };
       
-      console.log('🔍 [DEBUG] 生成的模拟预览数据:', mockPreviewData);
       
       setPreview(mockPreviewData);
-      console.log('🔍 [DEBUG] 设置预览数据成功，切换到步骤1');
       setCurrentStep(1);
       message.info('🔧 调试模式：使用模拟数据预览转换结果');
       
@@ -157,7 +149,6 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
       message.error(error.message || '获取预览失败');
     } finally {
       setPreviewLoading(false);
-      console.log('🔍 [DEBUG] 预览加载完成');
     }
   };
 
@@ -261,7 +252,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
             className="mb-4"
           />
 
-          <Card title="源工作笔记" size="small" className="mb-4">
+          <Card title="源工作笔记"  className="mb-4">
             <div className="flex items-center justify-between">
               <div>
                 <Title level={5} className="mb-1">{workNote?.title}</Title>
@@ -286,7 +277,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
             >
               <div>
                 {selectedTask ? (
-                  <Card size="small" style={{ marginBottom: 8, background: '#f6ffed', borderColor: '#b7eb8f' }}>
+                  <Card  style={{ marginBottom: 8, background: '#f6ffed', borderColor: '#b7eb8f' }}>
                     <div className="flex items-center justify-between">
                       <div>
                         <Text strong style={{ color: '#389e0d' }}>#{selectedTask.id} {selectedTask.title}</Text>
@@ -296,7 +287,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
                         </Text>
                       </div>
                       <Button 
-                        size="small" 
+                         
                         onClick={() => setTaskSelectionVisible(true)}
                       >
                         重新选择
@@ -387,7 +378,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
           
           {preview && (
             <>
-              <Card title="转换详情" size="small" className="mb-4">
+              <Card title="转换详情"  className="mb-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Text strong>源文档:</Text>
@@ -406,7 +397,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
                 </div>
               </Card>
 
-              <Card title="转换设置" size="small" className="mb-4">
+              <Card title="转换设置"  className="mb-4">
                 <div className="flex flex-wrap gap-2">
                   <Tag color="blue">格式: {preview.conversion_settings?.format}</Tag>
                   <Tag color="green">可见性: {preview.conversion_settings?.visibility}</Tag>
@@ -420,7 +411,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
               </Card>
 
               {preview.preview_content && (
-                <Card title="内容预览" size="small" className="mb-4">
+                <Card title="内容预览"  className="mb-4">
                   <Paragraph
                     ellipsis={{ rows: 4, expandable: true }}
                     className="bg-gray-50 p-3 rounded"
@@ -448,7 +439,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
           )}
           
           {!preview && (
-            <Card title="调试信息" size="small" className="mb-4">
+            <Card title="调试信息"  className="mb-4">
               <div className="space-y-2">
                 <div><Text strong>当前步骤:</Text> {currentStep}</div>
                 <div><Text strong>预览数据:</Text> {preview ? 'OK' : 'NULL'}</div>
@@ -478,7 +469,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
             className="mb-4"
           />
 
-          <Card title="转换结果" size="small" className="mb-4">
+          <Card title="转换结果"  className="mb-4">
             <div className="space-y-3">
               <div>
                 <Text strong>任务文档ID:</Text> {conversionResult.created_task_document.id}
@@ -495,7 +486,7 @@ const WorkNoteConversionModal: React.FC<WorkNoteConversionModalProps> = ({
             </div>
           </Card>
 
-          <Card title="转换摘要" size="small" className="mb-4">
+          <Card title="转换摘要"  className="mb-4">
             <div className="flex flex-wrap gap-2">
               <Tag color="green" icon={<CheckCircleOutlined />}>
                 内容已迁移

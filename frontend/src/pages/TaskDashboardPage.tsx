@@ -883,7 +883,7 @@ const TaskDashboardPage: React.FC = () => {
             </div>
             <Progress 
               percent={weeklyStats.completionRate} 
-              size="small" 
+               
               showInfo={false}
               strokeColor="#722ed1"
               style={{ marginTop: '4px' }}
@@ -955,7 +955,7 @@ const TaskDashboardPage: React.FC = () => {
             return (
               <Col key={day.date} xs={24} sm={12} md={8} lg={6} xl={3.42}>
                 <Card
-                  size="small"
+                  
                   title={
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Space>
@@ -970,7 +970,7 @@ const TaskDashboardPage: React.FC = () => {
                       <Badge 
                         count={totalCount} 
                         color={day.isToday ? '#1890ff' : '#8c8c8c'} 
-                        size="small"
+                        
                       />
                     </div>
                   }
@@ -1005,7 +1005,7 @@ const TaskDashboardPage: React.FC = () => {
                     {totalCount > 0 && (
                       <Progress 
                         percent={completionRate}
-                        size="small"
+                        
                         showInfo={false}
                         strokeColor={completionRate === 100 ? '#52c41a' : '#1890ff'}
                         style={{ marginBottom: '12px' }}
@@ -1023,7 +1023,7 @@ const TaskDashboardPage: React.FC = () => {
                         style={{ margin: '40px 0' }}
                       />
                     ) : (
-                      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                      <Space direction="vertical"  style={{ width: '100%' }}>
                         {day.tasks.map((task: Task) => {
                           const projectName = getTaskProjectName(task.project_id);
                           const isOverdue = task.due_date && 
@@ -1033,7 +1033,7 @@ const TaskDashboardPage: React.FC = () => {
                           return (
                             <Card
                               key={task.id}
-                              size="small"
+                              
                               hoverable
                               style={{
                                 cursor: 'pointer',

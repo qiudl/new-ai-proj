@@ -308,7 +308,7 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         {!readOnly && (
           <>
             <div className="save-status">
-              {saveStatus === 'saving' && <Spin size="small" />}
+              {saveStatus === 'saving' && <Spin  />}
               {saveStatus === 'saved' && <span className="status-saved">已保存</span>}
               {saveStatus === 'pending' && <span className="status-pending">待保存</span>}
               {saveStatus === 'error' && <span className="status-error">保存失败</span>}

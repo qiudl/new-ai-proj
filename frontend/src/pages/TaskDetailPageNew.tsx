@@ -178,7 +178,6 @@ const TaskDetailPageNew: React.FC = () => {
   // 初始化UI状态
   useEffect(() => {
     const activeTab = getActiveTabFromURL();
-    console.log('Initializing activeTab to:', activeTab);
     updateUIState({ activeTab });
   }, [location.search, updateUIState]); // 恢复updateUIState依赖
 
@@ -487,19 +486,14 @@ const TaskDetailPageNew: React.FC = () => {
       // 处理时间线数据
       if (timelineData.status === 'fulfilled') {
         const timelineValue = (timelineData as PromiseFulfilledResult<any>).value;
-        console.log('🔍 [DEBUG] Timeline raw response:', timelineValue);
         const timeline = toArray(timelineValue);
-        console.log('🔍 [DEBUG] Timeline after toArray:', timeline);
         // 将TimelineEvent转换为TaskTimelineEvent兼容格式
         const taskTimelineEvents = timeline.map((event: TimelineEvent): TaskTimelineEvent => ({
           ...event,
           event_type: event.event_type as any, // 类型断言，因为API返回的字符串应该是有效的事件类型
         }));
-        console.log('🔍 [DEBUG] Final taskTimelineEvents:', taskTimelineEvents);
-        console.log('🔍 [DEBUG] Calling updateHistoryState with timelineEvents length:', taskTimelineEvents.length);
         updateHistoryState({ timelineEvents: taskTimelineEvents });
       } else {
-        console.log('❌ [DEBUG] Timeline data rejected:', timelineData.reason);
       }
       
       updateRelationState({ loading: false });
@@ -579,7 +573,6 @@ const TaskDetailPageNew: React.FC = () => {
       cleanupAll();
       // 重置状态
       resetAllState();
-      console.log('🧹 TaskDetailPageNew: All resources cleaned up');
     };
   }, [cleanupAll, resetAllState]);
 
@@ -591,12 +584,8 @@ const TaskDetailPageNew: React.FC = () => {
 
   // 暂时禁用URL监听以测试tab切换
   // useEffect(() => {
-  //   console.log('URL changed, location.search:', location.search);
   //   const newActiveTab = getActiveTabFromURL();
-  //   console.log('newActiveTab from URL:', newActiveTab);
-  //   console.log('current uiState.activeTab:', uiState.activeTab);
   //   if (newActiveTab !== uiState.activeTab) {
-  //     console.log('Updating activeTab from URL listener:', newActiveTab);
   //     updateUIState({ activeTab: newActiveTab });
   //   }
   // }, [location.search, uiState.activeTab, updateUIState]);
@@ -700,7 +689,6 @@ const TaskDetailPageNew: React.FC = () => {
       if (status === 'completed' || status === 'cancelled') {
         try {
           await refreshTimer();
-          console.log(`✅ Timer refreshed after task status changed to: ${status}`);
         } catch (timerError) {
           console.warn('Failed to refresh timer after task completion:', timerError);
           // 不影响主流程，只记录警告
@@ -1131,7 +1119,7 @@ const TaskDetailPageNew: React.FC = () => {
                     <span>任务完成情况</span>
                     <TaskCompletionRefresh 
                       onRefreshCompletionStats={() => refreshCompletionStats()}
-                      size="small"
+                      
                       showProgress={true}
                       disabled={isCompletionStatsRefreshing}
                     />
@@ -1256,11 +1244,11 @@ const TaskDetailPageNew: React.FC = () => {
             }
             style={{ marginBottom: '24px' }}
             extra={
-              <Space size="small">
+              <Space >
                 <Button 
                   type="primary" 
                   icon={<PlusOutlined />} 
-                  size="small"
+                  
                   onClick={handleCreateSubtask}
                 >
                   添加子任务
@@ -1268,7 +1256,7 @@ const TaskDetailPageNew: React.FC = () => {
                 <Button 
                   type="default" 
                   icon={<ImportOutlined />} 
-                  size="small"
+                  
                   onClick={handleBulkImportSubtasks}
                 >
                   批量导入
@@ -1290,9 +1278,6 @@ const TaskDetailPageNew: React.FC = () => {
             <Tabs
               activeKey={uiState.activeTab}
               onChange={(key) => {
-                console.log('Tabs onChange fired with key:', key);
-                console.log('Tab changing to:', key);
-                console.log('Current activeTab:', uiState.activeTab);
                 updateUIState({ activeTab: key });
                 // 更新URL但不刷新页面
                 const searchParams = new URLSearchParams(location.search);
@@ -1304,7 +1289,6 @@ const TaskDetailPageNew: React.FC = () => {
                 const newSearch = searchParams.toString();
                 const newUrl = `${location.pathname}${newSearch ? `?${newSearch}` : ''}`;
                 window.history.replaceState(null, '', newUrl);
-                console.log('Updated URL to:', newUrl);
               }}
               type="card"
               size="large"
@@ -1331,7 +1315,7 @@ const TaskDetailPageNew: React.FC = () => {
                     <Space>
                       <EditOutlined />
                       <span>任务文档</span>
-                      <Badge count={documentState.count} size="small" />
+                      <Badge count={documentState.count}  />
                     </Space>
                   ),
                   children: (
@@ -1377,7 +1361,7 @@ const TaskDetailPageNew: React.FC = () => {
                       <BarChartOutlined />
                       <span>甘特图</span>
                       {relationState.subtasks && relationState.subtasks.length > 0 && (
-                        <Badge count={relationState.subtasks.length} size="small" style={{ backgroundColor: '#722ed1' }} />
+                        <Badge count={relationState.subtasks.length}  style={{ backgroundColor: '#722ed1' }} />
                       )}
                     </Space>
                   ),
@@ -1414,7 +1398,7 @@ const TaskDetailPageNew: React.FC = () => {
           
           {/* 任务文档小部件 - 兼容性保留 */}
           <div style={{ marginBottom: '16px' }}>
-            <Card size="small" title="文档概览">
+            <Card  title="文档概览">
               <Space direction="vertical" style={{ width: '100%' }}>
                 <Text type="secondary" style={{ fontSize: '12px' }}>
                   💡 新版统一文档界面已在主Tab中启用
@@ -1471,16 +1455,11 @@ const TaskDetailPageNew: React.FC = () => {
                       <ClockCircleOutlined />
                       时间线
                       {historyState.timelineEvents && historyState.timelineEvents.length > 0 && (
-                        <Badge count={historyState.timelineEvents.length} size="small" />
+                        <Badge count={historyState.timelineEvents.length}  />
                       )}
                     </Space>
                   ),
                   children: (() => {
-                    console.log('📊 [RENDER] Evaluating timeline render condition...');
-                    console.log('📊 [RENDER] historyState.timelineEvents:', historyState.timelineEvents);
-                    console.log('📊 [RENDER] timelineEvents exists:', !!historyState.timelineEvents);
-                    console.log('📊 [RENDER] timelineEvents length:', historyState.timelineEvents?.length || 0);
-                    console.log('📊 [RENDER] Should show timeline:', historyState.timelineEvents && historyState.timelineEvents.length > 0);
                     
                     return historyState.timelineEvents && historyState.timelineEvents.length > 0 ? (
                       <TaskTimeline 
@@ -1502,7 +1481,7 @@ const TaskDetailPageNew: React.FC = () => {
                       <HistoryOutlined />
                       更新历史
                       {historyState.taskUpdates && historyState.taskUpdates.length > 0 && (
-                        <Badge count={historyState.taskUpdates.length} size="small" />
+                        <Badge count={historyState.taskUpdates.length}  />
                       )}
                     </Space>
                   ),

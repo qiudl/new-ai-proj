@@ -521,7 +521,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
       title: '权限数量',
       key: 'permissions',
       render: (_, record) => (
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <Text>默认: {record.default_permissions.length}</Text>
           <Text>必需: {record.required_permissions.length}</Text>
         </Space>
@@ -546,7 +546,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
         <Space>
           <Button
             type="primary"
-            size="small"
+            
             onClick={() => {
               createRoleForm.setFieldsValue({ template_id: record.id });
               setCreateRoleVisible(true);
@@ -555,14 +555,14 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
             使用模板
           </Button>
           <Button
-            size="small"
+            
             icon={<EyeOutlined />}
             onClick={() => {
               Modal.info({
                 title: `${record.name} - 详细信息`,
                 width: 800,
                 content: (
-                  <Descriptions column={1} size="small">
+                  <Descriptions column={1} >
                     <Descriptions.Item label="描述">
                       {record.description}
                     </Descriptions.Item>
@@ -608,7 +608,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
       key: 'requester',
       render: (_, record) => (
         <Space>
-          <Avatar icon={<UserOutlined />} size="small" />
+          <Avatar icon={<UserOutlined />}  />
           <div>
             <Text strong>{record.requester_name}</Text>
             <br />
@@ -662,7 +662,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                 title="批准此权限请求？"
                 onConfirm={() => handleApproveRequest(record.id, '')}
               >
-                <Button type="link" icon={<CheckCircleOutlined />} size="small">
+                <Button type="link" icon={<CheckCircleOutlined />} >
                   批准
                 </Button>
               </Popconfirm>
@@ -670,7 +670,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                 title="拒绝此权限请求？"
                 onConfirm={() => handleRejectRequest(record.id, '管理员拒绝')}
               >
-                <Button type="link" danger icon={<CloseCircleOutlined />} size="small">
+                <Button type="link" danger icon={<CloseCircleOutlined />} >
                   拒绝
                 </Button>
               </Popconfirm>
@@ -679,12 +679,12 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
           <Button
             type="link"
             icon={<EyeOutlined />}
-            size="small"
+            
             onClick={() => {
               Modal.info({
                 title: '权限请求详情',
                 content: (
-                  <Descriptions column={1} size="small">
+                  <Descriptions column={1} >
                     <Descriptions.Item label="请求者">{record.requester_name}</Descriptions.Item>
                     <Descriptions.Item label="权限代码">{record.permission_code}</Descriptions.Item>
                     <Descriptions.Item label="资源类型">{record.resource_type}</Descriptions.Item>
@@ -716,10 +716,10 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
       render: (_, record) => (
         <div>
           <Space>
-            <Avatar icon={<UserOutlined />} size="small" />
+            <Avatar icon={<UserOutlined />}  />
             <Text>{record.delegator_name}</Text>
             <Text type="secondary">→</Text>
-            <Avatar icon={<UserOutlined />} size="small" />
+            <Avatar icon={<UserOutlined />}  />
             <Text>{record.delegate_name}</Text>
           </Space>
           <br />
@@ -777,7 +777,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
               title="确定要撤销此委派吗？"
               onConfirm={() => handleRevokeDelegation(record.id, '管理员撤销')}
             >
-              <Button type="link" danger size="small">
+              <Button type="link" danger >
                 撤销
               </Button>
             </Popconfirm>
@@ -785,12 +785,12 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
           <Button
             type="link"
             icon={<EyeOutlined />}
-            size="small"
+            
             onClick={() => {
               Modal.info({
                 title: '委派详情',
                 content: (
-                  <Descriptions column={1} size="small">
+                  <Descriptions column={1} >
                     <Descriptions.Item label="委派人">{record.delegator_name}</Descriptions.Item>
                     <Descriptions.Item label="被委派人">{record.delegate_name}</Descriptions.Item>
                     <Descriptions.Item label="权限代码">
@@ -824,7 +824,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
     return (
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <Card title="权限使用统计" size="small">
+          <Card title="权限使用统计" >
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic
@@ -863,9 +863,9 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
         </Col>
 
         <Col span={12}>
-          <Card title="常用权限" size="small">
+          <Card title="常用权限" >
             <List
-              size="small"
+              
               dataSource={permissionAnalysis.most_used_permissions}
               renderItem={(item, index) => (
                 <List.Item>
@@ -884,9 +884,9 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
         </Col>
 
         <Col span={12}>
-          <Card title="系统建议" size="small">
+          <Card title="系统建议" >
             <List
-              size="small"
+              
               dataSource={permissionAnalysis.recommendations}
               renderItem={(item) => (
                 <List.Item>
@@ -910,7 +910,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
     return (
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <Card title="角色优化概览" size="small">
+          <Card title="角色优化概览" >
             <Row gutter={16}>
               <Col span={8}>
                 <Statistic
@@ -943,15 +943,15 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
         </Col>
 
         <Col span={24}>
-          <Card title="优化建议" size="small">
+          <Card title="优化建议" >
             <List
               dataSource={optimizationSuggestions.suggestions}
               renderItem={(suggestion) => (
                 <List.Item>
-                  <Card size="small" style={{ width: '100%' }}>
+                  <Card  style={{ width: '100%' }}>
                     <Row align="middle">
                       <Col flex="auto">
-                        <Space direction="vertical" size="small">
+                        <Space direction="vertical" >
                           <div>
                             <Space>
                               <TrophyOutlined style={{ 
@@ -961,7 +961,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                               <Text strong>{suggestion.title}</Text>
                               <Progress
                                 percent={suggestion.confidence}
-                                size="small"
+                                
                                 showInfo={false}
                                 strokeColor={suggestion.confidence >= 80 ? '#52c41a' : '#faad14'}
                               />
@@ -990,7 +990,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                         </Space>
                       </Col>
                       <Col>
-                        <Button type="primary" size="small">
+                        <Button type="primary" >
                           应用建议
                         </Button>
                       </Col>
@@ -1031,7 +1031,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <Card
                 title="角色模板"
-                size="small"
+                
                 extra={
                   <Button
                     type="primary"
@@ -1046,25 +1046,25 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                   columns={roleTemplateColumns}
                   dataSource={roleTemplates}
                   rowKey="id"
-                  size="small"
+                  
                   loading={loading}
                 />
               </Card>
 
-              <Card title="权限模板" size="small">
+              <Card title="权限模板" >
                 <Row gutter={[16, 16]}>
                   {permissionTemplates.map((template) => (
                     <Col span={8} key={template.id}>
                       <Card
-                        size="small"
+                        
                         title={template.name}
                         extra={
-                          <Button size="small" type="link">
+                          <Button  type="link">
                             使用
                           </Button>
                         }
                       >
-                        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                        <Space direction="vertical"  style={{ width: '100%' }}>
                           <Text type="secondary">{template.description}</Text>
                           <div>
                             <Text strong>权限数量:</Text>
@@ -1103,7 +1103,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
           >
             <Card
               title="权限请求管理"
-              size="small"
+              
               extra={
                 <Button
                   type="primary"
@@ -1118,7 +1118,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                 columns={requestColumns}
                 dataSource={permissionRequests}
                 rowKey="id"
-                size="small"
+                
                 loading={loading}
               />
             </Card>
@@ -1135,7 +1135,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
           >
             <Card
               title="权限委派管理"
-              size="small"
+              
               extra={
                 <Button
                   type="primary"
@@ -1150,7 +1150,7 @@ const EnhancedPermissionManager: React.FC<EnhancedPermissionManagerProps> = ({
                 columns={delegationColumns}
                 dataSource={delegations}
                 rowKey="id"
-                size="small"
+                
                 loading={loading}
               />
             </Card>

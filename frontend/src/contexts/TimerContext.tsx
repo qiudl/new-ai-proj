@@ -344,7 +344,6 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       }
     }, TIMER_REFRESH_CONFIG.REALTIME_SIMULATION_INTERVAL);
     
-    console.log('🚀 Realtime simulation enabled');
   }, [finalTimerState.isRunning]);
 
   // 禁用准实时模拟
@@ -356,7 +355,6 @@ export const TimerProvider: React.FC<TimerProviderProps> = ({
       realtimeIntervalRef.current = null;
     }
     
-    console.log('⏸️ Realtime simulation disabled');
   }, []);
 
   // 触发事件驱动的刷新 - 🔧 移除refreshTimer依赖避免循环
@@ -907,7 +905,6 @@ const startTimer = useCallback(async (taskId: number, taskTitle: string, taskTyp
   useEffect(() => {
     if (!isInitialized) return;
     
-    console.log(`🔄 Refresh interval changed to: ${currentRefreshInterval}ms`);
     
     // 如果当前有定时器在运行，清除并重新调度
     if (refreshIntervalRef.current) {

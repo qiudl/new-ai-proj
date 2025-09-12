@@ -241,7 +241,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
             <Button 
               type="text" 
               icon={<MoreOutlined />} 
-              size="small"
+              
               onClick={(e) => e.stopPropagation()}
             />
           </Dropdown>
@@ -263,7 +263,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
                   }}
                 />
               )}
-              <Avatar size="small" icon={getStatusIcon(task)} />
+              <Avatar  icon={getStatusIcon(task)} />
             </div>
           }
           title={
@@ -282,7 +282,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
           }
           description={
             <div style={{ marginTop: '4px' }}>
-              <Space size="small" wrap>
+              <Space  wrap>
                 {labels.map(label => {
                   let color = 'default';
                   if (label === '已逾期') color = 'red';
@@ -383,7 +383,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
         <Space>
           {enableBulkActions && selectedTasks.length > 0 && (
             <Dropdown menu={{ items: bulkActionItems }}>
-              <Button size="small">
+              <Button >
                 批量操作 ({selectedTasks.length})
               </Button>
             </Dropdown>
@@ -392,7 +392,7 @@ const TodayTasksCard: React.FC<TodayTasksCardProps> = ({
             <Button
               type="text"
               icon={<ReloadOutlined />}
-              size="small"
+              
               onClick={refreshTasks}
               loading={loading}
             />

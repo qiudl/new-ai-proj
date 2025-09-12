@@ -265,7 +265,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
             {uploadedPDFs.map(pdf => (
               <Card
                 key={pdf.id}
-                size="small"
+                
                 style={{ background: '#f9f9f9' }}
                 styles={{ body: { padding: '12px' } }}
               >
@@ -298,7 +298,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                   {/* 操作按钮 */}
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <Button
-                      size="small"
+                      
                       icon={<EyeOutlined />}
                       onClick={() => handlePreview(pdf)}
                       title="预览"
@@ -306,7 +306,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                       预览
                     </Button>
                     <Button
-                      size="small"
+                      
                       icon={<DownloadOutlined />}
                       onClick={() => handleDownload(pdf)}
                       title="下载"
@@ -314,7 +314,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                       下载
                     </Button>
                     <Button
-                      size="small"
+                      
                       icon={<UploadOutlined />}
                       onClick={() => handleInsertToEditor(pdf)}
                       title="插入到编辑器"
@@ -322,7 +322,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
                       插入
                     </Button>
                     <Button
-                      size="small"
+                      
                       icon={<DeleteOutlined />}
                       danger
                       onClick={() => handleDelete(pdf.id)}

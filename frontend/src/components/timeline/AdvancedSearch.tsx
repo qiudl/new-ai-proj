@@ -295,7 +295,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
   // 渲染高级搜索表单
   const renderAdvancedForm = () => (
-    <Card size="small" style={{ marginTop: 16 }}>
+    <Card  style={{ marginTop: 16 }}>
       <Form form={form} layout="vertical" onFinish={applyFilter}>
         <Collapse ghost>
           <Panel header="文本搜索选项" key="text">
@@ -439,7 +439,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             suffix={
               <Button 
                 type="text" 
-                size="small"
+                
                 icon={<FilterOutlined />}
                 onClick={() => setShowAdvanced(!showAdvanced)}
               />
@@ -509,7 +509,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                   <div key={savedFilter.id} style={{ marginBottom: 8 }}>
                     <Button
                       type="link"
-                      size="small"
+                      
                       style={{ padding: 0, textAlign: 'left' }}
                       onClick={() => applyFilter(savedFilter.filter)}
                     >
@@ -524,7 +524,7 @@ const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             }
             trigger="hover"
           >
-            <Button size="small" type="text" icon={<HistoryOutlined />}>
+            <Button  type="text" icon={<HistoryOutlined />}>
               保存的过滤器 ({savedFilters.length})
             </Button>
           </Popover>

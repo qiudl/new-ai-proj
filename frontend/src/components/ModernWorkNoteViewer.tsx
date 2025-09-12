@@ -196,7 +196,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
       <div style={{ height: '100%' }}>
         {/* 头部信息 */}
         <Card 
-          size="small" 
+           
           style={{ 
             margin: 0, 
             borderRadius: 0, 
@@ -251,7 +251,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
         <div style={{ padding: 24 }}>
           {note.content ? (
             <Card
-              size="small"
+              
               style={{ 
                 borderRadius: 8,
                 background: '#fafafa',
@@ -272,7 +272,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
             </Card>
           ) : (
             <Card
-              size="small"
+              
               style={{ 
                 borderRadius: 8,
                 background: '#fafafa',
@@ -299,7 +299,7 @@ const ModernWorkNoteViewer: React.FC<ModernWorkNoteViewerProps> = ({
 
         {/* 统计信息 */}
         <Card 
-          size="small" 
+           
           title="笔记统计" 
           style={{ margin: '0 24px 24px 24px', borderRadius: 8 }}
           bodyStyle={{ padding: 16 }}

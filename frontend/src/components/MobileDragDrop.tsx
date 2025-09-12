@@ -397,7 +397,7 @@ const MobileDragDrop: React.FC<MobileDragDropProps> = ({
           title={
             <Space>
               <Text strong>{folder.name}</Text>
-              <Badge count={folder.documents_count} size="small" />
+              <Badge count={folder.documents_count}  />
             </Space>
           }
           description={
@@ -565,10 +565,10 @@ const MobileDragDrop: React.FC<MobileDragDropProps> = ({
             </Col>
             <Col>
               <Space>
-                <Button size="small" icon={<DeleteOutlined />} danger>
+                <Button  icon={<DeleteOutlined />} danger>
                   删除
                 </Button>
-                <Button size="small" icon={<ShareAltOutlined />}>
+                <Button  icon={<ShareAltOutlined />}>
                   分享
                 </Button>
               </Space>
@@ -595,7 +595,7 @@ const MobileDragDrop: React.FC<MobileDragDropProps> = ({
       {dragPreview.visible && (
         <div ref={dragPreviewRef} style={mobileStyles.dragPreview}>
           <Card
-            size="small"
+            
             style={{
               width: 80,
               height: 80,

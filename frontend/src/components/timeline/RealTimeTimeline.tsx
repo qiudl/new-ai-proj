@@ -302,7 +302,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
   return (
     <div ref={timelineRef}>
       {/* 连接状态和控制面板 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
             <Badge 
@@ -318,7 +318,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
             {newEventCount > 0 && (
               <Badge count={newEventCount} style={{ backgroundColor: '#52c41a' }}>
                 <Button 
-                  size="small" 
+                   
                   icon={<BellOutlined />}
                   onClick={handleClearNotifications}
                 >
@@ -335,7 +335,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
           <Space>
             <Tooltip title={isPaused ? '恢复接收事件' : '暂停接收事件'}>
               <Button
-                size="small"
+                
                 type={isPaused ? 'primary' : 'default'}
                 icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
                 onClick={() => setIsPaused(!isPaused)}
@@ -346,7 +346,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
             
             <Tooltip title="手动刷新">
               <Button
-                size="small"
+                
                 icon={<ReloadOutlined />}
                 onClick={handleRefresh}
                 disabled={connectionStatus.status !== 'connected'}
@@ -355,7 +355,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
             
             <Tooltip title="重新连接">
               <Button
-                size="small"
+                
                 icon={<ThunderboltOutlined />}
                 onClick={handleReconnect}
                 disabled={connectionStatus.status === 'connected'}
@@ -372,7 +372,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
             <SoundOutlined />
             <Text style={{ fontSize: 12 }}>音效:</Text>
             <Switch 
-              size="small"
+              
               checked={soundEnabled} 
               onChange={setSoundEnabled} 
             />
@@ -382,7 +382,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
             <BellOutlined />
             <Text style={{ fontSize: 12 }}>通知:</Text>
             <Switch 
-              size="small"
+              
               checked={notificationsEnabled} 
               onChange={setNotificationsEnabled} 
             />
@@ -391,7 +391,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
           <Space size={4}>
             <Text style={{ fontSize: 12 }}>自动滚动:</Text>
             <Switch 
-              size="small"
+              
               checked={isAutoScrollEnabled} 
               onChange={setIsAutoScrollEnabled} 
             />
@@ -421,7 +421,7 @@ const RealTimeTimeline: React.FC<RealTimeTimelineProps> = ({
           closable
           style={{ marginBottom: 16 }}
           action={
-            <Button size="small" onClick={handleReconnect}>
+            <Button  onClick={handleReconnect}>
               重新连接
             </Button>
           }

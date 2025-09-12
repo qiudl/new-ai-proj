@@ -197,7 +197,7 @@ const RealTimeDemo: React.FC = () => {
         <Col span={6}>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             {/* 服务器控制 */}
-            <Card title="模拟服务器控制" size="small">
+            <Card title="模拟服务器控制" >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div style={{ textAlign: 'center' }}>
                   <Button
@@ -219,7 +219,7 @@ const RealTimeDemo: React.FC = () => {
                     style={{ width: '100%', marginTop: 8 }}
                     value={selectedEventType}
                     onChange={setSelectedEventType}
-                    size="small"
+                    
                   >
                     {eventTypes.map(type => (
                       <Option key={type.value} value={type.value}>
@@ -237,7 +237,7 @@ const RealTimeDemo: React.FC = () => {
                     style={{ width: '100%', marginTop: 8 }}
                     value={manualEventCount}
                     onChange={setManualEventCount}
-                    size="small"
+                    
                   >
                     <Option value={1}>1个事件</Option>
                     <Option value={3}>3个事件</Option>
@@ -259,7 +259,7 @@ const RealTimeDemo: React.FC = () => {
             </Card>
 
             {/* 实时统计 */}
-            <Card title="实时统计" size="small">
+            <Card title="实时统计" >
               <Row gutter={16}>
                 <Col span={12}>
                   <Statistic
@@ -292,7 +292,7 @@ const RealTimeDemo: React.FC = () => {
                 <Text strong style={{ fontSize: 12 }}>事件频率:</Text>
                 <Progress
                   percent={Math.min(eventStats.eventsPerMinute * 10, 100)}
-                  size="small"
+                  
                   status={eventStats.eventsPerMinute > 5 ? 'active' : 'normal'}
                   strokeColor={eventStats.eventsPerMinute > 10 ? '#ff4d4f' : '#1890ff'}
                 />
@@ -300,7 +300,7 @@ const RealTimeDemo: React.FC = () => {
             </Card>
 
             {/* 实时功能特性 */}
-            <Card title="实时功能特性" size="small">
+            <Card title="实时功能特性" >
               <div style={{ maxHeight: 300, overflow: 'auto' }}>
                 {realtimeFeatures.map((feature, index) => (
                   <div key={index} style={{ 
@@ -335,7 +335,7 @@ const RealTimeDemo: React.FC = () => {
             </Card>
 
             {/* 技术说明 */}
-            <Card title="技术实现" size="small">
+            <Card title="技术实现" >
               <Space direction="vertical" size={8} style={{ fontSize: 11 }}>
                 <Text>• 基于原生WebSocket API</Text>
                 <Text>• React Hooks状态管理</Text>
@@ -351,7 +351,7 @@ const RealTimeDemo: React.FC = () => {
               
               <Button
                 block
-                size="small"
+                
                 icon={<SettingOutlined />}
                 onClick={() => setShowSettings(true)}
               >

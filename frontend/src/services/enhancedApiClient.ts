@@ -127,7 +127,6 @@ export class EnhancedApiClient {
     if (method === 'GET' && cache) {
       const cachedData = apiCache.get<T>(finalCacheKey);
       if (cachedData !== null) {
-        console.log(`📋 Cache hit: ${finalCacheKey}`);
         return cachedData;
       }
     }
@@ -172,7 +171,6 @@ export class EnhancedApiClient {
       };
       
       apiCache.set(finalCacheKey, result, cacheOptions);
-      console.log(`💾 Cached response: ${finalCacheKey}`);
     }
 
     // Invalidate related cache entries for non-GET requests
@@ -180,7 +178,6 @@ export class EnhancedApiClient {
       for (const tag of tags) {
         const invalidatedCount = apiCache.deleteByTag(tag);
         if (invalidatedCount > 0) {
-          console.log(`🗑️ Invalidated ${invalidatedCount} cache entries with tag: ${tag}`);
         }
       }
     }
@@ -416,7 +413,6 @@ export class EnhancedApiClient {
     });
     
     await Promise.allSettled(warmupPromises);
-    console.log(`🔥 Cache warmed up with ${requests.length} requests`);
   }
 
   /**

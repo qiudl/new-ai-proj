@@ -38,7 +38,7 @@ const RefreshTestPage: React.FC = () => {
             <TaskCompletionRefresh 
               onRefreshCompletionStats={handleRefresh}
               showProgress={true}
-              size="small"
+              
             />
           </Space>
           
@@ -47,7 +47,7 @@ const RefreshTestPage: React.FC = () => {
             <TaskCompletionRefresh 
               onRefreshCompletionStats={handleRefresh}
               showProgress={false}
-              size="small"
+              
             />
           </Space>
         </Space>
@@ -63,7 +63,7 @@ const RefreshTestPage: React.FC = () => {
               onRefresh={handleRefresh}
               interval={20}
               showProgress={true}
-              size="small"
+              
             />
           </Space>
           
@@ -73,7 +73,7 @@ const RefreshTestPage: React.FC = () => {
               onRefresh={handleRefresh}
               interval={10}
               showProgress={false}
-              size="small"
+              
             />
           </Space>
           

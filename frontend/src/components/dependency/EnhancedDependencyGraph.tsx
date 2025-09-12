@@ -583,7 +583,7 @@ setSimulation(sim as unknown as d3.Simulation<DependencyGraphNode, undefined>);
           type="error"
           showIcon
           action={
-            <Button size="small" onClick={loadDependencyGraph}>
+            <Button  onClick={loadDependencyGraph}>
               重试
             </Button>
           }
@@ -595,7 +595,7 @@ setSimulation(sim as unknown as d3.Simulation<DependencyGraphNode, undefined>);
   return (
     <div>
       {/* 交互模式选择 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Space>
           <span>交互模式:</span>
           <Select

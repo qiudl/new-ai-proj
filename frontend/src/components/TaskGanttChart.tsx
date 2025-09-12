@@ -619,12 +619,12 @@ const TaskGanttChart: React.FC<TaskGanttChartProps> = ({
       }
       extra={
         <Space>
-          <Button size="small" icon={<ReloadOutlined />} onClick={loadSubtasks}>
+          <Button  icon={<ReloadOutlined />} onClick={loadSubtasks}>
             刷新
           </Button>
           <Tooltip title={isGanttFullscreen ? '退出全屏' : '全屏查看甘特图'}>
             <Button 
-              size="small" 
+               
               icon={isGanttFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} 
               onClick={toggleGanttFullscreen}
             >

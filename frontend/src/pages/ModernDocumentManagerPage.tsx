@@ -490,7 +490,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     return (
       <Card
         key={note.id}
-        size="small"
+        
         className="note-card"
         hoverable
         onClick={() => handleViewNote(note)}
@@ -531,7 +531,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 <Button 
                   type="text" 
                   icon={<MoreOutlined />} 
-                  size="small"
+                  
                   style={{ color: 'white' }}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -601,7 +601,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
     return (
       <Card
         key={note.id}
-        size="small"
+        
         hoverable
         onClick={() => handleViewNote(note)}
         style={{ 
@@ -615,7 +615,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 12 }}>
             <Avatar 
               shape="square" 
-              size="small" 
+               
               icon={<FileMarkdownOutlined />}
               style={{ backgroundColor: '#667eea' }}
             />
@@ -661,7 +661,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
             <Button 
               type="text" 
               icon={<MoreOutlined />} 
-              size="small"
+              
               onClick={(e) => e.stopPropagation()}
             />
           </Dropdown>
@@ -735,7 +735,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
         <div style={{ padding: '0 16px' }}>
           {/* 统计卡片 */}
           {!sidebarCollapsed && (
-            <Card size="small" style={{ marginBottom: 16 }}>
+            <Card  style={{ marginBottom: 16 }}>
               <Row gutter={[8, 8]}>
                 <Col span={12}>
                   <div style={{ textAlign: 'center' }}>
@@ -779,7 +779,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                 </Text>
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<PlusOutlined />}
                   onClick={handleCreateFolder}
                   title="新建文件夹"
@@ -802,7 +802,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
               <Text strong style={{ fontSize: '12px', color: '#666' }}>快速筛选</Text>
               <div style={{ marginTop: 8 }}>
                 <Button
-                  size="small"
+                  
                   type={statusFilter === 'all' ? 'primary' : 'text'}
                   onClick={() => {
                     setStatusFilter('all');
@@ -813,7 +813,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   <FolderOutlined /> 全部笔记
                 </Button>
                 <Button
-                  size="small"
+                  
                   type={statusFilter === 'draft' ? 'primary' : 'text'}
                   onClick={() => {
                     setStatusFilter('draft');
@@ -824,7 +824,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   <EditOutlined /> 草稿
                 </Button>
                 <Button
-                  size="small"
+                  
                   type={statusFilter === 'published' ? 'primary' : 'text'}
                   onClick={() => {
                     setStatusFilter('published');
@@ -835,7 +835,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                   <FileMarkdownOutlined /> 已发布
                 </Button>
                 <Button
-                  size="small"
+                  
                   type={favoriteFilter ? 'primary' : 'text'}
                   onClick={() => {
                     setFavoriteFilter(!favoriteFilter);
@@ -857,7 +857,7 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
           {/* 顶部工具栏 */}
           <Affix offsetTop={0}>
             <Card 
-              size="small" 
+               
               style={{ marginBottom: 16, background: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)' }}
               styles={{ body: { padding: '12px 16px' } }}
             >
@@ -875,14 +875,14 @@ const ModernDocumentManagerPage: React.FC<ModernDocumentManagerPageProps> = () =
                     style={{ width: 120 }}
                     value={sortBy}
                     onChange={setSortBy}
-                    size="small"
+                    
                   >
                     <Option value="updated">最近更新</Option>
                     <Option value="created">创建时间</Option>
                     <Option value="title">标题排序</Option>
                   </Select>
                   
-                  <Space.Compact size="small">
+                  <Space.Compact >
                     <Button
                       type={viewMode === 'grid' ? 'primary' : 'default'}
                       icon={<AppstoreOutlined />}

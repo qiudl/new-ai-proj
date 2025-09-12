@@ -35,15 +35,20 @@ export interface ImpersonationSession {
 
 export interface ImpersonationHistoryItem {
   id: number;
+  sessionId: string;
+  enterpriseId: number;
+  enterpriseName: string;
   username: string;
-  enterprise_name: string;
-  enterprise_id: number;
-  action: 'start' | 'end';
-  started_at: string;
-  ended_at?: string;
+  startedAt: string;
+  endedAt?: string;
   duration?: string;
   reason: string;
-  status: 'success' | 'failed' | 'active';
+  status: 'success' | 'failed' | 'active' | 'ended';
+  action?: 'start' | 'end';
+  enterprise_name?: string; // backward compatibility
+  enterprise_id?: number; // backward compatibility
+  started_at?: string; // backward compatibility
+  ended_at?: string; // backward compatibility
 }
 
 export interface ImpersonationStatus {

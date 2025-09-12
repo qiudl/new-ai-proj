@@ -402,10 +402,10 @@ const DocumentEditor: React.FC<DocumentEditorProps> = ({
             }}>
               <Space>
                 <Text type="warning">有未保存的更改</Text>
-                <Button size="small" onClick={handleCancel}>取消</Button>
+                <Button  onClick={handleCancel}>取消</Button>
                 <Button 
                   type="primary" 
-                  size="small" 
+                   
                   loading={saving}
                   onClick={handleSave}
                 >

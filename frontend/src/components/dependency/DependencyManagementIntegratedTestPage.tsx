@@ -541,7 +541,7 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
       render: (_, record: ConflictResolution) => (
         <Space>
           <Button
-            size="small"
+            
             onClick={() => {
               setSelectedResolution(record);
               setResolutionModalVisible(true);
@@ -550,7 +550,7 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
             查看详情
           </Button>
           <Button
-            size="small"
+            
             type="primary"
             onClick={() => applyResolution(record)}
             loading={loading}
@@ -791,7 +791,7 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
               {/* 冲突详情 */}
               <TabPane 
                 tab={
-                  <Badge count={conflictResult?.conflicts.length || 0} size="small">
+                  <Badge count={conflictResult?.conflicts.length || 0} >
                     <span>冲突详情</span>
                   </Badge>
                 } 
@@ -838,7 +838,7 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
               {/* 警告详情 */}
               <TabPane 
                 tab={
-                  <Badge count={conflictResult?.warnings.length || 0} size="small">
+                  <Badge count={conflictResult?.warnings.length || 0} >
                     <span>警告信息</span>
                   </Badge>
                 } 
@@ -875,7 +875,7 @@ const DependencyManagementIntegratedTestPage: React.FC<DependencyManagementInteg
               {/* 解决方案 */}
               <TabPane 
                 tab={
-                  <Badge count={conflictResult?.suggestions.length || 0} size="small">
+                  <Badge count={conflictResult?.suggestions.length || 0} >
                     <span>解决方案</span>
                   </Badge>
                 } 

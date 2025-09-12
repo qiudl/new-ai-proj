@@ -94,7 +94,7 @@ export const LoadingDemo: React.FC = () => {
                     count={preloadManager.preloadedStrategies.includes(strategy) ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : '待加载'}
                     style={{ marginRight: '12px', marginBottom: '8px' }}
                   >
-                    <Button size="small">{strategy}</Button>
+                    <Button >{strategy}</Button>
                   </Badge>
                 ))}
               </div>
@@ -255,7 +255,7 @@ export const LoadingDemo: React.FC = () => {
                 <div>
                   <Title level={4}>📋 任务列表</Title>
                   {mockData.tasks.map(task => (
-                    <Card key={task.id} size="small" style={{ marginBottom: '8px' }}>
+                    <Card key={task.id}  style={{ marginBottom: '8px' }}>
                       <Text strong>{task.title}</Text>
                       <div style={{ marginTop: '4px' }}>
                         <Badge status={task.status === 'completed' ? 'success' : 'processing'} text={task.status} />

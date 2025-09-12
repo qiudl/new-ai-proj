@@ -395,7 +395,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
               key="info"
             >
               <Card>
-                <Descriptions column={2} bordered size="small">
+                <Descriptions column={2} bordered >
                   <Descriptions.Item label="文档标题" span={2}>
                     <Title level={4} style={{ margin: 0 }}>
                       {docDetail.title}
@@ -444,7 +444,7 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({
                       </Text>
                       <Button 
                         type="link" 
-                        size="small"
+                        
                         icon={<HistoryOutlined />}
                         onClick={() => onShowHistory?.(docDetail.id)}
                       >

@@ -794,7 +794,7 @@ const MCPTestPage: React.FC = () => {
       render: (text: any, record: TestResult) => (
         <Button 
           type="link" 
-          size="small"
+          
           onClick={() => {
             setSelectedResult(record);
             setShowDetailModal(true);
@@ -924,17 +924,17 @@ const MCPTestPage: React.FC = () => {
         <Row gutter={[16, 16]}>
           {/* 左侧：测试用例选择 */}
           <Col xs={24} lg={8}>
-            <Card title="选择测试接口" size="small">
+            <Card title="选择测试接口" >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div>
                   <Button 
-                    size="small" 
+                     
                     onClick={() => setSelectedTests(testCases.map(t => t.id))}
                   >
                     全选
                   </Button>
                   <Button 
-                    size="small" 
+                     
                     style={{ marginLeft: 8 }}
                     onClick={() => setSelectedTests([])}
                   >
@@ -942,7 +942,7 @@ const MCPTestPage: React.FC = () => {
                   </Button>
                 </div>
                 
-                <Collapse size="small" ghost>
+                <Collapse  ghost>
                   {Object.entries(groupedTests).map(([category, tests]) => (
                     <Panel
                       header={
@@ -953,11 +953,11 @@ const MCPTestPage: React.FC = () => {
                       }
                       key={category}
                     >
-                      <Space direction="vertical" style={{ width: '100%' }} size="small">
+                      <Space direction="vertical" style={{ width: '100%' }} >
                         {tests.map(test => (
                           <div key={test.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <Switch
-                              size="small"
+                              
                               checked={selectedTests.includes(test.id)}
                               onChange={(checked) => {
                                 if (checked) {
@@ -990,9 +990,9 @@ const MCPTestPage: React.FC = () => {
 
           {/* 右侧：测试结果 */}
           <Col xs={24} lg={16}>
-            <Card title="测试结果" size="small">
+            <Card title="测试结果" >
               <Table
-                size="small"
+                
                 dataSource={testResults}
                 columns={columns}
                 rowKey="id"

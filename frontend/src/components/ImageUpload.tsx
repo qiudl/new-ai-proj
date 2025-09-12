@@ -330,7 +330,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
             <Space>
               {uploadedImages.length > 1 && (
                 <Button 
-                  size="small" 
+                   
                   onClick={handleSelectAll}
                 >
                   {selectedImages.size === uploadedImages.length ? '取消全选' : '全选'}
@@ -340,14 +340,14 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
               {selectedImages.size > 0 && (
                 <>
                   <Button 
-                    size="small" 
+                     
                     type="primary"
                     onClick={handleBatchInsert}
                   >
                     批量插入 ({selectedImages.size})
                   </Button>
                   <Button 
-                    size="small" 
+                     
                     danger
                     onClick={handleBatchDelete}
                   >
@@ -429,7 +429,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                 {/* 操作按钮 */}
                 <div style={{ display: 'flex', gap: '4px' }}>
                   <Button
-                    size="small"
+                    
                     icon={<EyeOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -438,7 +438,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                     title="预览"
                   />
                   <Button
-                    size="small"
+                    
                     icon={<UploadOutlined />}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -447,7 +447,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
                     title="插入到编辑器"
                   />
                   <Button
-                    size="small"
+                    
                     icon={<DeleteOutlined />}
                     danger
                     onClick={(e) => {

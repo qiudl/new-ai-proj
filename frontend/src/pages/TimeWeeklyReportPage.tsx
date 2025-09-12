@@ -281,7 +281,7 @@ const TimeWeeklyReportPage: React.FC = () => {
       color: entry.status === 'completed' ? 'green' : entry.status === 'in_progress' ? 'blue' : 'gray',
       children: (
         <div>
-          <Space direction="vertical" size="small">
+          <Space direction="vertical" >
             <Text strong>{entry.taskTitle}</Text>
             <Text type="secondary">{entry.projectName}</Text>
             <Space>
@@ -456,12 +456,12 @@ const TimeWeeklyReportPage: React.FC = () => {
                 <Row gutter={[16, 16]}>
                   {/* 每日工作统计 */}
                   <Col xs={24} lg={12}>
-                    <Card title="每日工作统计" size="small">
+                    <Card title="每日工作统计" >
                       <Table
                         dataSource={dailyStats}
                         rowKey="date"
                         pagination={false}
-                        size="small"
+                        
                         columns={[
                           {
                             title: '日期',
@@ -484,7 +484,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                             render: (efficiency) => (
                               <Progress
                                 percent={parseFloat(efficiency.toFixed(2))}
-                                size="small"
+                                
                                 status={efficiency >= 85 ? 'success' : efficiency >= 70 ? 'active' : 'exception'}
                                 showInfo={false}
                               />
@@ -497,7 +497,7 @@ const TimeWeeklyReportPage: React.FC = () => {
 
                   {/* 项目时间分布 */}
                   <Col xs={24} lg={12}>
-                    <Card title="项目时间分布" size="small">
+                    <Card title="项目时间分布" >
                       <Space direction="vertical" style={{ width: '100%' }}>
                         {projectStats.map((project, index) => (
                           <div key={index}>
@@ -522,7 +522,7 @@ const TimeWeeklyReportPage: React.FC = () => {
 
                   {/* 工作亮点 */}
                   <Col xs={24}>
-                    <Card title="本周亮点" size="small">
+                    <Card title="本周亮点" >
                       <Row gutter={[16, 16]}>
                         <Col xs={24} sm={8}>
                           <Alert
@@ -582,7 +582,7 @@ const TimeWeeklyReportPage: React.FC = () => {
               key: 'timeline',
               label: (<span><LineChartOutlined />任务时间轴</span>),
               children: (
-                <Card title="任务执行时间轴" size="small">
+                <Card title="任务执行时间轴" >
                   <Timeline items={timelineData} />
                 </Card>
               )
@@ -591,7 +591,7 @@ const TimeWeeklyReportPage: React.FC = () => {
               key: 'calendar',
               label: (<span><CalendarOutlined />工作日历</span>),
               children: (
-                <Card title="工作日历视图" size="small">
+                <Card title="工作日历视图" >
                   <Calendar
                     value={currentWeek}
                     onChange={setCurrentWeek}
@@ -629,7 +629,7 @@ const TimeWeeklyReportPage: React.FC = () => {
               key: 'team',
               label: (<span><TeamOutlined />团队对比</span>),
               children: (
-                <Card title="团队工作效率对比" size="small">
+                <Card title="团队工作效率对比" >
                   <Empty description="团队数据正在开发中..." />
                 </Card>
               )

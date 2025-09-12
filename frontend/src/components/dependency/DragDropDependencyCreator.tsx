@@ -347,7 +347,7 @@ const DragDropDependencyCreator: React.FC<DragDropDependencyCreatorProps> = ({
   return (
     <div>
       {/* 控制面板 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Space>
           <Button
             type={dragMode ? 'primary' : 'default'}

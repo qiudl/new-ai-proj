@@ -177,7 +177,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           <Tooltip title="清除选择">
             <Button
               type="text"
-              size="small"
+              
               icon={<ClearOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
@@ -250,7 +250,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
                 {allowClear && (
                   <Button
                     type="link"
-                    size="small"
+                    
                     onClick={() => {
                       setSelectedTask(null);
                       setValidationError(null);
@@ -284,7 +284,7 @@ export const TaskParentSelector: React.FC<TaskParentSelectorProps> = ({
           {/* Validation loading */}
           {isValidating && (
             <div className="validation-loading">
-              <Spin size="small" />
+              <Spin  />
               <span>正在验证选择...</span>
             </div>
           )}

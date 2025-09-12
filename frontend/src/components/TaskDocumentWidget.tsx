@@ -257,13 +257,13 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
   if (compact) {
     return (
       <>
-        <Space size="small">
-          <Badge count={stats.total} size="small" color="#1890ff">
+        <Space >
+          <Badge count={stats.total}  color="#1890ff">
             <Tooltip title={badgeTooltip}>
               <Button
                 type="text"
                 icon={<FileTextOutlined />}
-                size="small"
+                
                 onClick={handleOpenManager}
                 loading={loading}
               >
@@ -282,14 +282,14 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
               <Button
                 type="text"
                 icon={<PlusOutlined />}
-                size="small"
+                
                 loading={uploading}
               />
             </Tooltip>
           </Upload>
 
           <Dropdown menu={{ items: moreActions }} trigger={['click']}>
-            <Button type="text" icon={<MoreOutlined />} size="small" />
+            <Button type="text" icon={<MoreOutlined />}  />
           </Dropdown>
         </Space>
 
@@ -312,10 +312,10 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
           <Space>
             <FileTextOutlined />
             <span>任务文档</span>
-            <Badge count={stats.total} size="small" color="#1890ff" />
+            <Badge count={stats.total}  color="#1890ff" />
           </Space>
         ) : null}
-        size="small"
+        
         extra={
           <Space>
             <Tooltip title="刷新">
@@ -324,7 +324,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                 icon={<SyncOutlined />}
                 onClick={loadDocuments}
                 loading={loading}
-                size="small"
+                
               />
             </Tooltip>
             
@@ -339,24 +339,24 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                   type="text"
                   icon={<CloudUploadOutlined />}
                   loading={uploading}
-                  size="small"
+                  
                 />
               </Tooltip>
             </Upload>
 
             <Dropdown menu={{ items: moreActions }} trigger={['click']}>
-              <Button type="text" icon={<MoreOutlined />} size="small" />
+              <Button type="text" icon={<MoreOutlined />}  />
             </Dropdown>
           </Space>
         }
         bodyStyle={{ padding: '12px 16px' }}
       >
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical"  style={{ width: '100%' }}>
           {stats.total === 0 ? (
             <Text type="secondary">暂无上传文档</Text>
           ) : (
             <>
-              <Space split="|" size="small">
+              <Space split="|" >
                 <Text type="secondary">
                   {stats.total} 个文档
                 </Text>
@@ -399,7 +399,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         <Tooltip title="预览文档">
                           <Button
                             type="text"
-                            size="small"
+                            
                             icon={<EyeOutlined />}
                             onClick={() => setManagerVisible(true)}
                             style={{ padding: '0 4px' }}
@@ -408,7 +408,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                         <Tooltip title="编辑文档">
                           <Button
                             type="text"
-                            size="small"
+                            
                             icon={<EditOutlined />}
                             onClick={() => setManagerVisible(true)}
                             style={{ padding: '0 4px' }}
@@ -425,7 +425,7 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
                           <Tooltip title="删除文档">
                             <Button
                               type="text"
-                              size="small"
+                              
                               icon={<DeleteOutlined />}
                               danger
                               style={{ padding: '0 4px' }}
@@ -462,9 +462,9 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
             </>
           )}
           
-          <Space size="small">
+          <Space >
             <Button
-              size="small"
+              
               onClick={handleOpenManager}
               icon={<FileTextOutlined />}
             >
@@ -474,14 +474,14 @@ const TaskDocumentWidget: React.FC<TaskDocumentWidgetProps> = ({
             {stats.total > 0 && (
               <>
                 <Button
-                  size="small"
+                  
                   onClick={handleDownloadMarkdown}
                   icon={<DownloadOutlined />}
                 >
                   导出 MD
                 </Button>
                 <Button
-                  size="small"
+                  
                   onClick={handleDownloadPDF}
                   icon={<DownloadOutlined />}
                 >

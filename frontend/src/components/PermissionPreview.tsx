@@ -335,7 +335,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
       title: (
         <Space>
           <Text strong>{module}</Text>
-          <Badge count={perms.filter(p => p.is_granted).length} size="small" />
+          <Badge count={perms.filter(p => p.is_granted).length}  />
         </Space>
       ),
       key: module,
@@ -353,13 +353,13 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
             }}>
               {getPermissionName(perm.permission_code)}
             </span>
-            <Tag size="small" color={
+            <Tag  color={
               perm.source === 'role' ? 'blue' : 
               perm.source === 'custom' ? 'green' : 'orange'
             }>
               {perm.source === 'role' ? '角色' : perm.source === 'custom' ? '自定义' : '继承'}
             </Tag>
-            {!perm.is_active && <Tag size="small" color="default">禁用</Tag>}
+            {!perm.is_active && <Tag  color="default">禁用</Tag>}
           </Space>
         ),
         key: `${module}-${perm.id}`,
@@ -447,14 +447,14 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
         <Space>
           {onPermissionToggle && (
             <Switch
-              size="small"
+              
               checked={record.is_granted}
               onChange={() => handlePermissionToggle(record)}
               disabled={!record.is_active}
             />
           )}
           <Tooltip title="查看详情">
-            <Button type="link" size="small" icon={<EyeOutlined />} />
+            <Button type="link"  icon={<EyeOutlined />} />
           </Tooltip>
         </Space>
       ),
@@ -479,8 +479,8 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
     <div style={{ height }}>
       {/* 目标信息头部 */}
       {targetInfo && (
-        <Card size="small" style={{ marginBottom: 16 }}>
-          <Descriptions size="small" column={4}>
+        <Card  style={{ marginBottom: 16 }}>
+          <Descriptions  column={4}>
             <Descriptions.Item label={targetType === 'user' ? '用户' : '角色'}>
               <Space>
                 {targetType === 'user' ? <UserOutlined /> : <TeamOutlined />}
@@ -553,7 +553,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
           <Space>
             <span>显示禁用权限:</span>
             <Switch
-              size="small"
+              
               checked={showInactivePermissions}
               onChange={setShowInactivePermissions}
             />
@@ -609,7 +609,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
                       `第 ${range[0]}-${range[1]} 条，共 ${total} 条权限`,
                   }}
                   scroll={{ y: height - 250 }}
-                  size="small"
+                  
                 />
               ),
             },
@@ -618,7 +618,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
               label: (
                 <span>
                   <WarningOutlined />
-                  冲突检测 <Badge count={conflicts.length} size="small" />
+                  冲突检测 <Badge count={conflicts.length}  />
                 </span>
               ),
               children: (
@@ -633,7 +633,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
                         showIcon
                         style={{ width: '100%' }}
                         action={
-                          <Button size="small" type="link">
+                          <Button  type="link">
                             查看详情
                           </Button>
                         }
@@ -648,7 +648,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
               label: (
                 <span>
                   <BulbOutlined />
-                  优化建议 <Badge count={suggestions.length} size="small" />
+                  优化建议 <Badge count={suggestions.length}  />
                 </span>
               ),
               children: (
@@ -657,7 +657,7 @@ const PermissionPreview: React.FC<PermissionPreviewProps> = ({
                   renderItem={(suggestion) => (
                     <List.Item
                       actions={[
-                        <Button key="apply" type="link" size="small">
+                        <Button key="apply" type="link" >
                           应用建议
                         </Button>
                       ]}

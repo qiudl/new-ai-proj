@@ -548,7 +548,7 @@ setSimulation(sim as unknown as d3.Simulation<DependencyGraphNode, undefined>);
           type="error"
           showIcon
           action={
-            <Button size="small" onClick={loadDependencyGraph}>
+            <Button  onClick={loadDependencyGraph}>
               重试
             </Button>
           }

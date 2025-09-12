@@ -247,7 +247,7 @@ const TimelineDemo: React.FC = () => {
         
         <Col span={8}>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
-            <Card title="支持的事件类型" size="small">
+            <Card title="支持的事件类型" >
               <div style={{ maxHeight: 300, overflow: 'auto' }}>
                 {EventRendererFactory.getAvailableEventTypes().map(eventType => {
                   const renderer = EventRendererFactory.getRenderer(eventType);
@@ -289,7 +289,7 @@ const TimelineDemo: React.FC = () => {
               </div>
             </Card>
 
-            <Card title="功能特性" size="small">
+            <Card title="功能特性" >
               <Space direction="vertical" size={8}>
                 <Text>✅ 专门的事件类型渲染器</Text>
                 <Text>✅ 智能元数据显示</Text>
@@ -303,7 +303,7 @@ const TimelineDemo: React.FC = () => {
               </Space>
             </Card>
 
-            <Card title="实时统计" size="small">
+            <Card title="实时统计" >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text>总事件数：</Text>

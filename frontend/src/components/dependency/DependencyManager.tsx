@@ -232,12 +232,12 @@ const DependencyManager: React.FC<DependencyManagerProps> = ({
       key: 'actions',
       width: 120,
       render: (_, record: TaskDependency) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="编辑">
             <Button
               type="text"
               icon={<EditOutlined />}
-              size="small"
+              
               onClick={() => handleEditDependency(record)}
             />
           </Tooltip>
@@ -251,7 +251,7 @@ const DependencyManager: React.FC<DependencyManagerProps> = ({
               <Button
                 type="text"
                 icon={<DeleteOutlined />}
-                size="small"
+                
                 danger
               />
             </Popconfirm>
@@ -522,7 +522,7 @@ const DependencyManager: React.FC<DependencyManagerProps> = ({
               <Space>
                 <span>已选择 {selectedRowKeys.length} 个依赖关系</span>
                 <Button
-                  size="small"
+                  
                   onClick={() => setSelectedRowKeys([])}
                 >
                   取消选择
@@ -533,7 +533,7 @@ const DependencyManager: React.FC<DependencyManagerProps> = ({
                   okText="确定"
                   cancelText="取消"
                 >
-                  <Button size="small" danger>
+                  <Button  danger>
                     批量删除
                   </Button>
                 </Popconfirm>

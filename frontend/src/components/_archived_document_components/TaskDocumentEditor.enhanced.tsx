@@ -272,7 +272,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
               {/* 活跃用户指示器 */}
               {activeUsers.length > 0 && (
                 <Badge count={activeUsers.length} style={{ marginRight: 16 }}>
-                  <Avatar.Group size="small">
+                  <Avatar.Group >
                     {activeUsers.slice(0, 3).map((user, index) => (
                       <Avatar key={index} style={{ backgroundColor: '#87d068' }}>
                         {user.charAt(0).toUpperCase()}
@@ -344,7 +344,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
               <div style={{ flex: 1 }}>
                 <h4>最近评论</h4>
                 {comments.slice(0, 5).map((comment) => (
-                  <Card key={comment.id} size="small" style={{ marginBottom: 8 }}>
+                  <Card key={comment.id}  style={{ marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <strong>{comment.user_name || '未知用户'}</strong>
                       <span style={{ color: '#999', fontSize: '12px' }}>
@@ -397,7 +397,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
           {templates.map((templateRec) => (
             <Card
               key={templateRec.template.id}
-              size="small"
+              
               hoverable
               onClick={() => setSelectedTemplate(templateRec)}
               style={{ 
@@ -421,7 +421,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
                   </div>
                   <Button
                     type="primary"
-                    size="small"
+                    
                     onClick={(e) => {
                       e.stopPropagation();
                       handleApplyTemplate(templateRec);
@@ -464,7 +464,7 @@ const TaskDocumentEditorEnhanced: React.FC<TaskDocumentEditorProps> = ({
         
         <div style={{ maxHeight: 400, overflowY: 'auto' }}>
           {comments.map((comment) => (
-            <Card key={comment.id} size="small" style={{ marginBottom: 8 }}>
+            <Card key={comment.id}  style={{ marginBottom: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <strong>{comment.user_name || '未知用户'}</strong>
                 <span style={{ color: '#999', fontSize: '12px' }}>

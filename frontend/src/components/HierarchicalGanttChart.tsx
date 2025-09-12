@@ -368,7 +368,7 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
           {hasChildren && (
             <Button
               type="text"
-              size="small"
+              
               icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
               onClick={() => toggleTaskExpanded(task.id)}
               style={{
@@ -511,7 +511,7 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
         <Col span={6}>
           <Space>
             <Button
-              size="small"
+              
               icon={<EyeOutlined />}
               onClick={() => {
                 // 展开所有任务
@@ -531,7 +531,7 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
               全部展开
             </Button>
             <Button
-              size="small"
+              
               icon={<EyeInvisibleOutlined />}
               onClick={() => setExpandedTasks(new Set())}
             >
@@ -607,12 +607,12 @@ const HierarchicalGanttChart: React.FC<HierarchicalGanttChartProps> = ({
       }
       extra={
         <Space>
-          <Button size="small" icon={<ReloadOutlined />} onClick={loadSubtasks}>
+          <Button  icon={<ReloadOutlined />} onClick={loadSubtasks}>
             刷新
           </Button>
           <Tooltip title={isGanttFullscreen ? '退出全屏' : '全屏查看'}>
             <Button 
-              size="small" 
+               
               icon={isGanttFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} 
               onClick={() => setIsGanttFullscreen(!isGanttFullscreen)}
             >

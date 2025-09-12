@@ -232,7 +232,7 @@ const WorkNoteTaskSelectionModal: React.FC<WorkNoteTaskSelectionModalProps> = ({
       render: (_: any, record: Task) => (
         <Button
           type={selectedTask?.id === record.id ? 'primary' : 'default'}
-          size="small"
+          
           icon={selectedTask?.id === record.id ? <CheckCircleOutlined /> : undefined}
           onClick={() => handleTaskSelect(record)}
         >
@@ -365,7 +365,7 @@ const WorkNoteTaskSelectionModal: React.FC<WorkNoteTaskSelectionModalProps> = ({
 
       {/* 选中任务预览卡片 */}
       {selectedTask && (
-        <Card size="small" style={{ marginBottom: 16, background: '#f0f9ff', borderColor: '#91d5ff' }}>
+        <Card  style={{ marginBottom: 16, background: '#f0f9ff', borderColor: '#91d5ff' }}>
           <Space>
             <CheckCircleOutlined style={{ color: '#1890ff' }} />
             <Text strong style={{ color: '#1890ff' }}>
@@ -385,7 +385,7 @@ const WorkNoteTaskSelectionModal: React.FC<WorkNoteTaskSelectionModalProps> = ({
           dataSource={tasks}
           rowKey="id"
           pagination={false}
-          size="small"
+          
           scroll={{ y: 350 }}
           rowSelection={undefined}
           onRow={(record) => ({
@@ -409,7 +409,7 @@ const WorkNoteTaskSelectionModal: React.FC<WorkNoteTaskSelectionModalProps> = ({
                     <div style={{ marginTop: 8 }}>
                       <Button 
                         type="link" 
-                        size="small"
+                        
                         onClick={handleResetFilters}
                         style={{ padding: 0 }}
                       >
@@ -444,7 +444,7 @@ const WorkNoteTaskSelectionModal: React.FC<WorkNoteTaskSelectionModalProps> = ({
                 setCurrentPage(1);
               }
             }}
-            size="small"
+            
           />
         </div>
       )}

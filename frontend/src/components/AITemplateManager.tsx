@@ -438,7 +438,7 @@ const AITemplateManager: React.FC = () => {
       {/* 头部统计和操作 */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={6}>
-          <Card size="small">
+          <Card >
             <Statistic
               title="总模板数"
               value={total}
@@ -447,7 +447,7 @@ const AITemplateManager: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card size="small">
+          <Card >
             <Statistic
               title="公开模板"
               value={templates.filter(t => t.isPublic).length}
@@ -456,7 +456,7 @@ const AITemplateManager: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card size="small">
+          <Card >
             <Statistic
               title="我的模板"
               value={templates.filter(t => t.canEdit).length}
@@ -465,7 +465,7 @@ const AITemplateManager: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} sm={6}>
-          <Card size="small">
+          <Card >
             <Statistic
               title="热门模板"
               value={templates.filter(t => t.usageCount > 10).length}
@@ -476,7 +476,7 @@ const AITemplateManager: React.FC = () => {
       </Row>
 
       {/* 搜索和过滤 */}
-      <Card size="small" style={{ marginBottom: '16px' }}>
+      <Card  style={{ marginBottom: '16px' }}>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={8}>
             <Input
@@ -920,7 +920,7 @@ const AITemplateManager: React.FC = () => {
             </Form.Item>
 
             {extractVariables(generatingTemplate.templateText).length > 0 && (
-              <Card size="small" title="模板变量" style={{ marginBottom: '16px' }}>
+              <Card  title="模板变量" style={{ marginBottom: '16px' }}>
                 {extractVariables(generatingTemplate.templateText).map(variable => (
                   <Form.Item
                     key={variable}

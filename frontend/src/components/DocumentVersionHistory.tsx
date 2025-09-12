@@ -224,7 +224,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
         dot: isLatest ? <Badge status="success" /> : undefined,
         children: (
           <Card 
-            size="small" 
+             
             style={{ 
               marginBottom: 8,
               border: isLatest ? '2px solid #52c41a' : '1px solid #d9d9d9'
@@ -238,11 +238,11 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                     v{version.version_number}
                     {isLatest && ' (当前)'}
                   </Tag>
-                  <Space size="small">
+                  <Space >
                     <UserOutlined style={{ color: '#999' }} />
                     <Text type="secondary">{version.created_by.username}</Text>
                   </Space>
-                  <Space size="small">
+                  <Space >
                     <CalendarOutlined style={{ color: '#999' }} />
                     <Tooltip title={dayjs(version.created_at).format('YYYY-MM-DD HH:mm:ss')}>
                       <Text type="secondary">
@@ -252,11 +252,11 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                   </Space>
                 </Space>
                 
-                <Space size="small">
+                <Space >
                   <Tooltip title="下载此版本">
                     <Button 
                       type="text" 
-                      size="small"
+                      
                       icon={<DownloadOutlined />}
                       onClick={() => handleDownloadVersion(version)}
                     />
@@ -273,7 +273,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                       <Tooltip title="恢复到此版本">
                         <Button 
                           type="text" 
-                          size="small"
+                          
                           icon={<RollbackOutlined />}
                         />
                       </Tooltip>
@@ -292,7 +292,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
                       <Tooltip title="删除此版本">
                         <Button 
                           type="text" 
-                          size="small"
+                          
                           danger
                           icon={<DeleteOutlined />}
                         />
@@ -303,7 +303,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
               </Space>
 
               {/* 版本详情 */}
-              <Descriptions size="small" column={2}>
+              <Descriptions  column={2}>
                 <Descriptions.Item label="文件名">
                   <Space>
                     <FileOutlined />

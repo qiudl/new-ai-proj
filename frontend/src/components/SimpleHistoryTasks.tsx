@@ -105,7 +105,7 @@ const SimpleHistoryTasks: React.FC<SimpleHistoryTasksProps> = ({
         
         <Button 
           type="text" 
-          size="small"
+          
           icon={<ReloadOutlined />}
           onClick={loadHistoryTasks}
           loading={loading}

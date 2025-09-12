@@ -432,7 +432,7 @@ const DocumentSystemOverview: React.FC = () => {
       width: 100,
       render: (owner) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} />
+          <Avatar  icon={<UserOutlined />} />
           <Text>{owner}</Text>
         </Space>
       )
@@ -581,7 +581,7 @@ const DocumentSystemOverview: React.FC = () => {
                 <div style={{ fontSize: '12px', color: '#666', marginTop: 4 }}>
                   <Progress
                     percent={systemHealth.storage.percentage}
-                    size="small"
+                    
                     showInfo={false}
                   />
                   <div>总容量: {formatFileSize(systemHealth.storage.total)}</div>
@@ -664,7 +664,7 @@ const DocumentSystemOverview: React.FC = () => {
               columns={popularDocsColumns}
               dataSource={popularDocs}
               rowKey="id"
-              size="small"
+              
               pagination={false}
             />
           </Card>
@@ -680,7 +680,7 @@ const DocumentSystemOverview: React.FC = () => {
                     <List.Item.Meta
                       avatar={
                         <Avatar
-                          size="small"
+                          
                           style={{ backgroundColor: config.color }}
                           icon={config.icon}
                         />

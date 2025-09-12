@@ -142,7 +142,7 @@ export const TaskDetailInfo: React.FC<TaskDetailInfoProps> = React.memo(({
 }) => {
   return (
     <Card title="基本信息" style={{ marginBottom: '16px' }}>
-      <Descriptions column={1} size="small">
+      <Descriptions column={1} >
         <Descriptions.Item label="任务ID">#{task.id}</Descriptions.Item>
         
         <Descriptions.Item label="所属项目">

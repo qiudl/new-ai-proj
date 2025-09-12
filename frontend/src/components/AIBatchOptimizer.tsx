@@ -325,7 +325,7 @@ const AIBatchOptimizer: React.FC = () => {
       render: (_, record: GeneratedSubTask) => (
         <Progress
           percent={record.custom_fields?.confidence_score || 0}
-          size="small"
+          
           format={(percent) => `${percent?.toFixed(0)}%`}
         />
       )
@@ -403,7 +403,7 @@ const AIBatchOptimizer: React.FC = () => {
 
               {/* 高级选项 */}
               {showAdvancedOptions && (
-                <Card size="small" title="全局优化选项" style={{ marginBottom: '16px' }}>
+                <Card  title="全局优化选项" style={{ marginBottom: '16px' }}>
                   <Row gutter={[16, 8]}>
                     <Col span={12}>
                       <Space>
@@ -534,7 +534,7 @@ const AIBatchOptimizer: React.FC = () => {
                     优化完成
                   </Space>
                 }
-                size="small"
+                
                 style={{ marginBottom: '16px' }}
               >
                 <Row gutter={[16, 16]}>
@@ -597,7 +597,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>整体评分：</Text>
                       <Progress
                         percent={results.qualityMetrics.overallScore * 100}
-                        size="small"
+                        
                         format={(percent) => `${percent?.toFixed(1)}%`}
                       />
                     </div>
@@ -607,7 +607,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>一致性：</Text>
                       <Progress
                         percent={results.qualityMetrics.consistencyScore * 100}
-                        size="small"
+                        
                         format={(percent) => `${percent?.toFixed(1)}%`}
                       />
                     </div>
@@ -617,7 +617,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>工作流效率：</Text>
                       <Progress
                         percent={results.qualityMetrics.workflowEfficiency * 100}
-                        size="small"
+                        
                         format={(percent) => `${percent?.toFixed(1)}%`}
                       />
                     </div>
@@ -627,7 +627,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>资源优化：</Text>
                       <Progress
                         percent={results.qualityMetrics.resourceOptimization * 100}
-                        size="small"
+                        
                         format={(percent) => `${percent?.toFixed(1)}%`}
                       />
                     </div>
@@ -697,7 +697,7 @@ const AIBatchOptimizer: React.FC = () => {
                         dataSource={group.optimizedTasks}
                         rowKey={(record, index) => `${record.title}-${index}`}
                         pagination={false}
-                        size="small"
+                        
                       />
                     </Panel>
                   ))}
@@ -786,7 +786,7 @@ const AIBatchOptimizer: React.FC = () => {
                     <Space wrap>
                       <Text>组选项：</Text>
                       <Switch
-                        size="small"
+                        
                         checked={group.groupOptions.deduplicateTasks}
                         onChange={(checked) => updateTaskGroup(group.id, {
                           groupOptions: { ...group.groupOptions, deduplicateTasks: checked }
@@ -795,7 +795,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>去重</Text>
                       
                       <Switch
-                        size="small"
+                        
                         checked={group.groupOptions.optimizeDependencies}
                         onChange={(checked) => updateTaskGroup(group.id, {
                           groupOptions: { ...group.groupOptions, optimizeDependencies: checked }
@@ -804,7 +804,7 @@ const AIBatchOptimizer: React.FC = () => {
                       <Text>依赖优化</Text>
                       
                       <Switch
-                        size="small"
+                        
                         checked={group.groupOptions.balancePriorities}
                         onChange={(checked) => updateTaskGroup(group.id, {
                           groupOptions: { ...group.groupOptions, balancePriorities: checked }
@@ -822,14 +822,14 @@ const AIBatchOptimizer: React.FC = () => {
                   dataSource={group.tasks}
                   rowKey={(record, index) => `${record.title}-${index}`}
                   pagination={false}
-                  size="small"
+                  
                   locale={{
                     emptyText: (
                       <Empty
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                         description="暂无任务"
                       >
-                        <Button size="small">添加任务</Button>
+                        <Button >添加任务</Button>
                       </Empty>
                     )
                   }}

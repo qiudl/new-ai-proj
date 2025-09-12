@@ -202,16 +202,16 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               {new Date(document.updated_at).toLocaleDateString()}
             </Text>
             
-            <Space size="small">
+            <Space >
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EditOutlined />}
                 onClick={handleEdit}
               />
               <Button
                 type="text"
-                size="small"
+                
                 danger
                 icon={<DeleteOutlined />}
                 onClick={handleDelete}
@@ -228,7 +228,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
   return (
     <div style={{ ...style, padding: '0 16px' }}>
       <Card
-        size="small"
+        
         style={{
           cursor: 'pointer',
           border: isSelected ? '2px solid #1890ff' : '1px solid #f0f0f0',
@@ -305,7 +305,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
           
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Avatar size="small" icon={<UserOutlined />} />
+              <Avatar  icon={<UserOutlined />} />
               <Text style={{ fontSize: '12px' }}>{doc.owner_name}</Text>
             </div>
             
@@ -313,11 +313,11 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               {new Date(doc.updated_at).toLocaleDateString()}
             </Text>
             
-            <Space size="small">
+            <Space >
               <Tooltip title="查看">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<EyeOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -328,7 +328,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               <Tooltip title="编辑">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<EditOutlined />}
                   onClick={handleEdit}
                 />
@@ -336,7 +336,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               <Tooltip title="复制">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<CopyOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -347,7 +347,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               <Tooltip title="删除">
                 <Button
                   type="text"
-                  size="small"
+                  
                   danger
                   icon={<DeleteOutlined />}
                   onClick={handleDelete}
@@ -355,7 +355,7 @@ const VirtualizedListItem: React.FC<ListChildComponentProps> = ({ index, style, 
               </Tooltip>
               <Button
                 type="text"
-                size="small"
+                
                 icon={<MoreOutlined />}
                 onClick={(e) => e.stopPropagation()}
               />

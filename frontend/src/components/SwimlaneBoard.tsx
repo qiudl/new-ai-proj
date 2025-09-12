@@ -231,7 +231,7 @@ const SwimlaneBoard: React.FC<SwimlaneBoardProps> = ({ projectId, tasks = [], lo
 
   return (
     <div className="swimlane-board-wrapper">
-      <Card className="sb-toolbar" size="small">
+      <Card className="sb-toolbar" >
         <Space wrap>
           <Badge color="#1890ff" text={<span>视图：按状态</span>} />
           <Input
@@ -241,12 +241,12 @@ const SwimlaneBoard: React.FC<SwimlaneBoardProps> = ({ projectId, tasks = [], lo
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             style={{ width: 260 }}
-            size="small"
+            
           />
           <Badge color="#d9d9d9" text={<span>任务数：{filteredTasks.length}</span>} />
           {projectId && (
             <Tooltip title="从服务器拉取最新任务">
-<Button size="small" icon={<SyncOutlined />} loading={fetching} onClick={handleRefresh}>
+<Button  icon={<SyncOutlined />} loading={fetching} onClick={handleRefresh}>
                 刷新
               </Button>
             </Tooltip>

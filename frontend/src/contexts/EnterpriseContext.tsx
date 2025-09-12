@@ -41,11 +41,9 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     try {
       setLoading(true);
       setError(null);
-      console.log('🏢 刷新企业列表...');
       
       const response = await enterpriseService.getEnterprises(1, 100);
       setEnterprises(response.data);
-      console.log('✅ 企业列表刷新成功:', response.data.length, '个企业');
       
     } catch (err) {
       console.error('❌ 刷新企业列表失败:', err);
@@ -62,14 +60,12 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     try {
       setLoading(true);
       setError(null);
-      console.log('🏢 切换到企业，ID:', enterpriseId);
       
       const enterprise = await enterpriseService.getEnterprise(enterpriseId);
       setCurrentEnterprise(enterprise);
       
       // 保存到本地存储
       localStorage.setItem('currentEnterpriseId', enterpriseId.toString());
-      console.log('✅ 企业切换成功:', enterprise.name);
       
     } catch (err) {
       console.error('❌ 企业切换失败:', err);
@@ -87,13 +83,10 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
     try {
       const enterpriseId = user.enterprise_id || user.company_id;
       if (!enterpriseId) {
-        console.log('⚠️ 用户没有关联企业');
         return null;
       }
       
-      console.log('🏢 获取用户企业信息，ID:', enterpriseId);
       const enterprise = await enterpriseService.getEnterprise(enterpriseId);
-      console.log('✅ 用户企业信息获取成功:', enterprise.name);
       return enterprise;
       
     } catch (err) {
@@ -108,7 +101,6 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
       // 检查用户是否已登录
       const token = localStorage.getItem('token');
       if (!token) {
-        console.log('⚠️ 用户未登录，跳过企业初始化');
         return;
       }
 
@@ -134,11 +126,9 @@ export const EnterpriseProvider: React.FC<EnterpriseProviderProps> = ({ children
       if (e.key === 'token') {
         if (e.newValue) {
           // 用户登录，刷新企业列表
-          console.log('👤 检测到用户登录，刷新企业列表');
           initializeEnterprise();
         } else {
           // 用户登出，清空企业数据
-          console.log('👤 检测到用户登出，清空企业数据');
           setCurrentEnterprise(null);
           setEnterprises([]);
           localStorage.removeItem('currentEnterpriseId');

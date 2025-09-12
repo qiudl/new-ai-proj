@@ -90,7 +90,7 @@ const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
       className={`draggable-task-item ${isDragging ? 'dragging' : ''} ${isCurrentlyTiming ? 'timing' : ''}`}
     >
       <Card
-        size="small"
+        
         hoverable={!isDragging}
         style={{
           marginBottom: 8,
@@ -161,7 +161,7 @@ const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
             <Tooltip title={isCurrentlyTiming ? '正在计时' : '开始计时'}>
               <Button
                 type={isCurrentlyTiming ? 'primary' : 'text'}
-                size="small"
+                
                 icon={isCurrentlyTiming ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
                 onClick={(e) => {
                   e.stopPropagation();

@@ -124,19 +124,6 @@ const PermissionRoute: React.FC<PermissionRouteProps> = ({
         const finalAccess = permissionGranted && roleGranted;
         setHasAccess(finalAccess);
 
-        // 记录权限检查结果（仅开发环境）
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[PermissionRoute] Access check:', {
-            currentUserId,
-            permission,
-            permissions,
-            roles,
-            permissionGranted,
-            roleGranted,
-            finalAccess,
-            userRole: userPermissions?.role?.roleCode
-          });
-        }
 
       } catch (err) {
         console.error('[PermissionRoute] Access check failed:', err);

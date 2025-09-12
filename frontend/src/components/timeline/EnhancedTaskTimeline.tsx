@@ -167,7 +167,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
   const getUserAvatar = (event: TaskTimelineEvent) => {
     if (!event.username) {
       return (
-        <Avatar size="small" style={{ backgroundColor: '#8c8c8c' }}>
+        <Avatar  style={{ backgroundColor: '#8c8c8c' }}>
           <UserOutlined />
         </Avatar>
       );
@@ -178,7 +178,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
     
     return (
       <Avatar 
-        size="small" 
+         
         style={{ backgroundColor: colors[colorIndex] }}
       >
         {event.username.charAt(0).toUpperCase()}
@@ -242,7 +242,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
       ),
       children: (
         <Card 
-          size="small"
+          
           style={{
             marginLeft: 8,
             marginBottom: compactMode ? 8 : 16,
@@ -299,7 +299,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
               {!compactMode && event.metadata && (
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={isExpanded ? <UpOutlined /> : <DownOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -357,7 +357,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
 
     return (
       <Card 
-        size="small" 
+         
         style={{ 
           marginBottom: 16,
           backgroundColor: '#fafafa',
@@ -379,7 +379,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
             <Space>
               <Tooltip title="刷新时间线">
                 <Button
-                  size="small"
+                  
                   icon={<ReloadOutlined />}
                   onClick={onRefresh}
                   loading={loading}
@@ -388,13 +388,13 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
               </Tooltip>
               <Tooltip title="视图设置">
                 <Button
-                  size="small"
+                  
                   icon={<SettingOutlined />}
                   onClick={() => message.info('视图设置功能开发中')}
                 />
               </Tooltip>
               <Button 
-                size="small" 
+                 
                 onClick={() => {
                   setFilter({});
                   setSearchTerm('');
@@ -412,7 +412,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
                 showSearch
                 placeholder="搜索事件..."
                 style={{ width: 200, marginLeft: 8 }}
-                size="small"
+                
                 value={searchTerm || undefined}
                 onSearch={setSearchTerm}
                 onChange={setSearchTerm}
@@ -429,7 +429,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
                 mode="multiple"
                 placeholder="选择类型"
                 style={{ minWidth: 200, marginLeft: 8 }}
-                size="small"
+                
                 value={filter.event_types}
                 onChange={(value) => setFilter({ ...filter, event_types: value })}
                 options={filterOptions.eventTypes.map(opt => ({
@@ -446,7 +446,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
                 mode="multiple"
                 placeholder="选择用户"
                 style={{ minWidth: 150, marginLeft: 8 }}
-                size="small"
+                
                 value={filter.user_ids?.map(String)}
                 onChange={(value) => setFilter({ ...filter, user_ids: value?.map(Number) })}
                 options={filterOptions.users.map(opt => ({
@@ -463,7 +463,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
                 mode="multiple"
                 placeholder="选择分类"
                 style={{ minWidth: 120, marginLeft: 8 }}
-                size="small"
+                
                 value={filter.categories}
                 onChange={(value) => setFilter({ ...filter, categories: value })}
                 options={filterOptions.categories.map(opt => ({
@@ -479,7 +479,7 @@ const EnhancedTaskTimeline: React.FC<EnhancedTaskTimelineProps> = ({
                 mode="multiple"
                 placeholder="选择严重性"
                 style={{ minWidth: 120, marginLeft: 8 }}
-                size="small"
+                
                 value={filter.severities}
                 onChange={(value) => setFilter({ ...filter, severities: value })}
                 options={filterOptions.severities.map(opt => ({

@@ -149,7 +149,6 @@ class WorkNotesService {
               username: data.data.user.username,
               role: data.data.user.role
             }));
-            console.log('✅ 工作笔记服务自动获取开发环境token成功');
           }
         }
       } catch (error) {

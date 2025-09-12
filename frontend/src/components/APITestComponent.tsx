@@ -153,7 +153,7 @@ const APITestComponent: React.FC = () => {
         <Divider />
 
         {/* 项目API测试结果 */}
-        <Card size="small" title={
+        <Card  title={
           <Space>
             {getStatusIcon(testResults.projects.status)}
             <span>项目API测试</span>
@@ -185,7 +185,7 @@ const APITestComponent: React.FC = () => {
         </Card>
 
         {/* 客户API测试结果 */}
-        <Card size="small" title={
+        <Card  title={
           <Space>
             {getStatusIcon(testResults.customers.status)}
             <span>客户API测试</span>
@@ -217,7 +217,7 @@ const APITestComponent: React.FC = () => {
         </Card>
 
         {/* 版本历史API测试结果 */}
-        <Card size="small" title={
+        <Card  title={
           <Space>
             {getStatusIcon(testResults.versions.status)}
             <span>版本历史API测试</span>
@@ -246,7 +246,7 @@ const APITestComponent: React.FC = () => {
         <Divider />
 
         {/* 环境信息 */}
-        <Card size="small" title="环境配置信息">
+        <Card  title="环境配置信息">
           <ul>
             <li>API基础URL: {process.env.REACT_APP_API_URL || '未设置'}</li>
             <li>启用Mock: {process.env.REACT_APP_ENABLE_MOCK || 'false'}</li>

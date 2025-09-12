@@ -374,7 +374,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
             type="warning"
             showIcon
             action={
-              <Button size="small" onClick={loadStatistics} loading={loading}>
+              <Button  onClick={loadStatistics} loading={loading}>
                 重试
               </Button>
             }
@@ -411,7 +411,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
           />
           <Progress
             percent={statistics?.tagging_coverage || 0}
-            size="small"
+            
             showInfo={false}
             style={{ marginTop: 8 }}
           />
@@ -419,7 +419,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
       </Col>
 
       <Col span={24}>
-        <Card title="最常用标签" size="small">
+        <Card title="最常用标签" >
           <Space wrap>
             {statistics?.most_used_tags?.slice(0, 10).map((tagUsage) => (
               <Tooltip
@@ -490,7 +490,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
           <Row gutter={16}>
             {statistics?.category_stats && Object.entries(statistics.category_stats).map(([category, stats]) => (
               <Col xs={24} sm={12} md={8} lg={6} key={category}>
-                <Card size="small">
+                <Card >
                   <Statistic
                     title={category.toUpperCase()}
                     value={stats.count}
@@ -498,7 +498,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
                   />
                   <Progress
                     percent={stats.percentage}
-                    size="small"
+                    
                     showInfo={false}
                     style={{ marginTop: 8 }}
                   />
@@ -519,7 +519,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
       <Col xs={24} lg={12}>
         <Card title="标签使用排行">
           <List
-            size="small"
+            
             dataSource={statistics?.most_used_tags?.slice(0, 10) || []}
             renderItem={(item, index) => (
               <List.Item>
@@ -541,7 +541,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
       <Col xs={24} lg={12}>
         <Card title="新增标签">
           <List
-            size="small"
+            
             dataSource={statistics?.recently_added_tags || []}
             renderItem={(item) => (
               <List.Item>
@@ -635,7 +635,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
           <Col xs={24} lg={12}>
             <Card title="智能洞察">
               <List
-                size="small"
+                
                 dataSource={weeklyReport.insights || []}
                 renderItem={(insight) => (
                   <List.Item>
@@ -664,11 +664,11 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
           <Col xs={24} lg={12}>
             <Card title="改进建议">
               <List
-                size="small"
+                
                 dataSource={weeklyReport.recommendations || []}
                 renderItem={(rec) => (
                   <List.Item>
-                    <Card size="small" style={{ width: '100%' }}>
+                    <Card  style={{ width: '100%' }}>
                       <div style={{ marginBottom: 8 }}>
                         <Space>
                           <Tag color={getPriorityColor(rec.priority)}>
@@ -704,7 +704,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
               type="warning"
               showIcon
               action={
-                <Button size="small" onClick={() => generateReport()}>
+                <Button  onClick={() => generateReport()}>
                   重新生成
                 </Button>
               }
@@ -750,7 +750,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
           ) : (
             <Row gutter={16}>
               <Col xs={24} lg={12}>
-                <Card size="small" title="基本信息">
+                <Card  title="基本信息">
                   <div style={{ marginBottom: 8 }}>
                     <Text strong>任务标题: </Text>
                     <Text>{taskAnalysis.title}</Text>
@@ -759,7 +759,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
                     <Text strong>置信度: </Text>
                     <Progress
                       percent={Math.round(taskAnalysis.confidence * 100)}
-                      size="small"
+                      
                       style={{ width: 100, display: 'inline-block' }}
                     />
                     <Text style={{ marginLeft: 8 }}>
@@ -770,7 +770,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
               </Col>
 
               <Col xs={24} lg={12}>
-                <Card size="small" title="标签对比">
+                <Card  title="标签对比">
                   <div style={{ marginBottom: 12 }}>
                     <Text strong>现有标签:</Text>
                     <div style={{ marginTop: 4 }}>
@@ -814,7 +814,7 @@ const TaskAnalysisPanel: React.FC<TaskAnalysisPanelProps> = ({
               </Col>
 
               <Col span={24}>
-                <Card size="small" title="标签分类">
+                <Card  title="标签分类">
                   <Row gutter={16}>
                     {Object.entries(taskAnalysis.tag_categories).map(([category, tags]) => (
                       <Col xs={24} sm={12} md={8} key={category}>

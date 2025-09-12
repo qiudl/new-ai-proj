@@ -172,7 +172,7 @@ const DEFAULT_CUSTOM_FIELDS: CustomFieldConfig[] = [
     render: (value: number) => (
       <Progress 
         percent={value || 0} 
-        size="small" 
+         
         format={(percent) => `${percent}%`}
         strokeColor={{
           '0%': '#108ee9',
@@ -847,7 +847,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   {record.hasChildren && (
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={record.isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -911,10 +911,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
               
               if (isRunning) {
                 return (
-                  <Space size="small">
+                  <Space >
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
                       onClick={handlePauseResumeTimer}
                       loading={timerLoading}
@@ -922,7 +922,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     />
                     <Button
                       type="text"
-                      size="small"
+                      
                       danger
                       icon={<StopOutlined />}
                       onClick={handleStopTimer}
@@ -936,7 +936,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 return (
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<PlayCircleOutlined />}
                     onClick={() => handleStartTimer(record)}
                     loading={timerLoading && timerState.taskId === record.id}
@@ -1005,11 +1005,11 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             fixed: 'right',
             width: 120,
             render: (_: any, record: Task) => (
-              <Space size="small">
+              <Space >
                 <Tooltip title="查看详情">
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<EyeOutlined />}
                     onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}`)}
                   />
@@ -1017,7 +1017,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 <Tooltip title="编辑">
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<EditOutlined />}
                     onClick={() => navigate(`/projects/${projectId}/tasks/${record.id}/edit`)}
                   />
@@ -1025,7 +1025,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 <Tooltip title="删除">
                   <Button
                     type="text"
-                    size="small"
+                    
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteTask(record)}
@@ -1382,7 +1382,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={6}>
           <Tooltip title="点击查看全部任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
+            <Card  hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 清除所有筛选，显示全部任务
                 setFilters(prev => ({ 
@@ -1405,7 +1405,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选已完成任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
+            <Card  hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选已完成任务
                 setFilters(prev => ({ 
@@ -1425,7 +1425,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 <div style={{ marginTop: '8px' }}>
                   <Progress 
                     percent={projectStats.completionRate} 
-                    size="small" 
+                     
                     showInfo={false}
                     strokeColor="#52c41a"
                   />
@@ -1439,7 +1439,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选进行中任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
+            <Card  hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选进行中任务
                 setFilters(prev => ({ 
@@ -1462,7 +1462,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
         </Col>
         <Col xs={24} sm={6}>
           <Tooltip title="点击筛选逾期任务">
-            <Card size="small" hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
+            <Card  hoverable style={{ cursor: 'pointer', minHeight: '120px' }}>
               <div onClick={() => {
                 // 筛选逾期任务
                 const yesterday = dayjs().subtract(1, 'day');
@@ -1488,7 +1488,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
 
       {/* 当前计时器状态 */}
       {timerState.isRunning && (
-        <Card size="small" style={{ marginBottom: '16px', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
+        <Card  style={{ marginBottom: '16px', backgroundColor: '#f6ffed', borderColor: '#b7eb8f' }}>
           <Row justify="space-between" align="middle">
             <Col>
               <Space>
@@ -1501,7 +1501,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             <Col>
               <Space>
                 <Button 
-                  size="small" 
+                   
                   icon={timerState.isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
                   onClick={handlePauseResumeTimer}
                   loading={timerLoading}
@@ -1509,7 +1509,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   {timerState.isPaused ? '继续' : '暂停'}
                 </Button>
                 <Button 
-                  size="small" 
+                   
                   danger 
                   icon={<StopOutlined />}
                   onClick={handleStopTimer}
@@ -1524,10 +1524,10 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
       )}
 
       {/* 工具栏 - 优化为一行显示 */}
-      <Card size="small" style={{ marginBottom: '16px' }}>
+      <Card  style={{ marginBottom: '16px' }}>
         <Row justify="space-between" align="middle" gutter={8}>
           <Col flex="auto">
-            <Space size="small" wrap>
+            <Space  wrap>
               <Input
                 placeholder="搜索任务"
                 prefix={<SearchOutlined />}
@@ -1535,7 +1535,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                 style={{ width: 160 }}
                 allowClear
-                size="small"
+                
               />
               <Input
                 placeholder="任务ID"
@@ -1544,7 +1544,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 onChange={(e) => setFilters(prev => ({ ...prev, taskIdSearch: e.target.value }))}
                 style={{ width: 100 }}
                 allowClear
-                size="small"
+                
               />
               <Select
                 mode="multiple"
@@ -1553,7 +1553,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 onChange={(status) => setFilters(prev => ({ ...prev, status }))}
                 style={{ width: 120 }}
                 allowClear
-                size="small"
+                
               >
                 <Option value="todo">待开始</Option>
                 <Option value="in_progress">进行中</Option>
@@ -1564,13 +1564,13 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 placeholder={['开始', '结束']}
                 value={filters.due_date_range}
                 onChange={(dates) => setFilters(prev => ({ ...prev, due_date_range: dates as [dayjs.Dayjs, dayjs.Dayjs] | null }))}
-                size="small"
+                
                 style={{ width: 180 }}
               />
               <Button 
                 icon={<FilterOutlined />}
                 onClick={loadData}
-                size="small"
+                
               >
                 筛选
               </Button>
@@ -1578,11 +1578,11 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 icon={<FilterFilled />}
                 type={advancedFilterVisible ? 'primary' : 'default'}
                 onClick={() => setAdvancedFilterVisible(!advancedFilterVisible)}
-                size="small"
+                
               >
                 高级
                 {advancedFilters.length > 0 && (
-                  <Badge count={advancedFilters.length} size="small" style={{ marginLeft: 4 }} />
+                  <Badge count={advancedFilters.length}  style={{ marginLeft: 4 }} />
                 )}
               </Button>
               {(filters.search || filters.taskIdSearch || filters.status.length > 0 || filters.due_date_range || advancedFilters.length > 0) && (
@@ -1598,7 +1598,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     });
                     clearAdvancedFilters();
                   }}
-                  size="small"
+                  
                 >
                   清除
                 </Button>
@@ -1607,7 +1607,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                 icon={<ReloadOutlined />} 
                 onClick={loadData}
                 loading={loading}
-                size="small"
+                
               >
                 刷新
               </Button>
@@ -1618,7 +1618,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
               icon={<PlusOutlined />}
               type="primary"
               onClick={() => setCreateModalVisible(true)}
-              size="small"
+              
             >
               新建任务
             </Button>
@@ -1634,7 +1634,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
             <Space>
               <Button
                 type="primary"
-                size="small"
+                
                 icon={<PlusOutlined />}
                 onClick={addAdvancedFilter}
               >
@@ -1642,7 +1642,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
               </Button>
               {advancedFilters.length > 0 && (
                 <Button
-                  size="small"
+                  
                   icon={<ClearOutlined />}
                   onClick={clearAdvancedFilters}
                 >
@@ -1664,7 +1664,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     <Col span={2}>
                       <Select
                         value={filter.logicalOperator}
-                        size="small"
+                        
                         onChange={(value) => updateAdvancedFilter(filter.id, { logicalOperator: value })}
                         style={{ width: '100%' }}
                       >
@@ -1677,7 +1677,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     <Select
                       placeholder="选择字段"
                       value={filter.field}
-                      size="small"
+                      
                       onChange={(value) => updateAdvancedFilter(filter.id, { field: value })}
                       style={{ width: '100%' }}
                     >
@@ -1696,7 +1696,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     <Select
                       placeholder="条件"
                       value={filter.operator}
-                      size="small"
+                      
                       onChange={(value) => updateAdvancedFilter(filter.id, { operator: value })}
                       style={{ width: '100%' }}
                     >
@@ -1715,7 +1715,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                     {filter.operator === 'isEmpty' || filter.operator === 'isNotEmpty' ? (
                       <Input
                         placeholder="无需填写值"
-                        size="small"
+                        
                         disabled
                         style={{ width: '100%' }}
                       />
@@ -1723,7 +1723,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                       <Select
                         placeholder="选择状态"
                         value={filter.value}
-                        size="small"
+                        
                         onChange={(value) => updateAdvancedFilter(filter.id, { value })}
                         style={{ width: '100%' }}
                       >
@@ -1736,7 +1736,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                       <Select
                         placeholder="选择优先级"
                         value={filter.value}
-                        size="small"
+                        
                         onChange={(value) => updateAdvancedFilter(filter.id, { value })}
                         style={{ width: '100%' }}
                       >
@@ -1749,7 +1749,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                       <Input
                         placeholder="筛选值"
                         value={filter.value}
-                        size="small"
+                        
                         onChange={(e) => updateAdvancedFilter(filter.id, { value: e.target.value })}
                         style={{ width: '100%' }}
                       />
@@ -1758,7 +1758,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   <Col span={2}>
                     <Button
                       type="text"
-                      size="small"
+                      
                       danger
                       icon={<MinusCircleOutlined />}
                       onClick={() => removeAdvancedFilter(filter.id)}
@@ -1779,7 +1779,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
               <Space>
                 <Text strong>已选择 {selectedRowKeys.length} 个任务</Text>
                 <Button
-                  size="small"
+                  
                   onClick={() => {
                     const allTaskIds = displayTasks.map(task => task.id);
                     setSelectedRowKeys(allTaskIds);
@@ -1789,7 +1789,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   全选
                 </Button>
                 <Button
-                  size="small"
+                  
                   onClick={() => {
                     const allTaskIds = displayTasks.map(task => task.id);
                     const unselectedIds = allTaskIds.filter(id => !selectedRowKeys.includes(id));
@@ -1800,7 +1800,7 @@ const EnhancedProjectTaskManager: React.FC<EnhancedProjectTaskManagerProps> = ({
                   反选
                 </Button>
                 <Button
-size="small"
+
                   onClick={() => {
                     setSelectedRowKeys([]);
                     message.info('已取消选择');
@@ -1852,7 +1852,7 @@ size="small"
                   placement="bottomLeft"
                   disabled={batchLoading}
                 >
-                  <Button size="small" loading={batchLoading}>
+                  <Button  loading={batchLoading}>
                     批量操作 <CaretDownOutlined />
                   </Button>
                 </Dropdown>
@@ -1917,7 +1917,7 @@ size="small"
             
             return classes.join(' ');
           }}
-          size="small"
+          
           bordered
         />
       </Card>

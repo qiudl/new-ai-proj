@@ -618,28 +618,28 @@ const ProjectGlobalGanttChart: React.FC<ProjectGlobalGanttChartProps> = ({
         extra={
           <Space>
             <Button
-              size="small"
+              
               icon={<FilterOutlined />}
               onClick={() => setConfigDrawerVisible(true)}
             >
               配置
             </Button>
             <Button
-              size="small"
+              
               icon={<RocketOutlined />}
               onClick={() => setCriticalPathDrawerVisible(true)}
               type={config.showCriticalPath ? 'primary' : 'default'}
             >
               关键路径
             </Button>
-            <Button size="small" icon={<ExportOutlined />}>
+            <Button  icon={<ExportOutlined />}>
               导出
             </Button>
-            <Button size="small" icon={<ReloadOutlined />} onClick={loadProjectTasks}>
+            <Button  icon={<ReloadOutlined />} onClick={loadProjectTasks}>
               刷新
             </Button>
             <Button
-              size="small"
+              
               icon={isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
               onClick={() => setIsFullscreen(!isFullscreen)}
             >

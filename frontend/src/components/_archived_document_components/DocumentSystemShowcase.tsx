@@ -207,7 +207,7 @@ const DocumentSystemShowcase: React.FC = () => {
         <Row gutter={[16, 16]}>
           {featureModules.map((module, index) => (
             <Col xs={24} sm={12} md={8} lg={6} key={index}>
-              <Card size="small" hoverable>
+              <Card  hoverable>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '24px', marginBottom: 8 }}>
                     {module.icon}
@@ -244,8 +244,8 @@ const DocumentSystemShowcase: React.FC = () => {
           
           <Row gutter={[16, 16]}>
             <Col xs={24} md={8}>
-              <Card size="small" title="基础功能层">
-                <List size="small">
+              <Card  title="基础功能层">
+                <List >
                   <List.Item>文档CRUD操作</List.Item>
                   <List.Item>文件夹管理</List.Item>
                   <List.Item>权限控制</List.Item>
@@ -254,8 +254,8 @@ const DocumentSystemShowcase: React.FC = () => {
               </Card>
             </Col>
             <Col xs={24} md={8}>
-              <Card size="small" title="高级功能层">
-                <List size="small">
+              <Card  title="高级功能层">
+                <List >
                   <List.Item>实时协作</List.Item>
                   <List.Item>智能搜索</List.Item>
                   <List.Item>版本控制</List.Item>
@@ -264,8 +264,8 @@ const DocumentSystemShowcase: React.FC = () => {
               </Card>
             </Col>
             <Col xs={24} md={8}>
-              <Card size="small" title="企业集成层">
-                <List size="small">
+              <Card  title="企业集成层">
+                <List >
                   <List.Item>Google Docs</List.Item>
                   <List.Item>Office 365</List.Item>
                   <List.Item>企业SSO</List.Item>
@@ -445,7 +445,7 @@ const DocumentSystemShowcase: React.FC = () => {
               <Card title="实施建议和技术指南">
                 <Row gutter={[24, 24]}>
                   <Col xs={24} md={12}>
-                    <Card size="small" title="🚀 快速部署">
+                    <Card  title="🚀 快速部署">
                       <Paragraph>
                         <Text strong>第一步：</Text>安装基础依赖
                         <br />
@@ -464,8 +464,8 @@ const DocumentSystemShowcase: React.FC = () => {
                     </Card>
                   </Col>
                   <Col xs={24} md={12}>
-                    <Card size="small" title="⚙️ 配置建议">
-                      <List size="small">
+                    <Card  title="⚙️ 配置建议">
+                      <List >
                         <List.Item>
                           <Text strong>基础版：</Text>适合小团队，启用基础功能
                         </List.Item>
@@ -482,8 +482,8 @@ const DocumentSystemShowcase: React.FC = () => {
                     </Card>
                   </Col>
                   <Col xs={24} md={12}>
-                    <Card size="small" title="🔧 技术栈">
-                      <List size="small">
+                    <Card  title="🔧 技术栈">
+                      <List >
                         <List.Item>前端：React 18 + TypeScript + Ant Design</List.Item>
                         <List.Item>状态管理：自定义Hooks + Context</List.Item>
                         <List.Item>数据通信：RESTful API + 自动刷新</List.Item>
@@ -493,8 +493,8 @@ const DocumentSystemShowcase: React.FC = () => {
                     </Card>
                   </Col>
                   <Col xs={24} md={12}>
-                    <Card size="small" title="📊 性能指标">
-                      <List size="small">
+                    <Card  title="📊 性能指标">
+                      <List >
                         <List.Item>支持10,000+文档管理</List.Item>
                         <List.Item>100+并发用户协作</List.Item>
                         <List.Item>毫秒级搜索响应</List.Item>

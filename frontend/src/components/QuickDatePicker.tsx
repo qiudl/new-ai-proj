@@ -167,7 +167,7 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
             </div>
             <Button
               type="text"
-              size="small"
+              
               icon={<DeleteOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
@@ -199,14 +199,14 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
   };
 
   return (
-    <Card size="small" style={{ marginBottom: '12px' }}>
+    <Card  style={{ marginBottom: '12px' }}>
       <Row gutter={[12, 8]} align="middle">
         {/* 周导航 */}
         <Col>
           <Space>
             <Button 
               type="text" 
-              size="small"
+              
               icon={<LeftOutlined />} 
               onClick={() => onWeekChange(selectedWeek.subtract(1, 'week'))}
             />
@@ -225,7 +225,7 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
             </div>
             <Button 
               type="text" 
-              size="small"
+              
               icon={<RightOutlined />} 
               onClick={() => onWeekChange(selectedWeek.add(1, 'week'))}
             />
@@ -238,21 +238,21 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
 
         {/* 快捷日期选择 */}
         <Col>
-          <Space size="small">
+          <Space >
             <Dropdown menu={quickDateMenu} trigger={['click']}>
-              <Button size="small" icon={<ClockCircleOutlined />}>
+              <Button  icon={<ClockCircleOutlined />}>
                 快捷选择
               </Button>
             </Dropdown>
 
             <Dropdown menu={dateRangeMenu} trigger={['click']}>
-              <Button size="small" icon={<CalendarOutlined />}>
+              <Button  icon={<CalendarOutlined />}>
                 日期范围
               </Button>
             </Dropdown>
 
             <DatePicker
-              size="small"
+              
               picker="week"
               value={selectedWeek}
               onChange={(date) => date && onWeekChange(date)}
@@ -269,10 +269,10 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
 
         {/* 书签和分享 */}
         <Col>
-          <Space size="small">
+          <Space >
             {savedBookmarks.length > 0 && (
               <Dropdown menu={bookmarkMenu} trigger={['click']}>
-                <Button size="small" icon={<BookOutlined />}>
+                <Button  icon={<BookOutlined />}>
                   书签 ({savedBookmarks.length})
                 </Button>
               </Dropdown>
@@ -280,7 +280,7 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
 
             {!savedBookmarks.length && onSaveBookmark && (
               <Button 
-                size="small" 
+                 
                 icon={<BookOutlined />}
                 onClick={() => setShowBookmarkInput(true)}
               >
@@ -291,7 +291,7 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
             {filters && (
               <Tooltip title="复制分享链接">
                 <Button 
-                  size="small" 
+                   
                   icon={<ShareAltOutlined />}
                   onClick={handleShare}
                 />
@@ -302,10 +302,10 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
 
         {/* 快速操作 */}
         <Col flex="auto" style={{ textAlign: 'right' }}>
-          <Space size="small">
+          <Space >
             <Button 
               type="primary" 
-              size="small"
+              
               onClick={() => onWeekChange(dayjs())}
               disabled={selectedWeek.isSame(dayjs(), 'week')}
             >
@@ -344,12 +344,12 @@ export const QuickDatePicker: React.FC<QuickDatePickerProps> = ({
               />
             </Col>
             <Col>
-              <Space size="small">
-                <Button size="small" type="primary" onClick={handleSaveBookmark}>
+              <Space >
+                <Button  type="primary" onClick={handleSaveBookmark}>
                   保存
                 </Button>
                 <Button 
-                  size="small" 
+                   
                   onClick={() => {
                     setShowBookmarkInput(false);
                     setBookmarkName('');

@@ -319,7 +319,7 @@ export const TaskParentSelectorModal: React.FC<TaskParentSelectorModalProps> = (
         {allowClear && (
           <Button
             type="link"
-            size="small"
+            
             onClick={handleClear}
             style={{ marginLeft: 'auto', padding: '0 4px' }}
           >

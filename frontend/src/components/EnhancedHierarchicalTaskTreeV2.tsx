@@ -228,7 +228,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
         key: `task-${node.id}`,
         title: (
           <div className="tree-node-title" style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            <Space size="small" style={{ flex: 1 }}>
+            <Space  style={{ flex: 1 }}>
               <FileTextOutlined style={{ color: '#1890ff' }} />
               <Text strong>{node.title}</Text>
               <Tag 
@@ -261,11 +261,11 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
               )}
             </Space>
             
-            <Space size="small">
+            <Space >
               <Tooltip title="开始/停止计时">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={isTimerActive ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -281,7 +281,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
               <Tooltip title="查看详情">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<FileTextOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -431,7 +431,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
       extra={
         <Space>
           <Button
-            size="small"
+            
             icon={<ExpandOutlined />}
             onClick={expandAll}
             disabled={isLoading}
@@ -439,7 +439,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
             全部展开
           </Button>
           <Button
-            size="small"
+            
             icon={<CompressOutlined />}
             onClick={collapseAll}
             disabled={isLoading}
@@ -448,7 +448,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
           </Button>
           <Button
             type="primary"
-            size="small"
+            
             icon={<ReloadOutlined />}
             loading={isLoading}
             onClick={refresh}
@@ -474,7 +474,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
             value={sortMode}
             onChange={handleSortChange}
             style={{ width: 120 }}
-            size="small"
+            
           >
             <Option value={TaskSortMode.SORT_ORDER}>默认排序</Option>
             <Option value={TaskSortMode.PRIORITY}>优先级</Option>
@@ -509,7 +509,7 @@ const EnhancedHierarchicalTaskTreeV2: React.FC<Props> = ({
             }}
             trigger={['click']}
           >
-            <Button size="small" icon={<FilterOutlined />}>
+            <Button  icon={<FilterOutlined />}>
               过滤
             </Button>
           </Dropdown>

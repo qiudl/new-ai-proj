@@ -166,7 +166,7 @@ const TokenUsageDisplay: React.FC<TokenUsageDisplayProps> = ({
               success={{ percent: outputRatio }}
               strokeColor="#ff7a45"
               trailColor="#52c41a"
-              size="small"
+              
             />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8c8c8c', marginTop: 2 }}>
               <span>输入 (绿色)</span>

@@ -91,7 +91,7 @@ const createRenderConfig = (navigate: (path: string) => void): NodeRenderConfig 
     return (
       <Tooltip title={node.assignee_name || `用户 ${node.assignee_id}`}>
         <Avatar 
-          size="small" 
+           
           icon={<UserOutlined />} 
           style={{ marginRight: 8 }}
         />
@@ -137,7 +137,7 @@ const createRenderConfig = (navigate: (path: string) => void): NodeRenderConfig 
       >
         <Button
           type="text"
-          size="small"
+          
           icon={<EllipsisOutlined />}
           onClick={(e) => e.stopPropagation()}
         />
@@ -268,7 +268,7 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
           {hasChildNodes && (
             <Button
               type="text"
-              size="small"
+              
               icon={isNodeExpanded ? <BranchesOutlined rotate={90} /> : <BranchesOutlined />}
               onClick={(e) => handleToggleExpand(node, e)}
               loading={isLoading}
@@ -391,7 +391,7 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
           borderRadius: '6px'
         }}>
           <div>
-            <Button.Group size="small">
+            <Button.Group >
               <Button 
                 icon={<BranchesOutlined />}
                 onClick={expandAll}
@@ -410,7 +410,7 @@ export const TaskDetailDescendantsTreeV2: React.FC<Props> = ({
           <div>
             <Button
               type="primary"
-              size="small"
+              
               icon={<ReloadOutlined />}
               onClick={refresh}
               loading={isLoading}

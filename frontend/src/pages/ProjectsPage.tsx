@@ -86,7 +86,6 @@ const ProjectsPage: React.FC = () => {
       
       // Debug: 检查认证状态
       const token = localStorage.getItem('token');
-      console.log('当前token状态:', token ? '存在' : '不存在');
       
       const response = await projectService.getProjects();
       
@@ -407,7 +406,7 @@ const ProjectsPage: React.FC = () => {
             render: (_, record: Project) => (
               <Progress 
                 percent={record.progress || 0} 
-                size="small"
+                
                 status={record.progress === 100 ? 'success' : 'active'}
                 showInfo={true}
               />
@@ -449,7 +448,7 @@ const ProjectsPage: React.FC = () => {
                 <Tooltip title="查看">
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<EyeOutlined />}
                     onClick={() => navigate(`/projects/${record.id}`)}
                     style={{ color: '#1890ff' }}
@@ -459,7 +458,7 @@ const ProjectsPage: React.FC = () => {
                   <Tooltip title="编辑">
                     <Button 
                       type="text"
-                      size="small"
+                      
                       icon={<EditOutlined />}
                       onClick={() => handleEditProject(record)}
                       style={{ color: '#52c41a' }}
@@ -470,7 +469,7 @@ const ProjectsPage: React.FC = () => {
                   <Tooltip title="删除">
                     <Button 
                       type="text"
-                      size="small"
+                      
                       icon={<DeleteOutlined />}
                       onClick={() => handleDeleteProject(record)}
                       style={{ color: '#ff4d4f' }}
@@ -571,7 +570,7 @@ const ProjectsPage: React.FC = () => {
                 <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}>项目进度</div>
                 <Progress 
                   percent={project.progress} 
-                  size="small"
+                  
                   status={project.progress === 100 ? 'success' : 'active'}
                 />
               </div>
@@ -638,7 +637,7 @@ const ProjectsPage: React.FC = () => {
               value={viewMode} 
               onChange={(e) => setViewMode(e.target.value)}
               buttonStyle="solid"
-              size="small"
+              
             >
               <Radio.Button value="list">
                 <UnorderedListOutlined /> 列表

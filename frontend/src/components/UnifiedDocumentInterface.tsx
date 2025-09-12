@@ -286,12 +286,12 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
       title: '操作',
       key: 'actions',
       render: (_, record: UnifiedDocument) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看">
             <Button
               type="text"
               icon={<EyeOutlined />}
-              size="small"
+              
               onClick={() => handleViewDocument(record)}
             />
           </Tooltip>
@@ -300,7 +300,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
               <Button
                 type="text"
                 icon={<EditOutlined />}
-                size="small"
+                
                 onClick={() => handleEditDocument(record)}
               />
             </Tooltip>
@@ -309,7 +309,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
             <Button
               type="text"
               icon={<DownloadOutlined />}
-              size="small"
+              
               onClick={() => handleDownloadDocument(record)}
             />
           </Tooltip>
@@ -317,7 +317,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
             <Button
               type="text"
               icon={<HistoryOutlined />}
-              size="small"
+              
               onClick={() => handleViewVersions(record)}
             />
           </Tooltip>
@@ -332,7 +332,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
                 <Button
                   type="text"
                   icon={<DeleteOutlined />}
-                  size="small"
+                  
                   danger
                 />
               </Tooltip>
@@ -473,7 +473,7 @@ const UnifiedDocumentInterface: React.FC<UnifiedDocumentInterfaceProps> = ({
             showQuickJumper: true,
             showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
           }}
-          size="small"
+          
         />
       </Card>
 

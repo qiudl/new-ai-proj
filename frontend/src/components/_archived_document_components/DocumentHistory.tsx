@@ -233,8 +233,8 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
       loading={loading}
     >
       {/* 文档信息 */}
-      <Card size="small" style={{ marginBottom: '16px', backgroundColor: '#f8f9fa' }}>
-        <Descriptions size="small" column={3}>
+      <Card  style={{ marginBottom: '16px', backgroundColor: '#f8f9fa' }}>
+        <Descriptions  column={3}>
           <Descriptions.Item label="文档标题">{document.title}</Descriptions.Item>
           <Descriptions.Item label="当前版本">v{versions[0]?.version || 1}</Descriptions.Item>
           <Descriptions.Item label="总版本数">{versions.length}</Descriptions.Item>
@@ -326,7 +326,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
                       {/* 变更统计 */}
                       {index > 0 && (
                         <div style={{ marginBottom: '8px' }}>
-                          <Space size="small">
+                          <Space >
                             {diff.added > 0 && (
                               <Tag color="green">+{diff.added} 行</Tag>
                             )}
@@ -365,7 +365,7 @@ const DocumentHistory: React.FC<DocumentHistoryProps> = ({
                     {/* 操作按钮 */}
                     {!compareMode && (
                       <div style={{ marginLeft: '12px' }}>
-                        <Space direction="vertical" size="small">
+                        <Space direction="vertical" >
                           {index > 0 && (
                             <Tooltip title="恢复到此版本">
                               <Button

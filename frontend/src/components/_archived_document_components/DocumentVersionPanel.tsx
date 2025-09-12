@@ -497,7 +497,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
             color={typeConfig.color}
             dot={
               <Avatar
-                size="small"
+                
                 style={{
                   backgroundColor: isCurrentVersion ? '#52c41a' : undefined,
                   color: isCurrentVersion ? 'white' : undefined
@@ -509,7 +509,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
             }
           >
             <Card
-              size="small"
+              
               title={
                 <Row justify="space-between" align="middle">
                   <Col>
@@ -529,7 +529,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
                       }}
                       trigger={['click']}
                     >
-                      <Button type="text" size="small" icon={<MoreOutlined />} />
+                      <Button type="text"  icon={<MoreOutlined />} />
                     </Dropdown>
                   </Col>
                 </Row>
@@ -538,7 +538,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
                 <Space>
                   {compareSelection.isComparing && (
                     <Button
-                      size="small"
+                      
                       type={
                         compareSelection.fromVersion === version.version_number ||
                         compareSelection.toVersion === version.version_number
@@ -667,7 +667,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
         width: 100,
         render: (name) => (
           <Space>
-            <Avatar size="small" icon={<UserOutlined />} />
+            <Avatar  icon={<UserOutlined />} />
             <Text style={{ fontSize: '12px' }}>{name}</Text>
           </Space>
         )
@@ -707,7 +707,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
             }}
             trigger={['click']}
           >
-            <Button type="text" size="small" icon={<MoreOutlined />} />
+            <Button type="text"  icon={<MoreOutlined />} />
           </Dropdown>
         )
       }
@@ -718,7 +718,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
         columns={columns}
         dataSource={filteredVersions}
         rowKey="id"
-        size="small"
+        
         loading={loading}
         pagination={{
           total: filteredVersions.length,
@@ -733,7 +733,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
   };
 
   return (
-    <Card style={style} title="版本管理" size="small">
+    <Card style={style} title="版本管理" >
       {/* Statistics */}
       {stats && (
         <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -829,7 +829,7 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
                 <Text>请选择第二个版本进行比较</Text>
               )}
               <Button
-                size="small"
+                
                 onClick={() => setCompareSelection({ isComparing: false })}
               >
                 取消比较
@@ -989,12 +989,12 @@ const DocumentVersionPanel: React.FC<DocumentVersionPanelProps> = ({
           <div>
             <Row gutter={16} style={{ marginBottom: 16 }}>
               <Col span={12}>
-                <Card size="small" title={`版本 ${comparisonResult.from_version}`}>
+                <Card  title={`版本 ${comparisonResult.from_version}`}>
                   <Text>从版本</Text>
                 </Card>
               </Col>
               <Col span={12}>
-                <Card size="small" title={`版本 ${comparisonResult.to_version}`}>
+                <Card  title={`版本 ${comparisonResult.to_version}`}>
                   <Text>到版本</Text>
                 </Card>
               </Col>

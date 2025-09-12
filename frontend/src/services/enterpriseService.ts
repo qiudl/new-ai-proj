@@ -162,10 +162,8 @@ class EnterpriseService {
 
   // 统一的 API 响应处理函数
   private handleApiResponse<T>(response: any): T {
-    console.log('EnterpriseService API Response:', response);
     
     if (!response) {
-      console.warn('API返回空响应，使用默认值');
       return {
         data: [],
         pagination: {
@@ -194,7 +192,6 @@ class EnterpriseService {
   // 获取企业列表
   async getEnterprises(page: number = 1, pageSize: number = 20, filters?: any): Promise<PaginatedResponse<Enterprise>> {
     try {
-      console.log('🏢 获取企业列表，页码:', page, '每页大小:', pageSize, '筛选条件:', filters);
       const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
@@ -202,7 +199,6 @@ class EnterpriseService {
       });
       const response = await api.get(`${this.API_BASE_URL}?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<Enterprise>>(response);
-      console.log('✅ 获取企业列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业列表失败:', error);
@@ -213,10 +209,8 @@ class EnterpriseService {
   // 获取单个企业详情
   async getEnterprise(id: number): Promise<Enterprise> {
     try {
-      console.log('🏢 获取企业详情，ID:', id);
       const response = await api.get(`${this.API_BASE_URL}/${id}`);
       const result = this.handleApiResponse<Enterprise>(response);
-      console.log('✅ 获取企业详情成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业详情失败:', error);
@@ -227,10 +221,8 @@ class EnterpriseService {
   // 创建企业
   async createEnterprise(enterprise: EnterpriseRequest): Promise<Enterprise> {
     try {
-      console.log('🏢 创建企业:', enterprise);
       const response = await api.post(this.API_BASE_URL, enterprise);
       const result = this.handleApiResponse<Enterprise>(response);
-      console.log('✅ 创建企业成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 创建企业失败:', error);
@@ -241,10 +233,8 @@ class EnterpriseService {
   // 更新企业
   async updateEnterprise(id: number, enterprise: EnterpriseUpdateRequest): Promise<Enterprise> {
     try {
-      console.log('🏢 更新企业，ID:', id, '数据:', enterprise);
       const response = await api.put(`${this.API_BASE_URL}/${id}`, enterprise);
       const result = this.handleApiResponse<Enterprise>(response);
-      console.log('✅ 更新企业成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 更新企业失败:', error);
@@ -255,9 +245,7 @@ class EnterpriseService {
   // 删除企业
   async deleteEnterprise(id: number): Promise<void> {
     try {
-      console.log('🏢 删除企业，ID:', id);
       await api.delete(`${this.API_BASE_URL}/${id}`);
-      console.log('✅ 删除企业成功');
     } catch (error) {
       console.error('❌ 删除企业失败:', error);
       throw error;
@@ -267,10 +255,8 @@ class EnterpriseService {
   // 获取企业统计信息
   async getEnterpriseStats(): Promise<EnterpriseStats> {
     try {
-      console.log('📊 获取企业统计信息...');
       const response = await api.get(`${this.API_BASE_URL}/stats`);
       const result = this.handleApiResponse<EnterpriseStats>(response);
-      console.log('✅ 获取企业统计信息成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业统计信息失败:', error);
@@ -291,7 +277,6 @@ class EnterpriseService {
   // 获取企业用户列表
   async getEnterpriseUsers(enterpriseId: number, page: number = 1, pageSize: number = 20, filters?: any): Promise<PaginatedResponse<EnterpriseUser>> {
     try {
-      console.log('👥 获取企业用户列表，企业ID:', enterpriseId, '页码:', page, '每页大小:', pageSize, '筛选条件:', filters);
       const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
@@ -299,7 +284,6 @@ class EnterpriseService {
       });
       const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/users?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<EnterpriseUser>>(response);
-      console.log('✅ 获取企业用户列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业用户列表失败:', error);
@@ -310,10 +294,8 @@ class EnterpriseService {
   // 获取单个企业用户详情
   async getEnterpriseUser(enterpriseId: number, userId: number): Promise<EnterpriseUser> {
     try {
-      console.log('👤 获取企业用户详情，企业ID:', enterpriseId, '用户ID:', userId);
       const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/users/${userId}`);
       const result = this.handleApiResponse<EnterpriseUser>(response);
-      console.log('✅ 获取企业用户详情成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业用户详情失败:', error);
@@ -327,13 +309,11 @@ class EnterpriseService {
     generated_password?: string;
   }> {
     try {
-      console.log('👤 创建企业用户，企业ID:', enterpriseId, '用户数据:', user);
       const response = await api.post(`${this.API_BASE_URL}/${enterpriseId}/users`, user);
       const result = this.handleApiResponse<{
         user: EnterpriseUser;
         generated_password?: string;
       }>(response);
-      console.log('✅ 创建企业用户成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 创建企业用户失败:', error);
@@ -344,7 +324,6 @@ class EnterpriseService {
   // 获取企业部门列表
   async getEnterpriseDepartments(enterpriseId: number, page: number = 1, pageSize: number = 20, filters?: any): Promise<PaginatedResponse<EnterpriseDepartment>> {
     try {
-      console.log('🏢 获取企业部门列表，企业ID:', enterpriseId, '页码:', page, '每页大小:', pageSize, '筛选条件:', filters);
       const params = new URLSearchParams({
         page: page.toString(),
         page_size: pageSize.toString(),
@@ -352,7 +331,6 @@ class EnterpriseService {
       });
       const response = await api.get(`${this.API_BASE_URL}/${enterpriseId}/departments?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<EnterpriseDepartment>>(response);
-      console.log('✅ 获取企业部门列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业部门列表失败:', error);
@@ -363,10 +341,8 @@ class EnterpriseService {
   // 创建企业部门
   async createEnterpriseDepartment(enterpriseId: number, department: EnterpriseDepartmentRequest): Promise<EnterpriseDepartment> {
     try {
-      console.log('🏢 创建企业部门，企业ID:', enterpriseId, '部门数据:', department);
       const response = await api.post(`${this.API_BASE_URL}/${enterpriseId}/departments`, department);
       const result = this.handleApiResponse<EnterpriseDepartment>(response);
-      console.log('✅ 创建企业部门成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 创建企业部门失败:', error);

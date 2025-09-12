@@ -336,7 +336,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
               action={
                 <Space>
                   <Button 
-                    size="small" 
+                     
                     type="primary" 
                     ghost
                     onClick={() => handleSelectAll(true)}
@@ -344,7 +344,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
                     全选
                   </Button>
                   <Button 
-                    size="small" 
+                     
                     onClick={() => handleSelectAll(false)}
                   >
                     清空
@@ -354,7 +354,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
             />
             
             <List
-              size="small"
+              
               dataSource={batchItems}
               renderItem={(item) => (
                 <List.Item
@@ -523,7 +523,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
             />
 
             <List
-              size="small"
+              
               dataSource={batchItems.filter(item => selectedItems.includes(item.id))}
               renderItem={(item) => (
                 <List.Item>
@@ -613,7 +613,7 @@ const BatchWorkNoteConversionModal: React.FC<BatchWorkNoteConversionModalProps> 
     >
       <Steps
         current={currentStep}
-        size="small"
+        
         style={{ marginBottom: 24 }}
         items={steps}
       />

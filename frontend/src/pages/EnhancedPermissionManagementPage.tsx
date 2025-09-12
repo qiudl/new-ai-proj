@@ -117,7 +117,7 @@ const EnhancedPermissionManagementPage: React.FC = () => {
                 {(roleTemplates || []).map(template => (
                   <Card
                     key={template?.id}
-                    size="small"
+                    
                     title={template?.name || '模板'}
                     extra={
                       <span style={{ 

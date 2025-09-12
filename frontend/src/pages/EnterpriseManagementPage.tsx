@@ -228,7 +228,7 @@ const EnterpriseManagementPage: React.FC = () => {
           <div style={{ fontWeight: 500, marginBottom: 4 }}>
             {text}
           </div>
-          <Space size="small">
+          <Space >
             {record.code && (
               <Text type="secondary" style={{ fontSize: '12px' }}>
                 {record.code}
@@ -355,7 +355,7 @@ const EnterpriseManagementPage: React.FC = () => {
       {enterprises.map((enterprise) => (
         <Col xs={24} sm={12} lg={8} xl={6} key={enterprise.id}>
           <Card
-            size="small"
+            
             hoverable
             actions={[
               <Tooltip title="查看详情" key="view">
@@ -386,7 +386,7 @@ const EnterpriseManagementPage: React.FC = () => {
 
             {/* 状态和类型标签 */}
             <div style={{ marginBottom: 12 }}>
-              <Space size="small" wrap>
+              <Space  wrap>
                 <Tag color="blue">{enterprise.status_text}</Tag>
                 <Tag color="green">{enterprise.business_type_text}</Tag>
                 {enterprise.industry_type_text && (
@@ -562,7 +562,7 @@ const EnterpriseManagementPage: React.FC = () => {
                   value={viewMode} 
                   onChange={handleViewModeChange}
                   buttonStyle="solid"
-                  size="small"
+                  
                 >
                   <Radio.Button value="list">
                     <UnorderedListOutlined /> 列表

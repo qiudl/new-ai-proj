@@ -196,7 +196,7 @@ const TaskDetailTimer: React.FC<TaskDetailTimerProps> = ({
             <span>任务计时</span>
           </Space>
         }
-        size="small"
+        
         style={style}
         className={`task-detail-timer ${className}`}
       >
@@ -234,7 +234,7 @@ const TaskDetailTimer: React.FC<TaskDetailTimerProps> = ({
           />
         </Space>
       }
-      size="small"
+      
       style={style}
       className={`task-detail-timer ${isCurrentTaskTiming ? 'timer-running' : isOtherTaskTiming ? 'timer-warning' : ''} ${className}`}
     >
@@ -322,7 +322,7 @@ const TaskDetailTimer: React.FC<TaskDetailTimerProps> = ({
               <Tooltip title="点击刷新统计数据">
                 <Button 
                   type="text" 
-                  size="small"
+                  
                   icon={<InfoCircleOutlined />}
                   onClick={loadTaskStats}
                   loading={statsLoading}

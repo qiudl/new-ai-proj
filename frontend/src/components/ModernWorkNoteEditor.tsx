@@ -292,7 +292,7 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
             <Space>
               <Text type="secondary" style={{ fontSize: 12 }}>自动保存</Text>
               <Switch 
-                size="small" 
+                 
                 checked={autoSave}
                 onChange={setAutoSave}
               />
@@ -336,11 +336,11 @@ const ModernWorkNoteEditor: React.FC<ModernWorkNoteEditorProps> = ({
           form={form}
           layout="vertical"
           onValuesChange={handleFormChange}
-          size="small"
+          
           style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
         >
           {/* 设置区域 */}
-          <Card size="small" style={{ margin: 0, borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
+          <Card  style={{ margin: 0, borderRadius: 0, borderLeft: 0, borderRight: 0, borderTop: 0 }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item name="title" label="标题" style={{ marginBottom: 8 }}>

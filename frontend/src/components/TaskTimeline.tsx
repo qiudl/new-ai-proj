@@ -33,10 +33,6 @@ interface TaskTimelineProps {
 }
 
 const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, className, onRefresh, showFilters = true }) => {
-  // 调试信息
-  console.log('🎯 [TaskTimeline] Component received events:', events);
-  console.log('🎯 [TaskTimeline] Events length:', events?.length || 0);
-  console.log('🎯 [TaskTimeline] Loading state:', loading);
   
   // 过滤状态
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
@@ -114,7 +110,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
       const colorIndex = event.username.length % colors.length;
       return (
         <Avatar 
-          size="small" 
+           
           style={{ backgroundColor: colors[colorIndex] }}
           icon={<UserOutlined />}
         >
@@ -124,7 +120,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
     }
     return (
       <Avatar 
-        size="small" 
+         
         style={{ backgroundColor: '#d9d9d9' }}
         icon={<UserOutlined />}
       />
@@ -269,7 +265,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
       ),
       children: (
         <Card 
-          size="small" 
+           
           style={{ 
             marginLeft: 8, 
             marginBottom: 16,
@@ -418,7 +414,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
       {/* 过滤器和工具栏 */}
       {showFilters && events.length > 0 && (
         <Card 
-          size="small" 
+           
           style={{ 
             marginBottom: 16,
             backgroundColor: '#fafafa',
@@ -435,13 +431,13 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
               <Space>
                 <Tooltip title="刷新时间线">
                   <Button
-                    size="small"
+                    
                     icon={<ReloadOutlined />}
                     onClick={onRefresh}
                     disabled={!onRefresh}
                   />
                 </Tooltip>
-                <Button size="small" onClick={resetFilters}>
+                <Button  onClick={resetFilters}>
                   重置过滤器
                 </Button>
               </Space>
@@ -454,7 +450,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
                   mode="multiple"
                   placeholder="选择事件类型"
                   style={{ minWidth: 200 }}
-                  size="small"
+                  
                   value={selectedEventTypes}
                   onChange={setSelectedEventTypes}
                   options={availableEventTypes}
@@ -468,7 +464,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
                   mode="multiple"
                   placeholder="选择用户"
                   style={{ minWidth: 150 }}
-                  size="small"
+                  
                   value={selectedUsers}
                   onChange={setSelectedUsers}
                   options={availableUsers}
@@ -481,7 +477,7 @@ const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, cl
                 <Select
                   placeholder="选择时间范围"
                   style={{ width: 120 }}
-                  size="small"
+                  
                   value={dateRange}
                   onChange={setDateRange}
                   options={[

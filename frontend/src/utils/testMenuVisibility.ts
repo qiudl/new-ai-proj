@@ -98,7 +98,6 @@ if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
   // 延迟暴露，确保组件加载完成
   setTimeout(() => {
     (window as any).testMenuVisibility = testMenuVisibility;
-    console.log('💡 菜单测试工具已加载! 在控制台中运行 testMenuVisibility() 来测试菜单过滤逻辑');
   }, 1000);
 }
 

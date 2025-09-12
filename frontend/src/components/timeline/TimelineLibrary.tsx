@@ -166,7 +166,7 @@ const TimelineLibrary: React.FC = () => {
         closable
         style={{ marginBottom: 24 }}
         action={
-          <Button size="small" type="primary" ghost>
+          <Button  type="primary" ghost>
             查看文档
           </Button>
         }

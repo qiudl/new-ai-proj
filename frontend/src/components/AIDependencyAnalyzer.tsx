@@ -161,7 +161,7 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
         <Space>
           <Button 
             type="primary" 
-            size="small" 
+             
             onClick={runAnalysis} 
             loading={loading}
             icon={<RobotOutlined />}
@@ -171,7 +171,7 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
           {analysisResult && (
             <Button 
               type="default" 
-              size="small" 
+               
               onClick={() => setShowDetails(!showDetails)}
             >
               {showDetails ? '隐藏详情' : '查看详情'}
@@ -200,7 +200,7 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
                 <br />
                 <Progress 
                   percent={Math.round(analysisResult.confidence * 100)} 
-                  size="small"
+                  
                   status={getConfidenceColor(analysisResult.confidence)}
                 />
               </div>
@@ -304,7 +304,7 @@ export const AIDependencyAnalyzer: React.FC<AIDependencyAnalyzerProps> = ({
                     <div style={{ marginTop: 8 }}>
                       {analysisResult.analysis.matchingTasks.length > 0 ? (
                         <List
-                          size="small"
+                          
                           dataSource={analysisResult.analysis.matchingTasks}
                           renderItem={(match) => (
                             <List.Item>

@@ -268,7 +268,7 @@ const PerformanceTestDemo: React.FC = () => {
         <Col span={8}>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             {/* 控制面板 */}
-            <Card title="测试控制" size="small">
+            <Card title="测试控制" >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div>
                   <Text strong>事件数量: {eventCount.toLocaleString()}</Text>
@@ -312,7 +312,7 @@ const PerformanceTestDemo: React.FC = () => {
 
             {/* 性能统计 */}
             {performanceStats && (
-              <Card title={<><BarChartOutlined /> 性能统计</>} size="small">
+              <Card title={<><BarChartOutlined /> 性能统计</>} >
                 <Row gutter={16}>
                   <Col span={12}>
                     <Statistic
@@ -367,7 +367,7 @@ const PerformanceTestDemo: React.FC = () => {
 
             {/* 性能建议 */}
             {getPerformanceRecommendations.length > 0 && (
-              <Card title="性能建议" size="small">
+              <Card title="性能建议" >
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {getPerformanceRecommendations.map((rec, index) => (
                     <Alert
@@ -383,7 +383,7 @@ const PerformanceTestDemo: React.FC = () => {
             )}
 
             {/* 对比分析 */}
-            <Card title="虚拟化 vs 常规渲染" size="small">
+            <Card title="虚拟化 vs 常规渲染" >
               <Space direction="vertical" style={{ width: '100%' }} size={8}>
                 <div>
                   <Text strong style={{ fontSize: 12, color: '#52c41a' }}>
@@ -412,7 +412,7 @@ const PerformanceTestDemo: React.FC = () => {
             </Card>
 
             {/* 技术细节 */}
-            <Card title="技术特性" size="small">
+            <Card title="技术特性" >
               <Space direction="vertical" size={8}>
                 <Text style={{ fontSize: 11 }}>✅ React Window 虚拟滚动</Text>
                 <Text style={{ fontSize: 11 }}>✅ 智能缓存管理</Text>

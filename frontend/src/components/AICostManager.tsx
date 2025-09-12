@@ -256,7 +256,7 @@ const AICostManager: React.FC = () => {
         return (
           <Progress
             percent={percentage}
-            size="small"
+            
             strokeColor={getUsageStatusColor(percentage)}
             format={(percent) => `${percent?.toFixed(1)}%`}
           />
@@ -287,7 +287,7 @@ const AICostManager: React.FC = () => {
         !record.isRead && (
           <Button
             type="text"
-            size="small"
+            
             onClick={() => handleMarkAlertAsRead(record.id)}
           >
             标记已读
@@ -435,7 +435,7 @@ const AICostManager: React.FC = () => {
           >
             {budgetAlerts.length > 0 ? (
               <List
-                size="small"
+                
                 dataSource={budgetAlerts.slice(0, 3)}
                 renderItem={(alert) => (
                   <List.Item
@@ -477,7 +477,7 @@ const AICostManager: React.FC = () => {
       </Row>
 
       {/* 过滤器和操作 */}
-      <Card size="small" style={{ marginBottom: '16px' }}>
+      <Card  style={{ marginBottom: '16px' }}>
         <Row gutter={[16, 16]} align="middle">
           <Col xs={24} sm={6}>
             <Space>
@@ -733,7 +733,7 @@ const AICostManager: React.FC = () => {
           dataSource={budgetAlerts}
           rowKey="id"
           pagination={{ pageSize: 10 }}
-          size="small"
+          
         />
       </Modal>
     </div>

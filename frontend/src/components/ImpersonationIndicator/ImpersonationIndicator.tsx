@@ -15,7 +15,8 @@ import {
   ClockCircleOutlined,
   BuildOutlined,
   LogoutOutlined,
-  WarningOutlined
+  WarningOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons';
 import { useImpersonationState } from '../../hooks/useImpersonationState';
 import './ImpersonationIndicator.css';
@@ -107,7 +108,7 @@ const ImpersonationIndicator: React.FC<ImpersonationIndicatorProps> = ({
         <Space align="center">
           <UserSwitchOutlined style={{ color: getStatusColor() }} />
           <Text strong>企业模拟状态</Text>
-          <Tag color={isExpired ? 'red' : isExpiringSoon ? 'orange' : 'blue'} size="small">
+          <Tag color={isExpired ? 'red' : isExpiringSoon ? 'orange' : 'blue'} >
             {getStatusText()}
           </Tag>
         </Space>
@@ -115,7 +116,7 @@ const ImpersonationIndicator: React.FC<ImpersonationIndicatorProps> = ({
 
       <Divider style={{ margin: '8px 0' }} />
 
-      <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space direction="vertical"  style={{ width: '100%' }}>
         <div>
           <Text type="secondary" style={{ fontSize: '12px' }}>当前模拟企业</Text>
           <div>
@@ -150,7 +151,7 @@ const ImpersonationIndicator: React.FC<ImpersonationIndicatorProps> = ({
             <Progress 
               percent={getProgressPercent()} 
               strokeColor={getStatusColor()}
-              size="small"
+              
               showInfo={false}
             />
           </div>
@@ -163,7 +164,7 @@ const ImpersonationIndicator: React.FC<ImpersonationIndicatorProps> = ({
         <Button 
           type="primary" 
           danger 
-          size="small"
+          
           icon={<LogoutOutlined />}
           onClick={handleExitImpersonation}
           loading={loading}
@@ -192,7 +193,7 @@ const ImpersonationIndicator: React.FC<ImpersonationIndicatorProps> = ({
     >
       <Button
         type="text"
-        size={size}
+        size={size === 'default' ? 'middle' : size}
         icon={<UserSwitchOutlined />}
         className={`impersonation-indicator-button ${size}`}
         style={{ 

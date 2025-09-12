@@ -37,7 +37,7 @@ const TabLabel: React.FC<TabLabelProps> = ({ type, stats, loading = false }) => 
   const count = stats?.total || 0;
 
   return (
-    <Space size="small">
+    <Space >
       <span style={{ color: config.color }}>
         {config.icon}
       </span>

@@ -489,7 +489,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
         ];
 
         return (
-          <Space size="small">
+          <Space >
             <Tooltip title="编辑">
               <Button
                 type="text"
@@ -544,7 +544,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
               icon={<ReloadOutlined />}
               onClick={loadRelations}
               loading={loading}
-              size="small"
+              
             >
               刷新
             </Button>
@@ -561,7 +561,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
               }}
               trigger={['click']}
             >
-              <Button size="small">
+              <Button >
                 更多操作
               </Button>
             </Dropdown>
@@ -702,7 +702,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
                   columns={getColumns(entityType)}
                   rowKey="id"
                   pagination={false}
-                  size="small"
+                  
                 />
               </Panel>
             ))}
@@ -718,7 +718,7 @@ const DocumentRelationsPanel: React.FC<DocumentRelationsPanelProps> = ({
               showQuickJumper: true,
               showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
             }}
-            size="small"
+            
           />
         )}
       </Card>

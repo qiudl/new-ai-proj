@@ -194,7 +194,7 @@ const TimerCard: React.FC<TimerCardProps> = () => {
               ) : connectionStatus === 'disconnected' ? (
                 <DisconnectOutlined style={{ color: '#ff4d4f', fontSize: '14px' }} />
               ) : (
-                <Spin size="small" />
+                <Spin  />
               )}
             </span>
           </Tooltip>
@@ -205,7 +205,7 @@ const TimerCard: React.FC<TimerCardProps> = () => {
           >
             <span>
               <Switch
-                size="small"
+                
                 checked={notificationsEnabled}
                 onChange={handleNotificationToggle}
                 checkedChildren={<SoundOutlined />}
@@ -346,7 +346,7 @@ const TimerCard: React.FC<TimerCardProps> = () => {
           {notificationsEnabled && (
             <Button
               type="default"
-              size="small"
+              
               onClick={() => NotificationService.testNotification()}
               disabled={isLoading}
               icon={<SoundOutlined />}

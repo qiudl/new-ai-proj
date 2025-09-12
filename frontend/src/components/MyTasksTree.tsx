@@ -139,7 +139,7 @@ const MyTasksTree: React.FC = () => {
                   {task.status === 'in_progress' && timerState.taskId !== task.id && (
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={<PlayCircleOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -209,7 +209,7 @@ const MyTasksTree: React.FC = () => {
                 </div>
                 <Button
                   type="text"
-                  size="small"
+                  
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/projects/${project.id}`);
@@ -329,7 +329,7 @@ const MyTasksTree: React.FC = () => {
           type="text"
           icon={<ReloadOutlined />}
           onClick={handleRefresh}
-          size="small"
+          
         >
           刷新
         </Button>

@@ -506,7 +506,7 @@ const APIKeyDetail: React.FC = () => {
                     {apiKey.key_prefix}***
                   </Text>
                   <Button 
-                    size="small" 
+                     
                     type="link" 
                     onClick={() => {
                       Modal.info({
@@ -631,7 +631,7 @@ const APIKeyDetail: React.FC = () => {
             style={{ marginBottom: '24px' }}
             extra={
               <Button 
-                size="small"
+                
                 icon={<ReloadOutlined />} 
                 onClick={loadUsageStats}
                 loading={statsLoading}
@@ -676,7 +676,7 @@ const APIKeyDetail: React.FC = () => {
               </Text>
               <Row gutter={8}>
                 <Col span={12}>
-                  <Card size="small" style={{ textAlign: 'center' }}>
+                  <Card  style={{ textAlign: 'center' }}>
                     <Statistic
                       title="成功"
                       value={usageStats?.successful_requests || 0}
@@ -685,7 +685,7 @@ const APIKeyDetail: React.FC = () => {
                   </Card>
                 </Col>
                 <Col span={12}>
-                  <Card size="small" style={{ textAlign: 'center' }}>
+                  <Card  style={{ textAlign: 'center' }}>
                     <Statistic
                       title="失败"
                       value={usageStats?.failed_requests || 0}
@@ -708,7 +708,7 @@ const APIKeyDetail: React.FC = () => {
             extra={
               <Space>
                 <Button
-                  size="small"
+                  
                   type="primary"
                   onClick={() => {
                     Modal.confirm({
@@ -735,7 +735,7 @@ const APIKeyDetail: React.FC = () => {
                   查看完整密钥
                 </Button>
                 <Button
-                  size="small"
+                  
                   onClick={() => {
                     Modal.info({
                       title: '💡 密钥查看说明',

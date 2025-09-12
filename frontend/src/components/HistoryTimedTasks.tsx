@@ -154,7 +154,7 @@ const HistoryTimedTasks: React.FC<HistoryTimedTasksProps> = ({
         <Tooltip title="刷新数据">
           <Button 
             type="text" 
-            size="small"
+            
             icon={<ReloadOutlined />}
             onClick={() => loadHistoryTasks(true)}
             loading={loading}
@@ -199,7 +199,7 @@ const renderTaskItem = (task: RecentTimedTask) => {
             {task.task_title}
           </Text>
           
-          <Space size="small">
+          <Space >
             <Text 
               type="secondary" 
               style={{ fontSize: '12px' }}
@@ -243,7 +243,7 @@ const renderTaskItem = (task: RecentTimedTask) => {
             <Tooltip title="开始计时">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<PlayCircleOutlined />}
                 style={{ 
                   marginLeft: '4px',

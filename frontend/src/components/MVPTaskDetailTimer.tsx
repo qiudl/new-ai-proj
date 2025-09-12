@@ -348,7 +348,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
             <span>任务计时</span>
           </Space>
         }
-        size="small"
+        
         style={style}
         className={className}
       >
@@ -374,7 +374,7 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
           />
         </Space>
       }
-      size="small"
+      
       style={style}
       className={className}
     >
@@ -508,11 +508,11 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
               <Text strong style={{ fontSize: 13 }}>
                 ⏱️ 正在计时的任务（{activeTimers.filter(t => t.status === 'running').length}）
               </Text>
-              <Space size="small">
-                <Button size="small" onClick={pauseAll}>全部暂停</Button>
-                <Button size="small" type="primary" onClick={resumeAll}>全部继续</Button>
-                <Button size="small" danger onClick={stopAll}>全部完成</Button>
-                <Button type="link" size="small" onClick={refreshActiveTimers} style={{ padding: 0 }}>
+              <Space >
+                <Button  onClick={pauseAll}>全部暂停</Button>
+                <Button  type="primary" onClick={resumeAll}>全部继续</Button>
+                <Button  danger onClick={stopAll}>全部完成</Button>
+                <Button type="link"  onClick={refreshActiveTimers} style={{ padding: 0 }}>
                   刷新
                 </Button>
               </Space>
@@ -575,14 +575,14 @@ const MVPTaskDetailTimer: React.FC<MVPTaskDetailTimerProps> = ({
                             <>
                               <Tooltip title={t.status === 'running' ? '暂停' : '继续'}>
                                 <Button 
-                                  size="small" 
+                                   
                                   type={t.status === 'running' ? 'default' : 'primary'} 
                                   icon={t.status === 'running' ? <PauseOutlined /> : <PlayCircleOutlined />} 
                                   onClick={() => (t.status === 'running' ? pauseTimerById(t.id) : resumeTimerById(t.id))}
                                 />
                               </Tooltip>
                               <Tooltip title="完成">
-                                <Button size="small" danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
+                                <Button  danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
                               </Tooltip>
                             </>
                           )}

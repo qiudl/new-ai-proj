@@ -523,7 +523,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
     const treeData = buildTreeNodes(filteredTasks);
     
     return (
-      <Card size="small" style={style}>
+      <Card  style={style}>
         <div style={{ marginBottom: 12 }}>
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Search
@@ -535,7 +535,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
             />
             <Space>
               <Tooltip title="刷新">
-                <Button size="small" onClick={loadTasks} loading={loading}>
+                <Button  onClick={loadTasks} loading={loading}>
                   <ReloadOutlined />
                 </Button>
               </Tooltip>
@@ -627,7 +627,7 @@ const TaskSelector: React.FC<TaskSelectorProps> = ({
         }
       }}
       notFoundContent={
-        loading ? <Spin size="small" /> : 
+        loading ? <Spin  /> : 
         (!projectId && !timerMode && !aiMode) ? "请先选择项目" : 
         "暂无任务"
       }

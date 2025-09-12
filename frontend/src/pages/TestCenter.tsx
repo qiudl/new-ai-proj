@@ -158,9 +158,9 @@ const TestCenter: React.FC = () => {
       {/* 功能状态列表 */}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="功能模块状态" size="small">
+          <Card title="功能模块状态" >
             <List
-              size="small"
+              
               dataSource={featureStatus}
               renderItem={(item) => (
                 <List.Item>
@@ -194,9 +194,9 @@ const TestCenter: React.FC = () => {
         </Col>
         
         <Col xs={24} md={12}>
-          <Card title="测试模块" size="small">
+          <Card title="测试模块" >
             <List
-              size="small"
+              
               dataSource={testModules}
               renderItem={(module) => (
                 <List.Item>
@@ -205,7 +205,7 @@ const TestCenter: React.FC = () => {
                     title={
                       <Button 
                         type="link" 
-                        size="small"
+                        
                         onClick={() => {
                           if (module.url) {
                             navigate(module.url);
@@ -251,7 +251,7 @@ const TestCenter: React.FC = () => {
           showIcon
           style={{ marginBottom: 24 }}
           action={
-            <Button size="small" type="primary" ghost>
+            <Button  type="primary" ghost>
               开始测试
             </Button>
           }

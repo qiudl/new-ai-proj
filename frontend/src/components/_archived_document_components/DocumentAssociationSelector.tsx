@@ -271,7 +271,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
             filterOption={(input, option) =>
               (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
             }
-            notFoundContent={loading ? <Spin size="small" /> : <Empty description={emptyText} />}
+            notFoundContent={loading ? <Spin  /> : <Empty description={emptyText} />}
             options={options.map(option => ({
               value: option.id,
               label: isProject 
@@ -287,7 +287,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
               (() => {
                 const project = projects.find(p => p.id === selectedId);
                 return project ? (
-                  <Card size="small" style={{ backgroundColor: '#f6ffed' }}>
+                  <Card  style={{ backgroundColor: '#f6ffed' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <ProjectOutlined style={{ color: '#52c41a', marginRight: 8 }} />
                       <div>
@@ -308,7 +308,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
               (() => {
                 const customer = customers.find(c => c.id === selectedId);
                 return customer ? (
-                  <Card size="small" style={{ backgroundColor: '#f6ffed' }}>
+                  <Card  style={{ backgroundColor: '#f6ffed' }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <TeamOutlined style={{ color: '#52c41a', marginRight: 8 }} />
                       <div>
@@ -337,7 +337,7 @@ const DocumentAssociationSelector: React.FC<DocumentAssociationSelectorProps> = 
             showIcon
             style={{ marginTop: 12 }}
             action={
-              <Button size="small" type="primary">
+              <Button  type="primary">
                 创建{isProject ? '项目' : '客户'}
               </Button>
             }

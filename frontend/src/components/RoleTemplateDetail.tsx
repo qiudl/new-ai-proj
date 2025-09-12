@@ -300,7 +300,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
             <Space>
               <Badge status={template.is_active ? 'success' : 'default'} />
               <span>{template.is_active ? '激活' : '停用'}</span>
-              {template.is_system_template && <Tag size="small" color="blue">系统</Tag>}
+              {template.is_system_template && <Tag  color="blue">系统</Tag>}
             </Space>
           </Descriptions.Item>
           <Descriptions.Item label="当前版本">
@@ -319,7 +319,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
         {/* 标签展示 */}
         {template.tags && template.tags.length > 0 && (
-          <Card title={<><TagOutlined /> 模板标签</>} style={{ marginTop: 16 }} size="small">
+          <Card title={<><TagOutlined /> 模板标签</>} style={{ marginTop: 16 }} >
             <Space wrap>
               {template.tags.map(tag => (
                 <Tag key={tag.id} color="geekblue">
@@ -332,8 +332,8 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
         {/* 配置信息 */}
         {template.configuration && Object.keys(template.configuration).length > 0 && (
-          <Card title={<><SettingOutlined /> 配置信息</>} style={{ marginTop: 16 }} size="small">
-            <Descriptions column={1} size="small">
+          <Card title={<><SettingOutlined /> 配置信息</>} style={{ marginTop: 16 }} >
+            <Descriptions column={1} >
               {Object.entries(template.configuration).map(([key, value]) => (
                 <Descriptions.Item label={key} key={key}>
                   <Text code>{String(value)}</Text>
@@ -345,8 +345,8 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
         {/* 元数据信息 */}
         {template.metadata && Object.keys(template.metadata).length > 0 && (
-          <Card title="元数据信息" style={{ marginTop: 16 }} size="small">
-            <Descriptions column={1} size="small">
+          <Card title="元数据信息" style={{ marginTop: 16 }} >
+            <Descriptions column={1} >
               {Object.entries(template.metadata).map(([key, value]) => (
                 <Descriptions.Item label={key} key={key}>
                   <Text>{String(value)}</Text>
@@ -359,7 +359,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
       <Col span={8}>
         {/* 统计信息 */}
-        <Card title="统计信息" size="small">
+        <Card title="统计信息" >
           <Row gutter={16}>
             <Col span={12}>
               <Statistic title="使用次数" value={template.usage_count || 0} />
@@ -372,8 +372,8 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
         {/* 继承关系 */}
         {template.parent_template && (
-          <Card title={<><BranchesOutlined /> 继承关系</>} style={{ marginTop: 16 }} size="small">
-            <List size="small">
+          <Card title={<><BranchesOutlined /> 继承关系</>} style={{ marginTop: 16 }} >
+            <List >
               <List.Item>
                 <Text>父模板: </Text>
                 <Tag>{template.parent_template.template_name}</Tag>
@@ -384,9 +384,9 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
 
         {/* 子模板 */}
         {template.child_templates && template.child_templates.length > 0 && (
-          <Card title="子模板" style={{ marginTop: 16 }} size="small">
+          <Card title="子模板" style={{ marginTop: 16 }} >
             <List
-              size="small"
+              
               dataSource={template.child_templates}
               renderItem={child => (
                 <List.Item>
@@ -436,7 +436,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
               columns={permissionColumns}
               rowKey="id"
               pagination={{ pageSize: 10 }}
-              size="small"
+              
             />
           </Spin>
         </TabPane>
@@ -448,7 +448,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
               columns={usageColumns}
               rowKey="id"
               pagination={{ pageSize: 10 }}
-              size="small"
+              
             />
           </Spin>
         </TabPane>
@@ -460,7 +460,7 @@ const RoleTemplateDetail: React.FC<RoleTemplateDetailProps> = ({
               columns={versionColumns}
               rowKey="id"
               pagination={{ pageSize: 10 }}
-              size="small"
+              
             />
           </Spin>
         </TabPane>

@@ -356,7 +356,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         <Tooltip title="显示定时器浮窗">
           <Button
             type="primary"
-            size="small"
+            
             icon={<ClockCircleOutlined />}
             onClick={() => {
               setIsHidden(false);
@@ -388,7 +388,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
       }}
     >
       <Card
-        size="small"
+        
         styles={{
           body: { 
             padding: isMinimized ? '8px 12px' : '12px 16px',
@@ -416,7 +416,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
         {isMinimized ? (
           // 最小化状态
           <div className="floating-timer-minimized">
-            <Space size="small" align="center">
+            <Space  align="center">
               <ClockCircleOutlined style={{ color: '#52c41a' }} />
               <Text strong style={{ fontFamily: 'monospace', fontSize: '14px' }}>
                 {timerState.formattedTime}
@@ -424,7 +424,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
               <Tooltip title="查看任务详情">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<EyeOutlined />}
                   onClick={handleViewTaskDetail}
                   style={{ color: '#1890ff' }}
@@ -433,7 +433,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
               <Tooltip title="展开">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<ExpandOutlined />}
                   onClick={toggleMinimized}
                 />
@@ -441,7 +441,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
               <Tooltip title="关闭浮窗">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<CloseOutlined />}
                   onClick={handleCloseTimer}
                   style={{ color: '#ff4d4f' }}
@@ -463,8 +463,8 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
           <div className="floating-timer-expanded">
             {/* 标题栏 */}
             <div className="floating-timer-header">
-              <Space size="small" align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
-                <Space size="small">
+              <Space  align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space >
                   <ClockCircleOutlined style={{ color: '#52c41a' }} />
                   <Text strong style={{ fontSize: '12px' }}>计时中</Text>
                 </Space>
@@ -472,7 +472,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                   <Tooltip title="最小化">
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={<CompressOutlined />}
                       onClick={toggleMinimized}
                     />
@@ -480,7 +480,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                   <Tooltip title="关闭浮窗">
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={<CloseOutlined />}
                       onClick={handleCloseTimer}
                       style={{ color: '#ff4d4f' }}
@@ -535,11 +535,11 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
               </div>
 
               {/* 控制按钮 */}
-              <Space size="small" style={{ width: '100%', justifyContent: 'center' }}>
+              <Space  style={{ width: '100%', justifyContent: 'center' }}>
                 <Tooltip title="查看任务详情">
                   <Button
                     type="default"
-                    size="small"
+                    
                     icon={<EyeOutlined />}
                     onClick={handleViewTaskDetail}
                     loading={loadingTaskInfo}
@@ -551,7 +551,7 @@ const FloatingTimer: React.FC<FloatingTimerProps> = ({
                   <Button
                     type="primary"
                     danger
-                    size="small"
+                    
                     icon={<StopOutlined />}
                     onClick={handleStopTimer}
                     loading={isLoading}

@@ -204,7 +204,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
         />
 
         {/* 基本信息 */}
-        <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
+        <Card title="基本信息"  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -278,7 +278,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
         </Card>
 
         {/* 显示配置 */}
-        <Card title="显示配置" size="small" style={{ marginBottom: 16 }}>
+        <Card title="显示配置"  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -336,7 +336,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
 
         {/* 路由配置 */}
         {menuType !== 'group' && (
-          <Card title="路由配置" size="small" style={{ marginBottom: 16 }}>
+          <Card title="路由配置"  style={{ marginBottom: 16 }}>
             <Row gutter={16}>
               <Col span={12}>
                 <Form.Item
@@ -390,7 +390,7 @@ const MenuItemForm: React.FC<MenuItemFormProps> = ({
         )}
 
         {/* 权限配置 */}
-        <Card title="权限配置" size="small">
+        <Card title="权限配置" >
           <Form.Item
             label="访问权限"
             name="permission"

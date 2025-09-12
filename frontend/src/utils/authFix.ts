@@ -76,5 +76,4 @@ export const checkAuthStatus = (): void => {
 if (typeof window !== 'undefined') {
   (window as any).fixDevAuth = fixDevAuth;
   (window as any).checkAuthStatus = checkAuthStatus;
-  console.log('🛠️ 认证修复工具已加载，可使用 fixDevAuth() 和 checkAuthStatus()');
 }

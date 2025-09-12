@@ -11,7 +11,7 @@ import {
   Badge
 } from 'antd';
 import { 
-  ExclamationTriangleOutlined,
+  ExclamationCircleOutlined,
   ClockCircleOutlined,
   UserSwitchOutlined,
   LogoutOutlined,
@@ -144,16 +144,16 @@ const ImpersonationWarningBanner: React.FC = () => {
               <div className="banner-info">
                 <div className="banner-title">
                   <Text strong style={{ fontSize: '14px' }}>
-                    <ExclamationTriangleOutlined style={{ marginRight: '4px', color: '#ff4d4f' }} />
+                    <ExclamationCircleOutlined style={{ marginRight: '4px', color: '#ff4d4f' }} />
                     您正在模拟企业账户
                   </Text>
                   {isExpired && (
-                    <Tag color="red" size="small" style={{ marginLeft: '8px' }}>
+                    <Tag color="red"  style={{ marginLeft: '8px' }}>
                       <WarningOutlined /> 会话已过期
                     </Tag>
                   )}
                   {isExpiringSoon && !isExpired && (
-                    <Tag color="orange" size="small" style={{ marginLeft: '8px' }}>
+                    <Tag color="orange"  style={{ marginLeft: '8px' }}>
                       <ClockCircleOutlined /> 即将过期
                     </Tag>
                   )}
@@ -189,7 +189,7 @@ const ImpersonationWarningBanner: React.FC = () => {
                 <Progress 
                   percent={getProgressPercent()} 
                   strokeColor={getProgressColor()}
-                  size="small"
+                  
                   showInfo={false}
                   trailColor="#f0f0f0"
                 />
@@ -209,10 +209,10 @@ const ImpersonationWarningBanner: React.FC = () => {
         showIcon={false}
         closable={false}
         action={
-          <Space size="small">
+          <Space >
             <Tooltip title="最小化横幅">
               <Button 
-                size="small" 
+                 
                 type="text" 
                 onClick={handleToggleMinimize}
                 style={{ color: 'inherit' }}
@@ -223,7 +223,7 @@ const ImpersonationWarningBanner: React.FC = () => {
             
             <Tooltip title="隐藏横幅10秒">
               <Button 
-                size="small" 
+                 
                 type="text" 
                 onClick={handleHide}
                 style={{ color: 'inherit' }}
@@ -241,7 +241,7 @@ const ImpersonationWarningBanner: React.FC = () => {
               okButtonProps={{ danger: true }}
             >
               <Button 
-                size="small" 
+                 
                 type="primary" 
                 danger 
                 icon={<LogoutOutlined />}

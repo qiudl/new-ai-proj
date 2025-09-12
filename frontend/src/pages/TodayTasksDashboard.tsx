@@ -138,7 +138,7 @@ const TodayTasksDashboard: React.FC = () => {
           <div style={{ marginTop: 8 }}>
             <Progress 
               percent={totalCount > 0 ? Math.round(urgentCount / totalCount * 100) : 0} 
-              size="small" 
+               
               strokeColor="#ff4d4f"
               showInfo={false}
             />
@@ -157,7 +157,7 @@ const TodayTasksDashboard: React.FC = () => {
           <div style={{ marginTop: 8 }}>
             <Progress 
               percent={totalCount > 0 ? Math.round(inProgressCount / totalCount * 100) : 0} 
-              size="small" 
+               
               strokeColor="#52c41a"
               showInfo={false}
             />
@@ -301,7 +301,7 @@ const TodayTasksDashboard: React.FC = () => {
 
   // 渲染控制面板
   const renderControls = () => (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card  style={{ marginBottom: 16 }}>
       <Row justify="space-between" align="middle">
         <Col>
           <Space>
@@ -336,7 +336,7 @@ const TodayTasksDashboard: React.FC = () => {
             <Switch
               checked={showCompletedTasks}
               onChange={setShowCompletedTasks}
-              size="small"
+              
             />
             <Button
               type="text"
@@ -369,7 +369,7 @@ const TodayTasksDashboard: React.FC = () => {
           showIcon
           style={{ marginBottom: 16 }}
           action={
-            <Button size="small" type="primary" danger>
+            <Button  type="primary" danger>
               立即处理
             </Button>
           }
@@ -504,7 +504,7 @@ const TodayTasksDashboard: React.FC = () => {
                       </div>
                       <Progress 
                         percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.short || 0) / totalCount * 100) : 0}
-                        size="small"
+                        
                         strokeColor="#87d068"
                         showInfo={false}
                       />
@@ -515,7 +515,7 @@ const TodayTasksDashboard: React.FC = () => {
                       </div>
                       <Progress 
                         percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.medium || 0) / totalCount * 100) : 0}
-                        size="small"
+                        
                         strokeColor="#1890ff"
                         showInfo={false}
                       />
@@ -526,7 +526,7 @@ const TodayTasksDashboard: React.FC = () => {
                       </div>
                       <Progress 
                         percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.long || 0) / totalCount * 100) : 0}
-                        size="small"
+                        
                         strokeColor="#fa8c16"
                         showInfo={false}
                       />
@@ -537,7 +537,7 @@ const TodayTasksDashboard: React.FC = () => {
                       </div>
                       <Progress 
                         percent={totalCount > 0 ? Math.round((stats?.timeDistribution?.huge || 0) / totalCount * 100) : 0}
-                        size="small"
+                        
                         strokeColor="#ff4d4f"
                         showInfo={false}
                       />

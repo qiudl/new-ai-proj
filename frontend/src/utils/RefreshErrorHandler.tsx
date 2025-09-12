@@ -326,7 +326,7 @@ export class RefreshErrorHandler {
 
   private debugError(error: RefreshError): void {
     console.group(`🔍 Debug: RefreshError ${error.type}`);
-    console.log('📊 Error Details:', {
+    console.log('Error details:', {
       type: error.type,
       severity: error.severity,
       message: error.message,
@@ -334,15 +334,11 @@ export class RefreshErrorHandler {
       retryCount: error.retryCount,
       timestamp: error.timestamp
     });
-    console.log('🚨 Original Error:', error.originalError);
-    console.log('📋 Context:', error.context);
-    console.log('📈 Error Stats:', this.getErrorStats());
     console.groupEnd();
   }
 
   private retryLastOperation(error: RefreshError): void {
     // 这个方法需要与使用方协调实现重试逻辑
-    console.log('Retry requested for error:', error);
   }
 }
 

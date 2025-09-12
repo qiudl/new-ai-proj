@@ -360,7 +360,7 @@ const AdvancedSearchDemo: React.FC = () => {
         
         <Col span={6}>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
-            <Card title="搜索演示案例" size="small">
+            <Card title="搜索演示案例" >
               <div style={{ maxHeight: 400, overflow: 'auto' }}>
                 {searchExamples.map((example, index) => (
                   <div key={index} style={{ marginBottom: 12 }}>
@@ -378,7 +378,7 @@ const AdvancedSearchDemo: React.FC = () => {
               </div>
             </Card>
 
-            <Card title="数据统计" size="small">
+            <Card title="数据统计" >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Text>总事件数：</Text>
@@ -412,7 +412,7 @@ const AdvancedSearchDemo: React.FC = () => {
               </Space>
             </Card>
 
-            <Card title="技术特性" size="small">
+            <Card title="技术特性" >
               <Space direction="vertical" size={8}>
                 <Text>✅ 智能模式识别算法</Text>
                 <Text>✅ 复合过滤条件支持</Text>

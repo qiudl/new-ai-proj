@@ -311,7 +311,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                       <Tooltip title="保存">
                         <Button
                           type="text"
-                          size="small"
+                          
                           icon={<SaveOutlined />}
                           onClick={() => saveEditing(index)}
                           style={{ color: '#52c41a' }}
@@ -320,7 +320,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                       <Tooltip title="取消">
                         <Button
                           type="text"
-                          size="small"
+                          
                           icon={<CloseOutlined />}
                           onClick={() => cancelEditing(index)}
                           style={{ color: '#ff4d4f' }}
@@ -332,7 +332,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                       <Tooltip title="编辑">
                         <Button
                           type="text"
-                          size="small"
+                          
                           icon={<EditOutlined />}
                           onClick={() => startEditing(index)}
                         />
@@ -346,7 +346,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                         >
                           <Button
                             type="text"
-                            size="small"
+                            
                             icon={<DeleteOutlined />}
                             danger
                           />
@@ -386,7 +386,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                   <Select
                     value={task.priority}
                     onChange={value => updateTaskField(index, 'priority', value)}
-                    size="small"
+                    
                     style={{ width: 100 }}
                   >
                     <Option value="high">
@@ -407,7 +407,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
                       min={0.5}
                       max={40}
                       step={0.5}
-                      size="small"
+                      
                       style={{ width: 80 }}
                     />
                     <Text type="secondary" style={{ fontSize: '12px' }}>小时</Text>
@@ -453,7 +453,7 @@ const GeneratedTasksList: React.FC<GeneratedTasksListProps> = ({
   return (
     <div className={className}>
       {/* 统计信息 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Row gutter={16}>
           <Col span={4}>
             <div style={{ textAlign: 'center' }}>

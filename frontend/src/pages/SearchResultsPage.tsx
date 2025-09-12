@@ -161,7 +161,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
   return (
     <div style={{ padding: 24, minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* 面包屑导航 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Row justify="space-between" align="middle">
           <Col>
             <Breadcrumb items={breadcrumbItems} />
@@ -173,7 +173,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
                   icon={<DownloadOutlined />}
                   onClick={handleExportResults}
                   loading={loading}
-                  size="small"
+                  
                 >
                   导出结果
                 </Button>
@@ -181,7 +181,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
               <Button
                 icon={<SettingOutlined />}
                 onClick={() => navigate('/search/settings')}
-                size="small"
+                
               >
                 搜索设置
               </Button>
@@ -194,7 +194,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
       <Card style={{ marginBottom: 24 }}>
         <Row gutter={[24, 16]} align="middle">
           <Col flex="auto">
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" >
               <Title level={2} style={{ margin: 0 }}>
                 <SearchOutlined style={{ marginRight: 8 }} />
                 {projectId ? '项目内搜索' : '全局搜索'}
@@ -243,7 +243,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
                   <Button
                     key={keyword}
                     type="link"
-                    size="small"
+                    
                     onClick={() => {
                       const newUrl = `${location.pathname}?q=${encodeURIComponent(keyword)}`;
                       navigate(newUrl);
@@ -273,7 +273,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
       {/* 搜索帮助 */}
       <Affix offsetBottom={24}>
         <Card
-          size="small"
+          
           style={{
             position: 'fixed',
             bottom: 24,
@@ -286,7 +286,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
           extra={
             <Button
               type="text"
-              size="small"
+              
               onClick={() => {
                 const card = document.querySelector('.search-help-card') as HTMLElement;
                 if (card) {
@@ -299,7 +299,7 @@ const SearchResultsPage: React.FC<SearchResultsPageProps> = ({ projectId }) => {
           }
           className="search-help-card"
         >
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space direction="vertical"  style={{ width: '100%' }}>
             <div>
               <Text strong>搜索技巧:</Text>
             </div>

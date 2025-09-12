@@ -173,7 +173,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                 {icon} {impact === 'increase' ? '提升因素' : impact === 'decrease' ? '降低因素' : '中性因素'}
               </Text>
               <List
-                size="small"
+                
                 dataSource={factorList}
                 renderItem={(factor) => (
                   <List.Item>
@@ -206,7 +206,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
             key={index}
             dot={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
           >
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" >
               <Space>
                 <Text strong>{phase.phase}</Text>
                 <Tag color="blue">{phase.hours}h ({phase.percentage}%)</Tag>
@@ -248,7 +248,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
         <Space>
           <Button 
             type="primary" 
-            size="small" 
+             
             onClick={runAnalysis} 
             loading={loading}
             icon={<ReloadOutlined />}
@@ -258,7 +258,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
           {analysisResult && (
             <Button 
               type="default" 
-              size="small" 
+               
               onClick={() => setShowDetails(!showDetails)}
             >
               {showDetails ? '隐藏详情' : '查看详情'}
@@ -281,7 +281,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
           {/* 分析概览 */}
           <Row gutter={24} style={{ marginBottom: 24 }}>
             <Col span={12}>
-              <Card size="small" title="优先级分析" extra={<FlagOutlined />}>
+              <Card  title="优先级分析" extra={<FlagOutlined />}>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Space>
                     <Tag 
@@ -302,7 +302,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                   </Text>
                   <Button 
                     type="primary" 
-                    size="small" 
+                     
                     icon={<CheckOutlined />}
                     onClick={applyAIPriority}
                   >
@@ -313,7 +313,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
             </Col>
             
             <Col span={12}>
-              <Card size="small" title="工时预估" extra={<ClockCircleOutlined />}>
+              <Card  title="工时预估" extra={<ClockCircleOutlined />}>
                 <Space direction="vertical" style={{ width: '100%' }}>
                   <Space>
                     <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>
@@ -331,7 +331,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                   </Text>
                   <Button 
                     type="primary" 
-                    size="small" 
+                     
                     icon={<CheckOutlined />}
                     onClick={applyAITime}
                   >
@@ -343,10 +343,10 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
           </Row>
 
           {/* 手动调整区域 */}
-          <Card size="small" title="手动调整" style={{ marginBottom: 16 }}>
+          <Card  title="手动调整" style={{ marginBottom: 16 }}>
             <Row gutter={16}>
               <Col span={8}>
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Text strong>优先级</Text>
                   <Select
                     value={manualPriority}
@@ -366,7 +366,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                 </Space>
               </Col>
               <Col span={8}>
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Text strong>预估工时 (小时)</Text>
                   <InputNumber
                     value={manualHours}
@@ -380,7 +380,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                 </Space>
               </Col>
               <Col span={8}>
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Text strong>应用设置</Text>
                   <Button 
                     type="primary" 
@@ -435,7 +435,7 @@ export const AIPriorityTimeEstimator: React.FC<AIPriorityTimeEstimatorProps> = (
                     <Title level={5}>相似任务参考</Title>
                     {analysisResult.timeEstimation.similarTasks.length > 0 ? (
                       <List
-                        size="small"
+                        
                         dataSource={analysisResult.timeEstimation.similarTasks}
                         renderItem={(similarTask) => (
                           <List.Item>

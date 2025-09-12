@@ -157,7 +157,7 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
           >
             <Button 
               type="text" 
-              size="small" 
+               
               icon={<MoreOutlined />}
               onClick={(e) => e.stopPropagation()}
               style={{ opacity: 0.6 }}
@@ -194,7 +194,7 @@ const FolderTree = forwardRef<FolderTreeRef, FolderTreeProps>(({
           <Tooltip title="在根目录下新建文件夹">
             <Button 
               type="text" 
-              size="small" 
+               
               icon={<PlusOutlined />}
               onClick={(e) => {
                 e.stopPropagation();

@@ -287,7 +287,7 @@ const DocumentThumbnailGallery: React.FC<DocumentThumbnailGalleryProps> = ({
                 <div style={{ fontSize: '24px', marginBottom: '8px' }}>❌</div>
                 <div style={{ fontSize: '12px' }}>预览失败</div>
                 <Button 
-                  size="small" 
+                   
                   type="link"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -379,7 +379,7 @@ const DocumentThumbnailGallery: React.FC<DocumentThumbnailGalleryProps> = ({
             }}
           >
             {isGenerating ? (
-              <Spin size="small" />
+              <Spin  />
             ) : thumbnail ? (
               <img
                 src={thumbnail.url}
@@ -419,17 +419,17 @@ const DocumentThumbnailGallery: React.FC<DocumentThumbnailGalleryProps> = ({
               <Button 
                 type="text" 
                 icon={<EyeOutlined />} 
-                size="small"
+                
                 onClick={() => setPreviewDocument(document)}
               />
               <Button 
                 type="text" 
                 icon={<EditOutlined />} 
-                size="small"
+                
                 onClick={() => onDocumentEdit?.(document)}
               />
               <Dropdown menu={renderDocumentMenu(document)} trigger={['click']}>
-                <Button type="text" icon={<MoreOutlined />} size="small" />
+                <Button type="text" icon={<MoreOutlined />}  />
               </Dropdown>
             </Space>
           )}
@@ -486,11 +486,11 @@ const DocumentThumbnailGallery: React.FC<DocumentThumbnailGalleryProps> = ({
                   <Button
                     icon={<ReloadOutlined />}
                     onClick={generateAllThumbnails}
-                    size="small"
+                    
                   >
                     生成缩略图
                   </Button>
-                  <Button.Group size="small">
+                  <Button.Group >
                     <Button
                       icon={<AppstoreOutlined />}
                       type={viewMode === 'grid' ? 'primary' : 'default'}

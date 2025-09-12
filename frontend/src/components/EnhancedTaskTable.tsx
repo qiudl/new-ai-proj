@@ -307,7 +307,7 @@ const EnhancedTaskTable: React.FC<EnhancedTaskTableProps> = ({
       fixed: 'right',
       width: 150,
       render: (_, record: Task) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看详情">
             <Button
               type="text"

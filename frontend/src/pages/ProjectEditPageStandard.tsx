@@ -47,8 +47,8 @@ import dayjs from 'dayjs';
 import { projectService } from '../services/projectService';
 // import companyService from '../services/companyService'; // Removed - company service no longer exists
 import enterpriseService from '../services/enterpriseService';
-import { Project, ProjectRequest } from '../types/project';
-// import { Company, CompanyUser } from '../types/company'; // Removed - company types no longer exist
+import { Project, ProjectRequest, Company } from '../types/project';
+// import { Company, CompanyUser } from '../types/company'; // Removed - company types no longer exist - using Company from project.ts now
 import { Enterprise, EnterpriseUser } from '../types/enterprise';
 // import AddCompanyUserModal from '../components/AddCompanyUserModal'; // Removed - component no longer exists
 
@@ -628,7 +628,7 @@ const ProjectEditPageNew: React.FC = () => {
     return {
       label: (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Avatar size="small" src={item.avatar} icon={<UserOutlined />} />
+          <Avatar  src={item.avatar} icon={<UserOutlined />} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 500 }}>{item.userName || '未知用户'}</div>
             <div style={{ fontSize: '12px', color: '#666' }}>
@@ -653,7 +653,7 @@ const ProjectEditPageNew: React.FC = () => {
           {isSelected && (
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
@@ -899,7 +899,7 @@ const ProjectEditPageNew: React.FC = () => {
                 <Space>
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<PlusOutlined />}
                     onClick={() => navigate('/enterprises/create')}
                   >
@@ -977,7 +977,7 @@ const ProjectEditPageNew: React.FC = () => {
                     <Space>
                       <Button
                         type="dashed"
-                        size="small"
+                        
                         icon={<PlusOutlined />}
                         onClick={() => navigate('/enterprises/create')}
                       >
@@ -985,7 +985,7 @@ const ProjectEditPageNew: React.FC = () => {
                       </Button>
                       <Button
                         type="text"
-                        size="small"
+                        
                         icon={<ReloadOutlined />}
                         onClick={loadCompanies}
                         loading={companyLoading}
@@ -1115,7 +1115,7 @@ const ProjectEditPageNew: React.FC = () => {
                         <Button
                           type="dashed"
                           icon={<PlusOutlined />}
-                          size="small"
+                          
                           onClick={() => {
                             if (selectedCompanies.length === 1) {
                               handleAddUserForCompany(selectedCompanies[0]);
@@ -1176,7 +1176,7 @@ const ProjectEditPageNew: React.FC = () => {
                       action={
                         <Button
                           type="primary"
-                          size="small"
+                          
                           icon={<PlusOutlined />}
                           onClick={() => {
                             if (selectedCompanies.length === 1) {
@@ -1352,7 +1352,7 @@ const ProjectEditPageNew: React.FC = () => {
               {getProjectRoleOptions().map(roleOption => (
                 <Card
                   key={roleOption.value}
-                  size="small"
+                  
                   hoverable
                   style={{ 
                     cursor: 'pointer',

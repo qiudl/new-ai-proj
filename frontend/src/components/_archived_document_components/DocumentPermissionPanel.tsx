@@ -546,7 +546,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
       render: (_, record) => (
         <Space>
           <Avatar 
-            size="small" 
+             
             src={record.user_avatar} 
             icon={<UserOutlined />}
           />
@@ -604,11 +604,11 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
       key: 'actions',
       width: 120,
       render: (_, record) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="编辑权限">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => {
                 setEditingCollaborator(record);
@@ -630,7 +630,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
             <Tooltip title="移除协作者">
               <Button
                 type="text"
-                size="small"
+                
                 danger
                 icon={<DeleteOutlined />}
               />
@@ -652,7 +652,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
               <Space>
                 <UserOutlined />
                 <span>协作者</span>
-                <Badge count={collaborators.length} size="small" />
+                <Badge count={collaborators.length}  />
               </Space>
             ),
             children: (
@@ -670,7 +670,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
                       icon={<ReloadOutlined />}
                       onClick={loadCollaborators}
                       loading={loading}
-                      size="small"
+                      
                     >
                       刷新
                     </Button>
@@ -696,7 +696,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
                       }}
                       trigger={['click']}
                     >
-                      <Button size="small">
+                      <Button >
                         更多操作
                       </Button>
                     </Dropdown>
@@ -811,7 +811,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
                   columns={collaboratorColumns}
                   dataSource={filteredCollaborators}
                   rowKey="id"
-                  size="small"
+                  
                   loading={loading}
                   pagination={{
                     pageSize: 10,
@@ -830,7 +830,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
               <Space>
                 <ShareAltOutlined />
                 <span>分享链接</span>
-                <Badge count={shareLinks.length} size="small" />
+                <Badge count={shareLinks.length}  />
               </Space>
             ),
             children: (
@@ -943,7 +943,7 @@ const DocumentPermissionPanel: React.FC<DocumentPermissionPanelProps> = ({
               <Space>
                 <FormOutlined />
                 <span>评论</span>
-                <Badge count={comments.length} size="small" />
+                <Badge count={comments.length}  />
               </Space>
             ),
             children: (

@@ -157,7 +157,7 @@ const ProjectDetailPage: React.FC = () => {
               {/* 项目编号与状态 */}
               <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
                 <Col span={12}>
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <Text type="secondary"><NumberOutlined /> 项目编号</Text>
                     <Text strong style={{ fontSize: '16px', color: '#1890ff' }}>
                       {project?.project_number || '未设置'}
@@ -165,7 +165,7 @@ const ProjectDetailPage: React.FC = () => {
                   </Space>
                 </Col>
                 <Col span={12}>
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <Text type="secondary">项目状态</Text>
                     <Tag color={getStatusColor(project?.status)} style={{ fontSize: '14px', padding: '4px 12px' }}>
                       {getStatusText(project?.status)}
@@ -185,7 +185,7 @@ const ProjectDetailPage: React.FC = () => {
               {/* 项目时间线 */}
               <Row gutter={[16, 16]}>
                 <Col span={8}>
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <Text type="secondary"><CalendarOutlined /> 开始日期</Text>
                     <Text strong>
                       {project?.start_date ? new Date(project.start_date).toLocaleDateString() : '未设置'}
@@ -193,7 +193,7 @@ const ProjectDetailPage: React.FC = () => {
                   </Space>
                 </Col>
                 <Col span={8}>
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <Text type="secondary"><CalendarOutlined /> 结束日期</Text>
                     <Text strong>
                       {project?.end_date ? new Date(project.end_date).toLocaleDateString() : '未设置'}
@@ -201,7 +201,7 @@ const ProjectDetailPage: React.FC = () => {
                   </Space>
                 </Col>
                 <Col span={8}>
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <Text type="secondary">优先级</Text>
                     <Tag color={getPriorityColor(project?.priority)}>
                       {getPriorityText(project?.priority)}
@@ -226,7 +226,7 @@ const ProjectDetailPage: React.FC = () => {
                     <Button 
                       type="link" 
                       icon={<LinkOutlined />}
-                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.enterprise_id}`)}
                     >
                       查看企业详情
                     </Button>
@@ -242,7 +242,7 @@ const ProjectDetailPage: React.FC = () => {
               >
                 <Row gutter={[24, 16]}>
                   <Col xs={24} lg={12}>
-                    <Card size="small" style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}>
+                    <Card  style={{ backgroundColor: '#f6ffed', border: '1px solid #b7eb8f' }}>
                       <Space direction="vertical" style={{ width: '100%' }} size={16}>
                         <Space align="center">
                           <Avatar 
@@ -295,9 +295,9 @@ const ProjectDetailPage: React.FC = () => {
                     </Card>
                   </Col>
                   <Col xs={24} lg={12}>
-                    <Card size="small" title="联系方式" extra={<PhoneOutlined />}>
+                    <Card  title="联系方式" extra={<PhoneOutlined />}>
                       {enterpriseInfo ? (
-                        <Space direction="vertical" style={{ width: '100%' }} size="small">
+                        <Space direction="vertical" style={{ width: '100%' }} >
                           <Row gutter={[16, 8]}>
                             <Col span={24}>
                               <Space>
@@ -333,7 +333,7 @@ const ProjectDetailPage: React.FC = () => {
                                   <Text strong>网站：</Text>
                                   <Button 
                                     type="link" 
-                                    size="small" 
+                                     
                                     href={enterpriseInfo.website} 
                                     target="_blank"
                                     style={{ padding: 0, height: 'auto' }}
@@ -363,19 +363,19 @@ const ProjectDetailPage: React.FC = () => {
                     <Button 
                       type="primary" 
                       icon={<LinkOutlined />}
-                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.enterprise_id}`)}
                     >
                       查看完整企业资料
                     </Button>
                     <Button 
                       icon={<UserOutlined />}
-                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.enterprise_id}`)}
                     >
                       企业联系人管理
                     </Button>
                     <Button 
                       icon={<PhoneOutlined />}
-                      onClick={() => navigate(`/enterprises/${project.company_id}`)}
+                      onClick={() => navigate(`/enterprises/${project.enterprise_id}`)}
                     >
                       沟通记录
                     </Button>
@@ -499,12 +499,10 @@ const ProjectDetailPage: React.FC = () => {
       setProject(projectDetail);
       
       // 如果项目有关联企业，获取完整的企业信息
-      // 注意：由于数据迁移，company_id现在需要映射到enterprise_id
-      if (projectDetail.company_id) {
+      // 注意：数据迁移后，项目API返回的是enterprise_id而不是company_id
+      const enterpriseId = projectDetail.enterprise_id || projectDetail.company_id;
+      if (enterpriseId) {
         try {
-          // 临时解决方案：假设company_id和enterprise_id有直接映射关系
-          // TODO: 需要项目表添加enterprise_id字段或创建映射表
-          const enterpriseId = projectDetail.company_id;
           const enterprise = await enterpriseService.getEnterprise(enterpriseId);
           setEnterpriseInfo(enterprise);
         } catch (error) {
@@ -639,7 +637,7 @@ const ProjectDetailPage: React.FC = () => {
         <Card>
           <Row gutter={[24, 16]} align="middle">
             <Col flex="auto">
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" >
                 <Space align="center">
                   <NumberOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
                   <Text strong style={{ color: '#1890ff', fontSize: '16px' }}>
@@ -658,7 +656,7 @@ const ProjectDetailPage: React.FC = () => {
                 {/* 企业信息展示 */}
                 {project.company_id && (
                   <Card 
-                    size="small" 
+                     
                     style={{ 
                       background: 'linear-gradient(135deg, #f6f9fc 0%, #e9f7ef 100%)',
                       border: '1px solid #d9f7be',
@@ -668,7 +666,7 @@ const ProjectDetailPage: React.FC = () => {
                   >
                     <Space align="center" size="middle">
                       <Avatar 
-                        size="small" 
+                         
                         style={{ 
                           backgroundColor: '#52c41a',
                           display: 'flex',
@@ -678,11 +676,11 @@ const ProjectDetailPage: React.FC = () => {
                         icon={<BankOutlined />}
                       />
                       <div>
-                        <Space align="center" size="small">
+                        <Space align="center" >
                           <Text strong style={{ color: '#389e0d' }}>所属企业：</Text>
                           <Button
                             type="link"
-                            size="small"
+                            
                             style={{ 
                               padding: 0, 
                               height: 'auto',
@@ -690,7 +688,7 @@ const ProjectDetailPage: React.FC = () => {
                               fontWeight: 500
                             }}
                             icon={<LinkOutlined style={{ fontSize: '12px' }} />}
-                            onClick={() => navigate(`/enterprises/${project.company_id}`)}
+                            onClick={() => navigate(`/enterprises/${project.enterprise_id}`)}
                           >
                             {enterpriseInfo?.name || '加载中...'}
                           </Button>
@@ -703,7 +701,7 @@ const ProjectDetailPage: React.FC = () => {
               </Space>
             </Col>
             <Col>
-              <Space direction="vertical" size="small" align="end">
+              <Space direction="vertical"  align="end">
                 <Button 
                   type="primary" 
                   icon={<EditOutlined />}

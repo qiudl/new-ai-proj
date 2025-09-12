@@ -48,7 +48,7 @@ const VirtualTimelineItem: React.FC<{ index: number; style: React.CSSProperties;
     
     return (
       <Card
-        size="small"
+        
         hoverable
         onClick={() => item.onEventClick?.(event)}
         style={{
@@ -327,7 +327,7 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
         <Space>
           {onRefresh && (
             <Button
-              size="small"
+              
               icon={<ReloadOutlined />}
               onClick={onRefresh}
               loading={loading}
@@ -336,7 +336,7 @@ const VirtualizedTimeline: React.FC<VirtualizedTimelineProps> = ({
             </Button>
           )}
           <Button
-            size="small"
+            
             icon={<ExpandOutlined />}
             onClick={scrollToTop}
             title="回到顶部"

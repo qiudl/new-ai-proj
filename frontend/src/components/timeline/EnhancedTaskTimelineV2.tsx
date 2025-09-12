@@ -169,7 +169,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
   const getUserAvatar = (event: TaskTimelineEvent) => {
     if (!event.username) {
       return (
-        <Avatar size="small" style={{ backgroundColor: '#8c8c8c' }}>
+        <Avatar  style={{ backgroundColor: '#8c8c8c' }}>
           <UserOutlined />
         </Avatar>
       );
@@ -180,7 +180,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
     
     return (
       <Avatar 
-        size="small" 
+         
         style={{ backgroundColor: colors[colorIndex] }}
       >
         {event.username.charAt(0).toUpperCase()}
@@ -223,7 +223,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
       color: renderer.getColor(),
       children: (
         <Card
-          size="small"
+          
           hoverable
           onClick={() => onEventClick?.(event)}
           style={{
@@ -268,7 +268,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
               {event.metadata && Object.keys(event.metadata).length > 0 && !compactMode && (
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={isExpanded ? <UpOutlined /> : <DownOutlined />}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -326,7 +326,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
 
     return (
       <Card 
-        size="small" 
+         
         style={{ 
           marginBottom: 16,
           backgroundColor: '#fafafa',
@@ -348,7 +348,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
             <Space>
               <Tooltip title="刷新时间线">
                 <Button
-                  size="small"
+                  
                   icon={<ReloadOutlined />}
                   onClick={onRefresh}
                   loading={loading}
@@ -357,7 +357,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
               </Tooltip>
               <Tooltip title="分组策略">
                 <Select
-                  size="small"
+                  
                   value={groupingStrategy}
                   onChange={setGroupingStrategy}
                   style={{ width: 120 }}
@@ -370,7 +370,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                 </Select>
               </Tooltip>
               <Button 
-                size="small" 
+                 
                 onClick={() => {
                   setFilter({});
                   setAdvancedFilter({});
@@ -387,7 +387,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
             <Tabs
               activeKey={activeTab}
               onChange={(key) => setActiveTab(key as 'basic' | 'advanced')}
-              size="small"
+              
             >
               {enableSearch && (
                 <TabPane
@@ -404,7 +404,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                       showSearch
                       placeholder="搜索事件..."
                       style={{ width: '100%' }}
-                      size="small"
+                      
                       value={searchTerm || undefined}
                       onSearch={setSearchTerm}
                       onChange={setSearchTerm}
@@ -419,7 +419,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                           mode="multiple"
                           placeholder="选择类型"
                           style={{ minWidth: 200, marginLeft: 8 }}
-                          size="small"
+                          
                           value={filter.event_types}
                           onChange={(value) => setFilter({ ...filter, event_types: value })}
                           options={filterOptions.eventTypes.map(opt => ({
@@ -436,7 +436,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                           mode="multiple"
                           placeholder="选择用户"
                           style={{ minWidth: 150, marginLeft: 8 }}
-                          size="small"
+                          
                           value={filter.user_ids?.map(String)}
                           onChange={(value) => setFilter({ ...filter, user_ids: value?.map(Number) })}
                           options={filterOptions.users.map(opt => ({
@@ -453,7 +453,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                           mode="multiple"
                           placeholder="选择分类"
                           style={{ minWidth: 120, marginLeft: 8 }}
-                          size="small"
+                          
                           value={filter.categories}
                           onChange={(value) => setFilter({ ...filter, categories: value })}
                           options={filterOptions.categories.map(opt => ({
@@ -469,7 +469,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                           mode="multiple"
                           placeholder="选择严重性"
                           style={{ minWidth: 120, marginLeft: 8 }}
-                          size="small"
+                          
                           value={filter.severities}
                           onChange={(value) => setFilter({ ...filter, severities: value })}
                           options={filterOptions.severities.map(opt => ({
@@ -564,7 +564,7 @@ const EnhancedTaskTimelineV2: React.FC<EnhancedTaskTimelineV2Props> = ({
                   )}
                 </Space>
               }
-              size="small"
+              
               style={{ borderRadius: 8 }}
             >
               {group.metadata.description && (

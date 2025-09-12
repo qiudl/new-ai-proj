@@ -489,7 +489,7 @@ const TimeAnalysisPage: React.FC = () => {
                 <div style={{ marginTop: '8px' }}>
                   <Progress 
                     percent={Math.round((timeStats.completedTasks / timeStats.totalTasks) * 100)} 
-                    size="small"
+                    
                     strokeColor="#52c41a"
                     showInfo={false}
                   />

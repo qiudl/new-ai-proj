@@ -807,7 +807,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           <div>
             <Title level={5}>基础操作</Title>
             <List
-              size="small"
+              
               dataSource={[
                 { key: 'Ctrl+R', desc: '刷新文档列表' },
                 { key: 'Ctrl+F', desc: '焦点移至搜索框' },
@@ -829,7 +829,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           <div>
             <Title level={5}>选择操作</Title>
             <List
-              size="small"
+              
               dataSource={[
                 { key: 'Ctrl+Shift+A', desc: '全选所有文档' },
                 { key: 'Ctrl+D', desc: '批量下载选中文档' }
@@ -848,7 +848,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
           <div>
             <Title level={5}>标签页切换</Title>
             <List
-              size="small"
+              
               dataSource={[
                 { key: 'Ctrl+1', desc: '切换到文档上传标签' },
                 { key: 'Ctrl+2', desc: '切换到文档管理标签' },
@@ -873,7 +873,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
   const renderStats = useCallback(() => {
     if (loading && !documentStats) {
       return (
-        <Card size="small" className="mb-4">
+        <Card  className="mb-4">
           <Skeleton active paragraph={{ rows: 3 }} />
         </Card>
       );
@@ -882,12 +882,12 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
     if (!documentStats) return null;
 
     return (
-      <Card size="small" className="mb-4">
+      <Card  className="mb-4">
         <Title level={5}>
           <InfoCircleOutlined className="mr-2" />
           文档统计
         </Title>
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <Text>
             <strong>总文档数:</strong> {documentStats.totalDocuments} 个
           </Text>
@@ -918,7 +918,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
 
   // Render quick actions
   const renderQuickActions = () => (
-    <Card size="small" className="mb-4">
+    <Card  className="mb-4">
       <Title level={5}>
         <CloudUploadOutlined className="mr-2" />
         快捷操作
@@ -1044,7 +1044,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
 
   // 渲染搜索和过滤界面
   const renderSearchAndFilters = () => (
-    <Card size="small" className="mb-4">
+    <Card  className="mb-4">
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
         {/* 基础搜索 */}
         <div>
@@ -1163,7 +1163,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
               }}
               trigger={['click']}
             >
-              <Button icon={<SelectOutlined />} size="small">
+              <Button icon={<SelectOutlined />} >
                 智能选择
               </Button>
             </Dropdown>
@@ -1208,7 +1208,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
                   }}
                   trigger={['click']}
                 >
-                  <Button type="primary" size="small" icon={<MoreOutlined />}>
+                  <Button type="primary"  icon={<MoreOutlined />}>
                     批量操作
                   </Button>
                 </Dropdown>
@@ -1241,7 +1241,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
                 }}
                 trigger={['click']}
               >
-                <Button size="small" icon={<HistoryOutlined />}>
+                <Button  icon={<HistoryOutlined />}>
                   操作历史
                 </Button>
               </Dropdown>
@@ -1302,11 +1302,11 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
         key: 'actions',
         width: 180,
         render: (_, record: DocumentInfo) => (
-          <Space size="small">
+          <Space >
             <Tooltip title="预览">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EyeOutlined />}
                 onClick={() => handlePreview(record)}
                 disabled={record.mime_type === 'application/pdf'}
@@ -1316,7 +1316,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             <Tooltip title="下载">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<DownloadOutlined />}
                 onClick={() => {
                   if (record.file_path) {
@@ -1329,7 +1329,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             <Tooltip title="版本历史">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<HistoryOutlined />}
                 onClick={() => handleVersionHistory(record)}
                 disabled={!record.id}
@@ -1339,7 +1339,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             <Tooltip title="删除">
               <Button
                 type="text"
-                size="small"
+                
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => handleDelete(record)}
@@ -1384,7 +1384,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             }
           }}
           loading={loading}
-          size="small"
+          
           scroll={{ x: 800 }}
           onChange={(pagination, filters, sorter) => {
             trackUserAction();
@@ -1580,7 +1580,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
             setTimeout(() => {
               onClose && onClose();
             }, 50);
-          }} danger type="text" size="small" title="如果正常关闭失败，使用此按钮强制清理所有状态和DOM元素">
+          }} danger type="text"  title="如果正常关闭失败，使用此按钮强制清理所有状态和DOM元素">
             强制关闭
           </Button>
         ]}

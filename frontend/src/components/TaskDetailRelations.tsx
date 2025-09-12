@@ -114,7 +114,7 @@ export const TaskRelationsPanel: React.FC<TaskRelationsPanelProps> = React.memo(
             <Badge 
               count={relatedTasksCount} 
               showZero={false}
-              size="small"
+              
             />
           </Space>
         }
@@ -226,7 +226,7 @@ const SubtasksSection: React.FC<{
       {subtasks.length > 3 && (
         <Button 
           type="link" 
-          size="small" 
+           
           style={{ fontSize: '12px', padding: 0 }}
           onClick={() => {
             const subtaskTable = document.querySelector('.ant-table-wrapper');
@@ -345,7 +345,7 @@ const ExpandButton: React.FC<{
 }> = React.memo(({ expanded, onToggle, count, type }) => (
   <Button 
     type="link" 
-    size="small"
+    
     onClick={onToggle}
     style={{ 
       padding: '0 8px', 

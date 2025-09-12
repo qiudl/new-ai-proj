@@ -149,10 +149,10 @@ const NavigationManagementPage: React.FC = () => {
             </Tag>
             {!item.is_visible && <Tag color="orange">隐藏</Tag>}
           </Space>
-          <Space size="small">
+          <Space >
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={(e) => {
                 e.stopPropagation();
@@ -168,7 +168,7 @@ const NavigationManagementPage: React.FC = () => {
             >
               <Button
                 type="text"
-                size="small"
+                
                 icon={<DeleteOutlined />}
                 danger
               />
@@ -219,7 +219,7 @@ const NavigationManagementPage: React.FC = () => {
       render: (_, record) => (
         <Space>
           <Switch
-            size="small"
+            
             checked={record.is_enabled}
             onChange={(checked) => handleToggleMenuItem(record.id, 'is_enabled', checked)}
           />
@@ -242,10 +242,10 @@ const NavigationManagementPage: React.FC = () => {
       key: 'actions',
       width: 200,
       render: (_, record) => (
-        <Space size="small">
+        <Space >
           <Button
             type="text"
-            size="small"
+            
             icon={<EditOutlined />}
             onClick={() => handleEditMenuItem(record)}
           >
@@ -253,7 +253,7 @@ const NavigationManagementPage: React.FC = () => {
           </Button>
           <Button
             type="text"
-            size="small"
+            
             icon={<CopyOutlined />}
             onClick={() => handleCopyMenuItem(record)}
           >
@@ -265,7 +265,7 @@ const NavigationManagementPage: React.FC = () => {
           >
             <Button
               type="text"
-              size="small"
+              
               icon={<DeleteOutlined />}
               danger
             >
@@ -320,10 +320,10 @@ const NavigationManagementPage: React.FC = () => {
       key: 'actions',
       width: 150,
       render: (_, record) => (
-        <Space size="small">
+        <Space >
           <Button
             type="text"
-            size="small"
+            
             icon={<EditOutlined />}
             onClick={() => handleEditRoute(record)}
           >
@@ -335,7 +335,7 @@ const NavigationManagementPage: React.FC = () => {
           >
             <Button
               type="text"
-              size="small"
+              
               icon={<DeleteOutlined />}
               danger
             >

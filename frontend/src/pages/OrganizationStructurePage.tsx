@@ -133,16 +133,23 @@ const OrganizationStructurePage: React.FC = () => {
   const loadDepartmentStats = async (companyId?: number) => {
     try {
       const cid = companyId || selectedCompanyId;
+      console.log('📊 开始加载部门统计信息 - 企业ID:', cid);
+      
       const stats = await organizationService.getDepartmentStats(cid);
+      console.log('📊 获取到的统计信息:', stats);
+      
       // 确保stats不为undefined或null，并且包含必要字段
       if (stats && typeof stats === 'object') {
-        setDepartmentStats({
+        const newStats = {
           totalDepartments: stats.totalDepartments || 0,
           totalEmployees: stats.totalEmployees || 0,
           maxLevel: stats.maxLevel || 0,
           activeDepartments: stats.activeDepartments || 0
-        });
+        };
+        console.log('✅ 设置统计信息状态:', newStats);
+        setDepartmentStats(newStats);
       } else {
+        console.warn('⚠️ 统计信息无效，使用默认值:', stats);
         // 如果stats无效，使用默认值
         setDepartmentStats({
           totalDepartments: 0,
@@ -152,7 +159,7 @@ const OrganizationStructurePage: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('加载部门统计信息失败:', error);
+      console.error('❌ 加载部门统计信息失败:', error);
       // 出错时也设置默认值，确保departmentStats不为undefined
       setDepartmentStats({
         totalDepartments: 0,
@@ -415,7 +422,7 @@ const OrganizationStructurePage: React.FC = () => {
         <Space>
           <Button
             type="link"
-            size="small"
+            
             icon={<EditOutlined />}
             onClick={() => message.info('编辑员工功能待实现')}
           >
@@ -530,7 +537,7 @@ const OrganizationStructurePage: React.FC = () => {
                   <Space>
                     <Button
                       type="primary"
-                      size="small"
+                      
                       icon={<EditOutlined />}
                       onClick={() => showDepartmentModal(selectedDepartment)}
                     >
@@ -538,7 +545,7 @@ const OrganizationStructurePage: React.FC = () => {
                     </Button>
                     <Button
                       danger
-                      size="small"
+                      
                       icon={<DeleteOutlined />}
                       onClick={() => handleDepartmentDelete(selectedDepartment)}
                     >
@@ -546,7 +553,7 @@ const OrganizationStructurePage: React.FC = () => {
                     </Button>
                   </Space>
                 }
-                size="small"
+                
               >
                 <Row gutter={16}>
                   <Col span={12}>
@@ -573,7 +580,7 @@ const OrganizationStructurePage: React.FC = () => {
                 extra={
                   <Button
                     type="primary"
-                    size="small"
+                    
                     icon={<PlusOutlined />}
                     onClick={() => message.info('添加员工功能待实现')}
                   >
@@ -585,7 +592,7 @@ const OrganizationStructurePage: React.FC = () => {
                   columns={employeeColumns}
                   dataSource={employees || []}
                   rowKey="id"
-                  size="small"
+                  
                   pagination={{
                     pageSize: 10,
                     showSizeChanger: true,

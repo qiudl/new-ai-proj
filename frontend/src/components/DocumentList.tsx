@@ -337,12 +337,12 @@ const DocumentList: React.FC<DocumentListProps> = ({
       width: 150,
       fixed: 'right',
       render: (_, record: DocItem) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看">
             <Button 
               type="text" 
               icon={<EyeOutlined />} 
-              size="small"
+              
               onClick={() => onView?.(record)}
             />
           </Tooltip>
@@ -350,7 +350,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
             <Button 
               type="text" 
               icon={<EditOutlined />} 
-              size="small"
+              
               onClick={() => onEdit?.(record)}
             />
           </Tooltip>
@@ -358,7 +358,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
             <Button 
               type="text" 
               icon={<DownloadOutlined />} 
-              size="small"
+              
               onClick={() => handleDownload(record)}
             />
           </Tooltip>
@@ -375,7 +375,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
                 type="text" 
                 danger 
                 icon={<DeleteOutlined />} 
-                size="small"
+                
               />
             </Tooltip>
           </Popconfirm>

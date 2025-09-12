@@ -232,7 +232,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
       dataIndex: 'progress',
       key: 'progress',
       render: (progress: number) => (
-        <Progress percent={progress || 0} size="small" />
+        <Progress percent={progress || 0}  />
       ),
     },
     {
@@ -272,7 +272,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
       {projects.map((project) => (
         <Col xs={24} sm={12} lg={8} xl={6} key={project.id}>
           <Card
-            size="small"
+            
             hoverable
             actions={[
               <Tooltip title="查看详情" key="view">
@@ -295,7 +295,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
             </div>
 
             <div style={{ marginBottom: 12 }}>
-              <Space size="small" wrap>
+              <Space  wrap>
                 <Tag color={getStatusColor(project.status)}>
                   {getStatusText(project.status)}
                 </Tag>
@@ -322,7 +322,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
             )}
 
             <div style={{ marginBottom: 12 }}>
-              <Progress percent={project.progress || 0} size="small" />
+              <Progress percent={project.progress || 0}  />
             </div>
 
             <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
@@ -345,7 +345,7 @@ const EnterpriseProjectManager: React.FC<EnterpriseProjectManagerProps> = ({
               value={viewMode} 
               onChange={(e) => setViewMode(e.target.value)}
               buttonStyle="solid"
-              size="small"
+              
             >
               <Radio.Button value="list">
                 <UnorderedListOutlined /> 列表

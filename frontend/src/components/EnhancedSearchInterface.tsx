@@ -434,7 +434,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
       title: '内容',
       key: 'content',
       render: (_, record) => (
-        <Space direction="vertical" size="small" style={{ width: '100%' }}>
+        <Space direction="vertical"  style={{ width: '100%' }}>
           <Space>
             {getTypeIcon(record.type)}
             <Text strong>{highlightText(record.title, record.highlights)}</Text>
@@ -499,7 +499,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
             <Button
               type="text"
               icon={<EyeOutlined />}
-              size="small"
+              
               onClick={() => {
                 if (onResultSelect) {
                   onResultSelect(record);
@@ -514,7 +514,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
               <Button
                 type="text"
                 icon={<DownloadOutlined />}
-                size="small"
+                
                 onClick={() => window.open(`${record.url}/download`, '_blank')}
               />
             </Tooltip>
@@ -534,7 +534,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
 
   // 渲染过滤器面板
   const renderFilterPanel = () => (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card  style={{ marginBottom: 16 }}>
       <Row gutter={[16, 16]}>
         <Col span={6}>
           <Text strong>内容类型</Text>
@@ -638,7 +638,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
 
   // 渲染统计信息
   const renderStats = () => (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card  style={{ marginBottom: 16 }}>
       <Row gutter={16}>
         <Col span={6}>
           <Statistic
@@ -667,7 +667,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
             {suggestions.length > 0 && (
               <Tooltip title={`建议: ${suggestions.join(', ')}`}>
                 <Badge count={suggestions.length}>
-                  <Button icon={<StarOutlined />} size="small">建议</Button>
+                  <Button icon={<StarOutlined />} >建议</Button>
                 </Badge>
               </Tooltip>
             )}
@@ -735,7 +735,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
             </Col>
             <Col>
               <Button
-                size="small"
+                
                 type={filter.type === 'document' ? 'primary' : 'default'}
                 onClick={() => handleFilterChange('type', filter.type === 'document' ? '' : 'document')}
               >
@@ -744,7 +744,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
             </Col>
             <Col>
               <Button
-                size="small"
+                
                 type={filter.type === 'task' ? 'primary' : 'default'}
                 onClick={() => handleFilterChange('type', filter.type === 'task' ? '' : 'task')}
               >
@@ -753,7 +753,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
             </Col>
             <Col>
               <Button
-                size="small"
+                
                 type={filter.type === 'project' ? 'primary' : 'default'}
                 onClick={() => handleFilterChange('type', filter.type === 'project' ? '' : 'project')}
               >
@@ -786,7 +786,7 @@ const handleUseSavedSearch = (savedSearch: SavedSearch) => {
               dataSource={results}
               rowKey="id"
               pagination={false}
-              size="small"
+              
 rowSelection={compactMode ? undefined : {
                 selectedRowKeys: selectedResults,
                 onChange: (keys) => setSelectedResults(keys as number[]),
@@ -819,7 +819,7 @@ rowSelection={compactMode ? undefined : {
                   {suggestions.map(suggestion => (
                     <Button
                       key={suggestion}
-                      size="small"
+                      
                       onClick={() => handleSearch(suggestion)}
                     >
                       {suggestion}
@@ -874,7 +874,7 @@ rowSelection={compactMode ? undefined : {
               {savedSearches.map(search => (
                 <Card
                   key={search.id}
-                  size="small"
+                  
                   actions={[
                     <Button
                       type="link"
@@ -894,7 +894,7 @@ rowSelection={compactMode ? undefined : {
                   <Card.Meta
                     title={search.name}
                     description={
-                      <Space direction="vertical" size="small">
+                      <Space direction="vertical" >
                         <Text code>{search.query}</Text>
                         <Text type="secondary">
                           {moment(search.created_at).format('YYYY-MM-DD HH:mm')}

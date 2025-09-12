@@ -54,11 +54,9 @@ export const checkMemoryUsage = () => {
     const total = Math.round(memory.totalJSHeapSize / 1024 / 1024);
     const percentage = Math.round((used / total) * 100);
     
-    console.log(`内存使用: ${used}MB / ${total}MB (${percentage}%)`);
     
     // 如果内存使用超过75%，触发清理
     if (percentage > 75) {
-      console.warn('内存使用过高，触发自动清理');
       triggerMemoryCleanup();
       return { warning: true, used, total, percentage };
     }
@@ -84,7 +82,6 @@ export const triggerMemoryCleanup = () => {
     (window as any).gc();
   }
   
-  console.log('内存清理完成');
 };
 
 // 清理过期的本地存储
@@ -123,14 +120,12 @@ export class MemoryMonitor {
       }
     }, this.config.memoryCheckInterval);
     
-    console.log(`内存监控已启动，检查间隔: ${this.config.memoryCheckInterval}ms`);
   }
   
   stop() {
     if (this.interval) {
       clearInterval(this.interval);
       this.interval = null;
-      console.log('内存监控已停止');
     }
   }
   

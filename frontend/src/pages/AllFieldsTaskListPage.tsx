@@ -167,7 +167,7 @@ const DEFAULT_CUSTOM_FIELDS: CustomFieldConfig[] = [
     render: (value: number) => (
       <Progress 
         percent={value || 0} 
-        size="small" 
+         
         format={(percent) => `${percent}%`}
         strokeColor={{
           '0%': '#108ee9',
@@ -601,7 +601,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                   {hasChildren ? (
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -679,7 +679,7 @@ const AllFieldsTaskListPage: React.FC = () => {
             render: (projectName: string, record: Task) => (
               <Button
                 type="link"
-                size="small"
+                
                 style={{ padding: 0 }}
                 onClick={() => navigate(`/projects/${record.project_id}`)}
               >
@@ -745,7 +745,7 @@ const AllFieldsTaskListPage: React.FC = () => {
               parentTitle ? (
                 <Button
                   type="link"
-                  size="small"
+                  
                   style={{ padding: 0 }}
                   onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.parent_id}`)}
                 >
@@ -775,11 +775,11 @@ const AllFieldsTaskListPage: React.FC = () => {
             fixed: 'right', // 确保操作列固定在右侧
             width: 120, // 固定宽度
             render: (_: unknown, record: Task) => (
-              <Space size="small">
+              <Space >
                 <Tooltip title="查看详情">
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<EyeOutlined />}
                     onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
                   />
@@ -787,7 +787,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                 <Tooltip title="编辑">
                   <Button
                     type="text"
-                    size="small"
+                    
                     icon={<EditOutlined />}
                     onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}/edit`)}
                   />
@@ -795,7 +795,7 @@ const AllFieldsTaskListPage: React.FC = () => {
                 <Tooltip title="删除">
                   <Button
                     type="text"
-                    size="small"
+                    
                     danger
                     icon={<DeleteOutlined />}
                     onClick={() => handleDeleteTask(record)}
@@ -1144,7 +1144,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
           <Button 
             type="text" 
             danger 
-            size="small" 
+             
             onClick={handleResetColumns}
             style={{ width: '100%', textAlign: 'left' }}
           >
@@ -1157,7 +1157,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
         label: (
           <Button 
             type="text" 
-            size="small" 
+             
             onClick={() => {
               setColumnConfigs(prev => {
                 const newConfigs = prev.map(col => ({ ...col, visible: true }));
@@ -1176,7 +1176,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
         label: (
           <Button 
             type="text" 
-            size="small" 
+             
             onClick={() => {
               setColumnConfigs(prev => {
                 const newConfigs = prev.map(col => 
@@ -1278,7 +1278,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
         </div>
 
         {/* 过滤器 */}
-        <Card size="small" className="filters-card">
+        <Card  className="filters-card">
           <Space wrap>
             <Input
               placeholder="搜索任务标题"
@@ -1337,18 +1337,18 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
 
         {/* 批量操作 */}
         {selectedRowKeys.length > 0 && (
-          <Card size="small" className="batch-actions-card">
+          <Card  className="batch-actions-card">
             <Space>
               <Text>已选择 {selectedRowKeys.length} 项</Text>
               <Button 
-                size="small" 
+                 
                 danger 
                 onClick={handleBatchDelete}
               >
                 批量删除
               </Button>
               <Button 
-                size="small" 
+                 
                 onClick={() => setSelectedRowKeys([])}
               >
                 取消选择
@@ -1434,7 +1434,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
               }
               return classes.join(' ');
             }}
-            size="small"
+            
             bordered
           />
         </div>
@@ -1494,7 +1494,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
               return (
                 <Card 
                   key={filter.id} 
-                  size="small" 
+                   
                   style={{ marginBottom: '12px' }}
                   title={
                     <Space>
@@ -1503,7 +1503,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
                           value={filter.logicalOperator}
                           onChange={(value) => updateAdvancedFilter(filter.id, { logicalOperator: value })}
                           style={{ width: 80 }}
-                          size="small"
+                          
                         >
                           <Option value="AND">且</Option>
                           <Option value="OR">或</Option>
@@ -1516,7 +1516,7 @@ const matchesFilterCondition = (fieldValue: unknown, operator: string, filterVal
                     <Button 
                       type="text" 
                       danger 
-                      size="small"
+                      
                       icon={<MinusCircleOutlined />}
                       onClick={() => removeAdvancedFilter(filter.id)}
                     />

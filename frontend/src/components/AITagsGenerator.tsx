@@ -210,7 +210,7 @@ export const AITagsGenerator: React.FC<AITagsGeneratorProps> = ({
         <Space>
           <Button 
             type="primary" 
-            size="small" 
+             
             onClick={runGeneration} 
             loading={loading}
             icon={<ReloadOutlined />}
@@ -220,7 +220,7 @@ export const AITagsGenerator: React.FC<AITagsGeneratorProps> = ({
           {generationResult && (
             <Button 
               type="default" 
-              size="small" 
+               
               onClick={() => setShowDetails(!showDetails)}
             >
               {showDetails ? '隐藏详情' : '查看详情'}
@@ -291,7 +291,7 @@ export const AITagsGenerator: React.FC<AITagsGeneratorProps> = ({
                 <br />
                 <Progress 
                   percent={Math.round(generationResult.confidence * 100)} 
-                  size="small"
+                  
                   status={getConfidenceColor(generationResult.confidence)}
                 />
               </div>
@@ -352,7 +352,7 @@ export const AITagsGenerator: React.FC<AITagsGeneratorProps> = ({
                         handleTagStateChange(suggestion.tag, newState);
                       }}
                     >
-                      <Space size="small">
+                      <Space >
                         <span>{suggestion.tag}</span>
                         <Badge 
                           count={Math.round(suggestion.confidence * 100)} 

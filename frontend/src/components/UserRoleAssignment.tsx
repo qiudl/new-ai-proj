@@ -286,7 +286,7 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
       key: 'username',
       render: (text: string, record: User) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} />
+          <Avatar  icon={<UserOutlined />} />
           <div>
             <div style={{ fontWeight: 'bold' }}>{record.display_name || text}</div>
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -337,10 +337,10 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
       title: '操作',
       key: 'actions',
       render: (record: User) => (
-        <Space size="small">
+        <Space >
           <Button
             type="link"
-            size="small"
+            
             icon={<SwapOutlined />}
             onClick={() => handleAssignRoles(record)}
           >
@@ -348,7 +348,7 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
           </Button>
           <Button
             type="link"
-            size="small"
+            
             icon={<HistoryOutlined />}
             onClick={() => handleViewHistory(record)}
           >
@@ -424,7 +424,7 @@ const UserRoleAssignment: React.FC<UserRoleAssignmentProps> = ({
       >
         {selectedUser && (
           <>
-            <Descriptions size="small" column={2} style={{ marginBottom: 16 }}>
+            <Descriptions  column={2} style={{ marginBottom: 16 }}>
               <Descriptions.Item label="用户名">{selectedUser.username}</Descriptions.Item>
               <Descriptions.Item label="邮箱">{selectedUser.email}</Descriptions.Item>
               <Descriptions.Item label="显示名称">{selectedUser.display_name}</Descriptions.Item>

@@ -109,7 +109,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
               <Text strong>推荐置信度：</Text>
               <Progress
                 percent={Math.round(suggestion.confidence * 100)}
-                size="small"
+                
                 format={percent => `${percent}%`}
                 strokeColor={getConfidenceColor(suggestion.confidence)}
               />
@@ -120,7 +120,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
             <div style={{ marginBottom: 16 }}>
               <Text strong>推荐理由：</Text>
               <List
-                size="small"
+                
                 dataSource={suggestion.reasoning}
                 renderItem={reason => (
                   <List.Item>
@@ -159,7 +159,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
       footer: (_, { OkBtn, CancelBtn }) => (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button
-            size="small"
+            
             icon={<StarOutlined />}
             onClick={() => {
               setSelectedSuggestion(suggestion);
@@ -246,7 +246,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
     >
       <List.Item.Meta
         avatar={
-          <Badge count={index + 1} size="small" color="#1890ff">
+          <Badge count={index + 1}  color="#1890ff">
             <Avatar
               icon={<BulbOutlined />}
               style={{
@@ -289,7 +289,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
         <div style={{ marginTop: 8 }}>
           <Progress
             percent={Math.round(suggestion.confidence * 100)}
-            size="small"
+            
             showInfo={false}
             strokeColor={getConfidenceColor(suggestion.confidence)}
           />
@@ -328,7 +328,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
           onRefresh && (
             <Button
               type="text"
-              size="small"
+              
               icon={<ReloadOutlined />}
               onClick={onRefresh}
             >
@@ -371,7 +371,7 @@ export const SmartSuggestionsPanel: React.FC<SmartSuggestionsPanelProps> = ({
             {onRefresh && (
               <Button
                 type="text"
-                size="small"
+                
                 icon={<ReloadOutlined />}
                 onClick={onRefresh}
                 loading={loading}

@@ -385,7 +385,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
                   <Space>
                     <Button 
                       type="primary" 
-                      size="small" 
+                       
                       onClick={saveField}
                       loading={saving}
                       icon={<SaveOutlined />}
@@ -393,7 +393,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
                       保存
                     </Button>
                     <Button 
-                      size="small" 
+                       
                       onClick={cancelEditing}
                       icon={<CloseOutlined />}
                     >
@@ -486,7 +486,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
               <Button
                 type="primary"
                 ghost
-                size="small"
+                
                 icon={<ExperimentOutlined />}
                 onClick={() => handleTest(provider)}
                 loading={testResult.testing}
@@ -495,7 +495,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
               </Button>
               <Button
                 danger
-                size="small"
+                
                 icon={<DeleteOutlined />}
                 onClick={() => handleDelete(provider)}
               >
@@ -593,7 +593,7 @@ const AIConfigPageInlineEdit: React.FC = () => {
 
         {testResult.result && testResult.result.success && testResult.result.conversation && (
           <Card
-            size="small"
+            
             title={
               <Space>
                 <CheckCircleOutlined style={{ color: '#52c41a' }} />

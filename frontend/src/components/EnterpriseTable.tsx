@@ -24,6 +24,7 @@ interface EnterpriseTableProps extends Omit<TableProps<Enterprise>, 'columns' | 
   onManageDepartments?: (enterprise: Enterprise) => void;
   showActions?: boolean;
   columnsToShow?: string[];
+  pagination?: false | { [key: string]: any };
 }
 
 /**
@@ -176,7 +177,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
       title: '统计',
       key: 'stats',
       render: (_, record: Enterprise) => (
-        <Space direction="vertical" size="small">
+        <Space direction="vertical" >
           <div>
             <UserOutlined style={{ marginRight: 4, color: '#1890ff' }} />
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -213,7 +214,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
                 type="text"
                 icon={<EyeOutlined />}
                 onClick={() => onView(record)}
-                size="small"
+                
               />
             </Tooltip>
           )}
@@ -223,7 +224,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
                 type="text"
                 icon={<UserOutlined />}
                 onClick={() => onManageUsers(record)}
-                size="small"
+                
               />
             </Tooltip>
           )}
@@ -233,7 +234,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
                 type="text"
                 icon={<TeamOutlined />}
                 onClick={() => onManageDepartments(record)}
-                size="small"
+                
               />
             </Tooltip>
           )}
@@ -243,7 +244,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
                 type="text"
                 icon={<EditOutlined />}
                 onClick={() => onEdit(record)}
-                size="small"
+                
               />
             </Tooltip>
           )}
@@ -254,7 +255,7 @@ const EnterpriseTable: React.FC<EnterpriseTableProps> = ({
                 danger
                 icon={<DeleteOutlined />}
                 onClick={() => onDelete(record)}
-                size="small"
+                
               />
             </Tooltip>
           )}

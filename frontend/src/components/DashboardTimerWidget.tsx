@@ -292,10 +292,10 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
     if (timerState.isRunning && timerState.taskTitle) {
       return (
         <div style={{ textAlign: 'center', padding: '12px' }}>
-          <Space size="small">
+          <Space >
             <Button
               type={timerState.isPaused ? "primary" : "default"}
-              size="small"
+              
               icon={timerState.isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
               onClick={handlePauseResume}
               loading={isLoading}
@@ -306,7 +306,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
             
             <Button
               type="primary"
-              size="small"
+              
               icon={<CheckCircleOutlined />}
               onClick={handleStopTimer}
               loading={isLoading}
@@ -336,7 +336,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
               option?.children?.toString().toLowerCase().includes(input.toLowerCase()) ?? false
 }
             loading={loading}
-            size="small"
+            
           >
             {personalTasks.map(task => (
               <Option key={task.id} value={task.id}>
@@ -360,7 +360,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
         <Space style={{ width: '100%', justifyContent: 'center' }}>
           <Button
             type="primary"
-            size="small"
+            
             icon={<PlayCircleOutlined />}
             onClick={() => handleStartPersonalTask()}
             disabled={!selectedTaskId}
@@ -372,7 +372,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
           
           {showTaskCreation && (
             <Button
-              size="small"
+              
               icon={<PlusOutlined />}
               onClick={handleCreateTask}
               style={{ minWidth: '70px' }}
@@ -406,11 +406,11 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
       <div style={{ marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <Text strong style={{ fontSize: 13 }}>⏱️ 活动计时（{activeTimers.length}）</Text>
-          <Space size="small">
-            <Button size="small" onClick={pauseAll}>全部暂停</Button>
-            <Button size="small" type="primary" onClick={resumeAll}>全部继续</Button>
-            <Button size="small" danger onClick={stopAll}>全部完成</Button>
-            <Button type="link" size="small" onClick={refreshActiveTimers} style={{ padding: 0 }}>刷新</Button>
+          <Space >
+            <Button  onClick={pauseAll}>全部暂停</Button>
+            <Button  type="primary" onClick={resumeAll}>全部继续</Button>
+            <Button  danger onClick={stopAll}>全部完成</Button>
+            <Button type="link"  onClick={refreshActiveTimers} style={{ padding: 0 }}>刷新</Button>
           </Space>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -454,14 +454,14 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
                         <>
                           <Tooltip title={t.status === 'running' ? '暂停' : '继续'}>
                             <Button
-                              size="small"
+                              
                               type={t.status === 'running' ? 'default' : 'primary'}
                               icon={t.status === 'running' ? <PauseOutlined /> : <PlayCircleOutlined />}
                               onClick={() => (t.status === 'running' ? pauseTimerById(t.id) : resumeTimerById(t.id))}
                             />
                           </Tooltip>
                           <Tooltip title="完成">
-                            <Button size="small" danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
+                            <Button  danger icon={<StopOutlined />} onClick={() => stopTimerById(t.id)} />
                           </Tooltip>
                         </>
                       )}
@@ -484,7 +484,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
     if (loading) {
       return (
         <div style={{ textAlign: 'center', padding: '16px' }}>
-          <Spin size="small" />
+          <Spin  />
         </div>
       );
     }
@@ -497,7 +497,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
           style={{ padding: '12px 0' }}
         >
           {showTaskCreation && (
-            <Button size="small" type="primary" onClick={handleCreateTask}>
+            <Button  type="primary" onClick={handleCreateTask}>
               创建任务
             </Button>
           )}
@@ -507,7 +507,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
 
     return (
       <List
-        size="small"
+        
         dataSource={personalTasks.slice(0, 3)} // 只显示前3个任务
         renderItem={(task) => (
           <List.Item
@@ -614,7 +614,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Text type="danger">{error}</Text>
           <div style={{ marginTop: '12px' }}>
-            <Button size="small" onClick={loadPersonalTasks}>
+            <Button  onClick={loadPersonalTasks}>
               重试
             </Button>
           </div>
@@ -646,7 +646,7 @@ const DashboardTimerWidget: React.FC<DashboardTimerWidgetProps> = ({
       extra={
         <Button 
           type="text"
-          size="small" 
+           
           onClick={handleViewDetails}
           style={{ fontSize: '12px' }}
         >

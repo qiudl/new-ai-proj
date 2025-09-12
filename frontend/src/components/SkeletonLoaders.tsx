@@ -25,15 +25,15 @@ export const WeeklyCalendarSkeleton: React.FC = () => {
       {[1, 2, 3, 4, 5, 6, 7].map((key) => (
         <Col key={key} xs={24} sm={12} md={8} lg={6} xl={3.42}>
           <Card
-            size="small"
+            
             title={<Skeleton.Button style={{ width: '80px', height: '20px' }} active />}
             extra={<Skeleton.Button style={{ width: '40px', height: '16px' }} active />}
           >
             <div style={{ minHeight: '200px', padding: '8px' }}>
               <Skeleton.Button style={{ width: '100%', height: '4px', marginBottom: '12px' }} active />
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space direction="vertical"  style={{ width: '100%' }}>
                 {[1, 2, 3].map((taskKey) => (
-                  <Card key={taskKey} size="small" style={{ borderLeft: '4px solid #f0f0f0' }}>
+                  <Card key={taskKey}  style={{ borderLeft: '4px solid #f0f0f0' }}>
                     <Skeleton active paragraph={{ rows: 2, width: ['100%', '60%'] }}>
                       <Skeleton.Button style={{ width: '100%', height: '12px' }} active />
                     </Skeleton>

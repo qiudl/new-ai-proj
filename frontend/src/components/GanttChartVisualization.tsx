@@ -402,13 +402,13 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
       extra={
         showControls && (
           <Space>
-            <Button size="small" icon={<ReloadOutlined />} onClick={updateGanttData} loading={loading}>
+            <Button  icon={<ReloadOutlined />} onClick={updateGanttData} loading={loading}>
               刷新
             </Button>
-            <Button size="small" icon={<FileExcelOutlined />} onClick={exportToExcel}>
+            <Button  icon={<FileExcelOutlined />} onClick={exportToExcel}>
               导出
             </Button>
-            <Button size="small" icon={<FullscreenOutlined />} onClick={toggleFullscreen}>
+            <Button  icon={<FullscreenOutlined />} onClick={toggleFullscreen}>
               全屏
             </Button>
           </Space>
@@ -419,10 +419,10 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
       {showControls && (
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space direction="vertical"  style={{ width: '100%' }}>
               <Text strong>时间范围</Text>
               <RangePicker
-                size="small"
+                
                 value={[dayjs(viewState.config.startDate), dayjs(viewState.config.endDate)]}
                 onChange={(dates) => {
                   if (dates && dates[0] && dates[1]) {
@@ -436,10 +436,10 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
             </Space>
           </Col>
           <Col span={4}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space direction="vertical"  style={{ width: '100%' }}>
               <Text strong>时间刻度</Text>
               <Select
-                size="small"
+                
                 value={viewState.config.timeScale}
                 onChange={(value) => updateConfig({ timeScale: value })}
                 style={{ width: '100%' }}
@@ -451,7 +451,7 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
             </Space>
           </Col>
           <Col span={4}>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space direction="vertical"  style={{ width: '100%' }}>
               <Text strong>缩放级别</Text>
               <Slider
                 min={1}
@@ -462,10 +462,10 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
             </Space>
           </Col>
           <Col span={6}>
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" >
               <Space>
                 <Switch
-                  size="small"
+                  
                   checked={viewState.config.showDependencies}
                   onChange={(checked) => updateConfig({ showDependencies: checked })}
                 />
@@ -473,7 +473,7 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
               </Space>
               <Space>
                 <Switch
-                  size="small"
+                  
                   checked={viewState.config.showCriticalPath}
                   onChange={(checked) => updateConfig({ showCriticalPath: checked })}
                 />
@@ -482,10 +482,10 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
             </Space>
           </Col>
           <Col span={4}>
-            <Space direction="vertical" size="small">
+            <Space direction="vertical" >
               <Space>
                 <Switch
-                  size="small"
+                  
                   checked={viewState.config.autoSchedule}
                   onChange={(checked) => updateConfig({ autoSchedule: checked })}
                 />
@@ -658,7 +658,7 @@ export const GanttChartVisualization: React.FC<GanttChartVisualizationProps> = (
         <Panel header="依赖关系列表" key="dependencies">
           {viewState.dependencies.length > 0 ? (
             <List
-              size="small"
+              
               dataSource={viewState.dependencies}
               renderItem={(dep) => {
                 const fromTask = viewState.ganttTasks.find(t => t.id === dep.fromTaskId);

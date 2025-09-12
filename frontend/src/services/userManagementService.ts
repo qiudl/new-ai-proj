@@ -154,9 +154,7 @@ export class UserManagementService {
     recent_registrations: number;
   }> {
     try {
-      console.log('Calling getUserStats API...');
       const response = await api.get('/admin/users/stats');
-      console.log('Raw API response:', response);
       
       // API拦截器应该已经解包了标准的{success, data, message}格式
       // 所以response应该直接是统计数据

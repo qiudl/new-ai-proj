@@ -207,7 +207,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>文档变更</span>
                       <Switch
-                        size="small"
+                        
                         checked={notificationSettings.documentChanges}
                         onChange={(checked) => 
                           setNotificationSettings(prev => ({ ...prev, documentChanges: checked }))
@@ -217,7 +217,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>用户进出</span>
                       <Switch
-                        size="small"
+                        
                         checked={notificationSettings.userJoinLeave}
                         onChange={(checked) => 
                           setNotificationSettings(prev => ({ ...prev, userJoinLeave: checked }))
@@ -227,7 +227,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span>文档锁定</span>
                       <Switch
-                        size="small"
+                        
                         checked={notificationSettings.documentLocks}
                         onChange={(checked) => 
                           setNotificationSettings(prev => ({ ...prev, documentLocks: checked }))
@@ -248,7 +248,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
     >
       <Space direction="vertical" style={{ width: '100%' }} size="large">
         {/* 连接状态 */}
-        <Card size="small">
+        <Card >
           <Space style={{ width: '100%', justifyContent: 'space-between' }}>
             <Space>
               <Badge 
@@ -258,7 +258,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
             </Space>
             {!collaboration.connected && (
               <Button 
-                size="small" 
+                 
                 type="primary" 
                 onClick={() => collaboration.connect()}
               >
@@ -269,7 +269,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
         </Card>
 
         {/* 协作控制 */}
-        <Card size="small" title="协作控制">
+        <Card  title="协作控制">
           <Space direction="vertical" style={{ width: '100%' }}>
             <Button
               block
@@ -298,7 +298,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
 
         {/* 在线用户 */}
         <Card 
-          size="small" 
+           
           title={`在线用户 (${collaboration.onlineUsers.length})`}
           extra={
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -307,7 +307,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
           }
         >
           <List
-            size="small"
+            
             dataSource={collaboration.onlineUsers}
             renderItem={(user) => (
               <List.Item>
@@ -317,7 +317,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
                     offset={[-2, 2]}
                   >
                     <Avatar 
-                      size="small" 
+                       
                       src={user.avatar}
                       icon={<UserOutlined />}
                     />
@@ -345,7 +345,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
 
         {/* 活动历史 */}
         {showActivity && (
-          <Card size="small" title="最近活动">
+          <Card  title="最近活动">
             <Timeline
               items={collaboration.events.slice(-10).reverse().map((event, index) => ({
                 children: (
@@ -365,7 +365,7 @@ const DocumentCollaborationPanel: React.FC<DocumentCollaborationPanelProps> = ({
         )}
 
         {/* 文档信息 */}
-        <Card size="small" title="文档信息">
+        <Card  title="文档信息">
           <Space direction="vertical" style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary">标题:</Text>

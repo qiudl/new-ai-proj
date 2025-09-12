@@ -120,19 +120,24 @@ export function withPerformanceOptimization<P extends object>(
 /**
  * 懒加载组件包装器
  */
-export function withLazyLoading<P extends object>(
+export function withLazyLoading<P extends Record<string, any> = Record<string, any>>(
   importFn: () => Promise<{ default: ComponentType<P> }>,
   fallback: React.ComponentType = () => <div>加载中...</div>
-) {
+): React.ComponentType<P> {
   const LazyComponent = React.lazy(() => 
     performanceMonitor.measureAsyncFunction('lazy-import', importFn)
   );
 
-  return (props: P) => (
-    <React.Suspense fallback={<fallback />}>
-      <LazyComponent {...props} />
-    </React.Suspense>
-  );
+  const WrappedComponent: React.FC<P> = (props) => {
+    const FallbackComponent = fallback;
+    return (
+      <React.Suspense fallback={<FallbackComponent />}>
+        <LazyComponent {...props} />
+      </React.Suspense>
+    );
+  };
+  
+  return WrappedComponent;
 }
 
 /**
@@ -192,19 +197,18 @@ export function VirtualizedList<T>({
   );
 
   useEffect(() => {
-    if (enableRenderTracking) {
-      performanceMonitor.addMetric({
-        name: 'virtualized-list.visible-items',
-        value: visibleItems.length,
-        timestamp: Date.now(),
-        metadata: {
-          category: 'virtualization',
-          totalItems: items.length,
-          startIndex,
-          endIndex
-        }
-      });
-    }
+    // Performance tracking for virtualized list (always enabled for virtualized lists)
+    performanceMonitor.addMetric({
+      name: 'virtualized-list.visible-items',
+      value: visibleItems.length,
+      timestamp: Date.now(),
+      metadata: {
+        category: 'virtualization',
+        totalItems: items.length,
+        startIndex,
+        endIndex
+      }
+    });
   }, [visibleItems.length, items.length, startIndex, endIndex]);
 
   return (

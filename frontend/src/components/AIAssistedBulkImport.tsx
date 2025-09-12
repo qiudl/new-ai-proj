@@ -551,7 +551,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
           type="warning"
           showIcon
           action={
-            <Button size="small" onClick={refreshAIStatus}>
+            <Button  onClick={refreshAIStatus}>
               刷新状态
             </Button>
           }
@@ -580,7 +580,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               type="text"
               icon={<ReloadOutlined />}
               onClick={refreshAIStatus}
-              size="small"
+              
             />
           </Tooltip>
           <Tooltip title="AI配置管理">
@@ -588,7 +588,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               type="text"
               icon={<SettingOutlined />}
               onClick={() => window.open('/ai-config', '_blank')}
-              size="small"
+              
             />
           </Tooltip>
           <Tooltip title="生成历史记录">
@@ -596,7 +596,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               type="text"
               icon={<HistoryOutlined />}
               onClick={() => setShowHistory(true)}
-              size="small"
+              
             />
           </Tooltip>
           <Tooltip title="使用统计">
@@ -604,7 +604,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               type="text"
               icon={<BarChartOutlined />}
               onClick={() => setShowStats(true)}
-              size="small"
+              
             />
           </Tooltip>
         </Space>
@@ -619,7 +619,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
         />
 
         {/* AI提供商详细状态显示 */}
-        <Card size="small" title={
+        <Card  title={
           <Space>
             <Text strong>AI提供商状态</Text>
             {lastStatusCheck && (
@@ -631,7 +631,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
         } extra={
           <Space>
             <Button
-              size="small"
+              
               icon={<ThunderboltOutlined />}
               onClick={selectBestProvider}
               type="link"
@@ -639,7 +639,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               智能选择
             </Button>
             <Button
-              size="small"
+              
               icon={<ReloadOutlined />}
               onClick={refreshAIStatus}
               type="text"
@@ -678,7 +678,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
                         {isSelected && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
                       </Space>
                       <Button
-                        size="small"
+                        
                         type="text"
                         icon={<ExclamationCircleOutlined />}
                         loading={isTesting}
@@ -720,7 +720,7 @@ const AIAssistedBulkImport: React.FC<AIAssistedBulkImportProps> = ({
               showIcon
               style={{ marginTop: '12px' }}
               action={
-                <Button size="small" onClick={() => window.open('/ai-config', '_blank')}>
+                <Button  onClick={() => window.open('/ai-config', '_blank')}>
                   配置AI
                 </Button>
               }
@@ -875,7 +875,7 @@ AI将根据您的描述智能生成具体的子任务列表。"
         )}
 
         {generationResult && (
-          <Card size="small" title="AI生成结果">
+          <Card  title="AI生成结果">
             <Space direction="vertical" style={{ width: '100%' }}>
               {/* 生成统计 */}
               <Row gutter={16}>
@@ -946,7 +946,7 @@ AI将根据您的描述智能生成具体的子任务列表。"
                 generationTime={generationResult.generationTime}
                 quality={generationResult.quality}
                 showDetailed={false}
-                size="small"
+                
               />
 
               <Divider style={{ margin: '12px 0' }} />

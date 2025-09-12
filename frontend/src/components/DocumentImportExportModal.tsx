@@ -457,7 +457,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
             <Divider />
             <Title level={5}>错误详情</Title>
             <Table
-              size="small"
+              
               pagination={{ pageSize: 5, showSizeChanger: false }}
               dataSource={errors}
               columns={[

@@ -247,7 +247,7 @@ const PerformanceAnalyzer: React.FC = () => {
 
         <Row gutter={16}>
           <Col span={6}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="性能评分"
                 value={currentMetrics.performanceScore || 0}
@@ -261,7 +261,7 @@ const PerformanceAnalyzer: React.FC = () => {
             </Card>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="内存使用"
                 value={currentMetrics.memoryUsage?.percentage || 0}
@@ -274,7 +274,7 @@ const PerformanceAnalyzer: React.FC = () => {
             </Card>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="总指标数"
                 value={currentMetrics.totalMetrics || 0}
@@ -282,7 +282,7 @@ const PerformanceAnalyzer: React.FC = () => {
             </Card>
           </Col>
           <Col span={6}>
-            <Card size="small">
+            <Card >
               <Statistic
                 title="警告数量"
                 value={currentMetrics.warningCount || 0}
@@ -359,7 +359,7 @@ const PerformanceAnalyzer: React.FC = () => {
               columns={metricsColumns}
               dataSource={recentMetrics}
               pagination={{ pageSize: 10 }}
-              size="small"
+              
             />
           </Card>
         </TabPane>
@@ -374,7 +374,7 @@ const PerformanceAnalyzer: React.FC = () => {
                   style={{ marginBottom: 16 }}
                 />
                 
-                <Tabs size="small">
+                <Tabs >
                   <TabPane tab="模拟功能" key="impersonation">
                     <Table
                       columns={[
@@ -385,7 +385,7 @@ const PerformanceAnalyzer: React.FC = () => {
                       ]}
                       dataSource={benchmarkResults.impersonation.results}
                       pagination={false}
-                      size="small"
+                      
                     />
                   </TabPane>
                   
@@ -399,7 +399,7 @@ const PerformanceAnalyzer: React.FC = () => {
                       ]}
                       dataSource={benchmarkResults.components.results}
                       pagination={false}
-                      size="small"
+                      
                     />
                   </TabPane>
                   
@@ -413,7 +413,7 @@ const PerformanceAnalyzer: React.FC = () => {
                       ]}
                       dataSource={benchmarkResults.dataProcessing.results}
                       pagination={false}
-                      size="small"
+                      
                     />
                   </TabPane>
                   
@@ -423,15 +423,15 @@ const PerformanceAnalyzer: React.FC = () => {
                         { title: '测试名称', dataIndex: 'name' },
                         { title: '持续时间 (ms)', dataIndex: 'duration', render: v => v.toFixed(2) },
                         { title: '内存变化 (MB)', 
-                          render: (_, record) => 
-                            record.memoryUsage ? 
-                              (record.memoryUsage.delta / 1024 / 1024).toFixed(2) : 
+                          render: (_, record: any) => 
+                            record && record.memoryUsage && typeof record.memoryUsage === 'object' ? 
+                              ((record.memoryUsage.delta || 0) / 1024 / 1024).toFixed(2) : 
                               '-'
                         },
                       ]}
                       dataSource={benchmarkResults.memory.results}
                       pagination={false}
-                      size="small"
+                      
                     />
                   </TabPane>
                 </Tabs>

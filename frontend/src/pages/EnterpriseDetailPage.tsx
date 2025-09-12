@@ -155,7 +155,7 @@ const EnterpriseDetailPage: React.FC = () => {
           <Row gutter={[24, 24]}>
         {/* 企业基本信息 */}
         <Col span={24}>
-          <Card title="基本信息" size="small">
+          <Card title="基本信息" >
             <Descriptions column={2} layout="horizontal" bordered>
               <Descriptions.Item label="企业ID">{enterprise.id}</Descriptions.Item>
               <Descriptions.Item label="企业代码">{enterprise.code}</Descriptions.Item>
@@ -189,7 +189,7 @@ const EnterpriseDetailPage: React.FC = () => {
 
         {/* 联系信息和地址 */}
         <Col span={12}>
-          <Card title={<><PhoneOutlined /> 联系信息</>} size="small">
+          <Card title={<><PhoneOutlined /> 联系信息</>} >
             <Descriptions column={1} layout="horizontal">
               <Descriptions.Item label="邮箱">
                 {enterprise.contact_email ? (
@@ -230,7 +230,7 @@ const EnterpriseDetailPage: React.FC = () => {
         </Col>
 
         <Col span={12}>
-          <Card title={<><EnvironmentOutlined /> 地址信息</>} size="small">
+          <Card title={<><EnvironmentOutlined /> 地址信息</>} >
             <Descriptions column={1} layout="horizontal">
               <Descriptions.Item label="地址">
                 {enterprise.address || <Text type="secondary">未设置</Text>}
@@ -250,7 +250,7 @@ const EnterpriseDetailPage: React.FC = () => {
 
         {/* 法律和注册信息 */}
         <Col span={12}>
-          <Card title={<><BankOutlined /> 法律信息</>} size="small">
+          <Card title={<><BankOutlined /> 法律信息</>} >
             <Descriptions column={1} layout="horizontal">
               <Descriptions.Item label="注册号">
                 {enterprise.registration_number ? (
@@ -275,7 +275,7 @@ const EnterpriseDetailPage: React.FC = () => {
 
         {/* 统计信息 */}
         <Col span={12}>
-          <Card title={<><TeamOutlined /> 统计信息</>} size="small">
+          <Card title={<><TeamOutlined /> 统计信息</>} >
             <Row gutter={16} style={{ textAlign: 'center' }}>
               <Col span={12}>
                 <div style={{ padding: '16px' }}>
@@ -299,7 +299,7 @@ const EnterpriseDetailPage: React.FC = () => {
 
         {/* 创建和更新信息 */}
         <Col span={24}>
-          <Card title="系统信息" size="small">
+          <Card title="系统信息" >
             <Descriptions column={2} layout="horizontal">
               <Descriptions.Item label="创建时间">
                 {formatDate(enterprise.created_at)}

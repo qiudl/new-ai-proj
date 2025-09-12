@@ -175,7 +175,7 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
 
   // 渲染统计卡片
   const renderStatsCard = () => (
-    <Card title="今日统计" size="small" loading={loading}>
+    <Card title="今日统计"  loading={loading}>
       {timerStats ? (
         <Space direction="vertical" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center' }}>
@@ -211,9 +211,9 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
 
   // 渲染最近任务卡片
   const renderRecentTasksCard = () => (
-    <Card title="最近任务" size="small" loading={loading}>
+    <Card title="最近任务"  loading={loading}>
       {recentTasks.length > 0 ? (
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space direction="vertical" style={{ width: '100%' }} >
           {recentTasks.map((task, index) => (
             <div
               key={index}
@@ -385,21 +385,21 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
                 <Button.Group>
                   <Button 
                     type={layout === 'grid' ? 'primary' : 'default'}
-                    size="small"
+                    
                     onClick={() => setLayout('grid')}
                   >
                     网格
                   </Button>
                   <Button 
                     type={layout === 'sidebar' ? 'primary' : 'default'}
-                    size="small"
+                    
                     onClick={() => setLayout('sidebar')}
                   >
                     侧边栏
                   </Button>
                   <Button 
                     type={layout === 'fullscreen' ? 'primary' : 'default'}
-                    size="small"
+                    
                     onClick={() => setLayout('fullscreen')}
                     icon={<FullscreenOutlined />}
                   >
@@ -414,14 +414,14 @@ export const TimerIntegrationDemo: React.FC<TimerIntegrationDemoProps> = ({
                   icon={<BulbOutlined />}
                   onClick={refreshSuggestions}
                   loading={loading}
-                  size="small"
+                  
                 >
                   刷新建议
                 </Button>
                 <Button 
                   icon={<SettingOutlined />}
                   onClick={() => setShowPreferences(true)}
-                  size="small"
+                  
                 >
                   偏好设置
                 </Button>

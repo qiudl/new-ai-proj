@@ -402,7 +402,7 @@ const BulkImportPage: React.FC = () => {
                   <Tooltip title="已自动设置父任务">
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
                       onClick={() => handleAlertReopen('parentTaskAlert')}
                     />
@@ -524,7 +524,7 @@ const BulkImportPage: React.FC = () => {
               <Tooltip title="AI智能生成模式说明">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<InfoCircleOutlined style={{ color: '#1890ff' }} />}
                   onClick={() => handleAlertReopen('aiModeAlert')}
                 />

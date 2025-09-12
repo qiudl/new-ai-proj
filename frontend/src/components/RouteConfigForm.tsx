@@ -163,7 +163,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
         />
 
         {/* 基本配置 */}
-        <Card title="基本配置" size="small" style={{ marginBottom: 16 }}>
+        <Card title="基本配置"  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -258,7 +258,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
         </Card>
 
         {/* 权限配置 */}
-        <Card title="权限配置" size="small" style={{ marginBottom: 16 }}>
+        <Card title="权限配置"  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
@@ -316,7 +316,7 @@ const RouteConfigForm: React.FC<RouteConfigFormProps> = ({
         </Card>
 
         {/* 页面元信息 */}
-        <Card title="页面元信息" size="small">
+        <Card title="页面元信息" >
           <Form.Item
             label="页面标题"
             name={['meta', 'title']}

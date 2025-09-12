@@ -283,6 +283,4 @@ if (typeof window !== 'undefined') {
     auth: testAuthManager
   };
   
-  console.log('💡 API测试函数已挂载到window.apiTests，可在控制台运行测试');
-  console.log('使用 window.apiTests.runAll() 运行所有测试');
 }

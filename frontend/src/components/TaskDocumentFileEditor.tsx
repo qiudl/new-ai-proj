@@ -264,14 +264,14 @@ updated_date: "${now}"
   return (
     <div className="task-document-file-editor">
       {/* 工具栏 */}
-      <Card size="small" style={{ marginBottom: '16px' }}>
+      <Card  style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Space>
             <Button
               icon={<EditOutlined />}
               type={!previewMode ? 'primary' : 'default'}
               onClick={() => setPreviewMode(false)}
-              size="small"
+              
             >
               编辑
             </Button>
@@ -279,7 +279,7 @@ updated_date: "${now}"
               icon={<EyeOutlined />}
               type={previewMode ? 'primary' : 'default'}
               onClick={() => setPreviewMode(true)}
-              size="small"
+              
             >
               预览
             </Button>
@@ -289,7 +289,7 @@ updated_date: "${now}"
                 setHistoryVisible(true);
                 loadHistory();
               }}
-              size="small"
+              
             >
               版本历史
             </Button>
@@ -297,7 +297,7 @@ updated_date: "${now}"
               <Button
                 icon={<InboxOutlined />}
                 onClick={archiveDocument}
-                size="small"
+                
               >
                 归档
               </Button>
@@ -317,7 +317,7 @@ updated_date: "${now}"
                 loading={saving}
                 disabled={!hasChanges}
                 onClick={saveDocument}
-                size="small"
+                
               >
                 保存 (Ctrl+S)
               </Button>

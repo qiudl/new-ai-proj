@@ -334,7 +334,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   if (thumbnailMode) {
     return (
       <Card
-        size="small"
+        
         hoverable
         style={{ width: 200 }}
         cover={
@@ -354,7 +354,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               background: '#fafafa'
             }}>
               {state.loading ? (
-                <Spin size="small" />
+                <Spin  />
               ) : (
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '24px', marginBottom: '8px' }}>
@@ -427,7 +427,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <Tooltip title="刷新预览">
               <Button
                 icon={<RedoOutlined />}
-                size="small"
+                
                 onClick={refreshPreview}
                 loading={state.loading}
               />
@@ -435,7 +435,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <Tooltip title="放大">
               <Button
                 icon={<ZoomInOutlined />}
-                size="small"
+                
                 onClick={() => handleZoom(1.2)}
                 disabled={state.zoom >= 3}
               />
@@ -443,7 +443,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <Tooltip title="缩小">
               <Button
                 icon={<ZoomOutOutlined />}
-                size="small"
+                
                 onClick={() => handleZoom(0.8)}
                 disabled={state.zoom <= 0.5}
               />
@@ -453,7 +453,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             </Text>
             <Tooltip title="重置缩放">
               <Button
-                size="small"
+                
                 onClick={resetZoom}
                 disabled={state.zoom === 1}
               >
@@ -464,14 +464,14 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             <Tooltip title="全屏预览">
               <Button
                 icon={<FullscreenOutlined />}
-                size="small"
+                
                 onClick={openFullscreen}
               />
             </Tooltip>
             <Tooltip title="下载预览">
               <Button
                 icon={<DownloadOutlined />}
-                size="small"
+                
                 onClick={downloadPreview}
                 disabled={!state.previewContent}
               />
@@ -501,7 +501,7 @@ const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             showIcon
             style={previewStyle}
             action={
-              <Button size="small" onClick={refreshPreview}>
+              <Button  onClick={refreshPreview}>
                 重试
               </Button>
             }

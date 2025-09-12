@@ -106,7 +106,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
     if (!validationResults) return null;
 
     return (
-      <Card title="配置验证结果" size="small" style={{ marginBottom: 16 }}>
+      <Card title="配置验证结果"  style={{ marginBottom: 16 }}>
         {validationResults.valid ? (
           <Alert
             message="配置验证通过"
@@ -145,7 +145,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
     const topLevelItems = menuData.filter(item => !item.parent_id).length;
 
     return (
-      <Card title="菜单统计" size="small" style={{ marginBottom: 16 }}>
+      <Card title="菜单统计"  style={{ marginBottom: 16 }}>
         <Row gutter={16}>
           <Col span={6}>
             <div style={{ textAlign: 'center' }}>
@@ -186,13 +186,13 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
 
   // 渲染预览工具栏
   const renderPreviewToolbar = () => (
-    <Card size="small" style={{ marginBottom: 16 }}>
+    <Card  style={{ marginBottom: 16 }}>
       <Space split={<Divider type="vertical" />}>
         <Space>
           <Text strong>视图模式:</Text>
           <Button
             type={!isMobile ? 'primary' : 'default'}
-            size="small"
+            
             icon={<DesktopOutlined />}
             onClick={() => setIsMobile(false)}
           >
@@ -200,7 +200,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
           </Button>
           <Button
             type={isMobile ? 'primary' : 'default'}
-            size="small"
+            
             icon={<MobileOutlined />}
             onClick={() => setIsMobile(true)}
           >
@@ -220,14 +220,14 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
 
         <Space>
           <Button
-            size="small"
+            
             icon={<ReloadOutlined />}
             onClick={loadPreviewData}
           >
             刷新预览
           </Button>
           <Button
-            size="small"
+            
             icon={<ExportOutlined />}
             onClick={() => {
               const dataStr = JSON.stringify(menuData, null, 2);
@@ -265,7 +265,7 @@ const NavigationPreview: React.FC<NavigationPreviewProps> = ({
     return (
       <Card
         title="导航预览"
-        size="small"
+        
         style={{
           border: isMobile ? '2px dashed #d9d9d9' : '1px solid #d9d9d9',
           borderRadius: isMobile ? '20px' : '6px',

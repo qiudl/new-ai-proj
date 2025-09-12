@@ -159,7 +159,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
           <Col span={6} key={option.name}>
             <Tooltip title={option.name}>
               <Card
-                size="small"
+                
                 hoverable
                 style={{
                   textAlign: 'center',
@@ -208,7 +208,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
       {/* 操作按钮 */}
       <div style={{ marginBottom: 16, textAlign: 'right' }}>
         <Space>
-          <Button size="small" onClick={handleClear}>
+          <Button  onClick={handleClear}>
             清除选择
           </Button>
         </Space>
@@ -218,7 +218,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
       <Tabs
         activeKey={activeCategory}
         onChange={setActiveCategory}
-        size="small"
+        
         tabPosition="top"
       >
         <TabPane tab="全部" key="">
@@ -253,7 +253,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
             {value && (
               <Button
                 type="text"
-                size="small"
+                
                 icon={<ClearOutlined />}
                 onClick={(e) => {
                   e.stopPropagation();

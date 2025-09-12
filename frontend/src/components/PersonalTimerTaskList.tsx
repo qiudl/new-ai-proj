@@ -146,7 +146,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
       }
       loading={loading}
       extra={
-        <Button type="primary" size="small" onClick={() => onEditTask?.({} as UserTimerTaskResponse)}>
+        <Button type="primary"  onClick={() => onEditTask?.({} as UserTimerTaskResponse)}>
           新建任务
         </Button>
       }
@@ -194,7 +194,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                 <Button
                   key="start"
                   type="primary"
-                  size="small"
+                  
                   icon={<PlayCircleOutlined />}
                   onClick={() => onStartTimer?.(task.id)}
                   disabled={isTimerRunning}
@@ -208,7 +208,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                   trigger={['click']}
                 >
                   <Button 
-                    size="small" 
+                     
                     icon={<MoreOutlined />}
                     loading={actionLoading === task.id}
                   />
@@ -239,7 +239,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                   </Space>
                 }
                 description={
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space direction="vertical"  style={{ width: '100%' }}>
                     {task.description && (
                       <Text type="secondary" style={{ fontSize: '12px' }}>
                         {task.description}
@@ -247,7 +247,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                     )}
                     
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                      <Space size="small">
+                      <Space >
                         <ClockCircleOutlined style={{ color: '#666' }} />
                         <Text type="secondary" style={{ fontSize: '12px' }}>
                           {task.formatted_total_time}
@@ -255,7 +255,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                       </Space>
                       
                       {task.target_time_seconds > 0 && (
-                        <Space size="small">
+                        <Space >
                           <AimOutlined style={{ color: '#666' }} />
                           <Text type="secondary" style={{ fontSize: '12px' }}>
                             目标: {task.formatted_target_time}
@@ -263,7 +263,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                         </Space>
                       )}
                       
-                      <Space size="small">
+                      <Space >
                         <TrophyOutlined style={{ color: '#666' }} />
                         <Text type="secondary" style={{ fontSize: '12px' }}>
                           {task.category}
@@ -283,7 +283,7 @@ const PersonalTimerTaskList: React.FC<PersonalTimerTaskListProps> = ({
                         </div>
                         <Progress
                           percent={task.completion_percent}
-                          size="small"
+                          
                           showInfo={false}
                           strokeColor={
                             task.completion_percent >= 100 ? '#52c41a' :

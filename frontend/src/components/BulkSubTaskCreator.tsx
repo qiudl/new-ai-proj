@@ -560,7 +560,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
           <Table
             dataSource={subTasks}
             pagination={false}
-            size="small"
+            
             scroll={TABLE_INTERACTION_CONFIG.scroll}
             bordered
             className="bulk-subtask-table"
@@ -657,7 +657,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                   value={priority}
                   onChange={(value) => updateRow(record.key, 'priority', value)}
                   style={{ width: '100%' }}
-                  size="small"
+                  
                 >
                   <Option value="low">低</Option>
                   <Option value="medium">中</Option>
@@ -680,7 +680,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                   value={hours}
                   onChange={(e) => updateRow(record.key, 'estimated_hours', parseFloat(e.target.value) || 0)}
                   suffix="h"
-                  size="small"
+                  
                 />
               )}
             />
@@ -697,7 +697,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                   }
                   style={{ width: '100%' }}
                   placeholder="选择日期"
-                  size="small"
+                  
                 />
               )}
             />
@@ -711,7 +711,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                   placeholder="负责人"
                   value={assignee}
                   onChange={(e) => updateRow(record.key, 'assignee', e.target.value)}
-                  size="small"
+                  
                 />
               )}
             />
@@ -724,7 +724,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                   <Tooltip title="复制行">
                     <Button
                       type="text"
-                      size="small"
+                      
                       onClick={() => duplicateRow(record.key)}
                       disabled={subTasks.length >= TABLE_INTERACTION_CONFIG.maxRows}
                     >
@@ -735,7 +735,7 @@ const BulkSubTaskCreator: React.FC<BulkSubTaskCreatorProps> = ({
                     <Button
                       type="text"
                       danger
-                      size="small"
+                      
                       icon={<DeleteOutlined />}
                       onClick={() => deleteRow(record.key)}
                       disabled={subTasks.length <= TABLE_INTERACTION_CONFIG.minRows}

@@ -203,7 +203,7 @@ const RecycleBinPage: React.FC = () => {
         <Space>
           <Button
             type="primary"
-            size="small"
+            
             icon={<ReloadOutlined />}
             onClick={() => handleRestoreProject(record.id)}
           >
@@ -221,7 +221,7 @@ const RecycleBinPage: React.FC = () => {
             <Button
               type="primary"
               danger
-              size="small"
+              
               icon={<DeleteOutlined />}
             >
               永久删除
@@ -284,7 +284,7 @@ const RecycleBinPage: React.FC = () => {
         <Space>
           <Button
             type="primary"
-            size="small"
+            
             icon={<ReloadOutlined />}
             onClick={() => handleRestoreTask(record.id)}
           >
@@ -302,7 +302,7 @@ const RecycleBinPage: React.FC = () => {
             <Button
               type="primary"
               danger
-              size="small"
+              
               icon={<DeleteOutlined />}
             >
               永久删除

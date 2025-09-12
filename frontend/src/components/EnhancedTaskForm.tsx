@@ -384,7 +384,7 @@ export const EnhancedTaskForm: React.FC<EnhancedTaskFormProps> = ({
         {/* 基本信息 */}
         <Card
           title="基本信息"
-          size="small"
+          
           style={{ marginBottom: 16 }}
         >
           <Row gutter={16}>
@@ -398,7 +398,7 @@ export const EnhancedTaskForm: React.FC<EnhancedTaskFormProps> = ({
         {/* 分配信息 */}
         <Card
           title="分配信息"
-          size="small"
+          
           style={{ marginBottom: 16 }}
         >
           <Row gutter={16}>
@@ -411,7 +411,7 @@ export const EnhancedTaskForm: React.FC<EnhancedTaskFormProps> = ({
 
         {/* 进度显示 */}
         {(estimatedHours > 0 || progress > 0) && (
-          <Card title="进度信息" size="small" style={{ marginBottom: 16 }}>
+          <Card title="进度信息"  style={{ marginBottom: 16 }}>
             <Row gutter={16}>
               <Col span={12}>
                 <div style={{ marginBottom: 8 }}>预估工时</div>
@@ -423,7 +423,7 @@ export const EnhancedTaskForm: React.FC<EnhancedTaskFormProps> = ({
                 <div style={{ marginBottom: 8 }}>完成进度</div>
                 <Progress
                   percent={progress}
-                  size="small"
+                  
                   status={progress === 100 ? 'success' : 'active'}
                 />
               </Col>
@@ -435,7 +435,7 @@ export const EnhancedTaskForm: React.FC<EnhancedTaskFormProps> = ({
         {showAdvanced && (
           <Card
             title="高级选项"
-            size="small"
+            
             style={{ marginBottom: 16 }}
           >
             <Row gutter={16}>

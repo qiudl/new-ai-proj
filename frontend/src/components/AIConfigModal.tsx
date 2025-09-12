@@ -177,7 +177,7 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
     return (
       <div style={{ padding: '0 16px' }}>
         {/* 提供商信息 */}
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={16}>
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
@@ -190,7 +190,7 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
             </Col>
             <Col span={8}>
               <div style={{ textAlign: 'right' }}>
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Tag color="blue">
                     <DollarOutlined /> {info.pricing}
                   </Tag>
@@ -402,7 +402,7 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
             <Row gutter={[16, 16]}>
               {Object.entries(AI_PROVIDER_INFO).map(([key, info]) => (
                 <Col span={8} key={key}>
-                  <Card size="small" title={info.name}>
+                  <Card  title={info.name}>
                     <div style={{ fontSize: '12px' }}>
                       <div style={{ marginBottom: 4 }}>
                         <Text type="secondary">价格:</Text> {info.pricing}
@@ -431,7 +431,7 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
               <Button 
                 type="text" 
                 icon={<ReloadOutlined />} 
-                size="small"
+                
                 onClick={loadConfig}
               />
             </Tooltip>
@@ -468,7 +468,7 @@ const AIConfigModal: React.FC<AIConfigModalProps> = ({
         </Tabs>
 
         {/* 帮助信息 */}
-        <Card size="small" style={{ marginTop: 16, backgroundColor: '#fafafa' }}>
+        <Card  style={{ marginTop: 16, backgroundColor: '#fafafa' }}>
           <Title level={5}>
             <InfoCircleOutlined style={{ color: '#1890ff' }} /> 帮助信息
           </Title>

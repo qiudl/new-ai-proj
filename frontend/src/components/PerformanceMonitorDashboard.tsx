@@ -252,13 +252,13 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
     >
       <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
         {/* 控制面板 */}
-        <Card size="small" style={{ marginBottom: '16px' }}>
+        <Card  style={{ marginBottom: '16px' }}>
           <Row gutter={[16, 8]} align="middle">
             <Col flex="auto">
               <Space>
                 <Text strong>时间范围:</Text>
                 <RangePicker
-                  size="small"
+                  
                   value={timeRange}
                   onChange={(dates) => {
                     if (!dates) return;
@@ -275,7 +275,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
               <Space>
                 <Text>自动刷新:</Text>
                 <Select
-                  size="small"
+                  
                   value={autoRefresh ? refreshInterval : 0}
                   onChange={(value) => {
                     setAutoRefresh(value > 0);
@@ -349,7 +349,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
             {/* 响应时间分布 */}
             <Row gutter={[16, 16]} style={{ marginBottom: '16px' }}>
               <Col span={12}>
-                <Card title="响应时间分布" size="small">
+                <Card title="响应时间分布" >
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <div>
                       <Text>P50 (中位数): </Text>
@@ -358,7 +358,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                     <Progress 
                       percent={Math.min((performanceStats.p50ResponseTime / 2000) * 100, 100)}
                       status={performanceStats.p50ResponseTime > 1000 ? 'exception' : 'success'}
-                      size="small"
+                      
                     />
                     
                     <div>
@@ -368,7 +368,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                     <Progress 
                       percent={Math.min((performanceStats.p95ResponseTime / 5000) * 100, 100)}
                       status={performanceStats.p95ResponseTime > 2000 ? 'exception' : 'success'}
-                      size="small"
+                      
                     />
                     
                     <div>
@@ -378,13 +378,13 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                     <Progress 
                       percent={Math.min((performanceStats.p99ResponseTime / 10000) * 100, 100)}
                       status={performanceStats.p99ResponseTime > 5000 ? 'exception' : 'success'}
-                      size="small"
+                      
                     />
                   </Space>
                 </Card>
               </Col>
               <Col span={12}>
-                <Card title="系统健康状态" size="small">
+                <Card title="系统健康状态" >
                   <Space direction="vertical" style={{ width: '100%' }}>
                     <Alert
                       message={`系统性能等级: ${performanceGrade.grade}`}
@@ -421,7 +421,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
             <Table
               columns={apiColumns}
               dataSource={apiMetrics}
-              size="small"
+              
               pagination={{
                 pageSize: 10,
                 showSizeChanger: true,
@@ -438,7 +438,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
           <TabPane tab={<><BugOutlined /> 错误监控</>} key="errors">
             <Row gutter={[16, 16]}>
               <Col span={12}>
-                <Card title="错误统计" size="small">
+                <Card title="错误统计" >
                   <Statistic
                     title="总错误数"
                     value={errorStats.totalErrors}
@@ -448,7 +448,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                   
                   <Title level={5}>按类型统计:</Title>
                   <List
-                    size="small"
+                    
                     dataSource={Object.entries(errorStats.errorsByType)}
                     renderItem={([errorType, count]) => (
                       <List.Item>
@@ -460,9 +460,9 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
                 </Card>
               </Col>
               <Col span={12}>
-                <Card title="最常见错误" size="small">
+                <Card title="最常见错误" >
                   <List
-                    size="small"
+                    
                     dataSource={errorStats.topErrors}
                     renderItem={(error) => (
                       <List.Item>
@@ -491,7 +491,7 @@ export const PerformanceMonitorDashboard: React.FC<PerformanceMonitorDashboardPr
 
           {/* 实时监控标签页 */}
           <TabPane tab={<><GlobalOutlined /> 实时监控</>} key="realtime">
-            <Card title="最近活动" size="small">
+            <Card title="最近活动" >
               <Timeline mode="left">
                 {recentMetrics.slice(0, 20).map((metric) => (
                   <Timeline.Item

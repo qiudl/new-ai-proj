@@ -244,7 +244,7 @@ const DependencyManagementTestPage: React.FC = () => {
       {/* 项目选择和统计信息 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card title="项目选择" size="small">
+          <Card title="项目选择" >
             <Select
               value={selectedProject?.id}
               onChange={(id) => {
@@ -269,7 +269,7 @@ const DependencyManagementTestPage: React.FC = () => {
 
         <Col span={16}>
           {statistics && (
-            <Card title="项目依赖统计" size="small">
+            <Card title="项目依赖统计" >
               <Row gutter={16}>
                 <Col span={6}>
                   <Statistic
@@ -453,22 +453,22 @@ const DependencyManagementTestPage: React.FC = () => {
                 <Title level={4}>依赖类型说明</Title>
                 <Row gutter={[16, 16]}>
                   <Col span={12}>
-                    <Card size="small" title="完成-开始 (FS)">
+                    <Card  title="完成-开始 (FS)">
                       <Text>前置任务完成后才能开始后续任务。这是最常见的依赖类型。</Text>
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card size="small" title="开始-开始 (SS)">
+                    <Card  title="开始-开始 (SS)">
                       <Text>两个任务必须同时开始，适用于并行执行的任务。</Text>
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card size="small" title="完成-完成 (FF)">
+                    <Card  title="完成-完成 (FF)">
                       <Text>两个任务必须同时完成，适用于同步结束的任务。</Text>
                     </Card>
                   </Col>
                   <Col span={12}>
-                    <Card size="small" title="开始-完成 (SF)">
+                    <Card  title="开始-完成 (SF)">
                       <Text>前置任务开始后才能完成后续任务，较少使用的类型。</Text>
                     </Card>
                   </Col>

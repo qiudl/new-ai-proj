@@ -159,19 +159,19 @@ useEffect(() => {
         <div style={{ marginBottom: '20px' }}>
           <Space>
             <Button 
-              size="small" 
+               
               onClick={() => handleToggleAll(true)}
             >
               全部显示
             </Button>
             <Button 
-              size="small" 
+               
               onClick={() => handleToggleAll(false)}
             >
               全部隐藏
             </Button>
             <Button 
-              size="small" 
+               
               onClick={handleReset}
             >
               重置默认
@@ -265,7 +265,7 @@ style={{
                               ) : (
                                 <Button
                                   type="text"
-                                  size="small"
+                                  
                                   icon={column.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                                   onClick={() => handleColumnToggle(column.key, !column.visible)}
                                   style={{
@@ -366,7 +366,7 @@ style={{
                       ) : (
                         <Button
                           type="text"
-                          size="small"
+                          
                           icon={column.visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                           onClick={() => handleColumnToggle(column.key, !column.visible)}
                           style={{

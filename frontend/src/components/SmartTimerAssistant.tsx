@@ -356,7 +356,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
           onClick={() => setShowSettings(true)}
         />
       }
-      size="small"
+      
     >
       {/* Goal Progress */}
       {settings.goalTracking && (
@@ -372,7 +372,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
               '50%': '#faad14',
               '100%': '#52c41a',
             }}
-            size="small"
+            
           />
           {weeklyStreak > 0 && (
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -389,7 +389,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
             <BulbOutlined /> 智能建议
           </Title>
           <List
-            size="small"
+            
             dataSource={insights.slice(0, 3)}
             renderItem={(insight) => (
               <List.Item style={{ padding: '8px 0' }}>
@@ -419,7 +419,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
             unCheckedChildren={<ClockCircleOutlined />}
             checked={settings.autoBreakReminder}
             onChange={(checked) => handleSettingChange('autoBreakReminder', checked)}
-            size="small"
+            
           />
         </Tooltip>
         
@@ -429,7 +429,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
             unCheckedChildren={<HeartOutlined />}
             checked={settings.healthReminders}
             onChange={(checked) => handleSettingChange('healthReminders', checked)}
-            size="small"
+            
           />
         </Tooltip>
         
@@ -439,7 +439,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
             unCheckedChildren={<TrophyOutlined />}
             checked={settings.goalTracking}
             onChange={(checked) => handleSettingChange('goalTracking', checked)}
-            size="small"
+            
           />
         </Tooltip>
         
@@ -449,7 +449,7 @@ const SmartTimerAssistant: React.FC<SmartTimerAssistantProps> = ({
             unCheckedChildren={<ThunderboltOutlined />}
             checked={settings.productivityAnalysis}
             onChange={(checked) => handleSettingChange('productivityAnalysis', checked)}
-            size="small"
+            
           />
         </Tooltip>
       </Space>

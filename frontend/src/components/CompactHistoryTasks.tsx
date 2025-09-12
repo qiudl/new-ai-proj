@@ -201,7 +201,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
         
         <Button 
           type="text" 
-          size="small"
+          
           icon={<ReloadOutlined />}
           onClick={loadHistoryTasks}
           loading={loading}
@@ -266,7 +266,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
                           <Tooltip title="开始计时">
                             <Button
                               type="text"
-                              size="small"
+                              
                               icon={<PlayCircleOutlined />}
                               className="compact-task-play-btn"
                               onClick={(e) => {
@@ -328,7 +328,7 @@ const CompactHistoryTasks: React.FC<CompactHistoryTasksProps> = ({
           {hasMore && (
             <Button
               type="link"
-              size="small"
+              
               loading={loadingMore}
               onClick={loadMoreTasks}
               style={{ padding: '0 4px', height: 'auto', fontSize: '12px' }}

@@ -348,7 +348,7 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             <div className="task-status-indicators">
               <Button
                 type="text"
-                size="small"
+                
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/projects/${project.id}`);

@@ -300,7 +300,7 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
             type="primary"
             icon={<SettingOutlined />}
             onClick={() => setShowSetupModal(true)}
-            size="small"
+            
           >
             设置
           </Button>
@@ -360,7 +360,7 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
               <Text>剩余时间: {Math.ceil(timeRemaining)} 分钟</Text>
               <Progress 
                 percent={((isBreakTime ? currentStep.breakDuration : currentStep.duration) - timeRemaining) / (isBreakTime ? currentStep.breakDuration : currentStep.duration) * 100}
-                size="small"
+                
                 showInfo={false}
                 strokeColor={isBreakTime ? '#52c41a' : '#1890ff'}
                 style={{ marginTop: '8px' }}
@@ -378,14 +378,14 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
         <Steps
           current={currentStepIndex}
           direction="vertical"
-          size="small"
+          
         >
           {workflow.map((step, index) => (
             <Step
               key={step.id}
               title={step.taskTitle || step.title}
               description={
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Text type="secondary">
                     工作 {step.duration} 分钟
                     {step.breakAfter && ` + 休息 ${step.breakDuration} 分钟`}
@@ -432,7 +432,7 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
             {Object.entries(workflowTemplates).map(([key, template]) => (
               <Card
                 key={key}
-                size="small"
+                
                 hoverable
                 onClick={() => setupFromTemplate(key as keyof typeof workflowTemplates)}
                 style={{ width: 200, cursor: 'pointer' }}
@@ -465,7 +465,7 @@ const TimerWorkflow: React.FC<TimerWorkflowProps> = ({ tasks = [], onWorkflowUpd
                 </div>
 
                 {fields.map(({ key, name, ...restField }) => (
-                  <Card key={key} size="small" style={{ marginBottom: '8px' }}>
+                  <Card key={key}  style={{ marginBottom: '8px' }}>
                     <Space align="baseline" wrap>
                       <Form.Item
                         {...restField}

@@ -84,7 +84,7 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
             {presetSizes.map((preset) => (
               <Button
                 key={preset.label}
-                size="small"
+                
                 onClick={() => {
                   const newConfig = {
                     width: preset.width,
@@ -220,7 +220,7 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
         {/* 重置按钮 */}
         <div style={{ marginTop: 16, textAlign: 'center' }}>
           <Button 
-            size="small" 
+             
             onClick={() => {
               const defaultConfig: GridItemConfig = {
                 width: Math.floor(gridCols * 0.5),
@@ -256,7 +256,7 @@ const GridItemSettings: React.FC<GridItemSettingsProps> = ({
       <Tooltip title={`配置${componentName}`}>
         <Button
           type="text"
-          size="small"
+          
           icon={<SettingOutlined />}
           style={{
             width: 28,

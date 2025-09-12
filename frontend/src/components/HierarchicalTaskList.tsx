@@ -284,7 +284,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
               <Tooltip title={isExpanded ? '折叠子任务' : '展开子任务'}>
                 <Button
                   type="text"
-                  size="small"
+                  
                   className="task-expand-btn"
                   icon={isLoadingChild ? <LoadingOutlined /> : (isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />)}
                   onClick={() => toggleExpand(record)}
@@ -427,11 +427,11 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
         };
 
         return (
-          <Space size="small">
+          <Space >
             <Tooltip title="添加子任务">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<PlusOutlined />}
                 onClick={() => onCreateSubTask(record)}
                 style={{ color: '#52c41a' }}
@@ -441,7 +441,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
               <Tooltip title="批量创建子任务">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<BranchesOutlined />}
                   onClick={() => onBulkCreateSubTasks(record)}
                   style={{ color: '#1890ff' }}
@@ -476,7 +476,7 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
                 ],
               }}
             >
-              <Button type="text" size="small" icon={<MoreOutlined />} />
+              <Button type="text"  icon={<MoreOutlined />} />
             </Dropdown>
           </Space>
         );

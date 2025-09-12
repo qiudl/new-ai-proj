@@ -146,7 +146,7 @@ export const ProjectProgressDisplay: React.FC<ProjectProgressDisplayProps> = ({
                 <Progress
                   percent={taskProgress}
                   strokeColor={taskColor}
-                  size="small"
+                  
                   showInfo={false}
                 />
               </div>

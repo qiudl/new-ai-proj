@@ -216,10 +216,10 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
     ];
 
     return (
-      <Space size="small">
+      <Space >
         <Button
           type="text"
-          size="small"
+          
           icon={<EyeOutlined />}
           onClick={() => onDocumentSelect?.(document as unknown)}
         >
@@ -232,7 +232,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
         >
           <Button
             type="text"
-            size="small"
+            
             icon={<MoreOutlined />}
           >
             更多
@@ -347,7 +347,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
       {documents.map(document => (
         <Col span={12} key={document.id}>
           <Card
-            size="small"
+            
             hoverable
             style={{ height: 140 }}
             styles={{ body: { padding: 12 } }}
@@ -379,7 +379,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
     <div>
       {/* Create Button */}
       <Card 
-        size="small" 
+         
         style={{ marginBottom: 8 }}
         styles={{ body: { padding: '8px 12px' } }}
       >
@@ -387,7 +387,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
           <Col>
             <Button
               type="primary"
-              size="small"
+              
               icon={<PlusOutlined />}
               onClick={() => setCreateModalVisible(true)}
             >
@@ -404,7 +404,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
 
       {/* View Mode Selector */}
       <Card 
-        size="small" 
+         
         style={{ marginBottom: 8 }}
         styles={{ body: { padding: '8px 12px' } }}
       >
@@ -413,7 +413,7 @@ const MobileDocumentList: React.FC<MobileDocumentListProps> = ({
             <Radio.Group
               value={viewMode}
               onChange={(e) => onViewModeChange?.(e.target.value)}
-              size="small"
+              
             >
               <Radio.Button value="compact">列表</Radio.Button>
               <Radio.Button value="grid">网格</Radio.Button>

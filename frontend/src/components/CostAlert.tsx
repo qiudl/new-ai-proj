@@ -127,7 +127,7 @@ const CostAlert: React.FC<CostAlertProps> = ({
             percent={Math.min(budgetUsedRatio, 100)}
             success={{ percent: Math.min(predictedBudgetRatio - budgetUsedRatio, 100 - budgetUsedRatio) }}
             status={predictedBudgetRatio > 100 ? 'exception' : 'normal'}
-            size="small"
+            
             style={{ marginTop: 4 }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8c8c8c', marginTop: 2 }}>
@@ -163,12 +163,12 @@ const CostAlert: React.FC<CostAlertProps> = ({
       action={
         <Space>
           {onShowStats && (
-            <Button size="small" onClick={onShowStats}>
+            <Button  onClick={onShowStats}>
               查看详情
             </Button>
           )}
           <Button 
-            size="small" 
+             
             type="link"
             onClick={() => window.open('/ai-config', '_blank')}
           >

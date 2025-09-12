@@ -252,7 +252,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
       <Row gutter={24}>
         {/* 左侧设置面板 */}
         <Col span={8}>
-          <Card title={<><SettingOutlined /> 打印设置</>} size="small">
+          <Card title={<><SettingOutlined /> 打印设置</>} >
             <Space direction="vertical" style={{ width: '100%' }}>
               {/* 字体大小 */}
               <div>
@@ -354,8 +354,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
           </Card>
 
           {/* 预览信息 */}
-          <Card title="预览信息" size="small" style={{ marginTop: 16 }}>
-            <Space direction="vertical" size="small">
+          <Card title="预览信息"  style={{ marginTop: 16 }}>
+            <Space direction="vertical" >
               <Text type="secondary">
                 📊 任务数量: {data.tasks.length}
               </Text>
@@ -376,7 +376,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
 
         {/* 右侧预览区域 */}
         <Col span={16}>
-          <Card title="内容预览" size="small" style={{ height: '600px', overflow: 'hidden' }}>
+          <Card title="内容预览"  style={{ height: '600px', overflow: 'hidden' }}>
             <div 
               ref={previewRef}
               style={{ 

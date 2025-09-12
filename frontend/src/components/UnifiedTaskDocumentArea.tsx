@@ -190,7 +190,7 @@ const DocumentListItem: React.FC<{
               <Button
                 type="text"
                 icon={<EyeOutlined />}
-                size="small"
+                
                 onClick={(e) => {
                   e.stopPropagation();
                   onView?.(document);
@@ -203,7 +203,7 @@ const DocumentListItem: React.FC<{
               <Button
                 type="text"
                 icon={<EditOutlined />}
-                size="small"
+                
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit?.(document);
@@ -215,7 +215,7 @@ const DocumentListItem: React.FC<{
             <Button
               type="text"
               icon={<DownloadOutlined />}
-              size="small"
+              
               onClick={(e) => {
                 e.stopPropagation();
                 onDownload?.(document);
@@ -909,7 +909,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                         <Button
                           type="text"
                           icon={<EditOutlined />}
-                          size="small"
+                          
                           style={{ width: '20px', height: '20px', fontSize: '10px' }}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -989,7 +989,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                   <Button
                     type="text"
                     icon={<EditOutlined />}
-                    size="small"
+                    
                     onClick={(e) => {
                       e.stopPropagation();
                       handleDocumentEdit(doc);
@@ -1039,7 +1039,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
       default: // list
         return (
           <List
-            size="small"
+            
             dataSource={filteredDocuments}
             renderItem={(doc) => (
               <DocumentListItem currentTaskId={taskId}
@@ -1343,12 +1343,12 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 
                 {/* 基本信息 */}
                 <Card 
-                  size="small" 
+                   
                   title="📋 基本信息" 
                   style={{ marginBottom: 16 }}
                   bodyStyle={{ padding: '12px' }}
                 >
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space direction="vertical"  style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text type="secondary">类型:</Text>
                       <Tag color="blue">{selectedDocument.type?.toUpperCase()}</Tag>
@@ -1376,12 +1376,12 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
                 {/* 统计信息 */}
                 <Card 
-                  size="small" 
+                   
                   title="📈 统计信息" 
                   style={{ marginBottom: 16 }}
                   bodyStyle={{ padding: '12px' }}
                 >
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space direction="vertical"  style={{ width: '100%' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Text type="secondary">字数:</Text>
                       <Text>{selectedDocument.content?.length || 0} 字符</Text>
@@ -1402,7 +1402,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                 {/* 标签分类 */}
                 {selectedDocument.tags && selectedDocument.tags.length > 0 && (
                   <Card 
-                    size="small" 
+                     
                     title="🏷️ 标签分类" 
                     style={{ marginBottom: 16 }}
                     bodyStyle={{ padding: '12px' }}
@@ -1417,16 +1417,16 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
                 {/* 快速操作 */}
                 <Card 
-                  size="small" 
+                   
                   title="⚡ 快速操作" 
                   style={{ marginBottom: 16 }}
                   bodyStyle={{ padding: '12px' }}
                 >
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space direction="vertical"  style={{ width: '100%' }}>
                     <Button 
                       type="primary" 
                       icon={<EditOutlined />} 
-                      size="small" 
+                       
                       block
                       onClick={() => handleDocumentEdit(selectedDocument)}
                     >
@@ -1434,7 +1434,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     </Button>
                     <Button 
                       icon={<DownloadOutlined />} 
-                      size="small" 
+                       
                       block
                       onClick={() => handleDocumentDownload(selectedDocument)}
                     >
@@ -1442,7 +1442,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     </Button>
                     <Button 
                       icon={<ShareAltOutlined />} 
-                      size="small" 
+                       
                       block
                       onClick={() => {
                         navigator.clipboard.writeText(`/projects/${selectedDocument.project_id}/tasks/${selectedDocument.task_id}/documents/${selectedDocument.id}`);
@@ -1454,7 +1454,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
                     <Button 
                       danger 
                       icon={<DeleteOutlined />} 
-                      size="small" 
+                       
                       block
                       onClick={() => {
                         Modal.confirm({
@@ -1473,7 +1473,7 @@ const { showShortcutHelp, registeredCount } = useKeyboardShortcuts(shortcutGroup
 
                 {/* 版本历史 */}
                 <Card 
-                  size="small" 
+                   
                   title="📚 版本历史" 
                   bodyStyle={{ padding: '12px' }}
                 >

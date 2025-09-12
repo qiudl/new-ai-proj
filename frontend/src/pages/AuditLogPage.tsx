@@ -342,7 +342,7 @@ const AuditLogPage: React.FC = () => {
         <Space>
           <Button
             type="primary"
-            size="small"
+            
             icon={<EyeOutlined />}
             onClick={() => showLogDetail(record)}
           >
@@ -462,7 +462,7 @@ const AuditLogPage: React.FC = () => {
           message={
             <Space>
               <span>当前筛选器已激活</span>
-              <Button type="link" size="small" onClick={clearFilters}>
+              <Button type="link"  onClick={clearFilters}>
                 清除所有筛选器
               </Button>
             </Space>
@@ -495,7 +495,7 @@ const AuditLogPage: React.FC = () => {
             pageSizeOptions: ['10', '20', '50', '100'],
           }}
           scroll={{ x: 1200 }}
-          size="small"
+          
         />
       </Card>
 
@@ -630,7 +630,7 @@ const AuditLogPage: React.FC = () => {
         ) : stats ? (
           <Space direction="vertical" style={{ width: '100%' }} size="large">
             {/* 操作类型分布 */}
-            <Card title="操作类型分布" size="small">
+            <Card title="操作类型分布" >
               {/* Chart temporarily disabled due to missing recharts dependency */}
               <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
                 <Text type="secondary">图表功能暂时不可用</Text>
@@ -638,7 +638,7 @@ const AuditLogPage: React.FC = () => {
             </Card>
 
             {/* 时间线分析 */}
-            <Card title="7天活动趋势" size="small">
+            <Card title="7天活动趋势" >
               <div style={{ width: '100%', height: 200 }}>
                 <LineChart width={400} height={200} data={stats.timeline_data}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -652,7 +652,7 @@ const AuditLogPage: React.FC = () => {
             </Card>
 
             {/* 实体类型分布 */}
-            <Card title="实体类型分布" size="small">
+            <Card title="实体类型分布" >
               <div style={{ width: '100%', height: 200 }}>
                 <BarChart width={400} height={200} data={stats.entities_distribution}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -666,7 +666,7 @@ const AuditLogPage: React.FC = () => {
 
             {/* 活跃用户排行 */}
             {stats.top_users && stats.top_users.length > 0 && (
-              <Card title="活跃用户排行" size="small">
+              <Card title="活跃用户排行" >
                 <Space direction="vertical" style={{ width: '100%' }}>
                   {stats.top_users.map((user, index) => (
                     <Row key={user.user_name} justify="space-between" align="middle">
@@ -686,7 +686,7 @@ const AuditLogPage: React.FC = () => {
 
             {/* 峰值时间分析 */}
             {stats.peak_hours && (
-              <Card title="24小时活动分布" size="small">
+              <Card title="24小时活动分布" >
                 <div style={{ width: '100%', height: 200 }}>
                   <BarChart width={400} height={200} data={stats.peak_hours}>
                     <CartesianGrid strokeDasharray="3 3" />

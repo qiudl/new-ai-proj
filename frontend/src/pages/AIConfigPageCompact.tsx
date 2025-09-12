@@ -519,7 +519,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     value={tempValue}
                     onChange={(e) => setTempValue(e.target.value)}
                     placeholder={placeholder}
-                    size="small"
+                    
                     autoFocus
                     onPressEnter={saveField}
                   />
@@ -529,7 +529,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     value={tempValue}
                     onChange={(e) => setTempValue(e.target.value)}
                     placeholder={placeholder}
-                    size="small"
+                    
                     autoFocus
                     onPressEnter={saveField}
                   />
@@ -540,7 +540,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     onChange={setTempValue}
                     style={{ width: '100%' }}
                     placeholder={placeholder}
-                    size="small"
+                    
                     autoFocus
                   >
                     {options?.map(option => (
@@ -556,7 +556,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     onChange={setTempValue}
                     style={{ width: '100%' }}
                     placeholder={placeholder}
-                    size="small"
+                    
                     autoFocus
                     onPressEnter={saveField}
                     {...(field === 'temperature' && { min: 0, max: 1, step: 0.1 })}
@@ -567,7 +567,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                   <Switch
                     checked={tempValue}
                     onChange={setTempValue}
-                    size="small"
+                    
                     autoFocus
                   />
                 )}
@@ -576,7 +576,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                   <Space size={4}>
                     <Button 
                       type="primary" 
-                      size="small" 
+                       
                       onClick={saveField}
                       loading={saving}
                       icon={<SaveOutlined />}
@@ -585,7 +585,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                       保存
                     </Button>
                     <Button 
-                      size="small" 
+                       
                       onClick={cancelEditing}
                       icon={<CloseOutlined />}
                       style={{ fontSize: '11px', height: '22px' }}
@@ -613,7 +613,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     <Text type="secondary" style={{ fontSize: '11px' }}>点击设置</Text>
                   )
                 ) : type === 'switch' ? (
-                  <Switch checked={value} disabled size="small" />
+                  <Switch checked={value} disabled  />
                 ) : (
                   <Text style={{ fontSize: '12px' }}>
                     {hasValue ? String(value) : <span style={{ color: '#bfbfbf' }}>未设置</span>}
@@ -647,7 +647,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
     return (
       <Card
         key={provider}
-        size="small"
+        
         style={{ 
           height: '480px',
           display: 'flex',
@@ -760,7 +760,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               <Button
                 type="primary"
-                size="small"
+                
                 icon={<MessageOutlined />}
                 onClick={() => openTestModal(provider)}
                 disabled={!hasConfig}
@@ -773,7 +773,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
               {hasConfig && (
                 <Button
                   danger
-                  size="small"
+                  
                   icon={<DeleteOutlined />}
                   onClick={() => handleDelete(provider)}
                   block
@@ -884,7 +884,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                       {msg.type === 'assistant' && (
                         <Avatar 
                           icon={<RobotOutlined />} 
-                          size="small" 
+                           
                           style={{ backgroundColor: '#1890ff', flexShrink: 0 }}
                         />
                       )}
@@ -932,7 +932,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                       {msg.type === 'user' && (
                         <Avatar 
                           icon={<UserOutlined />} 
-                          size="small" 
+                           
                           style={{ backgroundColor: '#52c41a', flexShrink: 0 }}
                         />
                       )}
@@ -945,7 +945,7 @@ const AIConfigPageCompact: React.FC = React.memo(() => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Avatar 
                         icon={<LoadingOutlined />} 
-                        size="small" 
+                         
                         style={{ backgroundColor: '#1890ff' }}
                       />
                       <div style={{

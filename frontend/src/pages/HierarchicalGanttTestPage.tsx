@@ -171,7 +171,7 @@ const HierarchicalGanttTestPage: React.FC = () => {
       <Card 
         title="🔧 测试配置"
         style={{ marginBottom: '24px' }}
-        size="small"
+        
       >
         <Space size="large">
           <div>
@@ -269,7 +269,7 @@ const HierarchicalGanttTestPage: React.FC = () => {
       <Card 
         title="📖 测试指南"
         style={{ marginTop: '24px' }}
-        size="small"
+        
       >
         <div style={{ fontSize: '14px', lineHeight: '1.6' }}>
           <Paragraph strong>

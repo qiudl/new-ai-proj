@@ -479,9 +479,9 @@ const RoleManagementPage: React.FC = () => {
       key: 'actions',
       width: 200,
       render: (record: Role) => (
-        <Space size="small">
+        <Space >
           <Button 
-            size="small" 
+             
             type="link" 
             icon={<EyeOutlined />}
             onClick={() => navigate(`/role-management/${record.id}`)}
@@ -489,7 +489,7 @@ const RoleManagementPage: React.FC = () => {
             查看
           </Button>
           <Button 
-            size="small" 
+             
             type="link" 
             icon={<EditOutlined />}
             onClick={() => handleEditRole(record)}
@@ -503,7 +503,7 @@ const RoleManagementPage: React.FC = () => {
             cancelText="取消"
           >
             <Button 
-              size="small" 
+               
               type="link"
               style={{ color: record.is_active ? '#faad14' : '#52c41a' }}
             >
@@ -520,7 +520,7 @@ const RoleManagementPage: React.FC = () => {
             icon={<DeleteOutlined style={{ color: 'red' }} />}
           >
             <Button 
-              size="small" 
+               
               type="link" 
               danger
               icon={<DeleteOutlined />}
@@ -822,7 +822,7 @@ const RoleManagementPage: React.FC = () => {
           {/* 权限选择区域 */}
           <Form.Item label="角色权限">
             <Card 
-              size="small" 
+               
               title="选择角色权限"
               extra={
                 <Text type="secondary">

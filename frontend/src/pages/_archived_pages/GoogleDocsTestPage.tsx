@@ -197,7 +197,7 @@ const GoogleDocsTestPage: React.FC = () => {
         width: 600,
         content: (
           <div>
-            <Descriptions column={1} size="small">
+            <Descriptions column={1} >
               <Descriptions.Item label="标题">{importedDoc.title}</Descriptions.Item>
               <Descriptions.Item label="内容长度">{importedDoc.content.length} 字符</Descriptions.Item>
               <Descriptions.Item label="来源">Google Docs</Descriptions.Item>
@@ -392,7 +392,7 @@ const GoogleDocsTestPage: React.FC = () => {
           </div>
         </Col>
         <Col xs={24} md={12}>
-          <Descriptions column={1} size="small">
+          <Descriptions column={1} >
             <Descriptions.Item label="认证状态">
               <Badge 
                 status={isAuthenticated ? 'success' : 'error'} 
@@ -484,21 +484,21 @@ const GoogleDocsTestPage: React.FC = () => {
                 <Tooltip title="在 Google Docs 中查看">
                   <Button 
                     icon={<EyeOutlined />}
-                    size="small"
+                    
                     onClick={() => window.open(doc.webViewLink, '_blank')}
                   />
                 </Tooltip>,
                 <Tooltip title="导入到系统">
                   <Button 
                     icon={<CloudDownloadOutlined />}
-                    size="small"
+                    
                     onClick={() => handleImportDocument(doc.id)}
                   />
                 </Tooltip>,
                 <Tooltip title="在线编辑">
                   <Button 
                     icon={<EditOutlined />}
-                    size="small"
+                    
                     type="primary"
                     onClick={() => {
                       setSelectedDoc(doc);
@@ -512,7 +512,7 @@ const GoogleDocsTestPage: React.FC = () => {
                 avatar={<FileTextOutlined style={{ fontSize: '16px', color: '#4285f4' }} />}
                 title={doc.name}
                 description={
-                  <Space direction="vertical" size="small">
+                  <Space direction="vertical" >
                     <div>
                       <Text type="secondary">
                         创建: {new Date(doc.createdTime).toLocaleString()}

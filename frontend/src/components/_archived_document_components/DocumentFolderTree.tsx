@@ -233,7 +233,7 @@ const DocumentFolderTree: React.FC<DocumentFolderTreeProps> = ({
               <Button 
                 type="text" 
                 icon={<EllipsisOutlined />}
-                size="small"
+                
                 style={{ 
                   opacity: 0,
                   transition: 'opacity 0.2s ease',

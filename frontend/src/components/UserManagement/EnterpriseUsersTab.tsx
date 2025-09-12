@@ -39,7 +39,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
     return (
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="总用户数"
               value={stats.total}
@@ -47,7 +47,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('total')}
                 >
                   查看全部
@@ -57,7 +57,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="主要联系人"
               value={stats.primary_contacts}
@@ -65,7 +65,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('contact_type', 'primary')}
                 >
                   筛选
@@ -75,7 +75,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="普通联系人"
               value={(stats.total || 0) - (stats.primary_contacts || 0)}
@@ -83,7 +83,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('contact_type', 'normal')}
                 >
                   筛选
@@ -93,7 +93,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={6}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="即将过期账户"
               value={stats.expiring_accounts}
@@ -101,7 +101,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('expiring')}
                 >
                   筛选
@@ -121,7 +121,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
     return (
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="正常用户"
               value={stats.by_status.active || 0}
@@ -129,7 +129,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'active')}
                 >
                   筛选
@@ -139,7 +139,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="未激活用户"
               value={stats.by_status.inactive || 0}
@@ -147,7 +147,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'inactive')}
                 >
                   筛选
@@ -157,7 +157,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
           </Card>
         </Col>
         <Col span={8}>
-          <Card size="small" className="stats-card">
+          <Card  className="stats-card">
             <Statistic
               title="已停用用户"
               value={stats.by_status.suspended || 0}
@@ -165,7 +165,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
               suffix={
                 <Button 
                   type="link" 
-                  size="small" 
+                   
                   onClick={() => onStatClick('status', 'suspended')}
                 >
                   筛选
@@ -181,7 +181,7 @@ const EnterpriseUsersTab: React.FC<EnterpriseUsersTabProps> = ({
   // 筛选器渲染
   const renderFilters = () => {
     return (
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Space wrap>
           <Select
             mode="multiple"

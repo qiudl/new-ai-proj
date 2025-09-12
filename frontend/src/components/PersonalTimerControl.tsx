@@ -164,7 +164,7 @@ const PersonalTimerControl: React.FC<PersonalTimerControlProps> = ({
         <div>
           <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
             <Col>
-              <Space direction="vertical" size="small">
+              <Space direction="vertical" >
                 <Text style={{ color: 'white', fontWeight: 'bold' }}>
                   正在进行
                 </Text>
@@ -220,7 +220,7 @@ const PersonalTimerControl: React.FC<PersonalTimerControlProps> = ({
         <div>
           <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
             <Col flex="auto">
-              <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Space direction="vertical"  style={{ width: '100%' }}>
                 <Text type="secondary">选择任务开始计时</Text>
                 <Select
                   style={{ width: '100%' }}

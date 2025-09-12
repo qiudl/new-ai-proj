@@ -186,7 +186,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({
             onPressEnter={handleSave}
             onBlur={handleSave}
             autoFocus
-            size="small"
+            
             style={{ width: '100%' }}
           />
         );
@@ -198,7 +198,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({
             onPressEnter={handleSave}
             onBlur={handleSave}
             autoFocus
-            size="small"
+            
             style={{ width: '100%' }}
           />
         );
@@ -209,7 +209,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({
             onChange={(date) => setEditValue(date?.format('YYYY-MM-DD'))}
             onBlur={handleSave}
             autoFocus
-            size="small"
+            
             style={{ width: '100%' }}
           />
         );
@@ -222,7 +222,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({
               handleSave();
             }}
             autoFocus
-            size="small"
+            
             style={{ width: '100%' }}
           >
             {options?.map(opt => (
@@ -248,7 +248,7 @@ const InlineEdit: React.FC<InlineEditProps> = ({
             top: '50%', 
             transform: 'translateY(-50%)' 
           }}>
-            <Spin size="small" />
+            <Spin  />
           </div>
         )}
       </div>
@@ -797,7 +797,7 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
           {hasChildren && (
             <Button
               type="text"
-              size="small"
+              
               icon={isExpanded ? <CaretDownOutlined /> : <CaretRightOutlined />}
               onClick={() => toggleTaskExpanded(task.id)}
               style={{
@@ -881,7 +881,7 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
           <Tooltip title="双击编辑或点击按钮">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => handleTaskDoubleClick(task)}
               style={{ opacity: 0.6 }}
@@ -1028,7 +1028,7 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
                 title="批量操作"
                 trigger="click"
               >
-                <Button type="primary" size="small">
+                <Button type="primary" >
                   批量操作 ({stats.selectedCount})
                 </Button>
               </Popover>
@@ -1107,12 +1107,12 @@ const InteractiveGanttChart: React.FC<InteractiveGanttChartProps> = ({
         }
         extra={
           <Space>
-            <Button size="small" icon={<ReloadOutlined />} onClick={loadSubtasks}>
+            <Button  icon={<ReloadOutlined />} onClick={loadSubtasks}>
               刷新
             </Button>
             <Tooltip title={isGanttFullscreen ? '退出全屏' : '全屏查看'}>
               <Button 
-                size="small" 
+                 
                 icon={isGanttFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} 
                 onClick={() => setIsGanttFullscreen(!isGanttFullscreen)}
               >

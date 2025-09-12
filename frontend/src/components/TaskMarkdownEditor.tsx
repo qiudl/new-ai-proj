@@ -134,7 +134,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
         alignItems: 'center',
         flexWrap: 'wrap'
       }}>
-        <Button.Group size="small">
+        <Button.Group >
           <Button
             type={mode === 'edit' ? 'primary' : 'default'}
             icon={<EditOutlined />}
@@ -152,7 +152,7 @@ const TaskMarkdownEditor: React.FC<TaskMarkdownEditorProps> = ({
         </Button.Group>
         
         {mode === 'edit' && !disabled && (
-          <Button.Group size="small">
+          <Button.Group >
             <Button
               onClick={() => handleInsertMarkdown('**', '**')}
               title="粗体"

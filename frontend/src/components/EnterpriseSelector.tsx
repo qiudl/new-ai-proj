@@ -43,10 +43,8 @@ const EnterpriseSelector: React.FC<EnterpriseSelectorProps> = ({
     setError(null);
     
     try {
-      console.log('🏢 加载企业列表...');
       const result = await enterpriseService.getEnterprises(1, 100); // 获取前100个企业
       setEnterprises(result.data);
-      console.log('✅ 企业列表加载成功:', result.data.length, '个企业');
     } catch (err) {
       console.error('❌ 加载企业列表失败:', err);
       setError('加载企业列表失败');
@@ -114,7 +112,7 @@ const EnterpriseSelector: React.FC<EnterpriseSelectorProps> = ({
       size={size}
       showSearch={showSearch}
       filterOption={actualFilterOption}
-      notFoundContent={loading ? <Spin size="small" /> : (error ? error : '暂无数据')}
+      notFoundContent={loading ? <Spin  /> : (error ? error : '暂无数据')}
       suffixIcon={<BankOutlined />}
     >
       {enterprises.map(enterprise => (

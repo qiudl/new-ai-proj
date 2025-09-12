@@ -254,11 +254,11 @@ const DocumentList: React.FC<DocumentListProps> = ({
       key: 'actions',
       width: 100,
       render: (_: unknown, record: DocumentListItem) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="编辑">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => handleEditDocument(record)}
             />
@@ -266,7 +266,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           <Tooltip title="复制">
             <Button
               type="text"
-              size="small"
+              
               icon={<CopyOutlined />}
               onClick={() => handleCopyDocument(record)}
             />
@@ -274,7 +274,7 @@ const DocumentList: React.FC<DocumentListProps> = ({
           <Tooltip title="删除">
             <Button
               type="text"
-              size="small"
+              
               danger
               icon={<DeleteOutlined />}
               onClick={() => {

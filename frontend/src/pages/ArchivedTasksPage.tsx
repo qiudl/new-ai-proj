@@ -215,7 +215,7 @@ const ArchivedTasksPage: React.FC = () => {
       key: 'actions',
       width: 120,
       render: (record: ArchivedTask) => (
-        <Space size="small">
+        <Space >
           <Popconfirm
             title="确认取消归档"
             description={`确定要将任务 "${record.title}" 恢复到活跃状态吗？`}
@@ -225,7 +225,7 @@ const ArchivedTasksPage: React.FC = () => {
           >
             <Button 
               type="link" 
-              size="small" 
+               
               icon={<UndoOutlined />}
               loading={unarchivingTasks.has(record.id)}
               style={{ padding: 0 }}
@@ -281,7 +281,7 @@ const ArchivedTasksPage: React.FC = () => {
         {statistics && (
           <Row gutter={16} style={{ marginBottom: '16px' }}>
             <Col span={6}>
-              <Card size="small">
+              <Card >
                 <Statistic 
                   title="活跃任务" 
                   value={statistics.active_tasks} 
@@ -290,7 +290,7 @@ const ArchivedTasksPage: React.FC = () => {
               </Card>
             </Col>
             <Col span={6}>
-              <Card size="small">
+              <Card >
                 <Statistic 
                   title="归档任务" 
                   value={statistics.archived_tasks}
@@ -299,7 +299,7 @@ const ArchivedTasksPage: React.FC = () => {
               </Card>
             </Col>
             <Col span={6}>
-              <Card size="small">
+              <Card >
                 <Statistic 
                   title="总任务数" 
                   value={statistics.total_tasks}
@@ -308,7 +308,7 @@ const ArchivedTasksPage: React.FC = () => {
               </Card>
             </Col>
             <Col span={6}>
-              <Card size="small">
+              <Card >
                 <Statistic 
                   title="归档比例" 
                   value={statistics.total_tasks > 0 
@@ -325,7 +325,7 @@ const ArchivedTasksPage: React.FC = () => {
       </div>
 
       {/* 搜索和过滤器 */}
-      <Card size="small" style={{ marginBottom: '16px' }}>
+      <Card  style={{ marginBottom: '16px' }}>
         <Row gutter={16} align="middle">
           <Col span={8}>
             <Search

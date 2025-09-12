@@ -361,7 +361,7 @@ const TaskDocumentListPage: React.FC = () => {
           <Tooltip title="查看任务详情">
             <Button
               type="text"
-              size="small"
+              
               icon={<EyeOutlined />}
               onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
             />
@@ -369,7 +369,7 @@ const TaskDocumentListPage: React.FC = () => {
           <Tooltip title="编辑任务文档">
             <Button
               type="text"
-              size="small"
+              
               icon={<EditOutlined />}
               onClick={() => {
                 if (record.documentExists) {
@@ -385,7 +385,7 @@ const TaskDocumentListPage: React.FC = () => {
           <Tooltip title="打开项目">
             <Button
               type="text"
-              size="small"
+              
               icon={<FolderOpenOutlined />}
               onClick={() => navigate(`/projects/${record.project_id}`)}
             />

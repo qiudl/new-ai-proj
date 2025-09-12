@@ -163,9 +163,7 @@ export const permissionService = {
   // Enterprise User Permission Management (新企业系统)
   async getEnterpriseUserPermissions(enterpriseId: number, userId: number): Promise<{ permissions: UserPermissionSummary }> {
     try {
-      console.log('🔒 获取企业用户权限，企业ID:', enterpriseId, '用户ID:', userId);
       const response = await api.get(`/enterprises/${enterpriseId}/users/${userId}/permissions`);
-      console.log('✅ 企业用户权限获取成功:', response);
       return (response as any).data;
     } catch (error) {
       console.warn('⚠️ 新企业权限系统不可用，回退到旧系统:', error);
@@ -180,9 +178,7 @@ export const permissionService = {
     projectPermissions?: any[];
   }) {
     try {
-      console.log('🔒 更新企业用户权限，企业ID:', enterpriseId, '用户ID:', userId, '权限数据:', permissionData);
       const response = await api.put(`/enterprises/${enterpriseId}/users/${userId}/permissions`, permissionData);
-      console.log('✅ 企业用户权限更新成功:', response);
       return response;
     } catch (error) {
       console.warn('⚠️ 新企业权限系统不可用，回退到旧系统:', error);
@@ -193,11 +189,9 @@ export const permissionService = {
 
   async assignEnterpriseUserRole(enterpriseId: number, userId: number, roleId: number) {
     try {
-      console.log('🔒 分配企业用户角色，企业ID:', enterpriseId, '用户ID:', userId, '角色ID:', roleId);
       const response = await api.post(`/enterprises/${enterpriseId}/users/${userId}/role`, {
         role_id: roleId
       });
-      console.log('✅ 企业用户角色分配成功:', response);
       return response;
     } catch (error) {
       console.warn('⚠️ 新企业角色系统不可用，回退到旧系统:', error);
@@ -209,9 +203,7 @@ export const permissionService = {
   // 企业角色管理
   async getEnterpriseRoles(enterpriseId: number) {
     try {
-      console.log('🔒 获取企业角色，企业ID:', enterpriseId);
       const response = await api.get(`/enterprises/${enterpriseId}/roles`);
-      console.log('✅ 企业角色获取成功:', response);
       return response;
     } catch (error) {
       console.warn('⚠️ 新企业角色系统不可用，回退到旧系统:', error);
@@ -231,6 +223,10 @@ export const permissionService = {
           try {
             const payload = JSON.parse(atob(token.split('.')[1]));
             if (payload && (payload.role === 'admin' || payload.role === 'company_admin')) {
+              return true;
+            }
+            // Also check for impersonation context in JWT
+            if (payload && payload.impersonation && payload.role === 'enterprise_admin') {
               return true;
             }
           } catch {}

@@ -384,17 +384,17 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
       key: 'actions',
       width: 150,
       render: (_: unknown, record: DocumentListItem) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看">
             <Button 
-              size="small" 
+               
               icon={<EyeOutlined />}
               onClick={() => handleViewDocument(record)}
             />
           </Tooltip>
           <Tooltip title="编辑">
             <Button 
-              size="small" 
+               
               icon={<EditOutlined />}
               onClick={() => handleEditDocument(record)}
               disabled={record.type !== 'markdown'}
@@ -420,7 +420,7 @@ const DocumentManager: React.FC<DocumentManagerProps> = ({
             }}
             trigger={['click']}
           >
-            <Button size="small" icon={<MoreOutlined />} />
+            <Button  icon={<MoreOutlined />} />
           </Dropdown>
         </Space>
       )

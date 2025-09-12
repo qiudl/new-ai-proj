@@ -40,7 +40,6 @@ export const useTimerCleanup = () => {
       clearInterval(timer);
     });
     timers.current.clear();
-    console.log(`清理了 ${timers.current.size} 个定时器`);
   }, []);
   
   // 组件卸载时自动清理
@@ -92,7 +91,6 @@ export const useEventListenerCleanup = () => {
       element.removeEventListener(event, handler, options);
     });
     listeners.current = [];
-    console.log('清理了所有事件监听器');
   }, []);
   
   // 组件卸载时自动清理
@@ -121,7 +119,6 @@ export const useResourceCleanup = () => {
     
     // 清理其他可能的资源
     if ('gc' in window && process.env.NODE_ENV === 'development') {
-      console.log('请求垃圾回收...');
       (window as any).gc();
     }
   }, [clearAllTimers, clearAllListeners]);

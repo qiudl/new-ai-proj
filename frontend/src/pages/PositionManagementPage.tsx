@@ -283,7 +283,7 @@ const PositionManagementPage: React.FC = () => {
         <Space>
           <Button
             type="link"
-            size="small"
+            
             icon={<EditOutlined />}
             onClick={() => showPositionModal(record)}
           >
@@ -291,7 +291,7 @@ const PositionManagementPage: React.FC = () => {
           </Button>
           <Button
             type="link"
-            size="small"
+            
             icon={<DeleteOutlined />}
             danger
             onClick={() => handlePositionDelete(record)}
@@ -300,7 +300,7 @@ const PositionManagementPage: React.FC = () => {
           </Button>
           <Button
             type="link"
-            size="small"
+            
             onClick={() => setSelectedPosition(record)}
           >
             详情
@@ -331,7 +331,7 @@ const PositionManagementPage: React.FC = () => {
               <Input.Search
                 placeholder="搜索岗位名称..."
                 style={{ width: 300 }}
-                onSearch={value => console.log('搜索:', value)}
+                onSearch={value => { /* TODO: 实现搜索功能 */ }}
               />
               <Select
                 placeholder="筛选部门"
@@ -389,8 +389,8 @@ const PositionManagementPage: React.FC = () => {
                 renderItem={skill => (
                   <List.Item
                     actions={[
-                      <Button type="link" size="small" icon={<EditOutlined />}>编辑</Button>,
-                      <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+                      <Button type="link"  icon={<EditOutlined />}>编辑</Button>,
+                      <Button type="link"  danger icon={<DeleteOutlined />}>删除</Button>
                     ]}
                   >
                     <List.Item.Meta
@@ -407,7 +407,7 @@ const PositionManagementPage: React.FC = () => {
                           <Text>熟练度要求：</Text>
                           <Progress
                             percent={skill.level * 20}
-                            size="small"
+                            
                             style={{ width: 100 }}
                             format={() => `L${skill.level}`}
                           />
@@ -419,7 +419,7 @@ const PositionManagementPage: React.FC = () => {
               />
             </Col>
             <Col span={8}>
-              <Card size="small" title="技能统计">
+              <Card  title="技能统计">
                 <Statistic title="技能总数" value={skillRequirements.length} prefix={<BookOutlined />} />
                 <Divider />
                 <Statistic title="必需技能" value={skillRequirements.filter(s => s.required).length} prefix={<StarOutlined />} />
@@ -483,15 +483,15 @@ const PositionManagementPage: React.FC = () => {
                 key: 'actions',
                 render: () => (
                   <Space>
-                    <Button type="link" size="small">调整</Button>
-                    <Button type="link" size="small" danger>移除</Button>
+                    <Button type="link" >调整</Button>
+                    <Button type="link"  danger>移除</Button>
                   </Space>
                 )
               }
             ]}
             dataSource={employeePositions || []}
             rowKey="id"
-            size="small"
+            
           />
         </Card>
       )
@@ -718,7 +718,7 @@ const PositionManagementPage: React.FC = () => {
         >
           <Row gutter={16}>
             <Col span={12}>
-              <Card size="small" title="基本信息">
+              <Card  title="基本信息">
                 <p><Text strong>岗位名称：</Text>{selectedPosition.name}</p>
                 <p><Text strong>所属部门：</Text>{selectedPosition.department_name}</p>
                 <p><Text strong>岗位级别：</Text>L{selectedPosition.level}</p>
@@ -727,7 +727,7 @@ const PositionManagementPage: React.FC = () => {
               </Card>
             </Col>
             <Col span={12}>
-              <Card size="small" title="薪资与人员">
+              <Card  title="薪资与人员">
                 <p>
                   <Text strong>薪资范围：</Text>
                   {selectedPosition.salary_min && selectedPosition.salary_max 

@@ -410,8 +410,8 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
       width: 150,
       render: (_, record) => (
         <Space direction="vertical" size={2}>
-          {record.industry && <Tag size="small">{record.industry}</Tag>}
-          {record.department && <Tag size="small">{record.department}</Tag>}
+          {record.industry && <Tag >{record.industry}</Tag>}
+          {record.department && <Tag >{record.department}</Tag>}
         </Space>
       )
     },
@@ -423,7 +423,7 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
         <Space>
           <Badge status={record.is_active ? 'success' : 'default'} />
           <span>{record.is_active ? '激活' : '停用'}</span>
-          {record.is_system_template && <Tag size="small" color="blue">系统</Tag>}
+          {record.is_system_template && <Tag  color="blue">系统</Tag>}
         </Space>
       )
     },
@@ -447,17 +447,17 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
       width: 100,
       fixed: 'right',
       render: (_, record) => (
-        <Space size="small">
+        <Space >
           <Tooltip title="查看详情">
             <Button 
               type="text" 
-              size="small" 
+               
               icon={<InfoCircleOutlined />}
               onClick={() => handleDetail(record)}
             />
           </Tooltip>
           <Dropdown menu={getActionMenu(record)} trigger={['click']}>
-            <Button type="text" size="small" icon={<MoreOutlined />} />
+            <Button type="text"  icon={<MoreOutlined />} />
           </Dropdown>
         </Space>
       )
@@ -600,7 +600,7 @@ const RoleTemplateManager: React.FC<RoleTemplateManagerProps> = ({
           }}
           onChange={handleTableChange}
           scroll={{ x: 1200 }}
-          size="small"
+          
         />
       </Card>
 

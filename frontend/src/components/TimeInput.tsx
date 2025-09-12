@@ -252,13 +252,13 @@ const TimeInput: React.FC<TimeInputProps> = ({
 
   // 渲染快速设置按钮
   const renderQuickButtons = () => (
-    <Space size="small" wrap style={{ marginTop: 8 }}>
-      <Button size="small" onClick={() => quickSetTime(30)}>30分钟</Button>
-      <Button size="small" onClick={() => quickSetTime(60)}>1小时</Button>
-      <Button size="small" onClick={() => quickSetTime(240)}>半天</Button>
-      <Button size="small" onClick={() => quickSetTime(480)}>1天</Button>
-      <Button size="small" onClick={() => quickSetTime(1440)}>3天</Button>
-      <Button size="small" onClick={() => quickSetTime(2400)}>1周</Button>
+    <Space  wrap style={{ marginTop: 8 }}>
+      <Button  onClick={() => quickSetTime(30)}>30分钟</Button>
+      <Button  onClick={() => quickSetTime(60)}>1小时</Button>
+      <Button  onClick={() => quickSetTime(240)}>半天</Button>
+      <Button  onClick={() => quickSetTime(480)}>1天</Button>
+      <Button  onClick={() => quickSetTime(1440)}>3天</Button>
+      <Button  onClick={() => quickSetTime(2400)}>1周</Button>
     </Space>
   );
 
@@ -274,7 +274,7 @@ const TimeInput: React.FC<TimeInputProps> = ({
             min={1}
             max={24}
             precision={1}
-            size="small"
+            
             style={{ width: 80, marginLeft: 8 }}
             addonAfter="小时"
           />
@@ -285,7 +285,7 @@ const TimeInput: React.FC<TimeInputProps> = ({
           <Select
             value={timeTrackingMode}
             onChange={setTimeTrackingMode}
-            size="small"
+            
             style={{ width: 120, marginLeft: 8 }}
           >
             <Option value="manual">手动</Option>
@@ -325,7 +325,7 @@ const TimeInput: React.FC<TimeInputProps> = ({
             <div style={{ marginTop: 8 }}>
               <Button
                 type="link"
-                size="small"
+                
                 icon={<SwapOutlined />}
                 onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
                 style={{ padding: 0, height: 'auto' }}

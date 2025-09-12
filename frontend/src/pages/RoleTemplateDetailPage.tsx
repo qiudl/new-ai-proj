@@ -351,7 +351,7 @@ const RoleTemplateDetailPage: React.FC = () => {
               ),
               children: template ? (
                 <div>
-                  <Descriptions bordered column={2} size="small">
+                  <Descriptions bordered column={2} >
                     <Descriptions.Item label="模板名称">{template.template_name}</Descriptions.Item>
                     <Descriptions.Item label="模板代码">
                       <Text code>{template.template_code}</Text>
@@ -368,7 +368,7 @@ const RoleTemplateDetailPage: React.FC = () => {
                       <Space>
                         <Badge status={template.is_active ? 'success' : 'default'} />
                         <span>{template.is_active ? '激活' : '停用'}</span>
-                        {template.is_system_template && <Tag size="small" color="blue">系统</Tag>}
+                        {template.is_system_template && <Tag  color="blue">系统</Tag>}
                       </Space>
                     </Descriptions.Item>
                     <Descriptions.Item label="行业">{template.industry || '-'}</Descriptions.Item>
@@ -398,7 +398,7 @@ const RoleTemplateDetailPage: React.FC = () => {
                     showQuickJumper: true,
                     showTotal: (total) => `共 ${total} 项权限`
                   }}
-                  size="small"
+                  
                 />
               )
             },
@@ -412,7 +412,7 @@ const RoleTemplateDetailPage: React.FC = () => {
               ),
               children: (
                 <List
-                  size="small"
+                  
                   dataSource={usageHistory}
                   renderItem={(item: any) => (
                     <List.Item>
@@ -518,14 +518,14 @@ const RoleTemplateDetailPage: React.FC = () => {
               <label style={{ display: 'block', marginBottom: 8, fontWeight: 'bold' }}>
                 权限变更预览：
               </label>
-              <Card size="small">
-                <Tabs size="small" items={[
+              <Card >
+                <Tabs  items={[
                   ...(permissionDiff.toAdd.length > 0 ? [{
                     key: 'add',
                     label: `新增权限 (${permissionDiff.toAdd.length})`,
                     children: (
                       <List
-                        size="small"
+                        
                         dataSource={permissionDiff.toAdd}
                         renderItem={(item: any) => (
                           <List.Item>
@@ -544,7 +544,7 @@ const RoleTemplateDetailPage: React.FC = () => {
                     label: `删除权限 (${permissionDiff.toRemove.length})`,
                     children: (
                       <List
-                        size="small"
+                        
                         dataSource={permissionDiff.toRemove}
                         renderItem={(item: any) => (
                           <List.Item>
@@ -563,7 +563,7 @@ const RoleTemplateDetailPage: React.FC = () => {
                     label: `保持不变 (${permissionDiff.existing.length})`,
                     children: (
                       <List
-                        size="small"
+                        
                         dataSource={permissionDiff.existing}
                         renderItem={(item: any) => (
                           <List.Item>

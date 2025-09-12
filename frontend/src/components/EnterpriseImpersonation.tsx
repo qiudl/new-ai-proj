@@ -24,6 +24,7 @@ import {
   BuildOutlined
 } from '@ant-design/icons';
 import { User } from '../types/user';
+import { ImpersonationHistoryItem } from '../types/impersonation';
 import { useImpersonation } from '../contexts/ImpersonationContext';
 
 const { Title, Text } = Typography;
@@ -48,16 +49,7 @@ interface ImpersonationStatus {
   };
 }
 
-interface ImpersonationHistoryItem {
-  sessionId: string;
-  enterpriseId: number;
-  enterpriseName: string;
-  startedAt: string;
-  endedAt: string | null;
-  duration: string;
-  status: string;
-  reason: string;
-}
+// Using the global ImpersonationHistoryItem interface from types/impersonation.ts
 
 const EnterpriseImpersonation: React.FC = () => {
   // 使用新的 ImpersonationProvider 系统
@@ -155,7 +147,6 @@ const EnterpriseImpersonation: React.FC = () => {
       setReason('');
       
       // 手动触发token变化事件，确保状态同步
-      console.log('🔥 EnterpriseImpersonation: 触发token变化事件');
       triggerTokenChangeEvent();
       
     } catch (error) {
@@ -170,7 +161,6 @@ const EnterpriseImpersonation: React.FC = () => {
       await exitImpersonation();
       
       // 手动触发token变化事件，确保状态同步
-      console.log('🔥 EnterpriseImpersonation: 退出模拟后触发token变化事件');
       triggerTokenChangeEvent();
       
     } catch (error) {
@@ -196,7 +186,7 @@ const EnterpriseImpersonation: React.FC = () => {
     <>
       <Space>
         {isImpersonating ? (
-          <Card size="small" style={{ backgroundColor: '#fff2e8', border: '1px solid #ffbb96' }}>
+          <Card  style={{ backgroundColor: '#fff2e8', border: '1px solid #ffbb96' }}>
             <Space>
               <SafetyOutlined style={{ color: '#fa541c' }} />
               <div>
@@ -218,7 +208,7 @@ const EnterpriseImpersonation: React.FC = () => {
                 <Button
                   type="primary"
                   danger
-                  size="small"
+                  
                   icon={<LogoutOutlined />}
                   loading={impersonationLoading}
                 >
@@ -334,11 +324,11 @@ const EnterpriseImpersonation: React.FC = () => {
           </div>
 
           {selectedEnterpriseId && (
-            <Card size="small" title="选中企业信息">
+            <Card  title="选中企业信息">
               {(() => {
                 const selectedEnterprise = enterprises.find(e => e.id === selectedEnterpriseId);
                 return selectedEnterprise ? (
-                  <Descriptions column={1} size="small">
+                  <Descriptions column={1} >
                     <Descriptions.Item label="企业名称">
                       {selectedEnterprise.name}
                     </Descriptions.Item>

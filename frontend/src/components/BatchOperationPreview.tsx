@@ -215,7 +215,7 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
       <RiskWarnings warnings={[...warnings, ...(validationResult?.warnings || [])]} />
 
       {/* 操作概览 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
           <InfoCircleOutlined style={{ marginRight: 8 }} />
           操作概览
@@ -248,13 +248,13 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
       </Card>
 
       {/* 任务列表 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
           受影响的任务列表
         </Title>
         
         <List
-          size="small"
+          
           dataSource={selectedTasks}
           renderItem={(task) => (
             <List.Item>
@@ -279,7 +279,7 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
       </Card>
 
       {/* 层级结构预览 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card  style={{ marginBottom: 16 }}>
         <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
           操作后层级结构预览
         </Title>
@@ -294,7 +294,7 @@ const BatchOperationPreview: React.FC<BatchOperationPreviewProps> = ({
       </Card>
 
       {/* 操作统计 */}
-      <Card size="small">
+      <Card >
         <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
           操作统计信息
         </Title>

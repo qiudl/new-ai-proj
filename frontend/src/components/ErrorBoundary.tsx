@@ -125,12 +125,12 @@ class ErrorBoundary extends Component<Props, State> {
 
     return (
       <Card 
-        size="small" 
+         
         title="错误详情" 
         extra={
           <Button 
             type="link" 
-            size="small" 
+             
             onClick={this.toggleDetails}
           >
             {this.state.collapsed ? '展开' : '收起'}
@@ -223,7 +223,7 @@ class ErrorBoundary extends Component<Props, State> {
           <Space direction="vertical">
             <WarningOutlined style={{ fontSize: '24px', color: '#faad14' }} />
             <Text type="secondary">组件加载失败</Text>
-            <Button size="small" onClick={this.handleReset}>
+            <Button  onClick={this.handleReset}>
               重试
             </Button>
           </Space>

@@ -93,7 +93,7 @@ const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       notFoundContent={
         loading ? (
           <div style={{ textAlign: 'center', padding: '20px' }}>
-            <Spin size="small" />
+            <Spin  />
             <div style={{ marginTop: '8px', color: '#8c8c8c' }}>加载中...</div>
           </div>
         ) : (

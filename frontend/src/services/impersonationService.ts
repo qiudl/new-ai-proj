@@ -19,10 +19,8 @@ class ImpersonationService {
    */
   async getStatus(): Promise<ImpersonationStatus> {
     try {
-      console.log('🔍 获取模拟状态...');
       const response = await api.get<any>(`${this.baseUrl}/status`);
       
-      console.log('✅ 模拟状态获取成功:', response);
       
       // API拦截器已经处理了标准响应格式，直接返回了data部分
       // response就是原始data内容
@@ -36,7 +34,6 @@ class ImpersonationService {
       
       // 处理404或其他错误，返回默认状态
       if (error.response?.status === 404) {
-        console.log('ℹ️ 模拟状态API不存在，返回默认非模拟状态');
         return {
           is_impersonating: false
         };
@@ -51,7 +48,6 @@ class ImpersonationService {
    */
   async startImpersonation(enterpriseId: number, reason: string): Promise<StartImpersonationResponse> {
     try {
-      console.log('🚀 开始模拟企业:', { enterpriseId, reason });
       
       const requestData: StartImpersonationRequest = { reason };
       const response = await api.post<any>(
@@ -59,7 +55,6 @@ class ImpersonationService {
         requestData
       );
       
-      console.log('✅ 模拟开始请求成功:', response);
       
       // API拦截器已经处理了标准响应格式，直接返回了data部分
       // 所以response就是data内容，包含 token, enterprise, message 等
@@ -90,11 +85,9 @@ class ImpersonationService {
    */
   async exitImpersonation(): Promise<ExitImpersonationResponse> {
     try {
-      console.log('🚪 退出模拟...');
       
       const response = await api.post<any>(`${this.baseUrl}/exit`);
       
-      console.log('✅ 退出模拟请求成功:', response);
       
       // API拦截器已经处理了标准响应格式，直接返回了data部分
       if (response && (response.token || response.original_user)) {
@@ -126,7 +119,6 @@ class ImpersonationService {
     action?: 'start' | 'end';
   }): Promise<ImpersonationHistoryResponse> {
     try {
-      console.log('📋 获取模拟历史:', { page, pageSize, filters });
       
       const params = new URLSearchParams({
         page: page.toString(),
@@ -149,7 +141,6 @@ class ImpersonationService {
         `${this.baseUrl}/history?${params.toString()}`
       );
       
-      console.log('✅ 获取模拟历史成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 获取模拟历史失败:', error);
@@ -162,11 +153,9 @@ class ImpersonationService {
    */
   async forceExitSession(sessionId: string): Promise<ApiResponse> {
     try {
-      console.log('🛑 强制退出会话:', sessionId);
       
       const response = await api.post<ApiResponse>(`${this.baseUrl}/force-exit/${sessionId}`);
       
-      console.log('✅ 强制退出会话成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 强制退出会话失败:', error);
@@ -184,16 +173,13 @@ class ImpersonationService {
     restrictedActions: string[];
   }> {
     try {
-      console.log('🔐 检查模拟权限...');
       
       const response = await api.get<ApiResponse<any>>(`${this.baseUrl}/permissions`);
       
       if (response.success && response.data) {
-        console.log('✅ 权限检查成功:', response.data);
         return response.data;
       } else {
         // 如果API不存在，返回默认权限
-        console.log('ℹ️ 权限检查API不存在，返回默认权限');
         return {
           canStartImpersonation: false,
           canExitImpersonation: false,
@@ -223,12 +209,10 @@ class ImpersonationService {
    */
   async getActiveSessions(): Promise<ImpersonationHistoryItem[]> {
     try {
-      console.log('🔍 获取活跃模拟会话...');
       
       const response = await api.get<ApiResponse<ImpersonationHistoryItem[]>>(`${this.baseUrl}/active-sessions`);
       
       if (response.success && response.data) {
-        console.log('✅ 获取活跃会话成功:', response.data);
         return response.data;
       } else {
         return [];
@@ -249,11 +233,9 @@ class ImpersonationService {
    */
   async refreshToken(): Promise<{ token: string }> {
     try {
-      console.log('🔄 刷新模拟令牌...');
       
       const response = await api.post<{ token: string }>(`${this.baseUrl}/refresh-token`);
       
-      console.log('✅ 刷新令牌成功');
       return response;
     } catch (error: any) {
       console.error('❌ 刷新令牌失败:', error);
@@ -318,7 +300,6 @@ class ImpersonationService {
     }>;
   }> {
     try {
-      console.log('📊 获取模拟统计信息...');
       
       const params = new URLSearchParams();
       if (startDate) params.append('start_date', startDate);
@@ -326,7 +307,6 @@ class ImpersonationService {
 
       const response = await api.get<any>(`${this.baseUrl}/stats?${params.toString()}`);
       
-      console.log('✅ 获取统计信息成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 获取统计信息失败:', error);
@@ -339,14 +319,12 @@ class ImpersonationService {
    */
   async extendSession(minutes: number = 60): Promise<ImpersonationSession> {
     try {
-      console.log('⏰ 延长模拟会话:', minutes, '分钟');
       
       const response = await api.post<{ session: ImpersonationSession }>(
         `${this.baseUrl}/extend`,
         { minutes }
       );
       
-      console.log('✅ 延长会话成功:', response);
       return response.session;
     } catch (error: any) {
       console.error('❌ 延长会话失败:', error);
@@ -363,14 +341,12 @@ class ImpersonationService {
     restrictions?: string[];
   }> {
     try {
-      console.log('🔒 验证模拟权限:', { action, enterpriseId });
       
       const response = await api.post<any>(`${this.baseUrl}/validate-permission`, {
         action,
         enterpriseId
       });
       
-      console.log('✅ 权限验证成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 权限验证失败:', error);
@@ -399,7 +375,6 @@ class ImpersonationService {
     };
   }> {
     try {
-      console.log('📋 获取审计日志:', { sessionId, page, pageSize });
       
       const params = new URLSearchParams({
         page: page.toString(),
@@ -412,7 +387,6 @@ class ImpersonationService {
 
       const response = await api.get<any>(`${this.baseUrl}/audit-logs?${params.toString()}`);
       
-      console.log('✅ 获取审计日志成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 获取审计日志失败:', error);
@@ -425,13 +399,11 @@ class ImpersonationService {
    */
   async adminTerminateSession(sessionId: string, reason?: string): Promise<void> {
     try {
-      console.log('🛑 管理员强制终止会话:', { sessionId, reason });
       
       await api.post(`${this.baseUrl}/admin/terminate/${sessionId}`, {
         reason
       });
       
-      console.log('✅ 强制终止会话成功');
     } catch (error: any) {
       console.error('❌ 强制终止会话失败:', error);
       throw this.handleError(error, '强制终止会话失败');
@@ -449,13 +421,11 @@ class ImpersonationService {
     };
   }> {
     try {
-      console.log('🔍 批量检查企业模拟权限:', enterpriseIds);
       
       const response = await api.post<any>(`${this.baseUrl}/batch-check-permissions`, {
         enterpriseIds
       });
       
-      console.log('✅ 批量权限检查成功:', response);
       return response;
     } catch (error: any) {
       console.error('❌ 批量权限检查失败:', error);

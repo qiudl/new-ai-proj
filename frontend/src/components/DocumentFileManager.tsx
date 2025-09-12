@@ -361,7 +361,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onSelect(document);
               }}
-              size="small"
+              
             />
             <Button
               type="text"
@@ -370,7 +370,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onEdit(document);
               }}
-              size="small"
+              
             />
             <Button
               type="text"
@@ -381,7 +381,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 const event = new CustomEvent('copyDocument', { detail: document });
                 window.dispatchEvent(event);
               }}
-              size="small"
+              
             />
             <Button
               type="text"
@@ -390,7 +390,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 // TODO: 显示更多操作菜单
               }}
-              size="small"
+              
             />
             <Button
               type="text"
@@ -400,7 +400,7 @@ const SortableDocument: React.FC<SortableDocumentProps> = ({
                 e.stopPropagation();
                 onDelete(document);
               }}
-              size="small"
+              
             />
           </Space>
         </div>
@@ -1103,7 +1103,7 @@ const handleEditDocument = async (values: any) => {
       width: 100,
       render: (name?: string) => (
         <Space>
-          <Avatar size="small" icon={<UserOutlined />} />
+          <Avatar  icon={<UserOutlined />} />
           <Text>{name}</Text>
         </Space>
       )
@@ -1180,11 +1180,11 @@ const handleEditDocument = async (values: any) => {
         ];
 
         return (
-          <Space size="small">
+          <Space >
             <Tooltip title="查看">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EyeOutlined />}
                 onClick={() => {
                   // 导航到文档详情页面
@@ -1195,7 +1195,7 @@ const handleEditDocument = async (values: any) => {
             <Tooltip title="编辑">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<EditOutlined />}
                 onClick={() => {
                   // 导航到文档编辑页面
@@ -1206,7 +1206,7 @@ const handleEditDocument = async (values: any) => {
             <Tooltip title="下载">
               <Button
                 type="text"
-                size="small"
+                
                 icon={<DownloadOutlined />}
                 onClick={() => handleDownloadDocument(record)}
               />
@@ -1219,7 +1219,7 @@ const handleEditDocument = async (values: any) => {
               <Tooltip title="更多">
                 <Button
                   type="text"
-                  size="small"
+                  
                   icon={<MoreOutlined />}
                 />
               </Tooltip>
@@ -1234,7 +1234,7 @@ const handleEditDocument = async (values: any) => {
               <Tooltip title="删除">
                 <Button
                   type="text"
-                  size="small"
+                  
                   danger
                   icon={<DeleteOutlined />}
                 />
@@ -1289,7 +1289,7 @@ const handleEditDocument = async (values: any) => {
               <>
                 <Button
                   onClick={toggleSelectAll}
-                  size="small"
+                  
                 >
                   {selectedDocuments.length === filteredDocuments.length ? '取消全选' : '全选'}
                 </Button>
@@ -1385,7 +1385,7 @@ const handleEditDocument = async (values: any) => {
               value={filterType}
               onChange={setFilterType}
               style={{ width: 100 }}
-              size="small"
+              
             >
               <Option value="all">全部类型</Option>
               {Object.entries(DOCUMENT_TYPES).map(([key, config]) => (
@@ -1402,7 +1402,7 @@ const handleEditDocument = async (values: any) => {
                 setSortOrder(order as 'asc' | 'desc');
               }}
               style={{ width: 120 }}
-              size="small"
+              
             >
               <Option value="updated_at-desc">最近更新</Option>
               <Option value="created_at-desc">最近创建</Option>
@@ -1414,7 +1414,7 @@ const handleEditDocument = async (values: any) => {
             <Radio.Group
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value)}
-              size="small"
+              
             >
               <Radio.Button value="list">
                 <UnorderedListOutlined />

@@ -361,7 +361,6 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
         lineHeight: 1.4,
         fallbackFont: 'helvetica'  // 如果中文字体加载失败，使用helvetica作为后备
       });
-      console.log('📄 PDF字体配置完成');
     } catch (fontError) {
       console.warn('⚠️ 字体配置失败，使用默认字体:', fontError.message);
       // 即使字体配置失败，也继续生成PDF
@@ -514,7 +513,6 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
       const fallbackOutput = fallbackPdf.output('blob');
       if (fallbackOutput && fallbackOutput.size > 0) {
         fallbackPdf.save(config.filename);
-        console.log('✅ 使用后备PDF导出成功');
         return true;
       } else {
         throw new Error('PDF内容为空，导出失败');

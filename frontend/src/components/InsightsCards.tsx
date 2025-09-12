@@ -30,16 +30,16 @@ export const InsightsCards: React.FC<{ stats: InsightsStats }> = ({ stats }) => 
           </div>
           <div style={{ marginTop: 12 }}>
             <div>完成率</div>
-            <Progress percent={donePct} size="small" />
+            <Progress percent={donePct}  />
           </div>
         </Card>
       </Col>
       <Col xs={24} md={8}>
         <Card title="进行中/逾期">
           <div style={{ marginBottom: 8 }}>进行中占比</div>
-          <Progress percent={inProgPct} size="small" status="active" />
+          <Progress percent={inProgPct}  status="active" />
           <div style={{ marginTop: 12 }}>逾期占比</div>
-          <Progress percent={overduePct} size="small" status={overduePct > 0 ? 'exception' : 'normal'} />
+          <Progress percent={overduePct}  status={overduePct > 0 ? 'exception' : 'normal'} />
           <div style={{ marginTop: 8 }}>
             <Tag color="red">逾期 {overdue}</Tag>
           </div>

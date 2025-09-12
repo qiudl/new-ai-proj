@@ -160,7 +160,7 @@ const TaskSummaryEditor: React.FC<TaskSummaryEditorProps> = ({
         
         <Space>
           <Button 
-            size="small" 
+             
             icon={<RobotOutlined />} 
             onClick={generateAISummary}
             loading={aiGenerating}
@@ -169,7 +169,7 @@ const TaskSummaryEditor: React.FC<TaskSummaryEditorProps> = ({
             AI生成
           </Button>
           <Button 
-            size="small" 
+             
             icon={<SaveOutlined />} 
             type="primary" 
             onClick={handleSave}
@@ -178,7 +178,7 @@ const TaskSummaryEditor: React.FC<TaskSummaryEditorProps> = ({
             保存
           </Button>
           <Button 
-            size="small" 
+             
             icon={<CloseOutlined />} 
             onClick={handleCancel}
           >
@@ -230,7 +230,7 @@ const TaskSummaryEditor: React.FC<TaskSummaryEditorProps> = ({
           <Tooltip title="编辑摘要">
             <Button 
               type="text" 
-              size="small" 
+               
               icon={<EditOutlined />} 
               onClick={handleEdit}
               style={{ 

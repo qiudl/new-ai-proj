@@ -523,7 +523,7 @@ const UserManagementPage: React.FC = () => {
       sorter: true,
       sortOrder: sortField === 'username' ? sortOrder : null,
       render: (_, user) => (
-        <Space size="small">
+        <Space >
           <Avatar 
             size={32}
             src={user.profile?.avatar} 
@@ -554,14 +554,14 @@ const UserManagementPage: React.FC = () => {
       render: (_, user) => (
         <div>
           <Tag 
-            size="small"
+            
             color={USER_TYPE_CONFIG[user.user_type].color}
             style={{ marginBottom: '2px' }}
           >
             {USER_TYPE_CONFIG[user.user_type].label}
           </Tag>
           <br />
-          <Tag size="small" color={USER_ROLE_CONFIG[user.role]?.color}>
+          <Tag  color={USER_ROLE_CONFIG[user.role]?.color}>
             {USER_ROLE_CONFIG[user.role]?.label || user.role}
           </Tag>
         </div>
@@ -576,7 +576,7 @@ const UserManagementPage: React.FC = () => {
       sortOrder: sortField === 'status' ? sortOrder : null,
       render: (status: UserStatus) => (
         <Badge 
-          size="small"
+          
           status={status === 'active' ? 'success' : status === 'inactive' ? 'warning' : 'error'}
           text={USER_STATUS_CONFIG[status].label}
         />
@@ -647,7 +647,7 @@ const UserManagementPage: React.FC = () => {
             <Tooltip title="编辑">
               <Button 
                 type="text" 
-                size="small" 
+                 
                 icon={<EditOutlined />}
                 onClick={() => openEditModal(user)}
                 style={{ padding: '2px 4px' }}
@@ -705,7 +705,7 @@ const UserManagementPage: React.FC = () => {
               <Tooltip title="更多操作">
                 <Button 
                   type="text" 
-                  size="small" 
+                   
                   icon={<DownOutlined />} 
                   style={{ padding: '2px 4px' }}
                 />
@@ -897,7 +897,7 @@ const UserManagementPage: React.FC = () => {
               placeholder="搜索用户名、邮箱、姓名..."
               allowClear
               onSearch={handleSearch}
-              size="small"
+              
               style={{ width: '100%' }}
             />
           </Col>
@@ -906,7 +906,7 @@ const UserManagementPage: React.FC = () => {
               mode="multiple"
               placeholder="企业"
               allowClear
-              size="small"
+              
               style={{ width: '100%' }}
               value={searchParams.enterprise_ids}
               onChange={(value) => handleFilter('enterprise_ids', value)}
@@ -923,7 +923,7 @@ const UserManagementPage: React.FC = () => {
             <Select
               placeholder="类型"
               allowClear
-              size="small"
+              
               style={{ width: '100%' }}
               value={searchParams.user_type}
               onChange={(value) => handleFilter('user_type', value)}
@@ -937,7 +937,7 @@ const UserManagementPage: React.FC = () => {
             <Select
               placeholder="角色"
               allowClear
-              size="small"
+              
               style={{ width: '100%' }}
               value={searchParams.role}
               onChange={(value) => handleFilter('role', value)}
@@ -951,7 +951,7 @@ const UserManagementPage: React.FC = () => {
             <Select
               placeholder="状态"
               allowClear
-              size="small"
+              
               style={{ width: '100%' }}
               value={searchParams.status}
               onChange={(value) => handleFilter('status', value)}
@@ -962,12 +962,12 @@ const UserManagementPage: React.FC = () => {
             </Select>
           </Col>
           <Col xs={24} sm={24} md={4} lg={4}>
-            <Space size="small">
+            <Space >
               <PermissionWrapper permission={USER_PERMISSIONS.CREATE}>
                 <Button 
                   type="primary" 
                   icon={<PlusOutlined />}
-                  size="small"
+                  
                   onClick={() => {
                     setSelectedUserType('system');
                     createForm.resetFields();
@@ -983,7 +983,7 @@ const UserManagementPage: React.FC = () => {
               </PermissionWrapper>
               <Button 
                 icon={<ReloadOutlined />}
-                size="small"
+                
                 onClick={() => {
                   refreshUsers();
                   refreshStats();
@@ -1017,7 +1017,7 @@ const UserManagementPage: React.FC = () => {
               >
                 <Button 
                   icon={<SettingOutlined />}
-                  size="small"
+                  
                   title="列设置"
                 />
               </Popover>
@@ -1057,7 +1057,7 @@ const UserManagementPage: React.FC = () => {
           columns={columns}
           dataSource={users}
           loading={usersLoading}
-          size="small"
+          
           rowSelection={{
             selectedRowKeys,
             onChange: setSelectedRowKeys,

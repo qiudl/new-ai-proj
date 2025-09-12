@@ -246,7 +246,7 @@ const ProjectGlobalGanttTestPage: React.FC<ProjectGlobalGanttTestPageProps> = ()
                   <span>项目选择</span>
                 </Space>
               }
-              size="small"
+              
             >
               <Space direction="vertical" style={{ width: '100%' }}>
                 <div>
@@ -295,7 +295,7 @@ const ProjectGlobalGanttTestPage: React.FC<ProjectGlobalGanttTestPageProps> = ()
                   <span>全局统计</span>
                 </Space>
               }
-              size="small"
+              
               style={{ marginTop: '16px' }}
             >
               <Row gutter={[8, 16]}>
@@ -358,7 +358,7 @@ const ProjectGlobalGanttTestPage: React.FC<ProjectGlobalGanttTestPageProps> = ()
                   <span>功能验证</span>
                 </Space>
               }
-              size="small"
+              
               style={{ marginTop: '16px' }}
             >
               <div style={{ fontSize: '12px', lineHeight: '1.6' }}>

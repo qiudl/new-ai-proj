@@ -192,7 +192,7 @@ const InteractiveGanttTestPage: React.FC<InteractiveGanttTestPageProps> = () => 
                   value={testMode}
                   onChange={setTestMode}
                   style={{ width: 120 }}
-                  size="small"
+                  
                 >
                   <Option value="edit">编辑模式</Option>
                   <Option value="batch">批量模式</Option>
@@ -217,7 +217,7 @@ const InteractiveGanttTestPage: React.FC<InteractiveGanttTestPageProps> = () => 
                 <span>项目选择</span>
               </Space>
             }
-            size="small"
+            
           >
             <Space direction="vertical" style={{ width: '100%' }}>
               <div>
@@ -266,7 +266,7 @@ const InteractiveGanttTestPage: React.FC<InteractiveGanttTestPageProps> = () => 
                 <span>数据统计</span>
               </Space>
             }
-            size="small"
+            
             style={{ marginTop: '16px' }}
           >
             <Row gutter={[8, 16]}>
@@ -324,7 +324,7 @@ const InteractiveGanttTestPage: React.FC<InteractiveGanttTestPageProps> = () => 
                 <span>功能验证</span>
               </Space>
             }
-            size="small"
+            
             style={{ marginTop: '16px' }}
           >
             <div style={{ fontSize: '12px', lineHeight: '1.6' }}>

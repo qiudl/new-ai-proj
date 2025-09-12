@@ -451,7 +451,7 @@ const AIConfigPage: React.FC = () => {
     return (
       <div style={{ padding: '0 16px' }}>
         {/* 提供商信息 */}
-        <Card size="small" style={{ marginBottom: 16 }}>
+        <Card  style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col span={16}>
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
@@ -478,7 +478,7 @@ const AIConfigPage: React.FC = () => {
             </Col>
             <Col span={8}>
               <div style={{ textAlign: 'right' }}>
-                <Space direction="vertical" size="small">
+                <Space direction="vertical" >
                   <Tag color="blue">
                     <DollarOutlined /> {info.pricing}
                   </Tag>
@@ -686,7 +686,7 @@ const AIConfigPage: React.FC = () => {
                 {/* 显示测试对话 */}
                 {testResult.result.success && testResult.result.conversation && (
                   <Card 
-                    size="small" 
+                     
                     title={
                       <Space>
                         <RobotOutlined style={{ color: '#1890ff' }} />
@@ -781,7 +781,7 @@ const AIConfigPage: React.FC = () => {
                 <Button 
                   type="text" 
                   icon={<ReloadOutlined />} 
-                  size="small"
+                  
                   onClick={loadConfigs}
                 />
               </Tooltip>

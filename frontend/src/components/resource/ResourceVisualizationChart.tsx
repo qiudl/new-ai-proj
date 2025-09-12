@@ -123,7 +123,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
         <Row gutter={[16, 16]}>
           {utilizationData.map(data => (
             <Col key={data.resourceId} span={24}>
-              <Card size="small" className={`resource-card ${data.status}`}>
+              <Card  className={`resource-card ${data.status}`}>
                 <Row align="middle" gutter={16}>
                   <Col span={6}>
                     <Text strong>{data.resourceName}</Text>
@@ -158,7 +158,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
                   <Col span={2}>
                     <Button
                       type="text"
-                      size="small"
+                      
                       icon={<InfoCircleOutlined />}
                       onClick={() => setSelectedResource(data.resourceId)}
                     />
@@ -305,7 +305,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
             showIcon
             style={{ marginTop: 16 }}
             action={
-              <Button size="small" onClick={() => onRebalance?.('LEAST_CONNECTIONS')}>
+              <Button  onClick={() => onRebalance?.('LEAST_CONNECTIONS')}>
                 重新平衡
               </Button>
             }
@@ -383,7 +383,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
         render: (_, record) => (
           <Space>
             <Button 
-              size="small" 
+               
               type="primary"
               onClick={() => {
                 // 实施建议的逻辑
@@ -403,7 +403,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
         dataSource={loadBalancingResult.suggestions}
         rowKey={(record, index) => `suggestion_${index}`}
         pagination={false}
-        size="small"
+        
       />
     );
   }, [loadBalancingResult?.suggestions]);
@@ -444,7 +444,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
           <Space>
             <BarChartOutlined />
             <span>资源可视化分析</span>
-            <Badge count={utilizationData.filter(d => d.status !== 'normal').length} size="small">
+            <Badge count={utilizationData.filter(d => d.status !== 'normal').length} >
               <InfoCircleOutlined style={{ color: '#1890ff' }} />
             </Badge>
           </Space>
@@ -455,7 +455,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
               value={chartType}
               onChange={setChartType}
               style={{ width: 150 }}
-              size="small"
+              
             >
               <Option value="utilization_bar">利用率视图</Option>
               <Option value="allocation_pie">分配饼图</Option>
@@ -466,7 +466,7 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
               value={timeRange}
               onChange={setTimeRange}
               style={{ width: 100 }}
-              size="small"
+              
             >
               <Option value="1d">1天</Option>
               <Option value="1w">1周</Option>
@@ -478,11 +478,11 @@ const ResourceVisualizationChart: React.FC<ResourceVisualizationChartProps> = ({
               onChange={setShowEfficiency}
               checkedChildren="效率"
               unCheckedChildren="效率"
-              size="small"
+              
             />
-            <Button icon={<ReloadOutlined />} size="small" loading={loading} />
-            <Button icon={<DownloadOutlined />} size="small" />
-            <Button icon={<SettingOutlined />} size="small" />
+            <Button icon={<ReloadOutlined />}  loading={loading} />
+            <Button icon={<DownloadOutlined />}  />
+            <Button icon={<SettingOutlined />}  />
           </Space>
         }
       >

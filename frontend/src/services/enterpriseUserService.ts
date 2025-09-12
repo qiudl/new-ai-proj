@@ -102,10 +102,8 @@ class EnterpriseUserService {
 
   // 统一的 API 响应处理函数
   private handleApiResponse<T>(response: any): T {
-    console.log('EnterpriseUserService API Response:', response);
     
     if (!response) {
-      console.warn('API返回空响应，使用默认值');
       return {
         data: [],
         pagination: {
@@ -143,7 +141,6 @@ class EnterpriseUserService {
   // 获取企业用户列表
   async getUsers(page: number = 1, pageSize: number = 20, filters?: any): Promise<PaginatedResponse<EnterpriseUser>> {
     try {
-      console.log('👥 获取企业用户列表，页码:', page, '每页大小:', pageSize, '筛选条件:', filters);
       const params = new URLSearchParams({
         page: page.toString(),
         pageSize: pageSize.toString(),
@@ -151,7 +148,6 @@ class EnterpriseUserService {
       });
       const response = await api.get(`${this.API_BASE_URL}?${params}`);
       const result = this.handleApiResponse<PaginatedResponse<EnterpriseUser>>(response.data);
-      console.log('✅ 获取企业用户列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取企业用户列表失败:', error);
@@ -162,10 +158,8 @@ class EnterpriseUserService {
   // 获取单个用户详情
   async getUser(id: number): Promise<EnterpriseUser> {
     try {
-      console.log('👤 获取用户详情，ID:', id);
       const response = await api.get(`${this.API_BASE_URL}/${id}`);
       const result = this.handleApiResponse<EnterpriseUser>(response.data);
-      console.log('✅ 获取用户详情成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取用户详情失败:', error);
@@ -176,10 +170,8 @@ class EnterpriseUserService {
   // 创建用户
   async createUser(user: CreateUserRequest): Promise<EnterpriseUser> {
     try {
-      console.log('👤 创建用户:', user);
       const response = await api.post(`${this.API_BASE_URL}`, user);
       const result = this.handleApiResponse<EnterpriseUser>(response.data);
-      console.log('✅ 创建用户成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 创建用户失败:', error);
@@ -190,10 +182,8 @@ class EnterpriseUserService {
   // 更新用户
   async updateUser(id: number, user: UpdateUserRequest): Promise<EnterpriseUser> {
     try {
-      console.log('👤 更新用户，ID:', id, '数据:', user);
       const response = await api.put(`${this.API_BASE_URL}/${id}`, user);
       const result = this.handleApiResponse<EnterpriseUser>(response.data);
-      console.log('✅ 更新用户成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 更新用户失败:', error);
@@ -204,9 +194,7 @@ class EnterpriseUserService {
   // 删除用户
   async deleteUser(id: number): Promise<void> {
     try {
-      console.log('👤 删除用户，ID:', id);
       await api.delete(`${this.API_BASE_URL}/${id}`);
-      console.log('✅ 删除用户成功');
     } catch (error) {
       console.error('❌ 删除用户失败:', error);
       throw error;
@@ -216,9 +204,7 @@ class EnterpriseUserService {
   // 批量操作用户
   async batchUserOperation(request: BatchUserOperationRequest): Promise<void> {
     try {
-      console.log('👥 批量操作用户:', request);
       await api.post(`${this.API_BASE_URL}/batch`, request);
-      console.log('✅ 批量操作用户成功');
     } catch (error) {
       console.error('❌ 批量操作用户失败:', error);
       throw error;
@@ -228,10 +214,8 @@ class EnterpriseUserService {
   // 邀请用户
   async inviteUser(invitation: InviteUserRequest): Promise<UserInvitation> {
     try {
-      console.log('📧 邀请用户:', invitation);
       const response = await api.post('/organization/invitations', invitation);
       const result = this.handleApiResponse<UserInvitation>(response.data);
-      console.log('✅ 邀请用户成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 邀请用户失败:', error);
@@ -242,10 +226,8 @@ class EnterpriseUserService {
   // 获取用户邀请列表
   async getInvitations(): Promise<UserInvitation[]> {
     try {
-      console.log('📧 获取用户邀请列表...');
       const response = await api.get('/organization/invitations');
       const result = this.handleApiResponse<UserInvitation[]>(response.data);
-      console.log('✅ 获取用户邀请列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取用户邀请列表失败:', error);
@@ -256,9 +238,7 @@ class EnterpriseUserService {
   // 重新发送邀请
   async resendInvitation(invitationId: number): Promise<void> {
     try {
-      console.log('📧 重新发送邀请，ID:', invitationId);
       await api.post(`/organization/invitations/${invitationId}/resend`);
-      console.log('✅ 重新发送邀请成功');
     } catch (error) {
       console.error('❌ 重新发送邀请失败:', error);
       throw error;
@@ -268,9 +248,7 @@ class EnterpriseUserService {
   // 取消邀请
   async cancelInvitation(invitationId: number): Promise<void> {
     try {
-      console.log('📧 取消邀请，ID:', invitationId);
       await api.delete(`/organization/invitations/${invitationId}`);
-      console.log('✅ 取消邀请成功');
     } catch (error) {
       console.error('❌ 取消邀请失败:', error);
       throw error;
@@ -284,10 +262,8 @@ class EnterpriseUserService {
         ? `/organization/activities?user_id=${userId}`
         : '/organization/activities';
       
-      console.log('📝 获取用户活动日志，用户ID:', userId);
       const response = await api.get(url);
       const result = this.handleApiResponse<UserActivity[]>(response.data);
-      console.log('✅ 获取用户活动日志成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取用户活动日志失败:', error);
@@ -298,10 +274,8 @@ class EnterpriseUserService {
   // 重置用户密码
   async resetUserPassword(userId: number): Promise<{ temporaryPassword: string }> {
     try {
-      console.log('🔐 重置用户密码，用户ID:', userId);
       const response = await api.post(`${this.API_BASE_URL}/${userId}/reset-password`);
       const result = this.handleApiResponse<{ temporaryPassword: string }>(response.data);
-      console.log('✅ 重置用户密码成功');
       return result;
     } catch (error) {
       console.error('❌ 重置用户密码失败:', error);
@@ -313,9 +287,7 @@ class EnterpriseUserService {
   async toggleUserLock(userId: number, lock: boolean): Promise<void> {
     try {
       const action = lock ? 'lock' : 'unlock';
-      console.log(`🔒 ${lock ? '锁定' : '解锁'}用户，用户ID:`, userId);
       await api.post(`${this.API_BASE_URL}/${userId}/${action}`);
-      console.log(`✅ ${lock ? '锁定' : '解锁'}用户成功`);
     } catch (error) {
       console.error(`❌ ${lock ? '锁定' : '解锁'}用户失败:`, error);
       throw error;
@@ -325,10 +297,8 @@ class EnterpriseUserService {
   // 获取可用的角色列表
   async getAvailableRoles(): Promise<{id: number; name: string}[]> {
     try {
-      console.log('🛡️ 获取可用角色列表...');
       const response = await api.get('/organization/roles/simple');
       const result = this.handleApiResponse<{id: number; name: string}[]>(response.data);
-      console.log('✅ 获取可用角色列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取可用角色列表失败:', error);
@@ -339,10 +309,8 @@ class EnterpriseUserService {
   // 获取可用的部门列表
   async getAvailableDepartments(): Promise<{id: number; name: string}[]> {
     try {
-      console.log('🏢 获取可用部门列表...');
       const response = await api.get('/organization/departments/simple');
       const result = this.handleApiResponse<{id: number; name: string}[]>(response.data);
-      console.log('✅ 获取可用部门列表成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取可用部门列表失败:', error);
@@ -361,7 +329,6 @@ class EnterpriseUserService {
     recentActivities: number;
   }> {
     try {
-      console.log('📊 获取用户统计信息...');
       const response = await api.get(`${this.API_BASE_URL}/stats`);
       const result = this.handleApiResponse<{
         totalUsers: number;
@@ -372,7 +339,6 @@ class EnterpriseUserService {
         usersByRole: { role_name: string; user_count: number }[];
         recentActivities: number;
       }>(response.data);
-      console.log('✅ 获取用户统计信息成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 获取用户统计信息失败:', error);
@@ -392,11 +358,9 @@ class EnterpriseUserService {
   // 导出用户数据
   async exportUsers(format: 'csv' | 'excel' = 'excel'): Promise<Blob> {
     try {
-      console.log('📤 导出用户数据，格式:', format);
       const response = await api.get(`${this.API_BASE_URL}/export?format=${format}`, {
         responseType: 'blob'
       });
-      console.log('✅ 导出用户数据成功');
       return response.data;
     } catch (error) {
       console.error('❌ 导出用户数据失败:', error);
@@ -411,7 +375,6 @@ class EnterpriseUserService {
     errors: string[];
   }> {
     try {
-      console.log('📥 批量导入用户，文件:', file.name);
       const formData = new FormData();
       formData.append('file', file);
       
@@ -425,7 +388,6 @@ class EnterpriseUserService {
         error_count: number;
         errors: string[];
       }>(response.data);
-      console.log('✅ 批量导入用户成功:', result);
       return result;
     } catch (error) {
       console.error('❌ 批量导入用户失败:', error);

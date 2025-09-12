@@ -246,7 +246,7 @@ export class AssignedEventRenderer extends BaseEventRenderer {
     return (
       <Text>
         <Text strong>{event.username || '系统'}</Text> 将任务分配给
-        <Avatar size="small" style={{ margin: '0 4px', backgroundColor: '#13c2c2' }}>
+        <Avatar  style={{ margin: '0 4px', backgroundColor: '#13c2c2' }}>
           {String(assignedTo).charAt(0).toUpperCase()}
         </Avatar>
         <Text strong>{assignedTo}</Text>
@@ -561,7 +561,7 @@ export class SeverityRenderer {
     };
     
     const { color, text } = config[severity];
-    return <Tag color={color} size="small">{text}</Tag>;
+    return <Tag color={color} >{text}</Tag>;
   }
 }
 
@@ -596,6 +596,6 @@ export class CategoryRenderer {
     };
     
     const { color, text } = config[category];
-    return <Tag color={color} size="small">{text}</Tag>;
+    return <Tag color={color} >{text}</Tag>;
   }
 }

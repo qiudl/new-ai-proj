@@ -293,7 +293,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 基础设置标签页
   const renderBasicSettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="默认设置" size="small">
+      <Card title="默认设置" >
         <Row gutter={[16, 16]}>
           <Col span={12}>
             <Form.Item
@@ -338,7 +338,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Row>
       </Card>
 
-      <Card title="行为设置" size="small">
+      <Card title="行为设置" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="auto_start_on_create"
@@ -365,7 +365,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Space>
       </Card>
 
-      <Card title="空闲检测" size="small">
+      <Card title="空闲检测" >
         <Form.Item
           name="idle_detection_minutes"
           label="空闲检测时间（分钟）"
@@ -390,7 +390,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 通知设置标签页
   const renderNotificationSettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="通知开关" size="small">
+      <Card title="通知开关" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="notification_enabled"
@@ -423,7 +423,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Space>
       </Card>
 
-      <Card title="提示音设置" size="small">
+      <Card title="提示音设置" >
         <Form.Item
           name="notification_sound"
           label="通知提示音"
@@ -443,7 +443,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 番茄钟设置标签页
   const renderPomodoroSettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="番茄钟时长设置" size="small">
+      <Card title="番茄钟时长设置" >
         <Row gutter={[16, 16]}>
           <Col span={8}>
             <Form.Item
@@ -488,7 +488,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Form.Item>
       </Card>
 
-      <Card title="自动化设置" size="small">
+      <Card title="自动化设置" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="auto_start_breaks"
@@ -512,7 +512,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 智能功能设置标签页
   const renderAISettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="智能推断" size="small">
+      <Card title="智能推断" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="enable_auto_inference"
@@ -544,7 +544,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Space>
       </Card>
 
-      <Card title="智能建议" size="small">
+      <Card title="智能建议" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="enable_smart_suggestions"
@@ -577,7 +577,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 界面设置标签页
   const renderUISettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="显示设置" size="small">
+      <Card title="显示设置" >
         <Row gutter={[16, 16]}>
           <Col span={12}>
             <Form.Item
@@ -642,7 +642,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
   // 数据和隐私设置标签页
   const renderDataPrivacySettings = () => (
     <Space direction="vertical" style={{ width: '100%' }} size="large">
-      <Card title="数据收集" size="small">
+      <Card title="数据收集" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="data_collection_enabled"
@@ -663,7 +663,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         </Space>
       </Card>
 
-      <Card title="数据导出和备份" size="small">
+      <Card title="数据导出和备份" >
         <Row gutter={[16, 16]}>
           <Col span={12}>
             <Form.Item
@@ -706,7 +706,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
         style={{ marginBottom: 16 }}
       />
       
-      <Card title="实验性功能" size="small">
+      <Card title="实验性功能" >
         <Space direction="vertical" style={{ width: '100%' }}>
           <Form.Item
             name="experimental_features"
@@ -764,7 +764,7 @@ export const UserTimerPreferences: React.FC<UserTimerPreferencesProps> = ({
               <span>
                 <BulbOutlined />
                 智能功能
-                <Badge count="AI" size="small" color="#52c41a" style={{ marginLeft: 4 }} />
+                <Badge count="AI"  color="#52c41a" style={{ marginLeft: 4 }} />
               </span>
             ),
             children: renderAISettings(),

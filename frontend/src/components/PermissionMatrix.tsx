@@ -476,7 +476,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
           <Switch
             checked={granted}
             onChange={() => togglePermission(role.id, permission.id)}
-            size="small"
+            
             style={hasChange ? { boxShadow: '0 0 0 2px #ff7875' } : undefined}
           />
         );
@@ -599,7 +599,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
             x: Math.max(300 + filteredRoles.length * 120, 800), 
             y: height - 200 
           }}
-          size="small"
+          
           bordered
         />
       </Spin>
@@ -674,9 +674,9 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
 
             <Row gutter={16}>
               <Col span={12}>
-                <Card title="角色权限分布" size="small">
+                <Card title="角色权限分布" >
                   <List
-                    size="small"
+                    
                     dataSource={statistics.roleStats}
                     renderItem={(item) => (
                       <List.Item>
@@ -687,7 +687,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                           </div>
                           <Progress 
                             percent={item.percentage} 
-                            size="small"
+                            
                             status={item.percentage > 80 ? 'success' : item.percentage > 50 ? 'normal' : 'exception'}
                           />
                         </div>
@@ -697,9 +697,9 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                 </Card>
               </Col>
               <Col span={12}>
-                <Card title="权限分配情况" size="small">
+                <Card title="权限分配情况" >
                   <List
-                    size="small"
+                    
                     dataSource={statistics.permissionStats}
                     renderItem={(item) => (
                       <List.Item>
@@ -710,7 +710,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                           </div>
                           <Progress 
                             percent={item.percentage} 
-                            size="small"
+                            
                             status={item.percentage > 80 ? 'exception' : item.percentage > 50 ? 'normal' : 'success'}
                           />
                         </div>
@@ -814,7 +814,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
         width={600}
       >
         <Space direction="vertical" style={{ width: '100%' }} size="large">
-          <Card title="导出权限矩阵" size="small">
+          <Card title="导出权限矩阵" >
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">
                 导出当前的权限矩阵配置，包含角色、权限和分配关系
@@ -830,7 +830,7 @@ const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
             </Space>
           </Card>
 
-          <Card title="导入权限矩阵" size="small">
+          <Card title="导入权限矩阵" >
             <Space direction="vertical" style={{ width: '100%' }}>
               <Text type="secondary">
                 从JSON文件导入权限矩阵配置

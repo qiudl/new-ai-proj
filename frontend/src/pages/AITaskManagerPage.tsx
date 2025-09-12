@@ -234,7 +234,7 @@ const AITaskManagerPage: React.FC = () => {
             />
             <Progress
               percent={stats.successRate}
-              size="small"
+              
               showInfo={false}
               strokeColor="#52c41a"
             />
@@ -297,7 +297,7 @@ const AITaskManagerPage: React.FC = () => {
           showIcon
           style={{ marginBottom: '24px' }}
           action={
-            <Button size="small" onClick={checkSystemHealth}>
+            <Button  onClick={checkSystemHealth}>
               重新检查
             </Button>
           }

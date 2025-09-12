@@ -38,7 +38,6 @@ api.interceptors.request.use(
     const token = TokenManager.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔑 API请求添加Authorization header:', `Bearer ${token.substring(0, 20)}...`);
     } else {
       console.log('⚠️ API请求未找到token，跳过Authorization header');
     }
@@ -77,16 +76,12 @@ api.interceptors.response.use(
     
     if (isRecycleBinAPI && body && typeof body === 'object' && 'success' in body && 'data' in body) {
       // 回收站API：保留完整响应结构 {data: [...], pagination: {...}}
-      console.log('🗑️ API Interceptor - Recycle Bin API detected, returning full body:', body);
       return body;
     }
     
     if (body && typeof body === 'object' && 'success' in body && 'data' in body) {
-      console.log('🔧 API Interceptor - 标准响应格式检测到，返回 body.data:', body.data);
-      console.log('🔧 URL:', url, 'Method:', method);
       return body.data;
     }
-    console.log('🔧 API Interceptor - 直接返回原始 body:', body);
     return body;
   },
   async (error) => {

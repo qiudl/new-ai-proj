@@ -227,8 +227,8 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
 
   // 渲染配置状态
   const renderConfigStatus = () => (
-    <Card size="small" style={{ marginBottom: 16 }}>
-      <Descriptions title="当前配置状态" column={2} size="small">
+    <Card  style={{ marginBottom: 16 }}>
+      <Descriptions title="当前配置状态" column={2} >
         <Descriptions.Item label="配置完整性">
           <Tag color={configStatus.isConfigured ? 'success' : 'error'}>
             {configStatus.isConfigured ? '已配置' : '未配置'}
@@ -251,11 +251,11 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
 
   // 渲染检查步骤
   const renderCheckSteps = () => (
-    <Card title="配置检查步骤" size="small" style={{ marginBottom: 16 }}>
+    <Card title="配置检查步骤"  style={{ marginBottom: 16 }}>
       <Steps
         current={currentStep}
         status={checking ? 'process' : 'wait'}
-        size="small"
+        
         direction="vertical"
       >
         <Step title="环境变量检查" description="验证必要的环境变量是否配置" />
@@ -272,7 +272,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
     if (checkResults.length === 0) return null;
 
     return (
-      <Card title="检查结果" size="small">
+      <Card title="检查结果" >
         <List
           dataSource={checkResults}
           renderItem={(result) => (
@@ -281,7 +281,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
                 <Button 
                   key="action" 
                   type="primary" 
-                  size="small"
+                  
                   onClick={result.action}
                 >
                   {result.actionText}
@@ -315,7 +315,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
                   <div>
                     <div>{result.description}</div>
                     {result.details && (
-                      <Collapse ghost size="small" style={{ marginTop: 8 }}>
+                      <Collapse ghost  style={{ marginTop: 8 }}>
                         <Panel header="详细信息" key="details">
                           <Text style={{ whiteSpace: 'pre-wrap', fontSize: '12px' }}>
                             {result.details}
@@ -335,8 +335,8 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
 
   // 渲染快速修复建议
   const renderQuickFixes = () => (
-    <Card title="快速修复建议" size="small" style={{ marginTop: 16 }}>
-      <List size="small">
+    <Card title="快速修复建议"  style={{ marginTop: 16 }}>
+      <List >
         <List.Item>
           <Space>
             <KeyOutlined />
@@ -422,7 +422,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
 
         {/* 检查进度 */}
         {checking && (
-          <Card size="small" style={{ marginBottom: 16 }}>
+          <Card  style={{ marginBottom: 16 }}>
             <div style={{ textAlign: 'center' }}>
               <Progress 
                 percent={Math.round((currentStep / 5) * 100)} 
@@ -450,7 +450,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
             <Text type="secondary">需要帮助？</Text>
             <Button 
               type="link" 
-              size="small" 
+               
               onClick={() => {
                 window.open('/GOOGLE_API_SETUP.md', '_blank');
               }}
@@ -459,7 +459,7 @@ API Key: ${GOOGLE_CONFIG.API_KEY.slice(0, 10)}...
             </Button>
             <Button 
               type="link" 
-              size="small"
+              
               onClick={() => {
                 window.open('https://console.developers.google.com/', '_blank');
               }}
