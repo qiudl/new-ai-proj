@@ -309,6 +309,7 @@ const AppContent: React.FC = () => {
                 <Route path="/enterprises/create" element={<EnterpriseCreatePage />} />
                 <Route path="/enterprises/:id" element={<EnterpriseDetailPage />} />
                 <Route path="/enterprises/:id/edit" element={<EnterpriseEditPage />} />
+                <Route path="/enterprises/:id/info" element={<EnterpriseDetailPage />} />
 
                 {/* Enterprise current info route - for impersonation mode */}
                 <Route path="/enterprise" element={<EnterpriseCurrentInfoPage />} />
@@ -456,7 +457,7 @@ const AppContent: React.FC = () => {
                 } />
 
                 <Route path="/enterprises/:enterpriseId/organization" element={
-                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.DEPARTMENT_READ}>
+                  <PermissionRoute permission={ORGANIZATION_PERMISSIONS.STRUCTURE_READ}>
                     <OrganizationStructurePage />
                   </PermissionRoute>
                 } />

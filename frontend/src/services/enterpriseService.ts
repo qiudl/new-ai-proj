@@ -177,11 +177,41 @@ class EnterpriseService {
       } as T;
     }
 
+    // 新增：如果响应本身就是数组（拦截器已解包为数组），包装为统一的分页结构
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        pagination: {
+          page: 1,
+          page_size: response.length,
+          total: response.length,
+          total_pages: 1,
+          has_next: false,
+          has_prev: false
+        }
+      } as T;
+    }
+
     // 处理嵌套的 data.data 响应格式
     if (response.data && typeof response.data === 'object' && Array.isArray(response.data.data)) {
       return {
         data: response.data.data,
         pagination: response.data.pagination
+      } as T;
+    }
+
+    // 处理API返回的 { data: [] } 直接数组格式
+    if (Array.isArray(response.data)) {
+      return {
+        data: response.data,
+        pagination: {
+          page: 1,
+          page_size: response.data.length,
+          total: response.data.length,
+          total_pages: 1,
+          has_next: false,
+          has_prev: false
+        }
       } as T;
     }
 
@@ -346,6 +376,28 @@ class EnterpriseService {
       return result;
     } catch (error) {
       console.error('❌ 创建企业部门失败:', error);
+      throw error;
+    }
+  }
+
+  // 更新企业部门
+  async updateEnterpriseDepartment(enterpriseId: number, departmentId: number, department: EnterpriseDepartmentRequest): Promise<EnterpriseDepartment> {
+    try {
+      const response = await api.put(`${this.API_BASE_URL}/${enterpriseId}/departments/${departmentId}`, department);
+      const result = this.handleApiResponse<EnterpriseDepartment>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 更新企业部门失败:', error);
+      throw error;
+    }
+  }
+
+  // 删除企业部门
+  async deleteEnterpriseDepartment(enterpriseId: number, departmentId: number): Promise<void> {
+    try {
+      await api.delete(`${this.API_BASE_URL}/${enterpriseId}/departments/${departmentId}`);
+    } catch (error) {
+      console.error('❌ 删除企业部门失败:', error);
       throw error;
     }
   }
