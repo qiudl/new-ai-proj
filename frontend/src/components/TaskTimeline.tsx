@@ -33,6 +33,11 @@ interface TaskTimelineProps {
 }
 
 const TaskTimeline: React.FC<TaskTimelineProps> = ({ events, loading = false, className, onRefresh, showFilters = true }) => {
+  // 调试信息
+  console.log('🎯 [TaskTimeline] Component received events:', events);
+  console.log('🎯 [TaskTimeline] Events length:', events?.length || 0);
+  console.log('🎯 [TaskTimeline] Loading state:', loading);
+  
   // 过滤状态
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);

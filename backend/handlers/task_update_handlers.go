@@ -164,12 +164,22 @@ func (h *TaskUpdateHandler) GetTaskTimeline(c *gin.Context) {
 		return
 	}
 
-	// Return paginated response
+	// Calculate pagination info
+	totalPages := (total + limit - 1) / limit
+	hasNext := page < totalPages
+	hasPrev := page > 1
+
+	// Return paginated response in the format frontend expects
 	response := models.NewSuccessResponse(map[string]interface{}{
-		"events": events,
-		"total":  total,
-		"page":   page,
-		"limit":  limit,
+		"data": events,
+		"pagination": map[string]interface{}{
+			"page":        page,
+			"page_size":   limit,
+			"total":       total,
+			"total_pages": totalPages,
+			"has_next":    hasNext,
+			"has_prev":    hasPrev,
+		},
 	}, "Task timeline retrieved successfully")
 	c.JSON(http.StatusOK, response)
 } // Force rebuild Sun Aug 17 22:42:39 CST 2025

@@ -9,12 +9,7 @@ import {
 import { AIProvider } from '../../types/ai';
 
 // Mock外部依赖
-jest.mock('../aiConfigDatabaseService', () => ({
-  getConfigs: jest.fn()
-}));
-
-jest.mock('../aiProviders/deepseekProvider');
-jest.mock('./aiTaskPrompts', () => ({
+jest.mock('../aiTaskPrompts', () => ({
   PromptSelector: {
     getSystemPrompt: jest.fn().mockReturnValue('system prompt'),
     getUserPrompt: jest.fn().mockReturnValue('user prompt')

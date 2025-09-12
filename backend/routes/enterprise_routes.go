@@ -25,5 +25,9 @@ func RegisterEnterpriseRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		// 企业部门管理
 		enterprises.GET("/:id/departments", app.GetEnterpriseHandler().GetEnterpriseDepartments)
 		enterprises.POST("/:id/departments", app.GetEnterpriseHandler().CreateEnterpriseDepartment)
+
+		// 企业项目管理
+		enterprises.GET("/:id/projects", app.GetEnterpriseHandler().GetEnterpriseProjects)
+		enterprises.POST("/:id/projects", app.GetEnterpriseHandler().CreateProjectForEnterprise)
 	}
 }

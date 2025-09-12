@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"ai-project-backend/models"
 )
 
 // JWTClaims represents the JWT claims
@@ -86,16 +87,37 @@ func (m *JWTManager) ValidateToken(tokenString string) (*JWTClaims, error) {
 		}
 		return []byte(m.secretKey), nil
 	})
-
+	
 	if err != nil {
 		return nil, err
 	}
-
+	
 	claims, ok := token.Claims.(*JWTClaims)
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token")
 	}
+	
+	return claims, nil
+}
 
+// ValidateTokenExtendedClaims validates a JWT token and returns ExtendedClaims (for impersonation support)
+func (m *JWTManager) ValidateTokenExtendedClaims(tokenString string) (*models.ExtendedClaims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &models.ExtendedClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, errors.New("unexpected signing method")
+		}
+		return []byte(m.secretKey), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*models.ExtendedClaims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token")
+	}
+	if claims.IsImpersonating() && claims.IsExpired() {
+		return nil, errors.New("impersonation session expired")
+	}
 	return claims, nil
 }
 

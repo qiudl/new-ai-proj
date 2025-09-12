@@ -110,7 +110,7 @@ const ProjectsPage: React.FC = () => {
       ).map(project => ({
         ...project,
         project_number: project.project_number || generateProjectNumber(project.id),
-        company_name: project.company_name || '未分配客户' // 如果没有客户信息，显示默认值
+        company_name: project.company_name || '未分配企业' // 如果没有企业信息，显示默认值
       }));
       
       setProjects(validProjects);
@@ -143,6 +143,7 @@ const ProjectsPage: React.FC = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      wrapClassName: 'critical-modal',
       onOk: async () => {
         try {
           await projectService.deleteProject(project.id);
@@ -185,9 +186,9 @@ const ProjectsPage: React.FC = () => {
     },
     {
       key: 'company_name',
-      title: '所属客户',
+      title: '所属企业',
       visible: true,
-      description: '项目所属的客户公司',
+      description: '项目所属的企业',
       width: 150
     },
     {
@@ -271,8 +272,8 @@ const ProjectsPage: React.FC = () => {
           bValue = b.name || '';
           break;
         case 'company_name':
-          aValue = a.company_name || '未分配客户';
-          bValue = b.company_name || '未分配客户';
+          aValue = a.company_name || '未分配企业';
+          bValue = b.company_name || '未分配企业';
           break;
         case 'status':
           aValue = a.status || 'active';
@@ -376,8 +377,8 @@ const ProjectsPage: React.FC = () => {
             render: (text: string, record: Project) => (
               <Space align="center">
                 <BankOutlined style={{ color: '#52c41a' }} />
-                <span style={{ color: record.company_name && record.company_name !== '未分配客户' ? '#000' : '#8c8c8c' }}>
-                  {text || '未分配客户'}
+                <span style={{ color: record.company_name && record.company_name !== '未分配企业' ? '#000' : '#8c8c8c' }}>
+                  {text || '未分配企业'}
                 </span>
               </Space>
             ),
@@ -551,15 +552,15 @@ const ProjectsPage: React.FC = () => {
               </p>
             </div>
 
-            {/* 所属客户 */}
+            {/* 所属企业 */}
             <div style={{ marginBottom: 12 }}>
               <Space align="center">
                 <BankOutlined style={{ color: '#52c41a' }} />
                 <span style={{ 
                   fontSize: '13px',
-                  color: project.company_name && project.company_name !== '未分配客户' ? '#000' : '#8c8c8c' 
+                  color: project.company_name && project.company_name !== '未分配企业' ? '#000' : '#8c8c8c' 
                 }}>
-                  {project.company_name || '未分配客户'}
+                  {project.company_name || '未分配企业'}
                 </span>
               </Space>
             </div>

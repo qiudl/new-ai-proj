@@ -18,7 +18,7 @@
   align-items: center;
   justify-content: space-between;
   position: relative;
-  z-index: 1001;
+  z-index: 100; /* Navigation layer - managed by index.css */
 }
 
 .ant-layout-sider {
@@ -26,7 +26,7 @@
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
-  z-index: 1000;
+  z-index: 90; /* Below navigation - managed by index.css */
 }
 
 .ant-layout-sider-collapsed {
@@ -110,7 +110,7 @@
     height: 100vh;
     left: 0;
     top: 64px;
-    z-index: 999;
+    z-index: 95; /* Mobile sidebar - managed by index.css */
   }
   
   .ant-layout-sider-collapsed {
@@ -124,7 +124,7 @@
 
 /* Tooltip adjustments for collapsed menu */
 .ant-tooltip {
-  z-index: 1060;
+  z-index: 260; /* Interactive elements layer - managed by index.css */
 }
 
 /* Custom components */

@@ -77,6 +77,8 @@ export interface UserListParams {
   role?: UserRole;
   status?: UserStatus;
   search?: string;
+  company_id?: number;
+  enterprise_ids?: number[];
 }
 
 export interface UserListResponse {
@@ -260,4 +262,47 @@ export interface BatchCompanyUserRequest {
 export interface CompanyUserCreateResponse {
   user: User;
   password: string;
+}
+
+// Tab管理相关类型定义
+export type UserTabType = 'system' | 'enterprise';
+
+// 系统用户统计
+export interface SystemUserStats {
+  total: number;
+  by_role: Record<SystemUserRole, number>;
+  by_status: Record<UserStatus, number>;
+  recent_registrations: number;
+}
+
+// 企业用户统计  
+export interface EnterpriseUserStats {
+  total: number;
+  by_enterprise: Record<string, number>;
+  by_status: Record<UserStatus, number>;
+  primary_contacts: number;
+  expiring_accounts: number;
+  recent_registrations: number;
+}
+
+// 系统用户筛选参数
+export interface SystemUserParams {
+  page?: number;
+  page_size?: number;
+  user_type: 'system';
+  role?: SystemUserRole;
+  status?: UserStatus;
+  search?: string;
+}
+
+// 企业用户筛选参数
+export interface EnterpriseUserParams {
+  page?: number;
+  page_size?: number;
+  user_type: 'company';
+  enterprise_ids?: number[];
+  status?: UserStatus;
+  search?: string;
+  contact_type?: 'primary' | 'normal';
+  expire_date_range?: [string, string];
 }

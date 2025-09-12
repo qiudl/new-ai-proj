@@ -6,6 +6,7 @@ import { userService } from '../services/userService';
 import { User } from '../types/user';
 import { TaskService } from '../services/taskService';
 import { filterMenuItems, getUserType } from '../config/menuVisibility';
+import EnterpriseImpersonation from './EnterpriseImpersonation';
 
 // 开发环境下加载菜单测试工具
 if (process.env.NODE_ENV === 'development') {
@@ -575,6 +576,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 }}
               />
             </Tooltip>
+            {/* 企业模拟管理 */}
+            <EnterpriseImpersonation />
+            
             {/* 任务ID快速跳转：右对齐，位于头像前 */}
             <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
               <Input.Search

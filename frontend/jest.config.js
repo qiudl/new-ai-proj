@@ -22,10 +22,11 @@ module.exports = {
     }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(axios|@ant-design|antd|rc-.*|@testing-library|@babel|react-markdown|rehype|remark|unified|unist|vfile|micromark|character-entities|decode-named-character-reference|zwitch|longest-streak)/)',
+    'node_modules/(?!.*)'
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^axios$': 'axios/dist/node/axios.cjs',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$': 'jest-transform-stub',
   },
@@ -40,12 +41,54 @@ module.exports = {
     '!src/serviceWorker.ts',
     '!src/setupTests.ts',
     '!src/reportWebVitals.ts',
+    '!src/**/*.stories.{js,jsx,ts,tsx}',
+    '!src/**/*.config.{js,ts}',
+    '!src/test/**/*',
+    '!src/__tests__/**/*',
+    '!src/**/__tests__/**/*',
+    '!src/**/__mocks__/**/*'
   ],
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/build/',
     '/coverage/',
   ],
+  // 覆盖率报告格式
+  coverageReporters: [
+    'text',
+    'text-summary', 
+    'html',
+    'lcov',
+    'json'
+  ],
+  // 覆盖率阈值
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 85,
+      lines: 85,
+      statements: 85
+    },
+    // 针对关键文件的更高要求
+    './src/hooks/useImpersonationState.ts': {
+      branches: 90,
+      functions: 95,
+      lines: 95,
+      statements: 95
+    },
+    './src/services/impersonationService.ts': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    },
+    './src/contexts/': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    }
+  },
   testTimeout: 30000,
   verbose: true,
   bail: false,

@@ -59,6 +59,7 @@ import { projectService } from '../services/projectService';
 import api from '../services/api';
 import { documentService } from '../services/documentService';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
+import { TaskTimelineEvent } from '../types/timeline';
 import TaskModal from '../components/TaskModal';
 import TaskArchiveModal from '../components/TaskArchiveModal';
 import TaskTimeline from '../components/TaskTimeline';
@@ -370,6 +371,7 @@ const TaskDetailPageNew: React.FC = () => {
     // 容错解析函数：尽可能从不同结构中提取数组
     const toArray = (resp: any): any[] => {
       if (!resp) return [];
+      
       // 显式处理常见结构
       const candidates = [
         resp,
@@ -484,8 +486,20 @@ const TaskDetailPageNew: React.FC = () => {
       
       // 处理时间线数据
       if (timelineData.status === 'fulfilled') {
-        const timeline = toArray((timelineData as PromiseFulfilledResult<any>).value);
-        updateHistoryState({ timelineEvents: timeline });
+        const timelineValue = (timelineData as PromiseFulfilledResult<any>).value;
+        console.log('🔍 [DEBUG] Timeline raw response:', timelineValue);
+        const timeline = toArray(timelineValue);
+        console.log('🔍 [DEBUG] Timeline after toArray:', timeline);
+        // 将TimelineEvent转换为TaskTimelineEvent兼容格式
+        const taskTimelineEvents = timeline.map((event: TimelineEvent): TaskTimelineEvent => ({
+          ...event,
+          event_type: event.event_type as any, // 类型断言，因为API返回的字符串应该是有效的事件类型
+        }));
+        console.log('🔍 [DEBUG] Final taskTimelineEvents:', taskTimelineEvents);
+        console.log('🔍 [DEBUG] Calling updateHistoryState with timelineEvents length:', taskTimelineEvents.length);
+        updateHistoryState({ timelineEvents: taskTimelineEvents });
+      } else {
+        console.log('❌ [DEBUG] Timeline data rejected:', timelineData.reason);
       }
       
       updateRelationState({ loading: false });
@@ -715,6 +729,7 @@ const TaskDetailPageNew: React.FC = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      wrapClassName: 'critical-modal',
       onOk: async () => {
         try {
           await TaskService.deleteTask(parsedProjectId, taskState.task!.id);
@@ -1460,17 +1475,25 @@ const TaskDetailPageNew: React.FC = () => {
                       )}
                     </Space>
                   ),
-                  children: historyState.timelineEvents && historyState.timelineEvents.length > 0 ? (
-                    <TaskTimeline 
-                      events={historyState.timelineEvents}
-                      onRefresh={() => loadAllTaskData()}
-                    />
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8c8c8c' }}>
-                      <ClockCircleOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
-                      <div>暂无时间线数据</div>
-                    </div>
-                  )
+                  children: (() => {
+                    console.log('📊 [RENDER] Evaluating timeline render condition...');
+                    console.log('📊 [RENDER] historyState.timelineEvents:', historyState.timelineEvents);
+                    console.log('📊 [RENDER] timelineEvents exists:', !!historyState.timelineEvents);
+                    console.log('📊 [RENDER] timelineEvents length:', historyState.timelineEvents?.length || 0);
+                    console.log('📊 [RENDER] Should show timeline:', historyState.timelineEvents && historyState.timelineEvents.length > 0);
+                    
+                    return historyState.timelineEvents && historyState.timelineEvents.length > 0 ? (
+                      <TaskTimeline 
+                        events={historyState.timelineEvents}
+                        onRefresh={() => loadAllTaskData()}
+                      />
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '40px 20px', color: '#8c8c8c' }}>
+                        <ClockCircleOutlined style={{ fontSize: '24px', marginBottom: '8px' }} />
+                        <div>暂无时间线数据</div>
+                      </div>
+                    );
+                  })()
                 },
                 {
                   key: 'history',

@@ -1,0 +1,156 @@
+{
+  "security": {
+    "csrf": {
+      "enabled": true,
+      "tokenHeader": "X-CSRF-Token",
+      "cookieName": "csrf-token"
+    },
+    "session": {
+      "timeout": 3600,
+      "warningBeforeExpiry": 300,
+      "autoLogout": true
+    },
+    "permissions": {
+      "strictMode": true,
+      "adminOnlyEndpoints": [
+        "/api/v1/admin/impersonate/**",
+        "/api/v1/admin/users/**",
+        "/api/v1/admin/system/**"
+      ],
+      "restrictedDuringImpersonation": [
+        "/api/v1/admin/users/delete",
+        "/api/v1/admin/system/config",
+        "/api/v1/admin/audit/export"
+      ]
+    },
+    "inputValidation": {
+      "maxLength": 1000,
+      "allowedCharacters": "^[a-zA-Z0-9\\s\\-_.,!?()\\u4e00-\\u9fff]*$",
+      "blockedPatterns": [
+        "<script[^>]*>",
+        "javascript:",
+        "on\\w+\\s*=",
+        "\\$\\{.*\\}",
+        "\\.\\.[\\/\\\\]",
+        "(DROP|DELETE|INSERT|UPDATE)\\s+TABLE",
+        "UNION\\s+SELECT"
+      ]
+    },
+    "rateLimiting": {
+      "loginAttempts": {
+        "maxAttempts": 5,
+        "windowMs": 900000,
+        "blockDurationMs": 300000
+      },
+      "apiRequests": {
+        "maxRequests": 100,
+        "windowMs": 60000
+      }
+    },
+    "headers": {
+      "required": [
+        "X-Content-Type-Options: nosniff",
+        "X-Frame-Options: DENY",
+        "X-XSS-Protection: 1; mode=block",
+        "Strict-Transport-Security: max-age=31536000; includeSubDomains"
+      ],
+      "csp": {
+        "defaultSrc": ["'self'"],
+        "scriptSrc": ["'self'", "'unsafe-inline'"],
+        "styleSrc": ["'self'", "'unsafe-inline'"],
+        "imgSrc": ["'self'", "data:", "https:"],
+        "connectSrc": ["'self'"],
+        "fontSrc": ["'self'"],
+        "objectSrc": ["'none'"],
+        "mediaSrc": ["'self'"],
+        "frameSrc": ["'none'"]
+      }
+    },
+    "fileUpload": {
+      "allowedTypes": [".jpg", ".jpeg", ".png", ".gif", ".pdf", ".doc", ".docx"],
+      "maxSize": 10485760,
+      "virusScan": true,
+      "quarantineDirectory": "/tmp/quarantine"
+    },
+    "encryption": {
+      "algorithm": "AES-256-GCM",
+      "keyRotationInterval": 86400000,
+      "saltLength": 32
+    }
+  },
+  "testData": {
+    "maliciousInputs": [
+      "<script>alert('xss')</script>",
+      "<img src=x onerror=alert(1)>",
+      "javascript:alert('xss')",
+      "<svg onload=alert(1)>",
+      "\"><script>alert('xss')</script>",
+      "${7*7}",
+      "#{7*7}",
+      "{{7*7}}",
+      "../../../etc/passwd",
+      "..\\..\\..\\windows\\system32\\config\\sam",
+      "'; DROP TABLE users; --",
+      "1' OR '1'='1",
+      "admin'/**/OR/**/1=1#",
+      "1' UNION SELECT null,null,null--",
+      "\"><iframe src=javascript:alert('xss')>",
+      "data:text/html,<script>alert('xss')</script>"
+    ],
+    "testCredentials": {
+      "admin": {
+        "username": "admin",
+        "password": "admin123",
+        "role": "admin"
+      },
+      "regularUser": {
+        "username": "user",
+        "password": "user123",
+        "role": "user"
+      },
+      "enterpriseUser": {
+        "username": "enterprise_user",
+        "password": "ent123",
+        "role": "enterprise_user"
+      }
+    },
+    "testEnterprises": [
+      {
+        "id": 1,
+        "name": "测试企业A",
+        "code": "TEST_A",
+        "status": "active"
+      },
+      {
+        "id": 2,
+        "name": "测试企业B",
+        "code": "TEST_B", 
+        "status": "suspended"
+      },
+      {
+        "id": 3,
+        "name": "测试企业C",
+        "code": "TEST_C",
+        "status": "active"
+      }
+    ]
+  },
+  "testSettings": {
+    "timeouts": {
+      "shortOperation": 5000,
+      "mediumOperation": 15000,
+      "longOperation": 30000
+    },
+    "retries": {
+      "flaky": 2,
+      "network": 3,
+      "authentication": 1
+    },
+    "thresholds": {
+      "pageLoadTime": 3000,
+      "apiResponseTime": 1000,
+      "memoryUsage": 52428800,
+      "errorRate": 0.05
+    }
+  }
+}

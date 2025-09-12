@@ -155,6 +155,31 @@ const getProjectName = (projectId: number, projects?: Project[]): string => {
   return project?.name || `项目${projectId}`;
 };
 
+// 🔧 [修复] 中文文本后备处理 - 当中文无法显示时，添加英文说明
+const ensureTextDisplayable = (text: string, addEnglishFallback = true): string => {
+  if (!text) return '';
+  
+  // 检查是否包含中文字符
+  const hasChineseChars = /[\u4e00-\u9fff]/.test(text);
+  
+  if (hasChineseChars && addEnglishFallback) {
+    // 为中文文本添加英文说明，确保在字体不支持时仍有可读内容
+    if (text.includes('任务') && !text.includes('Task')) {
+      return text + ' (Task)';
+    } else if (text.includes('项目') && !text.includes('Project')) {
+      return text + ' (Project)';
+    } else if (text.includes('已完成') && !text.includes('Completed')) {
+      return text + ' (Completed)';
+    } else if (text.includes('进行中') && !text.includes('In Progress')) {
+      return text + ' (In Progress)';
+    } else if (text.includes('待办') && !text.includes('Todo')) {
+      return text + ' (Todo)';
+    }
+  }
+  
+  return text;
+};
+
 // 准备Excel数据
 const prepareExcelData = (data: ExportData, options: Required<ExportOptions>) => {
   const t = i18n[options.language];
@@ -330,23 +355,31 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
     let yPosition = 20;
 
     // 🔧 [任务#714修复] 配置PDF中文字体支持
-    await configurePDFForChinese(pdf, {
-      fontSize: 12,
-      lineHeight: 1.4,
-      fallbackFont: 'helvetica'  // 如果中文字体加载失败，使用helvetica作为后备
-    });
+    try {
+      await configurePDFForChinese(pdf, {
+        fontSize: 12,
+        lineHeight: 1.4,
+        fallbackFont: 'helvetica'  // 如果中文字体加载失败，使用helvetica作为后备
+      });
+      console.log('📄 PDF字体配置完成');
+    } catch (fontError) {
+      console.warn('⚠️ 字体配置失败，使用默认字体:', fontError.message);
+      // 即使字体配置失败，也继续生成PDF
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(12);
+    }
 
 
     // 标题
     pdf.setFontSize(18);
-    pdf.text(t.weeklyReport, 20, yPosition);
+    pdf.text(ensureTextDisplayable(t.weeklyReport, true), 20, yPosition);
     yPosition += 15;
 
     // 基本信息
     pdf.setFontSize(10);
-    pdf.text(`${t.reportPeriod}: ${data.weekRange}`, 20, yPosition);
+    pdf.text(`${ensureTextDisplayable(t.reportPeriod, true)}: ${data.weekRange}`, 20, yPosition);
     yPosition += 8;
-    pdf.text(`${t.exportTime}: ${dayjs().format(config.dateFormat + ' HH:mm:ss')}`, 20, yPosition);
+    pdf.text(`${ensureTextDisplayable(t.exportTime, true)}: ${dayjs().format(config.dateFormat + ' HH:mm:ss')}`, 20, yPosition);
     yPosition += 15;
 
     // 统计信息
@@ -450,10 +483,42 @@ export const exportToPDF = async (data: ExportData, options: Partial<ExportOptio
       pdf.setTextColor(0, 0, 0);
     }
 
-    // 验证PDF内容
+    // 🔧 [修复] 验证并确保PDF内容不为空
     const pdfOutput = pdf.output('blob');
     if (!pdfOutput || pdfOutput.size === 0) {
-      throw new Error('PDF内容为空，导出失败');
+      console.error('❌ PDF输出为空，添加基础内容后重试');
+      
+      // 创建一个基础的PDF作为后备
+      const fallbackPdf = new jsPDF('p', 'mm', 'a4');
+      fallbackPdf.setFont('helvetica', 'normal');
+      fallbackPdf.setFontSize(14);
+      fallbackPdf.text('Task Report / 任务报告', 20, 30);
+      fallbackPdf.setFontSize(10);
+      fallbackPdf.text('Generated: ' + dayjs().format('YYYY-MM-DD HH:mm:ss'), 20, 45);
+      fallbackPdf.text('Period: ' + data.weekRange, 20, 55);
+      fallbackPdf.text('Total Tasks: ' + data.stats.totalTasks, 20, 70);
+      fallbackPdf.text('Completed: ' + data.stats.completedTasks, 20, 80);
+      fallbackPdf.text('Note: Chinese characters may display as boxes due to font limitations.', 20, 100);
+      
+      // 添加任务列表（英文标题）
+      if (data.tasks.length > 0) {
+        fallbackPdf.text('Task List:', 20, 120);
+        let yPos = 130;
+        data.tasks.slice(0, 20).forEach((task, index) => { // 限制显示前20个任务
+          if (yPos > 280) return; // 避免超出页面
+          fallbackPdf.text(`${index + 1}. ${task.title}`, 25, yPos);
+          yPos += 8;
+        });
+      }
+      
+      const fallbackOutput = fallbackPdf.output('blob');
+      if (fallbackOutput && fallbackOutput.size > 0) {
+        fallbackPdf.save(config.filename);
+        console.log('✅ 使用后备PDF导出成功');
+        return true;
+      } else {
+        throw new Error('PDF内容为空，导出失败');
+      }
     }
 
     // 保存PDF

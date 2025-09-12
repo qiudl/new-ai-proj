@@ -26,39 +26,18 @@ AAAAAgABAAEABQACAAEAAQADAAoAAgABAAEACwAJAAEAGAABAAcAAQABAAkAFgAWAAEAAgA=`;
  */
 export const setupChineseFont = async (pdf: jsPDF): Promise<boolean> => {
   try {
-    // 检查是否已经添加了中文字体
-    const currentFont = (pdf as any).internal.getFont();
-    if (currentFont && currentFont.fontName === 'NotoSansSC') {
-      return true;
-    }
-
-    // 添加Noto Sans SC字体
-    const fontName = 'NotoSansSC-Regular.ttf';
-    const fontAlias = 'NotoSansSC';
+    // 🔧 [修复] 直接跳过有问题的字体加载，使用降级处理
+    console.warn('⚠️ 中文字体数据不完整，直接使用降级字体处理');
     
-    // 将字体文件添加到PDF的虚拟文件系统
-    pdf.addFileToVFS(fontName, NOTO_SANS_SC_BASE64.replace('data:font/truetype;base64,', ''));
+    // 使用系统默认字体，这样至少能显示内容（即使中文显示为方框）
+    pdf.setFont('helvetica', 'normal');
+    console.warn('⚠️ 使用降级字体: helvetica');
+    return false; // 返回false表示没有真正的中文字体支持
     
-    // 注册字体
-    pdf.addFont(fontName, fontAlias, 'normal');
-    
-    // 设置为当前字体
-    pdf.setFont(fontAlias, 'normal');
-    
-    console.log('✅ PDF中文字体支持已启用');
-    return true;
-  } catch (error) {
-    console.error('❌ PDF中文字体设置失败:', error);
-    
-    // 降级处理：使用系统默认字体
-    try {
-      pdf.setFont('helvetica', 'normal');
-      console.warn('⚠️ 使用降级字体: helvetica');
-      return false;
-    } catch (fallbackError) {
-      console.error('❌ 降级字体设置也失败:', fallbackError);
-      return false;
-    }
+  } catch (fallbackError) {
+    console.error('❌ 降级字体设置也失败:', fallbackError);
+    // 最后的后备方案：不设置任何字体，使用默认
+    return false;
   }
 };
 

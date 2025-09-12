@@ -4,10 +4,12 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"ai-project-backend/services"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -540,4 +542,160 @@ func (h *EnterpriseHandler) extractValidationErrors(err error) map[string]string
 	}
 
 	return errors
+}
+
+// GetEnterpriseProjects handles GET /api/v1/enterprises/:id/projects
+func (h *EnterpriseHandler) GetEnterpriseProjects(c *gin.Context) {
+	// Parse enterprise ID from path
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Parse pagination parameters
+	var pagination models.PaginationParams
+	if err := c.ShouldBindQuery(&pagination); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid pagination parameters", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Default pagination values
+	if pagination.Page == 0 {
+		pagination.Page = 1
+	}
+	if pagination.PageSize == 0 {
+		pagination.PageSize = 20
+	}
+
+	// Calculate offset
+	offset := (pagination.Page - 1) * pagination.PageSize
+
+	// Get projects by enterprise ID
+	ctx := c.Request.Context()
+	projectRepo := h.db.Projects()
+	projects, total, err := projectRepo.GetByEnterpriseID(ctx, enterpriseID, pagination.PageSize, offset)
+	if err != nil {
+		h.logger.Printf("Error getting enterprise projects: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to get enterprise projects", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// Build pagination response
+	paginationData := models.Pagination{
+		Page:       pagination.Page,
+		PageSize:   pagination.PageSize,
+		Total:      int64(total),
+		TotalPages: (total + pagination.PageSize - 1) / pagination.PageSize,
+		HasNext:    pagination.Page < (total+pagination.PageSize-1)/pagination.PageSize,
+		HasPrev:    pagination.Page > 1,
+	}
+
+	responseData := gin.H{
+		"data":       projects,
+		"pagination": paginationData,
+	}
+	response := models.NewSuccessResponse(responseData, "Enterprise projects retrieved successfully")
+	c.JSON(http.StatusOK, response)
+}
+
+// CreateProjectForEnterprise handles POST /api/v1/enterprises/:id/projects
+func (h *EnterpriseHandler) CreateProjectForEnterprise(c *gin.Context) {
+	// Parse enterprise ID from path
+	enterpriseID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Verify enterprise exists
+	ctx := c.Request.Context()
+	if !h.enterpriseExists(ctx, enterpriseID) {
+		response := models.NewErrorResponse(models.ErrCodeNotFound, "Enterprise not found", nil)
+		c.JSON(http.StatusNotFound, response)
+		return
+	}
+
+	// Parse request body
+	var req struct {
+		Name          string  `json:"name" binding:"required"`
+		Description   *string `json:"description"`
+		ProjectNumber *string `json:"project_number"`
+		Status        *string `json:"status"`
+		Priority      *string `json:"priority"`
+		StartDate     *string `json:"start_date"`
+		EndDate       *string `json:"end_date"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeValidation, "Validation failed", gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get current user ID
+	userID := c.GetInt("user_id")
+	if userID == 0 {
+		response := models.NewErrorResponse(models.ErrCodeUnauthorized, "User not authenticated", nil)
+		c.JSON(http.StatusUnauthorized, response)
+		return
+	}
+
+	// Create project model
+	project := &models.Project{
+		Name:          req.Name,
+		ProjectNumber: req.ProjectNumber,
+		OwnerID:       userID,
+		EnterpriseID:  &enterpriseID,
+		Status:        "planning", // default status
+		Priority:      "medium",   // default priority
+		Progress:      0,          // default progress
+	}
+
+	// Set optional description
+	if req.Description != nil {
+		project.Description = *req.Description
+	}
+
+	// Set optional fields
+	if req.Status != nil {
+		project.Status = *req.Status
+	}
+	if req.Priority != nil {
+		project.Priority = *req.Priority
+	}
+	if req.StartDate != nil && *req.StartDate != "" {
+		if startDate, err := time.Parse("2006-01-02", *req.StartDate); err == nil {
+			project.StartDate = &startDate
+		}
+	}
+	if req.EndDate != nil && *req.EndDate != "" {
+		if endDate, err := time.Parse("2006-01-02", *req.EndDate); err == nil {
+			project.EndDate = &endDate
+		}
+	}
+
+	// Create project in database
+	projectRepo := h.db.Projects()
+	createdProject, err := projectRepo.Create(ctx, project)
+	if err != nil {
+		h.logger.Printf("Error creating project for enterprise: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to create project", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(createdProject, "Project created successfully")
+	c.JSON(http.StatusCreated, response)
+}
+
+// enterpriseExists checks if an enterprise exists
+func (h *EnterpriseHandler) enterpriseExists(ctx context.Context, enterpriseID int) bool {
+	// Use the enterprise service to check if enterprise exists
+	enterprise, err := h.enterpriseService.GetEnterpriseByID(ctx, enterpriseID)
+	return err == nil && enterprise != nil
 }

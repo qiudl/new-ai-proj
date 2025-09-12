@@ -680,6 +680,7 @@ const TasksPage: React.FC = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      wrapClassName: 'critical-modal',
       onOk: async () => {
         try {
           // Use the task's project_id if effectiveProjectId is not available (for global task list)
@@ -1163,6 +1164,7 @@ const TasksPage: React.FC = () => {
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
+      wrapClassName: 'critical-modal',
       onOk: async () => {
         setBulkDeleteLoading(true);
         try {

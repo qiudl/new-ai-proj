@@ -119,6 +119,56 @@ func (r *PostgresProjectRepository) GetByUserID(ctx context.Context, userID int,
 	return projects, total, nil
 }
 
+// GetByEnterpriseID gets projects by enterprise ID with pagination (only non-deleted)
+func (r *PostgresProjectRepository) GetByEnterpriseID(ctx context.Context, enterpriseID int, limit, offset int) ([]*models.Project, int, error) {
+	// Get total count
+	countQuery := `SELECT COUNT(*) FROM projects WHERE enterprise_id = $1 AND deleted_at IS NULL`
+	exec := r.getExecer()
+	row := exec.QueryRowContext(ctx, countQuery, enterpriseID)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to get project count: %w", err)
+	}
+
+	// Get projects with pagination
+	query := `
+		SELECT id, project_number, name, description, owner_id, company_id, enterprise_id, status, priority, progress, start_date, end_date, budget, created_at, updated_at, deleted_at
+		FROM projects 
+		WHERE enterprise_id = $1 AND deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3`
+
+	rows, err := exec.QueryContext(ctx, query, enterpriseID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []*models.Project
+	for rows.Next() {
+		project := &models.Project{}
+
+		err := rows.Scan(
+			&project.ID, &project.ProjectNumber, &project.Name, &project.Description, &project.OwnerID,
+			&project.CompanyID, &project.EnterpriseID, &project.Status, &project.Priority, &project.Progress,
+			&project.StartDate, &project.EndDate, &project.Budget,
+			&project.CreatedAt, &project.UpdatedAt, &project.DeletedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan project: %w", err)
+		}
+
+		projects = append(projects, project)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows error: %w", err)
+	}
+
+	return projects, total, nil
+}
+
 // GetPaginated gets projects with pagination, search, filtering and sorting
 func (r *PostgresProjectRepository) GetPaginated(ctx context.Context, userID int, offset, pageSize int, search, status, sortBy, sortOrder string) ([]*models.Project, int, error) {
 	// Build WHERE clause with conditions
@@ -285,13 +335,14 @@ func (r *PostgresProjectRepository) GetPaginatedWithCompany(ctx context.Context,
 		}
 	}
 
-	// Get projects with pagination and company join
+	// Get projects with pagination and company join (including enterprise info)
 	query := fmt.Sprintf(`
 		SELECT 
 			p.id, p.project_number, p.name, p.description, p.owner_id, p.company_id, p.status, p.priority, p.progress, p.start_date, p.end_date, p.budget, p.created_at, p.updated_at, p.deleted_at,
-			c.company_name
+			COALESCE(e.name, c.company_name, '未分配企业') AS company_name
 		FROM projects p
 		LEFT JOIN customers c ON p.company_id = c.id AND c.deleted_at IS NULL
+		LEFT JOIN enterprises e ON p.enterprise_id = e.id AND e.deleted_at IS NULL
 		%s
 		%s
 		LIMIT $%d OFFSET $%d`, whereClause, orderBy, argIndex, argIndex+1)

@@ -183,3 +183,15 @@ export interface TaskUpdate {
 }
 
 // 时间线相关类型现在从专门的timeline.ts文件中导入
+// 但为了向后兼容，保留旧的TimelineEvent接口
+export interface TimelineEvent {
+  id: number;
+  task_id: number;
+  event_type: string;
+  event_date: string;
+  description: string;
+  user_id?: number;
+  metadata?: Record<string, any>;
+  username?: string;
+  task_title?: string;
+}

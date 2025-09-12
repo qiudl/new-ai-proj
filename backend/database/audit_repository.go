@@ -231,18 +231,62 @@ func (r *PostgresAuditRepository) GetAuditLogs(ctx context.Context, filter *mode
 	var logs []*models.AuditLog
 	for rows.Next() {
 		log := &models.AuditLog{}
+		var userEmail, userName, userRole, resourceID, resourceName sql.NullString
+		var ipAddress, userAgent, sessionID, requestID, description sql.NullString
+		var errorMessage, parentEventID, correlationID sql.NullString
 		var beforeDataJSON, afterDataJSON, changesJSON, metadataJSON sql.NullString
 
 		err := rows.Scan(
-			&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &log.UserEmail, &log.UserName, &log.UserRole,
-			&log.Action, &log.ResourceType, &log.ResourceID, &log.ResourceName,
-			&log.IPAddress, &log.UserAgent, &log.SessionID, &log.RequestID,
-			&log.Description, &beforeDataJSON, &afterDataJSON, &changesJSON,
-			&log.Status, &log.ErrorMessage, &log.ProjectID, &log.ParentEventID,
-			&log.CorrelationID, &metadataJSON, &log.Tags,
+			&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &userEmail, &userName, &userRole,
+			&log.Action, &log.ResourceType, &resourceID, &resourceName,
+			&ipAddress, &userAgent, &sessionID, &requestID,
+			&description, &beforeDataJSON, &afterDataJSON, &changesJSON,
+			&log.Status, &errorMessage, &log.ProjectID, &parentEventID,
+			&correlationID, &metadataJSON, &log.Tags,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan audit log: %w", err)
+		}
+
+		// Convert NULL strings to regular strings
+		if userEmail.Valid {
+			log.UserEmail = userEmail.String
+		}
+		if userName.Valid {
+			log.UserName = userName.String
+		}
+		if userRole.Valid {
+			log.UserRole = userRole.String
+		}
+		if resourceID.Valid {
+			log.ResourceID = resourceID.String
+		}
+		if resourceName.Valid {
+			log.ResourceName = resourceName.String
+		}
+		if ipAddress.Valid {
+			log.IPAddress = ipAddress.String
+		}
+		if userAgent.Valid {
+			log.UserAgent = userAgent.String
+		}
+		if sessionID.Valid {
+			log.SessionID = sessionID.String
+		}
+		if requestID.Valid {
+			log.RequestID = requestID.String
+		}
+		if description.Valid {
+			log.Description = description.String
+		}
+		if errorMessage.Valid {
+			log.ErrorMessage = errorMessage.String
+		}
+		if parentEventID.Valid {
+			log.ParentEventID = parentEventID.String
+		}
+		if correlationID.Valid {
+			log.CorrelationID = correlationID.String
 		}
 
 		// Parse JSON fields
@@ -293,15 +337,18 @@ func (r *PostgresAuditRepository) GetAuditLogByID(ctx context.Context, id int64)
 		FROM audit_logs WHERE id = $1`
 
 	log := &models.AuditLog{}
+	var userEmail, userName, userRole, resourceID, resourceName sql.NullString
+	var ipAddress, userAgent, sessionID, requestID, description sql.NullString
+	var errorMessage, parentEventID, correlationID sql.NullString
 	var beforeDataJSON, afterDataJSON, changesJSON, metadataJSON sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &log.UserEmail, &log.UserName, &log.UserRole,
-		&log.Action, &log.ResourceType, &log.ResourceID, &log.ResourceName,
-		&log.IPAddress, &log.UserAgent, &log.SessionID, &log.RequestID,
-		&log.Description, &beforeDataJSON, &afterDataJSON, &changesJSON,
-		&log.Status, &log.ErrorMessage, &log.ProjectID, &log.ParentEventID,
-		&log.CorrelationID, &metadataJSON, &log.Tags,
+		&log.ID, &log.EventID, &log.Timestamp, &log.UserID, &userEmail, &userName, &userRole,
+		&log.Action, &log.ResourceType, &resourceID, &resourceName,
+		&ipAddress, &userAgent, &sessionID, &requestID,
+		&description, &beforeDataJSON, &afterDataJSON, &changesJSON,
+		&log.Status, &errorMessage, &log.ProjectID, &parentEventID,
+		&correlationID, &metadataJSON, &log.Tags,
 	)
 
 	if err != nil {
@@ -309,6 +356,47 @@ func (r *PostgresAuditRepository) GetAuditLogByID(ctx context.Context, id int64)
 			return nil, fmt.Errorf("audit log not found")
 		}
 		return nil, fmt.Errorf("failed to get audit log: %w", err)
+	}
+
+	// Convert NULL strings to regular strings
+	if userEmail.Valid {
+		log.UserEmail = userEmail.String
+	}
+	if userName.Valid {
+		log.UserName = userName.String
+	}
+	if userRole.Valid {
+		log.UserRole = userRole.String
+	}
+	if resourceID.Valid {
+		log.ResourceID = resourceID.String
+	}
+	if resourceName.Valid {
+		log.ResourceName = resourceName.String
+	}
+	if ipAddress.Valid {
+		log.IPAddress = ipAddress.String
+	}
+	if userAgent.Valid {
+		log.UserAgent = userAgent.String
+	}
+	if sessionID.Valid {
+		log.SessionID = sessionID.String
+	}
+	if requestID.Valid {
+		log.RequestID = requestID.String
+	}
+	if description.Valid {
+		log.Description = description.String
+	}
+	if errorMessage.Valid {
+		log.ErrorMessage = errorMessage.String
+	}
+	if parentEventID.Valid {
+		log.ParentEventID = parentEventID.String
+	}
+	if correlationID.Valid {
+		log.CorrelationID = correlationID.String
 	}
 
 	// Parse JSON fields

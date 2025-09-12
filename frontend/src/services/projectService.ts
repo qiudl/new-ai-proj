@@ -265,6 +265,25 @@ class ProjectService {
       throw error;
     }
   }
+
+  // 企业项目管理相关方法
+  async getProjectsByEnterprise(enterpriseId: number, params?: PaginationParams): Promise<PaginatedResponse<Project>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.pageSize) queryParams.append('page_size', params.pageSize.toString());
+    
+    const endpoint = queryParams.toString() ? 
+      `/enterprises/${enterpriseId}/projects?${queryParams}` : 
+      `/enterprises/${enterpriseId}/projects?page=1&page_size=20`;
+    return this.request<PaginatedResponse<Project>>(endpoint);
+  }
+
+  async createProjectForEnterprise(enterpriseId: number, project: CreateProjectForEnterpriseRequest): Promise<Project> {
+    return this.request<Project>(`/enterprises/${enterpriseId}/projects`, {
+      method: 'POST',
+      data: project,
+    });
+  }
 }
 
 // 类型定义
@@ -273,6 +292,16 @@ export interface ProjectOption {
   name: string;
   description?: string;
   status?: string;
+}
+
+export interface CreateProjectForEnterpriseRequest {
+  name: string;
+  description?: string;
+  project_number?: string;
+  status?: string;
+  priority?: string;
+  start_date?: string;
+  end_date?: string;
 }
 
 export const projectService = new ProjectService();

@@ -181,18 +181,102 @@ input, textarea, select {
   background-color: #fafafa !important;
 }
 
-/* Fix for modal wrapper z-index issues - ensure proper cleanup */
+/* ========================================
+   Z-INDEX LAYER MANAGEMENT SYSTEM
+   统一z-index层级管理系统
+   ======================================== */
+
+/* Layer 1: Base Layout (0-99) */
+/* .normal-elements { z-index: auto; } */
+
+/* Layer 2: Navigation & Layout (100-199) */
+/* .navigation-elements { z-index: 100-199; } */
+
+/* Layer 3: Interactive Elements (200-299) */
+/* .dropdowns, .tooltips { z-index: 200-299; } */
+
+/* Layer 4: Floating Elements (300-399) */
+/* .floating-panels { z-index: 300-399; } */
+
+/* Layer 5: Overlays (400-499) */
+/* .overlay-elements { z-index: 400-499; } */
+
+/* Layer 6: Modals & Dialogs (500-599) */
+/* Standard modals use this layer */
 .ant-modal-wrap {
-  z-index: 1000 !important;
+  z-index: 550 !important;
 }
 
 .ant-modal-mask {
-  z-index: 1000 !important;
+  z-index: 550 !important;
 }
 
-/* Ensure higher z-index elements don't interfere with modals */
+/* Important modals (delete confirmations, critical actions) */
+.ant-modal-wrap[data-critical="true"],
+.ant-modal-wrap.critical-modal {
+  z-index: 580 !important;
+}
+
+.ant-modal-mask[data-critical="true"],
+.ant-modal-mask.critical-modal {
+  z-index: 580 !important;
+}
+
+/* Layer 7: System Messages (600-699) */
+/* .notifications, .alerts { z-index: 600-699; } */
+
+/* Layer 8: Critical System Elements (700-799) */
+/* .system-warnings { z-index: 700-799; } */
+
+/* Layer 9: Development/Debug Elements (800-899) */
+/* .debug-panels { z-index: 800-899; } */
+
+/* Layer 10: Absolute Top Level (900+) */
+/* Emergency system elements that must always be on top */
+.impersonation-warning,
+.critical-system-message {
+  z-index: 9999 !important;
+}
+
+/* Ensure layout elements don't interfere with modals */
+.ant-layout-header {
+  z-index: 100 !important; /* Moved to navigation layer */
+}
+
+.ant-layout-sider {
+  z-index: 90 !important; /* Below navigation */
+}
+
 .drag-mode-indicator {
-  z-index: 999 !important;
+  z-index: 299 !important; /* Interactive elements layer */
+}
+
+/* Fix specific modal issues */
+.ant-modal-wrap[role="dialog"] {
+  z-index: 560 !important;
+}
+
+.ant-modal-mask + .ant-modal-wrap {
+  z-index: 560 !important;
+}
+
+/* Drawer components should respect the layer system */
+.ant-drawer {
+  z-index: 450 !important; /* Overlay layer */
+}
+
+/* Popover and tooltip components */
+.ant-popover {
+  z-index: 250 !important; /* Interactive elements layer */
+}
+
+.ant-tooltip {
+  z-index: 260 !important; /* Interactive elements layer */
+}
+
+/* Dropdown menus */
+.ant-dropdown {
+  z-index: 240 !important; /* Interactive elements layer */
 }
 
 /* Tag enhancements */

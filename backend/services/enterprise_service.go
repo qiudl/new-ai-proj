@@ -172,7 +172,7 @@ func (s *EnterpriseService) UpdateEnterprise(ctx context.Context, id int, req *m
 		Action:       "update",
 		ResourceType: "enterprise",
 		ResourceID:   fmt.Sprintf("%d", id),
-		Description:  fmt.Sprintf("Updated enterprise %s (%s)", req.Name, req.Code),
+		Description:  fmt.Sprintf("Updated enterprise %s (%s)", *req.Name, *req.Code),
 		Status:       "success",
 	})
 

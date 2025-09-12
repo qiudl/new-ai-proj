@@ -22,11 +22,14 @@ import {
   PhoneOutlined,
   MailOutlined,
   GlobalOutlined,
-  BankOutlined
+  BankOutlined,
+  InfoCircleOutlined,
+  ProjectOutlined
 } from '@ant-design/icons';
 import enterpriseService from '../services/enterpriseService';
 import { Enterprise } from '../types/enterprise';
 import { formatDate } from '../utils/formatters';
+import EnterpriseProjectManager from '../components/EnterpriseProjectManager';
 
 const { Title, Text } = Typography;
 const { TabPane } = Tabs;
@@ -138,7 +141,18 @@ const EnterpriseDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <Row gutter={[24, 24]}>
+      {/* 主要内容Tabs */}
+      <Tabs defaultActiveKey="projects" size="large">
+        <Tabs.TabPane
+          tab={
+            <span>
+              <InfoCircleOutlined />
+              企业信息
+            </span>
+          }
+          key="basic"
+        >
+          <Row gutter={[24, 24]}>
         {/* 企业基本信息 */}
         <Col span={24}>
           <Card title="基本信息" size="small">
@@ -303,6 +317,23 @@ const EnterpriseDetailPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+        </Tabs.TabPane>
+        
+        <Tabs.TabPane
+          tab={
+            <span>
+              <ProjectOutlined />
+              项目管理
+            </span>
+          }
+          key="projects"
+        >
+          <EnterpriseProjectManager 
+            enterpriseId={enterprise.id} 
+            enterpriseName={enterprise.name}
+          />
+        </Tabs.TabPane>
+      </Tabs>
     </div>
   );
 };

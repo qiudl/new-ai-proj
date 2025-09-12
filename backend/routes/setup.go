@@ -2,6 +2,7 @@ package routes
 
 import (
 	"ai-project-backend/config"
+	"ai-project-backend/middleware"
 	"database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -56,6 +57,8 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册认证路由并获取授权路由组
 	authorized := RegisterAuthRoutes(api, app)
+	// 使企业模拟中间件在所有受保护路由上生效
+	authorized.Use(middleware.ImpersonationMiddleware(nil))
 
 	// 注册基础权限路由
 	RegisterPermissionRoutes(authorized, app)
@@ -77,6 +80,9 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 
 	// 注册企业管理路由
 	RegisterEnterpriseRoutes(authorized, app)
+
+	// 注册企业模拟管理路由（系统管理员功能）
+	RegisterImpersonationRoutes(authorized, app)
 
 	// 注册组织管理路由
 	RegisterOrganizationRoutes(authorized, app)

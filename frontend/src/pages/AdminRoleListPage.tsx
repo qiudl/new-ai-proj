@@ -215,8 +215,8 @@ const AdminRoleListPage: React.FC = () => {
     return roles
       .filter(role => {
         const matchesSearch = !filters.searchText || 
-          role.roleName.toLowerCase().includes(filters.searchText.toLowerCase()) ||
-          role.roleCode.toLowerCase().includes(filters.searchText.toLowerCase()) ||
+          (role.roleName || '').toLowerCase().includes(filters.searchText.toLowerCase()) ||
+          (role.roleCode || '').toLowerCase().includes(filters.searchText.toLowerCase()) ||
           (role.roleDescription || '').toLowerCase().includes(filters.searchText.toLowerCase());
         
         const matchesType = filters.roleType === 'all' || 
@@ -235,10 +235,12 @@ const AdminRoleListPage: React.FC = () => {
         
         switch (sortBy) {
           case 'name':
-            compareResult = a.roleName.localeCompare(b.roleName);
+            const roleNameA = a.roleName || '';
+            const roleNameB = b.roleName || '';
+            compareResult = roleNameA.localeCompare(roleNameB);
             break;
           case 'created':
-            compareResult = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+            compareResult = new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
             break;
           case 'users':
             compareResult = (a.userCount || 0) - (b.userCount || 0);

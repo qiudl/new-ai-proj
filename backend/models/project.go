@@ -159,11 +159,11 @@ func (p *Project) ToResponse() ProjectResponse {
 func (pwc *ProjectWithCompany) ToResponse() ProjectResponse {
 	response := pwc.Project.ToResponse()
 
-	// 设置客户名称
+	// 设置客户/企业名称
 	if pwc.CompanyName != nil {
 		response.CompanyName = *pwc.CompanyName
 	} else {
-		response.CompanyName = "未分配客户"
+		response.CompanyName = "未分配企业"
 	}
 
 	return response

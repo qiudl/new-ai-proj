@@ -60,6 +60,7 @@ const RoleManagementPage = React.lazy(() => import('./pages/RoleManagementPage')
 const AdminRoleListPage = React.lazy(() => import('./pages/AdminRoleListPage'));
 const AdminRoleDetailPage = React.lazy(() => import('./pages/AdminRoleDetailPage'));
 const UserManagementPage = React.lazy(() => import('./pages/UserManagementPage'));
+const UserManagementPageTabbed = React.lazy(() => import('./pages/UserManagementPageTabbed'));
 const AIConfigPage = React.lazy(() => import('./pages/AIConfigPageCompact'));
 const ProjectDetailPage = React.lazy(() => import('./pages/ProjectDetailPage'));
 const ProjectEditPage = React.lazy(() => import('./pages/ProjectEditPageStandard'));
@@ -390,6 +391,13 @@ const AppContent: React.FC = () => {
 
                 {/* User management routes */}
                 <Route path="/user-management" element={
+                  <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
+                    <UserManagementPageTabbed />
+                  </PermissionRoute>
+                } />
+                
+                {/* 原用户管理页面临时路由 */}
+                <Route path="/user-management-old" element={
                   <PermissionRoute permission={USER_PERMISSIONS.ADMIN}>
                     <UserManagementPage />
                   </PermissionRoute>

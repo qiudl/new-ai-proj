@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { Task, TaskUpdate, TimelineEvent } from '../types/task';
+import { TaskTimelineEvent } from '../types/timeline';
 
 /**
  * 任务详情页统一状态管理Hook
@@ -56,7 +57,7 @@ interface UIState {
 // 历史和时间线状态
 interface HistoryState {
   taskUpdates: TaskUpdate[];
-  timelineEvents: TimelineEvent[];
+  timelineEvents: TaskTimelineEvent[];
   loading: boolean;
 }
 
