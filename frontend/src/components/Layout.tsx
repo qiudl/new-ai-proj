@@ -36,7 +36,6 @@ import {
   FileTextOutlined,
   FolderOutlined,
   ClockCircleOutlined,
-  BarChartOutlined,
   FullscreenOutlined,
   FullscreenExitOutlined,
   KeyOutlined,
@@ -70,6 +69,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [quickJumpLoading, setQuickJumpLoading] = useState(false);
 
   const handleMenuClick = (key: string) => {
+    // 处理企业上下文的特殊路由
+    if (isImpersonating && impersonationStatus?.enterprise) {
+      const enterpriseId = impersonationStatus.enterprise.id;
+      
+      switch (key) {
+        case '/enterprise/departments':
+          navigate(`/enterprises/${enterpriseId}/organization`);
+          return;
+        case '/enterprise/users':
+          navigate(`/enterprises/${enterpriseId}/users`);
+          return;
+        case '/enterprise/info':
+          navigate(`/enterprises/${enterpriseId}/info`);
+          return;
+        default:
+          break;
+      }
+    }
+    
+    // 默认行为：直接导航到菜单key
     navigate(key);
   };
 
@@ -216,8 +235,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const getSelectedKeys = () => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard') return ['/'];
-    if (path.includes('/personal-timer')) return ['/personal-timer'];
-    if (path.includes('/timer-analytics')) return ['/timer-analytics'];
     if (path.includes('/time-weekly-report')) return ['/time-weekly-report'];
     if (path.includes('/task-dashboard')) return ['/task-dashboard'];
     if (path.includes('/tasks')) return ['/tasks'];
@@ -246,9 +263,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const path = location.pathname;
     if (path === '/' || path === '/dashboard' || path.includes('/time-weekly-report') || path.includes('/task-dashboard')) {
       return ['/workspace-management'];
-    }
-    if (path.includes('/personal-timer') || path.includes('/timer-analytics')) {
-      return ['/timer-management'];
     }
     if (path.includes('/projects') || path.includes('/enterprises') || path.includes('/tasks')) {
       return ['/project-customer-management'];
@@ -299,29 +313,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           icon: <CalendarOutlined />,
           label: '时间周报',
         },
-        {
-          key: '/task-dashboard',
-          icon: <CalendarOutlined />,
-          label: '任务周报',
-        },
       ],
     },
     {
       key: '/timer-management',
       icon: <ClockCircleOutlined />,
       label: '计时系统',
-      children: [
-        {
-          key: '/personal-timer',
-          icon: <ClockCircleOutlined />,
-          label: '个人计时',
-        },
-        {
-          key: '/timer-analytics',
-          icon: <BarChartOutlined />,
-          label: '数据分析',
-        },
-      ],
+      children: [],
     },
     {
       key: '/project-customer-management',

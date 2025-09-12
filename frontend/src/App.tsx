@@ -45,7 +45,6 @@ const TaskDetailPageNew = React.lazy(() => import(/* webpackPrefetch: true */ '.
 const TaskEditPage = React.lazy(() => import('./pages/TaskEditPage'));
 const AllFieldsTaskListPage = React.lazy(() => import('./pages/AllFieldsTaskListPage'));
 const SmartSwimlanesPage = React.lazy(() => import('./pages/SmartSwimlanesPage'));
-const TaskDashboardPage = React.lazy(() => import('./pages/TaskDashboardPage'));
 const TaskCalendarPage = React.lazy(() => import('./pages/TaskCalendarPage'));
 const BatchCascadePage = React.lazy(() => import('./pages/BatchCascadePage'));
 const TimeWeeklyReportPage = React.lazy(() => import('./pages/TimeWeeklyReportPage'));
@@ -89,8 +88,6 @@ const ModernDocumentManagerPage = React.lazy(() => import('./pages/ModernDocumen
 const DropdownTestPage = React.lazy(() => import('./pages/DropdownTestPage'));
 const TaskDocumentListPage = React.lazy(() => import('./pages/TaskDocumentListPage'));
 const ArchivedTasksPage = React.lazy(() => import('./pages/ArchivedTasksPage'));
-const PersonalTimerPage = React.lazy(() => import('./pages/PersonalTimerPage'));
-const TimerAnalyticsPage = React.lazy(() => import('./pages/TimerAnalyticsPage'));
 const TestCenter = React.lazy(() => import('./pages/TestCenter'));
 const MCPTestPage = React.lazy(() => import('./pages/MCPTestPage'));
 const MCPTestPageFixed = React.lazy(() => import('./pages/MCPTestPageFixed'));
@@ -170,17 +167,6 @@ const AppContent: React.FC = () => {
                   </PermissionRoute>
                 } />
 
-                <Route path="/personal-timer" element={
-                  <PermissionRoute permission={TIME_PERMISSIONS.READ}>
-                    <PersonalTimerPage />
-                  </PermissionRoute>
-                } />
-
-                <Route path="/timer-analytics" element={
-                  <PermissionRoute permission={TIME_PERMISSIONS.ANALYTICS_READ}>
-                    <TimerAnalyticsPage />
-                  </PermissionRoute>
-                } />
 
                 <Route path="/projects" element={
                   <PermissionRoute permission={PROJECT_PERMISSIONS.READ}>
@@ -274,7 +260,6 @@ const AppContent: React.FC = () => {
 
                 <Route path="/projects/:projectId/archived-tasks" element={<ArchivedTasksPage />} />
 
-                <Route path="/task-dashboard" element={<TaskDashboardPage />} />
 
                 <Route path="/time-analysis" element={<div>时间分析页面暂时不可用</div>} />
 

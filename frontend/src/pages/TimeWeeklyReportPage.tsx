@@ -63,6 +63,10 @@ import weeklyReportService, {
 import { exportToPDF, exportToExcel, ExportData, ExportOptions } from '../services/exportService';
 import PrintPreview from '../components/PrintPreview';
 import { Task } from '../types/task';
+// 导入数据分析图表组件
+import TimerAnalyticsCharts from '../components/TimerAnalyticsCharts';
+// 导入任务统计组件
+import TaskStatsTab from '../components/TaskStatsTab';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -632,6 +636,26 @@ const TimeWeeklyReportPage: React.FC = () => {
                 <Card title="团队工作效率对比" >
                   <Empty description="团队数据正在开发中..." />
                 </Card>
+              )
+            },
+            {
+              key: 'analytics',
+              label: (<span><BarChartOutlined />数据分析</span>),
+              children: (
+                <TimerAnalyticsCharts 
+                  timeRange="7days"
+                  onTimeRangeChange={() => {}}
+                />
+              )
+            },
+            {
+              key: 'task-stats',
+              label: (<span><ProjectOutlined />任务统计</span>),
+              children: (
+                <TaskStatsTab 
+                  dateRange={selectedDateRange}
+                  projectId={1}
+                />
               )
             }
           ]}
