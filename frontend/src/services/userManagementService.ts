@@ -18,13 +18,23 @@ export class UserManagementService {
       
       if (params.page) queryParams.append('page', params.page.toString());
       if (params.page_size) queryParams.append('page_size', params.page_size.toString());
+      if (params.user_type) queryParams.append('user_type', params.user_type);
       if (params.role) queryParams.append('role', params.role);
       if (params.status) queryParams.append('status', params.status);
       if (params.search) queryParams.append('search', params.search);
+      if (params.company_id) queryParams.append('company_id', params.company_id.toString());
+      if (params.enterprise_ids && params.enterprise_ids.length > 0) {
+        queryParams.append('enterprise_ids', params.enterprise_ids.join(','));
+      }
       
       const response = await api.get(`/admin/users?${queryParams.toString()}`);
+      const data = (response as any).data || [];
+      
+      // Filter out invalid users with missing IDs
+      const validData = data.filter((user: any) => user && user.id && typeof user.id === 'number');
+      
       return {
-        data: (response as any).data || [],
+        data: validData,
         total: (response as any).total || 0,
         page: (response as any).page || params.page || 1,
         page_size: (response as any).page_size || params.page_size || 10
@@ -103,10 +113,18 @@ export class UserManagementService {
    */
   static async updateUserStatus(id: number, status: 'active' | 'inactive' | 'suspended'): Promise<User> {
     try {
+      // Validate user ID
+      if (!id || typeof id !== 'number' || id <= 0) {
+        throw new Error('Invalid user ID');
+      }
+      
       const response = await api.put(`/admin/users/${id}/status`, { status });
       return response.data;
     } catch (error) {
       console.error('Error updating user status:', error);
+      if (error instanceof Error && error.message.includes('404')) {
+        throw new Error('User not found or has been deleted');
+      }
       throw new Error('Failed to update user status');
     }
   }
@@ -156,9 +174,14 @@ export class UserManagementService {
     try {
       const queryParams = new URLSearchParams();
       
+      if (params.user_type) queryParams.append('user_type', params.user_type);
       if (params.role) queryParams.append('role', params.role);
       if (params.status) queryParams.append('status', params.status);
       if (params.search) queryParams.append('search', params.search);
+      if (params.company_id) queryParams.append('company_id', params.company_id.toString());
+      if (params.enterprise_ids && params.enterprise_ids.length > 0) {
+        queryParams.append('enterprise_ids', params.enterprise_ids.join(','));
+      }
       
       const response = await api.get(`/admin/users/export?${queryParams.toString()}`, {
         responseType: 'blob'

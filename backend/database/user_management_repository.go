@@ -146,7 +146,7 @@ func (r *UserManagementRepository) ListUsers(ctx context.Context, params *models
 
 // querySystemUsers queries users from the users table
 func (r *UserManagementRepository) querySystemUsers(ctx context.Context, exec execer, params *models.UserListParams) ([]*models.User, int, error) {
-	whereConditions := []string{"user_type = 'system'"}
+	whereConditions := []string{"user_type = 'system'", "deleted_at IS NULL"}
 	args := []interface{}{}
 	argIndex := 1
 
@@ -440,7 +440,7 @@ func (r *UserManagementRepository) GetUserStats(ctx context.Context) (*models.Us
 func (r *UserManagementRepository) getSystemUserStats(ctx context.Context, exec execer) (*models.UserStats, error) {
 	// Get total count
 	var total int
-	totalQuery := `SELECT COUNT(*) FROM users WHERE user_type = 'system'`
+	totalQuery := `SELECT COUNT(*) FROM users WHERE user_type = 'system' AND deleted_at IS NULL`
 	row := exec.QueryRowContext(ctx, totalQuery)
 	if err := row.Scan(&total); err != nil {
 		return nil, fmt.Errorf("failed to get total system user count: %w", err)
@@ -454,7 +454,7 @@ func (r *UserManagementRepository) getSystemUserStats(ctx context.Context, exec 
 			SUM(CASE WHEN role = 'developer' THEN 1 ELSE 0 END) as dev_count,
 			SUM(CASE WHEN role = 'company_admin' THEN 1 ELSE 0 END) as company_admin_count,
 			SUM(CASE WHEN role = 'company_user' THEN 1 ELSE 0 END) as company_user_count
-		FROM users WHERE user_type = 'system'`
+		FROM users WHERE user_type = 'system' AND deleted_at IS NULL`
 
 	var adminCount, pmCount, devCount, companyAdminCount, companyUserCount int
 	roleRow := exec.QueryRowContext(ctx, roleQuery)
@@ -469,7 +469,7 @@ func (r *UserManagementRepository) getSystemUserStats(ctx context.Context, exec 
 			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
 			SUM(CASE WHEN status = 'inactive' THEN 1 ELSE 0 END) as inactive,
 			SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended
-		FROM users WHERE user_type = 'system'`
+		FROM users WHERE user_type = 'system' AND deleted_at IS NULL`
 
 	var activeStatus, inactiveStatus, suspendedStatus int
 	statusRow := exec.QueryRowContext(ctx, statusQuery)
@@ -482,7 +482,7 @@ func (r *UserManagementRepository) getSystemUserStats(ctx context.Context, exec 
 	recentQuery := `
 		SELECT COUNT(*) 
 		FROM users 
-		WHERE user_type = 'system' AND created_at >= NOW() - INTERVAL '7 days'`
+		WHERE user_type = 'system' AND deleted_at IS NULL AND created_at >= NOW() - INTERVAL '7 days'`
 
 	var recent int
 	recentRow := exec.QueryRowContext(ctx, recentQuery)

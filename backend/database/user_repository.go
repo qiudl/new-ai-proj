@@ -482,7 +482,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *models.User) 
 		    current_timing_task_id = $10, timing_start_time = $11, 
 		    timing_status = COALESCE($12, timing_status),
 		    updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1
+		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING updated_at`
 
 	exec := r.getExecer()
@@ -982,7 +982,7 @@ func (r *PostgresUserRepository) updateSystemUserProfile(ctx context.Context, us
 	query := `
 		UPDATE users 
 		SET username = $2, email = $3, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1
+		WHERE id = $1 AND deleted_at IS NULL
 		RETURNING id, username, email, password_hash, user_type, company_id, company_user_id,
 		          role, status, profile, last_login_at, created_at, updated_at`
 
@@ -1095,7 +1095,7 @@ func (r *PostgresUserRepository) UpdatePassword(ctx context.Context, userID int,
 	query := `
 		UPDATE users 
 		SET password_hash = $2, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $1`
+		WHERE id = $1 AND deleted_at IS NULL`
 
 	exec := r.getExecer()
 	result, err := exec.ExecContext(ctx, query, userID, passwordHash)
