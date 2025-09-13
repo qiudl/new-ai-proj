@@ -114,13 +114,6 @@ class WeeklyReportService {
       
       const response = await api.get(url);
       
-      console.log('周报API响应:', {
-        url,
-        responseType: typeof response,
-        hasData: !!response?.data,
-        response: response
-      });
-      
       // 验证响应结构
       if (!response || typeof response !== 'object') {
         console.warn('API响应格式无效:', response);

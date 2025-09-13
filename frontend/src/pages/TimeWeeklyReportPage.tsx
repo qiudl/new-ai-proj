@@ -3,48 +3,27 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Progress,
   Typography,
   Space,
   Tag,
   Button,
-  Tooltip,
-  List,
-  Avatar,
   Badge,
-  Spin,
-  Empty,
-  Alert,
   message,
-  Divider,
   DatePicker,
   Table,
   Tabs,
-  Timeline,
-  Select
+  Timeline
 } from 'antd';
 import {
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  PlayCircleOutlined,
-  FireOutlined,
-  TrophyOutlined,
-  ThunderboltOutlined,
   CalendarOutlined,
   ReloadOutlined,
   BarChartOutlined,
-  EyeOutlined,
-  ExclamationCircleOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   DownloadOutlined,
   PrinterOutlined,
   LineChartOutlined,
-  PieChartOutlined,
   ProjectOutlined
 } from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
 import dayjs, { Dayjs } from 'dayjs';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -58,7 +37,7 @@ import weeklyReportService, {
   ProjectTimeStats 
 } from '../services/weeklyReportService';
 // 🔧 [任务#714] 导入PDF导出和打印预览功能
-import { exportToPDF, exportToExcel, ExportData, ExportOptions } from '../services/exportService';
+import { exportToPDF, ExportData } from '../services/exportService';
 import PrintPreview from '../components/PrintPreview';
 import { Task } from '../types/task';
 // 导入数据分析图表组件
@@ -74,14 +53,11 @@ import OKRModule from '../components/OKRModule';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
-const { Option } = Select;
-const { TabPane } = Tabs;
 
 dayjs.extend(weekOfYear);
 dayjs.extend(isoWeek);
 
 const TimeWeeklyReportPage: React.FC = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDateRange, setSelectedDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
@@ -112,16 +88,23 @@ const TimeWeeklyReportPage: React.FC = () => {
   // 计算周统计
   const weekSummary = useMemo(() => {
     const totalDaysWorked = dailyStats.filter(day => day.totalHours > 0).length;
-    const avgHoursPerDay = weeklyStats.totalHours / totalDaysWorked || 0;
-    const avgEfficiency = dailyStats.reduce((sum, day) => sum + day.efficiency, 0) / dailyStats.length;
-    const bestDay = dailyStats.reduce((max, day) => day.efficiency > max.efficiency ? day : max, dailyStats[0]);
+    const avgHoursPerDay = totalDaysWorked > 0 ? weeklyStats.totalHours / totalDaysWorked : 0;
+    const avgEfficiency = dailyStats.length > 0 
+      ? dailyStats.reduce((sum, day) => sum + day.efficiency, 0) / dailyStats.length 
+      : 0;
+    const bestDay = dailyStats.length > 0 
+      ? dailyStats.reduce((max, day) => day.efficiency > max.efficiency ? day : max, dailyStats[0])
+      : null;
+    const completionRate = weeklyStats.totalTasks > 0 
+      ? (weeklyStats.completedTasks / weeklyStats.totalTasks) * 100 
+      : 0;
     
     return {
       totalDaysWorked,
       avgHoursPerDay,
-      avgEfficiency,
+      avgEfficiency: Math.max(0, avgEfficiency), // 确保不为负数
       bestDay,
-      completionRate: (weeklyStats.completedTasks / weeklyStats.totalTasks) * 100
+      completionRate: Math.max(0, Math.min(100, completionRate)) // 确保在0-100之间
     };
   }, [weeklyStats, dailyStats]);
 
@@ -139,7 +122,9 @@ const TimeWeeklyReportPage: React.FC = () => {
       setTaskTimeEntries(reportData.taskTimeEntries);
       setProjectStats(reportData.projectStats);
       
-      message.success('周报数据加载成功');
+      if (force) {
+        message.success('周报数据刷新成功');
+      }
     } catch (error) {
       console.error('加载周报数据失败:', error);
       message.error('加载周报数据失败，请稍后重试');
@@ -179,7 +164,7 @@ const TimeWeeklyReportPage: React.FC = () => {
       'in_progress': { color: 'processing', text: '进行中' },
       'todo': { color: 'default', text: '待办' }
     };
-    const config = statusMap[status as keyof typeof statusMap];
+    const config = statusMap[status as keyof typeof statusMap] || { color: 'default', text: '未知' };
     return <Tag color={config.color}>{config.text}</Tag>;
   };
 
@@ -194,7 +179,7 @@ const TimeWeeklyReportPage: React.FC = () => {
         weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
         selectedWeek: selectedDateRange[0],
         tasks: taskTimeEntries.map((entry, index) => ({
-          id: entry.id || `task_${index}`,
+          id: parseInt(entry.id) || index + 1,
           title: entry.taskTitle,
           description: '',
           status: entry.status,
@@ -230,7 +215,8 @@ const TimeWeeklyReportPage: React.FC = () => {
       message.success('PDF报告导出成功！');
     } catch (error) {
       console.error('导出报告失败:', error);
-      message.error(`导出报告失败: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : '未知错误';
+      message.error(`导出报告失败: ${errorMessage}`);
     }
   };
 
@@ -245,7 +231,7 @@ const TimeWeeklyReportPage: React.FC = () => {
         weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
         selectedWeek: selectedDateRange[0],
         tasks: taskTimeEntries.map((entry, index) => ({
-          id: entry.id || `task_${index}`,
+          id: parseInt(entry.id) || index + 1,
           title: entry.taskTitle,
           description: '',
           status: entry.status,
@@ -387,9 +373,21 @@ const TimeWeeklyReportPage: React.FC = () => {
               key: 'overview',
               label: (<span><BarChartOutlined />概览分析</span>),
               children: (
-                <Row gutter={[16, 16]}>
-                  {/* 每日工作统计 */}
-                  <Col xs={24} lg={8}>
+                <div>
+                  {/* 数据分析图表 - 第一部分 */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <TimerAnalyticsCharts 
+                      weeklyStats={weeklyStats}
+                      dailyStats={dailyStats}
+                      taskTimeEntries={taskTimeEntries}
+                      projectStats={projectStats}
+                      dateRange={selectedDateRange}
+                    />
+                  </div>
+                  
+                  <Row gutter={[16, 16]}>
+                    {/* 每日工作统计 */}
+                    <Col xs={24} lg={8}>
                     <Card title="每日工作统计" >
                       <Table
                         dataSource={dailyStats}
@@ -491,8 +489,9 @@ const TimeWeeklyReportPage: React.FC = () => {
                         />
                       </Card>
                     )}
-                  </Col>
-                </Row>
+                    </Col>
+                  </Row>
+                </div>
               )
             },
             {
@@ -502,16 +501,6 @@ const TimeWeeklyReportPage: React.FC = () => {
                 <Card title="任务执行时间轴" >
                   <Timeline items={timelineData} />
                 </Card>
-              )
-            },
-            {
-              key: 'analytics',
-              label: (<span><BarChartOutlined />数据分析</span>),
-              children: (
-                <TimerAnalyticsCharts 
-                  timeRange="7days"
-                  onTimeRangeChange={() => {}}
-                />
               )
             },
             {

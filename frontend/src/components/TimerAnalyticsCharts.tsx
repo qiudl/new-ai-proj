@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Select, Typography, Space, Progress } from 'antd';
+import React, { useMemo } from 'react';
+import { Card, Row, Col, Typography, Space, Progress } from 'antd';
 import { BarChartOutlined, PieChartOutlined, LineChartOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import personalTimerService from '../services/personalTimerService';
+import { WeeklyStats, DailyStats, TaskTimeEntry, ProjectTimeStats } from '../services/weeklyReportService';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
 
 interface ChartData {
   categories: {
@@ -32,82 +31,127 @@ interface ChartData {
 }
 
 interface TimerAnalyticsChartsProps {
-  timeRange?: string;
-  onTimeRangeChange?: (range: string) => void;
+  weeklyStats: WeeklyStats;
+  dailyStats: DailyStats[];
+  taskTimeEntries: TaskTimeEntry[];
+  projectStats: ProjectTimeStats[];
+  dateRange: [dayjs.Dayjs, dayjs.Dayjs];
 }
 
 const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
-  timeRange = '7days',
-  onTimeRangeChange
+  weeklyStats,
+  dailyStats,
+  taskTimeEntries,
+  projectStats,
+  dateRange
 }) => {
-  const [chartData, setChartData] = useState<ChartData>({
-    categories: [],
-    weeklyTrend: [],
-    hourlyDistribution: [],
-    taskEfficiency: []
-  });
 
-  // 从后端获取真实数据
-  useEffect(() => {
-    let isMounted = true;
+  // 基于props数据计算图表数据
+  const chartData = useMemo(() => {
+    // 项目分布饼图数据
+    const categories = projectStats
+      .filter(project => project.totalHours > 0) // 过滤掉无时长的项目
+      .map(project => ({
+        name: project.projectName || '未命名项目',
+        value: project.totalHours * 3600, // 转换为秒
+        color: project.color || '#1890ff',
+        percentage: Math.round((project.totalHours / Math.max(weeklyStats.totalHours, 0.01)) * 100)
+      }));
 
-    const fetchData = async () => {
-      try {
-        const data: any = await personalTimerService.getAnalytics({ range: timeRange });
-        const totalSeconds: number = (data && data.total_time && data.total_time.total_seconds) || 0;
+    // 如果没有项目数据，但有任务数据，创建任务状态分布
+    const statusCategories = categories.length === 0 && taskTimeEntries.length > 0 ? (() => {
+      const statusGroups = taskTimeEntries.reduce((acc, task) => {
+        const status = task.status || 'unknown';
+        acc[status] = (acc[status] || 0) + task.duration;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      const statusColors = {
+        completed: '#52c41a',
+        in_progress: '#1890ff', 
+        todo: '#faad14',
+        unknown: '#d9d9d9'
+      };
+      
+      const statusNames = {
+        completed: '已完成',
+        in_progress: '进行中',
+        todo: '待办',
+        unknown: '未知'
+      };
+      
+      const totalHours = Object.values(statusGroups).reduce((sum, hours) => sum + hours, 0);
+      
+      return Object.entries(statusGroups).map(([status, hours]) => ({
+        name: statusNames[status as keyof typeof statusNames] || status,
+        value: hours * 3600,
+        color: statusColors[status as keyof typeof statusColors] || '#d9d9d9',
+        percentage: Math.round((hours / Math.max(totalHours, 0.01)) * 100)
+      }));
+    })() : [];
+    
+    const finalCategories = categories.length > 0 ? categories : statusCategories;
 
-        const categories = (data?.category_breakdown || []).map((c: any) => ({
-          name: c.category || '未分类',
-          value: c.total_seconds || 0,
-          color: c.color || '#1890ff',
-          percentage: typeof c.percentage === 'number'
-            ? Math.round(c.percentage)
-            : (totalSeconds ? Math.round((c.total_seconds / totalSeconds) * 100) : 0)
-        }));
+    // 每日工作时长趋势
+    const weeklyTrend = dailyStats
+      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+      .map(day => ({
+        day: dayjs(day.date).format('MM-DD'),
+        value: day.totalHours * 3600, // 转换为秒
+        sessions: day.tasksCompleted
+      }));
 
-        const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-        const weeklyTrend = (data?.weekly_trend || []).map((w: any) => {
-          const dateStr = w.week_start || w.date || w.day;
-          const d = dayjs(dateStr);
-          return {
-            day: dayNames[d.day()],
-            value: w.total_seconds || 0,
-            sessions: w.sessions_count || 0,
-          };
-        });
+    // 效率趋势数据（替代小时分布）
+    const hourlyDistribution = dailyStats
+      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+      .map((day, index) => ({
+        hour: index, // 使用索引作为x轴
+        value: day.efficiency,
+        date: day.date,
+        dayName: dayjs(day.date).format('MM-DD')
+      }));
 
-        // 现在后端已按 tz 聚合，前端不再进行UTC->本地转换
-        const hourlyDistribution = (data?.hourly_distribution || [])
-          .map((h: any) => ({
-            hour: Number(h.hour),
-            value: h.total_seconds || 0,
-          }))
-          .sort((a: any, b: any) => a.hour - b.hour);
-
-        const taskEfficiency = (data?.task_efficiency || []).map((t: any) => ({
-          taskName: t.task_name,
-          totalTime: t.total_time || 0,
-          targetTime: t.target_time || 0,
-          efficiency: t.efficiency || 0,
-        }));
-
-        const chart: ChartData = {
-          categories,
-          weeklyTrend,
-          hourlyDistribution,
-          taskEfficiency,
+    // 任务效率分析
+    const validTasks = taskTimeEntries.filter(task => task.duration > 0 && task.taskTitle);
+    const avgDuration = validTasks.length > 0 
+      ? validTasks.reduce((sum, task) => sum + task.duration, 0) / validTasks.length 
+      : 0;
+    
+    const taskEfficiency = validTasks
+      .sort((a, b) => b.duration - a.duration)
+      .slice(0, 8) // 只显示前8个任务
+      .map(task => {
+        // 效率计算：基于任务时长相对于平均值的表现
+        // 效率 = 100 - |实际时长 - 平均时长| / 平均时长 * 50
+        // 时长越接近平均值，效率越高
+        let efficiency = 0;
+        if (avgDuration > 0) {
+          const deviation = Math.abs(task.duration - avgDuration) / avgDuration;
+          efficiency = Math.max(0, Math.min(100, Math.round(100 - deviation * 50)));
+        }
+        
+        // 特殊情况：如果任务时长远低于平均值，认为高效率
+        if (task.duration < avgDuration * 0.5 && task.duration > 0) {
+          efficiency = Math.min(100, efficiency + 20);
+        }
+        
+        return {
+          taskName: task.taskTitle.length > 15 
+            ? `${task.taskTitle.slice(0, 15)}...` 
+            : task.taskTitle,
+          totalTime: task.duration * 3600,
+          targetTime: avgDuration * 3600,
+          efficiency
         };
+      });
 
-        if (isMounted) setChartData(chart);
-      } catch (err) {
-        // 出错时使用空数据避免展示错误的模拟数据
-        if (isMounted) setChartData({ categories: [], weeklyTrend: [], hourlyDistribution: [], taskEfficiency: [] });
-      }
+    return {
+      categories: finalCategories,
+      weeklyTrend,
+      hourlyDistribution,
+      taskEfficiency
     };
-
-    fetchData();
-    return () => { isMounted = false; };
-  }, [timeRange]);
+  }, [weeklyStats, dailyStats, taskTimeEntries, projectStats]);
 
   // 饼图组件
   const PieChart: React.FC<{ data: ChartData['categories'] }> = ({ data }) => {
@@ -198,6 +242,9 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
       return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无数据</div>;
     }
     const maxValue = Math.max(...data.map(item => item.value));
+    if (maxValue <= 0) {
+      return <div style={{ textAlign: 'center', padding: '24px', color: '#999' }}>无时长数据</div>;
+    }
     const chartHeight = 120;
     
     return (
@@ -227,7 +274,10 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
                   fontSize="10"
                   fill="#666"
                 >
-                  {Math.floor(item.value / 60)}m
+                  {item.value >= 3600 
+                    ? `${Math.floor(item.value / 3600)}h${Math.floor((item.value % 3600) / 60)}m`
+                    : `${Math.floor(item.value / 60)}m`
+                  }
                 </text>
                 {/* X轴标签 */}
                 <text
@@ -261,9 +311,15 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
     
     // 生成路径点
     const points = data.map((item, index) => {
-      const x = (index / (data.length - 1)) * chartWidth + 25;
+      const x = (index / Math.max(data.length - 1, 1)) * chartWidth + 25;
       const y = chartHeight - (item.value / maxValue) * chartHeight + 20;
-      return { x, y, value: item.value, hour: item.hour };
+      return { 
+        x, 
+        y, 
+        value: item.value, 
+        hour: item.hour,
+        dayName: (item as any).dayName || `Day${item.hour + 1}`
+      };
     });
     
     const pathData = points.map((point, index) => 
@@ -308,6 +364,18 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
                 stroke="white"
                 strokeWidth="2"
               />
+              {/* 效率值显示 */}
+              <text
+                x={point.x}
+                y={point.y - 8}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#1890ff"
+                fontWeight="bold"
+              >
+                {Math.round(point.value)}%
+              </text>
+              {/* 日期标签 */}
               <text
                 x={point.x}
                 y={chartHeight + 35}
@@ -315,7 +383,7 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
                 fontSize="10"
                 fill="#666"
               >
-                {point.hour}:00
+                {point.dayName}
               </text>
             </g>
           ))}
@@ -326,30 +394,24 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
 
   return (
     <div>
-      {/* 时间范围选择 */}
+      {/* 时间范围显示 */}
       <div style={{ marginBottom: '24px' }}>
         <Space>
           <Text>时间范围：</Text>
-          <Select
-            value={timeRange}
-            onChange={onTimeRangeChange}
-            style={{ width: 120 }}
-          >
-            <Option value="7days">最近7天</Option>
-            <Option value="30days">最近30天</Option>
-            <Option value="90days">最近3个月</Option>
-          </Select>
+          <Text strong>
+            {dateRange[0].format('MM月DD日')} - {dateRange[1].format('MM月DD日')}
+          </Text>
         </Space>
       </div>
 
       <Row gutter={[16, 16]}>
-        {/* 分类分布饼图 */}
+        {/* 项目分布饼图 */}
         <Col xs={24} lg={8}>
           <Card
             title={
               <Space>
                 <PieChartOutlined />
-                <span>分类分布</span>
+                <span>项目分布</span>
               </Space>
             }
           >
@@ -357,13 +419,13 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
           </Card>
         </Col>
 
-        {/* 每周趋势柱状图 */}
+        {/* 每日时长趋势 */}
         <Col xs={24} lg={8}>
           <Card
             title={
               <Space>
                 <BarChartOutlined />
-                <span>每周趋势</span>
+                <span>每日时长</span>
               </Space>
             }
           >
@@ -371,13 +433,13 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
           </Card>
         </Col>
 
-        {/* 时段分布折线图 */}
+        {/* 效率趋势折线图 */}
         <Col xs={24} lg={8}>
           <Card
             title={
               <Space>
                 <LineChartOutlined />
-                <span>时段分布</span>
+                <span>效率趋势</span>
               </Space>
             }
           >
@@ -398,31 +460,52 @@ const TimerAnalyticsCharts: React.FC<TimerAnalyticsChartsProps> = ({
             }
           >
             <Row gutter={[16, 16]}>
-              {chartData.taskEfficiency.map((task, index) => (
-                <Col xs={24} sm={12} md={6} key={index}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <Title level={5} style={{ margin: '0 0 8px 0' }}>
-                      {task.taskName}
-                    </Title>
-                    <Progress
-                      type="circle"
-                      percent={task.efficiency}
-                      size={80}
-                      strokeColor={
-                        task.efficiency >= 100 ? '#52c41a' :
-                        task.efficiency >= 75 ? '#1890ff' :
-                        task.efficiency >= 50 ? '#faad14' : '#ff4d4f'
-                      }
-                    />
-                    <div style={{ marginTop: '8px' }}>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>
-                        {Math.floor(task.totalTime / 3600)}h {Math.floor((task.totalTime % 3600) / 60)}m
-                        / {Math.floor(task.targetTime / 3600)}h {Math.floor((task.targetTime % 3600) / 60)}m
-                      </Text>
+              {chartData.taskEfficiency.length === 0 ? (
+                <Col span={24}>
+                  <div style={{ 
+                    textAlign: 'center', 
+                    padding: '40px', 
+                    color: '#999',
+                    background: '#fafafa',
+                    borderRadius: '8px'
+                  }}>
+                    <ClockCircleOutlined style={{ fontSize: '32px', marginBottom: '16px' }} />
+                    <div>暂无任务数据</div>
+                    <div style={{ fontSize: '12px', marginTop: '8px' }}>
+                      完成一些任务后将显示效率分析
                     </div>
                   </div>
                 </Col>
-              ))}
+              ) : (
+                chartData.taskEfficiency.map((task, index) => (
+                  <Col xs={24} sm={12} md={6} key={index}>
+                    <div style={{ textAlign: 'center', padding: '16px' }}>
+                      <Title level={5} style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
+                        {task.taskName}
+                      </Title>
+                      <Progress
+                        type="circle"
+                        percent={task.efficiency}
+                        size={80}
+                        strokeColor={
+                          task.efficiency >= 80 ? '#52c41a' :
+                          task.efficiency >= 60 ? '#1890ff' :
+                          task.efficiency >= 40 ? '#faad14' : '#ff4d4f'
+                        }
+                      />
+                      <div style={{ marginTop: '8px' }}>
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          实际: {Math.floor(task.totalTime / 3600)}h {Math.floor((task.totalTime % 3600) / 60)}m
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          平均: {Math.floor(task.targetTime / 3600)}h {Math.floor((task.targetTime % 3600) / 60)}m
+                        </Text>
+                      </div>
+                    </div>
+                  </Col>
+                ))
+              )}
             </Row>
           </Card>
         </Col>
