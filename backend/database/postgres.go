@@ -199,6 +199,10 @@ func (pdb *PostgresDB) UserTimer() UserTimerRepository {
 	return NewUserTimerRepository(pdb.db)
 }
 
+func (pdb *PostgresDB) OKR() OKRRepository {
+	return NewOKRRepository(pdb.db)
+}
+
 // TimelineEvents returns the timeline events repository
 func (pdb *PostgresDB) TimelineEvents() TimelineEventsRepository {
 	return NewTimelineEventsRepository(pdb.db)
@@ -415,6 +419,10 @@ func (ptx *PostgresTx) Timer() TimerRepository {
 // UserTimer returns the user timer repository for transaction
 func (ptx *PostgresTx) UserTimer() UserTimerRepository {
 	return NewUserTimerRepository(ptx.tx)
+}
+
+func (ptx *PostgresTx) OKR() OKRRepository {
+	return NewOKRRepository(ptx.tx)
 }
 
 // TimelineEvents returns the timeline events repository for transaction

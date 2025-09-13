@@ -325,6 +325,14 @@ const HierarchicalTaskList: React.FC<HierarchicalTaskListProps> = ({
                 flexWrap: 'wrap',
                 gap: 8
               }}>
+                <span style={{ 
+                  color: '#8c8c8c', 
+                  fontSize: '11px', 
+                  marginRight: '4px',
+                  fontWeight: 'normal'
+                }}>
+                  #{record.id}
+                </span>
                 <span style={{ wordBreak: 'break-word' }}>{text}</span>
                 {hasChildren && (
                   <Tag 

@@ -42,21 +42,20 @@ func registerGlobalTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 	// Global tasks routes (all projects) - for compatibility
 	// authorized.GET("/tasks", app.GetAllTasksHandler()) // 重复路由，已在task_routes.go中注册
 
-	// TODO: 以下handler方法需要实现
-	// authorized.GET("/tasks/today", app.GetTodayTasksHandler())
-	// authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
-	// authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
-	// authorized.POST("/tasks/:task_id/complete", app.MarkTodayTaskCompletedHandler())
-	// authorized.POST("/tasks/:task_id/postpone", app.PostponeTodayTaskHandler())
-	// authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
-	// Task progress endpoint
+	// 今日任务相关路由
+	authorized.GET("/tasks/today", app.GetTodayTasksHandler())
+	authorized.GET("/tasks/today/stats", app.GetTodayTasksStatsHandler())
+	authorized.POST("/tasks/today/bulk", app.BulkOperationTodayTasksHandler())
+	authorized.POST("/tasks/:id/complete", app.MarkTodayTaskCompletedHandler())
+	authorized.POST("/tasks/:id/postpone", app.PostponeTodayTaskHandler())
+	authorized.POST("/tasks/validate-parent", app.ValidateParentHandler())
+	// Task progress endpoint (留作后续)
 	// authorized.GET("/tasks/:task_id/progress", app.GetTaskProgressHandler())
 
 	// 分析埋点回传（前端 fire-and-forget）
-	// TODO: 以下handler方法需要实现
-	// authorized.POST("/analytics/events", app.GetAnalyticsHandler().IngestEvents)
-	// KPI 查询占位
-	// authorized.GET("/analytics/kpi/:name", app.GetAnalyticsHandler().GetKPI)
+	authorized.POST("/analytics/events", app.GetAnalyticsHandler().IngestEvents)
+	// KPI 查询
+	authorized.GET("/analytics/kpi/:name", app.GetAnalyticsHandler().GetKPI)
 }
 
 // registerFileRoutes 注册文件管理路由

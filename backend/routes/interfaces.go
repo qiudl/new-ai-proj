@@ -84,6 +84,13 @@ type ApplicationInterface interface {
 	MoveTaskByIdHandler() gin.HandlerFunc
 	ReorderTaskByIdHandler() gin.HandlerFunc
 
+	// 今日任务处理器
+	GetTodayTasksHandler() gin.HandlerFunc
+	GetTodayTasksStatsHandler() gin.HandlerFunc
+	MarkTodayTaskCompletedHandler() gin.HandlerFunc
+	PostponeTodayTaskHandler() gin.HandlerFunc
+	BulkOperationTodayTasksHandler() gin.HandlerFunc
+
 	// 各模块处理器
 	GetArchiveHandler() *handlers.ArchiveHandler
 	GetCalendarSyncHandler() *handlers.CalendarSyncHandler
@@ -135,6 +142,17 @@ type ApplicationInterface interface {
 
 	// 时间线处理器
 	GetTimelineHandler() *handlers.TimelineHandler
+
+	// 任务更新处理器
+	GetTaskUpdatesHandler() gin.HandlerFunc
+	UpdateTaskUpdateHandler() gin.HandlerFunc
+	DeleteTaskUpdateHandler() gin.HandlerFunc
+
+	// 验证处理器
+	ValidateParentHandler() gin.HandlerFunc
+
+	// 分析埋点处理器
+	GetAnalyticsHandler() *handlers.AnalyticsHandler
 
 	// 批量操作处理器
 	GetBulkOperationHandler() *handlers.BulkOperationHandler

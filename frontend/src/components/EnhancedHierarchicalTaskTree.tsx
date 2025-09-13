@@ -179,6 +179,14 @@ const EnhancedHierarchicalTaskTree: React.FC<EnhancedHierarchicalTaskTreeProps> 
             fontSize: level === 0 ? '13px' : '12px',
             marginRight: '6px'
           }}>
+            <span style={{ 
+              color: '#8c8c8c', 
+              fontSize: '11px', 
+              marginRight: '4px',
+              fontWeight: 'normal'
+            }}>
+              #{task.id}
+            </span>
             {task.title}
           </span>
           

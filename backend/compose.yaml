@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
       POSTGRES_DB: ${DB_NAME:-main_db}
     ports:
-      - "5432:5432"
+      - "55432:5432"  # Map container 5432 to host 55432 to avoid conflicts
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-user} -d ${DB_NAME:-main_db} -h 127.0.0.1 -p 5432"]
       interval: 5s
@@ -45,7 +45,7 @@ services:
         MODE="${MIGRATION_MODE:-core}"
         if [ "$$MODE" = "core" ]; then
           # Core migrations needed for timers only
-          CORE_LIST="004_create_core_entities.sql 004b_alter_users_base.sql 005a_add_tasks_parent_hierarchy.sql 006_unified_timer_system.sql 022_task_descendants_indexes.sql 025_timer_family_mutex.sql"
+          CORE_LIST="004_create_core_entities.sql 004b_alter_users_base.sql 005a_add_tasks_parent_hierarchy.sql 006_unified_timer_system.sql 022_task_descendants_indexes.sql 025_timer_family_mutex.sql 073_create_okr_progress_logs.sql"
           for name in $$CORE_LIST; do
             f="/migrations/$$name"
             if [ -f "$$f" ]; then

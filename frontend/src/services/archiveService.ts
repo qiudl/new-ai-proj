@@ -31,13 +31,10 @@ export const archiveTask = async (
   taskId: number, 
   reason?: string
 ): Promise<void> => {
-  const response = await api.post(`/projects/${projectId}/tasks/${taskId}/archive`, {
+  await api.post(`/projects/${projectId}/tasks/${taskId}/archive`, {
     reason
   });
-  
-  if (!response.data.success) {
-    throw new Error(response.data.message || '归档任务失败');
-  }
+  // API 拦截器已自动解包 { success, data } 为 data，无需再检查 success
 };
 
 // 取消归档单个任务
@@ -45,11 +42,8 @@ export const unarchiveTask = async (
   projectId: number,
   taskId: number
 ): Promise<void> => {
-  const response = await api.post(`/projects/${projectId}/tasks/${taskId}/unarchive`);
-  
-  if (!response.data.success) {
-    throw new Error(response.data.message || '取消归档失败');
-  }
+  await api.post(`/projects/${projectId}/tasks/${taskId}/unarchive`);
+  // API 拦截器已自动解包 { success, data } 为 data
 };
 
 // 批量归档任务
@@ -58,16 +52,23 @@ export const archiveTasks = async (
   taskIds: number[],
   reason?: string
 ): Promise<{ archived_count: number; requested_count: number }> => {
-  const response = await api.post(`/projects/${projectId}/tasks/archive/bulk`, {
+  if (!projectId || projectId <= 0) {
+    // 全局模式：使用已注册的批量操作归档端点
+    const data = await api.post(`/batch/operations/archive`, {
+      task_ids: taskIds,
+      archive_children: false,
+      reason
+    });
+    return data; // API 拦截器已解包
+  }
+
+  // 项目模式：使用项目作用域的归档接口
+  const data = await api.post(`/projects/${projectId}/tasks/archive/bulk`, {
     task_ids: taskIds,
     reason
   });
   
-  if (!response.data.success) {
-    throw new Error(response.data.message || '批量归档失败');
-  }
-  
-  return response.data;
+  return data; // API 拦截器已解包
 };
 
 // 获取归档任务列表
@@ -82,26 +83,16 @@ export const getArchivedTasks = async (
   page_size: number;
   total_pages: number;
 }> => {
-  const response = await api.get(`/projects/${projectId}/tasks/archived`, {
+  return await api.get(`/projects/${projectId}/tasks/archived`, {
     params: { page, pageSize }
   });
-  
-  if (!response.data.success) {
-    throw new Error(response.data.message || '获取归档任务失败');
-  }
-  
-  return response.data;
+  // API 拦截器已自动解包 { success, data } 为 data
 };
 
 // 获取归档统计信息
 export const getArchiveStatistics = async (
   projectId: number
 ): Promise<ArchiveStatistics> => {
-  const response = await api.get(`/projects/${projectId}/archive/stats`);
-  
-  if (!response.data.success) {
-    throw new Error(response.data.message || '获取归档统计失败');
-  }
-  
-  return response.data;
+  return await api.get(`/projects/${projectId}/archive/stats`);
+  // API 拦截器已自动解包 { success, data } 为 data
 };

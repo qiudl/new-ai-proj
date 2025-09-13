@@ -119,6 +119,19 @@ export interface EnterpriseUserRequest {
   status?: 'active' | 'inactive' | 'suspended';
 }
 
+export interface EnterpriseUserUpdateRequest {
+  enterprise_id?: number;
+  username: string;
+  name: string;
+  email: string;
+  phone?: string;
+  position?: string;
+  department_id?: number;
+  is_primary_contact?: boolean;
+  access_level: number;
+  status: 'active' | 'inactive' | 'archived';
+}
+
 export interface EnterpriseDepartmentRequest {
   name: string;
   code?: string;
@@ -347,6 +360,18 @@ class EnterpriseService {
       return result;
     } catch (error) {
       console.error('❌ 创建企业用户失败:', error);
+      throw error;
+    }
+  }
+
+  // 更新企业用户
+  async updateEnterpriseUser(enterpriseId: number, userId: number, user: Partial<EnterpriseUserRequest>): Promise<EnterpriseUser> {
+    try {
+      const response = await api.put(`${this.API_BASE_URL}/${enterpriseId}/users/${userId}`, user);
+      const result = this.handleApiResponse<EnterpriseUser>(response);
+      return result;
+    } catch (error) {
+      console.error('❌ 更新企业用户失败:', error);
       throw error;
     }
   }

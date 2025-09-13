@@ -134,3 +134,4 @@ openapi-generator generate -i docs/api/openapi.yaml -g [language] -o ./generated
 - 开发登录端点路径：/api/v1/auth/dev/quick-login
 - 项目总结文档不要用工作笔记,而是任务文档.
 - 执行完任务，请用create-and-attach (MCP)将任务执行过程和总结创建为本任务的任务文档。注意保存文档标题。
+- 本项目后端只能用8081端口

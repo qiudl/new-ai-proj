@@ -3,6 +3,7 @@ package application
 import (
 	"ai-project-backend/handlers"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,9 +15,10 @@ import (
 func (app *Application) GetHealthHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
-			"status":  "ok",
-			"message": "Service is healthy",
-			"service": "ai-project-backend",
+			"status":    "ok",
+			"message":   "Service is healthy",
+			"service":   "ai-project-backend",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		})
 	}
 }
@@ -517,6 +519,15 @@ func (app *Application) FileDownloadHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.JSON(http.StatusNotImplemented, gin.H{"error": "FileDownloadHandler not implemented"})
 	}
+}
+
+// Analytics handler getter
+func (app *Application) GetAnalyticsHandler() *handlers.AnalyticsHandler {
+	if app.handlers != nil && app.handlers.AnalyticsHandler != nil {
+		return app.handlers.AnalyticsHandler
+	}
+	// Fallback: construct a new handler using current DB
+	return handlers.NewAnalyticsHandler(app.db)
 }
 
 // User mapping middleware

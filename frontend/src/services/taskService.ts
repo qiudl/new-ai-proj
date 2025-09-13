@@ -896,16 +896,78 @@ const mergedRaw = { ...(params || {}) } as any;
     taskId: number,
     params?: PaginationParams
   ): Promise<PaginatedResponse<TimelineEvent>> {
-    const response: APIResponse<PaginatedResponse<TimelineEvent>> = await api.get(
-      `/projects/${projectId}/tasks/${taskId}/timeline`,
-      { params }
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch task timeline');
+    try {
+      const response: any = await api.get(
+        `/projects/${projectId}/tasks/${taskId}/timeline`,
+        { params }
+      );
+
+      // Helper to build default pagination
+      const buildPagination = (total: number) => ({
+        page: params?.page || 1,
+        page_size: (params as any)?.page_size || 20,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / ((params as any)?.page_size || 20))),
+        has_next: false,
+        has_prev: false,
+      });
+
+      // Case 1: Wrapped APIResponse { success, data }
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch task timeline');
+        }
+        const payload = response.data;
+        // 1A) payload is an array of events
+        if (Array.isArray(payload)) {
+          return { data: payload as TimelineEvent[], pagination: buildPagination(payload.length) };
+        }
+        // 1B) payload has { data: TimelineEvent[], pagination }
+        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
+          return payload as PaginatedResponse<TimelineEvent>;
+        }
+        // 1C) payload has { events: TimelineEvent[], pagination? }
+        if (payload && typeof payload === 'object' && Array.isArray(payload.events)) {
+          const pg = (payload as any).pagination || buildPagination((payload as any).events.length);
+          return { data: (payload as any).events, pagination: pg } as PaginatedResponse<TimelineEvent>;
+        }
+      }
+
+      // Case 2: Axios interceptor already unwrapped to payload
+      // 2A) Direct array of events
+      if (Array.isArray(response)) {
+        return { data: response as TimelineEvent[], pagination: buildPagination((response as TimelineEvent[]).length) };
+      }
+      // 2B) PaginatedResponse shape { data: TimelineEvent[], pagination }
+      if (response && typeof response === 'object' && Array.isArray((response as any).data) && (response as any).pagination) {
+        return response as PaginatedResponse<TimelineEvent>;
+      }
+      // 2C) Nested shape { data: { data: TimelineEvent[], pagination } }
+      const nested = (response as any)?.data;
+      if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
+        return nested as PaginatedResponse<TimelineEvent>;
+      }
+      // 2D) { events: TimelineEvent[], pagination? }
+      if (response && typeof response === 'object' && Array.isArray((response as any).events)) {
+        const pg = (response as any).pagination || buildPagination(((response as any).events as TimelineEvent[]).length);
+        return { data: (response as any).events, pagination: pg } as PaginatedResponse<TimelineEvent>;
+      }
+
+      console.warn('TaskService.getTaskTimeline: unexpected response shape', response);
+      return { data: [], pagination: buildPagination(0) };
+    } catch (error) {
+      console.error('TaskService.getTaskTimeline error:', error);
+      // Graceful degradation: return empty data instead of throwing
+      const buildPagination = (total: number) => ({
+        page: params?.page || 1,
+        page_size: (params as any)?.page_size || 20,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / ((params as any)?.page_size || 20))),
+        has_next: false,
+        has_prev: false,
+      });
+      return { data: [], pagination: buildPagination(0) };
     }
-    
-    return response.data!;
   }
 
   /**
@@ -915,16 +977,69 @@ const mergedRaw = { ...(params || {}) } as any;
     projectId: number,
     params?: PaginationParams
   ): Promise<PaginatedResponse<TimelineEvent>> {
-    const response: APIResponse<PaginatedResponse<TimelineEvent>> = await api.get(
-      `/projects/${projectId}/timeline`,
-      { params }
-    );
-    
-    if (!response.success) {
-      throw new Error(response.error?.message || 'Failed to fetch project timeline');
+    try {
+      const response: any = await api.get(
+        `/projects/${projectId}/timeline`,
+        { params }
+      );
+
+      const buildPagination = (total: number) => ({
+        page: params?.page || 1,
+        page_size: (params as any)?.page_size || 20,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / ((params as any)?.page_size || 20))),
+        has_next: false,
+        has_prev: false,
+      });
+
+      // Wrapped APIResponse
+      if (response && typeof response === 'object' && 'success' in response) {
+        if (!response.success) {
+          throw new Error(response?.error?.message || 'Failed to fetch project timeline');
+        }
+        const payload = response.data;
+        if (Array.isArray(payload)) {
+          return { data: payload as TimelineEvent[], pagination: buildPagination(payload.length) };
+        }
+        if (payload && typeof payload === 'object' && Array.isArray(payload.data) && payload.pagination) {
+          return payload as PaginatedResponse<TimelineEvent>;
+        }
+        if (payload && typeof payload === 'object' && Array.isArray(payload.events)) {
+          const pg = (payload as any).pagination || buildPagination((payload as any).events.length);
+          return { data: (payload as any).events, pagination: pg } as PaginatedResponse<TimelineEvent>;
+        }
+      }
+
+      // Unwrapped cases
+      if (Array.isArray(response)) {
+        return { data: response as TimelineEvent[], pagination: buildPagination((response as TimelineEvent[]).length) };
+      }
+      if (response && typeof response === 'object' && Array.isArray((response as any).data) && (response as any).pagination) {
+        return response as PaginatedResponse<TimelineEvent>;
+      }
+      const nested = (response as any)?.data;
+      if (nested && typeof nested === 'object' && Array.isArray(nested.data) && nested.pagination) {
+        return nested as PaginatedResponse<TimelineEvent>;
+      }
+      if (response && typeof response === 'object' && Array.isArray((response as any).events)) {
+        const pg = (response as any).pagination || buildPagination(((response as any).events as TimelineEvent[]).length);
+        return { data: (response as any).events, pagination: pg } as PaginatedResponse<TimelineEvent>;
+      }
+
+      console.warn('TaskService.getProjectTimeline: unexpected response shape', response);
+      return { data: [], pagination: buildPagination(0) };
+    } catch (error) {
+      console.error('TaskService.getProjectTimeline error:', error);
+      const buildPagination = (total: number) => ({
+        page: params?.page || 1,
+        page_size: (params as any)?.page_size || 20,
+        total,
+        total_pages: Math.max(1, Math.ceil(total / ((params as any)?.page_size || 20))),
+        has_next: false,
+        has_prev: false,
+      });
+      return { data: [], pagination: buildPagination(0) };
     }
-    
-    return response.data!;
   }
 
   /**

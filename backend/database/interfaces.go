@@ -578,6 +578,7 @@ type DB interface {
 	Timer() TimerRepository
 	UserTimer() UserTimerRepository   // Personal timer tasks
 	TimelineEvents() TimelineEventsRepository // Task timeline events
+	OKR() OKRRepository              // OKR management
 	GoogleAuth() GoogleAuthRepository // Google Calendar integration
 	GetDB() interface{}               // Access to underlying database connection
 	Close() error

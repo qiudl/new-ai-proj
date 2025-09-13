@@ -65,6 +65,12 @@ import { Task } from '../types/task';
 import TimerAnalyticsCharts from '../components/TimerAnalyticsCharts';
 // 导入任务统计组件
 import TaskStatsTab from '../components/TaskStatsTab';
+// 导入每日工作详情组件
+import DailyWorkDetail from '../components/DailyWorkDetail';
+// 导入最近7天工作详情组件
+import RecentWeekWorkDetail from '../components/RecentWeekWorkDetail';
+// 导入OKR目标管理组件
+import OKRModule from '../components/OKRModule';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -99,6 +105,9 @@ const TimeWeeklyReportPage: React.FC = () => {
   // 🔧 [任务#714] PrintPreview相关状态
   const [printPreviewVisible, setPrintPreviewVisible] = useState(false);
   const [exportData, setExportData] = useState<ExportData | null>(null);
+  
+  // 每日详情状态
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // 计算周统计
   const weekSummary = useMemo(() => {
@@ -148,6 +157,8 @@ const TimeWeeklyReportPage: React.FC = () => {
   useEffect(() => {
     if (selectedDateRange[0] && selectedDateRange[1]) {
       loadWeeklyReport();
+      // 重置选中的日期
+      setSelectedDate(null);
     }
   }, [selectedDateRange]);
 
@@ -365,73 +376,6 @@ const TimeWeeklyReportPage: React.FC = () => {
         </Space>
       </div>
 
-      {/* 核心统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="总工作时长"
-              value={weeklyStats.totalHours}
-              suffix="小时"
-              prefix={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <div style={{ marginTop: '8px' }}>
-              <Text type="secondary">
-                日均 {weekSummary.avgHoursPerDay.toFixed(1)} 小时
-              </Text>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="任务完成率"
-              value={weekSummary.completionRate.toFixed(2)}
-              suffix="%"
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <div style={{ marginTop: '8px' }}>
-              <Text type="secondary">
-                {weeklyStats.completedTasks}/{weeklyStats.totalTasks} 个任务
-              </Text>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="工作效率"
-              value={weekSummary.avgEfficiency.toFixed(2)}
-              suffix="%"
-              prefix={<ThunderboltOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
-            />
-            <div style={{ marginTop: '8px' }}>
-              <Text type="secondary">
-                最佳: {weekSummary.bestDay?.date && dayjs(weekSummary.bestDay.date).format('MM-DD')}
-              </Text>
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="工作天数"
-              value={weekSummary.totalDaysWorked}
-              suffix="天"
-              prefix={<CalendarOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1' }}
-            />
-            <div style={{ marginTop: '8px' }}>
-              <Text type="secondary">
-                连续工作周
-              </Text>
-            </div>
-          </Card>
-        </Col>
-      </Row>
 
       {/* 详细分析标签页 */}
       <Card>
@@ -445,18 +389,41 @@ const TimeWeeklyReportPage: React.FC = () => {
               children: (
                 <Row gutter={[16, 16]}>
                   {/* 每日工作统计 */}
-                  <Col xs={24} lg={12}>
+                  <Col xs={24} lg={8}>
                     <Card title="每日工作统计" >
                       <Table
                         dataSource={dailyStats}
                         rowKey="date"
                         pagination={false}
-                        
+                        onRow={(record) => ({
+                          onClick: () => setSelectedDate(record.date),
+                          style: {
+                            cursor: 'pointer',
+                            backgroundColor: selectedDate === record.date ? '#e6f7ff' : 'transparent'
+                          },
+                          onMouseEnter: (e) => {
+                            if (selectedDate !== record.date) {
+                              e.currentTarget.style.backgroundColor = '#f5f5f5';
+                            }
+                          },
+                          onMouseLeave: (e) => {
+                            if (selectedDate !== record.date) {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }
+                          }
+                        })}
                         columns={[
                           {
                             title: '日期',
                             dataIndex: 'date',
-                            render: (date) => dayjs(date).format('MM-DD dddd')
+                            render: (date) => (
+                              <Text style={{ 
+                                color: selectedDate === date ? '#1890ff' : '#000',
+                                fontWeight: selectedDate === date ? 'bold' : 'normal'
+                              }}>
+                                {dayjs(date).format('MM-DD dddd')}
+                              </Text>
+                            )
                           },
                           {
                             title: '工作时长',
@@ -485,85 +452,45 @@ const TimeWeeklyReportPage: React.FC = () => {
                     </Card>
                   </Col>
 
-                  {/* 项目时间分布 */}
-                  <Col xs={24} lg={12}>
-                    <Card title="项目时间分布" >
-                      <Space direction="vertical" style={{ width: '100%' }}>
-                        {projectStats.map((project, index) => (
-                          <div key={index}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <Text strong>{project.projectName}</Text>
-                              <Text>{project.totalHours}h</Text>
-                            </div>
-                            <Progress
-                              percent={weeklyStats.totalHours ? (project.totalHours / weeklyStats.totalHours) * 100 : 0}
-                              strokeColor={project.color}
-                              showInfo={false}
-                            />
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-                              <span>{project.tasksCount} 个任务</span>
-                              <span>完成率 {project.completionRate.toFixed(2)}%</span>
-                            </div>
-                          </div>
-                        ))}
-                      </Space>
-                    </Card>
-                  </Col>
-
-                  {/* 工作亮点 */}
-                  <Col xs={24}>
-                    <Card title="本周亮点" >
-                      <Row gutter={[16, 16]}>
-                        <Col xs={24} sm={8}>
-                          <Alert
-                            message="最高效的一天"
-                            description={
-                              <div>
-                                <Text strong>{dayjs(weekSummary.bestDay?.date).format('MM月DD日')}</Text>
-                                <br />
-                                <Text>效率达到 {weekSummary.bestDay?.efficiency?.toFixed(2) || '0.00'}%</Text>
-                                <br />
-                                <Text type="secondary">主要任务: {weekSummary.bestDay?.topTask}</Text>
-                              </div>
-                            }
-                            type="success"
-                            showIcon
-                          />
-                        </Col>
-                        <Col xs={24} sm={8}>
-                          <Alert
-                            message="工作时长统计"
-                            description={
-                              <div>
-                                <Text>总计 {weeklyStats.totalHours} 小时</Text>
-                                <br />
-                                <Text>平均每天 {weekSummary.avgHoursPerDay.toFixed(1)} 小时</Text>
-                                <br />
-                                <Text type="secondary">工作 {weekSummary.totalDaysWorked} 天</Text>
-                              </div>
-                            }
-                            type="info"
-                            showIcon
-                          />
-                        </Col>
-                        <Col xs={24} sm={8}>
-                          <Alert
-                            message="任务完成情况"
-                            description={
-                              <div>
-                                <Text>完成率 {weekSummary.completionRate.toFixed(2)}%</Text>
-                                <br />
-                                <Text>完成 {weeklyStats.completedTasks} / {weeklyStats.totalTasks} 个任务</Text>
-                                <br />
-                                <Text type="secondary">{weekSummary.completionRate >= 80 ? '表现优秀' : weekSummary.completionRate >= 60 ? '表现良好' : '需要改进'}</Text>
-                              </div>
-                            }
-                            type="warning"
-                            showIcon
-                          />
-                        </Col>
-                      </Row>
-                    </Card>
+                  {/* 项目时间分布 / 每日工作详情 */}
+                  <Col xs={24} lg={16}>
+                    {selectedDate ? (
+                      <Card 
+                        title={
+                          <Space>
+                            <span>每日工作详情</span>
+                            <Button 
+                              type="text" 
+                              size="small" 
+                              onClick={() => setSelectedDate(null)}
+                              style={{ color: '#666' }}
+                            >
+                              返回周视图
+                            </Button>
+                          </Space>
+                        }
+                      >
+                        <DailyWorkDetail
+                          selectedDate={selectedDate}
+                          dailyStats={dailyStats.find(day => day.date === selectedDate) || {
+                            date: selectedDate,
+                            totalHours: 0,
+                            tasksCompleted: 0,
+                            efficiency: 0,
+                            topTask: '无任务'
+                          }}
+                          taskEntries={taskTimeEntries}
+                        />
+                      </Card>
+                    ) : (
+                      <Card title="最近7天工作详情" >
+                        <RecentWeekWorkDetail
+                          dailyStats={dailyStats}
+                          taskEntries={taskTimeEntries}
+                          weeklyStats={weeklyStats}
+                        />
+                      </Card>
+                    )}
                   </Col>
                 </Row>
               )
@@ -600,6 +527,9 @@ const TimeWeeklyReportPage: React.FC = () => {
           ]}
         />
       </Card>
+
+      {/* OKR目标管理模块 */}
+      <OKRModule style={{ marginTop: '16px' }} />
 
       {/* 🔧 [任务#714] 打印预览模态框 */}
       {exportData && (

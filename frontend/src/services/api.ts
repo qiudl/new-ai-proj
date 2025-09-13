@@ -133,8 +133,9 @@ api.interceptors.response.use(
         
         console.log('🔄 收到401错误，尝试自动刷新token...');
         
-        // 防止重复处理401错误导致的多次跳转
-        if (!isRedirecting) {
+        // 防止重复处理401错误导致的多次跳转和无限重试
+        const retryCount = error.config?.__retryCount || 0;
+        if (!isRedirecting && retryCount < 2) { // 限制重试次数
           isRedirecting = true;
           
           try {
@@ -145,10 +146,11 @@ api.interceptors.response.use(
               console.log('✅ Token自动刷新成功，重新发起原始请求');
               isRedirecting = false;
               
-              // 重新发起原始请求
+              // 重新发起原始请求，但增加重试计数
               const originalConfig = error.config;
               if (originalConfig) {
                 originalConfig.headers.Authorization = `Bearer ${refreshResult.newToken}`;
+                originalConfig.__retryCount = retryCount + 1;
                 return api.request(originalConfig);
               }
             } else if (refreshResult.needsManualAuth) {
@@ -185,6 +187,10 @@ api.interceptors.response.use(
             localStorage.removeItem('currentUser');
             isRedirecting = false;
           }
+        } else if (retryCount >= 2) {
+          // 超过重试次数，直接返回401错误
+          console.warn('🚫 已达到最大重试次数，停止重试');
+          isRedirecting = false;
         }
         break;
       case 403:

@@ -59,12 +59,18 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
   };
 
   // 计算该日期的详细统计
-  const dayTasks = taskEntries.filter(entry => entry.date === selectedDate);
+  const dayTasks = taskEntries.filter(entry => {
+    // 确保日期匹配，处理可能的日期格式差异
+    const entryDate = dayjs(entry.date).format('YYYY-MM-DD');
+    const compareDate = dayjs(selectedDate).format('YYYY-MM-DD');
+    return entryDate === compareDate;
+  });
+  
   const completedTasks = dayTasks.filter(task => task.status === 'completed');
   const inProgressTasks = dayTasks.filter(task => task.status === 'in_progress');
   const todoTasks = dayTasks.filter(task => task.status === 'todo');
   
-  const totalDuration = dayTasks.reduce((sum, task) => sum + task.duration, 0);
+  const totalDuration = dayTasks.reduce((sum, task) => sum + (task.duration || 0), 0);
   const avgTaskDuration = dayTasks.length > 0 ? totalDuration / dayTasks.length : 0;
 
   // 按优先级分组
@@ -74,21 +80,21 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
 
   // 时间轴数据
   const timelineData = dayTasks
-    .sort((a, b) => a.duration - b.duration) // 按时长排序
-    .map(task => ({
+    .sort((a, b) => (b.duration || 0) - (a.duration || 0)) // 按时长倒序排序，时长长的在前
+    .map((task, index) => ({
       color: task.status === 'completed' ? 'green' : task.status === 'in_progress' ? 'blue' : 'gray',
       children: (
-        <div>
+        <div key={task.id || `task_${index}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <Text strong style={{ fontSize: '14px' }}>{task.taskTitle}</Text>
-            <Text style={{ color: '#666', fontSize: '12px' }}>{task.duration}h</Text>
+            <Text strong style={{ fontSize: '14px' }}>{task.taskTitle || '未命名任务'}</Text>
+            <Text style={{ color: '#666', fontSize: '12px' }}>{(task.duration || 0).toFixed(1)}h</Text>
           </div>
           <div style={{ marginBottom: '4px' }}>
-            <Text type="secondary" style={{ fontSize: '12px' }}>{task.projectName}</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>{task.projectName || '未分类项目'}</Text>
           </div>
           <Space>
-            <Tag color={getPriorityColor(task.priority)} size="small">
-              {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}
+            <Tag color={getPriorityColor(task.priority)}>
+              {task.priority === 'high' ? '高' : task.priority === 'medium' ? '中' : '低'}优先级
             </Tag>
             {getStatusTag(task.status)}
           </Space>
@@ -203,31 +209,31 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
         <Space direction="vertical" style={{ width: '100%' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
-              <Tag color="#ff4d4f" size="small">高优先级</Tag>
+              <Tag color="#ff4d4f">高优先级</Tag>
               <Text style={{ fontSize: '12px' }}>{highPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {highPriorityTasks.reduce((sum, task) => sum + task.duration, 0).toFixed(1)}h
+              {highPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
             </Text>
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
-              <Tag color="#faad14" size="small">中优先级</Tag>
+              <Tag color="#faad14">中优先级</Tag>
               <Text style={{ fontSize: '12px' }}>{mediumPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {mediumPriorityTasks.reduce((sum, task) => sum + task.duration, 0).toFixed(1)}h
+              {mediumPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
             </Text>
           </div>
           
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Space>
-              <Tag color="#52c41a" size="small">低优先级</Tag>
+              <Tag color="#52c41a">低优先级</Tag>
               <Text style={{ fontSize: '12px' }}>{lowPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {lowPriorityTasks.reduce((sum, task) => sum + task.duration, 0).toFixed(1)}h
+              {lowPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
             </Text>
           </div>
         </Space>

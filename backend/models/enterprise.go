@@ -48,9 +48,10 @@ type EnterpriseUser struct {
 	Email        string `json:"email" db:"email" validate:"required,email"`
 	
 	// Personal information
-	Name     string  `json:"name" db:"name" validate:"required,min=1,max=100"`
-	Phone    *string `json:"phone" db:"phone"`
-	Position *string `json:"position" db:"position"`
+	Name         string  `json:"name" db:"name" validate:"required,min=1,max=100"`
+	Phone        *string `json:"phone" db:"phone"`
+	Position     *string `json:"position" db:"position"`
+	DepartmentID *int    `json:"department_id" db:"department_id"`
 	
 	// Enterprise role information
 	IsPrimaryContact bool `json:"is_primary_contact" db:"is_primary_contact"`
@@ -190,9 +191,28 @@ type EnterpriseUserRequest struct {
 	Username     string `json:"username" validate:"required,min=3,max=50"`
 	Email        string `json:"email" validate:"required,email"`
 	
-	Name     string  `json:"name" validate:"required,min=1,max=100"`
-	Phone    *string `json:"phone"`
-	Position *string `json:"position"`
+	Name         string  `json:"name" validate:"required,min=1,max=100"`
+	Phone        *string `json:"phone"`
+	Position     *string `json:"position"`
+	DepartmentID *int    `json:"department_id"`
+	
+	IsPrimaryContact bool `json:"is_primary_contact"`
+	AccessLevel      int  `json:"access_level" validate:"min=1,max=5"`
+	
+	Status string  `json:"status" validate:"oneof=active inactive archived"`
+	Bio    *string `json:"bio"`
+}
+
+// EnterpriseUserUpdateRequest represents a request to update an enterprise user
+type EnterpriseUserUpdateRequest struct {
+	EnterpriseID int    `json:"enterprise_id"`
+	Username     string `json:"username"`
+	Email        string `json:"email" validate:"required,email"`
+	
+	Name         string  `json:"name" validate:"required,min=1,max=100"`
+	Phone        *string `json:"phone"`
+	Position     *string `json:"position"`
+	DepartmentID *int    `json:"department_id"`
 	
 	IsPrimaryContact bool `json:"is_primary_contact"`
 	AccessLevel      int  `json:"access_level" validate:"min=1,max=5"`

@@ -637,6 +637,14 @@ const AllFieldsTaskListPage: React.FC = () => {
                     }}
                     onClick={() => navigate(`/projects/${record.project_id}/tasks/${record.id}`)}
                   >
+                    <span style={{ 
+                      color: '#8c8c8c', 
+                      fontSize: '11px', 
+                      marginRight: '4px',
+                      fontWeight: 'normal'
+                    }}>
+                      #{record.id}
+                    </span>
                     {title}
                   </Button>
                   

@@ -21,6 +21,7 @@ func RegisterEnterpriseRoutes(authorized *gin.RouterGroup, app ApplicationInterf
 		enterprises.GET("/:id/users", app.GetEnterpriseHandler().GetEnterpriseUsers)
 		enterprises.POST("/:id/users", app.GetEnterpriseHandler().CreateEnterpriseUser)
 		enterprises.GET("/:id/users/:userId", app.GetEnterpriseHandler().GetEnterpriseUser)
+		enterprises.PUT("/:id/users/:userId", app.GetEnterpriseHandler().UpdateEnterpriseUser)
 
 		// 企业部门管理
 		enterprises.GET("/:id/departments", app.GetEnterpriseHandler().GetEnterpriseDepartments)

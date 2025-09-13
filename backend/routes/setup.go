@@ -111,6 +111,12 @@ func RegisterAllRoutes(router *gin.Engine, app ApplicationInterface) {
 	// 注册计时器路由
 	RegisterTimerRoutes(authorized, app)
 
+	// 注册今日主要任务路由
+	RegisterDailyFocusTaskRoutes(authorized, app)
+
+	// 注册OKR路由
+	RegisterOKRRoutes(authorized, app)
+
 	// 注册用户路由
 	RegisterUserRoutes(authorized, app)
 

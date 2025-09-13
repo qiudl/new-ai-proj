@@ -328,6 +328,7 @@ func (s *EnterpriseService) UpdateEnterpriseUser(ctx context.Context, userID int
 	user.Name = req.Name
 	user.Phone = req.Phone
 	user.Position = req.Position
+	user.DepartmentID = req.DepartmentID
 	user.IsPrimaryContact = req.IsPrimaryContact
 	user.AccessLevel = req.AccessLevel
 	user.Status = req.Status

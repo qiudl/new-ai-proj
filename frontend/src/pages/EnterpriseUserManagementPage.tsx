@@ -37,7 +37,7 @@ import {
 } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
-import enterpriseService from '../services/enterpriseService';
+import enterpriseService, { EnterpriseUserUpdateRequest } from '../services/enterpriseService';
 import {
   Enterprise,
   EnterpriseUser,
@@ -260,13 +260,37 @@ const EnterpriseUserManagementPage: React.FC = () => {
   // 保存用户
   const saveUser = async (values: any) => {
     try {
+      console.log('💾 开始保存用户，编辑模式:', !!editingUser);
+      console.log('📝 表单数据:', values);
+      
       if (editingUser) {
-        // TODO: Update user - need update endpoint
-        message.info('更新用户功能开发中...');
+        // 更新用户
+        console.log('🔄 更新用户ID:', editingUser.id);
+        const updateData: EnterpriseUserUpdateRequest = {
+          username: values.username,
+          name: values.name,
+          email: values.email,
+          phone: values.phone,
+          position: values.position,
+          department_id: values.department_id,
+          access_level: values.access_level,
+          status: values.status,
+          is_primary_contact: values.is_primary_contact,
+          enterprise_id: enterpriseIdNum
+        };
+        console.log('📤 更新数据:', updateData);
+        
+        const result = await enterpriseService.updateEnterpriseUser(enterpriseIdNum, editingUser.id, updateData);
+        console.log('✅ 更新成功:', result);
+        message.success('更新用户成功');
       } else {
         // 创建用户
+        console.log('➕ 创建新用户');
         const createData: EnterpriseUserRequest = values;
+        console.log('📤 创建数据:', createData);
+        
         const result = await enterpriseService.createEnterpriseUser(enterpriseIdNum, createData);
+        console.log('✅ 创建成功:', result);
         
         if (result.generated_password) {
           Modal.info({
@@ -287,7 +311,8 @@ const EnterpriseUserManagementPage: React.FC = () => {
       closeModal();
       loadUsers(pagination.current, pagination.pageSize);
     } catch (error) {
-      console.error('保存用户失败:', error);
+      console.error('💥 保存用户失败:', error);
+      console.error('💥 错误详情:', error.response?.data || error.message);
       message.error(editingUser ? '更新用户失败' : '创建用户失败');
     }
   };
@@ -409,7 +434,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
             <Button
               type="text"
               icon={<UserOutlined />}
-              onClick={() => navigate(`/users/${record.id}`)}
+              onClick={() => navigate(`/enterprises/${enterpriseId}/users/${record.id}`)}
             />
           </Tooltip>
           <Popconfirm
@@ -574,6 +599,8 @@ const EnterpriseUserManagementPage: React.FC = () => {
         onCancel={closeModal}
         width={600}
         footer={null}
+        destroyOnClose={true}
+        getContainer={false}
       >
         <Form
           form={form}
@@ -665,6 +692,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
                     option?.label?.toString().toLowerCase().includes(input.toLowerCase())
                   }
                   options={departmentOptions}
+                  getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
                   notFoundContent={
                     departmentsLoading ? "正在加载..." :
                     (!departments || departments.length === 0) ? (
@@ -732,7 +760,10 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 name="access_level"
                 rules={[{ required: true, message: '请选择访问级别' }]}
               >
-                <Select placeholder="请选择访问级别">
+                <Select 
+                  placeholder="请选择访问级别"
+                  getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+                >
                   {ACCESS_LEVEL_OPTIONS && ACCESS_LEVEL_OPTIONS.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
@@ -747,7 +778,10 @@ const EnterpriseUserManagementPage: React.FC = () => {
                 name="status"
                 rules={[{ required: true, message: '请选择状态' }]}
               >
-                <Select placeholder="请选择状态">
+                <Select 
+                  placeholder="请选择状态"
+                  getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+                >
                   {USER_STATUS_OPTIONS && USER_STATUS_OPTIONS.map(option => (
                     <Option key={option.value} value={option.value}>
                       {option.label}

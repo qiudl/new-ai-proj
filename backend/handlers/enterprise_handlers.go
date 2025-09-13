@@ -439,6 +439,82 @@ func (h *EnterpriseHandler) GetEnterpriseUser(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// UpdateEnterpriseUser handles PUT /api/v1/enterprises/:id/users/:userId
+func (h *EnterpriseHandler) UpdateEnterpriseUser(c *gin.Context) {
+	enterpriseIDStr := c.Param("id")
+	enterpriseID, err := strconv.Atoi(enterpriseIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid enterprise ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	userIDStr := c.Param("userId")
+	userID, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid user ID", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	var req models.EnterpriseUserUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Invalid request body", nil)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Set enterprise ID for validation
+	req.EnterpriseID = enterpriseID
+
+	// Validate request
+	if err := h.validator.Struct(&req); err != nil {
+		response := models.NewErrorResponse(models.ErrCodeBadRequest, "Validation failed", h.extractValidationErrors(err))
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	// Get operator ID from context (TODO: implement proper auth context)
+	operatorID := 1
+
+	// Convert to EnterpriseUserRequest for service layer
+	updateReq := &models.EnterpriseUserRequest{
+		EnterpriseID:     req.EnterpriseID,
+		Username:         req.Username,
+		Email:            req.Email,
+		Name:             req.Name,
+		Phone:            req.Phone,
+		Position:         req.Position,
+		DepartmentID:     req.DepartmentID,
+		IsPrimaryContact: req.IsPrimaryContact,
+		AccessLevel:      req.AccessLevel,
+		Status:           req.Status,
+		Bio:              req.Bio,
+	}
+
+	// Update enterprise user using service
+	updatedUser, err := h.enterpriseService.UpdateEnterpriseUser(c.Request.Context(), userID, updateReq, operatorID)
+	if err != nil {
+		if err.Error() == "user not found" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		if err.Error() == "user not found in this enterprise" {
+			response := models.NewErrorResponse(models.ErrCodeNotFound, "User not found in this enterprise", nil)
+			c.JSON(http.StatusNotFound, response)
+			return
+		}
+		h.logger.Printf("Error updating enterprise user: %v", err)
+		response := models.NewErrorResponse(models.ErrCodeInternal, "Failed to update enterprise user", nil)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	response := models.NewSuccessResponse(updatedUser.ToResponse(), "Enterprise user updated successfully")
+	c.JSON(http.StatusOK, response)
+}
+
 // GetEnterpriseDepartments handles GET /api/v1/enterprises/:id/departments
 func (h *EnterpriseHandler) GetEnterpriseDepartments(c *gin.Context) {
 	enterpriseIDStr := c.Param("id")

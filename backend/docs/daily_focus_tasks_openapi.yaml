@@ -1,0 +1,749 @@
+openapi: 3.0.3
+info:
+  title: Daily Focus Tasks API
+  description: |
+    今日主要任务管理API，支持用户标记、管理和智能推荐每日重点任务。
+    
+    ## 功能特性
+    - 个人化的今日主要任务管理
+    - 智能任务推荐算法
+    - 拖拽排序和优先级管理
+    - 任务完成状态自动同步
+    - 历史数据统计分析
+    - 实时WebSocket推送
+    
+    ## 认证说明
+    所有接口都需要JWT认证，通过Authorization header传递Bearer token。
+    
+  version: 1.0.0
+  contact:
+    name: AI Project Backend Team
+    url: https://github.com/your-org/ai-project-backend
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8081/api/v1
+    description: 开发环境
+  - url: https://api.example.com/api/v1
+    description: 生产环境
+
+security:
+  - BearerAuth: []
+
+paths:
+  /daily-focus-tasks:
+    get:
+      summary: 获取今日主要任务列表
+      description: 获取指定日期的用户主要任务列表，支持状态过滤和智能推荐
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: date
+          in: query
+          description: 指定日期，格式 YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+            example: "2025-09-13"
+        - name: status
+          in: query
+          description: 过滤任务状态
+          schema:
+            type: string
+            enum: [active, completed, removed]
+        - name: include_suggestions
+          in: query
+          description: 是否包含智能推荐
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: 成功获取任务列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyFocusTaskListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      summary: 添加今日主要任务
+      description: 将指定任务添加到今日主要任务列表
+      tags:
+        - Daily Focus Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDailyFocusTaskRequest'
+      responses:
+        '201':
+          description: 任务添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyFocusTaskResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: 任务已存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /daily-focus-tasks/{id}:
+    put:
+      summary: 更新今日主要任务
+      description: 更新指定今日主要任务的属性
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 今日主要任务ID
+          schema:
+            type: integer
+            example: 123
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDailyFocusTaskRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyFocusTaskResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: 删除今日主要任务
+      description: 从今日主要任务列表中移除指定任务
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 今日主要任务ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /daily-focus-tasks/reorder:
+    patch:
+      summary: 批量更新排序
+      description: 批量更新今日主要任务的排序顺序
+      tags:
+        - Daily Focus Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderTasksRequest'
+      responses:
+        '200':
+          description: 排序更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /daily-focus-tasks/suggestions:
+    get:
+      summary: 获取智能推荐任务
+      description: 基于算法获取推荐的今日主要任务
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: limit
+          in: query
+          description: 推荐数量限制
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+        - name: date
+          in: query
+          description: 指定日期
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 成功获取推荐列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskSuggestionsResponse'
+
+  /daily-focus-tasks/accept-suggestions:
+    post:
+      summary: 批量采用推荐任务
+      description: 将推荐的任务批量添加到今日主要任务
+      tags:
+        - Daily Focus Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptSuggestionsRequest'
+      responses:
+        '201':
+          description: 推荐任务添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchOperationResponse'
+
+  /daily-focus-tasks/carry-over:
+    post:
+      summary: 延续未完成任务
+      description: 将未完成的任务延续到指定日期
+      tags:
+        - Daily Focus Tasks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CarryOverTasksRequest'
+      responses:
+        '201':
+          description: 任务延续成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchOperationResponse'
+
+  /daily-focus-tasks/{id}/complete:
+    patch:
+      summary: 标记任务完成
+      description: 将今日主要任务标记为已完成
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 今日主要任务ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 任务完成标记成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DailyFocusTaskResponse'
+
+  /daily-focus-tasks/statistics:
+    get:
+      summary: 获取历史统计数据
+      description: 获取今日主要任务的历史统计和分析数据
+      tags:
+        - Daily Focus Tasks
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          description: 开始日期
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          description: 结束日期
+          schema:
+            type: string
+            format: date
+        - name: period
+          in: query
+          description: 统计周期
+          schema:
+            type: string
+            enum: [daily, weekly, monthly]
+            default: daily
+      responses:
+        '200':
+          description: 成功获取统计数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatisticsResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    DailyFocusTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 今日主要任务ID
+          example: 123
+        task_id:
+          type: integer
+          description: 关联的任务ID
+          example: 456
+        user_id:
+          type: integer
+          description: 用户ID
+          example: 789
+        project_id:
+          type: integer
+          description: 项目ID
+          example: 1
+        focus_date:
+          type: string
+          format: date
+          description: 焦点日期
+          example: "2025-09-13"
+        sort_order:
+          type: integer
+          description: 排序顺序
+          example: 1
+        priority_level:
+          type: string
+          enum: [low, medium, high]
+          description: 优先级
+          example: "high"
+        is_auto_suggested:
+          type: boolean
+          description: 是否为自动推荐
+          example: false
+        suggestion_reason:
+          type: string
+          enum: [manual, deadline_today, deadline_approaching, high_priority, overdue, suggested]
+          description: 推荐原因
+          example: "manual"
+        suggestion_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 推荐分数
+          example: 0.0
+        status:
+          type: string
+          enum: [active, completed, removed, carried_over]
+          description: 状态
+          example: "active"
+        completed_at:
+          type: string
+          format: date-time
+          description: 完成时间
+          nullable: true
+        carried_from_date:
+          type: string
+          format: date
+          description: 延续来源日期
+          nullable: true
+        user_notes:
+          type: string
+          description: 用户备注
+          example: "重要功能开发"
+        estimated_duration_minutes:
+          type: integer
+          minimum: 0
+          description: 预估完成时间(分钟)
+          example: 120
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        task:
+          $ref: '#/components/schemas/TaskInfo'
+        project:
+          $ref: '#/components/schemas/ProjectInfo'
+
+    TaskInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 456
+        title:
+          type: string
+          example: "实现用户认证功能"
+        description:
+          type: string
+          example: "完成JWT认证和权限控制"
+        status:
+          type: string
+          example: "in_progress"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          example: "high"
+        due_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-09-15"
+        assignee_id:
+          type: integer
+          example: 789
+
+    ProjectInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "AI项目后端"
+        code:
+          type: string
+          example: "ai-backend"
+
+    TaskSuggestion:
+      type: object
+      properties:
+        task_id:
+          type: integer
+          description: 任务ID
+          example: 789
+        suggestion_reason:
+          type: string
+          enum: [deadline_today, deadline_approaching, high_priority, overdue, suggested]
+          description: 推荐原因
+          example: "deadline_today"
+        suggestion_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: 推荐分数
+          example: 0.95
+        estimated_duration_minutes:
+          type: integer
+          description: 预估完成时间
+          example: 60
+        task:
+          $ref: '#/components/schemas/TaskInfo'
+
+    CreateDailyFocusTaskRequest:
+      type: object
+      required:
+        - task_id
+      properties:
+        task_id:
+          type: integer
+          description: 任务ID
+          example: 456
+        priority_level:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+          description: 优先级
+        estimated_duration_minutes:
+          type: integer
+          minimum: 0
+          default: 0
+          description: 预估完成时间(分钟)
+        user_notes:
+          type: string
+          description: 用户备注
+        focus_date:
+          type: string
+          format: date
+          description: 焦点日期，默认今天
+
+    UpdateDailyFocusTaskRequest:
+      type: object
+      properties:
+        priority_level:
+          type: string
+          enum: [low, medium, high]
+          description: 优先级
+        estimated_duration_minutes:
+          type: integer
+          minimum: 0
+          description: 预估完成时间(分钟)
+        user_notes:
+          type: string
+          description: 用户备注
+
+    ReorderTasksRequest:
+      type: object
+      required:
+        - reorder_items
+      properties:
+        reorder_items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                description: 今日主要任务ID
+              sort_order:
+                type: integer
+                description: 新的排序顺序
+
+    AcceptSuggestionsRequest:
+      type: object
+      required:
+        - task_ids
+      properties:
+        task_ids:
+          type: array
+          items:
+            type: integer
+          description: 要采用的推荐任务ID列表
+        focus_date:
+          type: string
+          format: date
+          description: 焦点日期，默认今天
+
+    CarryOverTasksRequest:
+      type: object
+      required:
+        - from_date
+        - to_date
+      properties:
+        from_date:
+          type: string
+          format: date
+          description: 源日期
+        to_date:
+          type: string
+          format: date
+          description: 目标日期
+        task_ids:
+          type: array
+          items:
+            type: integer
+          description: 要延续的任务ID列表，不指定则延续所有未完成任务
+
+    DailyFocusTaskListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            focus_date:
+              type: string
+              format: date
+              example: "2025-09-13"
+            total_count:
+              type: integer
+              example: 5
+            active_count:
+              type: integer
+              example: 3
+            completed_count:
+              type: integer
+              example: 2
+            estimated_total_minutes:
+              type: integer
+              example: 450
+            tasks:
+              type: array
+              items:
+                $ref: '#/components/schemas/DailyFocusTask'
+            suggestions:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskSuggestion'
+
+    DailyFocusTaskResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/DailyFocusTask'
+        message:
+          type: string
+          example: "操作成功"
+
+    TaskSuggestionsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            suggestions:
+              type: array
+              items:
+                $ref: '#/components/schemas/TaskSuggestion'
+
+    BatchOperationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            processed_count:
+              type: integer
+              description: 处理的任务数量
+            failed_count:
+              type: integer
+              description: 失败的任务数量
+            failed_tasks:
+              type: array
+              items:
+                type: object
+                properties:
+                  task_id:
+                    type: integer
+                  error:
+                    type: string
+        message:
+          type: string
+
+    StatisticsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            period:
+              type: string
+              enum: [daily, weekly, monthly]
+            total_focus_tasks:
+              type: integer
+              description: 总任务数
+            completed_tasks:
+              type: integer
+              description: 已完成任务数
+            completion_rate:
+              type: number
+              format: float
+              description: 完成率
+            avg_daily_tasks:
+              type: number
+              format: float
+              description: 平均每日任务数
+            avg_completion_time_minutes:
+              type: number
+              format: float
+              description: 平均完成时间(分钟)
+            daily_stats:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  total:
+                    type: integer
+                  completed:
+                    type: integer
+                  completion_rate:
+                    type: number
+                    format: float
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "操作成功"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "TASK_NOT_FOUND"
+            message:
+              type: string
+              example: "指定的任务不存在"
+            details:
+              type: object
+              additionalProperties: true
+
+  responses:
+    BadRequest:
+      description: 请求参数错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    Unauthorized:
+      description: 未授权访问
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    InternalServerError:
+      description: 服务器内部错误
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+tags:
+  - name: Daily Focus Tasks
+    description: 今日主要任务管理相关接口
