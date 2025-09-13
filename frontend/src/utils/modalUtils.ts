@@ -1,6 +1,7 @@
 /**
  * Modal工具函数，统一管理模态框的z-index层级
  */
+import React from 'react';
 import { Modal } from 'antd';
 import type { ModalFuncProps } from 'antd';
 
@@ -29,7 +30,7 @@ export const createCriticalModal = (props: ModalFuncProps) => {
  */
 export const createDeleteConfirmModal = (props: {
   title?: string;
-  content: string;
+  content: string | React.ReactNode;
   onConfirm: () => Promise<void> | void;
   onCancel?: () => void;
 }) => {

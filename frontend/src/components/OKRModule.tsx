@@ -15,9 +15,7 @@ import {
   Spin,
   message,
   InputNumber,
-  Dropdown,
-  Modal,
-  Popconfirm
+  Dropdown
 } from 'antd';
 import {
   PlusOutlined,
@@ -29,13 +27,13 @@ import {
   MoreOutlined,
   EditOutlined,
   DeleteOutlined,
-  ExclamationCircleOutlined,
   RightOutlined,
   DownOutlined
 } from '@ant-design/icons';
 import { OKRObjective, OKRStats, OKRProgressLog } from '../types/okr';
 import okrService from '../services/okrService';
 import CreateOKRModal from './CreateOKRModal';
+import { createDeleteConfirmModal } from '../utils/modalUtils';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -239,9 +237,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
       icon: <DeleteOutlined />,
       danger: true,
       onClick: () => {
-        Modal.confirm({
-          title: '确认删除目标',
-          icon: <ExclamationCircleOutlined />,
+        createDeleteConfirmModal({
           content: (
             <div>
               <p>确定要删除目标 <strong>"{objective.title}"</strong> 吗？</p>
@@ -250,10 +246,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
               </p>
             </div>
           ),
-          okText: '确认删除',
-          okType: 'danger',
-          cancelText: '取消',
-          onOk: () => handleDeleteObjective(objective),
+          onConfirm: () => handleDeleteObjective(objective),
         });
       }
     }

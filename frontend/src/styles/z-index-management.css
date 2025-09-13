@@ -182,8 +182,21 @@
   z-index: 580 !important;
 }
 
+.critical-modal .ant-modal-wrap {
+  z-index: 580 !important;
+}
+
+.standard-modal .ant-modal-wrap {
+  z-index: 550 !important;
+}
+
 .enterprise-project-modal .ant-modal-wrap {
   z-index: 560 !important;
+}
+
+/* OKR specific modal fixes */
+.okr-delete-modal .ant-modal-wrap {
+  z-index: 580 !important;
 }
 
 /* Ensure FloatingTimer doesn't interfere */
