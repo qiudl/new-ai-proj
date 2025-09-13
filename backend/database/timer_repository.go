@@ -465,14 +465,16 @@ func (r *PostgresTimerRepository) GetWeeklyReport(ctx context.Context, userID in
 func (r *PostgresTimerRepository) getWeeklyStats(ctx context.Context, userID int, start, end time.Time) (*models.WeeklyStatsData, error) {
 	query := `
 		SELECT 
-			COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) as total_seconds,
-			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks,
-			COUNT(DISTINCT t.id) as total_tasks
-		FROM task_time_logs ttl
-		JOIN tasks t ON ttl.task_id = t.id
-		WHERE ttl.user_id = $1 
-		AND ttl.start_time >= $2 
-		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'`
+			COALESCE(SUM(GREATEST(utl.duration_seconds, 0)), 0) as total_seconds,
+			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN utl.target_id END) as completed_tasks,
+			COUNT(DISTINCT utl.target_id) as total_tasks
+		FROM unified_timer_logs utl
+		LEFT JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
+		WHERE utl.user_id = $1 
+		AND utl.target_type = 'project_task'
+		AND utl.status = 'completed'
+		AND utl.start_time >= $2 
+		AND utl.start_time <= $3::timestamp + INTERVAL '1 day'`
 
 	var totalSeconds, completedTasks, totalTasks int
 	row := r.getExecer().QueryRowContext(ctx, query, userID, start, end)
@@ -503,29 +505,33 @@ func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int,
 		WITH date_series AS (
 			SELECT generate_series($2::date, $3::date, INTERVAL '1 day')::date AS day
 		),
-		daily_time AS (
+	daily_time AS (
 			SELECT 
 				-- 使用上海时区进行按天分组，避免跨天偏移
-				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
-				COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) AS total_seconds
-			FROM task_time_logs ttl
+				(utl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
+				COALESCE(SUM(GREATEST(utl.duration_seconds, 0)), 0) AS total_seconds
+			FROM unified_timer_logs utl
 			-- 仅统计当前用户的计时
-			WHERE ttl.user_id = $1
-			AND ttl.start_time >= $2
-			AND ttl.start_time < ($3::timestamp + INTERVAL '1 day')
-			GROUP BY (ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date
+			WHERE utl.user_id = $1
+			AND utl.target_type = 'project_task'
+			AND utl.status = 'completed'
+			AND utl.start_time >= $2
+			AND utl.start_time < ($3::timestamp + INTERVAL '1 day')
+			GROUP BY (utl.start_time AT TIME ZONE 'Asia/Shanghai')::date
 		),
-		daily_top_task AS (
+	daily_top_task AS (
 			SELECT 
-				(ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
+				(utl.start_time AT TIME ZONE 'Asia/Shanghai')::date AS day,
 				t.title AS task_title,
-				SUM(GREATEST(ttl.duration_seconds, 0)) AS seconds
-			FROM task_time_logs ttl
-			JOIN tasks t ON ttl.task_id = t.id
-			WHERE ttl.user_id = $1
-			AND ttl.start_time >= $2
-			AND ttl.start_time < ($3::timestamp + INTERVAL '1 day')
-			GROUP BY (ttl.start_time AT TIME ZONE 'Asia/Shanghai')::date, t.id, t.title
+				SUM(GREATEST(utl.duration_seconds, 0)) AS seconds
+			FROM unified_timer_logs utl
+			JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
+			WHERE utl.user_id = $1
+			AND utl.target_type = 'project_task'
+			AND utl.status = 'completed'
+			AND utl.start_time >= $2
+			AND utl.start_time < ($3::timestamp + INTERVAL '1 day')
+			GROUP BY (utl.start_time AT TIME ZONE 'Asia/Shanghai')::date, t.id, t.title
 		),
 		daily_tasks_completed AS (
 			SELECT 
@@ -612,20 +618,22 @@ func (r *PostgresTimerRepository) getDailyStats(ctx context.Context, userID int,
 func (r *PostgresTimerRepository) getTaskTimeEntries(ctx context.Context, userID int, start, end time.Time) ([]models.TaskTimeEntryData, error) {
 	query := `
 		SELECT 
-			ttl.id,
+			utl.id,
 			t.title as task_title,
 			p.name as project_name,
-			GREATEST(ttl.duration_seconds, 0) as duration_seconds,
-			DATE(ttl.start_time) as date,
+			GREATEST(utl.duration_seconds, 0) as duration_seconds,
+			DATE(utl.start_time) as date,
 			t.status,
 			COALESCE(t.custom_fields->>'priority', 'medium') as priority
-		FROM task_time_logs ttl
-		JOIN tasks t ON ttl.task_id = t.id
+		FROM unified_timer_logs utl
+		JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
 		JOIN projects p ON t.project_id = p.id
-		WHERE ttl.user_id = $1 
-		AND ttl.start_time >= $2 
-		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
-		ORDER BY ttl.start_time DESC
+		WHERE utl.user_id = $1 
+		AND utl.target_type = 'project_task'
+		AND utl.status = 'completed'
+		AND utl.start_time >= $2 
+		AND utl.start_time <= $3::timestamp + INTERVAL '1 day'
+		ORDER BY utl.start_time DESC
 		LIMIT 50`
 
 	rows, err := r.getExecer().QueryContext(ctx, query, userID, start, end)
@@ -667,15 +675,17 @@ func (r *PostgresTimerRepository) getProjectStats(ctx context.Context, userID in
 	query := `
 		SELECT 
 			p.name as project_name,
-			COALESCE(SUM(GREATEST(ttl.duration_seconds, 0)), 0) as total_seconds,
+			COALESCE(SUM(GREATEST(utl.duration_seconds, 0)), 0) as total_seconds,
 			COUNT(DISTINCT t.id) as tasks_count,
 			COUNT(DISTINCT CASE WHEN t.status = 'completed' THEN t.id END) as completed_tasks
-		FROM task_time_logs ttl
-		JOIN tasks t ON ttl.task_id = t.id
+		FROM unified_timer_logs utl
+		JOIN tasks t ON utl.target_type = 'project_task' AND utl.target_id = t.id
 		JOIN projects p ON t.project_id = p.id
-		WHERE ttl.user_id = $1 
-		AND ttl.start_time >= $2 
-		AND ttl.start_time <= $3::timestamp + INTERVAL '1 day'
+		WHERE utl.user_id = $1 
+		AND utl.target_type = 'project_task'
+		AND utl.status = 'completed'
+		AND utl.start_time >= $2 
+		AND utl.start_time <= $3::timestamp + INTERVAL '1 day'
 		GROUP BY p.id, p.name
 		ORDER BY total_seconds DESC`
 

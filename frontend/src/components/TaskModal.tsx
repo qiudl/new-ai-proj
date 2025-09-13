@@ -191,6 +191,15 @@ const TaskModal: React.FC<TaskModalProps> = ({
     try {
       const values = await form.validateFields();
       
+      // 调试日志
+      console.log('🐛 [TaskModal] handleOk called:', {
+        mode,
+        projectId,
+        parentTask,
+        siblingTask,
+        formValues: values
+      });
+      
       // 严格验证项目ID
       if (!projectId || projectId <= 0) {
         throw new Error('无效的项目ID，无法创建任务');
@@ -206,6 +215,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         parentId = values.parent_id || parentTask?.id;
       }
       
+      console.log('🐛 [TaskModal] parentId determined:', parentId);
+      
       // 防止自引用：任务不能将自己设置为父任务
       if (parentId && task && parentId === task.id) {
         throw new Error('任务不能将自己设置为父任务');
@@ -216,9 +227,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
       // 验证父任务信息的有效性
       if (parentId && !task) {
         // 如果是创建子任务模式，验证parentTask
-        if (mode === 'createSubtask' && (!parentTask || !parentTask.project_id)) {
-          console.error('❌ [TaskModal] createSubtask validation failed - parentTask:', parentTask);
+        if (mode === 'createSubtask' && !parentTask) {
+          console.error('❌ [TaskModal] createSubtask validation failed - parentTask is null:', parentTask);
           throw new Error('父任务信息无效，无法创建子任务');
+        }
+        // 验证父任务ID是否有效
+        if (mode === 'createSubtask' && parentTask && parentTask.id !== parentId) {
+          console.error('❌ [TaskModal] createSubtask validation failed - parent ID mismatch:', {
+            parentTaskId: parentTask.id,
+            expectedParentId: parentId
+          });
+          throw new Error('父任务ID不匹配，无法创建子任务');
         }
         // 如果是创建兄弟任务模式，验证siblingTask及其父任务信息
         else if (mode === 'createSibling') {
@@ -228,11 +247,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
           }
           // 如果兄弟任务有父任务，但父任务信息不完整，则可能有问题
           // 但允许创建，因为parent_id可能为null（根任务）
-        }
-        // 其他创建模式，如果指定了parent_id但没有parentTask，也要验证
-        else if ((mode as string) !== 'createSibling' && (!parentTask || !parentTask.project_id)) {
-          console.error('❌ [TaskModal] general create validation failed - parentTask:', parentTask);
-          throw new Error('父任务信息无效，无法创建任务');
         }
       }
       

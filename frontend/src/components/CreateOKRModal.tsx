@@ -42,6 +42,8 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
+      console.log('🐛 [CreateOKRModal] Form values:', values);
+      console.log('🐛 [CreateOKRModal] isEdit:', isEdit, 'editData:', editData);
       setLoading(true);
 
       if (isEdit && editData) {
@@ -162,9 +164,8 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
           />
         </Form.Item>
 
-        {!isEdit && (
-          <div>
-            <Divider orientation="left">关键结果 (Key Results)</Divider>
+        <div>
+          <Divider orientation="left">关键结果 (Key Results)</Divider>
 
             <Form.List name="keyResults">
               {(fields, { add, remove }) => (
@@ -257,8 +258,7 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
                 </div>
               )}
             </Form.List>
-          </div>
-        )}
+        </div>
       </Form>
     </Modal>
   );

@@ -206,6 +206,14 @@ func (app *Application) BulkDeleteTasksHandler() gin.HandlerFunc {
 	return bulkOpHandler.BulkDeleteTasks()
 }
 
+func (app *Application) BulkArchiveTasksHandler() gin.HandlerFunc {
+	return app.taskHandler.BulkArchiveTasks
+}
+
+func (app *Application) BulkUnarchiveTasksHandler() gin.HandlerFunc {
+	return app.taskHandler.BulkUnarchiveTasks
+}
+
 func (app *Application) GetTaskProgressHandler() gin.HandlerFunc {
 	if app.handlers != nil && app.handlers.TaskHandler != nil {
 		return app.handlers.TaskHandler.GetTaskProgress
@@ -595,6 +603,20 @@ func (app *Application) ReorderTaskByIdHandler() gin.HandlerFunc {
 		return app.handlers.TaskHandler.ReorderTask
 	}
 	return app.taskHandler.ReorderTask
+}
+
+func (app *Application) ArchiveTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.ArchiveTask
+	}
+	return app.taskHandler.ArchiveTask
+}
+
+func (app *Application) UnarchiveTaskHandler() gin.HandlerFunc {
+	if app.handlers != nil && app.handlers.TaskHandler != nil {
+		return app.handlers.TaskHandler.UnarchiveTask
+	}
+	return app.taskHandler.UnarchiveTask
 }
 
 func (app *Application) GetRouterDocumentHandler() *handlers.RouterDocumentHandler {

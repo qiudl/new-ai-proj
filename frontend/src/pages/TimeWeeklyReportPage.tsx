@@ -301,7 +301,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                 {entry.priority === 'high' ? '高' : entry.priority === 'medium' ? '中' : '低'}优先级
               </Tag>
               {getStatusTag(entry.status)}
-              <Text>{entry.duration}小时</Text>
+              <Text>{entry.duration.toFixed(2)}小时</Text>
             </Space>
           </Space>
         </div>
@@ -428,7 +428,7 @@ const TimeWeeklyReportPage: React.FC = () => {
                           {
                             title: '工作时长',
                             dataIndex: 'totalHours',
-                            render: (hours) => `${hours}h`
+                            render: (hours) => `${hours.toFixed(2)}h`
                           },
                           {
                             title: '完成任务',

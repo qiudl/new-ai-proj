@@ -97,32 +97,32 @@ type OKRObjective struct {
 	Quarter      string             `json:"quarter" db:"quarter" validate:"required"`
 	Status       OKRObjectiveStatus `json:"status" db:"status"`
 	Progress     int                `json:"progress" db:"progress"`
-	AssigneeID   *int               `json:"assignee_id" db:"assignee_id"`
-	EnterpriseID *int               `json:"enterprise_id" db:"enterprise_id"`
-	StartDate    time.Time          `json:"start_date" db:"start_date"`
-	EndDate      time.Time          `json:"end_date" db:"end_date"`
-	CreatedBy    *int               `json:"created_by" db:"created_by"`
-	CreatedAt    time.Time          `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time          `json:"updated_at" db:"updated_at"`
-	DeletedAt    *time.Time         `json:"deleted_at,omitempty" db:"deleted_at"`
-	KeyResults   []OKRKeyResult     `json:"key_results,omitempty"`
+	AssigneeID   *int               `json:"assigneeId" db:"assignee_id"`
+	EnterpriseID *int               `json:"enterpriseId" db:"enterprise_id"`
+	StartDate    time.Time          `json:"startDate" db:"start_date"`
+	EndDate      time.Time          `json:"endDate" db:"end_date"`
+	CreatedBy    *int               `json:"createdBy" db:"created_by"`
+	CreatedAt    time.Time          `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time          `json:"updatedAt" db:"updated_at"`
+	DeletedAt    *time.Time         `json:"deletedAt,omitempty" db:"deleted_at"`
+	KeyResults   []OKRKeyResult     `json:"keyResults,omitempty"`
 }
 
 // OKRKeyResult represents a key result for an OKR objective
 type OKRKeyResult struct {
 	ID           int             `json:"id" db:"id"`
-	ObjectiveID  int             `json:"objective_id" db:"objective_id"`
+	ObjectiveID  int             `json:"objectiveId" db:"objective_id"`
 	Title        string          `json:"title" db:"title" validate:"required,max=255"`
 	Description  string          `json:"description" db:"description"`
 	Type         KeyResultType   `json:"type" db:"type"`
-	TargetValue  float64         `json:"target_value" db:"target_value"`
-	CurrentValue float64         `json:"current_value" db:"current_value"`
+	TargetValue  float64         `json:"targetValue" db:"target_value"`
+	CurrentValue float64         `json:"currentValue" db:"current_value"`
 	Unit         string          `json:"unit" db:"unit"`
 	Progress     int             `json:"progress" db:"progress"`
 	Status       KeyResultStatus `json:"status" db:"status"`
-	CreatedAt    time.Time       `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at" db:"updated_at"`
-	DeletedAt    *time.Time      `json:"deleted_at,omitempty" db:"deleted_at"`
+	CreatedAt    time.Time       `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time       `json:"updatedAt" db:"updated_at"`
+	DeletedAt    *time.Time      `json:"deletedAt,omitempty" db:"deleted_at"`
 }
 
 // Request and response models
@@ -130,16 +130,16 @@ type CreateOKRObjectiveRequest struct {
 	Title       string                     `json:"title" validate:"required,max=255"`
 	Description string                     `json:"description"`
 	Quarter     string                     `json:"quarter" validate:"required"`
-	StartDate   time.Time                  `json:"start_date" validate:"required"`
-	EndDate     time.Time                  `json:"end_date" validate:"required"`
-	KeyResults  []CreateKeyResultRequest   `json:"key_results"`
+	StartDate   time.Time                  `json:"startDate" validate:"required"`
+	EndDate     time.Time                  `json:"endDate" validate:"required"`
+	KeyResults  []CreateKeyResultRequest   `json:"keyResults"`
 }
 
 type CreateKeyResultRequest struct {
 	Title       string        `json:"title" validate:"required,max=255"`
 	Description string        `json:"description"`
 	Type        KeyResultType `json:"type" validate:"required"`
-	TargetValue float64       `json:"target_value" validate:"required"`
+	TargetValue float64       `json:"targetValue" validate:"required"`
 	Unit        string        `json:"unit"`
 }
 
@@ -148,14 +148,14 @@ type UpdateOKRObjectiveRequest struct {
 	Description *string               `json:"description,omitempty"`
 	Status      *OKRObjectiveStatus   `json:"status,omitempty"`
 	Progress    *int                  `json:"progress,omitempty"`
-	StartDate   *time.Time            `json:"start_date,omitempty"`
-	EndDate     *time.Time            `json:"end_date,omitempty"`
+	StartDate   *time.Time            `json:"startDate,omitempty"`
+	EndDate     *time.Time            `json:"endDate,omitempty"`
 }
 
 type UpdateKeyResultRequest struct {
 	Title        *string          `json:"title,omitempty"`
 	Description  *string          `json:"description,omitempty"`
-	CurrentValue *float64         `json:"current_value,omitempty"`
+	CurrentValue *float64         `json:"currentValue,omitempty"`
 	Progress     *int             `json:"progress,omitempty"`
 	Status       *KeyResultStatus `json:"status,omitempty"`
 }
@@ -167,12 +167,12 @@ type OKRListResponse struct {
 }
 
 type OKRStatsResponse struct {
-	TotalObjectives     int     `json:"total_objectives"`
-	CompletedObjectives int     `json:"completed_objectives"`
-	AverageProgress     float64 `json:"average_progress"`
-	AtRiskCount         int     `json:"at_risk_count"`
+	TotalObjectives     int     `json:"totalObjectives"`
+	CompletedObjectives int     `json:"completedObjectives"`
+	AverageProgress     float64 `json:"averageProgress"`
+	AtRiskCount         int     `json:"atRiskCount"`
 	Quarter             string  `json:"quarter"`
-	RemainingDays       int     `json:"remaining_days"`
+	RemainingDays       int     `json:"remainingDays"`
 }
 
 // OKRProgressLog records progress updates for objectives and key results (audit log)

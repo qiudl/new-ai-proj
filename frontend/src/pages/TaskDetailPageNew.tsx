@@ -90,6 +90,7 @@ import { TaskProgressBar, TaskProgressBarProps } from '../components/TaskProgres
 import { useAutoRefresh } from '../hooks/useAutoRefresh';
 import PerformanceMonitor from '../components/PerformanceMonitor';
 import type { DocumentItem } from '../components/UnifiedTaskDocumentArea';
+import DailyFocusTaskToggle from '../components/DailyFocusTaskToggle';
 
 // 懒加载非关键组件
 const TaskGanttChart = lazy(() => import('../components/TaskGanttChart'));
@@ -804,6 +805,12 @@ const TaskDetailPageNew: React.FC = () => {
         parent_id: taskState.task.id
       };
       
+      console.log('🐛 [TaskDetailPageNew] Creating subtask:', {
+        projectId: parsedProjectId,
+        parentTaskId: taskState.task.id,
+        subtaskData
+      });
+      
       await TaskService.createTask(parsedProjectId, subtaskData);
       message.success('子任务创建成功');
       updateUIState({ taskModalVisible: false, modalLoading: false });
@@ -811,7 +818,8 @@ const TaskDetailPageNew: React.FC = () => {
       // 重新加载所有数据
       loadTask();
     } catch (error) {
-      message.error('子任务创建失败');
+      console.error('🐛 [TaskDetailPageNew] Subtask creation failed:', error);
+      message.error(`子任务创建失败: ${error instanceof Error ? error.message : 'Unknown error'}`);
       updateUIState({ modalLoading: false });
     }
   };
@@ -1060,7 +1068,15 @@ const TaskDetailPageNew: React.FC = () => {
               </div>
               
               {/* 操作按钮组 */}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <DailyFocusTaskToggle
+                  taskId={task.id}
+                  taskTitle={task.title}
+                  initialPriority="high"
+                  onToggleComplete={(isInFocus) => {
+                    console.log(`Task ${task.id} daily focus status changed to:`, isInFocus);
+                  }}
+                />
                 <Button 
                   type="primary"
                   icon={<EditOutlined />}

@@ -49,7 +49,7 @@ func NewDailyFocusTaskHandler(db database.DB, logger *log.Logger, validate *vali
 // @Router			/daily-focus-tasks [get]
 func (h *DailyFocusTaskHandler) GetDailyFocusTasks(c *gin.Context) {
 	// 从JWT获取用户信息
-	userClaims, exists := c.Get("user")
+	userClaims, exists := c.Get("claims")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -125,6 +125,11 @@ func (h *DailyFocusTaskHandler) GetDailyFocusTasks(c *gin.Context) {
 		argCounter++
 		whereClause += fmt.Sprintf(" AND dft.status = $%d", argCounter)
 		args = append(args, *query.Status)
+	} else {
+		// 默认只显示active状态的任务，过滤掉removed状态
+		argCounter++
+		whereClause += fmt.Sprintf(" AND dft.status = $%d", argCounter)
+		args = append(args, "active")
 	}
 
 	// 查询今日主要任务
@@ -145,6 +150,10 @@ func (h *DailyFocusTaskHandler) GetDailyFocusTasks(c *gin.Context) {
 		` + whereClause + ` AND t.deleted_at IS NULL
 		ORDER BY dft.sort_order ASC, dft.created_at DESC
 	`
+	
+	// 添加调试日志
+	h.logger.Printf("DEBUG: Daily Focus Tasks SQL: %s", querySQL)
+	h.logger.Printf("DEBUG: Daily Focus Tasks Args: %v", args)
 
 	rows, err := h.db.Query( querySQL, args...)
 	if err != nil {
@@ -236,7 +245,7 @@ func (h *DailyFocusTaskHandler) GetDailyFocusTasks(c *gin.Context) {
 // @Router			/daily-focus-tasks [post]
 func (h *DailyFocusTaskHandler) CreateDailyFocusTask(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -457,7 +466,7 @@ func (h *DailyFocusTaskHandler) CreateDailyFocusTask(c *gin.Context) {
 // @Router			/daily-focus-tasks/{id} [put]
 func (h *DailyFocusTaskHandler) UpdateDailyFocusTask(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -653,7 +662,7 @@ func (h *DailyFocusTaskHandler) UpdateDailyFocusTask(c *gin.Context) {
 // @Router			/daily-focus-tasks/{id} [delete]
 func (h *DailyFocusTaskHandler) DeleteDailyFocusTask(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -691,9 +700,26 @@ func (h *DailyFocusTaskHandler) DeleteDailyFocusTask(c *gin.Context) {
 		return
 	}
 
+	ctx := context.Background()
+	
+	// 开启事务确保数据一致性
+	tx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		h.logger.Printf("Failed to begin transaction for deleting task %d: %v", taskID, err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "开启事务失败",
+			},
+		})
+		return
+	}
+	defer tx.Rollback()
+
 	// 验证任务是否存在且属于用户
 	var existingUserID int
-	err = h.db.QueryRow(
+	err = tx.QueryRow(
 		"SELECT user_id FROM daily_focus_tasks WHERE id = $1",
 		taskID).Scan(&existingUserID)
 	
@@ -708,7 +734,7 @@ func (h *DailyFocusTaskHandler) DeleteDailyFocusTask(c *gin.Context) {
 			})
 			return
 		}
-		h.logger.Printf("Failed to query daily focus task: %v", err)
+		h.logger.Printf("Failed to query daily focus task %d: %v", taskID, err)
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Success: false,
 			Error: &models.APIError{
@@ -730,13 +756,14 @@ func (h *DailyFocusTaskHandler) DeleteDailyFocusTask(c *gin.Context) {
 		return
 	}
 
-	// 删除任务
-	_, err = h.db.Exec(
+	// 删除任务并验证删除结果
+	h.logger.Printf("INFO: Attempting to delete daily focus task %d for user %d", taskID, userClaims.UserID)
+	result, err := tx.Exec(
 		"DELETE FROM daily_focus_tasks WHERE id = $1",
 		taskID)
 	
 	if err != nil {
-		h.logger.Printf("Failed to delete daily focus task: %v", err)
+		h.logger.Printf("Failed to delete daily focus task %d: %v", taskID, err)
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Success: false,
 			Error: &models.APIError{
@@ -747,6 +774,46 @@ func (h *DailyFocusTaskHandler) DeleteDailyFocusTask(c *gin.Context) {
 		return
 	}
 
+	// 检查是否真正删除了记录
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		h.logger.Printf("Failed to get rows affected for task %d deletion: %v", taskID, err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "无法确认删除结果",
+			},
+		})
+		return
+	}
+
+	if rowsAffected == 0 {
+		h.logger.Printf("WARNING: No rows affected when deleting task %d - task may not exist", taskID)
+		c.JSON(http.StatusNotFound, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "TASK_NOT_FOUND",
+				Message: "任务不存在或已被删除",
+			},
+		})
+		return
+	}
+
+	// 提交事务
+	if err = tx.Commit(); err != nil {
+		h.logger.Printf("Failed to commit transaction for deleting task %d: %v", taskID, err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "提交删除操作失败",
+			},
+		})
+		return
+	}
+
+	h.logger.Printf("SUCCESS: Deleted daily focus task %d for user %d, rows affected: %d", taskID, userClaims.UserID, rowsAffected)
 	c.JSON(http.StatusOK, models.NewSuccessResponse(nil, "已从今日主要任务中移除"))
 }
 
@@ -851,7 +918,7 @@ func (h *DailyFocusTaskHandler) getTaskSuggestions(ctx context.Context, userID i
 // CompleteDailyFocusTask 标记任务完成
 func (h *DailyFocusTaskHandler) CompleteDailyFocusTask(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -945,7 +1012,7 @@ func (h *DailyFocusTaskHandler) CompleteDailyFocusTask(c *gin.Context) {
 // ReorderDailyFocusTasks 批量重排序
 func (h *DailyFocusTaskHandler) ReorderDailyFocusTasks(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -1090,7 +1157,7 @@ func (h *DailyFocusTaskHandler) ReorderDailyFocusTasks(c *gin.Context) {
 // GetTaskSuggestions 获取智能推荐
 func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,
@@ -1187,7 +1254,7 @@ func (h *DailyFocusTaskHandler) GetTaskSuggestions(c *gin.Context) {
 // AcceptSuggestions 批量采用推荐
 func (h *DailyFocusTaskHandler) AcceptSuggestions(c *gin.Context) {
 	// 获取用户信息
-	claims, ok := c.Get("user")
+	claims, ok := c.Get("claims")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
 			Success: false,

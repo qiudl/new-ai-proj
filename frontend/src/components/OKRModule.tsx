@@ -69,8 +69,10 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
         okrService.getObjectives(currentQuarter),
         okrService.getOKRStats(currentQuarter)
       ]);
+      
       setObjectives(objectivesData.objectives || []);
       setStats(statsData);
+      
       // initialize KR edits map
       const init: Record<number, number> = {};
       for (const obj of objectivesData.objectives || []) {
@@ -82,6 +84,17 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
     } catch (error) {
       console.error('Failed to load OKR data:', error);
       message.error('加载OKR数据失败');
+      
+      // Set empty data to avoid UI crashes
+      setObjectives([]);
+      setStats({
+        totalObjectives: 0,
+        completedObjectives: 0,
+        averageProgress: 0,
+        atRiskCount: 0,
+        quarter: currentQuarter,
+        remainingDays: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -120,33 +133,8 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
       }
     });
 
-    // 临时为每个根目标添加示例子目标以展示展开箭头功能
-    // TODO: 这是临时代码，将来应该从真实API获取子目标数据
-    rootObjectives.forEach((rootObj, index) => {
-      if (rootObj.subObjectives!.length === 0 && index < 2) {
-        // 为前两个根目标添加示例子目标
-        const sampleSubObjective: OKRObjective = {
-          id: rootObj.id * 1000 + 1,
-          title: `${rootObj.title} - 子目标示例`,
-          description: '这是一个示例子目标，用于展示展开箭头功能',
-          quarter: rootObj.quarter,
-          startDate: rootObj.startDate,
-          endDate: rootObj.endDate,
-          assigneeId: rootObj.assigneeId,
-          status: rootObj.status,
-          progress: Math.max(0, rootObj.progress - 15),
-          parentId: rootObj.id,
-          level: 2,
-          keyResults: rootObj.keyResults?.slice(0, 1) || [],
-          createdAt: rootObj.createdAt,
-          updatedAt: rootObj.updatedAt,
-          subObjectives: [],
-          isExpanded: false
-        };
-        
-        rootObj.subObjectives!.push(sampleSubObjective);
-      }
-    });
+    // 注意：子目标功能需要后端API支持层级OKR结构
+    // 当前版本OKR不支持子目标，所以这里不添加mock数据
 
     return rootObjectives;
   };

@@ -85,6 +85,7 @@ func (f *HandlerFactory) CreateAllHandlers() (*AllHandlers, error) {
 	// 任务管理处理器
 	allHandlers.TaskHandler = handlers.NewTaskHandler(f.db, f.logger, f.validate)
 	allHandlers.TaskHierarchyHandler = handlers.NewTaskHierarchyHandler(f.db, f.logger, f.validate)
+	allHandlers.DailyFocusTaskHandler = handlers.NewDailyFocusTaskHandler(f.db, f.logger, f.validate)
 	
 	// 时间线处理器
 	allHandlers.TimelineHandler = handlers.NewTimelineHandler(f.db, f.logger, f.validate)

@@ -655,6 +655,14 @@ func (h *TaskHandler) UpdateTask(c *gin.Context) {
 		return
 	}
 
+	// Validate task is not archived (unless we're un-archiving it)
+	if req.Status == nil || *req.Status != "todo" && *req.Status != "in_progress" && *req.Status != "completed" {
+		if errResp := h.validateTaskNotArchived(task, "修改"); errResp != nil {
+			c.JSON(http.StatusConflict, errResp)
+			return
+		}
+	}
+
 	// Store original status for comparison before making changes
 	originalStatus := task.Status
 
@@ -775,6 +783,24 @@ func (h *TaskHandler) DeleteTask(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("taskId"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeInternal, "无效的任务ID", nil))
+		return
+	}
+
+	// Get existing task to check if archived
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
+		} else {
+			log.Printf("Error getting task: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
+		}
+		return
+	}
+
+	// Validate task is not archived
+	if errResp := h.validateTaskNotArchived(task, "删除"); errResp != nil {
+		c.JSON(http.StatusConflict, errResp)
 		return
 	}
 
@@ -1495,6 +1521,14 @@ func (h *TaskHandler) UpdateTaskById(c *gin.Context) {
 		return
 	}
 
+	// Validate task is not archived (unless we're un-archiving it)
+	if req.Status != "todo" && req.Status != "in_progress" && req.Status != "completed" {
+		if errResp := h.validateTaskNotArchived(existingTask, "修改"); errResp != nil {
+			c.JSON(http.StatusConflict, errResp)
+			return
+		}
+	}
+
 	// 更新字段
 	existingTask.Title = req.Title
 	existingTask.Description = req.Description
@@ -1519,6 +1553,23 @@ func (h *TaskHandler) DeleteTaskById(c *gin.Context) {
 	taskID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, models.NewErrorResponse("INVALID_ID", "Invalid task ID", ""))
+		return
+	}
+
+	// Get existing task to check if archived
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse("TASK_NOT_FOUND", "Task not found", ""))
+		} else {
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse("DB_ERROR", "Database error", err.Error()))
+		}
+		return
+	}
+
+	// Validate task is not archived
+	if errResp := h.validateTaskNotArchived(task, "删除"); errResp != nil {
+		c.JSON(http.StatusConflict, errResp)
 		return
 	}
 
@@ -1602,6 +1653,12 @@ func (h *TaskHandler) MoveTaskById(c *gin.Context) {
 		return
 	}
 
+	// Validate task is not archived
+	if errResp := h.validateTaskNotArchived(existingTask, "移动"); errResp != nil {
+		c.JSON(http.StatusConflict, errResp)
+		return
+	}
+
 	// 更新字段
 	if req.ProjectID != nil {
 		existingTask.ProjectID = *req.ProjectID
@@ -1649,6 +1706,12 @@ func (h *TaskHandler) ReorderTaskById(c *gin.Context) {
 		return
 	}
 
+	// Validate task is not archived
+	if errResp := h.validateTaskNotArchived(existingTask, "重新排序"); errResp != nil {
+		c.JSON(http.StatusConflict, errResp)
+		return
+	}
+
 	// 更新位置
 	existingTask.SortOrder = req.Position
 	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), existingTask)
@@ -1686,4 +1749,328 @@ func (h *TaskHandler) getUserCompanyID(userID uint, role string) (uint, error) {
 	}
 	
 	return 0, nil
+}
+
+// validateTaskNotArchived checks if a task is archived and returns appropriate error response
+func (h *TaskHandler) validateTaskNotArchived(task *models.Task, operation string) *models.ErrorResponse {
+	if task.Status == "archived" {
+		message := fmt.Sprintf("无法%s已归档的任务", operation)
+		return models.NewErrorResponse(models.ErrCodeConflict, message, map[string]interface{}{
+			"task_id": task.ID,
+			"status":  task.Status,
+			"operation": operation,
+		})
+	}
+	return nil
+}
+
+// ArchiveTask handles POST /api/v1/tasks/:id/archive
+func (h *TaskHandler) ArchiveTask(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的任务ID", nil))
+		return
+	}
+
+	// Get existing task
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
+		} else {
+			log.Printf("Error getting task: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
+		}
+		return
+	}
+
+	// Check if already archived
+	if task.Status == "archived" {
+		c.JSON(http.StatusConflict, models.NewErrorResponse(models.ErrCodeConflict, "任务已经是归档状态", map[string]interface{}{
+			"task_id": task.ID,
+			"current_status": task.Status,
+		}))
+		return
+	}
+
+	// Update task status to archived
+	task.Status = "archived"
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), task)
+	if err != nil {
+		log.Printf("Error archiving task: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "归档任务失败", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), "任务归档成功"))
+}
+
+// UnarchiveTask handles POST /api/v1/tasks/:id/unarchive
+func (h *TaskHandler) UnarchiveTask(c *gin.Context) {
+	taskID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的任务ID", nil))
+		return
+	}
+
+	// Parse request body for target status
+	var req struct {
+		Status string `json:"status" validate:"required,oneof=todo in_progress completed"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Default to "todo" if no status provided
+		req.Status = "todo"
+	}
+
+	// Validate target status
+	if req.Status != "todo" && req.Status != "in_progress" && req.Status != "completed" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的目标状态，只能恢复为todo、in_progress或completed", nil))
+		return
+	}
+
+	// Get existing task
+	task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			c.JSON(http.StatusNotFound, models.NewErrorResponse(models.ErrCodeNotFound, "任务不存在", nil))
+		} else {
+			log.Printf("Error getting task: %v", err)
+			c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "获取任务失败", nil))
+		}
+		return
+	}
+
+	// Check if task is archived
+	if task.Status != "archived" {
+		c.JSON(http.StatusConflict, models.NewErrorResponse(models.ErrCodeConflict, "只能对归档状态的任务执行取消归档操作", map[string]interface{}{
+			"task_id": task.ID,
+			"current_status": task.Status,
+		}))
+		return
+	}
+
+	// Update task status to target status
+	task.Status = req.Status
+	updatedTask, err := h.db.Tasks().Update(c.Request.Context(), task)
+	if err != nil {
+		log.Printf("Error unarchiving task: %v", err)
+		c.JSON(http.StatusInternalServerError, models.NewErrorResponse(models.ErrCodeInternal, "取消归档任务失败", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, models.NewSuccessResponse(updatedTask.ToResponse(), fmt.Sprintf("任务已从归档状态恢复为%s", req.Status)))
+}
+
+// BulkArchiveTasks handles POST /api/v1/tasks/bulk/archive
+func (h *TaskHandler) BulkArchiveTasks(c *gin.Context) {
+	var req struct {
+		TaskIDs []int `json:"task_ids" validate:"required,min=1,max=100"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "请求数据格式错误", err.Error()))
+		return
+	}
+
+	if len(req.TaskIDs) == 0 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "任务ID列表不能为空", nil))
+		return
+	}
+
+	if len(req.TaskIDs) > 100 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "批量操作最多支持100个任务", nil))
+		return
+	}
+
+	var successful []int
+	var failed []map[string]interface{}
+	var skipped []map[string]interface{}
+
+	for _, taskID := range req.TaskIDs {
+		// Get existing task
+		task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				failed = append(failed, map[string]interface{}{
+					"task_id": taskID,
+					"reason":  "任务不存在",
+					"code":    models.ErrCodeNotFound,
+				})
+			} else {
+				log.Printf("Error getting task %d: %v", taskID, err)
+				failed = append(failed, map[string]interface{}{
+					"task_id": taskID,
+					"reason":  "获取任务失败",
+					"code":    models.ErrCodeInternal,
+				})
+			}
+			continue
+		}
+
+		// Check if already archived
+		if task.Status == "archived" {
+			skipped = append(skipped, map[string]interface{}{
+				"task_id":        taskID,
+				"reason":         "任务已经是归档状态",
+				"current_status": task.Status,
+			})
+			continue
+		}
+
+		// Update task status to archived
+		task.Status = "archived"
+		_, err = h.db.Tasks().Update(c.Request.Context(), task)
+		if err != nil {
+			log.Printf("Error archiving task %d: %v", taskID, err)
+			failed = append(failed, map[string]interface{}{
+				"task_id": taskID,
+				"reason":  "归档任务失败",
+				"code":    models.ErrCodeInternal,
+			})
+			continue
+		}
+
+		successful = append(successful, taskID)
+	}
+
+	responseData := map[string]interface{}{
+		"total":           len(req.TaskIDs),
+		"successful":      successful,
+		"successful_count": len(successful),
+		"failed":          failed,
+		"failed_count":    len(failed),
+		"skipped":         skipped,
+		"skipped_count":   len(skipped),
+	}
+
+	// Determine HTTP status code
+	statusCode := http.StatusOK
+	message := "批量归档操作完成"
+
+	if len(failed) > 0 && len(successful) == 0 {
+		statusCode = http.StatusBadRequest
+		message = "批量归档操作失败"
+	} else if len(failed) > 0 {
+		statusCode = http.StatusMultiStatus
+		message = "批量归档操作部分成功"
+	}
+
+	c.JSON(statusCode, models.NewSuccessResponse(responseData, message))
+}
+
+// BulkUnarchiveTasks handles POST /api/v1/tasks/bulk/unarchive
+func (h *TaskHandler) BulkUnarchiveTasks(c *gin.Context) {
+	var req struct {
+		TaskIDs []int  `json:"task_ids" validate:"required,min=1,max=100"`
+		Status  string `json:"status" validate:"omitempty,oneof=todo in_progress completed"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "请求数据格式错误", err.Error()))
+		return
+	}
+
+	if len(req.TaskIDs) == 0 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "任务ID列表不能为空", nil))
+		return
+	}
+
+	if len(req.TaskIDs) > 100 {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "批量操作最多支持100个任务", nil))
+		return
+	}
+
+	// Default to "todo" if no status provided
+	targetStatus := req.Status
+	if targetStatus == "" {
+		targetStatus = "todo"
+	}
+
+	// Validate target status
+	if targetStatus != "todo" && targetStatus != "in_progress" && targetStatus != "completed" {
+		c.JSON(http.StatusBadRequest, models.NewErrorResponse(models.ErrCodeBadRequest, "无效的目标状态，只能恢复为todo、in_progress或completed", nil))
+		return
+	}
+
+	var successful []map[string]interface{}
+	var failed []map[string]interface{}
+	var skipped []map[string]interface{}
+
+	for _, taskID := range req.TaskIDs {
+		// Get existing task
+		task, err := h.db.Tasks().GetByID(c.Request.Context(), taskID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				failed = append(failed, map[string]interface{}{
+					"task_id": taskID,
+					"reason":  "任务不存在",
+					"code":    models.ErrCodeNotFound,
+				})
+			} else {
+				log.Printf("Error getting task %d: %v", taskID, err)
+				failed = append(failed, map[string]interface{}{
+					"task_id": taskID,
+					"reason":  "获取任务失败",
+					"code":    models.ErrCodeInternal,
+				})
+			}
+			continue
+		}
+
+		// Check if task is archived
+		if task.Status != "archived" {
+			skipped = append(skipped, map[string]interface{}{
+				"task_id":        taskID,
+				"reason":         "只能对归档状态的任务执行取消归档操作",
+				"current_status": task.Status,
+			})
+			continue
+		}
+
+		// Update task status to target status
+		originalStatus := task.Status
+		task.Status = targetStatus
+		_, err = h.db.Tasks().Update(c.Request.Context(), task)
+		if err != nil {
+			log.Printf("Error unarchiving task %d: %v", taskID, err)
+			failed = append(failed, map[string]interface{}{
+				"task_id": taskID,
+				"reason":  "取消归档任务失败",
+				"code":    models.ErrCodeInternal,
+			})
+			continue
+		}
+
+		successful = append(successful, map[string]interface{}{
+			"task_id":         taskID,
+			"original_status": originalStatus,
+			"new_status":      targetStatus,
+		})
+	}
+
+	responseData := map[string]interface{}{
+		"total":            len(req.TaskIDs),
+		"target_status":    targetStatus,
+		"successful":       successful,
+		"successful_count": len(successful),
+		"failed":           failed,
+		"failed_count":     len(failed),
+		"skipped":          skipped,
+		"skipped_count":    len(skipped),
+	}
+
+	// Determine HTTP status code
+	statusCode := http.StatusOK
+	message := fmt.Sprintf("批量取消归档操作完成，恢复为%s状态", targetStatus)
+
+	if len(failed) > 0 && len(successful) == 0 {
+		statusCode = http.StatusBadRequest
+		message = "批量取消归档操作失败"
+	} else if len(failed) > 0 {
+		statusCode = http.StatusMultiStatus
+		message = fmt.Sprintf("批量取消归档操作部分成功，恢复为%s状态", targetStatus)
+	}
+
+	c.JSON(statusCode, models.NewSuccessResponse(responseData, message))
 }

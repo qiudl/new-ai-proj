@@ -4,6 +4,7 @@ import (
 	"ai-project-backend/database"
 	"ai-project-backend/models"
 	"context"
+	"log"
 	"math"
 	"net/http"
 	"strconv"

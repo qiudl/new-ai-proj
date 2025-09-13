@@ -71,6 +71,8 @@ type ApplicationInterface interface {
 	
 	// 批量任务操作接口
 	BulkDeleteTasksHandler() gin.HandlerFunc
+	BulkArchiveTasksHandler() gin.HandlerFunc
+	BulkUnarchiveTasksHandler() gin.HandlerFunc
 
 	// 独立任务处理器（跨项目）
 	GetAllTasksHandler() gin.HandlerFunc
@@ -83,6 +85,8 @@ type ApplicationInterface interface {
 	UpdateTaskStatusHandler() gin.HandlerFunc
 	MoveTaskByIdHandler() gin.HandlerFunc
 	ReorderTaskByIdHandler() gin.HandlerFunc
+	ArchiveTaskHandler() gin.HandlerFunc
+	UnarchiveTaskHandler() gin.HandlerFunc
 
 	// 今日任务处理器
 	GetTodayTasksHandler() gin.HandlerFunc
@@ -90,6 +94,9 @@ type ApplicationInterface interface {
 	MarkTodayTaskCompletedHandler() gin.HandlerFunc
 	PostponeTodayTaskHandler() gin.HandlerFunc
 	BulkOperationTodayTasksHandler() gin.HandlerFunc
+
+	// 今日主要任务处理器
+	GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandler
 
 	// 各模块处理器
 	GetArchiveHandler() *handlers.ArchiveHandler

@@ -101,7 +101,7 @@ export const formatPriority = (priority: string): { text: string; color: string 
 
 // 格式化工时
 export const formatHours = (hours: number): string => {
-  if (hours === 0) return '0小时';
+  if (hours === 0) return '0.00小时';
   if (hours < 1) return `${Math.round(hours * 60)}分钟`;
   if (hours >= 8) {
     const days = Math.floor(hours / 8);
@@ -109,10 +109,10 @@ export const formatHours = (hours: number): string => {
     if (remainingHours === 0) {
       return `${days}天`;
     } else {
-      return `${days}天${remainingHours}小时`;
+      return `${days}天${remainingHours.toFixed(2)}小时`;
     }
   }
-  return `${hours}小时`;
+  return `${hours.toFixed(2)}小时`;
 };
 
 // 格式化百分比

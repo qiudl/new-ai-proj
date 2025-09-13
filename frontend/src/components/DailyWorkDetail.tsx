@@ -87,7 +87,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
         <div key={task.id || `task_${index}`}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <Text strong style={{ fontSize: '14px' }}>{task.taskTitle || '未命名任务'}</Text>
-            <Text style={{ color: '#666', fontSize: '12px' }}>{(task.duration || 0).toFixed(1)}h</Text>
+            <Text style={{ color: '#666', fontSize: '12px' }}>{(task.duration || 0).toFixed(2)}h</Text>
           </div>
           <div style={{ marginBottom: '4px' }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>{task.projectName || '未分类项目'}</Text>
@@ -120,7 +120,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="工作时长"
-              value={dailyStats.totalHours}
+              value={dailyStats.totalHours.toFixed(2)}
               suffix="小时"
               prefix={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff', fontSize: '18px' }}
@@ -142,7 +142,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="工作效率"
-              value={dailyStats.efficiency.toFixed(1)}
+              value={dailyStats.efficiency.toFixed(2)}
               suffix="%"
               prefix={<FireOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14', fontSize: '18px' }}
@@ -153,7 +153,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="平均时长"
-              value={avgTaskDuration.toFixed(1)}
+              value={avgTaskDuration.toFixed(2)}
               suffix="h/任务"
               prefix={<TrophyOutlined style={{ color: '#722ed1' }} />}
               valueStyle={{ color: '#722ed1', fontSize: '18px' }}
@@ -213,7 +213,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{highPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {highPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
+              {highPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(2)}h
             </Text>
           </div>
           
@@ -223,7 +223,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{mediumPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {mediumPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
+              {mediumPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(2)}h
             </Text>
           </div>
           
@@ -233,7 +233,7 @@ const DailyWorkDetail: React.FC<DailyWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{lowPriorityTasks.length} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {lowPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(1)}h
+              {lowPriorityTasks.reduce((sum, task) => sum + (task.duration || 0), 0).toFixed(2)}h
             </Text>
           </div>
         </Space>

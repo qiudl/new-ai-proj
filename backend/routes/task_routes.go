@@ -37,6 +37,17 @@ func RegisterTaskRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		tasks.POST("/:id/move", app.MoveTaskByIdHandler())
 		tasks.POST("/:id/reorder", app.ReorderTaskByIdHandler())
 
+		// 任务归档和取消归档
+		tasks.POST("/:id/archive", app.ArchiveTaskHandler())
+		tasks.POST("/:id/unarchive", app.UnarchiveTaskHandler())
+
+		// 批量归档和取消归档
+		tasksBulk := tasks.Group("/bulk")
+		{
+			tasksBulk.POST("/archive", app.BulkArchiveTasksHandler())
+			tasksBulk.POST("/unarchive", app.BulkUnarchiveTasksHandler())
+		}
+
 		// 任务时间线路由
 		taskTimeline := tasks.Group("/:id/timeline")
 		{

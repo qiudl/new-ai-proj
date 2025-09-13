@@ -450,6 +450,14 @@ func (app *Application) GetTaskHierarchyHandler() *handlers.TaskHierarchyHandler
 	return app.taskHierarchyHandler
 }
 
+// GetDailyFocusTaskHandler returns the daily focus task handler
+func (app *Application) GetDailyFocusTaskHandler() *handlers.DailyFocusTaskHandler {
+	if app.handlers != nil && app.handlers.DailyFocusTaskHandler != nil {
+		return app.handlers.DailyFocusTaskHandler
+	}
+	return nil // 需要通过工厂创建
+}
+
 // GetTimelineHandler returns the timeline handler
 func (app *Application) GetTimelineHandler() *handlers.TimelineHandler {
 	if app.handlers != nil && app.handlers.TimelineHandler != nil {

@@ -269,7 +269,6 @@ const DashboardPage: React.FC = () => {
         <div>
           <TimerErrorBoundary>
             <OKRModule 
-              quarter="2025-Q1"
               style={{ 
                 marginTop: 0,
                 background: '#fff', 

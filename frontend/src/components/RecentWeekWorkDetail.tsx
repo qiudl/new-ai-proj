@@ -121,9 +121,9 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <Text strong style={{ fontSize: '14px' }}>{dayjs(day.date).format('MM-DD dddd')}</Text>
               <Space>
-                <Text style={{ color: '#666', fontSize: '12px' }}>{day.totalHours.toFixed(1)}h</Text>
+                <Text style={{ color: '#666', fontSize: '12px' }}>{day.totalHours.toFixed(2)}h</Text>
                 <Tag color={day.efficiency >= 85 ? 'success' : day.efficiency >= 70 ? 'processing' : 'warning'}>
-                  {day.efficiency.toFixed(1)}%
+                  {day.efficiency.toFixed(2)}%
                 </Tag>
               </Space>
             </div>
@@ -156,13 +156,13 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="总工作时长"
-              value={weeklyStats.totalHours}
+              value={weeklyStats.totalHours.toFixed(2)}
               suffix="小时"
               prefix={<ClockCircleOutlined style={{ color: '#1890ff' }} />}
               valueStyle={{ color: '#1890ff', fontSize: '18px' }}
             />
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              日均 {weekSummary.avgHoursPerDay.toFixed(1)} 小时 · {weekSummary.workingDays} 个工作日
+              日均 {weekSummary.avgHoursPerDay.toFixed(2)} 小时 · {weekSummary.workingDays} 个工作日
             </Text>
           </Card>
         </Col>
@@ -170,7 +170,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="任务完成率"
-              value={weekSummary.completionRate.toFixed(1)}
+              value={weekSummary.completionRate.toFixed(2)}
               suffix="%"
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a', fontSize: '18px' }}
@@ -184,7 +184,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="平均效率"
-              value={weekSummary.avgEfficiency.toFixed(1)}
+              value={weekSummary.avgEfficiency.toFixed(2)}
               suffix="%"
               prefix={<FireOutlined style={{ color: '#faad14' }} />}
               valueStyle={{ color: '#faad14', fontSize: '18px' }}
@@ -192,10 +192,10 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', fontSize: '12px', color: '#666', marginTop: '4px' }}>
               {weekSummary.trend === 'up' ? (
                 <><ArrowUpOutlined style={{ color: '#52c41a', marginRight: '2px' }} />
-                <Text style={{ color: '#52c41a' }}>+{weekSummary.trendValue.toFixed(1)}%</Text></>
+                <Text style={{ color: '#52c41a' }}>+{weekSummary.trendValue.toFixed(2)}%</Text></>
               ) : weekSummary.trend === 'down' ? (
                 <><ArrowDownOutlined style={{ color: '#ff4d4f', marginRight: '2px' }} />
-                <Text style={{ color: '#ff4d4f' }}>-{weekSummary.trendValue.toFixed(1)}%</Text></>
+                <Text style={{ color: '#ff4d4f' }}>-{weekSummary.trendValue.toFixed(2)}%</Text></>
               ) : (
                 <Text style={{ color: '#666' }}>趋势平稳</Text>
               )}
@@ -206,7 +206,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
           <Card size="small">
             <Statistic
               title="最佳表现"
-              value={weekSummary.bestDay?.efficiency?.toFixed(1) || '0.0'}
+              value={weekSummary.bestDay?.efficiency?.toFixed(2) || '0.00'}
               suffix="%"
               prefix={<TrophyOutlined style={{ color: '#722ed1' }} />}
               valueStyle={{ color: '#722ed1', fontSize: '18px' }}
@@ -271,7 +271,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{weekSummary.highPriorityTasks} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {weekSummary.highPriorityHours.toFixed(1)}h
+              {weekSummary.highPriorityHours.toFixed(2)}h
             </Text>
           </div>
           
@@ -281,7 +281,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{weekSummary.mediumPriorityTasks} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {weekSummary.mediumPriorityHours.toFixed(1)}h
+              {weekSummary.mediumPriorityHours.toFixed(2)}h
             </Text>
           </div>
           
@@ -291,7 +291,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
               <Text style={{ fontSize: '12px' }}>{weekSummary.lowPriorityTasks} 个任务</Text>
             </Space>
             <Text style={{ fontSize: '12px', color: '#666' }}>
-              {weekSummary.lowPriorityHours.toFixed(1)}h
+              {weekSummary.lowPriorityHours.toFixed(2)}h
             </Text>
           </div>
         </Space>
@@ -305,7 +305,7 @@ const RecentWeekWorkDetail: React.FC<RecentWeekWorkDetailProps> = ({
             <div>
               <Text>最高效的一天是 <Text strong>{dayjs(weekSummary.bestDay.date).format('MM月DD日')}</Text></Text>
               <br />
-              <Text type="secondary">效率达到 {weekSummary.bestDay.efficiency.toFixed(1)}%，主要任务: {weekSummary.bestDay.topTask}</Text>
+              <Text type="secondary">效率达到 {weekSummary.bestDay.efficiency.toFixed(2)}%，主要任务: {weekSummary.bestDay.topTask}</Text>
             </div>
           }
           type="success"

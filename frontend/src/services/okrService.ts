@@ -18,7 +18,9 @@ class OKRService {
 
   // 目标管理
   async createObjective(data: CreateObjectiveRequest): Promise<OKRObjective> {
+    console.log('🐛 [OKRService] createObjective called with:', data);
     const response = await api.post(`${this.baseUrl}/objectives`, data);
+    console.log('🐛 [OKRService] createObjective response:', response);
     return response as OKRObjective;
   }
 
