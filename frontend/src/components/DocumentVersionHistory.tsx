@@ -375,7 +375,7 @@ const DocumentVersionHistory: React.FC<DocumentVersionHistoryProps> = ({
           关闭
         </Button>
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
         {versions.length > 0 ? (

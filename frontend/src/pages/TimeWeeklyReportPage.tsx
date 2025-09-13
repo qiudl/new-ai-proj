@@ -21,7 +21,6 @@ import {
   DatePicker,
   Table,
   Tabs,
-  Calendar,
   Timeline,
   Select
 } from 'antd';
@@ -43,7 +42,6 @@ import {
   PrinterOutlined,
   LineChartOutlined,
   PieChartOutlined,
-  TeamOutlined,
   ProjectOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -79,7 +77,6 @@ dayjs.extend(isoWeek);
 const TimeWeeklyReportPage: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [currentWeek, setCurrentWeek] = useState(dayjs());
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDateRange, setSelectedDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().startOf('week'),
@@ -185,8 +182,8 @@ const TimeWeeklyReportPage: React.FC = () => {
       const exportData: ExportData = {
         weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
         selectedWeek: selectedDateRange[0],
-        tasks: taskTimeEntries.map(entry => ({
-          id: Math.random(), // 临时ID
+        tasks: taskTimeEntries.map((entry, index) => ({
+          id: entry.id || `task_${index}`,
           title: entry.taskTitle,
           description: '',
           status: entry.status,
@@ -236,8 +233,8 @@ const TimeWeeklyReportPage: React.FC = () => {
       const previewData: ExportData = {
         weekRange: `${selectedDateRange[0].format('MM月DD日')} - ${selectedDateRange[1].format('MM月DD日')}`,
         selectedWeek: selectedDateRange[0],
-        tasks: taskTimeEntries.map(entry => ({
-          id: Math.random(), // 临时ID
+        tasks: taskTimeEntries.map((entry, index) => ({
+          id: entry.id || `task_${index}`,
           title: entry.taskTitle,
           description: '',
           status: entry.status,
@@ -301,17 +298,6 @@ const TimeWeeklyReportPage: React.FC = () => {
     }));
   }, [taskTimeEntries]);
 
-  // 将任务按日期分组，供日历渲染使用（只展示任务标题，每行一个）
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, TaskTimeEntry[]>();
-    (taskTimeEntries || []).forEach(entry => {
-      const key = entry.date;
-      if (!key) return;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(entry);
-    });
-    return map;
-  }, [taskTimeEntries]);
 
   return (
     <div style={{ padding: '24px', background: '#f5f5f5', minHeight: '100vh' }}>
@@ -551,9 +537,9 @@ const TimeWeeklyReportPage: React.FC = () => {
                               <div>
                                 <Text>总计 {weeklyStats.totalHours} 小时</Text>
                                 <br />
-                                <Text>超出计划 2.5 小时</Text>
+                                <Text>平均每天 {weekSummary.avgHoursPerDay.toFixed(1)} 小时</Text>
                                 <br />
-                                <Text type="secondary">建议合理安排工作量</Text>
+                                <Text type="secondary">工作 {weekSummary.totalDaysWorked} 天</Text>
                               </div>
                             }
                             type="info"
@@ -567,9 +553,9 @@ const TimeWeeklyReportPage: React.FC = () => {
                               <div>
                                 <Text>完成率 {weekSummary.completionRate.toFixed(2)}%</Text>
                                 <br />
-                                <Text>超额完成 3 个任务</Text>
+                                <Text>完成 {weeklyStats.completedTasks} / {weeklyStats.totalTasks} 个任务</Text>
                                 <br />
-                                <Text type="secondary">表现优秀</Text>
+                                <Text type="secondary">{weekSummary.completionRate >= 80 ? '表现优秀' : weekSummary.completionRate >= 60 ? '表现良好' : '需要改进'}</Text>
                               </div>
                             }
                             type="warning"
@@ -588,53 +574,6 @@ const TimeWeeklyReportPage: React.FC = () => {
               children: (
                 <Card title="任务执行时间轴" >
                   <Timeline items={timelineData} />
-                </Card>
-              )
-            },
-            {
-              key: 'calendar',
-              label: (<span><CalendarOutlined />工作日历</span>),
-              children: (
-                <Card title="工作日历视图" >
-                  <Calendar
-                    value={currentWeek}
-                    onChange={setCurrentWeek}
-                    cellRender={(value) => {
-                      const key = value.format('YYYY-MM-DD');
-                      const list = tasksByDate.get(key) || [];
-                      if (!list.length) return null;
-                      return (
-                        <ul style={{ padding: '0 0 0 16px', margin: 0, fontSize: 12, lineHeight: 1.4 }}>
-                          {list.slice(0, 4).map((entry) => (
-                            <li
-                              key={entry.id}
-                              style={{
-                                margin: 0,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis'
-                              }}
-                              title={entry.taskTitle}
-                            >
-                              {entry.taskTitle}
-                            </li>
-                          ))}
-                          {list.length > 4 && (
-                            <li style={{ color: '#8c8c8c', margin: 0 }}>+{list.length - 4} 更多</li>
-                          )}
-                        </ul>
-                      );
-                    }}
-                  />
-                </Card>
-              )
-            },
-            {
-              key: 'team',
-              label: (<span><TeamOutlined />团队对比</span>),
-              children: (
-                <Card title="团队工作效率对比" >
-                  <Empty description="团队数据正在开发中..." />
                 </Card>
               )
             },

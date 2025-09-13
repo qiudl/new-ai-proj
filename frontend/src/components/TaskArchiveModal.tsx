@@ -77,7 +77,7 @@ const TaskArchiveModal: React.FC<TaskArchiveModalProps> = ({
       width={isMobile ? '95vw' : 600}
       style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
       styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
-      destroyOnClose
+      destroyOnHidden
     >
       <div style={{ marginBottom: '16px' }}>
         <Alert

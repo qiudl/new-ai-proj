@@ -119,27 +119,28 @@ class OrganizationService {
       const cid = companyId || this.companyId;
       console.log('🔍 获取部门列表 - 企业ID:', cid);
       
-      const response = await api.get(`${this.API_BASE_URL}/departments`, {
+      const raw = await api.get(`${this.API_BASE_URL}/departments`, {
         params: { company_id: cid }
       });
       
-      // 处理API响应格式
-      let result = response?.data;
+      // 兼容 axios 响应拦截器已解包的返回值或原始响应结构
+      let result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
       
-      console.log('📥 部门API原始响应:', { response, result });
-      
-      // API返回格式为 {data: [...], success: true}
-      if (result && result.success && result.data) {
-        result = result.data;
-        console.log('✅ 解析后的部门数据:', result);
+      // API实际返回格式为 {response: Array, result: ...}
+      if (result && (result as any).response && Array.isArray((result as any).response)) {
+        result = (result as any).response;
+      }
+      // 备选格式 {data: [...], success: true}
+      else if (result && (result as any).success && (result as any).data) {
+        result = (result as any).data;
       }
       
       // 确保返回数组格式
       if (Array.isArray(result)) {
-        console.log(`✅ 获取到 ${result.length} 个部门`);
-        return result;
+        return result as Department[];
       } else {
-        console.warn('⚠️ 部门数据不是数组格式，返回空数组:', result);
+        // 非致命：记录调试信息并返回空数组，避免控制台出现警告
+        console.debug('部门数据不是数组格式，使用空数组作为兜底:', result);
         return [];
       }
     } catch (error) {
@@ -152,11 +153,11 @@ class OrganizationService {
   async getDepartment(id: number, companyId?: number): Promise<Department> {
     try {
       const cid = companyId || this.companyId;
-      const response = await api.get(`${this.API_BASE_URL}/departments/${id}`, {
+      const raw = await api.get(`${this.API_BASE_URL}/departments/${id}`, {
         params: { company_id: cid }
       });
-      const result = response.data;
-      return result;
+      const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
+      return result as Department;
     } catch (error) {
       console.error('❌ 获取部门详情失败:', error);
       throw error;
@@ -169,19 +170,19 @@ class OrganizationService {
       const cid = companyId || this.companyId;
       console.log('➕ 创建部门请求:', { department, companyId: cid });
       
-      const response = await api.post(`${this.API_BASE_URL}/departments?company_id=${cid}`, department);
+      const raw = await api.post(`${this.API_BASE_URL}/departments?company_id=${cid}`, department);
       
-      console.log('✅ 部门创建响应:', response);
+      console.log('✅ 部门创建响应:', raw);
       
-      let result = response?.data;
+      let result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
       
       // 处理API响应格式
-      if (result && result.success && result.data) {
-        result = result.data;
+      if (result && (result as any).success && (result as any).data) {
+        result = (result as any).data;
         console.log('✅ 解析后的创建部门数据:', result);
       }
       
-      return result;
+      return result as Department;
     } catch (error) {
       console.error('❌ 创建部门失败:', error);
       throw error;
@@ -192,9 +193,9 @@ class OrganizationService {
   async updateDepartment(id: number, department: UpdateDepartmentRequest, companyId?: number): Promise<Department> {
     try {
       const cid = companyId || this.companyId;
-      const response = await api.put(`${this.API_BASE_URL}/departments/${id}?company_id=${cid}`, department);
-      const result = response.data;
-      return result;
+      const raw = await api.put(`${this.API_BASE_URL}/departments/${id}?company_id=${cid}`, department);
+      const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
+      return result as Department;
     } catch (error) {
       console.error('❌ 更新部门失败:', error);
       throw error;
@@ -219,9 +220,9 @@ class OrganizationService {
         ? `${this.API_BASE_URL}/departments/${departmentId}/employees`
         : `${this.API_BASE_URL}/employees`;
       
-      const response = await api.get(url);
-      const result = response.data;
-      return Array.isArray(result) ? result : [];
+      const raw = await api.get(url);
+      const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
+      return Array.isArray(result) ? (result as Employee[]) : [];
     } catch (error) {
       console.error('❌ 获取员工列表失败:', error);
       throw error;
@@ -231,9 +232,9 @@ class OrganizationService {
   // 获取可用的经理列表（用于部门管理选择）
   async getAvailableManagers(): Promise<Employee[]> {
     try {
-      const response = await api.get(`${this.API_BASE_URL}/managers`);
-      const result = response.data;
-      return Array.isArray(result) ? result : [];
+      const raw = await api.get(`${this.API_BASE_URL}/managers`);
+      const result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
+      return Array.isArray(result) ? (result as Employee[]) : [];
     } catch (error) {
       console.error('❌ 获取可用经理列表失败:', error);
       throw error;
@@ -249,22 +250,25 @@ class OrganizationService {
   }> {
     try {
       const cid = companyId || this.companyId;
-      const response = await api.get(`${this.API_BASE_URL}/stats`, {
+      const raw = await api.get(`${this.API_BASE_URL}/stats`, {
         params: { company_id: cid }
       });
       
-      let result = response?.data;
+      let result: any = (raw && typeof raw === 'object' && 'data' in raw) ? (raw as any).data : raw;
       
-      // API返回格式为 {data: {...}, success: true}
-      if (result && result.success && result.data) {
-        result = result.data;
+      // API实际返回格式为 {response: {...}, result: ...}
+      if (result && (result as any).response && typeof (result as any).response === 'object') {
+        result = (result as any).response;
       }
-      
-      console.log('📊 部门统计API响应:', { result, response });
+      // 备选格式 {data: {...}, success: true}
+      else if (result && (result as any).success && (result as any).data) {
+        result = (result as any).data;
+      }
       
       // 确保result存在且有效，否则使用默认值
       if (!result || typeof result !== 'object') {
-        console.warn('⚠️ 部门统计数据无效:', result);
+        // 非致命：记录调试信息并返回默认统计，避免控制台出现警告
+        console.debug('部门统计数据无效，使用默认统计:', result);
         return {
           totalDepartments: 0,
           totalEmployees: 0,
@@ -275,10 +279,10 @@ class OrganizationService {
       
       // 确保返回正确的数据结构
       return {
-        totalDepartments: result.totalDepartments || 0,
-        totalEmployees: result.totalEmployees || 0,
-        maxLevel: result.maxLevel || 0,
-        activeDepartments: result.activeDepartments || 0
+        totalDepartments: (result as any).totalDepartments || 0,
+        totalEmployees: (result as any).totalEmployees || 0,
+        maxLevel: (result as any).maxLevel || 0,
+        activeDepartments: (result as any).activeDepartments || 0
       };
     } catch (error) {
       console.error('❌ 获取部门统计信息失败:', error);

@@ -1,11 +1,20 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Typography, Button, message, Tooltip } from 'antd';
-import { QuestionCircleOutlined, ClockCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { Typography, Button, message, Tooltip, Card, Statistic, Row, Col } from 'antd';
+import { 
+  QuestionCircleOutlined, 
+  ClockCircleOutlined, 
+  EyeOutlined, 
+  EyeInvisibleOutlined,
+  CheckCircleOutlined,
+  PlayCircleOutlined,
+  TrophyOutlined
+} from '@ant-design/icons';
 // 统一定时器系统
 import useSafeTimer from '../hooks/useSafeTimer';
 import UniversalTimerWidget from '../components/UniversalTimerWidget';
 import EnhancedHierarchicalTaskTree from '../components/EnhancedHierarchicalTaskTree';
 import TimerErrorBoundary from '../components/TimerErrorBoundary';
+import { personalTimerService } from '../services/personalTimerService';
 // Phase 4: 交互优化组件
 import ContextMenuProvider, { useContextMenu, createTimerContextMenu, createChartContextMenu } from '../components/ContextMenu';
 // import AccessibilityHelper, { voiceAnnouncer } from '../components/AccessibilityHelper'; // 隐藏调试功能
@@ -23,6 +32,9 @@ const DashboardPage: React.FC = () => {
   
   // 浮动定时器显示状态
   const [floatingTimerVisible, setFloatingTimerVisible] = useState(true);
+  
+  // 今日计时统计数据
+  const [todayStats, setTodayStats] = useState<any>(null);
   
   // 获取定时器状态
   const { timerState, startTimer, stopTimer, pauseTimer } = useSafeTimer();
@@ -127,6 +139,26 @@ const DashboardPage: React.FC = () => {
   // Dashboard页面加载完成通知
   useEffect(() => {
     // voiceAnnouncer.announce('Dashboard页面加载完成，包含优秀的任务树功能', 'low'); // 隐藏调试功能
+  }, []);
+  
+  // 获取今日计时统计数据
+  useEffect(() => {
+    const fetchTodayStats = async () => {
+      try {
+        const data = await personalTimerService.getDashboard();
+        if (data && data.today_stats) {
+          setTodayStats(data.today_stats);
+        }
+      } catch (error) {
+        console.error('Failed to fetch today stats:', error);
+      }
+    };
+    
+    fetchTodayStats();
+    // 每分钟更新一次统计数据
+    const interval = setInterval(fetchTodayStats, 60000);
+    
+    return () => clearInterval(interval);
   }, []);
   
   // 从localStorage恢复浮动定时器可见性状态
@@ -293,29 +325,42 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 第二行：后续功能区域 */}
-      <div style={{
-        background: '#f5f5f5',
-        border: '1px dashed #d9d9d9',
-        borderRadius: '12px',
-        padding: '48px',
-        textAlign: 'center',
-        minHeight: '200px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Title level={3} style={{ color: '#8c8c8c', margin: '0 0 16px 0' }}>
-          📊 第二行功能区域
-        </Title>
-        <Text type="secondary" style={{ fontSize: '16px' }}>
-          数据分析、项目管理等功能将在这里展示
-        </Text>
-        <Text type="secondary" style={{ marginTop: '8px' }}>
-          根据用户测试反馈进行设计和开发
-        </Text>
-      </div>
+      {/* 第二行：今日计时统计 */}
+      {todayStats && (
+        <Card title="今日计时统计" style={{ marginBottom: '24px' }}>
+          <Row gutter={16}>
+            <Col span={6}>
+              <Statistic 
+                title="今日总计时" 
+                value={todayStats.formatted_time || '00:00:00'} 
+                prefix={<ClockCircleOutlined />} 
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="完成会话" 
+                value={todayStats.sessions_count || 0} 
+                prefix={<CheckCircleOutlined />} 
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="活跃任务" 
+                value={todayStats.tasks_worked_on || 0} 
+                prefix={<PlayCircleOutlined />} 
+              />
+            </Col>
+            <Col span={6}>
+              <Statistic 
+                title="效率评分" 
+                value={todayStats.efficiency_score || 0} 
+                suffix="%" 
+                prefix={<TrophyOutlined />} 
+              />
+            </Col>
+          </Row>
+        </Card>
+      )}
 
       {/* Phase 4: 无障碍辅助功能 (隐藏调试功能) */}
       {/* <AccessibilityHelper shortcuts={timerShortcuts} /> */}

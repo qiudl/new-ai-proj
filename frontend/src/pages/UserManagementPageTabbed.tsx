@@ -35,10 +35,7 @@ const UserManagementPageTabbed: React.FC = () => {
   // 获取企业列表
   const fetchEnterprises = useCallback(async () => {
     try {
-      const response = await enterpriseService.getEnterprises({
-        page: 1,
-        page_size: 100
-      });
+      const response = await enterpriseService.getEnterprises(1, 100);
       setEnterprises(response.data);
     } catch (error) {
       console.error('Error fetching enterprises:', error);
@@ -149,10 +146,7 @@ const UserManagementPageTabbed: React.FC = () => {
     <div className="user-management-page">
       {/* 页面标题和面包屑 */}
       <div style={{ marginBottom: 24 }}>
-        <Breadcrumb style={{ marginBottom: 16 }}>
-          <Breadcrumb.Item>系统管理</Breadcrumb.Item>
-          <Breadcrumb.Item>用户管理</Breadcrumb.Item>
-        </Breadcrumb>
+        <Breadcrumb style={{ marginBottom: 16 }} items={[{ title: '系统管理' }, { title: '用户管理' }]} />
         
         <Title level={2} style={{ margin: 0 }}>
           <UserOutlined style={{ marginRight: 8 }} />

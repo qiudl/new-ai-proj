@@ -246,30 +246,21 @@ const ArchivedTasksPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: '16px' }}>
-        <Breadcrumb.Item>
-          <HomeOutlined />
-          <span 
-            style={{ cursor: 'pointer', marginLeft: '4px' }} 
-            onClick={() => navigate('/')}
-          >
-            首页
-          </span>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <ProjectOutlined />
-          <span 
-            style={{ cursor: 'pointer', marginLeft: '4px' }}
-            onClick={() => navigate(`/projects/${projectId}`)}
-          >
-            项目管理
-          </span>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <InboxOutlined />
-          <span style={{ marginLeft: '4px' }}>归档任务</span>
-        </Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb style={{ marginBottom: '16px' }}
+        items={[
+          { title: (
+            <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
+              <HomeOutlined /> <span style={{ marginLeft: '4px' }}>首页</span>
+            </span>
+          )},
+          { title: (
+            <span style={{ cursor: 'pointer' }} onClick={() => navigate(`/projects/${projectId}`)}>
+              <ProjectOutlined /> <span style={{ marginLeft: '4px' }}>项目管理</span>
+            </span>
+          )},
+          { title: (<span><InboxOutlined /> <span style={{ marginLeft: '4px' }}>归档任务</span></span>) }
+        ]}
+      />
 
       {/* 页面标题和统计信息 */}
       <div style={{ marginBottom: '24px' }}>

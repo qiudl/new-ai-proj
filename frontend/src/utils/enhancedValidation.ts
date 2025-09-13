@@ -518,9 +518,9 @@ export const ValidationMessage: React.FC<ValidationMessageProps> = ({
 }) => {
   if (!error && !success) return null;
 
-  return (
-    <div className={`validation-message ${success ? 'success' : 'error'} ${className}`}>
-      {error || '验证通过'}
-    </div>
+  return React.createElement(
+    'div',
+    { className: `validation-message ${success ? 'success' : 'error'} ${className}` },
+    error || '验证通过'
   );
 };

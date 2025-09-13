@@ -369,24 +369,14 @@ const AdminRoleDetailPage: React.FC = () => {
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
       {/* 面包屑导航 */}
       <div style={{ marginBottom: '16px' }}>
-        <Breadcrumb>
-          <Breadcrumb.Item>
-            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-              首页
-            </span>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>
-            <span onClick={() => navigate('/admin/permissions')} style={{ cursor: 'pointer' }}>
-              系统管理
-            </span>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>
-            <span onClick={() => navigate('/admin/roles')} style={{ cursor: 'pointer' }}>
-              角色管理
-            </span>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>{role.roleName}</Breadcrumb.Item>
-        </Breadcrumb>
+        <Breadcrumb
+          items={[
+            { title: (<span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>首页</span>) },
+            { title: (<span onClick={() => navigate('/admin/permissions')} style={{ cursor: 'pointer' }}>系统管理</span>) },
+            { title: (<span onClick={() => navigate('/admin/roles')} style={{ cursor: 'pointer' }}>角色管理</span>) },
+            { title: role.roleName }
+          ]}
+        />
       </div>
 
       {/* 页面标题和操作 */}

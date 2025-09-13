@@ -50,6 +50,7 @@ import enterpriseService from '../services/enterpriseService';
 import { Project, ProjectRequest, Company } from '../types/project';
 // import { Company, CompanyUser } from '../types/company'; // Removed - company types no longer exist - using Company from project.ts now
 import { Enterprise, EnterpriseUser } from '../types/enterprise';
+import { useEnterprise } from '../contexts/EnterpriseContext';
 // import AddCompanyUserModal from '../components/AddCompanyUserModal'; // Removed - component no longer exists
 
 const { Title, Text } = Typography;
@@ -74,6 +75,10 @@ const ProjectEditPageNew: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
+  
+  // 企业上下文 - 用于数据隔离
+  const { currentEnterprise } = useEnterprise();
+  
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
@@ -203,13 +208,17 @@ const ProjectEditPageNew: React.FC = () => {
     try {
       setCompanyLoading(true);
       
-      try {
-        const response = await companyService.getCompanies({ page: 1, pageSize: 100 });
-        setCompanies(response.data);
-      } catch (apiError) {
-        console.warn('使用API加载客户失败，使用模拟数据:', apiError);
-        
-        // 使用模拟数据
+      // 企业系统已不再支持选择其他公司客户
+      // 在企业模式下，项目只能关联当前企业
+      console.log('企业模式下不再加载外部客户列表，项目只关联当前企业');
+      
+      // 使用空数组作为公司列表，因为在企业模式下不需要选择外部公司
+      setCompanies([]);
+      
+      // 如果需要兼容旧的公司模拟数据（仅用于非企业环境）
+      const isEnterpriseMode = selectedEnterprise || enterprises.length > 0;
+      if (!isEnterpriseMode) {
+        // 使用模拟数据（仅在非企业模式下）
         const mockCompanies: Company[] = [
           {
             id: 1,
@@ -281,8 +290,17 @@ const ProjectEditPageNew: React.FC = () => {
   const loadEnterprises = async () => {
     try {
       setEnterpriseLoading(true);
-      const response = await enterpriseService.getEnterprises(1, 100);
-      setEnterprises(response.data);
+      
+      // 在企业模式下，只显示当前企业，不允许选择其他企业
+      if (currentEnterprise) {
+        console.log('企业模式：只加载当前企业', currentEnterprise.name);
+        setEnterprises([currentEnterprise]);
+        setSelectedEnterprise(currentEnterprise.id);
+      } else {
+        // 兼容模式：加载所有企业（管理员模式）
+        const response = await enterpriseService.getEnterprises(1, 100);
+        setEnterprises(response.data);
+      }
     } catch (error) {
       console.error('加载企业列表失败:', error);
       message.error('加载企业列表失败');
@@ -914,18 +932,27 @@ const ProjectEditPageNew: React.FC = () => {
                 {/* 企业选择器（新架构） */}
                 <Row justify="space-between" align="middle" style={{ marginBottom: '16px' }}>
                   <Col>
-                    <Text strong>选择关联企业</Text>
+                    <Text strong>
+                      {currentEnterprise ? '关联企业' : '选择关联企业'}
+                    </Text>
                     <br />
                     <Text type="secondary" style={{ fontSize: '12px' }}>
-                      推荐使用企业架构，选择一个企业来管理项目
+                      {currentEnterprise 
+                        ? `当前企业模式，项目自动关联到 ${currentEnterprise.name}`
+                        : '推荐使用企业架构，选择一个企业来管理项目'
+                      }
                     </Text>
                   </Col>
                 </Row>
                 <Select
-                  placeholder="请选择企业，支持搜索企业名称"
+                  placeholder={currentEnterprise 
+                    ? `已自动关联：${currentEnterprise.name}`
+                    : "请选择企业，支持搜索企业名称"
+                  }
                   value={selectedEnterprise}
                   onChange={setSelectedEnterprise}
                   loading={enterpriseLoading}
+                  disabled={!!currentEnterprise} // 在企业模式下禁用选择器
                   showSearch
                   allowClear
                   filterOption={(input, option) =>

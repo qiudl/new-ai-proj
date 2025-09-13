@@ -495,17 +495,13 @@ const PermissionOverviewPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>
-          <Link to="/"><HomeOutlined /> 首页</Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <SettingOutlined /> 系统管理
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <SafetyOutlined /> 权限管理
-        </Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb style={{ marginBottom: 16 }}
+        items={[
+          { title: (<Link to="/"><HomeOutlined /> 首页</Link>) },
+          { title: (<><SettingOutlined /> 系统管理</>) },
+          { title: (<><SafetyOutlined /> 权限管理</>) }
+        ]}
+      />
 
       {/* 页面标题 */}
       <div style={{ marginBottom: 24 }}>

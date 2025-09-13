@@ -71,19 +71,13 @@ const RoleTemplatesPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: 16 }}>
-        <Breadcrumb.Item>
-          <Link to="/">
-            <HomeOutlined /> 首页
-          </Link>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <SettingOutlined /> 系统管理
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <TeamOutlined /> 角色模板管理
-        </Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb style={{ marginBottom: 16 }}
+        items={[
+          { title: (<Link to="/"><HomeOutlined /> 首页</Link>) },
+          { title: (<><SettingOutlined /> 系统管理</>) },
+          { title: (<><TeamOutlined /> 角色模板管理</>) }
+        ]}
+      />
 
       {/* 页面标题和统计 */}
       <Card 

@@ -772,13 +772,12 @@ const OrganizationManagementPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: '24px' }}>
-        <Breadcrumb.Item>
-          <SettingOutlined />
-          <span>企业管理</span>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>组织架构</Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb style={{ marginBottom: '24px' }}
+        items={[
+          { title: (<span><SettingOutlined /> <span>企业管理</span></span>) },
+          { title: '组织架构' }
+        ]}
+      />
 
       {/* 页面标题 */}
       <div style={{ marginBottom: '24px' }}>

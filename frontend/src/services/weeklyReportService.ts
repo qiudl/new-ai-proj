@@ -114,14 +114,26 @@ class WeeklyReportService {
       
       const response = await api.get(url);
       
+      console.log('周报API响应:', {
+        url,
+        responseType: typeof response,
+        hasData: !!response?.data,
+        response: response
+      });
       
       // 验证响应结构
       if (!response || typeof response !== 'object') {
+        console.warn('API响应格式无效:', response);
         return this.getEmptyWeeklyReportData();
       }
 
       // response.data可能不存在，直接使用response
       const rawData = response.data || response;
+      
+      // 检查debug_info
+      if (rawData.debug_info) {
+        console.warn('API返回调试信息:', rawData.debug_info);
+      }
       
       // 转换后端数据格式到前端格式
       const reportData = this.transformWeeklyReportData(rawData);

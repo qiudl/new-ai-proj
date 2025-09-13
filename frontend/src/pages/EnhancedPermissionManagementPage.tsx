@@ -55,19 +55,13 @@ const EnhancedPermissionManagementPage: React.FC = () => {
   return (
     <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
       <div style={{ marginBottom: '16px' }}>
-        <Breadcrumb>
-          <Breadcrumb.Item>
-            <span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-              首页
-            </span>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>
-            <span onClick={() => navigate('/admin/permissions')} style={{ cursor: 'pointer' }}>
-              系统管理
-            </span>
-          </Breadcrumb.Item>
-          <Breadcrumb.Item>增强权限管理</Breadcrumb.Item>
-        </Breadcrumb>
+        <Breadcrumb
+          items={[
+            { title: (<span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>首页</span>) },
+            { title: (<span onClick={() => navigate('/admin/permissions')} style={{ cursor: 'pointer' }}>系统管理</span>) },
+            { title: '增强权限管理' }
+          ]}
+        />
       </div>
 
       <Card 

@@ -67,6 +67,10 @@ const EnterpriseDetailPage: React.FC = () => {
     navigate(`/enterprises/${id}/users`);
   };
 
+  const handleManageDepartments = () => {
+    navigate(`/enterprises/${id}/organization`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'green';
@@ -286,7 +290,18 @@ const EnterpriseDetailPage: React.FC = () => {
                 </div>
               </Col>
               <Col span={12}>
-                <div style={{ padding: '16px' }}>
+                <div 
+                  style={{ 
+                    padding: '16px', 
+                    cursor: 'pointer',
+                    borderRadius: '4px',
+                    transition: 'background-color 0.3s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  onClick={handleManageDepartments}
+                  title="点击查看组织架构"
+                >
                   <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
                     {enterprise.department_count || 0}
                   </div>

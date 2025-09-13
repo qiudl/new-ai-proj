@@ -17,7 +17,6 @@ export const getCurrentUser = (): User | null => {
     }
     
     const user = JSON.parse(userStr);
-    console.log('📋 获取当前用户信息:', user);
     
     // 基本字段验证
     if (!user.username || !user.user_type) {
@@ -129,7 +128,6 @@ export const shouldShowCompanyInfo = (user: User | null): boolean => {
 export const updateCurrentUser = (user: User): void => {
   try {
     localStorage.setItem('currentUser', JSON.stringify(user));
-    console.log('✅ 更新用户信息成功');
   } catch (error) {
     console.error('❌ 更新用户信息失败:', error);
   }
@@ -142,7 +140,6 @@ export const clearCurrentUser = (): void => {
   try {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('token');
-    console.log('✅ 清除用户信息成功');
   } catch (error) {
     console.error('❌ 清除用户信息失败:', error);
   }

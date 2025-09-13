@@ -69,7 +69,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({
           {project ? '更新' : '创建'}
         </Button>,
       ]}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

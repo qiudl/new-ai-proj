@@ -497,7 +497,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
       onCancel={onCancel}
       width={800}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Tabs 
         activeKey={activeTab} 

@@ -792,7 +792,7 @@ const TaskDocumentManager: React.FC<TaskDocumentManagerProps> = ({
       width={isMobile ? '95vw' : 600}
       style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
       styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
-      destroyOnClose
+      destroyOnHidden
       maskClosable={true}
     >
       <div style={{ maxHeight: '400px', overflowY: 'auto' }}>

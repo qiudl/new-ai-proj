@@ -212,7 +212,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
       onCancel={handleCancel}
       width={800}
       style={{ top: 50 }}
-      destroyOnClose
+      destroyOnHidden
       footer={[
         <Button key="cancel" onClick={handleCancel}>
           取消

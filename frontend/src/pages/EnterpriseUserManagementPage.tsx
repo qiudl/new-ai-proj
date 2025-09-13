@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   Button,
@@ -7,6 +7,7 @@ import {
   Form,
   Input,
   Select,
+  Checkbox,
   message,
   Space,
   Tag,
@@ -50,7 +51,7 @@ const { Title, Text } = Typography;
 const { Option } = Select;
 
 interface RouteParams {
-  enterpriseId: string;
+  enterpriseId?: string;
 }
 
 const EnterpriseUserManagementPage: React.FC = () => {
@@ -59,6 +60,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
   const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [users, setUsers] = useState<EnterpriseUser[]>([]);
   const [departments, setDepartments] = useState<EnterpriseDepartment[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<EnterpriseUser | null>(null);
@@ -70,6 +72,31 @@ const EnterpriseUserManagementPage: React.FC = () => {
   const [form] = Form.useForm();
 
   const enterpriseIdNum = enterpriseId ? parseInt(enterpriseId, 10) : 0;
+
+  // 使用useMemo生成部门选项列表
+  const departmentOptions = useMemo(() => {
+    console.log('🔧 useMemo: 重新计算部门选项列表');
+    console.log('📊 当前部门数据:', departments);
+    console.log('📊 部门数量:', departments?.length);
+    
+    if (!departments || departments.length === 0) {
+      console.log('⚠️ 部门数据为空，返回空选项列表');
+      return [];
+    }
+    
+    const options = departments.map((dept, index) => {
+      const option = {
+        value: dept.id,
+        label: dept.name,
+        key: dept.id
+      };
+      console.log(`🔧 生成选项 ${index + 1}:`, option);
+      return option;
+    });
+    
+    console.log('✅ 最终部门选项列表:', options);
+    return options;
+  }, [departments]);
 
   // 加载企业信息
   const loadEnterprise = async () => {
@@ -111,17 +138,46 @@ const EnterpriseUserManagementPage: React.FC = () => {
 
   // 加载部门数据
   const loadDepartments = async () => {
-    if (!enterpriseIdNum) return;
+    if (!enterpriseIdNum) {
+      console.log('⚠️ 企业ID无效，跳过部门加载');
+      return;
+    }
+    
+    console.log('🔍 ========== 开始加载企业部门 ==========');
+    console.log('🏢 企业ID:', enterpriseIdNum);
+    console.log('⏳ 设置加载状态为 true...');
+    setDepartmentsLoading(true);
+    
     try {
-      console.log('🔍 开始加载企业部门，企业ID:', enterpriseIdNum);
+      console.log('📡 调用API: enterpriseService.getEnterpriseDepartments()');
       const result = await enterpriseService.getEnterpriseDepartments(enterpriseIdNum, 1, 100);
-      console.log('✅ 部门API返回结果:', result);
-      console.log('📋 部门数据:', result?.data);
+      console.log('✅ 部门API调用成功！');
+      console.log('📦 原始API响应:', result);
+      console.log('📋 解析的部门数据:', result?.data);
       console.log('📊 部门数量:', result?.data?.length);
-      setDepartments(result?.data || []);
+      
+      if (result?.data && Array.isArray(result.data)) {
+        console.log('📝 部门详细列表:');
+        result.data.forEach((dept, index) => {
+          console.log(`  ${index + 1}. ID:${dept.id} | 名称:${dept.name} | 状态:${dept.status}`);
+        });
+      }
+      
+      const departmentsList = result?.data || [];
+      setDepartments(departmentsList);
+      console.log('🔄 部门状态已更新');
+      console.log('💾 存储的部门数据:', departmentsList);
+      
     } catch (error) {
       console.error('❌ 加载部门数据失败:', error);
+      console.error('❌ 错误详情:', error.message);
+      console.error('❌ 错误堆栈:', error.stack);
       setDepartments([]); // 确保错误时也设置为空数组
+      console.log('🔄 部门状态已重置为空数组');
+    } finally {
+      console.log('⏳ 设置加载状态为 false...');
+      setDepartmentsLoading(false);
+      console.log('🔍 ========== 部门加载完成 ==========');
     }
   };
 
@@ -142,11 +198,46 @@ const EnterpriseUserManagementPage: React.FC = () => {
   };
 
   // 打开创建/编辑对话框
-  const openModal = (user?: EnterpriseUser) => {
+  const openModal = async (user?: EnterpriseUser) => {
+    console.log('🔍 ========== 打开用户编辑/创建对话框 ==========');
+    console.log('👤 编辑用户:', user);
+    console.log('🏢 当前部门列表:', departments);
+    console.log('📊 部门数量:', departments?.length);
+    console.log('✅ 部门加载状态:', departments ? '已加载' : '未加载');
+    
+    // 确保部门数据在对话框打开时已加载
+    if (!departments || departments.length === 0) {
+      console.log('🔄 部门数据为空，重新加载...');
+      await loadDepartments();
+      console.log('🔄 重新加载后部门数据:', departments);
+    }
+    
     setEditingUser(user || null);
+    
+    // 详细日志Form数据设置过程
     if (user) {
-      form.setFieldsValue(user);
+      console.log('📝 设置编辑用户表单数据:');
+      console.log('  - 用户ID:', user.id);
+      console.log('  - 用户名:', user.username);
+      console.log('  - 姓名:', user.name);
+      console.log('  - 部门ID:', user.department_id);
+      console.log('  - 部门名称:', user.department_name);
+      console.log('  - 完整用户数据:', user);
+      
+      form.setFieldsValue({
+        ...user,
+        // 确保部门ID被正确设置
+        department_id: user.department_id
+      });
+      
+      // 验证表单数据设置结果
+      setTimeout(() => {
+        const formValues = form.getFieldsValue();
+        console.log('✅ 表单数据设置完成，当前值:', formValues);
+        console.log('✅ 部门字段值:', formValues.department_id);
+      }, 100);
     } else {
+      console.log('📝 设置新用户默认表单数据');
       form.resetFields();
       form.setFieldsValue({
         status: 'active',
@@ -154,7 +245,9 @@ const EnterpriseUserManagementPage: React.FC = () => {
         is_primary_contact: false,
       });
     }
+    
     setModalVisible(true);
+    console.log('🔍 ========== 对话框打开完成 ==========');
   };
 
   // 关闭对话框
@@ -356,27 +449,24 @@ const EnterpriseUserManagementPage: React.FC = () => {
   return (
     <div style={{ padding: '24px' }}>
       {/* 面包屑导航 */}
-      <Breadcrumb style={{ marginBottom: '24px' }}>
-        <Breadcrumb.Item>
-          <HomeOutlined />
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <BankOutlined />
-          <span 
-            style={{ cursor: 'pointer' }} 
-            onClick={() => navigate('/enterprises')}
-          >
-            企业管理
-          </span>
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          {enterprise.name}
-        </Breadcrumb.Item>
-        <Breadcrumb.Item>
-          <UserOutlined />
-          用户管理
-        </Breadcrumb.Item>
-      </Breadcrumb>
+      <Breadcrumb 
+        style={{ marginBottom: '24px' }}
+        items={[
+          { title: <HomeOutlined /> },
+          { 
+            title: (
+              <span 
+                style={{ cursor: 'pointer' }} 
+                onClick={() => navigate('/enterprises')}
+              >
+                <BankOutlined /> 企业管理
+              </span>
+            )
+          },
+          { title: enterprise.name },
+          { title: (<><UserOutlined /> 用户管理</>) }
+        ]}
+      />
 
       {/* 页面标题和返回按钮 */}
       <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -560,14 +650,24 @@ const EnterpriseUserManagementPage: React.FC = () => {
               >
                 <Select 
                   placeholder={
-                    !departments || departments.length === 0 
+                    departmentsLoading 
+                      ? "正在加载部门数据..." 
+                      : (!departments || departments.length === 0)
                       ? "暂无部门，请先创建部门" 
                       : "请选择部门"
                   }
                   allowClear
-                  disabled={!departments || departments.length === 0}
+                  loading={departmentsLoading}
+                  disabled={!departmentsLoading && (!departments || departments.length === 0)}
+                  showSearch
+                  optionFilterProp="label"
+                  filterOption={(input, option) =>
+                    option?.label?.toString().toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={departmentOptions}
                   notFoundContent={
-                    !departments || departments.length === 0 ? (
+                    departmentsLoading ? "正在加载..." :
+                    (!departments || departments.length === 0) ? (
                       <div style={{ textAlign: 'center', padding: '12px' }}>
                         <div>暂无部门数据</div>
                         <div style={{ color: '#666', fontSize: '12px', marginTop: '4px' }}>
@@ -576,34 +676,52 @@ const EnterpriseUserManagementPage: React.FC = () => {
                       </div>
                     ) : "暂无数据"
                   }
-                >
-                  {departments && departments.map(dept => (
-                    <Option key={dept.id} value={dept.id}>
-                      {dept.name}
-                    </Option>
-                  ))}
-                </Select>
-                {(!departments || departments.length === 0) && (
-                  <div style={{ 
-                    color: '#fa8c16', 
-                    fontSize: '12px', 
-                    marginTop: '4px', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px' 
-                  }}>
-                    <span>💡 提示：此企业暂无部门，</span>
-                    <a 
-                      href={`/enterprises/${enterpriseId}/organization`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      style={{ color: '#1890ff' }}
-                    >
-                      点击此处创建部门
-                    </a>
-                  </div>
-                )}
+                  onFocus={() => {
+                    console.log('🔍 部门选择框获得焦点');
+                    console.log('📊 当前部门数据:', departments);
+                    console.log('📊 部门数量:', departments?.length);
+                    console.log('🔄 是否加载中:', departmentsLoading);
+                  }}
+                  onChange={(value) => {
+                    console.log('📝 部门选择变更:', value);
+                    console.log('📋 选择的部门ID:', value);
+                  }}
+                />
               </Form.Item>
+              
+              {/* 将提示信息移到Form.Item外面 */}
+              {!departmentsLoading && (!departments || departments.length === 0) && (
+                <div style={{ 
+                  color: '#fa8c16', 
+                  fontSize: '12px', 
+                  marginTop: '4px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px' 
+                }}>
+                  <span>💡 提示：此企业暂无部门，</span>
+                  <a 
+                    href={`/enterprises/${enterpriseId}/organization`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    style={{ color: '#1890ff' }}
+                  >
+                    点击此处创建部门
+                  </a>
+                </div>
+              )}
+              {departmentsLoading && (
+                <div style={{ 
+                  color: '#1890ff', 
+                  fontSize: '12px', 
+                  marginTop: '4px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '4px' 
+                }}>
+                  <span>🔄 正在加载部门数据...</span>
+                </div>
+              )}
             </Col>
           </Row>
 
@@ -644,8 +762,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
             name="is_primary_contact"
             valuePropName="checked"
           >
-            <input type="checkbox" style={{ marginRight: 8 }} />
-            设为主要联系人
+            <Checkbox>设为主要联系人</Checkbox>
           </Form.Item>
 
           <div style={{ textAlign: 'right', marginTop: '24px' }}>

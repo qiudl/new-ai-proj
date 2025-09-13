@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Table,
   Button,
@@ -17,7 +17,6 @@ import {
   Typography,
   Checkbox,
   Dropdown,
-  Menu,
   Row,
   Col,
   Statistic,
@@ -25,6 +24,7 @@ import {
   Divider,
   Radio
 } from 'antd';
+import type { MenuProps } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined,
@@ -382,123 +382,99 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
     },
   };
 
-  // 批量操作菜单
-  const batchActionsMenu = (
-    <Menu>
-      <Menu.Item 
-        key="batchConvert"
-        icon={<SwapOutlined />}
-        onClick={() => setBatchConversionModalVisible(true)}
-        disabled={selectedRowKeys.length === 0}
-      >
-        批量转换为任务文档
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="batchExport"
-        icon={<ExportOutlined />}
-        disabled={selectedRowKeys.length === 0}
-      >
-        批量导出
-      </Menu.Item>
-      <Menu.Item 
-        key="batchTemplate"
-        icon={<StarOutlined />}
-        disabled={selectedRowKeys.length === 0}
-      >
-        批量设为模板
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="batchDelete"
-        icon={<DeleteOutlined />}
-        disabled={selectedRowKeys.length === 0}
-        onClick={() => {
-          Modal.confirm({
-            title: '确认批量删除',
-            content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可撤销。`,
-            okText: '确认删除',
-            okType: 'danger',
-            cancelText: '取消',
-            onOk: async () => {
-              try {
-                for (const id of selectedRowKeys) {
-                  await workNotesService.deleteWorkNote(id);
-                }
-                message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
-                setSelectedRowKeys([]);
-                setSelectedWorkNotes([]);
-                loadWorkNotes();
-              } catch (error) {
-                message.error('批量删除失败');
-              }
-            }
-          });
-        }}
-      >
-        批量删除
-      </Menu.Item>
-    </Menu>
-  );
+  // 批量操作菜单（使用 AntD v5 menu API）
+  const batchActionsItems: MenuProps['items'] = useMemo(() => [
+    {
+      key: 'batchConvert',
+      icon: <SwapOutlined />,
+      label: '批量转换为任务文档',
+      disabled: selectedRowKeys.length === 0,
+    },
+    { type: 'divider' as const },
+    {
+      key: 'batchExport',
+      icon: <ExportOutlined />,
+      label: '批量导出',
+      disabled: selectedRowKeys.length === 0,
+    },
+    {
+      key: 'batchTemplate',
+      icon: <StarOutlined />,
+      label: '批量设为模板',
+      disabled: selectedRowKeys.length === 0,
+    },
+    { type: 'divider' as const },
+    {
+      key: 'batchDelete',
+      icon: <DeleteOutlined />,
+      label: '批量删除',
+      danger: true,
+      disabled: selectedRowKeys.length === 0,
+    },
+  ], [selectedRowKeys]);
 
-  // 排序菜单
-  const sortMenu = (
-    <Menu>
-      <Menu.Item 
-        key="id-asc" 
-        icon={<SortAscendingOutlined />}
-        onClick={() => { setSortField('id'); setSortOrder('asc'); }}
-      >
-        ID 升序
-      </Menu.Item>
-      <Menu.Item 
-        key="id-desc" 
-        icon={<SortDescendingOutlined />}
-        onClick={() => { setSortField('id'); setSortOrder('desc'); }}
-      >
-        ID 降序
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="title-asc" 
-        onClick={() => { setSortField('title'); setSortOrder('asc'); }}
-      >
-        标题 A-Z
-      </Menu.Item>
-      <Menu.Item 
-        key="title-desc" 
-        onClick={() => { setSortField('title'); setSortOrder('desc'); }}
-      >
-        标题 Z-A
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="created-desc" 
-        onClick={() => { setSortField('created_at'); setSortOrder('desc'); }}
-      >
-        创建时间 (新→旧)
-      </Menu.Item>
-      <Menu.Item 
-        key="created-asc" 
-        onClick={() => { setSortField('created_at'); setSortOrder('asc'); }}
-      >
-        创建时间 (旧→新)
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item 
-        key="updated-desc" 
-        onClick={() => { setSortField('updated_at'); setSortOrder('desc'); }}
-      >
-        更新时间 (新→旧)
-      </Menu.Item>
-      <Menu.Item 
-        key="updated-asc" 
-        onClick={() => { setSortField('updated_at'); setSortOrder('asc'); }}
-      >
-        更新时间 (旧→新)
-      </Menu.Item>
-    </Menu>
-  );
+  const onBatchActionClick: NonNullable<MenuProps['onClick']> = async ({ key }) => {
+    if (key === 'batchConvert') {
+      return setBatchConversionModalVisible(true);
+    }
+    if (key === 'batchExport') {
+      return message.info('批量导出功能开发中');
+    }
+    if (key === 'batchTemplate') {
+      return message.info('批量设为模板功能开发中');
+    }
+    if (key === 'batchDelete') {
+      Modal.confirm({
+        title: '确认批量删除',
+        content: `确定要删除选中的 ${selectedRowKeys.length} 个工作笔记吗？此操作不可撤销。`,
+        okText: '确认删除',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk: async () => {
+          try {
+            for (const id of selectedRowKeys) {
+              await workNotesService.deleteWorkNote(id);
+            }
+            message.success(`成功删除 ${selectedRowKeys.length} 个工作笔记`);
+            setSelectedRowKeys([]);
+            setSelectedWorkNotes([]);
+            loadWorkNotes();
+          } catch (error) {
+            message.error('批量删除失败');
+          }
+        }
+      });
+    }
+  };
+
+  // 排序菜单（使用 AntD v5 menu API）
+  const sortMenuItems: MenuProps['items'] = [
+    { key: 'id-asc', icon: <SortAscendingOutlined />, label: 'ID 升序' },
+    { key: 'id-desc', icon: <SortDescendingOutlined />, label: 'ID 降序' },
+    { type: 'divider' as const },
+    { key: 'title-asc', label: '标题 A-Z' },
+    { key: 'title-desc', label: '标题 Z-A' },
+    { type: 'divider' as const },
+    { key: 'created-desc', label: '创建时间 (新→旧)' },
+    { key: 'created-asc', label: '创建时间 (旧→新)' },
+    { type: 'divider' as const },
+    { key: 'updated-desc', label: '更新时间 (新→旧)' },
+    { key: 'updated-asc', label: '更新时间 (旧→新)' },
+  ];
+
+  const onSortMenuClick: NonNullable<MenuProps['onClick']> = ({ key }) => {
+    switch (key) {
+      case 'id-asc': setSortField('id'); setSortOrder('asc'); break;
+      case 'id-desc': setSortField('id'); setSortOrder('desc'); break;
+      case 'title-asc': setSortField('title'); setSortOrder('asc'); break;
+      case 'title-desc': setSortField('title'); setSortOrder('desc'); break;
+      case 'created-desc': setSortField('created_at'); setSortOrder('desc'); break;
+      case 'created-asc': setSortField('created_at'); setSortOrder('asc'); break;
+      case 'updated-desc': setSortField('updated_at'); setSortOrder('desc'); break;
+      case 'updated-asc': setSortField('updated_at'); setSortOrder('asc'); break;
+      default: break;
+    }
+  };
 
   // 获取状态颜色
   const getStatusColor = (status: string) => {
@@ -829,7 +805,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
                   新建笔记
                 </Button>
                 <Dropdown 
-                  overlay={batchActionsMenu} 
+                  menu={{ items: batchActionsItems, onClick: onBatchActionClick }}
                   disabled={selectedRowKeys.length === 0}
                   trigger={['click']}
                 >
@@ -854,7 +830,7 @@ const WorkNotesManager: React.FC<WorkNotesManagerProps> = ({
               
               {/* 右侧工具 */}
               <Space wrap>
-                <Dropdown overlay={sortMenu} trigger={['click']}>
+                <Dropdown menu={{ items: sortMenuItems, onClick: onSortMenuClick }} trigger={['click']}>
                   <Button icon={<BarsOutlined />}>
                     排序: {sortField === 'updated_at' ? '更新时间' : 
                           sortField === 'created_at' ? '创建时间' :
