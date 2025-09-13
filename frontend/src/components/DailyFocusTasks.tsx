@@ -29,7 +29,7 @@ import { useNavigate } from 'react-router-dom';
 import { useDailyFocusTasks } from '../hooks/useDailyFocusTasks';
 import { DailyFocusTask } from '../types/dailyFocusTask';
 import { Task } from '../types/task';
-import { taskService } from '../services/taskService';
+import { taskService, TaskService } from '../services/taskService';
 
 const { Title, Text } = Typography;
 const { Panel } = Collapse;
@@ -81,28 +81,40 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
 
   // Load children tasks
   const loadTaskChildren = async (taskId: number, projectId: number) => {
+    console.log(`[DailyFocusTasks] Loading children for task ${taskId}, project ${projectId}`);
+    
     if (taskChildren[taskId] || loadingChildren[taskId]) {
+      console.log(`[DailyFocusTasks] Task ${taskId} already loaded or loading, skipping`);
       return; // Already loaded or loading
     }
 
     setLoadingChildren(prev => ({ ...prev, [taskId]: true }));
     try {
-      const response = await taskService.getTaskChildren(projectId, taskId);
+      console.log(`[DailyFocusTasks] Calling TaskService.getTaskChildren(${projectId}, ${taskId})`);
+      const response = await TaskService.getTaskChildren(projectId, taskId);
+      console.log(`[DailyFocusTasks] API response for task ${taskId}:`, response);
+      
       // Handle different response structures
       let childrenArray: Task[] = [];
       if (Array.isArray(response)) {
         childrenArray = response;
+        console.log(`[DailyFocusTasks] Response is array, children count: ${childrenArray.length}`);
       } else if (response && typeof response === 'object') {
         // Handle API response: {data: {data: [...], pagination: ...}}
         if (response.data && Array.isArray(response.data)) {
           childrenArray = response.data;
+          console.log(`[DailyFocusTasks] Found children in response.data, count: ${childrenArray.length}`);
         } else if (Array.isArray(response.data?.data)) {
           childrenArray = response.data.data;
+          console.log(`[DailyFocusTasks] Found children in response.data.data, count: ${childrenArray.length}`);
+        } else {
+          console.log(`[DailyFocusTasks] No children found in response structure:`, response);
         }
       }
+      console.log(`[DailyFocusTasks] Final children array for task ${taskId}:`, childrenArray);
       setTaskChildren(prev => ({ ...prev, [taskId]: childrenArray }));
     } catch (error) {
-      console.error('Failed to load task children:', error);
+      console.error(`[DailyFocusTasks] Failed to load task children for task ${taskId}:`, error);
       setTaskChildren(prev => ({ ...prev, [taskId]: [] }));
     } finally {
       setLoadingChildren(prev => ({ ...prev, [taskId]: false }));
@@ -221,6 +233,8 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
     const isLoading = loadingChildren[focusTask.task_id];
     const hasChildren = children.length > 0;
     const isExpanded = expandedTasks.includes(focusTask.task_id.toString());
+    // Always show expand arrow - we'll determine if there are children when clicked
+    const showExpandArrow = true;
     
     const taskStyle = {
       marginBottom: '12px',
@@ -241,8 +255,8 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
           marginBottom: hasChildren || focusTask.notes ? '12px' : '0'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-            {/* 展开/收起箭头 - 仅有子任务时显示 */}
-            {hasChildren && (
+            {/* 展开/收起箭头 - 始终显示以便用户可以加载子任务 */}
+            {showExpandArrow && (
               <Button
                 type="text"
                 size="small"
@@ -288,7 +302,7 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
 
         {/* 任务描述 */}
         {focusTask.notes && (
-          <div style={{ marginBottom: hasChildren ? '12px' : '0', paddingLeft: hasChildren ? '28px' : '0px' }}>
+          <div style={{ marginBottom: isExpanded || hasChildren ? '12px' : '0', paddingLeft: isExpanded || hasChildren ? '28px' : '0px' }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               {focusTask.notes}
             </Text>

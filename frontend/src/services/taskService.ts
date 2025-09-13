@@ -819,19 +819,26 @@ const mergedRaw = { ...(params || {}) } as any;
    * Get children of a specific task
    */
   static async getTaskChildren(projectId: number, taskId: number, params?: PaginationParams): Promise<PaginatedResponse<Task> | Task[]> {
+    console.log(`[TaskService] getTaskChildren called for project ${projectId}, task ${taskId}`, params);
+    
     try {
-      const response: any = await api.get(
-        `/projects/${projectId}/tasks/${taskId}/children`,
-        { params }
-      );
+      const url = `/projects/${projectId}/tasks/${taskId}/children`;
+      console.log(`[TaskService] Making API call to: ${url}`);
+      
+      const response: any = await api.get(url, { params });
+      console.log(`[TaskService] Raw API response:`, response);
       
       // Handle wrapped APIResponse
       if (response && typeof response === 'object' && 'success' in response) {
+        console.log(`[TaskService] Response has 'success' field:`, response.success);
         if (!response.success) {
           throw new Error(response?.error?.message || 'Failed to fetch task children');
         }
         const d = response.data;
+        console.log(`[TaskService] Extracted data from wrapped response:`, d);
+        
         if (d && typeof d === 'object' && Array.isArray(d.data) && d.pagination) {
+          console.log(`[TaskService] Returning paginated response with ${d.data.length} children`);
           return d as PaginatedResponse<Task>;
         }
         const children = Array.isArray(d?.data)
@@ -839,14 +846,19 @@ const mergedRaw = { ...(params || {}) } as any;
           : Array.isArray(d)
             ? d
             : [];
+        console.log(`[TaskService] Returning children array with ${children.length} items:`, children);
         return children as Task[];
       }
 
       // Axios-unwrapped (api.ts may unwrap to body or body.data)
       if (response && typeof response === 'object') {
+        console.log(`[TaskService] Processing unwrapped response`);
         const body = (response as any).data ?? response;
+        console.log(`[TaskService] Extracted body:`, body);
+        
         if (body && typeof body === 'object') {
           if (Array.isArray(body.data) && body.pagination) {
+            console.log(`[TaskService] Returning paginated body with ${body.data.length} children`);
             return body as PaginatedResponse<Task>;
           }
           const children = Array.isArray(body.data)
@@ -854,13 +866,16 @@ const mergedRaw = { ...(params || {}) } as any;
             : Array.isArray(body)
               ? (body as any)
               : [];
+          console.log(`[TaskService] Returning body children array with ${children.length} items:`, children);
           return children as Task[];
         }
       }
+      
+      console.log(`[TaskService] No valid response structure found, returning empty array`);
       // Fallback
       return [] as Task[];
     } catch (error: Error | unknown) {
-      console.error('TaskService.getTaskChildren error:', error);
+      console.error(`[TaskService] getTaskChildren error for project ${projectId}, task ${taskId}:`, error);
       console.warn('Using fallback empty array for getTaskChildren due to API error');
       
       // Return empty array instead of throwing for graceful degradation
