@@ -20,6 +20,7 @@ func RegisterOKRRoutes(authorized *gin.RouterGroup, app ApplicationInterface) {
 		
 		// Key result management
 		okr.POST("/objectives/:id/key-results", okrHandler.CreateKeyResult)     // 创建关键结果
+		okr.GET("/key-results/:id", okrHandler.GetKeyResult)                    // 获取单个关键结果
 		okr.PUT("/key-results/:id", okrHandler.UpdateKeyResult)                 // 更新关键结果
 		okr.DELETE("/key-results/:id", okrHandler.DeleteKeyResult)              // 删除关键结果
 		

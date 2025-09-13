@@ -373,14 +373,19 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
 
   // Render stats
   const renderStats = () => {
-    if (!showStats || !stats) return null;
+    if (!showStats) return null;
+
+    // Calculate accurate stats from actual focusTasks data
+    const totalTasks = focusTasks.length;
+    const completedTasks = focusTasks.filter(task => task.completed_at).length;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
     return (
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={8}>
           <Statistic
             title="总任务"
-            value={stats.total_count}
+            value={totalTasks}
             prefix={<ClockCircleOutlined />}
             valueStyle={{ color: '#1890ff', fontSize: '16px' }}
           />
@@ -388,7 +393,7 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
         <Col span={8}>
           <Statistic
             title="已完成"
-            value={stats.completed_count}
+            value={completedTasks}
             prefix={<CheckOutlined />}
             valueStyle={{ color: '#52c41a', fontSize: '16px' }}
           />
@@ -396,7 +401,7 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
         <Col span={8}>
           <Statistic
             title="完成率"
-            value={stats.completion_rate}
+            value={completionRate}
             suffix="%"
             prefix={<StarOutlined />}
             valueStyle={{ color: '#fa8c16', fontSize: '16px' }}

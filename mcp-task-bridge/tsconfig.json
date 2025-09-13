@@ -21,6 +21,7 @@
     "hook.ts",
     "http-adapter.ts", 
     "task-mcp.ts",
+    "daily-focus-service.ts",
     "permission-manager.ts",
     "task-service.ts"
   ],

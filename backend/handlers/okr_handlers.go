@@ -329,6 +329,39 @@ func (h *OKRHandler) CreateKeyResult(c *gin.Context) {
 	c.JSON(http.StatusCreated, keyResult)
 }
 
+// GetKeyResult handles GET /api/v1/okr/key-results/:id
+func (h *OKRHandler) GetKeyResult(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid key result ID"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	keyResult, err := h.db.OKR().GetKeyResultByID(ctx, id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Key result not found"})
+		return
+	}
+
+	// Check if user has access to this key result by checking the objective
+	uid := userID.(int)
+	objective, err := h.db.OKR().GetObjectiveByID(ctx, keyResult.ObjectiveID)
+	if err != nil || objective.AssigneeID == nil || *objective.AssigneeID != uid {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	c.JSON(http.StatusOK, keyResult)
+}
+
 // UpdateKeyResult handles PUT /api/v1/okr/key-results/:id
 func (h *OKRHandler) UpdateKeyResult(c *gin.Context) {
 	userID, exists := c.Get("user_id")
@@ -388,7 +421,7 @@ func (h *OKRHandler) UpdateKeyResult(c *gin.Context) {
 
 // Determine progress
 	prevValue := keyResult.CurrentValue
-	prevProgress := keyResult.Progress
+	_ = keyResult.Progress  // Keep for potential future use
 	if req.Progress != nil {
 		// clamp to [0,100]
 		p := *req.Progress
