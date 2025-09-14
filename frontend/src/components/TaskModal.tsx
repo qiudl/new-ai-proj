@@ -63,6 +63,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
   // 响应式检测
   const screens = Grid.useBreakpoint();
   const isMobile = !screens.md; // md以下认为是移动端 (< 768px)
+  
+  // 使用统一Modal配置
+  const modalConfig = useUnifiedModal({ 
+    width: 600,
+    centered: true 
+  });
 
   // Load parent task information when we have parent_id but no parent_title
   const loadParentTaskInfo = async (parentId: number) => {
@@ -370,9 +376,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
       footer={renderFooter()}
       onCancel={handleCancel}
       width={isMobile ? '95vw' : 600}
-      style={isMobile ? { top: 20, paddingBottom: 0, margin: 'auto' } : undefined}
-      styles={isMobile ? { body: { maxHeight: 'calc(100vh - 120px)', overflow: 'auto' } } : undefined}
-      destroyOnHidden
+      centered
+      destroyOnClose
     >
       <Form
         form={form}

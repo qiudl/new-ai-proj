@@ -47,23 +47,69 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
       setLoading(true);
 
       if (isEdit && editData) {
-        // 编辑模式
-        const updateData = {
+        // 编辑模式 - 分别更新目标和关键结果
+        const objectiveUpdateData = {
           title: values.title,
           description: values.description || '',
           startDate: values.dateRange[0].format('YYYY-MM-DD'),
-          endDate: values.dateRange[1].format('YYYY-MM-DD'),
-          // 在编辑模式下也包含关键结果
-          keyResults: (values.keyResults || []).map((kr: any) => ({
-            ...kr,
-            currentValue: kr.currentValue || 0,
-            progress: kr.progress || 0,
-            status: kr.status || 'not_started'
-          }))
+          endDate: values.dateRange[1].format('YYYY-MM-DD')
         };
 
-        console.log('🐛 [CreateOKRModal] Update data with keyResults:', updateData);
-        await okrService.updateObjective(editData.id, updateData);
+        console.log('🐛 [CreateOKRModal] Updating objective:', objectiveUpdateData);
+        
+        // 1. 更新目标基本信息
+        await okrService.updateObjective(editData.id, objectiveUpdateData);
+
+        // 2. 处理关键结果的更新、新增和删除
+        const formKeyResults = values.keyResults || [];
+        const originalKeyResults = editData.keyResults || [];
+        
+        console.log('🐛 [CreateOKRModal] Form key results:', formKeyResults);
+        console.log('🐛 [CreateOKRModal] Original key results:', originalKeyResults);
+
+        // 处理表单中的每个关键结果
+        for (let i = 0; i < formKeyResults.length; i++) {
+          const formKR = formKeyResults[i];
+          const originalKR = originalKeyResults[i];
+          
+          if (originalKR && originalKR.id) {
+            // 更新现有关键结果
+            const hasChanges = 
+              formKR.title !== originalKR.title ||
+              formKR.description !== (originalKR.description || '') ||
+              formKR.type !== originalKR.type ||
+              formKR.targetValue !== originalKR.targetValue ||
+              formKR.unit !== (originalKR.unit || '');
+            
+            if (hasChanges) {
+              const krUpdateData = {
+                title: formKR.title,
+                description: formKR.description || '',
+                currentValue: formKR.currentValue || originalKR.currentValue || 0,
+                // 注意：不更新 type 和 targetValue，因为这些通常在创建后不应该改变
+              };
+              
+              console.log(`🐛 [CreateOKRModal] Updating key result ${originalKR.id}:`, krUpdateData);
+              await okrService.updateKeyResult(originalKR.id, krUpdateData);
+            }
+          } else {
+            // 创建新的关键结果
+            const newKRData = {
+              title: formKR.title,
+              description: formKR.description || '',
+              type: formKR.type,
+              targetValue: formKR.targetValue,
+              currentValue: 0,
+              unit: formKR.unit || '',
+              progress: 0,
+              status: 'not_started'
+            };
+            
+            console.log(`🐛 [CreateOKRModal] Creating new key result:`, newKRData);
+            await okrService.createKeyResult(editData.id, newKRData);
+          }
+        }
+
         message.success('OKR目标更新成功');
       } else {
         // 创建模式  
@@ -156,19 +202,8 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
         </Button>
       ]}
       width={600}
-      destroyOnHidden
-      zIndex={1000}
-      style={{
-        maxHeight: '90vh',
-        top: 20
-      }}
-      styles={{
-        body: {
-          maxHeight: 'calc(90vh - 108px)', // 减去标题栏和底部按钮的高度
-          overflowY: 'auto',
-          paddingRight: '8px'
-        }
-      }}
+      centered
+      destroyOnClose
     >
       <Form
         form={form}

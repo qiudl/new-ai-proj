@@ -202,25 +202,7 @@ input, textarea, select {
 /* .overlay-elements { z-index: 400-499; } */
 
 /* Layer 6: Modals & Dialogs (500-599) */
-/* Standard modals use this layer */
-.ant-modal-wrap {
-  z-index: 550 !important;
-}
-
-.ant-modal-mask {
-  z-index: 550 !important;
-}
-
-/* Important modals (delete confirmations, critical actions) */
-.ant-modal-wrap[data-critical="true"],
-.ant-modal-wrap.critical-modal {
-  z-index: 580 !important;
-}
-
-.ant-modal-mask[data-critical="true"],
-.ant-modal-mask.critical-modal {
-  z-index: 580 !important;
-}
+/* Using Ant Design default modal z-index values */
 
 /* Layer 7: System Messages (600-699) */
 /* .notifications, .alerts { z-index: 600-699; } */
@@ -251,14 +233,7 @@ input, textarea, select {
   z-index: 299 !important; /* Interactive elements layer */
 }
 
-/* Fix specific modal issues */
-.ant-modal-wrap[role="dialog"] {
-  z-index: 560 !important;
-}
-
-.ant-modal-mask + .ant-modal-wrap {
-  z-index: 560 !important;
-}
+/* Modal components use Ant Design defaults */
 
 /* Drawer components should respect the layer system */
 .ant-drawer {
