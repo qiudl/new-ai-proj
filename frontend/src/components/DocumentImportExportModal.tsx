@@ -215,7 +215,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
             label="导出范围"
             rules={[{ required: true, message: '请选择导出范围' }]}
           >
-            <Select>
+            <Select getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}>
               <Option value="all">全部文档 ({documents.length})</Option>
               {selectedDocuments.length > 0 && (
                 <Option value="selected">选中文档 ({selectedDocuments.length})</Option>
@@ -230,7 +230,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
             label="导出格式"
             rules={[{ required: true, message: '请选择导出格式' }]}
           >
-            <Select>
+            <Select getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}>
               {documentImportExport.getSupportedExportFormats().map(format => (
                 <Option key={format.value} value={format.value}>
                   <Space>
@@ -293,7 +293,7 @@ const DocumentImportExportModal: React.FC<DocumentImportExportModalProps> = ({
         
         <Col xs={24} sm={12}>
           <Form.Item name="dateFormat" label="日期格式">
-            <Select>
+            <Select getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}>
               <Option value="formatted">格式化 (2024-01-01)</Option>
               <Option value="timestamp">时间戳</Option>
             </Select>

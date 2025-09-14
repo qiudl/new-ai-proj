@@ -252,6 +252,7 @@ const TaskSelectionModal: React.FC<TaskSelectionModalProps> = ({
         >
           <Select
             placeholder="请选择项目"
+            getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
             style={{ width: '100%' }}
             loading={projectsLoading}
             value={selectedProjectId}

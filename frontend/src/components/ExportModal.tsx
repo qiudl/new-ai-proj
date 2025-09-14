@@ -329,7 +329,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </Col>
               <Col span={6}>
                 <Form.Item label="日期格式" name="dateFormat">
-                  <Select>
+                  <Select getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}>
                     <Option value="YYYY-MM-DD">2024-01-15</Option>
                     <Option value="YYYY年MM月DD日">2024年01月15日</Option>
                     <Option value="MM/DD/YYYY">01/15/2024</Option>
@@ -339,7 +339,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </Col>
               <Col span={6}>
                 <Form.Item label="语言" name="language">
-                  <Select>
+                  <Select getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}>
                     <Option value="zh">中文</Option>
                     <Option value="en">English</Option>
                   </Select>
@@ -378,6 +378,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <Form.Item label="分组方式" name="groupBy">
                   <Select
                     options={groupByOptions}
+                    getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
                     onChange={(value) => updateExportOptions('groupBy', value)}
                   />
                 </Form.Item>
@@ -387,6 +388,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   <Select
                     mode="multiple"
                     placeholder="选择要包含的自定义字段"
+                    getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
                     options={customFieldOptions}
                     onChange={(value) => updateExportOptions('customFields', value)}
                   />

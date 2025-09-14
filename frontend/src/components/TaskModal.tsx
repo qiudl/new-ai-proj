@@ -458,7 +458,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
               label="任务状态"
               rules={[{ required: true, message: '请选择任务状态' }]}
             >
-              <Select placeholder="请选择任务状态">
+              <Select 
+                placeholder="请选择任务状态"
+                getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+              >
                 {TASK_STATUS_OPTIONS.map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
@@ -472,7 +475,10 @@ const TaskModal: React.FC<TaskModalProps> = ({
               name="priority"
               label="优先级"
             >
-              <Select placeholder="请选择优先级">
+              <Select 
+                placeholder="请选择优先级"
+                getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
+              >
                 <Option value="low">低</Option>
                 <Option value="medium">中</Option>
                 <Option value="high">高</Option>
@@ -491,6 +497,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
                 style={{ width: '100%' }}
                 placeholder="请选择截止时间"
                 format="YYYY-MM-DD"
+                getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
               />
             </Form.Item>
           </Col>
