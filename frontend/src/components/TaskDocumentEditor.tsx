@@ -157,7 +157,7 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     setIsFullscreen(!isFullscreen);
   }, [isFullscreen]);
 
-  // PDF导出功能
+  // PDF导出功能 - 修复版本
   const exportToPdf = useCallback(async () => {
     if (!content.trim()) {
       message.warning('文档内容为空，无法导出PDF');
@@ -165,202 +165,117 @@ const TaskDocumentEditor: React.FC<TaskDocumentEditorProps> = ({
     }
 
     setIsExportingPdf(true);
+    console.log('🔄 [PDF导出] 开始导出PDF...', { contentLength: content.length, taskId, projectId });
     
     try {
       // 检查全局html2pdf是否可用 (通过CDN加载)
       if (typeof window.html2pdf === 'undefined') {
-        throw new Error('html2pdf.js库未加载，请刷新页面重试');
+        throw new Error('PDF导出库未加载，请刷新页面后重试');
       }
-      // 创建用于PDF渲染的HTML内容
-      const htmlContent = `
-        <!DOCTYPE html>
-        <html lang="zh-CN">
-        <head>
-          <meta charset="UTF-8">
-          <title>任务文档 - Task ${taskId}</title>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-              line-height: 1.6;
-              color: #333;
-              max-width: 800px;
-              margin: 0 auto;
-              padding: 40px 20px;
-              background: white;
-            }
-            h1, h2, h3, h4, h5, h6 {
-              color: #262626;
-              margin-top: 24px;
-              margin-bottom: 16px;
-              font-weight: 600;
-            }
-            h1 { font-size: 24px; border-bottom: 2px solid #1890ff; padding-bottom: 8px; }
-            h2 { font-size: 20px; }
-            h3 { font-size: 18px; }
-            p { margin: 12px 0; }
-            pre {
-              background: #f6f8fa;
-              border: 1px solid #e1e4e8;
-              border-radius: 6px;
-              padding: 16px;
-              overflow-x: auto;
-              font-family: 'Courier New', Consolas, monospace;
-              font-size: 14px;
-            }
-            code {
-              background: #f1f3f4;
-              padding: 2px 4px;
-              border-radius: 3px;
-              font-family: 'Courier New', Consolas, monospace;
-              font-size: 14px;
-            }
-            blockquote {
-              border-left: 4px solid #1890ff;
-              margin: 16px 0;
-              padding: 8px 16px;
-              background: #f9f9f9;
-              color: #666;
-            }
-            ul, ol { padding-left: 24px; margin: 12px 0; }
-            li { margin: 4px 0; }
-            table {
-              border-collapse: collapse;
-              width: 100%;
-              margin: 16px 0;
-            }
-            th, td {
-              border: 1px solid #d0d7de;
-              padding: 8px 12px;
-              text-align: left;
-            }
-            th { background: #f6f8fa; font-weight: 600; }
-            .document-header {
-              text-align: center;
-              margin-bottom: 40px;
-              padding-bottom: 20px;
-              border-bottom: 1px solid #e1e4e8;
-            }
-            .document-meta {
-              color: #666;
-              font-size: 14px;
-              margin-top: 10px;
-            }
-            @media print {
-              body { margin: 0; padding: 20px; }
-              .document-header { page-break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="document-header">
-            <h1>任务文档</h1>
-            <div class="document-meta">
-              任务ID: ${taskId} | 项目ID: ${projectId} | 导出时间: ${new Date().toLocaleString('zh-CN')}
-            </div>
-          </div>
-          <div class="document-content">
-            ${await convertMarkdownToHtml(content)}
-          </div>
-        </body>
-        </html>
-      `;
 
-      // 创建临时DOM元素用于渲染
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = htmlContent;
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.top = '-9999px';
-      tempDiv.style.width = '794px'; // A4宽度
-      tempDiv.style.backgroundColor = '#ffffff';
-      document.body.appendChild(tempDiv);
+      console.log('✅ [PDF导出] html2pdf库已加载');
 
-      // 等待所有图片和SVG完全加载
-      const waitForImages = () => {
-        return new Promise<void>((resolve) => {
-          const images = tempDiv.querySelectorAll('img, svg');
-          if (images.length === 0) {
-            resolve();
-            return;
-          }
-
-          let loadedCount = 0;
-          const checkAllLoaded = () => {
-            loadedCount++;
-            if (loadedCount >= images.length) {
-              resolve();
-            }
-          };
-
-          images.forEach((img) => {
-            if (img.tagName === 'SVG') {
-              // SVG已经渲染完成
-              checkAllLoaded();
-            } else if ((img as HTMLImageElement).complete) {
-              checkAllLoaded();
-            } else {
-              (img as HTMLImageElement).onload = checkAllLoaded;
-              (img as HTMLImageElement).onerror = checkAllLoaded;
-            }
-          });
-
-          // 设置超时防止无限等待
-          setTimeout(resolve, 3000);
-        });
+      // 简单的Markdown转换HTML函数（避免异步问题）
+      const simpleMarkdownToHtml = (md: string) => {
+        return md
+          // 标题
+          .replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
+          .replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
+          .replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 24px 0 12px 0; font-size: 28px; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">$1</h1>')
+          // 粗体和斜体
+          .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
+          // 代码块
+          .replace(/```[\s\S]*?```/g, (match) => {
+            const code = match.replace(/```(\w+)?/, '').replace(/```$/, '');
+            return `<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; font-family: Consolas, Monaco, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">${code.trim()}</pre>`;
+          })
+          // 行内代码
+          .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
+          // 链接
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;">$1</a>')
+          // 列表
+          .replace(/^\* (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+          .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+          .replace(/^\d+\. (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+          // 分割线
+          .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">')
+          // 换行
+          .replace(/\n/g, '<br>');
       };
 
-      // 等待渲染完成
-      await waitForImages();
-      
-      // 额外等待确保所有内容完全渲染
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // 转换内容
+      const htmlContent = simpleMarkdownToHtml(content);
+      console.log('✅ [PDF导出] Markdown转换完成', { htmlLength: htmlContent.length });
 
-      // PDF配置选项
+      // 如果转换后的内容为空，使用原始内容
+      const finalContent = htmlContent.trim() || content.replace(/\n/g, '<br>');
+
+      // ===== 使用调试成功的简化方法 =====
+      // 直接创建基础元素（避免复杂HTML结构导致的问题）
+      const pdfElement = document.createElement('div');
+      
+      // 设置基础内容结构（基于调试成功的逻辑）
+      pdfElement.innerHTML = `
+        <div style="padding: 30px; background: white; font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+          <h1 style="color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 10px; margin-bottom: 20px;">${title || '任务文档'}</h1>
+          <div style="margin: 20px 0; color: #666; font-size: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            任务ID: ${taskId} | 项目ID: ${projectId} | 导出时间: ${new Date().toLocaleString('zh-CN')}
+          </div>
+          <div style="margin-top: 30px; color: #333; line-height: 1.6;">
+            ${finalContent}
+          </div>
+        </div>
+      `;
+
+      // 设置元素样式（基于调试成功的配置）
+      pdfElement.style.padding = '20px';
+      pdfElement.style.backgroundColor = '#ffffff';
+      pdfElement.style.color = '#333333';
+      pdfElement.style.fontFamily = 'Arial, sans-serif';
+      pdfElement.style.lineHeight = '1.6';
+      pdfElement.style.width = '700px'; // 固定宽度确保一致性
+
+      console.log('✅ [PDF导出] 简化元素创建完成');
+
+      // PDF配置选项（基于调试成功的设置）
       const opt = {
-        margin: [15, 15, 15, 15],
+        margin: 15,
         filename: `task-${taskId}-document-${new Date().toISOString().split('T')[0]}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { 
+          type: 'jpeg', 
+          quality: 0.98 
+        },
         html2canvas: { 
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
+          scale: 1,  // 使用调试成功的scale=1
           backgroundColor: '#ffffff',
-          logging: false, // 减少控制台输出
-          width: 794, // A4宽度
-          height: null, // 自动高度
-          scrollX: 0,
-          scrollY: 0,
-          // 确保SVG正确渲染
-          foreignObjectRendering: true,
-          removeContainer: true
+          logging: true,
+          useCORS: true,
+          allowTaint: true
         },
         jsPDF: { 
           unit: 'mm', 
           format: 'a4', 
-          orientation: 'portrait',
-          compress: true
-        },
-        pagebreak: { 
-          mode: ['avoid-all', 'css', 'legacy'],
-          before: ['.mermaid-container'] // 避免图表被分页
+          orientation: 'portrait' 
         }
       };
 
-      // 生成并下载PDF (使用全局html2pdf对象)
-      await window.html2pdf().set(opt).from(tempDiv.querySelector('.document-content')).save();
+      console.log('🔄 [PDF导出] 开始生成PDF（使用简化方法）...');
       
-      message.success('PDF导出成功！流程图已包含在内。');
+      // 使用简化的生成方法（基于调试成功的逻辑）
+      await window.html2pdf().set(opt).from(pdfElement).save();
       
-      // 清理临时DOM元素
-      document.body.removeChild(tempDiv);
+      console.log('✅ [PDF导出] PDF生成并下载成功');
+      message.success('PDF导出成功！');
 
     } catch (error) {
-      console.error('PDF导出失败:', error);
-      message.error('PDF导出失败，请重试');
+      console.error('❌ [PDF导出] PDF导出失败:', error);
+      message.error(`PDF导出失败：${error.message || '未知错误'}`);
     } finally {
       setIsExportingPdf(false);
     }
   }, [content, taskId, projectId]);
+
 
   // 打印预览功能
   const openPrintPreview = useCallback(async () => {

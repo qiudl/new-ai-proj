@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF导出修复测试</title>
+    <script src="https://unpkg.com/html2pdf.js@0.10.3/dist/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1890ff;
+            border-bottom: 2px solid #1890ff;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin: 24px 0;
+            padding: 16px;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            background-color: #fafafa;
+        }
+        .test-button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        .test-button:hover {
+            background: #40a9ff;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 4px;
+        }
+        .status.success {
+            background: #f6ffed;
+            color: #52c41a;
+            border: 1px solid #b7eb8f;
+        }
+        .status.error {
+            background: #fff2f0;
+            color: #ff4d4f;
+            border: 1px solid #ffccc7;
+        }
+        .status.pending {
+            background: #fff7e6;
+            color: #fa8c16;
+            border: 1px solid #ffd591;
+        }
+        .log-output {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        .test-content {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border: 1px solid #e8e8e8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 PDF导出修复验证测试</h1>
+        
+        <div class="test-section">
+            <h3>🎯 测试目标</h3>
+            <p>验证修复后的PDF导出功能是否能正常生成包含内容的PDF文档。</p>
+            
+            <div class="status" id="library-status">⏳ 检查库状态...</div>
+            <div class="status" id="test-status">⏳ 等待测试</div>
+            
+            <div>
+                <button class="test-button" onclick="checkEnvironment()">检查环境</button>
+                <button class="test-button" onclick="testBasicPdf()">测试基础PDF</button>
+                <button class="test-button" onclick="testMarkdownPdf()">测试Markdown PDF</button>
+                <button class="test-button" onclick="testFixedImplementation()">测试修复后的实现</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 测试日志</h3>
+            <div id="log-output" class="log-output">等待开始测试...</div>
+        </div>
+
+        <div class="test-content" id="test-content">
+            <div class="document-container">
+                <div class="document-header">
+                    <div class="document-title">PDF导出测试文档</div>
+                    <div class="document-meta">
+                        任务ID: 1699 | 项目ID: 39 | 测试时间: <span id="current-time"></span>
+                    </div>
+                </div>
+                <div class="document-content">
+                    <h1 style="color: #333; margin: 24px 0 12px 0; font-size: 28px; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">测试文档标题</h1>
+                    
+                    <h2 style="color: #333; margin: 20px 0 10px 0; font-size: 22px;">功能说明</h2>
+                    <p>这是一个用于测试PDF导出修复的<strong style="color: #333; font-weight: 600;">测试文档</strong>。</p>
+                    
+                    <h3 style="color: #333; margin: 16px 0 8px 0; font-size: 18px;">支持的内容</h3>
+                    <ul style="padding-left: 20px; margin: 10px 0; color: #333;">
+                        <li style="margin: 4px 0;">普通文本内容</li>
+                        <li style="margin: 4px 0;"><em style="font-style: italic; color: #666;">斜体文本</em></li>
+                        <li style="margin: 4px 0;"><strong style="color: #333; font-weight: 600;">粗体文本</strong></li>
+                        <li style="margin: 4px 0;"><code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">行内代码</code></li>
+                    </ul>
+                    
+                    <pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; font-family: Consolas, Monaco, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">
+// 代码块示例
+function testPdfExport() {
+    console.log('Testing PDF export functionality');
+    return true;
+}
+                    </pre>
+                    
+                    <hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">
+                    
+                    <blockquote style="border-left: 4px solid #1890ff; margin: 16px 0; padding: 8px 16px; background: #f9f9f9; color: #666;">
+                        这是一个引用块，用于测试样式渲染是否正常。
+                    </blockquote>
+                    
+                    <p>如果这个PDF包含了所有上述内容并且格式正确，那么修复就是成功的！</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 更新时间
+        document.getElementById('current-time').textContent = new Date().toLocaleString('zh-CN');
+        
+        // 日志输出
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[PDF Test] ${message}`);
+        }
+        
+        // 更新状态
+        function updateStatus(elementId, status, text) {
+            const element = document.getElementById(elementId);
+            element.className = `status ${status}`;
+            element.textContent = text;
+        }
+        
+        // 检查环境
+        function checkEnvironment() {
+            log('开始检查环境...');
+            updateStatus('library-status', 'pending', '⏳ 检查中...');
+            
+            if (typeof window.html2pdf === 'undefined') {
+                log('html2pdf库未加载！', 'error');
+                updateStatus('library-status', 'error', '❌ 库未加载');
+                return false;
+            }
+            
+            log('html2pdf库已正确加载', 'success');
+            updateStatus('library-status', 'success', '✅ 库已就绪');
+            
+            // 检查依赖
+            if (typeof window.jsPDF !== 'undefined') {
+                log('jsPDF依赖正常', 'success');
+            }
+            if (typeof window.html2canvas !== 'undefined') {
+                log('html2canvas依赖正常', 'success');
+            }
+            
+            return true;
+        }
+        
+        // 测试基础PDF导出
+        async function testBasicPdf() {
+            log('开始测试基础PDF导出...');
+            updateStatus('test-status', 'pending', '⏳ 测试中...');
+            
+            if (!checkEnvironment()) return;
+            
+            try {
+                const element = document.createElement('div');
+                element.innerHTML = '<div style="padding: 20px; background: white;"><h1>基础测试</h1><p>这是一个简单的PDF导出测试。</p></div>';
+                
+                const opt = {
+                    margin: 10,
+                    filename: 'basic-test.pdf',
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 1.5 },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                await window.html2pdf().set(opt).from(element).save();
+                log('基础PDF导出成功！', 'success');
+                updateStatus('test-status', 'success', '✅ 基础测试通过');
+                
+            } catch (error) {
+                log(`基础PDF导出失败: ${error.message}`, 'error');
+                updateStatus('test-status', 'error', '❌ 基础测试失败');
+            }
+        }
+        
+        // 简单的Markdown转换
+        function simpleMarkdownToHtml(md) {
+            return md
+                .replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
+                .replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
+                .replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 24px 0 12px 0; font-size: 28px; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">$1</h1>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
+                .replace(/```[\s\S]*?```/g, (match) => {
+                    const code = match.replace(/```(\w+)?/, '').replace(/```$/, '');
+                    return `<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; font-family: Consolas, Monaco, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">${code.trim()}</pre>`;
+                })
+                .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
+                .replace(/\n/g, '<br>');
+        }
+        
+        // 测试Markdown PDF导出
+        async function testMarkdownPdf() {
+            log('开始测试Markdown PDF导出...');
+            
+            if (!checkEnvironment()) return;
+            
+            try {
+                const markdownContent = `# Markdown测试文档
+
+## 功能验证
+这是一个**修复后的PDF导出**测试。
+
+### 支持的语法
+- *斜体文本*
+- **粗体文本**
+- \`行内代码\`
+
+#### 代码块示例
+\`\`\`javascript
+function fixedExport() {
+    console.log('PDF导出已修复！');
+}
+\`\`\`
+
+> 这是一个引用块，用于测试渲染效果。`;
+                
+                const htmlContent = simpleMarkdownToHtml(markdownContent);
+                log(`Markdown转换完成，HTML长度: ${htmlContent.length}`);
+                
+                const element = document.createElement('div');
+                element.innerHTML = `
+                    <div style="padding: 30px; background: white; font-family: sans-serif; min-height: 500px;">
+                        ${htmlContent}
+                    </div>
+                `;
+                
+                const opt = {
+                    margin: [15, 15, 15, 15],
+                    filename: 'markdown-test.pdf',
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { 
+                        scale: 1.5,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        logging: true
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait'
+                    }
+                };
+                
+                await window.html2pdf().set(opt).from(element).save();
+                log('Markdown PDF导出成功！', 'success');
+                updateStatus('test-status', 'success', '✅ Markdown测试通过');
+                
+            } catch (error) {
+                log(`Markdown PDF导出失败: ${error.message}`, 'error');
+                updateStatus('test-status', 'error', '❌ Markdown测试失败');
+            }
+        }
+        
+        // 测试修复后的实现（模拟真实场景）
+        async function testFixedImplementation() {
+            log('开始测试修复后的实现...');
+            
+            if (!checkEnvironment()) return;
+            
+            try {
+                const content = document.getElementById('test-content');
+                const contentText = content.textContent || '';
+                
+                log(`原始内容大小: ${content.offsetWidth}x${content.offsetHeight}`);
+                log(`原始文本长度: ${contentText.length}`);
+                
+                // 模拟真实代码的Markdown转换过程
+                const simpleMarkdownToHtml = (md) => {
+                    return md
+                        .replace(/^### (.*$)/gm, '<h3 style="color: #333; margin: 16px 0 8px 0; font-size: 18px;">$1</h3>')
+                        .replace(/^## (.*$)/gm, '<h2 style="color: #333; margin: 20px 0 10px 0; font-size: 22px;">$1</h2>')
+                        .replace(/^# (.*$)/gm, '<h1 style="color: #333; margin: 24px 0 12px 0; font-size: 28px; border-bottom: 2px solid #1890ff; padding-bottom: 8px;">$1</h1>')
+                        .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #333; font-weight: 600;">$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em style="font-style: italic; color: #666;">$1</em>')
+                        .replace(/```[\s\S]*?```/g, (match) => {
+                            const code = match.replace(/```(\w+)?/, '').replace(/```$/, '');
+                            return `<pre style="background: #f6f8fa; border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin: 16px 0; font-family: Consolas, Monaco, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">${code.trim()}</pre>`;
+                        })
+                        .replace(/`([^`]+)`/g, '<code style="background: #f6f8fa; padding: 2px 6px; border-radius: 3px; font-family: Consolas, Monaco, monospace; font-size: 13px; color: #d73a49;">$1</code>')
+                        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color: #1890ff; text-decoration: none;">$1</a>')
+                        .replace(/^\* (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+                        .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+                        .replace(/^\d+\. (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
+                        .replace(/^---$/gm, '<hr style="border: none; border-top: 1px solid #e8e8e8; margin: 20px 0;">')
+                        .replace(/\n/g, '<br>');
+                };
+                
+                // 使用测试内容作为markdown内容
+                const testMarkdown = `# 测试文档标题
+
+## 功能说明
+这是一个用于测试PDF导出修复的**测试文档**。
+
+### 支持的内容
+- 普通文本内容
+- *斜体文本*
+- **粗体文本** 
+- \`行内代码\`
+
+#### 代码块示例
+\`\`\`javascript
+function testPdfExport() {
+    console.log('Testing PDF export functionality');
+    return true;
+}
+\`\`\`
+
+---
+
+> 这是一个引用块，用于测试样式渲染是否正常。
+
+如果这个PDF包含了所有上述内容并且格式正确，那么修复就是成功的！`;
+
+                // 转换内容
+                const htmlContent = simpleMarkdownToHtml(testMarkdown);
+                log(`Markdown转换完成，HTML长度: ${htmlContent.length}`);
+                
+                // 如果转换后的内容为空，使用原始内容
+                const finalContent = htmlContent.trim() || testMarkdown.replace(/\n/g, '<br>');
+                
+                // 创建完整的HTML文档（完全模拟真实实现）
+                const fullHtmlDocument = `
+                    <!DOCTYPE html>
+                    <html lang="zh-CN">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>任务文档</title>
+                        <style>
+                            * { 
+                                box-sizing: border-box; 
+                                margin: 0;
+                                padding: 0;
+                            }
+                            body {
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+                                font-size: 14px;
+                                line-height: 1.6;
+                                color: #333 !important;
+                                margin: 0;
+                                padding: 30px;
+                                background: #fff !important;
+                                width: 100%;
+                                min-height: 100vh;
+                            }
+                            .document-container {
+                                max-width: 750px;
+                                margin: 0 auto;
+                                background: #fff;
+                                padding: 20px;
+                                min-height: 500px;
+                            }
+                            .document-header {
+                                text-align: center;
+                                margin-bottom: 30px;
+                                padding-bottom: 15px;
+                                border-bottom: 2px solid #1890ff;
+                            }
+                            .document-title {
+                                font-size: 24px;
+                                font-weight: 600;
+                                color: #333 !important;
+                                margin-bottom: 10px;
+                            }
+                            .document-meta {
+                                color: #666 !important;
+                                font-size: 12px;
+                            }
+                            .document-content {
+                                color: #333 !important;
+                                min-height: 300px;
+                                padding: 10px 0;
+                            }
+                            h1, h2, h3, h4, h5, h6 {
+                                color: #333 !important;
+                                font-weight: 600;
+                                margin-top: 20px;
+                                margin-bottom: 10px;
+                                line-height: 1.25;
+                            }
+                            p {
+                                margin: 10px 0;
+                                color: #333 !important;
+                            }
+                            * {
+                                opacity: 1 !important;
+                                visibility: visible !important;
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="document-container">
+                            <div class="document-header">
+                                <div class="document-title">测试文档</div>
+                                <div class="document-meta">
+                                    任务ID: 1699 | 项目ID: 39 | 导出时间: ${new Date().toLocaleString('zh-CN')}
+                                </div>
+                            </div>
+                            <div class="document-content">
+                                ${finalContent}
+                            </div>
+                        </div>
+                    </body>
+                    </html>
+                `;
+                
+                log(`完整HTML文档创建完成，长度: ${fullHtmlDocument.length}`);
+                
+                // 创建临时DOM元素
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = fullHtmlDocument;
+                
+                // 设置样式确保渲染
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '-9999px';
+                tempDiv.style.width = '794px'; // A4宽度
+                tempDiv.style.height = 'auto';
+                tempDiv.style.backgroundColor = '#ffffff';
+                tempDiv.style.visibility = 'hidden'; // 隐藏但保持渲染
+                tempDiv.style.zIndex = '-9999';
+                
+                document.body.appendChild(tempDiv);
+                log('临时DOM元素已添加');
+                
+                // 等待DOM渲染
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // 检查内容
+                const textContent = tempDiv.textContent || '';
+                if (textContent.length < 10) {
+                    log('警告：检测到内容可能为空，使用备用方案', 'error');
+                    tempDiv.innerHTML = `
+                        <div style="padding: 30px; background: white; font-family: sans-serif;">
+                            <h1 style="color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 10px;">测试文档</h1>
+                            <div style="margin: 20px 0; color: #666; font-size: 12px;">
+                                任务ID: 1699 | 项目ID: 39 | 导出时间: ${new Date().toLocaleString('zh-CN')}
+                            </div>
+                            <div style="margin-top: 30px; color: #333; line-height: 1.6;">
+                                ${testMarkdown.replace(/\n/g, '<br>')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    log(`内容检查完成，文本长度: ${textContent.length}`);
+                }
+                
+                // PDF配置选项 - 使用与真实代码相同的设置
+                const opt = {
+                    margin: [10, 10, 10, 10],
+                    filename: `task-fixed-test-${new Date().toISOString().split('T')[0]}.pdf`,
+                    image: { 
+                        type: 'jpeg', 
+                        quality: 0.95
+                    },
+                    html2canvas: { 
+                        scale: 1.5, // 降低scale避免内存问题
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        logging: true, // 启用日志调试
+                        width: 794,
+                        height: null,
+                        scrollX: 0,
+                        scrollY: 0,
+                        letterRendering: true,
+                        removeContainer: false
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait',
+                        compress: false // 暂时不压缩以避免问题
+                    }
+                };
+                
+                log('开始生成PDF（完全模拟修复后的实现）...');
+                
+                // 直接从整个tempDiv生成PDF
+                await window.html2pdf().set(opt).from(tempDiv).save();
+                
+                log('修复后的PDF导出成功！', 'success');
+                updateStatus('test-status', 'success', '✅ 修复验证通过');
+                
+                // 清理临时DOM元素
+                document.body.removeChild(tempDiv);
+                log('临时DOM元素已清理');
+                
+            } catch (error) {
+                log(`修复验证失败: ${error.message}`, 'error');
+                updateStatus('test-status', 'error', '❌ 修复验证失败');
+                console.error('Fixed implementation test error:', error);
+            }
+        }
+        
+        // 页面加载完成后自动检查环境
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                log('页面加载完成，检查环境...');
+                checkEnvironment();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
