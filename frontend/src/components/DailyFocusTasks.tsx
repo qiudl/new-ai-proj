@@ -14,7 +14,10 @@ import {
   Space,
   Tag,
   List,
-  Progress
+  Progress,
+  message,
+  Alert,
+  Input
 } from 'antd';
 import {
   ClockCircleOutlined,
@@ -23,7 +26,13 @@ import {
   StarOutlined,
   CheckOutlined,
   RightOutlined,
-  DownOutlined
+  DownOutlined,
+  InfoCircleOutlined,
+  SyncOutlined,
+  CarryOutOutlined,
+  SmileOutlined,
+  SearchOutlined,
+  PlusOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useDailyFocusTasks } from '../hooks/useDailyFocusTasks';
@@ -58,7 +67,9 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
     recommendations,
     stats,
     loadRecommendations,
-    refreshFocusTasks
+    refreshFocusTasks,
+    autoCarryOverTasks,
+    addFocusTask
   } = useDailyFocusTasks();
 
   // Component state
@@ -66,11 +77,98 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
   const [expandedTasks, setExpandedTasks] = useState<string[]>([]);
   const [taskChildren, setTaskChildren] = useState<Record<number, Task[]>>({});
   const [loadingChildren, setLoadingChildren] = useState<Record<number, boolean>>({});
+  const [isCarryingOver, setIsCarryingOver] = useState(false);
+  const [showInitMessage, setShowInitMessage] = useState(true);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [filteredRecommendations, setFilteredRecommendations] = useState<Task[]>([]);
+  const [addingTasks, setAddingTasks] = useState<Set<number>>(new Set());
 
   // Load recommendations on mount
   useEffect(() => {
     loadRecommendations();
   }, [loadRecommendations]);
+
+  // Filter recommendations based on search
+  useEffect(() => {
+    if (!recommendations) {
+      setFilteredRecommendations([]);
+      return;
+    }
+
+    if (!searchKeyword.trim()) {
+      setFilteredRecommendations(recommendations);
+      return;
+    }
+
+    const keyword = searchKeyword.toLowerCase();
+    const filtered = recommendations.filter(task => 
+      task.title?.toLowerCase().includes(keyword) ||
+      task.description?.toLowerCase().includes(keyword)
+    );
+    setFilteredRecommendations(filtered);
+  }, [recommendations, searchKeyword]);
+
+  // Handle search input change
+  const handleSearchChange = (value: string) => {
+    setSearchKeyword(value);
+  };
+
+  // Handle adding task to daily focus
+  const handleAddToFocus = async (task: Task) => {
+    if (!task.id) return;
+    
+    setAddingTasks(prev => new Set(prev).add(task.id));
+    
+    try {
+      await addFocusTask({
+        task_id: task.id,
+        priority: 'medium',
+        notes: `从智能推荐添加: ${task.title}`
+      });
+      
+      message.success(`已将"${task.title}"添加到今日主要任务`);
+      
+      // Refresh recommendations to remove added task
+      await loadRecommendations(searchKeyword);
+      
+    } catch (error) {
+      message.error('添加任务失败，请重试');
+    } finally {
+      setAddingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(task.id);
+        return newSet;
+      });
+    }
+  };
+
+  // Hide initial message after some time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowInitMessage(false);
+    }, 5000); // Hide after 5 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Manual carry-over function
+  const handleManualCarryOver = async () => {
+    setIsCarryingOver(true);
+    try {
+      const result = await autoCarryOverTasks();
+      if (result.success && result.count > 0) {
+        message.success(`${result.message} 🎉`);
+      } else if (result.success && result.count === 0) {
+        message.info('昨日没有需要延续的任务');
+      } else {
+        message.warning(result.message);
+      }
+    } catch (error) {
+      message.error('任务延续失败，请稍后重试');
+    } finally {
+      setIsCarryingOver(false);
+    }
+  };
 
   // Handle task click
   const handleTaskClick = (task: DailyFocusTask) => {
@@ -172,7 +270,7 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
     // Load children for newly expanded tasks
     for (const key of keys) {
       const taskId = parseInt(key);
-      const focusTask = focusTasks.find(ft => ft.task_id === taskId);
+      const focusTask = focusTasks?.find(ft => ft.task_id === taskId);
       if (focusTask && focusTask.project_id && !taskChildren[taskId]) {
         await loadTaskChildren(taskId, focusTask.project_id);
       }
@@ -337,7 +435,7 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
     );
   };
 
-  // Render recommendations modal - simplified
+  // Render recommendations modal with search and add functionality
   const renderRecommendationsModal = () => (
     <Modal
       title={
@@ -349,22 +447,93 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
       open={showRecommendations}
       onCancel={() => setShowRecommendations(false)}
       footer={null}
-      width={600}
+      width={700}
     >
       <div style={{ marginBottom: '16px' }}>
-        <Text type="secondary">
-          基于任务优先级、截止时间和完成状态，为您推荐以下任务：
-        </Text>
+        <Alert
+          message="🤖 智能推荐算法"
+          description="基于任务优先级、截止时间、进行状态和您的工作习惯，为您推荐以下任务"
+          type="info"
+          showIcon
+          style={{ marginBottom: '16px' }}
+        />
+        
+        {/* Search Input */}
+        <Input
+          placeholder="搜索推荐任务..."
+          prefix={<SearchOutlined />}
+          value={searchKeyword}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          style={{ marginBottom: '16px' }}
+          allowClear
+        />
+        
+        {filteredRecommendations && filteredRecommendations.length === 0 && !searchKeyword && (
+          <Alert
+            message="暂无推荐任务"
+            description="当前没有合适的任务推荐。您可以稍后再试或手动选择任务。"
+            type="warning"
+            showIcon
+            icon={<SmileOutlined />}
+          />
+        )}
+        
+        {filteredRecommendations && filteredRecommendations.length === 0 && searchKeyword && (
+          <Alert
+            message="未找到匹配的任务"
+            description={`没有找到包含 "${searchKeyword}" 的推荐任务。`}
+            type="info"
+            showIcon
+          />
+        )}
       </div>
       
       <List
-        dataSource={recommendations}
+        dataSource={filteredRecommendations}
         renderItem={(task) => (
-          <List.Item>
-            <List.Item.Meta
-              title={`#${task.id} ${task.title}`}
-              description={task.description}
-            />
+          <List.Item
+            actions={[
+              <Button
+                key="add"
+                type="primary"
+                icon={<PlusOutlined />}
+                size="small"
+                loading={addingTasks.has(task.id)}
+                onClick={() => handleAddToFocus(task)}
+              >
+                设为主要任务
+              </Button>
+            ]}
+          >
+            <div style={{ flex: 1 }}>
+              <div>
+                <Text 
+                  strong 
+                  style={{ cursor: 'pointer', color: '#1890ff' }}
+                  onClick={() => navigate(`/projects/${task.project_id}/tasks/${task.id}`)}
+                >
+                  #{task.id} {task.title}
+                </Text>
+                {task.priority && (
+                  <Tag color={
+                    task.priority === 'high' ? 'red' :
+                    task.priority === 'medium' ? 'orange' : 
+                    'blue'
+                  } style={{ marginLeft: '8px', fontSize: '11px' }}>
+                    {task.priority === 'high' ? '高优先级' :
+                     task.priority === 'medium' ? '中优先级' : '低优先级'}
+                  </Tag>
+                )}
+                {task.due_date && (
+                  <>
+                    <ClockCircleOutlined style={{ marginLeft: '8px', marginRight: '4px' }} />
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      截止: {new Date(task.due_date).toLocaleDateString()}
+                    </Text>
+                  </>
+                )}
+              </div>
+            </div>
           </List.Item>
         )}
       />
@@ -375,10 +544,10 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
   const renderStats = () => {
     if (!showStats) return null;
 
-    // Calculate accurate stats from actual focusTasks data
-    const totalTasks = focusTasks.length;
-    const completedTasks = focusTasks.filter(task => task.completed_at).length;
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    // Use stats from hook if available, otherwise calculate from focusTasks
+    const totalTasks = stats?.total_count ?? focusTasks?.length ?? 0;
+    const completedTasks = stats?.completed_count ?? focusTasks?.filter(task => task.completed_at)?.length ?? 0;
+    const completionRate = stats?.completion_rate ?? (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
 
     return (
       <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -418,10 +587,18 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={4} style={{ margin: 0 }}>
-          {title} ({focusTasks.length})
+          {title} ({focusTasks?.length || 0})
         </Title>
         
         <Space>
+          <Tooltip title="延续昨日任务">
+            <Button
+              type="text"
+              icon={<CarryOutOutlined />}
+              onClick={handleManualCarryOver}
+              loading={isCarryingOver}
+            />
+          </Tooltip>
           <Tooltip title="智能推荐">
             <Button
               type="text"
@@ -473,25 +650,63 @@ const DailyFocusTasks: React.FC<DailyFocusTasksProps> = ({
       >
         {renderStats()}
 
+        {/* Initialization info */}
+        {showInitMessage && !loading && (
+          <Alert
+            message="✨ 智能助手正在为您初始化"
+            description="正在自动延续昨日未完成任务并加载智能推荐..."
+            type="info"
+            icon={<SyncOutlined spin />}
+            showIcon
+            closable
+            onClose={() => setShowInitMessage(false)}
+            style={{ marginBottom: '16px' }}
+          />
+        )}
+
         <div style={{ height: maxHeight, overflow: 'auto' }}>
-          {focusTasks.length === 0 ? (
-            <Empty
-              description="暂无今日主要任务"
-              style={{ padding: '40px 0' }}
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            >
-              <Button
-                type="primary"
-                icon={<BulbOutlined />}
-                onClick={() => setShowRecommendations(true)}
+          {(!focusTasks || focusTasks.length === 0) ? (
+            <div>
+              <Empty
+                description="暂无今日主要任务"
+                style={{ padding: '40px 0' }}
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
               >
-                查看推荐任务
-              </Button>
-            </Empty>
+                <Space direction="vertical">
+                  <Button
+                    type="primary"
+                    icon={<BulbOutlined />}
+                    onClick={() => setShowRecommendations(true)}
+                  >
+                    查看智能推荐
+                  </Button>
+                  {!loading && (
+                    <Button
+                      type="default"
+                      icon={<CarryOutOutlined />}
+                      onClick={handleManualCarryOver}
+                      loading={isCarryingOver}
+                    >
+                      延续昨日任务
+                    </Button>
+                  )}
+                </Space>
+              </Empty>
+              
+              {recommendations && recommendations.length > 0 && (
+                <Alert
+                  message={`💡 系统为您推荐了 ${recommendations.length} 个任务`}
+                  description="点击上方「查看智能推荐」按钮查看详情"
+                  type="success"
+                  showIcon
+                  style={{ margin: '16px 0' }}
+                />
+              )}
+            </div>
           ) : (
             <Spin spinning={loading}>
               <div style={{ padding: '8px 0' }}>
-                {focusTasks.map(renderTaskPanel)}
+                {focusTasks?.map(renderTaskPanel)}
               </div>
             </Spin>
           )}

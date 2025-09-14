@@ -33,10 +33,41 @@ class DailyFocusTasksService {
       const queryString = params.toString();
       const url = queryString ? `${this.basePath}?${queryString}` : this.basePath;
       
-      const response = await api.get<DailyFocusTaskResponse>(url);
+      const response = await api.get<any>(url);
       
-      // The API interceptor unwraps the response, so we get the data directly
-      return response;
+      // API interceptor已经unwrapped响应，需要将后端格式转换为前端期望的格式
+      // 后端返回: {total_count, active_count, completed_count, tasks: [...]}
+      // 前端期望: {tasks: [...], stats: {...}}
+      const totalCount = response.total_count || 0;
+      const completedCount = response.completed_count || 0;
+      const activeCount = response.active_count || 0;
+      const pendingCount = totalCount - completedCount;
+      const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+      
+      // 计算优先级分布
+      const tasks = response.tasks || [];
+      const priorityDistribution = tasks.reduce((acc: any, task: any) => {
+        const priority = task.priority || 'medium';
+        acc[priority] = (acc[priority] || 0) + 1;
+        return acc;
+      }, {
+        critical: 0,
+        high: 0,
+        medium: 0,
+        low: 0
+      });
+
+      return {
+        tasks: tasks,
+        stats: {
+          total_count: totalCount,
+          completed_count: completedCount,
+          pending_count: pendingCount,
+          completion_rate: completionRate,
+          priority_distribution: priorityDistribution
+        },
+        total_count: totalCount
+      };
     } catch (error: any) {
       // 重新抛出错误，让 hook 处理认证错误
       throw error;
@@ -76,71 +107,66 @@ class DailyFocusTasksService {
   }
 
   async addDailyFocusTask(request: DailyFocusTaskRequest): Promise<DailyFocusTask> {
-    const response = await api.post<APIResponse<DailyFocusTask>>(this.basePath, request);
+    const response = await api.post<DailyFocusTask>(this.basePath, request);
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '添加今日主要任务失败');
-    }
-    
-    return response.data.data!;
+    // API interceptor已经unwrapped响应，直接返回数据
+    return response;
   }
 
   async updateDailyFocusTask(id: number, update: DailyFocusTaskUpdate): Promise<DailyFocusTask> {
-    const response = await api.put<APIResponse<DailyFocusTask>>(`${this.basePath}/${id}`, update);
+    const response = await api.put<DailyFocusTask>(`${this.basePath}/${id}`, update);
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '更新今日主要任务失败');
-    }
-    
-    return response.data.data!;
+    // API interceptor已经unwrapped响应，直接返回数据
+    return response;
   }
 
   async deleteDailyFocusTask(id: number): Promise<void> {
-    const response = await api.delete<APIResponse<void>>(`${this.basePath}/${id}`);
+    await api.delete(`${this.basePath}/${id}`);
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '删除今日主要任务失败');
-    }
+    // API interceptor已经unwrapped响应，无需检查success字段
   }
 
   async reorderDailyFocusTasks(items: DailyFocusTaskReorderItem[]): Promise<void> {
-    const response = await api.put<APIResponse<void>>(`${this.basePath}/reorder`, { items });
+    await api.put(`${this.basePath}/reorder`, { items });
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '调整任务顺序失败');
-    }
+    // API interceptor已经unwrapped响应，无需检查success字段
   }
 
   async markCompleted(id: number): Promise<DailyFocusTask> {
-    const response = await api.post<APIResponse<DailyFocusTask>>(`${this.basePath}/${id}/complete`);
+    const response = await api.post<DailyFocusTask>(`${this.basePath}/${id}/complete`);
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '标记任务完成失败');
-    }
-    
-    return response.data.data!;
+    // API interceptor已经unwrapped响应，直接返回数据
+    return response;
   }
 
-  async getRecommendations(): Promise<Task[]> {
+  async getRecommendations(searchKeyword?: string): Promise<Task[]> {
     try {
-      const response = await api.get<Task[]>(`${this.basePath}/recommendations`);
+      const params = new URLSearchParams();
+      if (searchKeyword) {
+        params.append('search', searchKeyword);
+      }
       
-      // The API interceptor unwraps the response, so we get the data array directly
-      return Array.isArray(response) ? response : [];
+      const url = params.toString() ? `${this.basePath}/recommendations?${params}` : `${this.basePath}/recommendations`;
+      const response = await api.get(url);
+      
+      // Handle the actual API response structure: {data: {suggestions: [{task: ...}]}}
+      if (response && response.suggestions && Array.isArray(response.suggestions)) {
+        const tasks = response.suggestions.map((suggestion: any) => suggestion.task).filter(Boolean);
+        return tasks;
+      }
+      
+      return [];
     } catch (error: any) {
-      // Re-throw error to let hook handle authentication errors
+      // Re-throw error to let hook handle authentication errors  
       throw error;
     }
   }
 
   async batchAddDailyFocusTasks(request: DailyFocusTaskBatchRequest): Promise<DailyFocusTaskBatchResponse> {
-    const response = await api.post<APIResponse<DailyFocusTaskBatchResponse>>(`${this.basePath}/batch`, request);
+    const response = await api.post<DailyFocusTaskBatchResponse>(`${this.basePath}/batch`, request);
     
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '批量添加今日主要任务失败');
-    }
-    
-    return response.data.data!;
+    // API interceptor已经unwrapped响应，直接返回数据
+    return response;
   }
 
   async carryOverTasks(fromDate: string, toDate: string, taskIds?: number[]): Promise<DailyFocusTaskBatchResponse> {
@@ -153,13 +179,23 @@ class DailyFocusTasksService {
       request.task_ids = taskIds;
     }
     
-    const response = await api.post<APIResponse<DailyFocusTaskBatchResponse>>(`${this.basePath}/carry-over`, request);
-    
-    if (!response.data || !response.data.success) {
-      throw new Error(response.data?.error?.message || '任务延续失败');
+    try {
+      const response = await api.post<DailyFocusTaskBatchResponse>(`${this.basePath}/carry-over`, request);
+      
+      // API interceptor已经unwrapped响应，直接返回数据
+      return response;
+    } catch (error: any) {
+      // Enhanced error handling
+      if (error.response?.data?.error?.message) {
+        throw new Error(error.response.data.error.message);
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      } else if (error.message) {
+        throw new Error(error.message);
+      } else {
+        throw new Error('任务延续失败');
+      }
     }
-    
-    return response.data.data!;
   }
 
   async autoCarryOverYesterdayTasks(): Promise<{ success: boolean; count: number; message: string }> {
@@ -175,8 +211,8 @@ class DailyFocusTasksService {
       
       return {
         success: true,
-        count: result.processed_count || 0,
-        message: `成功延续 ${result.processed_count} 个任务`
+        count: result.processed_count || result.ProcessedCount || 0,
+        message: `成功延续 ${result.processed_count || result.ProcessedCount || 0} 个任务`
       };
     } catch (error: any) {
       console.warn('Auto carry-over failed:', error);

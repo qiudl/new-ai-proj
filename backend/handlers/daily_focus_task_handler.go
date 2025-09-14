@@ -16,6 +16,28 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// candidateTask represents a candidate task for recommendation
+type candidateTask struct {
+	TaskID             int
+	ProjectID          int
+	Title              string
+	Description        *string
+	Status             string
+	Priority           string
+	DueDate            *time.Time
+	AssigneeID         *int
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	EstimatedMinutes   *int
+	TaskLevel          int
+	ParentID           *int
+	ProjectName        string
+	ProjectLastActivity time.Time
+	SubtaskCount       int
+	RecentWorkCount    int
+	CarryOverCount     int
+}
+
 // DailyFocusTaskHandler handles all daily focus task-related operations
 type DailyFocusTaskHandler struct {
 	db       database.DB
@@ -192,10 +214,14 @@ func (h *DailyFocusTaskHandler) GetDailyFocusTasks(c *gin.Context) {
 
 		// 统计计算
 		totalCount++
-		if task.Status == models.StatusActive {
-			activeCount++
-		} else if task.Status == models.StatusCompleted {
+		
+		// 判断任务是否完成：检查completed_at字段或task_status为completed
+		isCompleted := task.CompletedAt != nil || (task.TaskStatus != nil && *task.TaskStatus == "completed")
+		
+		if isCompleted {
 			completedCount++
+		} else {
+			activeCount++
 		}
 		
 		if task.EstimatedDurationMinutes != nil {
@@ -1435,37 +1461,53 @@ func (h *DailyFocusTaskHandler) AcceptSuggestions(c *gin.Context) {
 	c.JSON(http.StatusCreated, models.NewSuccessResponse(response, fmt.Sprintf("成功添加 %d 个推荐任务", processedCount)))
 }
 
-// 获取带任务详情的推荐
+// 获取带任务详情的智能推荐
 func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Context, userID int, focusDate string, limit int) ([]models.TaskSuggestion, error) {
+	// 第一步：获取用户的历史完成情况分析
+	userStats, err := h.getUserCompletionStats(ctx, userID)
+	if err != nil {
+		h.logger.Printf("Failed to get user completion stats: %v", err)
+		// 使用默认值
+		userStats = map[string]float64{
+			"completion_rate": 0.7,
+			"avg_task_size": 60,
+			"preferred_priority": 0.6,
+		}
+	}
+
+	// 第二步：获取候选任务的详细信息和初始评分
 	querySQL := `
 		SELECT DISTINCT
 			t.id as task_id,
+			t.project_id,
 			t.title,
 			t.description,
 			t.status,
 			t.priority,
 			t.due_date,
 			t.assignee_id,
-			CASE 
-				WHEN t.due_date = $2::date THEN 'deadline_today'
-				WHEN t.due_date < $2::date THEN 'overdue'
-				WHEN t.due_date BETWEEN $2::date AND $2::date + INTERVAL '3 days' THEN 'deadline_approaching'
-				WHEN t.priority = 'high' THEN 'high_priority'
-				ELSE 'suggested'
-			END as suggestion_reason,
-			CASE 
-				WHEN t.due_date < $2::date THEN 1.0
-				WHEN t.due_date = $2::date THEN 0.95
-				WHEN t.priority = 'high' THEN 0.85
-				WHEN t.due_date BETWEEN $2::date AND $2::date + INTERVAL '3 days' THEN 0.75
-				WHEN t.priority = 'medium' THEN 0.6
-				ELSE 0.4
-			END as suggestion_score,
-			COALESCE(t.estimated_minutes, 60) as estimated_duration_minutes
+			t.created_at,
+			t.updated_at,
+			t.estimated_minutes,
+			t.task_level,
+			t.parent_id,
+			p.name as project_name,
+			p.updated_at as project_last_activity,
+			-- 计算子任务数量
+			(SELECT COUNT(*) FROM tasks sub WHERE sub.parent_id = t.id AND sub.deleted_at IS NULL) as subtask_count,
+			-- 检查是否有最近的工作记录
+			(SELECT COUNT(*) FROM task_time_logs ttl 
+			 WHERE ttl.task_id = t.id AND ttl.user_id = $1 
+			 AND ttl.start_time >= $2::date - INTERVAL '7 days') as recent_work_count,
+			-- 检查是否被频繁延期
+			(SELECT COUNT(*) FROM daily_focus_tasks dft_carried 
+			 WHERE dft_carried.task_id = t.id AND dft_carried.user_id = $1 
+			 AND dft_carried.carried_from_date IS NOT NULL) as carry_over_count
 		FROM tasks t
-		WHERE t.assignee_id = $1
-		  AND t.status IN ('todo', 'in_progress')
+		JOIN projects p ON t.project_id = p.id
+		WHERE t.status NOT IN ('completed', 'cancelled', 'archived')
 		  AND t.deleted_at IS NULL
+		  AND p.deleted_at IS NULL
 		  AND NOT EXISTS (
 			  SELECT 1 FROM daily_focus_tasks dft 
 			  WHERE dft.task_id = t.id 
@@ -1473,43 +1515,675 @@ func (h *DailyFocusTaskHandler) getTaskSuggestionsWithDetails(ctx context.Contex
 				AND dft.focus_date = $2::date
 				AND dft.status = 'active'
 		  )
-		ORDER BY suggestion_score DESC, t.created_at ASC
-		LIMIT $3
+		ORDER BY t.updated_at DESC, t.created_at DESC
+		LIMIT $3 * 2  -- 获取更多候选任务用于评分
 	`
 
-	rows, err := h.db.Query( querySQL, userID, focusDate, limit)
+	rows, err := h.db.Query(querySQL, userID, focusDate, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var suggestions []models.TaskSuggestion
+	var candidates []candidateTask
 	for rows.Next() {
-		var suggestion models.TaskSuggestion
-		var task models.Task
-		
+		var candidate candidateTask
 		err := rows.Scan(
-			&suggestion.TaskID,
-			&task.Title,
-			&task.Description,
-			&task.Status,
-			&task.Priority,
-			&task.DueDate,
-			&task.AssigneeID,
-			&suggestion.SuggestionReason,
-			&suggestion.SuggestionScore,
-			&suggestion.EstimatedDurationMinutes,
+			&candidate.TaskID, &candidate.ProjectID, &candidate.Title, &candidate.Description,
+			&candidate.Status, &candidate.Priority, &candidate.DueDate,
+			&candidate.AssigneeID, &candidate.CreatedAt, &candidate.UpdatedAt,
+			&candidate.EstimatedMinutes, &candidate.TaskLevel, &candidate.ParentID,
+			&candidate.ProjectName, &candidate.ProjectLastActivity,
+			&candidate.SubtaskCount, &candidate.RecentWorkCount, &candidate.CarryOverCount,
 		)
 		if err != nil {
-			h.logger.Printf("Failed to scan task suggestion: %v", err)
+			h.logger.Printf("Failed to scan candidate task: %v", err)
 			continue
 		}
+		candidates = append(candidates, candidate)
+	}
+	rows.Close()
 
-		task.ID = suggestion.TaskID
-		suggestion.Task = &task
+	// 第三步：使用智能算法评分每个候选任务
+	var allSuggestions []models.TaskSuggestion
+	focusDateParsed, _ := time.Parse("2006-01-02", focusDate)
+	
+	for _, candidate := range candidates {
+		score, reason := h.calculateTaskRecommendationScore(candidate, focusDateParsed, userStats)
+		
+		// 计算所有任务的评分，稍后根据需要调整阈值
+		// 处理 Description 指针转换
+		description := ""
+		if candidate.Description != nil {
+			description = *candidate.Description
+		}
 
-		suggestions = append(suggestions, suggestion)
+		task := models.Task{
+			ID:           candidate.TaskID,
+			ProjectID:    candidate.ProjectID,
+			Title:        candidate.Title,
+			Description:  description,
+			Status:       candidate.Status,
+			Priority:     candidate.Priority,
+			DueDate:      candidate.DueDate,
+			AssigneeID:   candidate.AssigneeID,
+		}
+
+		// 处理估算时间的指针转换
+		estimatedMinutes := 0
+		if candidate.EstimatedMinutes != nil {
+			estimatedMinutes = *candidate.EstimatedMinutes
+		}
+
+		suggestion := models.TaskSuggestion{
+			TaskID:                   candidate.TaskID,
+			Task:                     &task,
+			SuggestionReason:         reason,
+			SuggestionScore:          score,
+			EstimatedDurationMinutes: estimatedMinutes,
+		}
+
+		allSuggestions = append(allSuggestions, suggestion)
+	}
+
+	// 按评分排序所有任务
+	for i := 0; i < len(allSuggestions); i++ {
+		for j := i + 1; j < len(allSuggestions); j++ {
+			if allSuggestions[j].SuggestionScore > allSuggestions[i].SuggestionScore {
+				allSuggestions[i], allSuggestions[j] = allSuggestions[j], allSuggestions[i]
+			}
+		}
+	}
+
+	// 动态确定阈值以确保至少有指定数量的推荐任务
+	var suggestions []models.TaskSuggestion
+	minThreshold := 0.15 // 最低阈值，避免推荐质量过低的任务
+	defaultThreshold := 0.3 // 默认阈值
+
+	// 首先尝试默认阈值
+	for _, suggestion := range allSuggestions {
+		if suggestion.SuggestionScore >= defaultThreshold {
+			suggestions = append(suggestions, suggestion)
+		}
+	}
+
+	// 如果默认阈值下的任务数量不足，动态降低阈值
+	if len(suggestions) < limit && len(allSuggestions) > 0 {
+		suggestions = []models.TaskSuggestion{} // 重置
+		
+		// 如果候选任务总数不足请求数量，返回所有候选任务
+		if len(allSuggestions) <= limit {
+			for _, suggestion := range allSuggestions {
+				if suggestion.SuggestionScore >= minThreshold {
+					suggestions = append(suggestions, suggestion)
+				}
+			}
+		} else {
+			// 选择评分最高的limit个任务，但不低于最低阈值
+			count := 0
+			for _, suggestion := range allSuggestions {
+				if suggestion.SuggestionScore >= minThreshold && count < limit {
+					suggestions = append(suggestions, suggestion)
+					count++
+				}
+			}
+		}
+	}
+
+	// 确保不超过请求的数量
+	if len(suggestions) > limit {
+		suggestions = suggestions[:limit]
 	}
 
 	return suggestions, nil
+}
+
+// 获取用户历史完成情况统计
+func (h *DailyFocusTaskHandler) getUserCompletionStats(ctx context.Context, userID int) (map[string]float64, error) {
+	// 计算用户在过去30天的完成率
+	var completionRate float64
+	err := h.db.QueryRow(`
+		SELECT 
+			COALESCE(
+				CAST(COUNT(CASE WHEN status = 'completed' THEN 1 END) AS FLOAT) / 
+				NULLIF(COUNT(*), 0), 
+				0.0
+			) as completion_rate
+		FROM daily_focus_tasks 
+		WHERE user_id = $1 
+		  AND focus_date >= CURRENT_DATE - INTERVAL '30 days'
+	`, userID).Scan(&completionRate)
+	
+	if err != nil {
+		completionRate = 0.7 // 默认完成率
+	}
+
+	// 计算用户偏好的任务大小（平均预估时间）
+	var avgTaskSize float64
+	err = h.db.QueryRow(`
+		SELECT COALESCE(AVG(estimated_duration_minutes), 60.0) as avg_size
+		FROM daily_focus_tasks dft
+		JOIN tasks t ON dft.task_id = t.id
+		WHERE dft.user_id = $1 
+		  AND dft.status = 'completed'
+		  AND dft.focus_date >= CURRENT_DATE - INTERVAL '30 days'
+		  AND estimated_duration_minutes > 0
+	`, userID).Scan(&avgTaskSize)
+	
+	if err != nil {
+		avgTaskSize = 60.0 // 默认1小时
+	}
+
+	// 计算用户对优先级的偏好
+	var preferredPriorityScore float64
+	err = h.db.QueryRow(`
+		SELECT 
+			CASE 
+				WHEN COUNT(*) = 0 THEN 0.6
+				ELSE AVG(
+					CASE priority_level
+						WHEN 'high' THEN 1.0
+						WHEN 'medium' THEN 0.6
+						WHEN 'low' THEN 0.3
+						ELSE 0.6
+					END
+				)
+			END as preferred_priority
+		FROM daily_focus_tasks 
+		WHERE user_id = $1 
+		  AND status = 'completed'
+		  AND focus_date >= CURRENT_DATE - INTERVAL '30 days'
+	`, userID).Scan(&preferredPriorityScore)
+	
+	if err != nil {
+		preferredPriorityScore = 0.6
+	}
+
+	return map[string]float64{
+		"completion_rate":     completionRate,
+		"avg_task_size":       avgTaskSize,
+		"preferred_priority":  preferredPriorityScore,
+	}, nil
+}
+
+// 计算任务推荐评分的核心算法
+func (h *DailyFocusTaskHandler) calculateTaskRecommendationScore(candidate candidateTask, focusDate time.Time, userStats map[string]float64) (float64, string) {
+	var score float64 = 0.0
+	var reason string = "suggested"
+
+	// 1. 紧急度评分 (权重: 40%)
+	urgencyScore := h.calculateUrgencyScore(candidate, focusDate)
+	if urgencyScore >= 0.9 {
+		reason = "overdue"
+	} else if urgencyScore >= 0.8 {
+		reason = "deadline_today"  
+	} else if urgencyScore >= 0.6 {
+		reason = "deadline_approaching"
+	}
+	score += urgencyScore * 0.4
+
+	// 2. 优先级评分 (权重: 25%)
+	priorityScore := h.calculatePriorityScore(candidate, userStats["preferred_priority"])
+	if priorityScore >= 0.8 && reason == "suggested" {
+		reason = "high_priority"
+	}
+	score += priorityScore * 0.25
+
+	// 3. 工作连续性评分 (权重: 15%) - 鼓励完成正在进行的任务
+	continuityScore := h.calculateContinuityScore(candidate)
+	if continuityScore >= 0.8 && reason == "suggested" {
+		reason = "work_in_progress" 
+	}
+	score += continuityScore * 0.15
+
+	// 4. 任务规模匹配度评分 (权重: 10%)
+	sizeScore := h.calculateSizeMatchScore(candidate, userStats["avg_task_size"])
+	score += sizeScore * 0.1
+
+	// 5. 项目活跃度评分 (权重: 10%) - 鼓励参与活跃项目
+	projectScore := h.calculateProjectActivityScore(candidate, focusDate)
+	score += projectScore * 0.1
+
+	// 应用惩罚因子
+	penaltyFactor := h.calculatePenaltyFactor(candidate)
+	score *= penaltyFactor
+
+	// 确保评分在0-1范围内
+	if score > 1.0 {
+		score = 1.0
+	} else if score < 0.0 {
+		score = 0.0
+	}
+
+	return score, reason
+}
+
+// 计算紧急度评分
+func (h *DailyFocusTaskHandler) calculateUrgencyScore(candidate candidateTask, focusDate time.Time) float64 {
+	if candidate.DueDate == nil {
+		return 0.4 // 无截止日期的任务给予中等评分
+	}
+
+	daysUntilDue := candidate.DueDate.Sub(focusDate).Hours() / 24
+
+	if daysUntilDue < 0 {
+		// 已过期 - 最高优先级
+		return 1.0
+	} else if daysUntilDue == 0 {
+		// 今天到期
+		return 0.95
+	} else if daysUntilDue <= 1 {
+		// 明天到期
+		return 0.85
+	} else if daysUntilDue <= 3 {
+		// 3天内到期
+		return 0.75
+	} else if daysUntilDue <= 7 {
+		// 一周内到期
+		return 0.6
+	} else {
+		// 较远的截止日期
+		return 0.3
+	}
+}
+
+// 计算优先级评分
+func (h *DailyFocusTaskHandler) calculatePriorityScore(candidate candidateTask, userPreferredPriority float64) float64 {
+	var basePriorityScore float64
+	switch candidate.Priority {
+	case "high":
+		basePriorityScore = 1.0
+	case "medium":
+		basePriorityScore = 0.6
+	case "low":
+		basePriorityScore = 0.3
+	default:
+		basePriorityScore = 0.6
+	}
+
+	// 根据用户历史偏好调整评分
+	adjustment := (basePriorityScore - userPreferredPriority) * 0.1
+	return basePriorityScore + adjustment
+}
+
+// 计算工作连续性评分
+func (h *DailyFocusTaskHandler) calculateContinuityScore(candidate candidateTask) float64 {
+	score := 0.5 // 基础评分
+
+	// 如果任务状态是in_progress，给予额外评分
+	if candidate.Status == "in_progress" {
+		score += 0.3
+	}
+
+	// 如果最近有工作记录，给予额外评分
+	if candidate.RecentWorkCount > 0 {
+		score += 0.2
+	}
+
+	// 如果是子任务且父任务在进行中，给予奖励
+	if candidate.ParentID != nil {
+		score += 0.1
+	}
+
+	return score
+}
+
+// 计算任务规模匹配度评分
+func (h *DailyFocusTaskHandler) calculateSizeMatchScore(candidate candidateTask, userAvgTaskSize float64) float64 {
+	if candidate.EstimatedMinutes == nil || *candidate.EstimatedMinutes == 0 {
+		return 0.6 // 无估时的任务给予中等评分
+	}
+
+	taskSize := float64(*candidate.EstimatedMinutes)
+	sizeDiff := taskSize - userAvgTaskSize
+
+	// 计算匹配度 - 与用户平均任务大小越接近得分越高
+	if sizeDiff < 0 {
+		sizeDiff = -sizeDiff
+	}
+
+	if sizeDiff <= userAvgTaskSize*0.25 {
+		return 1.0 // 非常匹配
+	} else if sizeDiff <= userAvgTaskSize*0.5 {
+		return 0.8 // 比较匹配
+	} else if sizeDiff <= userAvgTaskSize {
+		return 0.6 // 勉强匹配
+	} else {
+		return 0.3 // 不太匹配
+	}
+}
+
+// 计算项目活跃度评分
+func (h *DailyFocusTaskHandler) calculateProjectActivityScore(candidate candidateTask, focusDate time.Time) float64 {
+	// 基于项目最近更新时间计算活跃度
+	daysSinceLastActivity := focusDate.Sub(candidate.ProjectLastActivity).Hours() / 24
+
+	if daysSinceLastActivity <= 1 {
+		return 1.0 // 今天或昨天有活动
+	} else if daysSinceLastActivity <= 3 {
+		return 0.8 // 3天内有活动
+	} else if daysSinceLastActivity <= 7 {
+		return 0.6 // 一周内有活动
+	} else if daysSinceLastActivity <= 14 {
+		return 0.4 // 两周内有活动
+	} else {
+		return 0.2 // 项目不活跃
+	}
+}
+
+// 计算惩罚因子
+func (h *DailyFocusTaskHandler) calculatePenaltyFactor(candidate candidateTask) float64 {
+	penaltyFactor := 1.0
+
+	// 如果任务被频繁延期，降低推荐度
+	if candidate.CarryOverCount >= 3 {
+		penaltyFactor *= 0.7 // 重度延期任务
+	} else if candidate.CarryOverCount >= 1 {
+		penaltyFactor *= 0.9 // 轻度延期任务
+	}
+
+	// 如果任务有很多子任务但都未完成，可能过于复杂
+	if candidate.SubtaskCount > 5 {
+		penaltyFactor *= 0.8
+	} else if candidate.SubtaskCount > 2 {
+		penaltyFactor *= 0.9
+	}
+
+	return penaltyFactor
+}
+
+// CarryOverTasks godoc
+// @Summary		Carry over daily focus tasks
+// @Description	Carry over uncompleted daily focus tasks from a previous date to a new date
+// @Tags			Daily Focus Tasks
+// @Accept			json
+// @Produce		json
+// @Security		BearerAuth
+// @Param			request			body		models.CarryOverTasksRequest		true	"Carry over request"
+// @Success		201				{object}	models.DailyFocusBatchResponse		"Tasks carried over successfully"
+// @Failure		400				{object}	models.ErrorResponse				"Bad request"
+// @Failure		401				{object}	models.ErrorResponse				"Unauthorized"
+// @Failure		500				{object}	models.ErrorResponse				"Internal server error"
+// @Router			/daily-focus-tasks/carry-over [post]
+func (h *DailyFocusTaskHandler) CarryOverTasks(c *gin.Context) {
+	// 获取用户信息
+	claims, ok := c.Get("claims")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "UNAUTHORIZED",
+				Message: "用户认证信息不存在",
+			},
+		})
+		return
+	}
+
+	userClaims, ok := claims.(*models.ExtendedClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "INVALID_TOKEN",
+				Message: "无效的认证令牌",
+			},
+		})
+		return
+	}
+
+	// 解析请求体
+	var req models.CarryOverTasksRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "INVALID_REQUEST",
+				Message: "请求格式错误: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	// 验证请求参数
+	if err := h.validate.Struct(req); err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "VALIDATION_ERROR",
+				Message: "参数验证失败: " + err.Error(),
+			},
+		})
+		return
+	}
+
+	// 验证日期格式
+	fromDate, err := time.Parse("2006-01-02", req.FromDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "INVALID_DATE_FORMAT",
+				Message: "源日期格式错误，应为YYYY-MM-DD",
+			},
+		})
+		return
+	}
+
+	toDate, err := time.Parse("2006-01-02", req.ToDate)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "INVALID_DATE_FORMAT",
+				Message: "目标日期格式错误，应为YYYY-MM-DD",
+			},
+		})
+		return
+	}
+
+	// 验证日期逻辑
+	if !toDate.After(fromDate) {
+		c.JSON(http.StatusBadRequest, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "INVALID_DATE_RANGE",
+				Message: "目标日期必须晚于源日期",
+			},
+		})
+		return
+	}
+
+	ctx := context.Background()
+	
+	// 开启事务
+	tx, err := h.db.BeginTx(ctx)
+	if err != nil {
+		h.logger.Printf("Failed to begin transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "开启事务失败",
+			},
+		})
+		return
+	}
+	defer tx.Rollback()
+
+	// 构建查询条件
+	var taskFilter string
+	var queryArgs []interface{}
+	queryArgs = append(queryArgs, userClaims.UserID, req.FromDate)
+
+	if len(req.TaskIDs) > 0 {
+		// 指定特定任务
+		placeholders := make([]string, len(req.TaskIDs))
+		for i, taskID := range req.TaskIDs {
+			placeholders[i] = fmt.Sprintf("$%d", len(queryArgs)+1)
+			queryArgs = append(queryArgs, taskID)
+		}
+		taskFilter = fmt.Sprintf("AND dft.task_id IN (%s)", strings.Join(placeholders, ","))
+	}
+
+	// 查询需要延续的任务
+	querySQL := fmt.Sprintf(`
+		SELECT 
+			dft.id, dft.task_id, dft.project_id, dft.priority_level, 
+			dft.user_notes, dft.estimated_duration_minutes,
+			t.status as task_status, t.title as task_title
+		FROM daily_focus_tasks dft
+		JOIN tasks t ON dft.task_id = t.id
+		WHERE dft.user_id = $1 
+		  AND dft.focus_date = $2
+		  AND dft.status = 'active'
+		  AND t.status IN ('todo', 'in_progress')
+		  AND t.deleted_at IS NULL
+		  %s
+		ORDER BY dft.sort_order
+	`, taskFilter)
+
+	rows, err := tx.Query(querySQL, queryArgs...)
+	if err != nil {
+		h.logger.Printf("Failed to query tasks to carry over: %v", err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "查询待延续任务失败",
+			},
+		})
+		return
+	}
+	defer rows.Close()
+
+	// 收集需要延续的任务信息
+	type carryOverTask struct {
+		ID                       int
+		TaskID                   int
+		ProjectID                int
+		PriorityLevel            string
+		UserNotes                *string
+		EstimatedDurationMinutes *int
+		TaskStatus               string
+		TaskTitle                string
+	}
+
+	var tasksToCarryOver []carryOverTask
+	for rows.Next() {
+		var task carryOverTask
+		err := rows.Scan(
+			&task.ID, &task.TaskID, &task.ProjectID, &task.PriorityLevel,
+			&task.UserNotes, &task.EstimatedDurationMinutes,
+			&task.TaskStatus, &task.TaskTitle,
+		)
+		if err != nil {
+			h.logger.Printf("Failed to scan task to carry over: %v", err)
+			continue
+		}
+		tasksToCarryOver = append(tasksToCarryOver, task)
+	}
+	rows.Close()
+
+	if len(tasksToCarryOver) == 0 {
+		c.JSON(http.StatusOK, models.NewSuccessResponse(models.DailyFocusBatchResponse{
+			ProcessedCount: 0,
+			FailedCount:    0,
+		}, "没有找到需要延续的任务"))
+		return
+	}
+
+	// 获取目标日期的最大排序位置
+	var maxSortOrder int
+	err = tx.QueryRow(
+		"SELECT COALESCE(MAX(sort_order), 0) FROM daily_focus_tasks WHERE user_id = $1 AND focus_date = $2 AND status = 'active'",
+		userClaims.UserID, req.ToDate).Scan(&maxSortOrder)
+	
+	if err != nil && err != sql.ErrNoRows {
+		h.logger.Printf("Failed to get max sort order: %v", err)
+		maxSortOrder = 0
+	}
+
+	var processedCount, failedCount int
+	var failedTasks []models.DailyFocusBatchError
+	var carriedOverTaskIDs []int
+
+	// 延续每个任务
+	for _, task := range tasksToCarryOver {
+		// 检查目标日期是否已存在相同任务
+		var existingID int
+		err = tx.QueryRow(
+			"SELECT id FROM daily_focus_tasks WHERE task_id = $1 AND user_id = $2 AND focus_date = $3",
+			task.TaskID, userClaims.UserID, req.ToDate).Scan(&existingID)
+		
+		if err == nil {
+			// 任务已存在于目标日期
+			failedCount++
+			failedTasks = append(failedTasks, models.DailyFocusBatchError{
+				TaskID: task.TaskID,
+				Error:  fmt.Sprintf("任务'%s'已存在于目标日期", task.TaskTitle),
+			})
+			continue
+		} else if err != sql.ErrNoRows {
+			failedCount++
+			failedTasks = append(failedTasks, models.DailyFocusBatchError{
+				TaskID: task.TaskID,
+				Error:  "数据库查询失败",
+			})
+			continue
+		}
+
+		// 创建新的每日焦点任务记录
+		maxSortOrder++
+		_, err = tx.Exec(`
+			INSERT INTO daily_focus_tasks 
+			(task_id, user_id, project_id, focus_date, sort_order, priority_level, 
+			 user_notes, estimated_duration_minutes, carried_from_date, status, created_by)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`,
+			task.TaskID, userClaims.UserID, task.ProjectID, req.ToDate,
+			maxSortOrder, task.PriorityLevel, task.UserNotes, task.EstimatedDurationMinutes,
+			fromDate, models.StatusActive, userClaims.UserID)
+
+		if err != nil {
+			h.logger.Printf("Failed to create carried over task for task %d: %v", task.TaskID, err)
+			failedCount++
+			failedTasks = append(failedTasks, models.DailyFocusBatchError{
+				TaskID: task.TaskID,
+				Error:  "创建延续任务失败",
+			})
+			continue
+		}
+
+		processedCount++
+		carriedOverTaskIDs = append(carriedOverTaskIDs, task.ID)
+	}
+
+	// 注意：不需要更新原任务状态，carry-over只是复制任务到新日期
+	// 源日期的任务保持原状态，这样可以保持历史记录的完整性
+	// 新创建的任务通过 carried_from_date 字段记录来源
+
+	// 提交事务
+	if err = tx.Commit(); err != nil {
+		h.logger.Printf("Failed to commit transaction: %v", err)
+		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
+			Success: false,
+			Error: &models.APIError{
+				Code:    "DATABASE_ERROR",
+				Message: "提交事务失败",
+			},
+		})
+		return
+	}
+
+	response := models.DailyFocusBatchResponse{
+		ProcessedCount: processedCount,
+		FailedCount:    failedCount,
+		FailedTasks:    failedTasks,
+	}
+
+	h.logger.Printf("SUCCESS: Carried over %d tasks from %s to %s for user %d", 
+		processedCount, req.FromDate, req.ToDate, userClaims.UserID)
+
+	message := fmt.Sprintf("成功延续 %d 个任务从 %s 到 %s", processedCount, req.FromDate, req.ToDate)
+	c.JSON(http.StatusCreated, models.NewSuccessResponse(response, message))
 }
