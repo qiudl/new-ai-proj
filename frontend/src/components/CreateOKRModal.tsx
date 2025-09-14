@@ -53,21 +53,41 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
           description: values.description || '',
           startDate: values.dateRange[0].format('YYYY-MM-DD'),
           endDate: values.dateRange[1].format('YYYY-MM-DD'),
+          // 在编辑模式下也包含关键结果
+          keyResults: (values.keyResults || []).map((kr: any) => ({
+            ...kr,
+            currentValue: kr.currentValue || 0,
+            progress: kr.progress || 0,
+            status: kr.status || 'not_started'
+          }))
         };
 
+        console.log('🐛 [CreateOKRModal] Update data with keyResults:', updateData);
         await okrService.updateObjective(editData.id, updateData);
         message.success('OKR目标更新成功');
       } else {
-        // 创建模式
+        // 创建模式  
+        const processedKeyResults = (values.keyResults || []).map((kr: any) => ({
+          title: kr.title,
+          description: kr.description || '',
+          type: kr.type,
+          targetValue: kr.targetValue,
+          currentValue: 0, // 新创建时默认为0
+          unit: kr.unit || '',
+          progress: 0, // 新创建时默认为0
+          status: 'not_started' // 新创建时默认未开始
+        }));
+
         const requestData: CreateObjectiveRequest = {
           title: values.title,
           description: values.description || '',
           quarter: quarter,
           startDate: values.dateRange[0].format('YYYY-MM-DD'),
           endDate: values.dateRange[1].format('YYYY-MM-DD'),
-          keyResults: values.keyResults || []
+          keyResults: processedKeyResults
         };
 
+        console.log('🐛 [CreateOKRModal] Create data with processed keyResults:', requestData);
         await okrService.createObjective(requestData);
         message.success('OKR目标创建成功');
       }
@@ -105,7 +125,15 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
           editData.startDate ? dayjs(editData.startDate) : getCurrentMonthDateRange()[0],
           editData.endDate ? dayjs(editData.endDate) : getCurrentMonthDateRange()[1]
         ],
-        keyResults: editData.keyResults || [{ title: '', type: 'percentage', targetValue: 100, unit: '%' }]
+        keyResults: editData.keyResults && editData.keyResults.length > 0 
+          ? editData.keyResults.map((kr: any) => ({
+              title: kr.title || '',
+              description: kr.description || '',
+              type: kr.type || 'percentage',
+              targetValue: kr.targetValue || 100,
+              unit: kr.unit || '%'
+            }))
+          : [{ title: '', type: 'percentage', targetValue: 100, unit: '%' }]
       };
     }
     return {
@@ -130,6 +158,17 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
       width={600}
       destroyOnHidden
       zIndex={1000}
+      style={{
+        maxHeight: '90vh',
+        top: 20
+      }}
+      styles={{
+        body: {
+          maxHeight: 'calc(90vh - 108px)', // 减去标题栏和底部按钮的高度
+          overflowY: 'auto',
+          paddingRight: '8px'
+        }
+      }}
     >
       <Form
         form={form}
@@ -160,7 +199,7 @@ const CreateOKRModal: React.FC<CreateOKRModalProps> = ({
           <DatePicker.RangePicker 
             style={{ width: '100%' }} 
             getPopupContainer={(triggerNode) => triggerNode.parentElement || document.body}
-            dropdownStyle={{ zIndex: 9999 }}
+            styles={{ popup: { root: { zIndex: 9999 } } }}
           />
         </Form.Item>
 

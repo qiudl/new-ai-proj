@@ -599,7 +599,7 @@ const EnterpriseUserManagementPage: React.FC = () => {
         onCancel={closeModal}
         width={600}
         footer={null}
-        destroyOnClose={true}
+        destroyOnHidden={true}
         getContainer={false}
       >
         <Form

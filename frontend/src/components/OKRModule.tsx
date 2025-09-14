@@ -17,6 +17,7 @@ import {
   InputNumber,
   Dropdown
 } from 'antd';
+import '../styles/OKRModule.css';
 import {
   PlusOutlined,
   SettingOutlined,
@@ -28,7 +29,9 @@ import {
   EditOutlined,
   DeleteOutlined,
   RightOutlined,
-  DownOutlined
+  DownOutlined,
+  SaveOutlined,
+  CloseOutlined
 } from '@ant-design/icons';
 import { OKRObjective, OKRStats, OKRProgressLog } from '../types/okr';
 import okrService from '../services/okrService';
@@ -55,6 +58,9 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
   const [showLogs, setShowLogs] = useState<Record<number, boolean>>({});
   const [loadingLogs, setLoadingLogs] = useState<Record<number, boolean>>({});
   const [expandedObjectives, setExpandedObjectives] = useState<Record<number, boolean>>({});
+  const [expandedKeyResults, setExpandedKeyResults] = useState<Record<number, boolean>>({});
+  const [editingKeyResult, setEditingKeyResult] = useState<number | null>(null);
+  const [editingKRValue, setEditingKRValue] = useState<number>(0);
 
   const currentQuarter = quarter || okrService.getCurrentQuarter();
 
@@ -63,6 +69,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
   }, [currentQuarter]);
 
   const loadOKRData = async () => {
+    console.log('🔥 [loadOKRData] Start loading data for quarter:', currentQuarter);
     setLoading(true);
     try {
       const [objectivesData, statsData] = await Promise.all([
@@ -70,7 +77,12 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
         okrService.getOKRStats(currentQuarter)
       ]);
       
-      setObjectives(objectivesData.objectives || []);
+      console.log('🔥 [loadOKRData] API responses received - objectives:', objectivesData.objectives?.length, 'stats:', statsData);
+      console.log('🔥 [loadOKRData] Raw objectives data:', JSON.stringify(objectivesData.objectives, null, 2));
+      
+      const newObjectives = objectivesData.objectives || [];
+      console.log('🔥 [loadOKRData] Setting new objectives:', newObjectives.length);
+      setObjectives(newObjectives);
       setStats(statsData);
       
       // initialize KR edits map
@@ -78,9 +90,12 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
       for (const obj of objectivesData.objectives || []) {
         for (const kr of obj.keyResults || []) {
           init[kr.id] = kr.currentValue;
+          console.log('🔥 [loadOKRData] KR init - id:', kr.id, 'currentValue:', kr.currentValue, 'progress:', kr.progress, 'status:', kr.status);
         }
       }
       setKrEdits(init);
+      
+      console.log('🔥 [loadOKRData] State updated - objectives count:', objectivesData.objectives?.length);
     } catch (error) {
       console.error('Failed to load OKR data:', error);
       message.error('加载OKR数据失败');
@@ -133,8 +148,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
       }
     });
 
-    // 注意：子目标功能需要后端API支持层级OKR结构
-    // 当前版本OKR不支持子目标，所以这里不添加mock数据
+    // 注意：不再生成模拟子目标，使用实际的数据结构
 
     return rootObjectives;
   };
@@ -145,6 +159,113 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
       ...prev,
       [objectiveId]: !prev[objectiveId]
     }));
+  };
+
+  // 切换关键结果展开/收起状态
+  const toggleKeyResultExpansion = (krId: number) => {
+    setExpandedKeyResults(prev => ({
+      ...prev,
+      [krId]: !prev[krId]
+    }));
+  };
+
+  // 开始编辑关键结果
+  const startEditingKeyResult = (krId: number, currentValue: number) => {
+    console.log('🔥 [startEditingKeyResult] Starting edit - krId:', krId, 'currentValue:', currentValue);
+    setEditingKeyResult(krId);
+    setEditingKRValue(currentValue);
+  };
+
+  // 保存关键结果进度
+  const saveKeyResultProgress = async (krId: number, objectiveId: number) => {
+    try {
+      console.log('🔥 [saveKeyResultProgress] Start - krId:', krId, 'objectiveId:', objectiveId, 'editingKRValue:', editingKRValue);
+      
+      // 找到当前的关键结果以获取targetValue
+      const currentKR = objectives
+        .flatMap(obj => obj.keyResults || [])
+        .find(kr => kr.id === krId);
+      
+      console.log('🔥 [saveKeyResultProgress] Current KR found:', currentKR);
+      
+      if (!currentKR) {
+        throw new Error(`Key result with ID ${krId} not found`);
+      }
+      
+      // 计算进度百分比
+      const progress = Math.round((editingKRValue / currentKR.targetValue) * 100);
+      
+      // 根据进度确定状态
+      let status: 'not_started' | 'in_progress' | 'completed' | 'at_risk' = 'not_started';
+      if (progress >= 100) {
+        status = 'completed';
+      } else if (progress > 0) {
+        status = 'in_progress';
+      }
+      
+      const updateData = {
+        currentValue: editingKRValue,
+        progress: progress,
+        status: status
+      };
+      
+      console.log('🔥 [saveKeyResultProgress] Update data:', updateData);
+      
+      const result = await okrService.updateKeyResult(krId, updateData);
+      console.log('🔥 [saveKeyResultProgress] API response:', result);
+      
+      // Update the state directly for immediate UI update
+      setObjectives(prevObjectives => {
+        return prevObjectives.map(obj => ({
+          ...obj,
+          keyResults: (obj.keyResults || []).map(kr => {
+            if (kr.id === krId) {
+              console.log('🔥 [saveKeyResultProgress] Updating KR in state:', {
+                id: kr.id,
+                oldCurrentValue: kr.currentValue,
+                newCurrentValue: editingKRValue,
+                oldProgress: kr.progress,
+                newProgress: progress,
+                oldStatus: kr.status,
+                newStatus: status
+              });
+              return {
+                ...kr,
+                currentValue: editingKRValue,
+                progress: progress,
+                status: status
+              };
+            }
+            return kr;
+          })
+        }));
+      });
+      
+      // Also update the krEdits state
+      setKrEdits(prev => ({
+        ...prev,
+        [krId]: editingKRValue
+      }));
+      
+      message.success('关键结果进度更新成功');
+      
+      // Still reload data to ensure consistency
+      console.log('🔥 [saveKeyResultProgress] Before loadOKRData - current objectives count:', objectives.length);
+      await loadOKRData();
+      console.log('🔥 [saveKeyResultProgress] After loadOKRData - objectives count:', objectives.length);
+      
+      setEditingKeyResult(null);
+    } catch (error) {
+      console.error('Failed to update key result:', error);
+      message.error('更新关键结果进度失败: ' + (error as any)?.message || 'Unknown error');
+    }
+  };
+
+  // 取消编辑关键结果
+  const cancelEditingKeyResult = () => {
+    console.log('🔥 [cancelEditingKeyResult] Cancelling edit');
+    setEditingKeyResult(null);
+    setEditingKRValue(0);
   };
 
   const handleUpdateObjective = async (id: number, updates: any) => {
@@ -256,7 +377,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
     };
 
     return (
-      <div key={objective.id} style={objectiveStyle}>
+      <div key={objective.id} style={objectiveStyle} className="okr-objective-item">
         {/* 目标标题行 */}
         <div style={{ 
           display: 'flex', 
@@ -273,6 +394,8 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
                 icon={isExpanded ? <DownOutlined /> : <RightOutlined />}
                 onClick={() => toggleObjectiveExpansion(objective.id)}
                 style={{ padding: '0px 4px', minWidth: '20px' }}
+                className="okr-expand-arrow"
+                title={isExpanded ? '收起子目标' : '展开子目标'}
               />
             )}
             
@@ -284,7 +407,7 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
               }}>
                 {isSubObjective ? '└ ' : ''}{objective.title}
               </Text>
-              <Tag color={okrService.getStatusColor(objective.status)} size="small">
+              <Tag color={okrService.getStatusColor(objective.status)}>
                 {okrService.getStatusText(objective.status)}
               </Tag>
             </Space>
@@ -301,20 +424,18 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
               style={{ width: '80px' }}
               status={getProgressStatus(objective.progress)}
             />
-            {!isSubObjective && (
-              <Dropdown
-                menu={{ items: getObjectiveMenuItems(objective) }}
-                trigger={['click']}
-                placement="bottomRight"
-              >
-                <Button 
-                  type="text" 
-                  icon={<MoreOutlined />} 
-                  size="small"
-                  style={{ padding: '4px 8px' }}
-                />
-              </Dropdown>
-            )}
+            <Dropdown
+              menu={{ items: getObjectiveMenuItems(objective) }}
+              trigger={['click']}
+              placement="bottomRight"
+            >
+              <Button 
+                type="text" 
+                icon={<MoreOutlined />} 
+                size="small"
+                style={{ padding: '4px 8px' }}
+              />
+            </Dropdown>
           </Space>
         </div>
 
@@ -333,47 +454,173 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
             <Text strong style={{ fontSize: '12px', marginBottom: '6px', display: 'block' }}>
               关键结果:
             </Text>
-            {objective.keyResults.map((kr, index) => (
-              <div key={kr.id} style={{ 
-                marginBottom: '6px', 
-                padding: '6px', 
-                background: isSubObjective ? '#f0f0f0' : '#f9f9f9',
-                borderRadius: '4px'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  marginBottom: '4px'
+            {objective.keyResults.map((kr, index) => {
+              const isKRExpanded = expandedKeyResults[kr.id];
+              const isEditing = editingKeyResult === kr.id;
+              
+              return (
+                <div key={kr.id} style={{ 
+                  marginBottom: '6px', 
+                  padding: '8px', 
+                  background: isSubObjective ? '#f0f0f0' : '#f9f9f9',
+                  borderRadius: '4px',
+                  border: isEditing ? '1px solid #1890ff' : '1px solid transparent'
                 }}>
-                  <Text style={{ fontSize: '11px' }}>
-                    KR{index + 1}: {kr.title}
-                  </Text>
-                  <Space>
-                    <Tag 
-                      color={okrService.getKRStatusColor(kr.status)}
-                      style={{ fontSize: '10px' }}
-                    >
-                      {okrService.getKRStatusText(kr.status)}
-                    </Tag>
-                    <Text type="secondary" style={{ fontSize: '10px' }}>
-                      {kr.progress}%
+                  {/* KR标题行 - 带展开/收起箭头 */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginBottom: isKRExpanded ? '8px' : '4px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
+                      {/* 展开/收起箭头 */}
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={isKRExpanded ? <DownOutlined /> : <RightOutlined />}
+                        onClick={() => toggleKeyResultExpansion(kr.id)}
+                        style={{ 
+                          padding: '0px 4px', 
+                          minWidth: '16px',
+                          fontSize: '10px'
+                        }}
+                        title={isKRExpanded ? '收起关键结果详情' : '展开关键结果详情'}
+                      />
+                      
+                      <Text style={{ fontSize: '11px', flex: 1 }}>
+                        KR{index + 1}: {kr.title}
+                      </Text>
+                    </div>
+                    
+                    <Space size="small">
+                      <Tag 
+                        color={okrService.getKRStatusColor(kr.status)}
+                        style={{ fontSize: '10px' }}
+                      >
+                        {okrService.getKRStatusText(kr.status)}
+                      </Tag>
+                      <Text type="secondary" style={{ fontSize: '10px' }}>
+                        {kr.progress}%
+                      </Text>
+                    </Space>
+                  </div>
+
+                  {/* 简化进度条 - 始终显示 */}
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    paddingLeft: '22px' // 对齐箭头缩进
+                  }}>
+                    <Progress 
+                      percent={kr.progress} 
+                      size="small" 
+                      style={{ flex: 1 }}
+                      status={getProgressStatus(kr.progress)}
+                    />
+                    <Text type="secondary" style={{ fontSize: '10px', minWidth: '80px' }}>
+                      {kr.currentValue}/{kr.targetValue}{kr.unit}
                     </Text>
-                  </Space>
+                  </div>
+
+                  {/* 展开的详细信息和编辑功能 */}
+                  {isKRExpanded && (
+                    <div style={{ 
+                      paddingLeft: '22px', // 对齐箭头缩进
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: isSubObjective ? '#e8e8e8' : '#f0f0f0',
+                      borderRadius: '4px'
+                    }}>
+                      {/* KR描述 */}
+                      {kr.description && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <Text type="secondary" style={{ fontSize: '11px' }}>
+                            {kr.description}
+                          </Text>
+                        </div>
+                      )}
+                      
+                      {/* 进度更新区域 */}
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        padding: '6px',
+                        background: '#fff',
+                        borderRadius: '4px',
+                        border: '1px solid #e8e8e8'
+                      }}>
+                        <Text style={{ fontSize: '11px', minWidth: '60px' }}>
+                          当前进度:
+                        </Text>
+                        
+                        {isEditing ? (
+                          // 编辑模式
+                          <>
+                            <InputNumber
+                              size="small"
+                              value={editingKRValue}
+                              onChange={(value) => {
+                                console.log('🔥 [InputNumber] Value changed:', value);
+                                setEditingKRValue(value || 0);
+                              }}
+                              min={0}
+                              max={kr.targetValue}
+                              style={{ width: '80px' }}
+                              precision={kr.unit === '%' ? 0 : 2}
+                            />
+                            <Text style={{ fontSize: '11px' }}>
+                              / {kr.targetValue}{kr.unit}
+                            </Text>
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<SaveOutlined />}
+                              onClick={() => {
+                                console.log('🔥 [Save Button] Clicked - krId:', kr.id, 'objectiveId:', objective.id, 'editingKRValue:', editingKRValue);
+                                saveKeyResultProgress(kr.id, objective.id);
+                              }}
+                              style={{ marginLeft: 'auto' }}
+                            >
+                              保存
+                            </Button>
+                            <Button
+                              size="small"
+                              icon={<CloseOutlined />}
+                              onClick={cancelEditingKeyResult}
+                            >
+                              取消
+                            </Button>
+                          </>
+                        ) : (
+                          // 显示模式
+                          <>
+                            <Text style={{ fontSize: '11px', fontWeight: 'bold' }}>
+                              {kr.currentValue} / {kr.targetValue}{kr.unit}
+                            </Text>
+                            <Button
+                              type="link"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => startEditingKeyResult(kr.id, kr.currentValue)}
+                              style={{ 
+                                marginLeft: 'auto',
+                                fontSize: '10px',
+                                padding: '0 4px'
+                              }}
+                            >
+                              更新进度
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Progress 
-                    percent={kr.progress} 
-                    size="small" 
-                    style={{ flex: 1 }}
-                    status={getProgressStatus(kr.progress)}
-                  />
-                  <Text type="secondary" style={{ fontSize: '10px', minWidth: '80px' }}>
-                    {kr.currentValue}/{kr.targetValue}{kr.unit}
-                  </Text>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -452,20 +699,33 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
         </Row>
       </div>
 
-      {/* 目标列表 - 层级显示 */}
+      {/* 目标列表 - 层级显示，带滚动条 */}
       {objectives && objectives.length > 0 ? (
-        <div style={{ marginTop: '16px' }}>
+        <div 
+          style={{ 
+            marginTop: '16px',
+            maxHeight: '400px',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingRight: '4px'
+          }}
+          className="okr-objectives-scroll"
+        >
           {organizeObjectivesTree(objectives).map((objective) => (
             <div key={objective.id}>
               {/* 渲染父目标 */}
               {renderObjectiveItem(objective, false)}
               
               {/* 渲染子目标 - 仅在展开时显示 */}
-              {objective.isExpanded && objective.subObjectives && objective.subObjectives.map((subObjective) => (
-                <div key={subObjective.id}>
-                  {renderObjectiveItem(subObjective, true)}
+              {objective.isExpanded && objective.subObjectives && (
+                <div className="okr-sub-objectives">
+                  {objective.subObjectives.map((subObjective) => (
+                    <div key={subObjective.id}>
+                      {renderObjectiveItem(subObjective, true)}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           ))}
         </div>
@@ -485,32 +745,6 @@ const OKRModule: React.FC<OKRModuleProps> = ({ quarter, style }) => {
         </Empty>
       )}
 
-      {/* 本周工作贡献总结 */}
-      {stats && stats.totalObjectives > 0 && (
-        <Alert
-          message="本季度工作概览"
-          description={
-            <div>
-              <Text>
-                当前有 <Text strong>{stats.totalObjectives}</Text> 个目标在进行中，
-                已完成 <Text strong>{stats.completedObjectives}</Text> 个，
-                平均进度 <Text strong>{stats.averageProgress?.toFixed(1) || '0.0'}%</Text>
-              </Text>
-              {stats.atRiskCount > 0 && (
-                <>
-                  <br />
-                  <Text type="warning">
-                    ⚠️ 有 <Text strong>{stats.atRiskCount}</Text> 个目标需要关注
-                  </Text>
-                </>
-              )}
-            </div>
-          }
-          type="info"
-          showIcon
-          style={{ marginTop: '16px' }}
-        />
-      )}
 
       {/* 创建目标弹窗 */}
       <CreateOKRModal
